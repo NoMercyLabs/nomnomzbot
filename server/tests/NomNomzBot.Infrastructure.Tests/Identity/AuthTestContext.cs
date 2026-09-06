@@ -541,7 +541,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<ChannelSubscription>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
-        b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>();
+        // TtsUsageRecord is scalar-only (no navigation properties), so it materializes on InMemory as-is —
+        // mapped so AdminService's per-tenant usage tests (S-ADMIN-6b) can seed and sum it through this harness.
+        b.Entity<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>().HasKey(e => e.Id);
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog>();
 
@@ -724,7 +726,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Tts.Entities.UserTtsVoice> UserTtsVoices =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord> TtsUsageRecords =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry> TtsCacheEntries =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsLexiconEntry> TtsLexiconEntries =>

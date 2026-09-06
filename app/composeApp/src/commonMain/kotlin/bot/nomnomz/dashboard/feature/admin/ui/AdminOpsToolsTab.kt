@@ -43,6 +43,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.AdminEventSubTenantHealth
 import bot.nomnomz.dashboard.core.network.AdminEventSubTopicHealth
+import bot.nomnomz.dashboard.core.network.AdminScheduledJob
+import bot.nomnomz.dashboard.core.network.AdminTenantUsage
 import bot.nomnomz.dashboard.core.network.AdminWebhookDelivery
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
@@ -52,6 +54,17 @@ import nomnomzbot.composeapp.generated.resources.admin_cancel
 import nomnomzbot.composeapp.generated.resources.admin_eventsub_health_empty
 import nomnomzbot.composeapp.generated.resources.admin_eventsub_health_last_confirmed
 import nomnomzbot.composeapp.generated.resources.admin_eventsub_health_topic_label
+import nomnomzbot.composeapp.generated.resources.admin_job_label
+import nomnomzbot.composeapp.generated.resources.admin_job_retry
+import nomnomzbot.composeapp.generated.resources.admin_job_retry_confirm_action
+import nomnomzbot.composeapp.generated.resources.admin_job_retry_confirm_body
+import nomnomzbot.composeapp.generated.resources.admin_job_retry_confirm_title
+import nomnomzbot.composeapp.generated.resources.admin_job_retry_disabled_reason
+import nomnomzbot.composeapp.generated.resources.admin_scheduled_jobs_empty
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_empty
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_label
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_period
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_tts_characters
 import nomnomzbot.composeapp.generated.resources.admin_webhook_delivery_attempt
 import nomnomzbot.composeapp.generated.resources.admin_webhook_delivery_label
 import nomnomzbot.composeapp.generated.resources.admin_webhook_delivery_response_code
@@ -65,6 +78,7 @@ import org.jetbrains.compose.resources.stringResource
 
 private const val STATUS_ENABLED: String = "enabled"
 private const val STATUS_DELIVERED: String = "Delivered"
+private const val JOB_STATUS_FAILED: String = "failed"
 
 /**
  * Per-tenant EventSub subscription health (S-ADMIN-6a): which topics are subscribed for which broadcaster,
@@ -292,6 +306,213 @@ private fun WebhookReplayConfirmDialog(delivery: AdminWebhookDelivery, onDismiss
             TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
             Button(variant = ButtonVariant.Outline, onClick = onConfirm) {
                 Text(text = stringResource(Res.string.admin_webhook_replay_confirm_action))
+            }
+        }
+    }
+}
+
+/**
+ * The REAL background job queue (S-ADMIN-6b): every `ScheduledPipelineTask` row — never a fabricated parallel
+ * queue — with its actual queued/running/succeeded/failed/cancelled state, and a retry trigger that shows
+ * exactly which pipeline it will re-run BEFORE the retry commits. The commit itself schedules a genuinely NEW
+ * deferred run; it never mutates the failed attempt being retried.
+ */
+@Composable
+internal fun ScheduledJobsTab(state: AdminState, controller: AdminController) {
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        state.scheduledJobsError?.let { ActionErrorBanner(message = it) }
+        state.retryError?.let { ActionErrorBanner(message = it) }
+
+        if (state.scheduledJobsLoading) {
+            Spinner(color = tokens.primary)
+        } else if (state.scheduledJobs.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_scheduled_jobs_empty))
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.scheduledJobs.forEachIndexed { index, job ->
+                        ScheduledJobRow(
+                            job = job,
+                            onRetry = { controller.stageScheduledJobRetry(job.id) },
+                        )
+                        if (index < state.scheduledJobs.lastIndex) Separator()
+                    }
+                }
+            }
+        }
+    }
+
+    val pending: AdminScheduledJob? =
+        state.scheduledJobs.firstOrNull { it.id == state.retryPendingJobId }
+    if (pending != null) {
+        ScheduledJobRetryConfirmDialog(
+            job = pending,
+            onDismiss = { controller.dismissScheduledJobRetry() },
+            onConfirm = { scope.launch { controller.confirmScheduledJobRetry() } },
+        )
+    }
+}
+
+@Composable
+private fun ScheduledJobRow(job: AdminScheduledJob, onRetry: () -> Unit) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+    val failed: Boolean = job.displayState.equals(JOB_STATUS_FAILED, ignoreCase = true)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = resolveRowLabel(
+                        primary = job.pipelineName ?: job.pipelineId,
+                        secondary = job.channelDisplayName,
+                        typeLabel = stringResource(Res.string.admin_job_label),
+                        discriminatorSource = job.id,
+                    ),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                )
+                Badge(variant = if (failed) BadgeVariant.Destructive else BadgeVariant.Secondary) {
+                    Text(text = job.displayState, style = typography.xs)
+                }
+            }
+            Text(text = job.triggeredByDisplayName, style = typography.xs, color = tokens.mutedForeground)
+            Text(text = job.dueAt, style = typography.xs, color = tokens.mutedForeground)
+            if (!job.pipelineExists) {
+                Text(
+                    text = stringResource(Res.string.admin_job_retry_disabled_reason),
+                    style = typography.xs,
+                    color = tokens.destructive,
+                )
+            }
+        }
+
+        // Retry is a side-effecting re-dispatch, never level with the row's own text — a quiet outline
+        // trigger here, disabled unless the job genuinely failed and its pipeline still exists; the loud
+        // commit lives in the confirm dialog, which names exactly which pipeline it will re-run.
+        Column(horizontalAlignment = Alignment.End) {
+            Button(variant = ButtonVariant.Outline, onClick = onRetry, enabled = job.canRetry) {
+                Text(text = stringResource(Res.string.admin_job_retry))
+            }
+            if (!job.canRetry) {
+                Text(
+                    text = stringResource(Res.string.admin_job_retry_disabled_reason),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+            }
+        }
+    }
+}
+
+/** Shows exactly which pipeline a retry will re-run BEFORE the retry commits. Confirming schedules a
+ * genuinely NEW deferred run; it never mutates the failed attempt being retried. */
+@Composable
+private fun ScheduledJobRetryConfirmDialog(job: AdminScheduledJob, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        DialogTitle(text = stringResource(Res.string.admin_job_retry_confirm_title))
+        Spacer(modifier = Modifier.height(spacing.s2))
+        Text(
+            text = stringResource(
+                Res.string.admin_job_retry_confirm_body,
+                job.pipelineName ?: job.pipelineId,
+                job.channelDisplayName,
+            ),
+            style = typography.sm,
+            color = tokens.foreground,
+        )
+        Spacer(modifier = Modifier.height(spacing.s2))
+        DialogFooter {
+            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
+            Button(variant = ButtonVariant.Outline, onClick = onConfirm) {
+                Text(text = stringResource(Res.string.admin_job_retry_confirm_action))
+            }
+        }
+    }
+}
+
+/**
+ * Per-tenant usage for each tenant's most recent metering period (S-ADMIN-6b), computed purely from recorded
+ * `UsageRecord`/`TtsUsageRecord` rows — never a fabricated currency figure, since no per-unit price table
+ * exists in this codebase. The period each row covers is stated explicitly.
+ */
+@Composable
+internal fun TenantUsageTab(state: AdminState, controller: AdminController) {
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        state.tenantUsageError?.let { ActionErrorBanner(message = it) }
+
+        if (state.tenantUsageLoading) {
+            Spinner(color = tokens.primary)
+        } else if (state.tenantUsage.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_tenant_usage_empty))
+        } else {
+            state.tenantUsage.forEach { usage -> TenantUsageCard(usage) }
+        }
+    }
+}
+
+@Composable
+private fun TenantUsageCard(usage: AdminTenantUsage) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column {
+            Text(
+                text = resolveRowLabel(
+                    primary = usage.channelDisplayName,
+                    typeLabel = stringResource(Res.string.admin_tenant_usage_label),
+                    discriminatorSource = usage.broadcasterId,
+                ),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                modifier = Modifier.padding(horizontal = spacing.s4, vertical = spacing.s3),
+            )
+            Separator()
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                Text(
+                    text = stringResource(Res.string.admin_tenant_usage_period, usage.periodStart, usage.periodEnd),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+                usage.metrics.forEach { metric ->
+                    Text(
+                        text = "${metric.metricKey}: ${metric.quantity}",
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.admin_tenant_usage_tts_characters, usage.ttsCharacterCount),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                )
             }
         }
     }

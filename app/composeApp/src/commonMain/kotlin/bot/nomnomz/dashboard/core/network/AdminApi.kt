@@ -353,6 +353,63 @@ data class AdminWebhookReplayResult(
     val responseCode: Int? = null,
 )
 
+// ── Background job queue + retry, per-tenant usage (S-ADMIN-6b) ──
+
+/**
+ * One row of the REAL background job queue — a `ScheduledPipelineTask` (the deferred one-shot pipeline
+ * dispatch primitive, e.g. a voice-swap auto-revert), never a fabricated parallel queue. [status] is the raw
+ * persisted value (`pending`/`fired`/`cancelled`/`expired`); [displayState] is the operator-facing label
+ * (`queued`/`running`/`succeeded`/`failed`/`cancelled`). [canRetry] is true only for a genuinely failed job
+ * whose target pipeline still exists.
+ */
+@Serializable
+data class AdminScheduledJob(
+    val id: String,
+    val broadcasterId: String,
+    val channelDisplayName: String,
+    val pipelineId: String,
+    val pipelineName: String? = null,
+    val pipelineExists: Boolean,
+    val status: String,
+    val displayState: String,
+    val dueAt: String,
+    val firedAt: String? = null,
+    val createdAt: String,
+    val triggeredByDisplayName: String,
+    val canRetry: Boolean,
+)
+
+/** The outcome of an admin-initiated job retry: a brand-new task row was appended, due immediately — the
+ * original failed attempt is never mutated. */
+@Serializable
+data class AdminScheduledJobRetryResult(
+    val originalTaskId: String,
+    val newTaskId: String,
+    val pipelineId: String,
+    val pipelineName: String,
+    val newDueAt: String,
+)
+
+/** One metered quantity for a tenant's usage period, straight off the real recorded rows. */
+@Serializable
+data class AdminTenantUsageMetric(
+    val metricKey: String,
+    val quantity: Long,
+)
+
+/** One tenant's usage for its most recent metering period — computed purely from recorded usage, never a
+ * fabricated currency figure (there is no per-unit price table). [periodStart]/[periodEnd] state exactly
+ * which window the figures cover. */
+@Serializable
+data class AdminTenantUsage(
+    val broadcasterId: String,
+    val channelDisplayName: String,
+    val periodStart: String,
+    val periodEnd: String,
+    val metrics: List<AdminTenantUsageMetric> = emptyList(),
+    val ttsCharacterCount: Long = 0,
+)
+
 // ─── API interface + implementation ──────────────────────────────────────────
 
 interface AdminApi {
@@ -441,6 +498,21 @@ interface AdminApi {
 
     /** Replays one delivery: a genuinely new attempt is sent and appended; the original is untouched. */
     suspend fun replayWebhookDelivery(deliveryId: Long): ApiResult<AdminWebhookReplayResult> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    // Background job queue + retry, per-tenant usage (S-ADMIN-6b). Same NOT_IMPLEMENTED default as the
+    // S-ADMIN-6a methods above, for the same reason.
+
+    /** The real background job queue — every `ScheduledPipelineTask` row across every tenant, newest first. */
+    suspend fun getScheduledJobs(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminScheduledJob>> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** Retries one failed job: a brand-new deferred run is scheduled and appended; the original is untouched. */
+    suspend fun retryScheduledJob(taskId: String): ApiResult<AdminScheduledJobRetryResult> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** Per-tenant usage for each tenant's most recent metering period, computed from recorded usage. */
+    suspend fun getTenantUsage(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
@@ -597,6 +669,15 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun replayWebhookDelivery(deliveryId: Long): ApiResult<AdminWebhookReplayResult> =
         client.postEnvelope("api/v1/admin/webhooks/deliveries/$deliveryId/replay")
+
+    override suspend fun getScheduledJobs(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminScheduledJob>> =
+        client.getDirect("api/v1/admin/jobs?page=$page&pageSize=$pageSize")
+
+    override suspend fun retryScheduledJob(taskId: String): ApiResult<AdminScheduledJobRetryResult> =
+        client.postEnvelope("api/v1/admin/jobs/$taskId/retry")
+
+    override suspend fun getTenantUsage(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
+        client.getDirect("api/v1/admin/usage?page=$page&pageSize=$pageSize")
 
     private fun searchQuery(search: String?): String =
         search?.takeIf { it.isNotBlank() }?.let { "&search=${it.encodeQuery()}" } ?: ""

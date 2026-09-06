@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -30,7 +31,11 @@ import bot.nomnomz.dashboard.core.network.AdminEventSubTopicHealth
 import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
 import bot.nomnomz.dashboard.core.network.AdminInvoice
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
+import bot.nomnomz.dashboard.core.network.AdminScheduledJob
+import bot.nomnomz.dashboard.core.network.AdminScheduledJobRetryResult
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
+import bot.nomnomz.dashboard.core.network.AdminTenantUsage
+import bot.nomnomz.dashboard.core.network.AdminTenantUsageMetric
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
 import bot.nomnomz.dashboard.core.network.AdminStats
@@ -60,11 +65,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * S-ADMIN-6a — the admin console's "2am tools", first half. Proves the EventSub health tab renders one
- * tenant's REAL registry rows with their real status (a healthy topic and a revoked one read differently,
- * never a uniform "all good"), and that the webhook delivery log's replay control shows exactly what it will
- * re-send — the event type and the target endpoint — BEFORE the send commits, mirroring
- * [AdminInvoicesRenderTest]'s refund-preview pattern.
+ * S-ADMIN-6a/6b — the admin console's "2am tools". Proves the EventSub health tab renders one tenant's REAL
+ * registry rows with their real status (a healthy topic and a revoked one read differently, never a uniform
+ * "all good"), that the webhook delivery log's replay control shows exactly what it will re-send BEFORE the
+ * send commits, that the background job queue renders both a queued and a failed job with real, distinct
+ * state and its retry control shows exactly which pipeline it will re-run before the retry commits, and that
+ * per-tenant usage renders real recorded quantities — mirroring [AdminInvoicesRenderTest]'s refund-preview
+ * pattern throughout.
  */
 @OptIn(ExperimentalTestApi::class)
 class AdminOpsToolsTabRenderTest {
@@ -86,6 +93,18 @@ class AdminOpsToolsTabRenderTest {
     private fun ObservingWebhookDeliveriesTab(controller: AdminController) {
         val state by controller.state.collectAsState()
         WebhookDeliveriesTab(state = state, controller = controller)
+    }
+
+    @Composable
+    private fun ObservingScheduledJobsTab(controller: AdminController) {
+        val state by controller.state.collectAsState()
+        ScheduledJobsTab(state = state, controller = controller)
+    }
+
+    @Composable
+    private fun ObservingTenantUsageTab(controller: AdminController) {
+        val state by controller.state.collectAsState()
+        TenantUsageTab(state = state, controller = controller)
     }
 
     @Test
@@ -196,15 +215,124 @@ class AdminOpsToolsTabRenderTest {
             assertEquals(42L, api.lastReplayedDeliveryId)
         }
     }
+
+    @Test
+    fun scheduled_job_queue_renders_a_queued_job_and_a_failed_one_with_their_real_state() {
+        val queued = AdminScheduledJob(
+            id = "job-1",
+            broadcasterId = "chan-1",
+            channelDisplayName = "qtkitte",
+            pipelineId = "pipe-1",
+            pipelineName = "feather-hide",
+            pipelineExists = true,
+            status = "pending",
+            displayState = "queued",
+            dueAt = "2026-09-06T13:00:00Z",
+            createdAt = "2026-09-06T12:00:00Z",
+            triggeredByDisplayName = "some_viewer",
+            canRetry = false,
+        )
+        val failed = AdminScheduledJob(
+            id = "job-2",
+            broadcasterId = "chan-1",
+            channelDisplayName = "qtkitte",
+            pipelineId = "pipe-2",
+            pipelineName = "voice-swap-revert",
+            pipelineExists = true,
+            status = "expired",
+            displayState = "failed",
+            dueAt = "2026-09-06T11:00:00Z",
+            firedAt = "2026-09-06T11:00:00Z",
+            createdAt = "2026-09-06T10:00:00Z",
+            triggeredByDisplayName = "other_viewer",
+            canRetry = true,
+        )
+        val api = FakeAdminApiForOpsToolsTest(scheduledJobs = listOf(queued, failed))
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+        runTest { controller.loadScheduledJobs() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingScheduledJobsTab(controller = controller)
+                }
+            }
+            waitForIdle()
+
+            // Real, distinct state — never a uniform label for both rows.
+            onNodeWithText("feather-hide", substring = true).assertExists()
+            onNodeWithText("queued", substring = true).assertExists()
+            onNodeWithText("voice-swap-revert", substring = true).assertExists()
+            onNodeWithText("failed", substring = true).assertExists()
+
+            // Retrying shows exactly which pipeline it will re-run — nothing sent yet. Two rows both carry a
+            // Retry control (the queued job's is disabled); the failed row's is the second one rendered.
+            onAllNodesWithText("Retry")[1].performClick()
+            waitForIdle()
+            assertEquals(0, api.retryCallCount)
+            onNodeWithText("This schedules a brand-new run of voice-swap-revert for qtkitte", substring = true)
+                .assertExists()
+
+            onNodeWithText("Confirm retry").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.retryCallCount)
+            assertEquals("job-2", api.lastRetriedTaskId)
+        }
+    }
+
+    @Test
+    fun tenant_usage_renders_the_real_recorded_quantities_and_period() {
+        val usage = AdminTenantUsage(
+            broadcasterId = "chan-1",
+            channelDisplayName = "qtkitte",
+            periodStart = "2026-09-01T00:00:00Z",
+            periodEnd = "2026-10-01T00:00:00Z",
+            metrics = listOf(AdminTenantUsageMetric(metricKey = "chat_messages", quantity = 500)),
+            ttsCharacterCount = 42,
+        )
+        val api = FakeAdminApiForOpsToolsTest(tenantUsage = listOf(usage))
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+        runTest { controller.loadTenantUsage() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingTenantUsageTab(controller = controller)
+                }
+            }
+            waitForIdle()
+
+            onNodeWithText("qtkitte", substring = true).assertExists()
+            onNodeWithText("chat_messages: 500", substring = true).assertExists()
+            onNodeWithText("TTS characters: 42", substring = true).assertExists()
+        }
+    }
 }
 
 private class FakeAdminApiForOpsToolsTest(
     private val eventSubHealth: List<AdminEventSubTenantHealth> = emptyList(),
     private var webhookDeliveries: List<AdminWebhookDelivery> = emptyList(),
+    private var scheduledJobs: List<AdminScheduledJob> = emptyList(),
+    private val tenantUsage: List<AdminTenantUsage> = emptyList(),
 ) : AdminApi {
     var replayCallCount: Int = 0
         private set
     var lastReplayedDeliveryId: Long? = null
+        private set
+    var retryCallCount: Int = 0
+        private set
+    var lastRetriedTaskId: String? = null
         private set
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
@@ -271,6 +399,37 @@ private class FakeAdminApiForOpsToolsTest(
         webhookDeliveries = webhookDeliveries + replay
         return ApiResult.Ok(AdminWebhookReplayResult(deliveryId, replay.id, replay.status, replay.responseCode))
     }
+
+    override suspend fun getScheduledJobs(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminScheduledJob>> =
+        ApiResult.Ok(PaginatedEnvelope(scheduledJobs))
+
+    // Mirrors the real backend: a retry appends a NEW pending row and leaves the original failed attempt
+    // exactly as it was — this fake's list gains a second row rather than mutating the one being retried.
+    override suspend fun retryScheduledJob(taskId: String): ApiResult<AdminScheduledJobRetryResult> {
+        retryCallCount++
+        lastRetriedTaskId = taskId
+        val original = scheduledJobs.first { it.id == taskId }
+        val retried = original.copy(
+            id = "${original.id}-retry",
+            status = "pending",
+            displayState = "queued",
+            firedAt = null,
+            canRetry = false,
+        )
+        scheduledJobs = scheduledJobs + retried
+        return ApiResult.Ok(
+            AdminScheduledJobRetryResult(
+                originalTaskId = original.id,
+                newTaskId = retried.id,
+                pipelineId = original.pipelineId,
+                pipelineName = original.pipelineName ?: original.pipelineId,
+                newDueAt = "2026-09-06T12:00:01Z",
+            )
+        )
+    }
+
+    override suspend fun getTenantUsage(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
+        ApiResult.Ok(PaginatedEnvelope(tenantUsage))
 }
 
 private class FakeIamApiForOpsToolsTest : PlatformIamApi {

@@ -33,6 +33,8 @@ import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
 import bot.nomnomz.dashboard.core.network.AdminEventSubTenantHealth
 import bot.nomnomz.dashboard.core.network.AdminInvoice
+import bot.nomnomz.dashboard.core.network.AdminScheduledJob
+import bot.nomnomz.dashboard.core.network.AdminTenantUsage
 import bot.nomnomz.dashboard.core.network.AdminWebhookDelivery
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
 import bot.nomnomz.dashboard.core.network.AdminTier
@@ -206,6 +208,18 @@ data class AdminState(
      * what it will re-send (event type + target endpoint) comes straight off this row. */
     val replayPendingDeliveryId: Long? = null,
     val replayError: String? = null,
+    // ── Background job queue + retry (S-ADMIN-6b) ──
+    val scheduledJobs: List<AdminScheduledJob> = emptyList(),
+    val scheduledJobsLoading: Boolean = false,
+    val scheduledJobsError: String? = null,
+    /** The job a retry confirmation is currently open for, or null when no confirm dialog is showing — the
+     * pipeline it will re-run comes straight off this row (consequences must be visible before it commits). */
+    val retryPendingJobId: String? = null,
+    val retryError: String? = null,
+    // ── Per-tenant usage (S-ADMIN-6b) ──
+    val tenantUsage: List<AdminTenantUsage> = emptyList(),
+    val tenantUsageLoading: Boolean = false,
+    val tenantUsageError: String? = null,
     // ── Impersonation (admin act-as) ──
     /** Set alongside [actionError] when a mint attempt fails for one of these two RECOGNIZED reasons, so the
      * confirm dialog can render a calm, specific explanation instead of the raw server message. Null for any
@@ -1025,6 +1039,55 @@ class AdminController(
             }
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(replayError = result.error.message)
+        }
+    }
+
+    // ── Background job queue + retry (S-ADMIN-6b) ───────────────────────────────
+
+    /** Loads the REAL background job queue — every `ScheduledPipelineTask` row, never a fabricated list. */
+    suspend fun loadScheduledJobs() {
+        _state.value = _state.value.copy(scheduledJobsLoading = true, scheduledJobsError = null)
+        when (val result = api.getScheduledJobs()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(scheduledJobs = result.value.data, scheduledJobsLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(scheduledJobsLoading = false, scheduledJobsError = result.error.message)
+        }
+    }
+
+    /** Opens the retry confirmation for [taskId] — nothing is sent until [confirmScheduledJobRetry]. */
+    fun stageScheduledJobRetry(taskId: String) {
+        _state.value = _state.value.copy(retryPendingJobId = taskId, retryError = null)
+    }
+
+    fun dismissScheduledJobRetry() {
+        _state.value = _state.value.copy(retryPendingJobId = null)
+    }
+
+    /** Commits the retry: schedules a brand-new deferred run for the same pipeline (the original failed
+     * attempt stays exactly as it was), then reloads the queue so the new row is visible immediately. */
+    suspend fun confirmScheduledJobRetry() {
+        val taskId: String = _state.value.retryPendingJobId ?: return
+        when (val result = api.retryScheduledJob(taskId)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(retryPendingJobId = null, retryError = null)
+                loadScheduledJobs()
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(retryError = result.error.message)
+        }
+    }
+
+    // ── Per-tenant usage (S-ADMIN-6b) ───────────────────────────────────────────
+
+    /** Loads per-tenant usage for each tenant's most recent metering period, computed from recorded usage. */
+    suspend fun loadTenantUsage() {
+        _state.value = _state.value.copy(tenantUsageLoading = true, tenantUsageError = null)
+        when (val result = api.getTenantUsage()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(tenantUsage = result.value.data, tenantUsageLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(tenantUsageLoading = false, tenantUsageError = result.error.message)
         }
     }
 

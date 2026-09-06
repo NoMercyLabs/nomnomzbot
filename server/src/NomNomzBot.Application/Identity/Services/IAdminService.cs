@@ -64,4 +64,36 @@ public interface IAdminService
         Guid actorUserId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The REAL background job queue (S-ADMIN-6b) — every <c>ScheduledPipelineTask</c> row, newest first,
+    /// paged. Never a fabricated queue: this is the exact primitive <c>ScheduledPipelineExpiryService</c>
+    /// sweeps and dispatches.
+    /// </summary>
+    Task<Result<PagedList<AdminScheduledJobDto>>> GetScheduledJobQueueAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Retries one failed (expired) scheduled job by scheduling a brand-new deferred run for the same pipeline,
+    /// due immediately — appended as its own row; the original failed attempt is never mutated. Refused
+    /// (NOT_RETRYABLE) when the job already succeeded, is still queued, or was cancelled; refused (TARGET_GONE)
+    /// when its pipeline no longer exists. Always audited, naming the acting operator.
+    /// </summary>
+    Task<Result<AdminScheduledJobRetryResultDto>> RetryScheduledJobAsync(
+        Guid taskId,
+        Guid actorUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Per-tenant usage for each tenant's most recent metering period (S-ADMIN-6b), computed purely from
+    /// recorded <c>UsageRecord</c> + <c>TtsUsageRecord</c> rows — never a fabricated figure. One tenant's usage
+    /// never counts toward another's.
+    /// </summary>
+    Task<Result<PagedList<AdminTenantUsageDto>>> GetTenantUsageAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
 }

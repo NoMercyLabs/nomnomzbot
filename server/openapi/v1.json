@@ -3256,6 +3256,402 @@
         }
       }
     },
+    "/api/v{version}/admin/jobs": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "The REAL background job queue (S-ADMIN-6b) — every `ScheduledPipelineTask` row across every\r\ntenant, newest first, paged. Never a fabricated queue: this is the exact primitive\r\n`ScheduledPipelineExpiryService` sweeps and dispatches.",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfAdminScheduledJobDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/jobs/{taskId}/retry": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Retries one failed (expired) scheduled job: schedules a brand-new deferred run for the same pipeline,\r\ndue immediately, appended as its own row — the original failed attempt is never mutated. Refused when\r\nthe job already succeeded, is still queued, was cancelled, or its target pipeline no longer exists.\r\nAlways audited, naming the acting operator.",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfAdminScheduledJobRetryResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/usage": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Per-tenant usage for each tenant's most recent metering period (S-ADMIN-6b), computed purely from\r\nrecorded usage rows — never a fabricated figure. The period each row covers is stated explicitly.",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfAdminTenantUsageDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/spam-defense/defaults": {
       "get": {
         "tags": [
@@ -81930,6 +82326,116 @@
         },
         "description": "One topic in the real EventSub registry `TwitchEventSubHostedService` maintains — never a fabricated\r\nrow. DateTime AdminEventSubTopicHealthDto.LastConfirmedAt is the registry row's own `UpdatedAt`, the last time this exact\r\nstatus was persisted (created, re-homed on reconnect, or flipped by a Twitch revocation notice)."
       },
+      "AdminScheduledJobDto": {
+        "required": [
+          "id",
+          "broadcasterId",
+          "channelDisplayName",
+          "pipelineId",
+          "pipelineName",
+          "pipelineExists",
+          "status",
+          "displayState",
+          "dueAt",
+          "firedAt",
+          "createdAt",
+          "triggeredByDisplayName",
+          "canRetry"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "broadcasterId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "channelDisplayName": {
+            "type": "string"
+          },
+          "pipelineId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "pipelineName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pipelineExists": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "displayState": {
+            "type": "string"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "triggeredByDisplayName": {
+            "type": "string"
+          },
+          "canRetry": {
+            "type": "boolean"
+          }
+        },
+        "description": "One row of the REAL background job queue — the `ScheduledPipelineTask` deferred-dispatch primitive\r\n(a voice-swap auto-revert, a feather auto-hide, a timed reward) that a background sweeper fires when due.\r\nThis is never a fabricated parallel queue: it reads the exact rows `ScheduledPipelineExpiryService`\r\ndispatches. string AdminScheduledJobDto.Status is the raw persisted value (pending/fired/cancelled/expired);\r\nstring AdminScheduledJobDto.DisplayState is the operator-facing label (queued/running/succeeded/failed/cancelled) derived\r\nfrom it plus DateTime AdminScheduledJobDto.DueAt against the current clock. bool AdminScheduledJobDto.CanRetry is true only for a\r\ngenuinely failed (expired) job whose target pipeline still exists."
+      },
+      "AdminScheduledJobRetryResultDto": {
+        "required": [
+          "originalTaskId",
+          "newTaskId",
+          "pipelineId",
+          "pipelineName",
+          "newDueAt"
+        ],
+        "type": "object",
+        "properties": {
+          "originalTaskId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "newTaskId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "pipelineId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "pipelineName": {
+            "type": "string"
+          },
+          "newDueAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "The outcome of an admin-initiated job retry: a brand-new `ScheduledPipelineTask` row was appended,\r\ndue immediately — the original failed attempt this retries is never mutated or replaced."
+      },
       "AdminStatsDto": {
         "required": [
           "totalChannels",
@@ -82145,6 +82651,71 @@
           }
         },
         "description": "One tenant row for the operator console (stream-admin.md §4 Platform admin)."
+      },
+      "AdminTenantUsageDto": {
+        "required": [
+          "broadcasterId",
+          "channelDisplayName",
+          "periodStart",
+          "periodEnd",
+          "metrics",
+          "ttsCharacterCount"
+        ],
+        "type": "object",
+        "properties": {
+          "broadcasterId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "channelDisplayName": {
+            "type": "string"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminTenantUsageMetricDto"
+            }
+          },
+          "ttsCharacterCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One tenant's usage for its most recent metering period, computed purely from recorded rows\r\n(`UsageRecord` + `TtsUsageRecord`) — never a placeholder figure. There is no per-unit price table\r\nin this codebase, so this reports measured usage, not a fabricated currency cost; DateTime AdminTenantUsageDto.PeriodStart/\r\nDateTime AdminTenantUsageDto.PeriodEnd state exactly which window the figures cover."
+      },
+      "AdminTenantUsageMetricDto": {
+        "required": [
+          "metricKey",
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "metricKey": {
+            "type": "string"
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One metered quantity for a tenant's usage period, straight off the real `UsageRecord` rows."
       },
       "AdminUserDto": {
         "required": [
@@ -93794,6 +94365,44 @@
           }
         }
       },
+      "PaginatedResponseOfAdminScheduledJobDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminScheduledJobDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedResponseOfAdminTenantDto": {
         "type": "object",
         "properties": {
@@ -93801,6 +94410,44 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AdminTenantDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PaginatedResponseOfAdminTenantUsageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminTenantUsageDto"
             }
           },
           "nextPage": {
@@ -100116,6 +100763,43 @@
         "properties": {
           "targetTwitchBroadcasterId": {
             "type": "string"
+          }
+        }
+      },
+      "StatusResponseDtoOfAdminScheduledJobRetryResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AdminScheduledJobRetryResultDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
           }
         }
       },

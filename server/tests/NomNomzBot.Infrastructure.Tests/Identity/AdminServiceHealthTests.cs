@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
@@ -44,7 +45,8 @@ public sealed class AdminServiceHealthTests
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),
             gate,
-            Substitute.For<IOutboundWebhookDispatcher>()
+            Substitute.For<IOutboundWebhookDispatcher>(),
+            Substitute.For<IScheduledPipelineService>()
         );
     }
 

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
@@ -55,7 +56,8 @@ public sealed class AdminServiceEventSubAndWebhookTests
             new FakeTimeProvider(Now),
             provider.GetRequiredService<HealthCheckService>(),
             Substitute.For<IPlatformBotReadinessGate>(),
-            dispatcher
+            dispatcher,
+            Substitute.For<IScheduledPipelineService>()
         );
         return (sut, db, dispatcher);
     }

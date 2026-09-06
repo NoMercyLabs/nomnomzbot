@@ -10,14 +10,19 @@
 
 using System.Diagnostics;
 using System.Reflection;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Billing.Entities;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
@@ -32,13 +37,15 @@ public sealed class AdminService : IAdminService
     private readonly HealthCheckService _healthChecks;
     private readonly IPlatformBotReadinessGate _botReadiness;
     private readonly IOutboundWebhookDispatcher _webhookDispatcher;
+    private readonly IScheduledPipelineService _scheduledPipelines;
 
     public AdminService(
         IApplicationDbContext db,
         TimeProvider timeProvider,
         HealthCheckService healthChecks,
         IPlatformBotReadinessGate botReadiness,
-        IOutboundWebhookDispatcher webhookDispatcher
+        IOutboundWebhookDispatcher webhookDispatcher,
+        IScheduledPipelineService scheduledPipelines
     )
     {
         _db = db;
@@ -46,6 +53,7 @@ public sealed class AdminService : IAdminService
         _healthChecks = healthChecks;
         _botReadiness = botReadiness;
         _webhookDispatcher = webhookDispatcher;
+        _scheduledPipelines = scheduledPipelines;
     }
 
     public async Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default)
@@ -402,6 +410,251 @@ public sealed class AdminService : IAdminService
                 replay.Status.ToString(),
                 replay.ResponseCode
             )
+        );
+    }
+
+    public async Task<Result<PagedList<AdminScheduledJobDto>>> GetScheduledJobQueueAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        int total = await _db.ScheduledPipelineTasks.CountAsync(ct);
+
+        List<ScheduledPipelineTask> page = await _db
+            .ScheduledPipelineTasks.OrderByDescending(t => t.CreatedAt)
+            .ThenByDescending(t => t.Id)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+
+        List<Guid> broadcasterIds = page.Select(t => t.BroadcasterId).Distinct().ToList();
+        List<Guid> pipelineIds = page.Select(t => t.PipelineId).Distinct().ToList();
+
+        Dictionary<Guid, string> channelNames = await _db
+            .Channels.Where(c => broadcasterIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.User.DisplayName })
+            .ToDictionaryAsync(c => c.Id, c => c.DisplayName, ct);
+
+        // IgnoreQueryFilters: a task whose pipeline was soft-deleted must still resolve to "gone", not silently
+        // fall out of the join and read as "exists" by omission.
+        HashSet<Guid> existingPipelineIds =
+        [
+            .. await _db
+                .Pipelines.IgnoreQueryFilters()
+                .Where(p => pipelineIds.Contains(p.Id) && p.DeletedAt == null)
+                .Select(p => p.Id)
+                .ToListAsync(ct),
+        ];
+
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+
+        List<AdminScheduledJobDto> items =
+        [
+            .. page.Select(t =>
+            {
+                bool pipelineExists = existingPipelineIds.Contains(t.PipelineId);
+                return new AdminScheduledJobDto(
+                    t.Id,
+                    t.BroadcasterId,
+                    channelNames.GetValueOrDefault(t.BroadcasterId, t.BroadcasterId.ToString()),
+                    t.PipelineId,
+                    t.PipelineName,
+                    pipelineExists,
+                    t.Status,
+                    ToDisplayState(t, now),
+                    t.DueAt.UtcDateTime,
+                    t.FiredAt?.UtcDateTime,
+                    t.CreatedAt.UtcDateTime,
+                    t.TriggeredByDisplayName,
+                    t.Status == ScheduledPipelineTaskStatus.Expired && pipelineExists
+                );
+            }),
+        ];
+
+        return Result.Success(
+            new PagedList<AdminScheduledJobDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    private static string ToDisplayState(ScheduledPipelineTask task, DateTimeOffset now) =>
+        task.Status switch
+        {
+            ScheduledPipelineTaskStatus.Pending when task.DueAt <= now => "running",
+            ScheduledPipelineTaskStatus.Pending => "queued",
+            ScheduledPipelineTaskStatus.Fired => "succeeded",
+            ScheduledPipelineTaskStatus.Expired => "failed",
+            ScheduledPipelineTaskStatus.Cancelled => "cancelled",
+            _ => task.Status,
+        };
+
+    public async Task<Result<AdminScheduledJobRetryResultDto>> RetryScheduledJobAsync(
+        Guid taskId,
+        Guid actorUserId,
+        CancellationToken ct = default
+    )
+    {
+        ScheduledPipelineTask? original = await _db.ScheduledPipelineTasks.FirstOrDefaultAsync(
+            t => t.Id == taskId,
+            ct
+        );
+        if (original is null)
+            return Result.Failure<AdminScheduledJobRetryResultDto>(
+                "Scheduled job not found.",
+                "NOT_FOUND"
+            );
+
+        if (original.Status != ScheduledPipelineTaskStatus.Expired)
+        {
+            string reason = original.Status switch
+            {
+                ScheduledPipelineTaskStatus.Fired =>
+                    "This job already ran successfully; there is nothing to retry.",
+                ScheduledPipelineTaskStatus.Pending =>
+                    "This job has not failed — it is still queued to run.",
+                ScheduledPipelineTaskStatus.Cancelled =>
+                    "This job was cancelled, not failed; it cannot be retried.",
+                _ => "This job is not in a retryable state.",
+            };
+            return Result.Failure<AdminScheduledJobRetryResultDto>(reason, "NOT_RETRYABLE");
+        }
+
+        // IgnoreQueryFilters: an admin retry runs cross-tenant with no ambient tenant, and the pipeline row
+        // itself carries the soft-delete flag this check needs to see even if it were otherwise filtered.
+        bool pipelineExists = await _db
+            .Pipelines.IgnoreQueryFilters()
+            .AnyAsync(p => p.Id == original.PipelineId && p.DeletedAt == null, ct);
+        if (!pipelineExists)
+            return Result.Failure<AdminScheduledJobRetryResultDto>(
+                "The target pipeline no longer exists; this job cannot be retried.",
+                "TARGET_GONE"
+            );
+
+        Dictionary<string, string> variables;
+        try
+        {
+            variables =
+                JsonSerializer.Deserialize<Dictionary<string, string>>(original.VariablesJson)
+                ?? [];
+        }
+        catch (JsonException)
+        {
+            variables = [];
+        }
+
+        Result<ScheduledPipelineTaskDto> retried = await _scheduledPipelines.ScheduleAsync(
+            original.BroadcasterId,
+            original.PipelineId,
+            1,
+            variables,
+            original.TriggeredByUserId,
+            original.TriggeredByDisplayName,
+            null,
+            ct
+        );
+        if (retried.IsFailure)
+            return Result.Failure<AdminScheduledJobRetryResultDto>(
+                retried.ErrorMessage,
+                retried.ErrorCode
+            );
+
+        // Retrying a job is an outbound side effect against a tenant's pipeline — audited unconditionally,
+        // naming the acting operator (S-CONSEQ), mirroring ReplayWebhookDeliveryAsync.
+        _db.IamAuditLogs.Add(
+            new IamAuditLog
+            {
+                PrincipalId = actorUserId,
+                PrincipalType = IamPrincipalType.Employee,
+                Permission = "scheduled_job:retry",
+                TargetBroadcasterId = original.BroadcasterId,
+                TargetResource = original.Id.ToString(),
+                Justification =
+                    $"actor={actorUserId};originalTaskId={original.Id};newTaskId={retried.Value.Id};pipelineId={original.PipelineId}",
+                BreakGlass = false,
+                Outcome = IamOutcome.Allowed,
+                OccurredAt = _timeProvider.GetUtcNow().UtcDateTime,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success(
+            new AdminScheduledJobRetryResultDto(
+                original.Id,
+                retried.Value.Id,
+                original.PipelineId,
+                original.PipelineName
+                    ?? retried.Value.PipelineName
+                    ?? original.PipelineId.ToString(),
+                retried.Value.DueAt.UtcDateTime
+            )
+        );
+    }
+
+    public async Task<Result<PagedList<AdminTenantUsageDto>>> GetTenantUsageAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        List<Guid> tenantIds = await _db
+            .UsageRecords.Select(u => u.BroadcasterId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToListAsync(ct);
+
+        int total = tenantIds.Count;
+        List<Guid> pageIds = tenantIds
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToList();
+
+        Dictionary<Guid, string> channelNames = await _db
+            .Channels.Where(c => pageIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.User.DisplayName })
+            .ToDictionaryAsync(c => c.Id, c => c.DisplayName, ct);
+
+        List<AdminTenantUsageDto> items = [];
+        foreach (Guid tenantId in pageIds)
+        {
+            // Explicit per-tenant filter (not the ambient query filter, which is a no-op for a cross-tenant
+            // admin scope) — the isolation this figure depends on is enforced right here in the predicate.
+            List<UsageRecord> records = await _db
+                .UsageRecords.Where(u => u.BroadcasterId == tenantId)
+                .ToListAsync(ct);
+
+            // The most recent metering period this tenant has any recorded usage for — the window the
+            // reported figures cover, stated rather than assumed.
+            DateTime periodStart = records.Max(r => r.PeriodStart);
+            DateTime periodEnd = records.First(r => r.PeriodStart == periodStart).PeriodEnd;
+
+            List<AdminTenantUsageMetricDto> metrics =
+            [
+                .. records
+                    .Where(r => r.PeriodStart == periodStart)
+                    .GroupBy(r => r.MetricKey)
+                    .Select(g => new AdminTenantUsageMetricDto(g.Key, g.Sum(r => r.Quantity))),
+            ];
+
+            long ttsCharacters = await _db
+                .TtsUsageRecords.Where(t =>
+                    t.BroadcasterId == tenantId
+                    && t.OccurredAt >= periodStart
+                    && t.OccurredAt < periodEnd
+                )
+                .SumAsync(t => (long)t.CharacterCount, ct);
+
+            items.Add(
+                new AdminTenantUsageDto(
+                    tenantId,
+                    channelNames.GetValueOrDefault(tenantId, tenantId.ToString()),
+                    periodStart,
+                    periodEnd,
+                    metrics,
+                    ttsCharacters
+                )
+            );
+        }
+
+        return Result.Success(
+            new PagedList<AdminTenantUsageDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
 

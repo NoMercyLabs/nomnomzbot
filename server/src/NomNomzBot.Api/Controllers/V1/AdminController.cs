@@ -335,4 +335,72 @@ public class AdminController : BaseController
         );
         return ResultResponse(result);
     }
+
+    /// <summary>
+    /// The REAL background job queue (S-ADMIN-6b) — every <c>ScheduledPipelineTask</c> row across every
+    /// tenant, newest first, paged. Never a fabricated queue: this is the exact primitive
+    /// <c>ScheduledPipelineExpiryService</c> sweeps and dispatches.
+    /// </summary>
+    [HttpGet("jobs")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<PaginatedResponse<AdminScheduledJobDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListScheduledJobs(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<AdminScheduledJobDto>> result =
+            await _adminService.GetScheduledJobQueueAsync(pagination, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>
+    /// Retries one failed (expired) scheduled job: schedules a brand-new deferred run for the same pipeline,
+    /// due immediately, appended as its own row — the original failed attempt is never mutated. Refused when
+    /// the job already succeeded, is still queued, was cancelled, or its target pipeline no longer exists.
+    /// Always audited, naming the acting operator.
+    /// </summary>
+    [HttpPost("jobs/{taskId:guid}/retry")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<AdminScheduledJobRetryResultDto>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> RetryScheduledJob(Guid taskId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+
+        Result<AdminScheduledJobRetryResultDto> result = await _adminService.RetryScheduledJobAsync(
+            taskId,
+            actorUserId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Per-tenant usage for each tenant's most recent metering period (S-ADMIN-6b), computed purely from
+    /// recorded usage rows — never a fabricated figure. The period each row covers is stated explicitly.
+    /// </summary>
+    [HttpGet("usage")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<PaginatedResponse<AdminTenantUsageDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListTenantUsage(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<AdminTenantUsageDto>> result = await _adminService.GetTenantUsageAsync(
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
 }

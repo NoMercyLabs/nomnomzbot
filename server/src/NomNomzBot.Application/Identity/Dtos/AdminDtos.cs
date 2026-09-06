@@ -104,3 +104,62 @@ public sealed record AdminWebhookReplayResultDto(
     string Status,
     int? ResponseCode
 );
+
+// ── Background job queue + retry (S-ADMIN-6b) ──
+
+/// <summary>
+/// One row of the REAL background job queue — the <c>ScheduledPipelineTask</c> deferred-dispatch primitive
+/// (a voice-swap auto-revert, a feather auto-hide, a timed reward) that a background sweeper fires when due.
+/// This is never a fabricated parallel queue: it reads the exact rows <c>ScheduledPipelineExpiryService</c>
+/// dispatches. <see cref="Status"/> is the raw persisted value (pending/fired/cancelled/expired);
+/// <see cref="DisplayState"/> is the operator-facing label (queued/running/succeeded/failed/cancelled) derived
+/// from it plus <see cref="DueAt"/> against the current clock. <see cref="CanRetry"/> is true only for a
+/// genuinely failed (expired) job whose target pipeline still exists.
+/// </summary>
+public sealed record AdminScheduledJobDto(
+    Guid Id,
+    Guid BroadcasterId,
+    string ChannelDisplayName,
+    Guid PipelineId,
+    string? PipelineName,
+    bool PipelineExists,
+    string Status,
+    string DisplayState,
+    DateTime DueAt,
+    DateTime? FiredAt,
+    DateTime CreatedAt,
+    string TriggeredByDisplayName,
+    bool CanRetry
+);
+
+/// <summary>
+/// The outcome of an admin-initiated job retry: a brand-new <c>ScheduledPipelineTask</c> row was appended,
+/// due immediately — the original failed attempt this retries is never mutated or replaced.
+/// </summary>
+public sealed record AdminScheduledJobRetryResultDto(
+    Guid OriginalTaskId,
+    Guid NewTaskId,
+    Guid PipelineId,
+    string PipelineName,
+    DateTime NewDueAt
+);
+
+// ── Per-tenant usage (S-ADMIN-6b) ──
+
+/// <summary>One metered quantity for a tenant's usage period, straight off the real <c>UsageRecord</c> rows.</summary>
+public sealed record AdminTenantUsageMetricDto(string MetricKey, long Quantity);
+
+/// <summary>
+/// One tenant's usage for its most recent metering period, computed purely from recorded rows
+/// (<c>UsageRecord</c> + <c>TtsUsageRecord</c>) — never a placeholder figure. There is no per-unit price table
+/// in this codebase, so this reports measured usage, not a fabricated currency cost; <see cref="PeriodStart"/>/
+/// <see cref="PeriodEnd"/> state exactly which window the figures cover.
+/// </summary>
+public sealed record AdminTenantUsageDto(
+    Guid BroadcasterId,
+    string ChannelDisplayName,
+    DateTime PeriodStart,
+    DateTime PeriodEnd,
+    IReadOnlyList<AdminTenantUsageMetricDto> Metrics,
+    long TtsCharacterCount
+);
