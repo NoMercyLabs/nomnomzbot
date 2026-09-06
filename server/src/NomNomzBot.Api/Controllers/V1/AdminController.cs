@@ -403,4 +403,117 @@ public class AdminController : BaseController
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
     }
+
+    // ── 2am tools: error budget + event-store replay (S-ADMIN-6c) ─────────────────
+
+    public record AdminEventReplayPreviewRequestDto(
+        Guid BroadcasterId,
+        string ProjectionName,
+        DateTime FromUtc,
+        DateTime ToUtc,
+        string? EventType
+    );
+
+    public record AdminEventReplayExecuteRequestDto(
+        Guid BroadcasterId,
+        string ProjectionName,
+        DateTime FromUtc,
+        DateTime ToUtc,
+        string? EventType,
+        long ExpectedCount
+    );
+
+    /// <summary>
+    /// Per-tenant error budget (S-ADMIN-6c), trailing 24 hours, computed purely from real outbound webhook
+    /// delivery outcomes — never a fabricated percentage. A tenant with nothing resolved in the window is
+    /// simply absent from the page. One tenant's failures never count toward another's.
+    /// </summary>
+    [HttpGet("error-budget")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<PaginatedResponse<AdminTenantErrorBudgetDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetErrorBudget(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<AdminTenantErrorBudgetDto>> result =
+            await _adminService.GetErrorBudgetAsync(pagination, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>The registered projections an admin replay can target, and the REAL event types each
+    /// subscribes to — never a hardcoded dropdown.</summary>
+    [HttpGet("eventstore/projections")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AdminReplayableProjectionDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListReplayableProjections(CancellationToken ct)
+    {
+        Result<IReadOnlyList<AdminReplayableProjectionDto>> result =
+            await _adminService.ListReplayableProjectionsAsync(ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Counts, WITHOUT replaying anything, exactly how many journal events a tenant + window + optional
+    /// event-type scope would re-apply to the named projection — the count an operator must see and confirm
+    /// before <see cref="ExecuteEventReplay"/> is allowed to run.
+    /// </summary>
+    [HttpPost("eventstore/replay/preview")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [ProducesResponseType<StatusResponseDto<AdminEventReplayPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewEventReplay(
+        [FromBody] AdminEventReplayPreviewRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<AdminEventReplayPreviewDto> result = await _adminService.PreviewEventReplayAsync(
+            request.BroadcasterId,
+            request.ProjectionName,
+            request.FromUtc,
+            request.ToUtc,
+            request.EventType,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Re-applies every journal event in the given scope to the named projection's real <c>ApplyAsync</c>,
+    /// in order — the same per-projection fold the live driver uses, never a second replay engine. Refused
+    /// (STALE_COUNT) unless <see cref="AdminEventReplayExecuteRequestDto.ExpectedCount"/> matches the scope's
+    /// REAL count at execution time, so an operator can only ever act on a number they were actually shown.
+    /// <c>ApplyAsync</c> is idempotent by contract (upsert keyed on EventId), so running this twice re-applies
+    /// the same upserts rather than double-counting anything. Always audited, naming the acting operator, the
+    /// exact scope, and the count applied.
+    /// </summary>
+    [HttpPost("eventstore/replay/execute")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<AdminEventReplayResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExecuteEventReplay(
+        [FromBody] AdminEventReplayExecuteRequestDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+
+        Result<AdminEventReplayResultDto> result = await _adminService.ExecuteEventReplayAsync(
+            request.BroadcasterId,
+            request.ProjectionName,
+            request.FromUtc,
+            request.ToUtc,
+            request.EventType,
+            request.ExpectedCount,
+            actorUserId,
+            ct
+        );
+        return ResultResponse(result);
+    }
 }

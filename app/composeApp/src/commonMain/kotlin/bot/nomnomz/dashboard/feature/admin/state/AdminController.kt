@@ -32,8 +32,12 @@ import bot.nomnomz.dashboard.core.network.AdminTenantDetail
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
 import bot.nomnomz.dashboard.core.network.AdminEventSubTenantHealth
+import bot.nomnomz.dashboard.core.network.AdminEventReplayPreview
+import bot.nomnomz.dashboard.core.network.AdminEventReplayResult
 import bot.nomnomz.dashboard.core.network.AdminInvoice
+import bot.nomnomz.dashboard.core.network.AdminReplayableProjection
 import bot.nomnomz.dashboard.core.network.AdminScheduledJob
+import bot.nomnomz.dashboard.core.network.AdminTenantErrorBudget
 import bot.nomnomz.dashboard.core.network.AdminTenantUsage
 import bot.nomnomz.dashboard.core.network.AdminWebhookDelivery
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
@@ -225,6 +229,30 @@ data class AdminState(
     val tenantUsage: List<AdminTenantUsage> = emptyList(),
     val tenantUsageLoading: Boolean = false,
     val tenantUsageError: String? = null,
+    // ── Error budget (S-ADMIN-6c) ──
+    val errorBudget: List<AdminTenantErrorBudget> = emptyList(),
+    val errorBudgetLoading: Boolean = false,
+    val errorBudgetError: String? = null,
+    // ── Event-store replay (S-ADMIN-6c) ──
+    val replayProjections: List<AdminReplayableProjection> = emptyList(),
+    val replayProjectionsLoading: Boolean = false,
+    val replayProjectionsError: String? = null,
+    /** The operator's in-progress scope selection — tenant + projection + window + optional event type. */
+    val replayProjectionName: String = "",
+    val replayBroadcasterId: String = "",
+    val replayFromUtc: String = "",
+    val replayToUtc: String = "",
+    val replayEventType: String = "",
+    /** The REAL counted preview for the current scope. Null until a preview succeeds, and cleared on every
+     * scope edit — a stale preview can never be confirmed against inputs the operator has since changed. */
+    val replayPreview: AdminEventReplayPreview? = null,
+    val replayPreviewLoading: Boolean = false,
+    val replayPreviewError: String? = null,
+    /** True only while the replay confirm dialog is open — reachable only once [replayPreview] is real. */
+    val replayConfirmOpen: Boolean = false,
+    val replayExecuting: Boolean = false,
+    val replayExecuteError: String? = null,
+    val replayResult: AdminEventReplayResult? = null,
     // ── Impersonation (admin act-as) ──
     /** Set alongside [actionError] when a mint attempt fails for one of these two RECOGNIZED reasons, so the
      * confirm dialog can render a calm, specific explanation instead of the raw server message. Null for any
@@ -1374,6 +1402,125 @@ class AdminController(
                 _state.value = _state.value.copy(tenantUsage = result.value.data, tenantUsageLoading = false)
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(tenantUsageLoading = false, tenantUsageError = result.error.message)
+        }
+    }
+
+    // ── Error budget (S-ADMIN-6c) ───────────────────────────────────────────────
+
+    /** Loads the per-tenant error budget for the trailing 24h window, computed purely from real outbound
+     * webhook delivery outcomes — never a fabricated percentage. */
+    suspend fun loadErrorBudget() {
+        _state.value = _state.value.copy(errorBudgetLoading = true, errorBudgetError = null)
+        when (val result = api.getErrorBudget()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(errorBudget = result.value.data, errorBudgetLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(errorBudgetLoading = false, errorBudgetError = result.error.message)
+        }
+    }
+
+    // ── Event-store replay (S-ADMIN-6c) ─────────────────────────────────────────
+
+    /** Loads the registered projections a replay can target, and the real event types each subscribes to. */
+    suspend fun loadReplayableProjections() {
+        _state.value = _state.value.copy(replayProjectionsLoading = true, replayProjectionsError = null)
+        when (val result = api.getReplayableProjections()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(replayProjections = result.value, replayProjectionsLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    replayProjectionsLoading = false,
+                    replayProjectionsError = result.error.message,
+                )
+        }
+    }
+
+    /** Updates the operator's in-progress replay scope. Any edit invalidates a prior preview/result — the
+     * confirm control can never fire against a scope the operator has since changed since seeing its count. */
+    fun setReplayScope(
+        projectionName: String = _state.value.replayProjectionName,
+        broadcasterId: String = _state.value.replayBroadcasterId,
+        fromUtc: String = _state.value.replayFromUtc,
+        toUtc: String = _state.value.replayToUtc,
+        eventType: String = _state.value.replayEventType,
+    ) {
+        _state.value = _state.value.copy(
+            replayProjectionName = projectionName,
+            replayBroadcasterId = broadcasterId,
+            replayFromUtc = fromUtc,
+            replayToUtc = toUtc,
+            replayEventType = eventType,
+            replayPreview = null,
+            replayPreviewError = null,
+            replayResult = null,
+        )
+    }
+
+    /** Counts, WITHOUT replaying anything, exactly how many events the current scope would replay — the
+     * number the replay control must show before it can be confirmed. */
+    suspend fun previewEventReplay() {
+        val scope = _state.value
+        _state.value = scope.copy(replayPreviewLoading = true, replayPreviewError = null, replayResult = null)
+        when (
+            val result = api.previewEventReplay(
+                broadcasterId = scope.replayBroadcasterId,
+                projectionName = scope.replayProjectionName,
+                fromUtc = scope.replayFromUtc,
+                toUtc = scope.replayToUtc,
+                eventType = scope.replayEventType.takeIf { it.isNotBlank() },
+            )
+        ) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(replayPreview = result.value, replayPreviewLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    replayPreviewLoading = false,
+                    replayPreviewError = result.error.message,
+                )
+        }
+    }
+
+    /** Opens the replay confirmation — reachable only once a REAL counted preview exists for this scope. */
+    fun stageEventReplay() {
+        if (_state.value.replayPreview != null) {
+            _state.value = _state.value.copy(replayConfirmOpen = true, replayExecuteError = null)
+        }
+    }
+
+    fun dismissEventReplay() {
+        _state.value = _state.value.copy(replayConfirmOpen = false)
+    }
+
+    /** Commits the replay: re-applies exactly the previewed count to the projection, in order. Refused
+     * (STALE_COUNT) if the scope's real count changed since the preview — the caller must preview again
+     * rather than force a replay through against a number it never actually confirmed. */
+    suspend fun confirmEventReplay() {
+        val scope = _state.value
+        val preview: AdminEventReplayPreview = scope.replayPreview ?: return
+        _state.value = scope.copy(replayExecuting = true, replayExecuteError = null)
+        when (
+            val result = api.executeEventReplay(
+                broadcasterId = scope.replayBroadcasterId,
+                projectionName = scope.replayProjectionName,
+                fromUtc = scope.replayFromUtc,
+                toUtc = scope.replayToUtc,
+                eventType = scope.replayEventType.takeIf { it.isNotBlank() },
+                expectedCount = preview.matchingEventCount,
+            )
+        ) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    replayExecuting = false,
+                    replayConfirmOpen = false,
+                    replayPreview = null,
+                    replayResult = result.value,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    replayExecuting = false,
+                    replayConfirmOpen = false,
+                    replayExecuteError = result.error.message,
+                )
         }
     }
 

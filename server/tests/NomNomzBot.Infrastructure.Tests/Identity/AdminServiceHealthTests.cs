@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 
@@ -46,7 +47,9 @@ public sealed class AdminServiceHealthTests
             provider.GetRequiredService<HealthCheckService>(),
             gate,
             Substitute.For<IOutboundWebhookDispatcher>(),
-            Substitute.For<IScheduledPipelineService>()
+            Substitute.For<IScheduledPipelineService>(),
+            [],
+            new EventUpcasterRegistry([])
         );
     }
 

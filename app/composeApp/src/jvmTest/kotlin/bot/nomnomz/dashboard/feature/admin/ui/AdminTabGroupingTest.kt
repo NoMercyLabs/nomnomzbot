@@ -36,10 +36,13 @@ import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
 import bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
+import bot.nomnomz.dashboard.core.network.AdminEventReplayPreview
+import bot.nomnomz.dashboard.core.network.AdminEventReplayResult
 import bot.nomnomz.dashboard.core.network.AdminEventSubTenantHealth
 import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
 import bot.nomnomz.dashboard.core.network.AdminInvoice
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
+import bot.nomnomz.dashboard.core.network.AdminReplayableProjection
 import bot.nomnomz.dashboard.core.network.AdminScheduledJob
 import bot.nomnomz.dashboard.core.network.AdminScheduledJobRetryResult
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
@@ -49,6 +52,7 @@ import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSupportApi
 import bot.nomnomz.dashboard.core.network.AdminSystem
 import bot.nomnomz.dashboard.core.network.AdminTenant
+import bot.nomnomz.dashboard.core.network.AdminTenantErrorBudget
 import bot.nomnomz.dashboard.core.network.AdminTenantUsage
 import bot.nomnomz.dashboard.core.network.AdminTier
 import bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest
@@ -269,6 +273,8 @@ class AdminTabGroupingTest {
             AdminTab.WebhookDeliveries to "Webhook deliveries",
             AdminTab.ScheduledJobs to "Job queue",
             AdminTab.TenantUsage to "Usage",
+            AdminTab.ErrorBudget to "Error budget",
+            AdminTab.EventReplay to "Event replay",
             AdminTab.Audit to "Audit",
             AdminTab.Channels to "Channels",
             AdminTab.Users to "Users",
@@ -292,6 +298,8 @@ class AdminTabGroupingTest {
             AdminTab.WebhookDeliveries to "No webhook deliveries recorded.",
             AdminTab.ScheduledJobs to "No scheduled jobs found.",
             AdminTab.TenantUsage to "No recorded usage found.",
+            AdminTab.ErrorBudget to "No error budget data recorded.",
+            AdminTab.EventReplay to "No projections registered.",
             AdminTab.Audit to "No audit entries.",
             AdminTab.Channels to "No channels match.",
             AdminTab.Users to "No users match.",
@@ -374,6 +382,25 @@ private class FakeAdminApiForGroupingTest(
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getTenantUsage(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun getErrorBudget(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantErrorBudget>> =
+        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun getReplayableProjections(): ApiResult<List<AdminReplayableProjection>> =
+        ApiResult.Ok(emptyList())
+    override suspend fun previewEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+    ): ApiResult<AdminEventReplayPreview> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun executeEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+        expectedCount: Long,
+    ): ApiResult<AdminEventReplayResult> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 private class FakeIamApiForGroupingTest : PlatformIamApi {

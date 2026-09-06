@@ -410,6 +410,79 @@ data class AdminTenantUsage(
     val ttsCharacterCount: Long = 0,
 )
 
+// ── Error budget + event-store replay (S-ADMIN-6c) ──
+
+/** One tenant's error budget for the trailing 24-hour window, computed purely from real outbound webhook
+ * delivery outcomes — never a fabricated percentage. [errorRate]/[budgetRemainingFraction] are null when
+ * [attempts] is 0 (nothing measured yet). [targetSuccessRate] is a stated policy threshold, not a measured
+ * quantity — the allowed error rate it implies is what [budgetRemainingFraction] is computed against. */
+@Serializable
+data class AdminTenantErrorBudget(
+    val broadcasterId: String,
+    val channelDisplayName: String,
+    val windowStartUtc: String,
+    val windowEndUtc: String,
+    val attempts: Long,
+    val errors: Long,
+    val errorRate: Double? = null,
+    val targetSuccessRate: Double,
+    val budgetRemainingFraction: Double? = null,
+)
+
+/** One projection an admin replay can target, and the REAL event types it subscribes to — reflected straight
+ * off the registered projections, never a hardcoded dropdown. */
+@Serializable
+data class AdminReplayableProjection(
+    val projectionName: String,
+    val isGlobal: Boolean,
+    val subscribedEventTypes: List<String> = emptyList(),
+)
+
+/** The REAL count of journal events a tenant + window + optional event-type scope would replay into the
+ * named projection, computed at preview time — never an estimate. */
+@Serializable
+data class AdminEventReplayPreview(
+    val broadcasterId: String,
+    val projectionName: String,
+    val fromUtc: String,
+    val toUtc: String,
+    val eventType: String? = null,
+    val matchingEventCount: Long,
+)
+
+/** The outcome of an admin-initiated replay: [appliedCount] journal events in the stated scope were
+ * re-applied, in order, to the named projection. Never mutates the journal itself. */
+@Serializable
+data class AdminEventReplayResult(
+    val broadcasterId: String,
+    val projectionName: String,
+    val fromUtc: String,
+    val toUtc: String,
+    val eventType: String? = null,
+    val appliedCount: Long,
+)
+
+@Serializable
+data class AdminEventReplayPreviewRequest(
+    val broadcasterId: String,
+    val projectionName: String,
+    val fromUtc: String,
+    val toUtc: String,
+    val eventType: String? = null,
+)
+
+/** [expectedCount] must match the scope's REAL count at execution time — the server fails closed
+ * (STALE_COUNT) otherwise, so an operator can only ever act on a number they were actually shown. */
+@Serializable
+data class AdminEventReplayExecuteRequest(
+    val broadcasterId: String,
+    val projectionName: String,
+    val fromUtc: String,
+    val toUtc: String,
+    val eventType: String? = null,
+    val expectedCount: Long,
+)
+
 // ─── API interface + implementation ──────────────────────────────────────────
 
 interface AdminApi {
@@ -514,6 +587,37 @@ interface AdminApi {
     /** Per-tenant usage for each tenant's most recent metering period, computed from recorded usage. */
     suspend fun getTenantUsage(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    // Error budget + event-store replay (S-ADMIN-6c). Same NOT_IMPLEMENTED default as the S-ADMIN-6a/6b
+    // methods above, for the same reason.
+
+    /** Per-tenant error budget for the trailing 24-hour window, computed from real webhook delivery outcomes. */
+    suspend fun getErrorBudget(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminTenantErrorBudget>> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** The registered projections a replay can target, and the real event types each subscribes to. */
+    suspend fun getReplayableProjections(): ApiResult<List<AdminReplayableProjection>> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** Counts, WITHOUT replaying anything, how many events the given scope would replay. */
+    suspend fun previewEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+    ): ApiResult<AdminEventReplayPreview> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** Re-applies every event in the scope to the named projection. Refused (STALE_COUNT) unless
+     * [expectedCount] matches the scope's REAL count at execution time. */
+    suspend fun executeEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+        expectedCount: Long,
+    ): ApiResult<AdminEventReplayResult> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 /**
@@ -678,6 +782,37 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun getTenantUsage(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
         client.getDirect("api/v1/admin/usage?page=$page&pageSize=$pageSize")
+
+    override suspend fun getErrorBudget(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantErrorBudget>> =
+        client.getDirect("api/v1/admin/error-budget?page=$page&pageSize=$pageSize")
+
+    override suspend fun getReplayableProjections(): ApiResult<List<AdminReplayableProjection>> =
+        client.getEnvelope("api/v1/admin/eventstore/projections")
+
+    override suspend fun previewEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+    ): ApiResult<AdminEventReplayPreview> =
+        client.postEnvelope(
+            "api/v1/admin/eventstore/replay/preview",
+            AdminEventReplayPreviewRequest(broadcasterId, projectionName, fromUtc, toUtc, eventType),
+        )
+
+    override suspend fun executeEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+        expectedCount: Long,
+    ): ApiResult<AdminEventReplayResult> =
+        client.postEnvelope(
+            "api/v1/admin/eventstore/replay/execute",
+            AdminEventReplayExecuteRequest(broadcasterId, projectionName, fromUtc, toUtc, eventType, expectedCount),
+        )
 
     private fun searchQuery(search: String?): String =
         search?.takeIf { it.isNotBlank() }?.let { "&search=${it.encodeQuery()}" } ?: ""

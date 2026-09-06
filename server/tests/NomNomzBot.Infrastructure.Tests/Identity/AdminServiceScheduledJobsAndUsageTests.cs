@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 
@@ -60,7 +61,9 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
             provider.GetRequiredService<HealthCheckService>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             Substitute.For<IOutboundWebhookDispatcher>(),
-            scheduler
+            scheduler,
+            [],
+            new EventUpcasterRegistry([])
         );
         return (sut, db, clock);
     }
@@ -161,7 +164,7 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminScheduledJobDto>> result = await sut.GetScheduledJobQueueAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -190,7 +193,7 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminScheduledJobDto>> before = await sut.GetScheduledJobQueueAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
         before.Value.Items.Single().DisplayState.Should().Be("queued");
 
@@ -199,7 +202,7 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminScheduledJobDto>> after = await sut.GetScheduledJobQueueAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
         after.Value.Items.Single().DisplayState.Should().Be("failed");
     }
@@ -351,7 +354,7 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminTenantUsageDto>> result = await sut.GetTenantUsageAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         result.IsSuccess.Should().BeTrue();

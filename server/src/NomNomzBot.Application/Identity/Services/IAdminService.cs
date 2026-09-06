@@ -96,4 +96,55 @@ public interface IAdminService
         PaginationParams pagination,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Per-tenant error budget for the trailing 24-hour window (S-ADMIN-6c), computed purely from recorded
+    /// <c>OutboundWebhookDelivery</c> outcomes — never a fabricated percentage. A tenant with no resolved
+    /// delivery attempts in the window does not appear. One tenant's failures never count toward another's.
+    /// </summary>
+    Task<Result<PagedList<AdminTenantErrorBudgetDto>>> GetErrorBudgetAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Lists every registered projection an admin replay can target, and the real event types each
+    /// subscribes to (S-ADMIN-6c) — never a hardcoded set.</summary>
+    Task<Result<IReadOnlyList<AdminReplayableProjectionDto>>> ListReplayableProjectionsAsync(
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Counts, WITHOUT replaying anything, exactly how many journal events the given tenant + window +
+    /// optional event-type scope would re-apply to <paramref name="projectionName"/> (S-ADMIN-6c). The
+    /// resulting count is the ONLY number <see cref="ExecuteEventReplayAsync"/> may be run against.
+    /// </summary>
+    Task<Result<AdminEventReplayPreviewDto>> PreviewEventReplayAsync(
+        Guid broadcasterId,
+        string projectionName,
+        DateTime fromUtc,
+        DateTime toUtc,
+        string? eventType,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Re-applies every journal event in the given scope to <paramref name="projectionName"/>'s real
+    /// <c>ApplyAsync</c>, in order (S-ADMIN-6c) — the same per-projection fold the live driver uses, never a
+    /// second replay engine. Refused (STALE_COUNT) unless <paramref name="expectedCount"/> matches the scope's
+    /// REAL count at execution time, so an operator can only ever act on a number they were actually shown.
+    /// Refused (SCOPE_TOO_LARGE) above a safety ceiling; refused (EVENT_TYPE_NOT_SUBSCRIBED) when
+    /// <paramref name="eventType"/> is not one the projection consumes. <c>ApplyAsync</c> is idempotent by
+    /// contract (upsert keyed on EventId), so running this twice re-applies the same upserts rather than
+    /// double-counting anything. Always audited, naming the acting operator, the exact scope, and the count.
+    /// </summary>
+    Task<Result<AdminEventReplayResultDto>> ExecuteEventReplayAsync(
+        Guid broadcasterId,
+        string projectionName,
+        DateTime fromUtc,
+        DateTime toUtc,
+        string? eventType,
+        long expectedCount,
+        Guid actorUserId,
+        CancellationToken ct = default
+    );
 }

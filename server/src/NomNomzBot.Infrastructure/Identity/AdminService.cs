@@ -17,27 +17,45 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
+using NomNomzBot.Infrastructure.EventStore;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
 public sealed class AdminService : IAdminService
 {
+    /// <summary>
+    /// The policy threshold an error budget is measured against — a stated decision, not a measured
+    /// quantity. The allowed error rate it implies (1 - this) is the denominator every tenant's real error
+    /// rate is divided by to report remaining budget.
+    /// </summary>
+    private const double ErrorBudgetTargetSuccessRate = 0.99;
+
+    /// <summary>Safety ceiling on a single admin replay — above this, narrow the window or event type first.
+    /// A "2am tool" that could accidentally re-fold tens of thousands of events into a read model needs a
+    /// hard stop, not an unbounded loop.</summary>
+    private const int MaxReplayBatchSize = 2_000;
+
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly HealthCheckService _healthChecks;
     private readonly IPlatformBotReadinessGate _botReadiness;
     private readonly IOutboundWebhookDispatcher _webhookDispatcher;
     private readonly IScheduledPipelineService _scheduledPipelines;
+    private readonly IEnumerable<IProjection> _projections;
+    private readonly IEventUpcasterRegistry _upcasters;
 
     public AdminService(
         IApplicationDbContext db,
@@ -45,7 +63,9 @@ public sealed class AdminService : IAdminService
         HealthCheckService healthChecks,
         IPlatformBotReadinessGate botReadiness,
         IOutboundWebhookDispatcher webhookDispatcher,
-        IScheduledPipelineService scheduledPipelines
+        IScheduledPipelineService scheduledPipelines,
+        IEnumerable<IProjection> projections,
+        IEventUpcasterRegistry upcasters
     )
     {
         _db = db;
@@ -54,6 +74,8 @@ public sealed class AdminService : IAdminService
         _botReadiness = botReadiness;
         _webhookDispatcher = webhookDispatcher;
         _scheduledPipelines = scheduledPipelines;
+        _projections = projections;
+        _upcasters = upcasters;
     }
 
     public async Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default)
@@ -656,6 +678,332 @@ public sealed class AdminService : IAdminService
         return Result.Success(
             new PagedList<AdminTenantUsageDto>(items, pagination.Page, pagination.PageSize, total)
         );
+    }
+
+    public async Task<Result<PagedList<AdminTenantErrorBudgetDto>>> GetErrorBudgetAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        DateTime windowEnd = _timeProvider.GetUtcNow().UtcDateTime;
+        DateTime windowStart = windowEnd.AddHours(-24);
+
+        // Only tenants with at least one RESOLVED attempt in the window — a tenant with nothing measured yet
+        // has no budget to report, never a fabricated 0%. Pending attempts have not resolved either way.
+        List<Guid> tenantIds = await _db
+            .OutboundWebhookDeliveries.Where(d =>
+                d.CreatedAt >= windowStart
+                && d.CreatedAt <= windowEnd
+                && d.Status != WebhookDeliveryStatus.Pending
+            )
+            .Select(d => d.BroadcasterId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToListAsync(ct);
+
+        int total = tenantIds.Count;
+        List<Guid> pageIds = tenantIds
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToList();
+
+        Dictionary<Guid, string> channelNames = await _db
+            .Channels.Where(c => pageIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.User.DisplayName })
+            .ToDictionaryAsync(c => c.Id, c => c.DisplayName, ct);
+
+        double allowedErrorRate = 1 - ErrorBudgetTargetSuccessRate;
+        List<AdminTenantErrorBudgetDto> items = [];
+        foreach (Guid tenantId in pageIds)
+        {
+            // Explicit per-tenant filter (not the ambient query filter, which is a no-op for a cross-tenant
+            // admin scope) — mirrors GetTenantUsageAsync: the isolation this figure depends on is enforced
+            // right here, so one tenant's failures can never bleed into another's count.
+            List<WebhookDeliveryStatus> statuses = await _db
+                .OutboundWebhookDeliveries.Where(d =>
+                    d.BroadcasterId == tenantId
+                    && d.CreatedAt >= windowStart
+                    && d.CreatedAt <= windowEnd
+                    && d.Status != WebhookDeliveryStatus.Pending
+                )
+                .Select(d => d.Status)
+                .ToListAsync(ct);
+
+            long attempts = statuses.Count;
+            long errors = statuses.Count(s =>
+                s is WebhookDeliveryStatus.Failed or WebhookDeliveryStatus.DeadLetter
+            );
+
+            double? errorRate = attempts == 0 ? null : (double)errors / attempts;
+            double? budgetRemaining = errorRate is null
+                ? null
+                : 1 - (errorRate.Value / allowedErrorRate);
+
+            items.Add(
+                new AdminTenantErrorBudgetDto(
+                    tenantId,
+                    channelNames.GetValueOrDefault(tenantId, tenantId.ToString()),
+                    windowStart,
+                    windowEnd,
+                    attempts,
+                    errors,
+                    errorRate,
+                    ErrorBudgetTargetSuccessRate,
+                    budgetRemaining
+                )
+            );
+        }
+
+        return Result.Success(
+            new PagedList<AdminTenantErrorBudgetDto>(
+                items,
+                pagination.Page,
+                pagination.PageSize,
+                total
+            )
+        );
+    }
+
+    public Task<Result<IReadOnlyList<AdminReplayableProjectionDto>>> ListReplayableProjectionsAsync(
+        CancellationToken ct = default
+    )
+    {
+        List<AdminReplayableProjectionDto> dtos =
+        [
+            .. _projections
+                .OrderBy(p => p.Name, StringComparer.Ordinal)
+                .Select(p => new AdminReplayableProjectionDto(
+                    p.Name,
+                    p.IsGlobal,
+                    [.. p.SubscribedEventTypes.OrderBy(t => t, StringComparer.Ordinal)]
+                )),
+        ];
+        return Task.FromResult(Result.Success<IReadOnlyList<AdminReplayableProjectionDto>>(dtos));
+    }
+
+    public async Task<Result<AdminEventReplayPreviewDto>> PreviewEventReplayAsync(
+        Guid broadcasterId,
+        string projectionName,
+        DateTime fromUtc,
+        DateTime toUtc,
+        string? eventType,
+        CancellationToken ct = default
+    )
+    {
+        if (toUtc < fromUtc)
+            return Result.Failure<AdminEventReplayPreviewDto>(
+                "The replay window's end must not precede its start.",
+                "INVALID_WINDOW"
+            );
+
+        Result<IProjection> resolved = ResolveProjection(projectionName);
+        if (resolved.IsFailure)
+            return Result.Failure<AdminEventReplayPreviewDto>(
+                resolved.ErrorMessage!,
+                resolved.ErrorCode
+            );
+
+        Result<string?> typeCheck = ValidateEventType(resolved.Value, eventType);
+        if (typeCheck.IsFailure)
+            return Result.Failure<AdminEventReplayPreviewDto>(
+                typeCheck.ErrorMessage!,
+                typeCheck.ErrorCode
+            );
+
+        long count = await MatchingEvents(broadcasterId, fromUtc, toUtc, eventType, resolved.Value)
+            .CountAsync(ct);
+
+        return Result.Success(
+            new AdminEventReplayPreviewDto(
+                broadcasterId,
+                projectionName,
+                fromUtc,
+                toUtc,
+                eventType,
+                count
+            )
+        );
+    }
+
+    public async Task<Result<AdminEventReplayResultDto>> ExecuteEventReplayAsync(
+        Guid broadcasterId,
+        string projectionName,
+        DateTime fromUtc,
+        DateTime toUtc,
+        string? eventType,
+        long expectedCount,
+        Guid actorUserId,
+        CancellationToken ct = default
+    )
+    {
+        if (toUtc < fromUtc)
+            return Result.Failure<AdminEventReplayResultDto>(
+                "The replay window's end must not precede its start.",
+                "INVALID_WINDOW"
+            );
+
+        Result<IProjection> resolved = ResolveProjection(projectionName);
+        if (resolved.IsFailure)
+            return Result.Failure<AdminEventReplayResultDto>(
+                resolved.ErrorMessage!,
+                resolved.ErrorCode
+            );
+        IProjection projection = resolved.Value;
+
+        Result<string?> typeCheck = ValidateEventType(projection, eventType);
+        if (typeCheck.IsFailure)
+            return Result.Failure<AdminEventReplayResultDto>(
+                typeCheck.ErrorMessage!,
+                typeCheck.ErrorCode
+            );
+
+        List<EventJournal> matches = await MatchingEvents(
+                broadcasterId,
+                fromUtc,
+                toUtc,
+                eventType,
+                projection
+            )
+            .OrderBy(e => e.OccurredAt)
+            .ThenBy(e => e.StreamPosition)
+            .ToListAsync(ct);
+
+        // Fail closed: the operator may only ever act on the SAME count the preview showed them. A stale
+        // preview — more events landed since, or someone narrowed the scope — refuses outright rather than
+        // silently replaying a different set than the one that was confirmed (the counted-preview +
+        // fail-closed-on-stale-count pattern).
+        if (matches.Count != expectedCount)
+            return Result.Failure<AdminEventReplayResultDto>(
+                $"The replay scope now matches {matches.Count} event(s), not the {expectedCount} shown in "
+                    + "the preview. Refresh the preview and try again.",
+                "STALE_COUNT"
+            );
+
+        if (matches.Count > MaxReplayBatchSize)
+            return Result.Failure<AdminEventReplayResultDto>(
+                $"This scope matches {matches.Count} events, above the {MaxReplayBatchSize}-event replay "
+                    + "ceiling. Narrow the window or event type and try again.",
+                "SCOPE_TOO_LARGE"
+            );
+
+        long applied = 0;
+        foreach (EventJournal row in matches)
+        {
+            EventRecord record = EventJournalService.Map(row);
+
+            Result<UpcastResult> upcast = _upcasters.UpcastToCurrent(
+                record.EventType,
+                record.EventVersion,
+                record.PayloadJson
+            );
+            if (upcast.IsFailure)
+                return Result.Failure<AdminEventReplayResultDto>(
+                    upcast.ErrorMessage!,
+                    upcast.ErrorCode
+                );
+
+            EventRecord current = upcast.Value.Changed
+                ? record with
+                {
+                    PayloadJson = upcast.Value.PayloadJson,
+                    EventVersion = upcast.Value.ToVersion,
+                }
+                : record;
+
+            Result apply = await projection.ApplyAsync(current, ct);
+            if (apply.IsFailure)
+                return Result.Failure<AdminEventReplayResultDto>(
+                    apply.ErrorMessage!,
+                    apply.ErrorCode
+                );
+
+            applied++;
+        }
+
+        // Replaying events into a projection is a side effect with real blast radius — audited
+        // unconditionally, naming the acting operator, the exact scope, and the count applied (S-CONSEQ),
+        // mirroring ReplayWebhookDeliveryAsync/RetryScheduledJobAsync.
+        _db.IamAuditLogs.Add(
+            new IamAuditLog
+            {
+                PrincipalId = actorUserId,
+                PrincipalType = IamPrincipalType.Employee,
+                Permission = "eventstore:admin-replay",
+                TargetBroadcasterId = broadcasterId,
+                TargetResource = projectionName,
+                Justification =
+                    $"actor={actorUserId};projection={projectionName};from={fromUtc:O};to={toUtc:O};"
+                    + $"eventType={eventType ?? "(any)"};count={applied}",
+                BreakGlass = false,
+                Outcome = IamOutcome.Allowed,
+                OccurredAt = _timeProvider.GetUtcNow().UtcDateTime,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success(
+            new AdminEventReplayResultDto(
+                broadcasterId,
+                projectionName,
+                fromUtc,
+                toUtc,
+                eventType,
+                applied
+            )
+        );
+    }
+
+    private Result<IProjection> ResolveProjection(string projectionName)
+    {
+        IProjection? projection = _projections.FirstOrDefault(p => p.Name == projectionName);
+        return projection is null
+            ? Result.Failure<IProjection>(
+                $"No projection registered with name '{projectionName}'.",
+                "PROJECTION_NOT_FOUND"
+            )
+            : Result.Success(projection);
+    }
+
+    private static Result<string?> ValidateEventType(IProjection projection, string? eventType)
+    {
+        if (
+            eventType is not null
+            && projection.SubscribedEventTypes.Count > 0
+            && !projection.SubscribedEventTypes.Contains(eventType)
+        )
+            return Result.Failure<string?>(
+                $"Projection '{projection.Name}' does not subscribe to event type '{eventType}'.",
+                "EVENT_TYPE_NOT_SUBSCRIBED"
+            );
+        return Result.Success(eventType);
+    }
+
+    private IQueryable<EventJournal> MatchingEvents(
+        Guid broadcasterId,
+        DateTime fromUtc,
+        DateTime toUtc,
+        string? eventType,
+        IProjection projection
+    )
+    {
+        IQueryable<EventJournal> query = _db
+            .EventJournals.AsNoTracking()
+            .Where(e =>
+                e.BroadcasterId == broadcasterId && e.OccurredAt >= fromUtc && e.OccurredAt <= toUtc
+            );
+
+        if (eventType is not null)
+            return query.Where(e => e.EventType == eventType);
+
+        // No explicit type filter: narrow to exactly what this projection consumes, so the previewed count
+        // matches the count that will actually reach ApplyAsync — never a wider promise than what executes.
+        if (projection.SubscribedEventTypes.Count > 0)
+        {
+            List<string> subscribedTypes = [.. projection.SubscribedEventTypes];
+            query = query.Where(e => subscribedTypes.Contains(e.EventType));
+        }
+
+        return query;
     }
 
     /// <summary>

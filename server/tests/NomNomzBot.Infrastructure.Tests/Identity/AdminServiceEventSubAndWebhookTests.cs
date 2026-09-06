@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Time.Testing;
@@ -22,6 +21,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
+using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 
@@ -57,7 +57,9 @@ public sealed class AdminServiceEventSubAndWebhookTests
             provider.GetRequiredService<HealthCheckService>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             dispatcher,
-            Substitute.For<IScheduledPipelineService>()
+            Substitute.For<IScheduledPipelineService>(),
+            [],
+            new EventUpcasterRegistry([])
         );
         return (sut, db, dispatcher);
     }
@@ -122,7 +124,7 @@ public sealed class AdminServiceEventSubAndWebhookTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminEventSubTenantHealthDto>> result = await sut.GetEventSubHealthAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -146,7 +148,7 @@ public sealed class AdminServiceEventSubAndWebhookTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminEventSubTenantHealthDto>> before = await sut.GetEventSubHealthAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
         before.Value.Items.Single().Topics.Single().Status.Should().Be("enabled");
 
@@ -158,7 +160,7 @@ public sealed class AdminServiceEventSubAndWebhookTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminEventSubTenantHealthDto>> after = await sut.GetEventSubHealthAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         after.Value.Items.Single().Topics.Single().Status.Should().Be("revoked");
@@ -213,7 +215,7 @@ public sealed class AdminServiceEventSubAndWebhookTests
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminWebhookDeliveryDto>> result = await sut.GetWebhookDeliveryLogAsync(
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         AdminWebhookDeliveryDto dto = result.Value.Items.Single(d => d.Id == delivery.Id);

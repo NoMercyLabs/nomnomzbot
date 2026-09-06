@@ -163,3 +163,66 @@ public sealed record AdminTenantUsageDto(
     IReadOnlyList<AdminTenantUsageMetricDto> Metrics,
     long TtsCharacterCount
 );
+
+// ── Error budget (S-ADMIN-6c) ──
+
+/// <summary>
+/// One tenant's error budget for the trailing 24-hour window, computed purely from real
+/// <c>OutboundWebhookDelivery</c> outcomes (<c>Delivered</c> = success, <c>Failed</c>/<c>DeadLetter</c> = error;
+/// <c>Pending</c> attempts are excluded — they have not resolved yet). There is no platform-wide blended figure:
+/// one tenant's failures never count toward another's, because the entire point of a 2am tool is finding WHICH
+/// tenant's integration is actually broken. A tenant with no resolved delivery attempts in the window is simply
+/// absent from the page — never padded with a fabricated 0%. <see cref="ErrorRate"/> and
+/// <see cref="BudgetRemainingFraction"/> are <c>null</c> when <see cref="Attempts"/> is 0.
+/// <see cref="TargetSuccessRate"/> is a stated policy threshold (99%), not a measured quantity — the allowed
+/// error rate it implies is the denominator <see cref="BudgetRemainingFraction"/> is computed against.
+/// </summary>
+public sealed record AdminTenantErrorBudgetDto(
+    Guid BroadcasterId,
+    string ChannelDisplayName,
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    long Attempts,
+    long Errors,
+    double? ErrorRate,
+    double TargetSuccessRate,
+    double? BudgetRemainingFraction
+);
+
+// ── Event-store replay (S-ADMIN-6c) ──
+
+/// <summary>One projection an admin replay can target, and the REAL event types it subscribes to — reflected
+/// straight off the registered <c>IProjection</c> instances, never a hardcoded dropdown.</summary>
+public sealed record AdminReplayableProjectionDto(
+    string ProjectionName,
+    bool IsGlobal,
+    IReadOnlyList<string> SubscribedEventTypes
+);
+
+/// <summary>
+/// The REAL count of journal events a tenant + window + optional event-type scope would replay into the named
+/// projection, computed at preview time — never an estimate. The operator must see and confirm this exact
+/// count before <see cref="AdminEventReplayResultDto"/> can be produced.
+/// </summary>
+public sealed record AdminEventReplayPreviewDto(
+    Guid BroadcasterId,
+    string ProjectionName,
+    DateTime FromUtc,
+    DateTime ToUtc,
+    string? EventType,
+    long MatchingEventCount
+);
+
+/// <summary>
+/// The outcome of an admin-initiated replay: <see cref="AppliedCount"/> journal events in the stated scope
+/// were re-applied, in order, to the named projection's <c>ApplyAsync</c> — the exact per-projection fold the
+/// live driver uses, not a second engine. Never mutates the journal itself (append-only, replay only reads it).
+/// </summary>
+public sealed record AdminEventReplayResultDto(
+    Guid BroadcasterId,
+    string ProjectionName,
+    DateTime FromUtc,
+    DateTime ToUtc,
+    string? EventType,
+    long AppliedCount
+);

@@ -171,6 +171,8 @@ import nomnomzbot.composeapp.generated.resources.admin_tab_eventsub_health
 import nomnomzbot.composeapp.generated.resources.admin_tab_webhook_deliveries
 import nomnomzbot.composeapp.generated.resources.admin_tab_scheduled_jobs
 import nomnomzbot.composeapp.generated.resources.admin_tab_tenant_usage
+import nomnomzbot.composeapp.generated.resources.admin_tab_error_budget
+import nomnomzbot.composeapp.generated.resources.admin_tab_event_replay
 import nomnomzbot.composeapp.generated.resources.admin_tab_support
 import nomnomzbot.composeapp.generated.resources.admin_tab_trust_safety
 import nomnomzbot.composeapp.generated.resources.admin_providers_explain
@@ -245,6 +247,8 @@ internal enum class AdminTab(val group: AdminTabGroup, val label: StringResource
     WebhookDeliveries(AdminTabGroup.Activity, Res.string.admin_tab_webhook_deliveries),
     ScheduledJobs(AdminTabGroup.Activity, Res.string.admin_tab_scheduled_jobs),
     TenantUsage(AdminTabGroup.Activity, Res.string.admin_tab_tenant_usage),
+    ErrorBudget(AdminTabGroup.Activity, Res.string.admin_tab_error_budget),
+    EventReplay(AdminTabGroup.Activity, Res.string.admin_tab_event_replay),
     Audit(AdminTabGroup.Activity, Res.string.admin_tab_audit),
 
     Channels(AdminTabGroup.People, Res.string.admin_tab_channels),
@@ -321,6 +325,8 @@ fun AdminScreen(controller: AdminController) {
             AdminTab.WebhookDeliveries -> if (state.webhookDeliveries.isEmpty()) controller.loadWebhookDeliveries()
             AdminTab.ScheduledJobs -> if (state.scheduledJobs.isEmpty()) controller.loadScheduledJobs()
             AdminTab.TenantUsage -> if (state.tenantUsage.isEmpty()) controller.loadTenantUsage()
+            AdminTab.ErrorBudget -> if (state.errorBudget.isEmpty()) controller.loadErrorBudget()
+            AdminTab.EventReplay -> if (state.replayProjections.isEmpty()) controller.loadReplayableProjections()
             AdminTab.TrustSafety ->
                 if (!state.crossTenantSignalsLoaded && state.trustSafetyJustification.isNotBlank()) {
                     controller.loadCrossTenantSignals()
@@ -420,6 +426,8 @@ fun AdminScreen(controller: AdminController) {
             AdminTab.WebhookDeliveries -> WebhookDeliveriesTab(state = state, controller = controller)
             AdminTab.ScheduledJobs -> ScheduledJobsTab(state = state, controller = controller)
             AdminTab.TenantUsage -> TenantUsageTab(state = state, controller = controller)
+            AdminTab.ErrorBudget -> ErrorBudgetTab(state = state, controller = controller)
+            AdminTab.EventReplay -> EventReplayTab(state = state, controller = controller)
             AdminTab.Support -> SupportTab(state = state, controller = controller)
             AdminTab.TrustSafety -> TrustSafetyTab(state = state, controller = controller)
         }

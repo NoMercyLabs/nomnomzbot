@@ -14,9 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -26,14 +28,18 @@ import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
 import bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
+import bot.nomnomz.dashboard.core.network.AdminEventReplayPreview
+import bot.nomnomz.dashboard.core.network.AdminEventReplayResult
 import bot.nomnomz.dashboard.core.network.AdminEventSubTenantHealth
 import bot.nomnomz.dashboard.core.network.AdminEventSubTopicHealth
 import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
 import bot.nomnomz.dashboard.core.network.AdminInvoice
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
+import bot.nomnomz.dashboard.core.network.AdminReplayableProjection
 import bot.nomnomz.dashboard.core.network.AdminScheduledJob
 import bot.nomnomz.dashboard.core.network.AdminScheduledJobRetryResult
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
+import bot.nomnomz.dashboard.core.network.AdminTenantErrorBudget
 import bot.nomnomz.dashboard.core.network.AdminTenantUsage
 import bot.nomnomz.dashboard.core.network.AdminTenantUsageMetric
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
@@ -65,13 +71,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * S-ADMIN-6a/6b — the admin console's "2am tools". Proves the EventSub health tab renders one tenant's REAL
+ * S-ADMIN-6a/6b/6c — the admin console's "2am tools". Proves the EventSub health tab renders one tenant's REAL
  * registry rows with their real status (a healthy topic and a revoked one read differently, never a uniform
  * "all good"), that the webhook delivery log's replay control shows exactly what it will re-send BEFORE the
  * send commits, that the background job queue renders both a queued and a failed job with real, distinct
- * state and its retry control shows exactly which pipeline it will re-run before the retry commits, and that
- * per-tenant usage renders real recorded quantities — mirroring [AdminInvoicesRenderTest]'s refund-preview
- * pattern throughout.
+ * state and its retry control shows exactly which pipeline it will re-run before the retry commits, that
+ * per-tenant usage renders real recorded quantities, that the error budget renders the real computed
+ * percentage (never a fabricated one), and that the event-store replay tool previews the REAL count a scope
+ * would replay and keeps its commit control unreachable until that count exists — mirroring
+ * [AdminInvoicesRenderTest]'s refund-preview pattern throughout.
  */
 @OptIn(ExperimentalTestApi::class)
 class AdminOpsToolsTabRenderTest {
@@ -105,6 +113,18 @@ class AdminOpsToolsTabRenderTest {
     private fun ObservingTenantUsageTab(controller: AdminController) {
         val state by controller.state.collectAsState()
         TenantUsageTab(state = state, controller = controller)
+    }
+
+    @Composable
+    private fun ObservingErrorBudgetTab(controller: AdminController) {
+        val state by controller.state.collectAsState()
+        ErrorBudgetTab(state = state, controller = controller)
+    }
+
+    @Composable
+    private fun ObservingEventReplayTab(controller: AdminController) {
+        val state by controller.state.collectAsState()
+        EventReplayTab(state = state, controller = controller)
     }
 
     @Test
@@ -318,6 +338,114 @@ class AdminOpsToolsTabRenderTest {
             onNodeWithText("TTS characters: 42", substring = true).assertExists()
         }
     }
+
+    @Test
+    fun error_budget_renders_the_real_computed_percentage_never_a_fabricated_one() {
+        val budget = AdminTenantErrorBudget(
+            broadcasterId = "chan-1",
+            channelDisplayName = "qtkitte",
+            windowStartUtc = "2026-09-05T12:00:00Z",
+            windowEndUtc = "2026-09-06T12:00:00Z",
+            attempts = 4,
+            errors = 1,
+            errorRate = 0.25,
+            targetSuccessRate = 0.99,
+            budgetRemainingFraction = -24.0,
+        )
+        val api = FakeAdminApiForOpsToolsTest(errorBudget = listOf(budget))
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+        runTest { controller.loadErrorBudget() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingErrorBudgetTab(controller = controller)
+                }
+            }
+            waitForIdle()
+
+            onNodeWithText("qtkitte", substring = true).assertExists()
+            onNodeWithText("4 attempt(s), 1 error(s)", substring = true).assertExists()
+            // Computed straight from the fake's errorRate/budgetRemainingFraction (0.25 -> 25.0%,
+            // -24.0 -> -2400.0%) — never a hardcoded or rounded-differently figure.
+            onNodeWithText("25.0%", substring = true).assertExists()
+            onNodeWithText("-2400.0%", substring = true).assertExists()
+        }
+    }
+
+    @Test
+    fun event_replay_previews_the_real_count_and_the_commit_control_is_unreachable_until_it_exists() {
+        val projection = AdminReplayableProjection(
+            projectionName = "currency-balance",
+            isGlobal = false,
+            subscribedEventTypes = listOf("currency.credited"),
+        )
+        val api = FakeAdminApiForOpsToolsTest(replayProjections = listOf(projection), previewCount = 7)
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+        runTest { controller.loadReplayableProjections() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingEventReplayTab(controller = controller)
+                }
+            }
+            waitForIdle()
+
+            // No scope picked yet — no preview exists, so neither the replay trigger nor its confirm
+            // dialog can exist. The commit path is structurally unreachable without a real count behind it.
+            onNodeWithText("Confirm replay").assertDoesNotExist()
+
+            onNodeWithText("Select a projection").performClick()
+            waitForIdle()
+            onNodeWithText("currency-balance").performClick()
+            waitForIdle()
+
+            // The projection's own real subscribed types are shown, never a hardcoded set.
+            onNodeWithText("currency.credited", substring = true).assertExists()
+
+            onAllNodes(hasSetTextAction())[0].performTextInput("chan-1")
+            onAllNodes(hasSetTextAction())[1].performTextInput("2026-09-01T00:00:00Z")
+            onAllNodes(hasSetTextAction())[2].performTextInput("2026-09-06T00:00:00Z")
+            waitForIdle()
+
+            onNodeWithText("Preview").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.previewCallCount)
+            assertEquals(0, api.executeCallCount)
+
+            // The REAL counted preview renders — this is what the operator sees BEFORE any commit exists.
+            onNodeWithText("This will replay 7 event(s) into currency-balance.", substring = true).assertExists()
+
+            // The replay trigger itself states the exact count it is about to re-apply.
+            onNodeWithText("Replay 7 event(s)").performClick()
+            waitForIdle()
+
+            // Still nothing executed — the confirm dialog is the only path to a real apply.
+            assertEquals(0, api.executeCallCount)
+            onNodeWithText(
+                "This re-applies 7 event(s) to currency-balance for tenant chan-1",
+                substring = true,
+            ).assertExists()
+
+            onNodeWithText("Confirm replay").performClick()
+            waitForIdle()
+
+            assertEquals(1, api.executeCallCount)
+            assertEquals(7L, api.lastExecuteExpectedCount)
+        }
+    }
 }
 
 private class FakeAdminApiForOpsToolsTest(
@@ -325,6 +453,9 @@ private class FakeAdminApiForOpsToolsTest(
     private var webhookDeliveries: List<AdminWebhookDelivery> = emptyList(),
     private var scheduledJobs: List<AdminScheduledJob> = emptyList(),
     private val tenantUsage: List<AdminTenantUsage> = emptyList(),
+    private val errorBudget: List<AdminTenantErrorBudget> = emptyList(),
+    private val replayProjections: List<AdminReplayableProjection> = emptyList(),
+    private val previewCount: Long = 0,
 ) : AdminApi {
     var replayCallCount: Int = 0
         private set
@@ -333,6 +464,12 @@ private class FakeAdminApiForOpsToolsTest(
     var retryCallCount: Int = 0
         private set
     var lastRetriedTaskId: String? = null
+        private set
+    var previewCallCount: Int = 0
+        private set
+    var executeCallCount: Int = 0
+        private set
+    var lastExecuteExpectedCount: Long? = null
         private set
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
@@ -430,6 +567,57 @@ private class FakeAdminApiForOpsToolsTest(
 
     override suspend fun getTenantUsage(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantUsage>> =
         ApiResult.Ok(PaginatedEnvelope(tenantUsage))
+
+    override suspend fun getErrorBudget(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenantErrorBudget>> =
+        ApiResult.Ok(PaginatedEnvelope(errorBudget))
+
+    override suspend fun getReplayableProjections(): ApiResult<List<AdminReplayableProjection>> =
+        ApiResult.Ok(replayProjections)
+
+    // Mirrors the real backend: the count comes straight from what THIS scope resolves to — the test drives
+    // the exact number via [previewCount], proving the UI renders whatever the count actually is, not a
+    // hardcoded label.
+    override suspend fun previewEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+    ): ApiResult<AdminEventReplayPreview> {
+        previewCallCount++
+        return ApiResult.Ok(
+            AdminEventReplayPreview(
+                broadcasterId = broadcasterId,
+                projectionName = projectionName,
+                fromUtc = fromUtc,
+                toUtc = toUtc,
+                eventType = eventType,
+                matchingEventCount = previewCount,
+            )
+        )
+    }
+
+    override suspend fun executeEventReplay(
+        broadcasterId: String,
+        projectionName: String,
+        fromUtc: String,
+        toUtc: String,
+        eventType: String?,
+        expectedCount: Long,
+    ): ApiResult<AdminEventReplayResult> {
+        executeCallCount++
+        lastExecuteExpectedCount = expectedCount
+        return ApiResult.Ok(
+            AdminEventReplayResult(
+                broadcasterId = broadcasterId,
+                projectionName = projectionName,
+                fromUtc = fromUtc,
+                toUtc = toUtc,
+                eventType = eventType,
+                appliedCount = expectedCount,
+            )
+        )
+    }
 }
 
 private class FakeIamApiForOpsToolsTest : PlatformIamApi {

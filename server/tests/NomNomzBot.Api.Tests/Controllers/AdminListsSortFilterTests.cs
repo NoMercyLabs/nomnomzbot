@@ -21,6 +21,7 @@ using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
+using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 
@@ -58,7 +59,9 @@ public sealed class AdminListsSortFilterTests
             provider.GetRequiredService<HealthCheckService>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             Substitute.For<IOutboundWebhookDispatcher>(),
-            Substitute.For<IScheduledPipelineService>()
+            Substitute.For<IScheduledPipelineService>(),
+            [],
+            new EventUpcasterRegistry([])
         );
 
         return (
