@@ -47,4 +47,19 @@ public interface IAdminSupportService
         string justification,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Replays what actually happened to this person — the real rows recorded for them in the append-only
+    /// event journal, across EVERY tenant, newest first, each labeled with the tenant it happened in (or
+    /// <c>null</c> for a platform-global event). A person with no recorded history gets an empty page, never
+    /// a failure. Requires <c>user:support:view</c>; justification is mandatory and the subject user id lands
+    /// on the audit row, same as <see cref="GetPersonAsync"/>.
+    /// </summary>
+    Task<Result<PagedList<SupportPersonHistoryEntryDto>>> GetPersonHistoryAsync(
+        Guid actingPrincipalId,
+        Guid subjectUserId,
+        string justification,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
 }

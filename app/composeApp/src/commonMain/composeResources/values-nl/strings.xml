@@ -3462,6 +3462,10 @@
     <string name="admin_support_tier">Niveau %1$s</string>
     <string name="admin_support_grant_reason">Comp: %1$s (tot %2$s)</string>
     <string name="admin_support_role_scope_platform">Platformbreed</string>
+    <string name="admin_support_section_activity">Activiteit op elk kanaal</string>
+    <string name="admin_support_activity_platform_global">Platformbrede gebeurtenis</string>
+    <string name="admin_support_activity_nothing_recorded">Er is nog niets vastgelegd voor deze persoon.</string>
+    <string name="admin_support_activity_error">Kan de activiteit voor deze persoon niet laden: %1$s</string>
     <string name="admin_webhook_deliveries_empty">Geen webhook-afleveringen geregistreerd.</string>
     <string name="admin_webhook_delivery_label">Aflevering</string>
     <string name="admin_webhook_delivery_attempt">Poging %1$d</string>

@@ -155,6 +155,21 @@ data class SupportPersonView(
     val entitlements: List<SupportPersonEntitlement> = emptyList(),
 )
 
+/**
+ * One real event recorded about this person, read straight off the append-only event journal —
+ * never a reconstruction. [broadcasterId] is `null` for a platform-global event, and [channelName]
+ * mirrors that rather than inventing a tenant label.
+ */
+@Serializable
+data class SupportPersonHistoryEntry(
+    val eventId: String,
+    val broadcasterId: String? = null,
+    val channelName: String? = null,
+    val eventType: String,
+    val source: String,
+    val occurredAt: String,
+)
+
 interface AdminSupportApi {
     suspend fun searchPeople(
         search: String,
@@ -167,6 +182,13 @@ interface AdminSupportApi {
         subjectUserId: String,
         justification: String,
     ): ApiResult<SupportPersonView>
+
+    suspend fun getPersonHistory(
+        subjectUserId: String,
+        justification: String,
+        page: Int = 1,
+        pageSize: Int = 25,
+    ): ApiResult<PaginatedEnvelope<SupportPersonHistoryEntry>>
 }
 
 class AdminSupportApiImpl(private val client: ApiClient) : AdminSupportApi {
@@ -187,5 +209,16 @@ class AdminSupportApiImpl(private val client: ApiClient) : AdminSupportApi {
     ): ApiResult<SupportPersonView> =
         client.getEnvelope(
             "api/v1/admin/support/people/$subjectUserId?justification=${justification.encodeQuery()}",
+        )
+
+    override suspend fun getPersonHistory(
+        subjectUserId: String,
+        justification: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<SupportPersonHistoryEntry>> =
+        client.getDirect(
+            "api/v1/admin/support/people/$subjectUserId/history" +
+                "?justification=${justification.encodeQuery()}&page=$page&pageSize=$pageSize",
         )
 }

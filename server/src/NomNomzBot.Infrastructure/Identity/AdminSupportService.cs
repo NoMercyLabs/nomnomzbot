@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -33,7 +34,8 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class AdminSupportService(
     IApplicationDbContext db,
     IPlatformIamService iam,
-    IBillingTierService billingTiers
+    IBillingTierService billingTiers,
+    IEventJournal eventJournal
 ) : IAdminSupportService
 {
     public async Task<Result<PagedList<SupportPersonSearchResultDto>>> SearchPeopleAsync(
@@ -277,6 +279,73 @@ public sealed class AdminSupportService(
                     ))
                     .ToList(),
                 entitlements
+            )
+        );
+    }
+
+    public async Task<Result<PagedList<SupportPersonHistoryEntryDto>>> GetPersonHistoryAsync(
+        Guid actingPrincipalId,
+        Guid subjectUserId,
+        string justification,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(justification))
+            return Result.Failure<PagedList<SupportPersonHistoryEntryDto>>(
+                "A justification is required to replay a person's cross-tenant history.",
+                "VALIDATION_FAILED"
+            );
+
+        Result authorized = await RequireAsync(
+            actingPrincipalId,
+            justification,
+            $"user:{subjectUserId}:history",
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<PagedList<SupportPersonHistoryEntryDto>>(null!);
+
+        // BroadcasterId left null on purpose — the whole point of this desk is replaying what happened to
+        // this person EVERYWHERE, not inside one tenant's own audit UI.
+        Result<PagedList<EventRecord>> journal = await eventJournal.QueryAsync(
+            new EventJournalQuery(
+                BroadcasterId: null,
+                EventType: null,
+                FromUtc: null,
+                ToUtc: null,
+                ActorUserId: subjectUserId,
+                Page: pagination.Page,
+                PageSize: pagination.PageSize
+            ),
+            ct
+        );
+        if (journal.IsFailure)
+            return journal.WithValue<PagedList<SupportPersonHistoryEntryDto>>(null!);
+
+        HashSet<Guid> referencedTenants = journal
+            .Value.Items.Where(e => e.BroadcasterId is not null)
+            .Select(e => e.BroadcasterId!.Value)
+            .ToHashSet();
+        Dictionary<Guid, string> channelNames = await ChannelNamesAsync(referencedTenants, ct);
+
+        List<SupportPersonHistoryEntryDto> items = journal
+            .Value.Items.Select(e => new SupportPersonHistoryEntryDto(
+                e.EventId,
+                e.BroadcasterId,
+                e.BroadcasterId is null ? null : NameOf(channelNames, e.BroadcasterId.Value),
+                e.EventType,
+                e.Source,
+                e.OccurredAt
+            ))
+            .ToList();
+
+        return Result.Success(
+            new PagedList<SupportPersonHistoryEntryDto>(
+                items,
+                journal.Value.Page,
+                journal.Value.PageSize,
+                journal.Value.TotalCount
             )
         );
     }

@@ -89,6 +89,39 @@ public class AdminSupportController(
         );
     }
 
+    /// <summary>
+    /// Replays what actually happened to this person — the real events recorded for them across every tenant,
+    /// newest first, each labeled with the tenant it happened in. No history is an empty page, never an error.
+    /// </summary>
+    [HttpGet("people/{subjectUserId:guid}/history")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.UserSupportView)]
+    [ProducesResponseType<PaginatedResponse<SupportPersonHistoryEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPersonHistory(
+        Guid subjectUserId,
+        [FromQuery] string justification,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PagedList<SupportPersonHistoryEntryDto>>(null!));
+
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<SupportPersonHistoryEntryDto>> result =
+            await support.GetPersonHistoryAsync(
+                acting.Value,
+                subjectUserId,
+                justification,
+                pagination,
+                ct
+            );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
     /// <summary>The caller's IAM principal id — a resolve failure DENIES rather than substituting <c>Guid.Empty</c>.</summary>
     private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>
         actingPrincipalResolver.ResolveActingPrincipalIdAsync(currentUser.UserId, ct);

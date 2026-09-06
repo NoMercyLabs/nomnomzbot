@@ -589,7 +589,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .WithOne(c => c.Step)
             .HasForeignKey(c => c.PipelineStepId);
         b.Entity<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition>().HasKey(e => e.Id);
-        b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
+        // Mapped (not ignored) — S-ADMIN-7b's cross-tenant person history reads the REAL journal, so this
+        // harness needs it queryable the same way the production AppDbContext does.
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.EventStore.Persistence.EventJournalConfiguration()
+        );
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
 
@@ -775,7 +779,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandUsage> CommandUsages =>
         Set<NomNomzBot.Domain.Commands.Entities.CommandUsage>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.EventJournal> EventJournals =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.TenantSequence> TenantSequences =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint> ProjectionCheckpoints =>

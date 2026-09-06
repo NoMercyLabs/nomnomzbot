@@ -126,6 +126,21 @@ public sealed record SupportPersonEntitlementGrantDto(
 );
 
 /// <summary>
+/// One real event recorded about this person in ONE tenant (S-ADMIN-7b), read straight from the append-only
+/// <c>EventJournal</c> — the same ledger <c>IEventJournal</c> replay/projection tooling reads, never a second
+/// reconstruction. <see cref="BroadcasterId"/> is <c>null</c> for a platform-global event; <see cref="ChannelName"/>
+/// mirrors that (also <c>null</c>) rather than inventing a tenant label.
+/// </summary>
+public sealed record SupportPersonHistoryEntryDto(
+    Guid EventId,
+    Guid? BroadcasterId,
+    string? ChannelName,
+    string EventType,
+    string Source,
+    DateTime OccurredAt
+);
+
+/// <summary>
 /// ONE cross-tenant view of one person's REAL state (S-ADMIN-7a). Every list is sourced from its own table
 /// and every per-tenant fact names the tenant it belongs to. A datum the system does not have for this person
 /// is ABSENT — an empty list, never a zeroed placeholder row that would read as real data.

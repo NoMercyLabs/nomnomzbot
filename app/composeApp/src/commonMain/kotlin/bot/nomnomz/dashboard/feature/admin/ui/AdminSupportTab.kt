@@ -33,12 +33,16 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
 import bot.nomnomz.dashboard.core.network.SupportPersonView
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.admin_support_activity_error
+import nomnomzbot.composeapp.generated.resources.admin_support_activity_nothing_recorded
+import nomnomzbot.composeapp.generated.resources.admin_support_activity_platform_global
 import nomnomzbot.composeapp.generated.resources.admin_support_audited_notice
 import nomnomzbot.composeapp.generated.resources.admin_support_back
 import nomnomzbot.composeapp.generated.resources.admin_support_find
@@ -51,6 +55,7 @@ import nomnomzbot.composeapp.generated.resources.admin_support_open
 import nomnomzbot.composeapp.generated.resources.admin_support_person_row_type
 import nomnomzbot.composeapp.generated.resources.admin_support_role_scope_platform
 import nomnomzbot.composeapp.generated.resources.admin_support_search_label
+import nomnomzbot.composeapp.generated.resources.admin_support_section_activity
 import nomnomzbot.composeapp.generated.resources.admin_support_section_community
 import nomnomzbot.composeapp.generated.resources.admin_support_section_connections
 import nomnomzbot.composeapp.generated.resources.admin_support_section_entitlements
@@ -118,6 +123,10 @@ internal fun SupportTab(state: AdminState, controller: AdminController) {
             state.supportLoading || state.supportPersonLoading -> Spinner(color = tokens.primary)
             state.supportPerson != null -> PersonRecord(
                 person = state.supportPerson,
+                history = state.supportHistory,
+                historyLoaded = state.supportHistoryLoaded,
+                historyLoading = state.supportHistoryLoading,
+                historyError = state.supportHistoryError,
                 onBack = { controller.closeSupportPerson() },
             )
             state.supportResults.isNotEmpty() -> Card(modifier = Modifier.fillMaxWidth()) {
@@ -181,7 +190,14 @@ private fun PersonResultRow(person: SupportPersonSearchResult, onOpen: () -> Uni
  * that is the "omit what we do not have" rule, enforced here rather than by a placeholder further down.
  */
 @Composable
-private fun PersonRecord(person: SupportPersonView, onBack: () -> Unit) {
+private fun PersonRecord(
+    person: SupportPersonView,
+    history: List<SupportPersonHistoryEntry>,
+    historyLoaded: Boolean,
+    historyLoading: Boolean,
+    historyError: String?,
+    onBack: () -> Unit,
+) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
@@ -326,6 +342,52 @@ private fun PersonRecord(person: SupportPersonView, onBack: () -> Unit) {
         }
 
         if (!hasAnyFact) EmptyLine(stringResource(Res.string.admin_support_nothing_known))
+
+        ActivitySection(history = history, loaded = historyLoaded, loading = historyLoading, error = historyError)
+    }
+}
+
+/**
+ * What actually happened to this person, replayed from the real event journal (S-ADMIN-7b) — one row per
+ * event, newest first, each naming the tenant it happened in. [loaded] tells "fetched, genuinely nothing
+ * recorded" apart from "not fetched yet", so the empty state never reads as an error.
+ */
+@Composable
+private fun ActivitySection(
+    history: List<SupportPersonHistoryEntry>,
+    loaded: Boolean,
+    loading: Boolean,
+    error: String?,
+) {
+    val tokens = LocalTokens.current
+    val platformWide: String = stringResource(Res.string.admin_support_activity_platform_global)
+
+    Column {
+        Text(
+            text = stringResource(Res.string.admin_support_section_activity),
+            style = LocalTypography.current.sm,
+            color = tokens.mutedForeground,
+        )
+        when {
+            loading -> Spinner(color = tokens.primary)
+            error != null ->
+                ActionErrorBanner(
+                    message = stringResource(Res.string.admin_support_activity_error, error),
+                )
+            history.isNotEmpty() -> Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    history.forEachIndexed { index, entry ->
+                        FactRow(
+                            primary = entry.eventType,
+                            detail = entry.channelName ?: platformWide,
+                            discriminator = entry.eventId,
+                        )
+                        if (index < history.lastIndex) Separator()
+                    }
+                }
+            }
+            loaded -> EmptyLine(stringResource(Res.string.admin_support_activity_nothing_recorded))
+        }
     }
 }
 

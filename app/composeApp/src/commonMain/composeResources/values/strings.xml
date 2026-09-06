@@ -3476,6 +3476,10 @@
     <string name="admin_support_tier">Tier %1$s</string>
     <string name="admin_support_grant_reason">Comp: %1$s (until %2$s)</string>
     <string name="admin_support_role_scope_platform">Platform-wide</string>
+    <string name="admin_support_section_activity">Activity across every channel</string>
+    <string name="admin_support_activity_platform_global">Platform-wide event</string>
+    <string name="admin_support_activity_nothing_recorded">Nothing has been recorded for this person yet.</string>
+    <string name="admin_support_activity_error">Could not load activity for this person: %1$s</string>
     <string name="admin_webhook_deliveries_empty">No webhook deliveries recorded.</string>
     <string name="admin_webhook_delivery_label">Delivery</string>
     <string name="admin_webhook_delivery_attempt">Attempt %1$d</string>

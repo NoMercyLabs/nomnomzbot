@@ -58,6 +58,7 @@ import bot.nomnomz.dashboard.core.network.CreateContentDefinitionBody
 import bot.nomnomz.dashboard.core.network.DraftContentVersionBody
 import bot.nomnomz.dashboard.core.network.AdminSupportApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
+import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
 import bot.nomnomz.dashboard.core.network.SupportPersonView
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
@@ -245,6 +246,13 @@ data class AdminState(
     val supportPerson: SupportPersonView? = null,
     val supportPersonLoading: Boolean = false,
     val supportPersonError: String? = null,
+    /** What actually happened to this person, replayed from the real event journal (S-ADMIN-7b) — newest
+     * first, each entry naming the tenant it happened in. [supportHistoryLoaded] tells an empty list (no
+     * recorded history) apart from "never fetched", so the empty state never reads as an error. */
+    val supportHistory: List<SupportPersonHistoryEntry> = emptyList(),
+    val supportHistoryLoaded: Boolean = false,
+    val supportHistoryLoading: Boolean = false,
+    val supportHistoryError: String? = null,
 )
 
 /** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
@@ -893,7 +901,13 @@ class AdminController(
 
     /** Closes the open person record, returning to the result list. */
     fun closeSupportPerson() {
-        _state.value = _state.value.copy(supportPerson = null, supportPersonError = null)
+        _state.value = _state.value.copy(
+            supportPerson = null,
+            supportPersonError = null,
+            supportHistory = emptyList(),
+            supportHistoryLoaded = false,
+            supportHistoryError = null,
+        )
     }
 
     /**
@@ -920,7 +934,11 @@ class AdminController(
         }
     }
 
-    /** Opens ONE person's cross-tenant record. The same justification rides the audit row as the search. */
+    /**
+     * Opens ONE person's cross-tenant record, then replays what actually happened to them. The same
+     * justification rides both audit rows as the search. History loads AFTER the record so an operator who
+     * only needed the current state never pays for the replay call when the record itself failed.
+     */
     suspend fun openSupportPerson(subjectUserId: String) {
         val api: AdminSupportApi = supportApi ?: return
         val justification: String = _state.value.supportJustification.trim()
@@ -928,12 +946,36 @@ class AdminController(
 
         _state.value = _state.value.copy(supportPersonLoading = true, supportPersonError = null)
         when (val result = api.getPerson(subjectUserId = subjectUserId, justification = justification)) {
-            is ApiResult.Ok ->
+            is ApiResult.Ok -> {
                 _state.value = _state.value.copy(supportPerson = result.value, supportPersonLoading = false)
+                loadSupportHistory(subjectUserId = subjectUserId, justification = justification)
+            }
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(
                     supportPersonLoading = false,
                     supportPersonError = result.error.message,
+                )
+        }
+    }
+
+    /** Replays what actually happened to this person, across every tenant, from the real event journal. */
+    private suspend fun loadSupportHistory(subjectUserId: String, justification: String) {
+        val api: AdminSupportApi = supportApi ?: return
+
+        _state.value = _state.value.copy(supportHistoryLoading = true, supportHistoryError = null)
+        when (
+            val result = api.getPersonHistory(subjectUserId = subjectUserId, justification = justification)
+        ) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    supportHistory = result.value.data,
+                    supportHistoryLoaded = true,
+                    supportHistoryLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    supportHistoryLoading = false,
+                    supportHistoryError = result.error.message,
                 )
         }
     }

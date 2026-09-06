@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
 import bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody
 import bot.nomnomz.dashboard.core.network.SupportPersonCommunityStanding
 import bot.nomnomz.dashboard.core.network.SupportPersonEntitlement
+import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
 import bot.nomnomz.dashboard.core.network.SupportPersonTrustScore
 import bot.nomnomz.dashboard.core.network.SupportPersonView
@@ -94,12 +95,15 @@ class AdminSupportPersonRenderTest {
         SupportTab(state = state, controller = controller)
     }
 
-    private fun controllerFor(person: SupportPersonView): AdminController {
+    private fun controllerFor(
+        person: SupportPersonView,
+        history: List<SupportPersonHistoryEntry> = emptyList(),
+    ): AdminController {
         val controller = AdminController(
             api = FakeAdminApiForSupportTest(),
             iamApi = FakeIamApiForSupportTest(),
             platformAdminApi = FakePlatformAdminApiForSupportTest(),
-            supportApi = FakeSupportApi(results = listOf(searchHit), person = person),
+            supportApi = FakeSupportApi(results = listOf(searchHit), person = person, history = history),
         )
         runTest {
             controller.setSupportSearch("wandering")
@@ -194,11 +198,76 @@ class AdminSupportPersonRenderTest {
             onNodeWithText("Platform roles").assertDoesNotExist()
         }
     }
+
+    @Test
+    fun the_activity_section_renders_each_real_event_with_the_tenant_it_happened_in() {
+        val controller = controllerFor(
+            person = SupportPersonView(
+                userId = "user-1",
+                username = "wandering_viewer",
+                displayName = "Wandering Viewer",
+                platform = "twitch",
+            ),
+            history = listOf(
+                SupportPersonHistoryEntry(
+                    eventId = "evt-1",
+                    broadcasterId = "chan-1",
+                    channelName = "streamer_a",
+                    eventType = "UserTimedOutEvent",
+                    source = "eventsub",
+                    occurredAt = "2026-09-03T12:00:00Z",
+                ),
+                SupportPersonHistoryEntry(
+                    eventId = "evt-2",
+                    broadcasterId = "chan-2",
+                    channelName = "streamer_b",
+                    eventType = "NewFollowerEvent",
+                    source = "eventsub",
+                    occurredAt = "2026-09-02T12:00:00Z",
+                ),
+            ),
+        )
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingSupportTab(controller = controller) } }
+            waitForIdle()
+
+            onNodeWithText("Activity across every channel").assertExists()
+            // Each event names the TENANT it actually happened in, not a bare id.
+            onNodeWithText("UserTimedOutEvent", substring = true).assertExists()
+            onNodeWithText("streamer_a", substring = true).assertExists()
+            onNodeWithText("NewFollowerEvent", substring = true).assertExists()
+            onNodeWithText("streamer_b", substring = true).assertExists()
+        }
+    }
+
+    @Test
+    fun no_recorded_history_renders_the_empty_state_not_an_error() {
+        val controller = controllerFor(
+            person = SupportPersonView(
+                userId = "user-1",
+                username = "brand_new_chatter",
+                displayName = "Brand New Chatter",
+                platform = "twitch",
+            ),
+            history = emptyList(),
+        )
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingSupportTab(controller = controller) } }
+            waitForIdle()
+
+            onNodeWithText("Activity across every channel").assertExists()
+            onNodeWithText("Nothing has been recorded for this person yet.").assertExists()
+            onNodeWithText("Could not load", substring = true).assertDoesNotExist()
+        }
+    }
 }
 
 private class FakeSupportApi(
     private val results: List<SupportPersonSearchResult>,
     private val person: SupportPersonView,
+    private val history: List<SupportPersonHistoryEntry> = emptyList(),
 ) : AdminSupportApi {
     override suspend fun searchPeople(
         search: String,
@@ -212,6 +281,14 @@ private class FakeSupportApi(
         subjectUserId: String,
         justification: String,
     ): ApiResult<SupportPersonView> = ApiResult.Ok(person)
+
+    override suspend fun getPersonHistory(
+        subjectUserId: String,
+        justification: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<SupportPersonHistoryEntry>> =
+        ApiResult.Ok(PaginatedEnvelope(history))
 }
 
 private class FakeAdminApiForSupportTest : AdminApi {

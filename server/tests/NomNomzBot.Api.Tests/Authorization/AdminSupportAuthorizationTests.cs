@@ -114,7 +114,8 @@ public sealed class AdminSupportAuthorizationTests
     [Theory]
     [InlineData(nameof(AdminSupportController.SearchPeople))]
     [InlineData(nameof(AdminSupportController.GetPerson))]
-    public void Both_support_desk_actions_are_gated_on_the_support_view_key(string methodName)
+    [InlineData(nameof(AdminSupportController.GetPersonHistory))]
+    public void All_support_desk_actions_are_gated_on_the_support_view_key(string methodName)
     {
         PolicyOf(typeof(AdminSupportController), methodName)
             .Should()

@@ -10,16 +10,22 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Enums.Deployment;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Tests.EventStore;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -47,12 +53,54 @@ public sealed class AdminSupportServiceTests
             .Returns(
                 Result.Failure<EntitlementDto>("No entitlement for this tenant.", "NOT_FOUND")
             );
+        // GetPersonHistoryAsync reads through the REAL IEventJournal.QueryAsync — the same replay/audit
+        // read path the rest of the platform uses — rather than a second hand-rolled query. Only QueryAsync
+        // is exercised here, so the sequence allocator / unit-of-work / current-user collaborators (used
+        // only by AppendAsync) are unconfigured no-op substitutes.
+        IEventJournal eventJournal = new EventJournalService(
+            db,
+            Substitute.For<ITenantSequenceAllocator>(),
+            Substitute.For<IUnitOfWork>(),
+            TimeProvider.System,
+            new PassthroughEventPayloadProtector(),
+            Substitute.For<ICurrentUserService>()
+        );
         AdminSupportService sut = new(
             db,
             new PlatformIamService(db, new RecordingEventBus(), TimeProvider.System, new(mode)),
-            billing
+            billing,
+            eventJournal
         );
         return (sut, db, billing);
+    }
+
+    /// <summary>Seeds one real journal row attributed to <paramref name="subjectUserId"/> in one tenant.</summary>
+    private static void SeedJournalEvent(
+        AuthDbContext db,
+        Guid subjectUserId,
+        Guid? broadcasterId,
+        string eventType,
+        DateTime occurredAt,
+        long streamPosition
+    )
+    {
+        db.EventJournals.Add(
+            new EventJournal
+            {
+                EventId = Guid.NewGuid(),
+                BroadcasterId = broadcasterId,
+                StreamPosition = streamPosition,
+                EventType = eventType,
+                EventVersion = 1,
+                Source = "eventsub",
+                Payload = "{}",
+                PayloadIsEncrypted = false,
+                ActorUserId = subjectUserId,
+                Metadata = "{}",
+                OccurredAt = occurredAt,
+                RecordedAt = occurredAt,
+            }
+        );
     }
 
     /// <summary>An operator IAM principal holding exactly <paramref name="permissionKeys"/> (SaaS on).</summary>
@@ -408,5 +456,156 @@ public sealed class AdminSupportServiceTests
         view.PlatformConnections.Should().BeEmpty();
         view.Username.Should()
             .Be("brand_new_chatter", "the identity itself is still real and present");
+    }
+
+    [Fact]
+    public async Task History_replays_the_real_journal_rows_across_two_tenants_newest_first()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+        Guid subject = SeedViewer(db, "wandering_viewer", "tw-4242");
+        Guid ownerA = SeedViewer(db, "streamer_a", "tw-a");
+        Guid tenantA = SeedTenant(db, "streamer_a", ownerA);
+        Guid ownerB = SeedViewer(db, "streamer_b", "tw-b");
+        Guid tenantB = SeedTenant(db, "streamer_b", ownerB);
+
+        DateTime t1 = new(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc);
+        DateTime t2 = new(2026, 9, 2, 12, 0, 0, DateTimeKind.Utc);
+        DateTime t3 = new(2026, 9, 3, 12, 0, 0, DateTimeKind.Utc);
+        SeedJournalEvent(db, subject, tenantA, "ChatMessageReceivedEvent", t1, 1);
+        SeedJournalEvent(db, subject, tenantB, "NewFollowerEvent", t2, 1);
+        SeedJournalEvent(db, subject, tenantA, "UserTimedOutEvent", t3, 2);
+        // A different person's event in tenant A must never leak into the subject's replay.
+        Guid otherPerson = SeedViewer(db, "someone_else", "tw-else");
+        SeedJournalEvent(db, otherPerson, tenantA, "ChatMessageReceivedEvent", t3, 3);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<SupportPersonHistoryEntryDto>> result = await sut.GetPersonHistoryAsync(
+            operatorPrincipal,
+            subject,
+            Why,
+            Page
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        List<SupportPersonHistoryEntryDto> items = [.. result.Value.Items];
+        items
+            .Should()
+            .HaveCount(3, "only the SUBJECT's own three events, never the other person's");
+
+        // Newest first, and each entry carries the tenant it actually happened in.
+        items[0].EventType.Should().Be("UserTimedOutEvent");
+        items[0].BroadcasterId.Should().Be(tenantA);
+        items[0].ChannelName.Should().Be("streamer_a");
+
+        items[1].EventType.Should().Be("NewFollowerEvent");
+        items[1].BroadcasterId.Should().Be(tenantB);
+        items[1].ChannelName.Should().Be("streamer_b");
+
+        items[2].EventType.Should().Be("ChatMessageReceivedEvent");
+        items[2].BroadcasterId.Should().Be(tenantA);
+        items[2].ChannelName.Should().Be("streamer_a");
+    }
+
+    [Fact]
+    public async Task History_without_the_support_key_is_refused_and_is_audited_as_denied()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.TenantRead);
+        Guid subject = SeedViewer(db, "wandering_viewer", "tw-4242");
+        Guid tenant = SeedTenant(db, "wandering_viewer", subject);
+        SeedJournalEvent(
+            db,
+            subject,
+            tenant,
+            "ChatMessageReceivedEvent",
+            new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
+            1
+        );
+        await db.SaveChangesAsync();
+
+        Result<PagedList<SupportPersonHistoryEntryDto>> result = await sut.GetPersonHistoryAsync(
+            operatorPrincipal,
+            subject,
+            Why,
+            Page
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync(a =>
+            a.Permission == IamPermissionKeys.UserSupportView
+        );
+        audit.PrincipalId.Should().Be(operatorPrincipal, "the ACTING operator is named");
+        audit.TargetResource.Should().Be($"user:{subject}:history", "the SUBJECT is named");
+        audit.Outcome.Should().Be(IamOutcome.Denied);
+    }
+
+    [Fact]
+    public async Task History_lookup_writes_an_allowed_audit_row_naming_operator_and_subject()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+        Guid subject = SeedViewer(db, "wandering_viewer", "tw-4242");
+        await db.SaveChangesAsync();
+
+        Result<PagedList<SupportPersonHistoryEntryDto>> result = await sut.GetPersonHistoryAsync(
+            operatorPrincipal,
+            subject,
+            Why,
+            Page
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync(a =>
+            a.Permission == IamPermissionKeys.UserSupportView
+        );
+        audit.PrincipalId.Should().Be(operatorPrincipal);
+        audit.TargetResource.Should().Be($"user:{subject}:history");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+        audit.Justification.Should().Be(Why);
+    }
+
+    [Fact]
+    public async Task History_requires_a_justification()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+        Guid subject = SeedViewer(db, "wandering_viewer", "tw-4242");
+        await db.SaveChangesAsync();
+
+        Result<PagedList<SupportPersonHistoryEntryDto>> result = await sut.GetPersonHistoryAsync(
+            operatorPrincipal,
+            subject,
+            "  ",
+            Page
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.IamAuditLogs.CountAsync())
+            .Should()
+            .Be(0, "the gate never ran, so nothing is audited");
+    }
+
+    [Fact]
+    public async Task A_person_with_no_recorded_history_gets_an_empty_page_not_a_failure()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+        // A brand-new chatter: nothing was ever recorded about them in the journal.
+        Guid subject = SeedViewer(db, "brand_new_chatter", "tw-9001");
+        await db.SaveChangesAsync();
+
+        Result<PagedList<SupportPersonHistoryEntryDto>> result = await sut.GetPersonHistoryAsync(
+            operatorPrincipal,
+            subject,
+            Why,
+            Page
+        );
+
+        result.IsSuccess.Should().BeTrue("no history is an EMPTY state, never an error");
+        result.Value.Items.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(0);
     }
 }
