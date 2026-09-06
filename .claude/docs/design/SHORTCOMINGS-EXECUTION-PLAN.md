@@ -484,6 +484,20 @@ the Settings journal button row; twelve screens with a stated reason for needing
 hardened after the fact (`18dd67e7`): the assertion matched a bare substring, so a rename keeping the token
 as a suffix slipped through — now word-boundary anchored, with both mutations proven red.
 
+**Driving S-UX-4 to completion found TWO real defects, both fixed (2026-09-06).**
+
+- **The content publish blast radius undercounted every other tenant** (`0961b768`). The preview ran
+  under the ambient tenant filter, which is set from the CALLING platform employee's own channel — so
+  an owner who also runs a channel saw only their own row and published against a number that was
+  quietly wrong. Now `IgnoreQueryFilters()` with `DeletedAt == null` re-applied, the established
+  cross-tenant-admin-read convention. Proven on a real two-tenant fixture: `affectedCount:1,
+  skippedCount:1` matching the seeded pair, where `skippedCount` was `0` and invisible before.
+- **A shoutout line and a raid line could not coexist for the same person** (`61d6f30b`). The unique
+  index omitted `Kind`, so setting the second kind returned a 500 unique-constraint violation. Both
+  migration sets. Proven by PUT-ing both kinds for two viewers and reading back four independent rows.
+
+Neither was findable from source review; both came out of actually exercising the flows.
+
 - [ ] **S-UX-4 Prove it got simpler — PARTLY DONE, driven in a browser 2026-09-05.** Against the real
       database via chrome-attached, authenticated with a minted JWT (`scripts/mint-jwt.py` + the
       generated `keys/jwt-secret.bin`, which on Linux is PLAINTEXT — not base64-of-the-file).
