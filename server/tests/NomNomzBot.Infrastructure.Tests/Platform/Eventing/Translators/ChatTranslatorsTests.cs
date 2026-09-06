@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
@@ -146,7 +147,7 @@ public sealed class ChatTranslatorsTests
         guard
             .ShouldSuppressAsync(
                 Tenant,
-                NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                AuthEnums.Platform.Twitch,
                 "555",
                 "!cmd try again",
                 Arg.Any<CancellationToken>()
