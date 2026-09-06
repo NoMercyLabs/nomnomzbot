@@ -193,7 +193,13 @@ data class SpamDetection(
     val detectedAt: String = "",
 )
 
-/** One correlated cohort (backend `SpamCampaignDto`). */
+/**
+ * One correlated cohort (backend `SpamCampaignDto`).
+ *
+ * [reversedAt] null with [restoredAccountCount] zero and [restorationFailedAccountIds] blank means no
+ * reversal was ever attempted; [reversedAt] null with either non-empty means an attempt fell short of
+ * every actioned account (a partial restore); [reversedAt] set means every actioned account came back.
+ */
 @Serializable
 data class SpamCampaign(
     val id: String = "",
@@ -206,6 +212,9 @@ data class SpamCampaign(
     val mayContributeToNetwork: Boolean = true,
     val reversedAt: String? = null,
     val reversalReason: String? = null,
+    val reversedByActorId: String? = null,
+    val restoredAccountCount: Int = 0,
+    val restorationFailedAccountIds: String = "",
     val firstSeenAt: String = "",
     val lastSeenAt: String = "",
 )

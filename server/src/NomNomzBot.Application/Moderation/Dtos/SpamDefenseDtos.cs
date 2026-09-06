@@ -65,7 +65,15 @@ public sealed record SpamDetectionDto(
     DateTime DetectedAt
 );
 
-/// <summary>One correlated cohort, for the Campaigns surface.</summary>
+/// <summary>
+/// One correlated cohort, for the Campaigns surface.
+///
+/// <para><see cref="ReversedAt"/> null and <see cref="RestoredAccountCount"/> zero means no reversal was
+/// ever attempted; <see cref="ReversedAt"/> null with <see cref="RestoredAccountCount"/> positive or
+/// <see cref="RestorationFailedAccountIds"/> non-empty means an attempt fell short of every actioned
+/// account; <see cref="ReversedAt"/> set means every actioned account came back. Three distinct,
+/// legible states — a partial restore must never be indistinguishable from either extreme.</para>
+/// </summary>
 public sealed record SpamCampaignDto(
     Guid Id,
     string Skeleton,
@@ -77,6 +85,9 @@ public sealed record SpamCampaignDto(
     bool MayContributeToNetwork,
     DateTime? ReversedAt,
     string? ReversalReason,
+    string? ReversedByActorId,
+    int RestoredAccountCount,
+    string RestorationFailedAccountIds,
     DateTime FirstSeenAt,
     DateTime LastSeenAt
 );

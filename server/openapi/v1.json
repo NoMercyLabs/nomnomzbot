@@ -100850,6 +100850,9 @@
           "mayContributeToNetwork",
           "reversedAt",
           "reversalReason",
+          "reversedByActorId",
+          "restoredAccountCount",
+          "restorationFailedAccountIds",
           "firstSeenAt",
           "lastSeenAt"
         ],
@@ -100914,6 +100917,23 @@
               "string"
             ]
           },
+          "reversedByActorId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "restoredAccountCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "restorationFailedAccountIds": {
+            "type": "string"
+          },
           "firstSeenAt": {
             "type": "string",
             "format": "date-time"
@@ -100923,7 +100943,7 @@
             "format": "date-time"
           }
         },
-        "description": "One correlated cohort, for the Campaigns surface."
+        "description": "One correlated cohort, for the Campaigns surface.\r\n\r\nDateTime? SpamCampaignDto.ReversedAt null and int SpamCampaignDto.RestoredAccountCount zero means no reversal was\r\never attempted; DateTime? SpamCampaignDto.ReversedAt null with int SpamCampaignDto.RestoredAccountCount positive or\r\nstring SpamCampaignDto.RestorationFailedAccountIds non-empty means an attempt fell short of every actioned\r\naccount; DateTime? SpamCampaignDto.ReversedAt set means every actioned account came back. Three distinct,\r\nlegible states — a partial restore must never be indistinguishable from either extreme."
       },
       "SpamConfidence": {
         "type": "integer",

@@ -266,6 +266,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 c.MayContributeToNetwork,
                 c.ReversedAt,
                 c.ReversalReason,
+                c.ReversedByActorId,
+                c.RestoredAccountCount,
+                c.RestorationFailedAccountIds,
                 c.FirstSeenAt,
                 c.LastSeenAt
             ))

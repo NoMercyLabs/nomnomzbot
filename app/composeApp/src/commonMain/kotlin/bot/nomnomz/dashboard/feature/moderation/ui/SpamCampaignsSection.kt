@@ -31,6 +31,7 @@ import kotlin.math.roundToInt
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.spam_campaign_counts
 import nomnomzbot.composeapp.generated.resources.spam_campaign_not_shared
+import nomnomzbot.composeapp.generated.resources.spam_campaign_partial_reversal
 import nomnomzbot.composeapp.generated.resources.spam_campaign_reversed
 import nomnomzbot.composeapp.generated.resources.spam_campaign_strangers
 import nomnomzbot.composeapp.generated.resources.spam_campaign_verdict_campaign
@@ -108,12 +109,32 @@ internal fun SpamCampaignsSection(campaigns: List<SpamCampaign>) {
                     color = tokens.mutedForeground,
                 )
 
-                campaign.reversalReason?.let { reason ->
-                    Text(
-                        text = stringResource(Res.string.spam_campaign_reversed, reason),
-                        style = typography.sm,
-                        color = tokens.cardForeground,
-                    )
+                // Three legible states, never collapsed into one another: nothing shown means no
+                // reversal was ever attempted; the destructive-toned line means an attempt fell short
+                // and names exactly how many accounts are still actioned; the reversed line means every
+                // actioned account came back.
+                val stillActioned: Int =
+                    campaign.restorationFailedAccountIds.split(',').count { it.isNotBlank() }
+                when {
+                    campaign.reversedAt != null ->
+                        campaign.reversalReason?.let { reason ->
+                            Text(
+                                text = stringResource(Res.string.spam_campaign_reversed, reason),
+                                style = typography.sm,
+                                color = tokens.cardForeground,
+                            )
+                        }
+
+                    stillActioned > 0 || campaign.restoredAccountCount > 0 ->
+                        Text(
+                            text =
+                                stringResource(
+                                    Res.string.spam_campaign_partial_reversal,
+                                    stillActioned,
+                                ),
+                            style = typography.sm,
+                            color = tokens.destructive,
+                        )
                 }
 
                 // Surfaced because it is a promise being kept, not a detail: a phrase any regular

@@ -5197,6 +5197,7 @@
     <string name="spam_campaign_counts">%1$d accounts posted it, %2$d could be acted on, %3$d were</string>
     <string name="spam_campaign_strangers">%1$d%% were strangers to your channel</string>
     <string name="spam_campaign_reversed">Undone: %1$s</string>
+    <string name="spam_campaign_partial_reversal">Reversal incomplete — %1$d accounts still actioned</string>
     <string name="spam_campaign_not_shared">Not shared with other servers, because someone with standing posted it too.</string>
     <string name="spam_follow_blocks_title">Follow-bot blocks</string>
     <string name="spam_follow_blocks_empty">Nothing blocked. Accounts blocked during a follow spike appear here, each with the reason it was blocked.</string>

@@ -5172,6 +5172,7 @@
     <string name="spam_campaign_counts">%1$d accounts postten het, %2$d konden worden aangepakt, %3$d werden dat</string>
     <string name="spam_campaign_strangers">%1$d%% waren vreemden voor jouw kanaal</string>
     <string name="spam_campaign_reversed">Teruggedraaid: %1$s</string>
+    <string name="spam_campaign_partial_reversal">Terugdraaien niet compleet — %1$d accounts nog steeds aangepakt</string>
     <string name="spam_campaign_not_shared">Niet gedeeld met andere servers, omdat iemand met status het ook postte.</string>
     <string name="spam_follow_blocks_title">Volgbot-blokkades</string>
     <string name="spam_follow_blocks_empty">Niets geblokkeerd. Accounts die tijdens een volgpiek zijn geblokkeerd verschijnen hier, elk met de reden erbij.</string>

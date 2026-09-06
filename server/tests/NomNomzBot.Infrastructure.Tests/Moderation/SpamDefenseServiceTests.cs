@@ -559,6 +559,96 @@ public class SpamDefenseServiceTests : IDisposable
             .BeFalse("a cohort that included standing viewers is never a network signature");
     }
 
+    [Fact]
+    public async Task CampaignsReportThreeDistinctReversalStates_NeverPartialAndFull()
+    {
+        // The dashboard must be able to tell "nobody tried" from "tried and fell short" from "fully
+        // undone" — a partial restore left silent is exactly the defect this closes (20694769).
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamCampaigns.AddRange(
+                new SpamCampaignRecord
+                {
+                    BroadcasterId = Channel,
+                    Skeleton = "never-attempted",
+                    Verdict = CohortVerdict.Campaign,
+                    ActionedAccountIds = "bot-a,bot-b",
+                    ActionedCount = 2,
+                    ReversedAt = null,
+                    ReversedByActorId = null,
+                    RestoredAccountCount = 0,
+                    RestorationFailedAccountIds = string.Empty,
+                    FirstSeenAt = Now.UtcDateTime,
+                    LastSeenAt = Now.UtcDateTime,
+                },
+                new SpamCampaignRecord
+                {
+                    BroadcasterId = Channel,
+                    Skeleton = "partial-restore",
+                    Verdict = CohortVerdict.Campaign,
+                    ActionedAccountIds = "bot-c,bot-d,bot-e",
+                    ActionedCount = 3,
+                    ReversedAt = null,
+                    ReversedByActorId = "system:spam-dequalify",
+                    RestoredAccountCount = 1,
+                    RestorationFailedAccountIds = "bot-d,bot-e",
+                    FirstSeenAt = Now.UtcDateTime,
+                    LastSeenAt = Now.UtcDateTime,
+                },
+                new SpamCampaignRecord
+                {
+                    BroadcasterId = Channel,
+                    Skeleton = "fully-restored",
+                    Verdict = CohortVerdict.CommunityPattern,
+                    ActionedAccountIds = "bot-f,bot-g",
+                    ActionedCount = 2,
+                    ReversedAt = Now.UtcDateTime,
+                    ReversalReason = "Regulars joined the pattern.",
+                    ReversedByActorId = "system:spam-dequalify",
+                    RestoredAccountCount = 2,
+                    RestorationFailedAccountIds = string.Empty,
+                    FirstSeenAt = Now.UtcDateTime,
+                    LastSeenAt = Now.UtcDateTime,
+                }
+            );
+            seed.SaveChanges();
+        }
+
+        using AppDbContext db = NewDbContext();
+        IReadOnlyList<SpamCampaignDto> campaigns = await NewService(db).GetCampaignsAsync(Channel);
+
+        SpamCampaignDto never = campaigns.Single(c => c.Skeleton == "never-attempted");
+        never.ReversedAt.Should().BeNull();
+        never.ReversedByActorId.Should().BeNull();
+        never.RestoredAccountCount.Should().Be(0);
+        never.RestorationFailedAccountIds.Should().BeEmpty();
+
+        SpamCampaignDto partial = campaigns.Single(c => c.Skeleton == "partial-restore");
+        partial
+            .ReversedAt.Should()
+            .BeNull("a partial restore must never claim a complete reversal");
+        partial.ReversedByActorId.Should().Be("system:spam-dequalify");
+        partial.RestoredAccountCount.Should().Be(1);
+        partial.RestorationFailedAccountIds.Should().Contain("bot-d").And.Contain("bot-e");
+
+        SpamCampaignDto full = campaigns.Single(c => c.Skeleton == "fully-restored");
+        full.ReversedAt.Should().NotBeNull();
+        full.ReversedByActorId.Should().Be("system:spam-dequalify");
+        full.RestoredAccountCount.Should().Be(2);
+        full.RestorationFailedAccountIds.Should().BeEmpty();
+
+        // The three states must be pairwise distinguishable by a client rendering off the DTO alone.
+        never
+            .Should()
+            .NotBeEquivalentTo(partial, "never-attempted and partial must render differently");
+        partial
+            .Should()
+            .NotBeEquivalentTo(full, "partial and fully-restored must render differently");
+        never
+            .Should()
+            .NotBeEquivalentTo(full, "never-attempted and fully-restored must render differently");
+    }
+
     // ---- Platform defaults -----------------------------------------------------------------------
 
     [Fact]
