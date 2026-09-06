@@ -300,8 +300,24 @@ there is one rule and not two; and `EntitlementGrant` (added in `b36f42b3`) was 
 blast-radius category, which left `ChannelBlastRadiusSourcesCompletenessTests` red on master and would
 have silently dropped that table from the count shown before a channel delete.
 
-- [ ] **S-ADMIN-6b The rest of the 2am tools.** Background job queue with retry, per-tenant usage and
-      cost, error budget, and the event-store replay tools.
+**S-ADMIN-6b CLOSED (`ceb9b7c4`), verified.** Background job queue with retry, and per-tenant usage.
+Built on `ScheduledPipelineTask` — the real persisted dispatch primitive already swept by
+`ScheduledPipelineExpiryService` — rather than inventing a parallel queue, because the codebase has no
+generic background-job entity. Retry appends a new attempt and leaves the original failed one readable
+(the bug shape fixed for webhooks in `5691cb4c`, proven catchable here), and is REJECTED when the job
+already succeeded or its target pipeline is gone.
+
+**It deliberately shows no cost figure, and that is the correct answer, not a gap in the slice.**
+Per-tenant usage reports real measured quantities from `UsageRecord` + `TtsUsageRecord` with the period
+stated. There is no per-unit price table anywhere in the codebase, so any currency number would have
+been fabricated — which the never-show-unmeasured-state law forbids.
+
+- [ ] **S-ADMIN-4d No per-unit price table, so usage cannot be costed.** Tiers carry a price
+      (`S-ADMIN-4a`) but nothing prices a UNIT of usage, so "recover real cost, never upsell" has no
+      arithmetic behind it and the ops tab can show quantities but never money. Needs the priced-unit
+      model before any cost or margin surface is honest.
+
+- [ ] **S-ADMIN-6c Error budget and event-store replay tools.**
 **S-ADMIN-7 CLOSED — 7a `0c6d017f`, 7b `922073d7`, both verified.** Cross-tenant person search and a
 person view of real state (roles, standings, trust, entitlements, connections, each labelled with the
 tenant it belongs to), plus history replayed from the real event journal. Gated on the new
