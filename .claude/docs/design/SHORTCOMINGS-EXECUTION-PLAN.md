@@ -178,13 +178,15 @@ dispatches those on `BlockKind` alone (`PipelineEngine.cs:1312`). Fixed in `9343
 At 1440x900 both levels render legibly with reorder/edit/delete per row; at 390x844
 `scrollWidth === clientWidth` with no horizontal overflow and the deepest leaf's controls all present.
 
-- [ ] **S-PIPE-TREE-VIS Make the tree LOOK like a tree.** Measured verdict: it reads as a flat list
-      with indentation, not as nesting — `IfBlockCard`/`LaneSection` are plain `Column`s carrying only
-      `padding(start = spacing.s4)` per level, with no card, border or background per block, so depth
-      is legible only from indent amount and the repeating "Als: …" header. Also: the leaf delete
-      glyph is near-invisible in its default state at 2+ levels on a 390px viewport (hover reveals it)
-      — a destructive control the user cannot see; and on the list page pipeline names truncate to
-      "Raid…" / "Pijplij…" at 390px.
+**S-PIPE-TREE-VIS CLOSED** (`1f658e0b` containment + `2110f3b8` Compact clipping + `dcf73ed1` accent),
+confirmed on screen at three levels deep: it now reads as genuine containment, boxes within boxes, and
+the radius visibly SHRINKS one step per level (Xl→Lg→Sm floor) rather than three identical boxes.
+The eye-check found what the unit tests could not: `TreeNodeContainer`'s own `clip(shape)` was silently
+hiding the leaf delete control at depth — the containment that fixed the hierarchy hid the destructive
+control, and `PipelineTreeVisTest` passed throughout because the node existed and was enabled, just
+off-screen. Fixed by wrapping the control row in a `FlowRow`. Accent was also being spent on every
+reorder arrow at every depth (19 call sites), which marks nothing; now untinted, with
+`PipelineAccentScarcityGuardTest` mutation-proven to catch a regression.
 
 - [ ] **Schedule route fails on a channel with no onboarded stream schedule** — "Kon het schema niet
       laden: Channel is not known locally." Found while driving the client; a missing-schedule state
