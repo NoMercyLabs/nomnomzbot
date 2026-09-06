@@ -1472,12 +1472,18 @@ later.)
   Delivery is presence-checked, the law this project has paid for twice: with no overlay connected the
   alert reports queued and never pushes, and only a genuinely connected overlay marks it delivered.
   Both migration sets; `AlertQueueEntry` classified in `ChannelBlastRadiusSources`; ~52 fake contexts.
-  - [ ] **S059b Platform-native alerts still bypass the queue.** Follow / sub / cheer / raid / gift /
-        resub go direct-push through `WidgetAlertDispatch` and never write an `AlertQueueEntries` row,
-        so "one queue across platforms" is true for supporter events and NOT yet for Twitch's own. Also
-        owed: moderation retraction (§2a) cancelling a queued-but-undelivered entry, and regenerating
-        `server/openapi/v1.json` for the new `alert-queue` route (port 5080 was held by another agent;
-        `ApiContractTest` passes without it because the Kotlin client does not consume it yet).
+  **S059b CLOSED (`e653f44e`, snapshot `a0a8f0f3`).** Follow / sub / cheer / raid / gift / resub now
+  write an `AlertQueueEntry` attributed to their platform, so "one queue across platforms" is finally
+  true for Twitch's own events and not just supporter ones. The delivery decision, stated rather than
+  implied: the ALERTS system widget is now queue-fed and presence-checked like a supporter event, while
+  every OTHER subscribed widget (custom overlays, goal_bar, event_ticker) keeps its direct push —
+  `WidgetAlertDispatch.RouteAsync` gained `excludeWidgetId` so the alerts widget is skipped in that
+  fan-out once the queue has already attempted delivery. `Connected_overlay_receives_exactly_one_
+  delivery_never_two` guards the thing that would have been worse than the gap: a sub alert firing
+  twice on stream. Sanity-checked by disabling the exclusion and watching that test and the presence
+  check go red, so neither is vacuous. Every pre-existing `_reaches_a_subscribed_widget_` test across
+  the eleven broadcasters still passes unmodified.
+  Still open: moderation retraction (§2a) cancelling a queued-but-undelivered entry.
 - **S071** Notification centre + Home — action-required inbox (dead tokens, missing scopes, failed
   timers, held messages, pending unbans) with click-through; Home hero tile + collapsed activity feed
   + first-run next steps (U·B6, K). Done-when: a dead Spotify token is visible on Home within a minute.
