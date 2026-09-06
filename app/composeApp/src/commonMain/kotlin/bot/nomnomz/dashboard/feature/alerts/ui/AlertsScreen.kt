@@ -40,6 +40,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -55,7 +57,9 @@ import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
 import bot.nomnomz.dashboard.core.network.AlertSummary
+import bot.nomnomz.dashboard.feature.alerts.state.AlertQueueUiState
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsController
 import bot.nomnomz.dashboard.feature.alerts.state.AlertsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -87,6 +91,12 @@ import nomnomzbot.composeapp.generated.resources.alerts_dialog_pipeline_bound
 import nomnomzbot.composeapp.generated.resources.alerts_dialog_pipeline_unresolved
 import nomnomzbot.composeapp.generated.resources.alerts_new_action
 import nomnomzbot.composeapp.generated.resources.alerts_no_message
+import nomnomzbot.composeapp.generated.resources.alerts_queue_connected
+import nomnomzbot.composeapp.generated.resources.alerts_queue_empty
+import nomnomzbot.composeapp.generated.resources.alerts_queue_not_connected
+import nomnomzbot.composeapp.generated.resources.alerts_queue_status_delivered
+import nomnomzbot.composeapp.generated.resources.alerts_queue_status_queued
+import nomnomzbot.composeapp.generated.resources.alerts_queue_title
 import nomnomzbot.composeapp.generated.resources.alerts_retry
 import nomnomzbot.composeapp.generated.resources.alerts_title
 import nomnomzbot.composeapp.generated.resources.alerts_toggle_action
@@ -100,6 +110,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
     val state: AlertsState by controller.state.collectAsStateWithLifecycle()
+    val queueState: AlertQueueUiState by controller.queueState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -115,63 +126,71 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
-        when (val current: AlertsState = state) {
-            is AlertsState.Loading -> CenteredMessage(stringResource(Res.string.alerts_loading))
-            is AlertsState.Error ->
-                ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
-            is AlertsState.Empty ->
-                ManagedContent(
-                    alerts = emptyList(),
-                    actionError = null,
-                    manage = manage,
-                    onNew = { editor = AlertEditor.create() },
-                    onEdit = { alert ->
-                        // The message lives on the detail, not the list item — fetch it, then open a pre-filled
-                        // editor. A failed fetch leaves the page put with the error surfaced (detail returns null).
-                        scope.launch {
-                            controller.detail(alert.eventType)?.let { found ->
-                                editor =
-                                    AlertEditor.edit(
-                                        eventType = found.eventType,
-                                        message = found.message.orEmpty(),
-                                        isEnabled = found.isEnabled,
-                                        responseType = found.responseType,
-                                        pipelineName = controller.pipelineName(found.pipelineId),
-                                    )
+    Column(
+        modifier = Modifier.fillMaxSize().padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
+        AlertQueueSection(queueState)
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            when (val current: AlertsState = state) {
+                is AlertsState.Loading -> CenteredMessage(stringResource(Res.string.alerts_loading))
+                is AlertsState.Error ->
+                    ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+                is AlertsState.Empty ->
+                    ManagedContent(
+                        alerts = emptyList(),
+                        actionError = null,
+                        manage = manage,
+                        onNew = { editor = AlertEditor.create() },
+                        onEdit = { alert ->
+                            // The message lives on the detail, not the list item — fetch it, then open a
+                            // pre-filled editor. A failed fetch leaves the page put with the error surfaced
+                            // (detail returns null).
+                            scope.launch {
+                                controller.detail(alert.eventType)?.let { found ->
+                                    editor =
+                                        AlertEditor.edit(
+                                            eventType = found.eventType,
+                                            message = found.message.orEmpty(),
+                                            isEnabled = found.isEnabled,
+                                            responseType = found.responseType,
+                                            pipelineName = controller.pipelineName(found.pipelineId),
+                                        )
+                                }
                             }
-                        }
-                    },
-                    onToggle = { alert, enabled ->
-                        scope.launch { controller.toggleAlert(alert.eventType, enabled) }
-                    },
-                    onDelete = { alert -> pendingDelete = alert.eventType },
-                )
-            is AlertsState.Ready ->
-                ManagedContent(
-                    alerts = current.alerts,
-                    actionError = current.actionError,
-                    manage = manage,
-                    onNew = { editor = AlertEditor.create() },
-                    onEdit = { alert ->
-                        scope.launch {
-                            controller.detail(alert.eventType)?.let { found ->
-                                editor =
-                                    AlertEditor.edit(
-                                        eventType = found.eventType,
-                                        message = found.message.orEmpty(),
-                                        isEnabled = found.isEnabled,
-                                        responseType = found.responseType,
-                                        pipelineName = controller.pipelineName(found.pipelineId),
-                                    )
+                        },
+                        onToggle = { alert, enabled ->
+                            scope.launch { controller.toggleAlert(alert.eventType, enabled) }
+                        },
+                        onDelete = { alert -> pendingDelete = alert.eventType },
+                    )
+                is AlertsState.Ready ->
+                    ManagedContent(
+                        alerts = current.alerts,
+                        actionError = current.actionError,
+                        manage = manage,
+                        onNew = { editor = AlertEditor.create() },
+                        onEdit = { alert ->
+                            scope.launch {
+                                controller.detail(alert.eventType)?.let { found ->
+                                    editor =
+                                        AlertEditor.edit(
+                                            eventType = found.eventType,
+                                            message = found.message.orEmpty(),
+                                            isEnabled = found.isEnabled,
+                                            responseType = found.responseType,
+                                            pipelineName = controller.pipelineName(found.pipelineId),
+                                        )
+                                }
                             }
-                        }
-                    },
-                    onToggle = { alert, enabled ->
-                        scope.launch { controller.toggleAlert(alert.eventType, enabled) }
-                    },
-                    onDelete = { alert -> pendingDelete = alert.eventType },
-                )
+                        },
+                        onToggle = { alert, enabled ->
+                            scope.launch { controller.toggleAlert(alert.eventType, enabled) }
+                        },
+                        onDelete = { alert -> pendingDelete = alert.eventType },
+                    )
+            }
         }
     }
 
@@ -238,6 +257,107 @@ private fun ManagedContent(
                 onDelete = onDelete,
             )
         }
+    }
+}
+
+// The live alert queue (widgets-overlays.md §1.2): the ONE cross-platform queue, rendered above the
+// event-response config list on the same owner page. [AlertQueueUiState.Ready.overlayConnected] drives the
+// connection line honestly — read live from the backend's presence registry, never implied by the entries
+// list being non-empty. Scarce accent stays spent on the page's single primary action ("New alert" in
+// [Header]); this section uses only neutral/semantic tokens (success/destructive), never the brand accent.
+@Composable
+private fun AlertQueueSection(queueState: AlertQueueUiState) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    // A loading/error queue never blocks the page — it renders nothing rather than a second spinner or
+    // error banner competing with the event-responses list below it.
+    val ready: AlertQueueUiState.Ready = queueState as? AlertQueueUiState.Ready ?: return
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.alerts_queue_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                )
+                Text(
+                    text =
+                        stringResource(
+                            if (ready.overlayConnected) Res.string.alerts_queue_connected
+                            else Res.string.alerts_queue_not_connected
+                        ),
+                    style = typography.sm,
+                    color = if (ready.overlayConnected) tokens.success else tokens.destructive,
+                )
+            }
+
+            if (ready.entries.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.alerts_queue_empty),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    // Most-recent-first, capped so a busy channel's queue card stays a fixed size rather
+                    // than growing without bound.
+                    ready.entries.take(QueueVisibleEntryCount).forEach { entry ->
+                        AlertQueueRow(entry)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val QueueVisibleEntryCount: Int = 5
+
+@Composable
+private fun AlertQueueRow(entry: AlertQueueEntryDto) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val delivered: Boolean = entry.status == "delivered"
+    val statusLabel: String =
+        stringResource(
+            if (delivered) Res.string.alerts_queue_status_delivered
+            else Res.string.alerts_queue_status_queued
+        )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The cross-platform attribution (widgets-overlays.md §1.2) — every entry names its own origin,
+        // never merged into one undifferentiated "alert" label.
+        Badge(variant = BadgeVariant.Outline) { Text(text = entry.provider) }
+
+        // Secondary attribute next to the provider badge (the row's real identity) — never clipped, so a
+        // long event kind is still fully readable rather than silently truncated (TruncatedPrimaryLabelGuardTest).
+        Text(
+            text = entry.kind,
+            style = typography.sm,
+            color = tokens.cardForeground,
+            modifier = Modifier.weight(1f),
+        )
+
+        Text(
+            text = statusLabel,
+            style = typography.xs,
+            color = if (delivered) tokens.success else tokens.mutedForeground,
+        )
     }
 }
 

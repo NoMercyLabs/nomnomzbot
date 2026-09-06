@@ -8,6 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -31,6 +34,22 @@ public sealed class SupporterWidgetEventHandlerTests
     );
 
     private readonly IWidgetEventNotifier _overlay = Substitute.For<IWidgetEventNotifier>();
+    private readonly IAlertQueueService _alertQueue = Substitute.For<IAlertQueueService>();
+    private readonly IWidgetService _widgetService = Substitute.For<IWidgetService>();
+
+    public SupporterWidgetEventHandlerTests()
+    {
+        // The alerts system surface never resolves to a real widget in these tests (S058b's routing predicate
+        // is the thing under test here, not S059's queue) — EnsureSystemWidgetAsync failing is handled the
+        // same way a genuinely absent surface would be: nothing is excluded from the fan-out.
+        _widgetService
+            .EnsureSystemWidgetAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<WidgetDetail>("no surface", "NOT_FOUND"));
+    }
 
     private static Widget NewWidget(
         Guid broadcasterId,
@@ -96,7 +115,7 @@ public sealed class SupporterWidgetEventHandlerTests
         }
 
         using WidgetTestDbContext readCtx = db.NewContext();
-        SupporterWidgetEventHandler handler = new(readCtx, _overlay);
+        SupporterWidgetEventHandler handler = new(readCtx, _overlay, _alertQueue, _widgetService);
 
         await handler.HandleAsync(TipEvent(Broadcaster));
 
@@ -165,7 +184,7 @@ public sealed class SupporterWidgetEventHandlerTests
         }
 
         using WidgetTestDbContext readCtx = db.NewContext();
-        SupporterWidgetEventHandler handler = new(readCtx, _overlay);
+        SupporterWidgetEventHandler handler = new(readCtx, _overlay, _alertQueue, _widgetService);
 
         await handler.HandleAsync(
             new SupporterEventReceived

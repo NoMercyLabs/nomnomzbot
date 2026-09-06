@@ -13,6 +13,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Alerts.Dtos;
+using NomNomzBot.Application.Alerts.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -33,14 +35,17 @@ public class EventResponsesController : BaseController
 {
     private readonly IEventResponseService _eventResponseService;
     private readonly IWidgetService _widgetService;
+    private readonly IAlertQueueService _alertQueue;
 
     public EventResponsesController(
         IEventResponseService eventResponseService,
-        IWidgetService widgetService
+        IWidgetService widgetService,
+        IAlertQueueService alertQueue
     )
     {
         _eventResponseService = eventResponseService;
         _widgetService = widgetService;
+        _alertQueue = alertQueue;
     }
 
     /// <summary>
@@ -67,6 +72,34 @@ public class EventResponsesController : BaseController
                 Data = new(result.Value.OverlayUrl ?? string.Empty, result.Value.LastRanAt),
             }
         );
+    }
+
+    /// <summary>
+    /// The channel's single cross-platform alert queue (widgets-overlays.md §1.2) — every follow/sub/raid/
+    /// supporter event, in order, attributed to the platform or integration that produced it, whether or not
+    /// any widget is installed. <see cref="AlertQueueDto.OverlayConnected"/> is read live from the presence
+    /// registry, never inferred from the entries themselves, so the dashboard can show "not connected"
+    /// honestly even when every entry is otherwise healthy.
+    /// </summary>
+    [RequireAction("eventresponses:read")]
+    [HttpGet("alert-queue")]
+    [ProducesResponseType<StatusResponseDto<AlertQueueDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAlertQueue(
+        string channelId,
+        [FromQuery] int limit,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return ResultResponse(Errors.ChannelNotFound<AlertQueueDto>(channelId));
+        Result<AlertQueueDto> result = await _alertQueue.GetQueueAsync(
+            broadcasterId,
+            limit > 0 ? limit : 50,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<AlertQueueDto> { Data = result.Value });
     }
 
     /// <summary>List the channel's configured event responses, paginated, for the dashboard's event responses page.</summary>

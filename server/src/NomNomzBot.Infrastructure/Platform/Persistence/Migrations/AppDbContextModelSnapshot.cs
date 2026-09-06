@@ -24,6 +24,51 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("NomNomzBot.Domain.Alerts.Entities.AlertQueueEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "CreatedAt")
+                        .HasDatabaseName("IX_AlertQueueEntry_BroadcasterId_CreatedAt");
+
+                    b.ToTable("AlertQueueEntries");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily", b =>
                 {
                     b.Property<long>("Id")
@@ -9500,9 +9545,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "TargetTwitchUserId")
+                    b.HasIndex("BroadcasterId", "TargetTwitchUserId", "Kind")
                         .IsUnique()
-                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target")
+                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target_Kind")
                         .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("ShoutoutOverrides");

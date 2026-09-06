@@ -19,6 +19,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -205,6 +206,7 @@ internal sealed class ReplayTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => Set<AlertQueueEntry>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
 
     protected override void OnModelCreating(ModelBuilder b)

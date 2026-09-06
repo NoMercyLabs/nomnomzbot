@@ -47,6 +47,15 @@ interface AlertsApi {
 
     /** Remove the response for [eventType] (the backend DELETE route is keyed by event type). */
     suspend fun delete(channelId: String, eventType: String): ApiResult<Unit>
+
+    /**
+     * The channel's ONE cross-platform alert queue (widgets-overlays.md §1.2) — a follow, a sub, and a
+     * supporter tip from any provider, in one ordered list, with no gallery install required.
+     * [AlertQueueDto.overlayConnected] is read live from the backend's overlay presence registry, never
+     * inferred from the entries — a supporter alert can be queued and correct while the surface still shows
+     * "not connected" honestly.
+     */
+    suspend fun queue(channelId: String): ApiResult<AlertQueueDto>
 }
 
 class RestAlertsApi(private val client: ApiClient) : AlertsApi {
@@ -71,6 +80,10 @@ class RestAlertsApi(private val client: ApiClient) : AlertsApi {
 
     override suspend fun delete(channelId: String, eventType: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/event-responses/$eventType")
+
+    // The queue response is a `StatusResponseDto<AlertQueueDto>` — unwrapped via getEnvelope's `data: T`.
+    override suspend fun queue(channelId: String): ApiResult<AlertQueueDto> =
+        client.getEnvelope("api/v1/channels/$channelId/event-responses/alert-queue")
 }
 
 /**
@@ -121,4 +134,26 @@ data class AlertDetail(
     val message: String? = null,
     val pipelineId: String? = null,
     val updatedAt: String = "",
+)
+
+/**
+ * The channel's alert queue (backend `AlertQueueDto`, widgets-overlays.md §1.2) — [overlayConnected] is the
+ * honest, live presence check (never derived from [entries]); [entries] is the queue itself, most-recent-first.
+ */
+@Serializable
+data class AlertQueueDto(
+    val overlayConnected: Boolean = false,
+    val entries: List<AlertQueueEntryDto> = emptyList(),
+)
+
+/** One queued alert (backend `AlertQueueEntryDto`) — [provider] is the cross-platform attribution. */
+@Serializable
+data class AlertQueueEntryDto(
+    val id: String = "",
+    val provider: String = "",
+    val kind: String = "",
+    val payloadJson: String = "",
+    val status: String = "",
+    val createdAt: String = "",
+    val deliveredAt: String? = null,
 )

@@ -17,6 +17,53 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
 
+            modelBuilder.Entity("NomNomzBot.Domain.Alerts.Entities.AlertQueueEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "CreatedAt")
+                        .HasDatabaseName("IX_AlertQueueEntry_BroadcasterId_CreatedAt");
+
+                    b.ToTable("AlertQueueEntries");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Analytics.Entities.ChannelAnalyticsDaily", b =>
                 {
                     b.Property<long>("Id")
@@ -9944,9 +9991,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "TargetTwitchUserId")
+                    b.HasIndex("BroadcasterId", "TargetTwitchUserId", "Kind")
                         .IsUnique()
-                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target")
+                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target_Kind")
                         .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("ShoutoutOverrides");

@@ -1526,6 +1526,12 @@
     <string name="alerts_delete_message">De melding voor %1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="alerts_delete_confirm">Verwijderen</string>
     <string name="alerts_delete_cancel">Annuleren</string>
+    <string name="alerts_queue_title">Live alertwachtrij</string>
+    <string name="alerts_queue_connected">Overlay verbonden</string>
+    <string name="alerts_queue_not_connected">Overlay niet verbonden — voeg de alert-surface toe aan OBS</string>
+    <string name="alerts_queue_empty">Nog geen alerts — ze verschijnen hier zodra er een afgaat</string>
+    <string name="alerts_queue_status_delivered">Getoond op stream</string>
+    <string name="alerts_queue_status_queued">In wachtrij — nog niet getoond</string>
     <string name="widgets_title">Overlays</string>
     <string name="widgets_subtitle">OBS-browserbron-overlays voor je stream.</string>
     <string name="widgets_loading">Je overlays laden…</string>

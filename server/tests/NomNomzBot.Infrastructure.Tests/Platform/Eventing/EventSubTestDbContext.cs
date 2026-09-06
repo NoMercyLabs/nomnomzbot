@@ -12,6 +12,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
@@ -225,6 +226,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
     public DbSet<RecordEntity> Records => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();

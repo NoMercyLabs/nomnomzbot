@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.alerts.state
 
 import bot.nomnomz.dashboard.core.network.AlertDetail
+import bot.nomnomz.dashboard.core.network.AlertQueueDto
 import bot.nomnomz.dashboard.core.network.AlertSummary
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -436,6 +437,12 @@ private class RecordingAlertsApi(
         }
         return writeResult
     }
+
+    // load() unconditionally reads the queue alongside the event-response list (S059) — a benign empty/
+    // disconnected default so these config-page tests, which don't exercise the queue, are unaffected.
+    // AlertQueueServiceTests/AlertsScreenQueueTest cover the queue's own behavior.
+    override suspend fun queue(channelId: String): ApiResult<AlertQueueDto> =
+        ApiResult.Ok(AlertQueueDto())
 }
 
 // A minimal fake — [load] returns [pipelines] verbatim; every other member is unreachable from the Alerts

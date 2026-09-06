@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Billing.Entities;
@@ -247,6 +248,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();

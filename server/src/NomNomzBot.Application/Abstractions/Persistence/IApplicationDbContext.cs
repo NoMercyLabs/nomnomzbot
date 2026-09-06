@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
@@ -79,6 +80,8 @@ public interface IApplicationDbContext
     DbSet<WidgetGalleryItem> WidgetGalleryItems { get; }
     DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents { get; }
     DbSet<RenderedAlertCapture> RenderedAlertCaptures { get; }
+
+    DbSet<AlertQueueEntry> AlertQueueEntries { get; }
     DbSet<EventSubSubscription> EventSubSubscriptions { get; }
     DbSet<EventSubConduit> EventSubConduits { get; }
     DbSet<EventSubConduitShard> EventSubConduitShards { get; }

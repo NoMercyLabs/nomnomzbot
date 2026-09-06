@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
@@ -82,6 +83,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => Set<AlertQueueEntry>();
 
     // Mapped (not throwing) so S-REPLAY-CORRELATION tests can seed a REAL ChannelEvent row and prove a
     // capture's ChannelEventId actually resolves against it — not just string equality in isolation.
@@ -116,6 +118,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(c => c.User);
         });
 
+        b.Entity<AlertQueueEntry>(e => e.HasKey(a => a.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -129,6 +133,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         typeof(Widget),
         typeof(RenderedAlertCapture),
         typeof(ChannelEvent),
+        typeof(AlertQueueEntry),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

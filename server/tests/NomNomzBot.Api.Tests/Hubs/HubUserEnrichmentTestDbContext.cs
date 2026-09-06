@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
@@ -200,6 +201,7 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
     public DbSet<DiscordGuildConnection> DiscordGuildConnections =>
         throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();

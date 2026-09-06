@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
@@ -218,6 +219,7 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();

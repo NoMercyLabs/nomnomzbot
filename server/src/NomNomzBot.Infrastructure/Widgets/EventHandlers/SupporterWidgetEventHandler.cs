@@ -10,6 +10,9 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Supporters.Events;
@@ -57,13 +60,26 @@ public sealed record SupporterAlertPayload(
 /// </summary>
 public sealed class SupporterWidgetEventHandler : IEventHandler<SupporterEventReceived>
 {
+    // Not a gallery item any more (widgets-overlays.md §1.2 header) — the alert surface's stable natural key,
+    // matching FirstPartyWidgetCatalogue's "alerts" entry and AlertQueueService's own constant.
+    private const string AlertsSurfaceNaturalKey = "alerts";
+
     private readonly IApplicationDbContext _db;
     private readonly IWidgetEventNotifier _overlay;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgets;
 
-    public SupporterWidgetEventHandler(IApplicationDbContext db, IWidgetEventNotifier overlay)
+    public SupporterWidgetEventHandler(
+        IApplicationDbContext db,
+        IWidgetEventNotifier overlay,
+        IAlertQueueService alertQueue,
+        IWidgetService widgets
+    )
     {
         _db = db;
         _overlay = overlay;
+        _alertQueue = alertQueue;
+        _widgets = widgets;
     }
 
     public async Task HandleAsync(
@@ -86,6 +102,31 @@ public sealed class SupporterWidgetEventHandler : IEventHandler<SupporterEventRe
             @event.IsRecurring
         );
 
+        // The one alert queue across every platform connection (widgets-overlays.md §1.2) — written FIRST,
+        // regardless of whether any widget is installed or attached, with SourceKey as the cross-provider
+        // attribution (patreon/shopify/treatstream/kofi/…). This is additive to the fan-out below: the queue
+        // tracks + delivers to the auto-provisioned alert surface specifically, while the existing per-widget
+        // loop keeps routing to every OTHER subscribed widget (goal_bar, event_ticker, custom widgets) exactly
+        // as before — neither path may regress the other.
+        await _alertQueue.EnqueueAsync(
+            @event.BroadcasterId,
+            @event.SourceKey,
+            eventType,
+            payload,
+            cancellationToken
+        );
+
+        // The alert surface's own delivery already ran inside EnqueueAsync above (presence-checked, honest
+        // Delivered/Queued status) — resolving it again here (idempotent get-or-create) only to EXCLUDE its
+        // widget id from the fan-out below, so the auto-provisioned alerts widget never receives the same
+        // push twice over the same OverlayHub group.
+        Result<WidgetDetail> alertsSurface = await _widgets.EnsureSystemWidgetAsync(
+            @event.BroadcasterId.ToString(),
+            AlertsSurfaceNaturalKey,
+            cancellationToken
+        );
+        Guid? alertsSurfaceId = alertsSurface.IsSuccess ? alertsSurface.Value.Id : null;
+
         // EventSubscriptions is a JSON-converted column — List<string>.Contains cannot translate to SQL, so the
         // channel/enabled filter runs server-side and the subscription check runs client-side (matches
         // GoalWidgetEventHandler's read for the identical reason).
@@ -94,7 +135,11 @@ public sealed class SupporterWidgetEventHandler : IEventHandler<SupporterEventRe
             .Where(w => w.BroadcasterId == @event.BroadcasterId && w.IsEnabled)
             .ToListAsync(cancellationToken);
 
-        foreach (Widget widget in candidates.Where(w => w.EventSubscriptions.Contains(eventType)))
+        foreach (
+            Widget widget in candidates.Where(w =>
+                w.Id != alertsSurfaceId && w.EventSubscriptions.Contains(eventType)
+            )
+        )
         {
             await _overlay.SendWidgetEventAsync(
                 @event.BroadcasterId,

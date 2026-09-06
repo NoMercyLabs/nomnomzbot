@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
@@ -319,6 +320,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>

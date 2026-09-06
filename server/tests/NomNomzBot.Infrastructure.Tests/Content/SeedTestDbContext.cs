@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Discord.Entities;
@@ -188,6 +189,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();

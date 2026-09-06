@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.alerts.state
 
 import bot.nomnomz.dashboard.core.network.AlertDetail
+import bot.nomnomz.dashboard.core.network.AlertQueueDto
+import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
 import bot.nomnomz.dashboard.core.network.AlertSummary
 import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -37,6 +39,16 @@ class AlertsController(
 
     /** The page render state: loading / ready (with the event responses) / empty / error. */
     val state: StateFlow<AlertsState> = _state.asStateFlow()
+
+    private val _queueState: MutableStateFlow<AlertQueueUiState> =
+        MutableStateFlow(AlertQueueUiState.Loading)
+
+    /**
+     * The channel's ONE cross-platform alert queue (widgets-overlays.md §1.2) — a separate flow from [state]
+     * so a queue fetch failure never blocks or blanks the event-responses config list above it. Loaded
+     * alongside [load]; never inferred, never fabricated from [state].
+     */
+    val queueState: StateFlow<AlertQueueUiState> = _queueState.asStateFlow()
 
     // The channel the writes target — resolved by [load] and reused by every mutation so a write never has to
     // re-resolve the channel. Null until the first successful resolve.
@@ -74,6 +86,16 @@ class AlertsController(
                 _state.value =
                     if (result.value.isEmpty()) AlertsState.Empty
                     else AlertsState.Ready(result.value)
+        }
+
+        when (val result: ApiResult<AlertQueueDto> = alertsApi.queue(channel.id)) {
+            is ApiResult.Failure -> _queueState.value = AlertQueueUiState.Error(result.error.message)
+            is ApiResult.Ok ->
+                _queueState.value =
+                    AlertQueueUiState.Ready(
+                        overlayConnected = result.value.overlayConnected,
+                        entries = result.value.entries,
+                    )
         }
     }
 
@@ -189,4 +211,19 @@ sealed interface AlertsState {
     data object Empty : AlertsState
 
     data class Error(val detail: String) : AlertsState
+}
+
+/**
+ * The live alert queue's render state (widgets-overlays.md §1.2). [Ready.overlayConnected] must drive the
+ * "not connected" banner honestly — it is read live from the backend's overlay presence registry, never
+ * derived from whether [Ready.entries] is non-empty (a queue can be healthy and populated while genuinely no
+ * OBS browser source is attached).
+ */
+sealed interface AlertQueueUiState {
+    data object Loading : AlertQueueUiState
+
+    data class Ready(val overlayConnected: Boolean, val entries: List<AlertQueueEntryDto>) :
+        AlertQueueUiState
+
+    data class Error(val detail: String) : AlertQueueUiState
 }

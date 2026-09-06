@@ -204,6 +204,8 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Alerts.Entities.AlertQueueEntry> AlertQueueEntries =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>

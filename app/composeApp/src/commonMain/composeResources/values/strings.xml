@@ -1529,6 +1529,12 @@
     <string name="alerts_delete_message">Delete the alert for %1$s? This can't be undone.</string>
     <string name="alerts_delete_confirm">Delete</string>
     <string name="alerts_delete_cancel">Cancel</string>
+    <string name="alerts_queue_title">Live alert queue</string>
+    <string name="alerts_queue_connected">Overlay connected</string>
+    <string name="alerts_queue_not_connected">Overlay not connected — add the alert surface to OBS</string>
+    <string name="alerts_queue_empty">No alerts yet — they will queue here the moment one fires</string>
+    <string name="alerts_queue_status_delivered">Shown on stream</string>
+    <string name="alerts_queue_status_queued">Queued — not yet shown</string>
     <string name="widgets_title">Overlays</string>
     <string name="widgets_subtitle">OBS browser-source overlays for your stream.</string>
     <string name="widgets_loading">Loading your overlays…</string>

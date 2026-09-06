@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PlatformContent.Entities;
@@ -76,6 +77,11 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new PlatformContentDefinitionConfiguration());
         modelBuilder.ApplyConfiguration(new PlatformContentVersionConfiguration());
 
+        // The REAL AlertQueueEntry config too — S059's presence-honesty tests write/read through it.
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Alerts.Persistence.AlertQueueEntryConfiguration()
+        );
+
         // EF discovers an entity type from EVERY DbSet<T> property on the context (an IApplicationDbContext
         // requirement) — even the throwing ones — and would then try to map their jsonb-of-complex-type columns,
         // unsupported on SQLite. Ignore every entity this slice does not exercise so the model stays minimal and
@@ -112,6 +118,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(WidgetGallerySubmissionEvent)
                 && t != typeof(PlatformContentDefinition)
                 && t != typeof(PlatformContentVersion)
+                && t != typeof(NomNomzBot.Domain.Alerts.Entities.AlertQueueEntry)
             ),
     ];
 
@@ -202,6 +209,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
+    public DbSet<AlertQueueEntry> AlertQueueEntries => Set<AlertQueueEntry>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>

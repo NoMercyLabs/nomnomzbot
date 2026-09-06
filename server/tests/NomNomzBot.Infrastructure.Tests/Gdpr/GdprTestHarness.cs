@@ -205,6 +205,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Alerts.Entities.AlertQueueEntry> AlertQueueEntries =>
+        throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
