@@ -41,6 +41,13 @@ public class PlatformContentPublishJobConfiguration
                 JsonValueConverter.Comparer<List<Guid>>()
             );
 
+        builder
+            .Property(e => e.ValidationFailedCodeScriptIds)
+            .HasConversion(
+                JsonValueConverter.Converter<List<Guid>>(),
+                JsonValueConverter.Comparer<List<Guid>>()
+            );
+
         builder.HasIndex(e => e.DefinitionId);
     }
 }

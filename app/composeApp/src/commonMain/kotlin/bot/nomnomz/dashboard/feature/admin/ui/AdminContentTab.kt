@@ -99,10 +99,12 @@ import nomnomzbot.composeapp.generated.resources.admin_content_draft_pending
 import nomnomzbot.composeapp.generated.resources.admin_content_empty
 import nomnomzbot.composeapp.generated.resources.admin_content_force_denied
 import nomnomzbot.composeapp.generated.resources.admin_content_key_label
+import nomnomzbot.composeapp.generated.resources.admin_content_kind_code_script
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_command
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_pipeline
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_widget
+import nomnomzbot.composeapp.generated.resources.admin_content_list_title
 import nomnomzbot.composeapp.generated.resources.admin_content_name_label
 import nomnomzbot.composeapp.generated.resources.admin_content_new
 import nomnomzbot.composeapp.generated.resources.admin_content_payload_label
@@ -133,6 +135,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_retired
 import nomnomzbot.composeapp.generated.resources.admin_content_sample_tenants
 import nomnomzbot.composeapp.generated.resources.admin_content_saas_marker
 import nomnomzbot.composeapp.generated.resources.admin_content_validation_failures
+import nomnomzbot.composeapp.generated.resources.admin_content_validation_failures_code_script
 import nomnomzbot.composeapp.generated.resources.admin_content_version_draft
 import nomnomzbot.composeapp.generated.resources.admin_content_version_label
 import nomnomzbot.composeapp.generated.resources.admin_content_version_published
@@ -238,7 +241,7 @@ private fun ContentDefinitionList(state: AdminState, controller: AdminController
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text = stringResource(Res.string.admin_content_kind_command), style = typography.base, color = tokens.foreground)
+            Text(text = stringResource(Res.string.admin_content_list_title), style = typography.base, color = tokens.foreground)
             ManageGate(decision = canAuthor) { enabled ->
                 GatedButton(enabled = enabled, decision = canAuthor, onClick = { showCreate = true }) {
                     Text(text = stringResource(Res.string.admin_content_new))
@@ -298,7 +301,10 @@ private fun DefinitionRow(definition: PlatformContentDefinition, onOpen: () -> U
                     discriminatorSource = definition.id,
                 )
             Text(text = definitionLabel, style = typography.sm, color = tokens.cardForeground)
-            Text(text = definition.key, style = typography.xs, color = tokens.mutedForeground)
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                Text(text = kindLabel(definition.kind), style = typography.xs, color = tokens.mutedForeground)
+                Text(text = definition.key, style = typography.xs, color = tokens.mutedForeground)
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
             if (definition.retiredAt != null) {
@@ -337,11 +343,13 @@ private fun CreateDefinitionDialog(
     var payloadJson: String by remember { mutableStateOf("") }
     var widgetFields: WidgetPayloadFields by remember { mutableStateOf(WidgetPayloadFields.Empty) }
     var pipelinePayloadJson: String by remember { mutableStateOf("") }
+    var codeScriptPayloadJson: String by remember { mutableStateOf("") }
 
     val payloadValid: Boolean =
         when (kind) {
             PlatformContentAuthoringKinds.Widget -> widgetFields.sourceCode.isNotBlank()
             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson.isNotBlank()
+            PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson.isNotBlank()
             else -> true
         }
 
@@ -353,6 +361,7 @@ private fun CreateDefinitionDialog(
         val widgetLabel: String = kindWidgetLabel()
         val commandLabel: String = kindCommandLabel()
         val pipelineLabel: String = kindPipelineLabel()
+        val codeScriptLabel: String = kindCodeScriptLabel()
         RadioGroup(
             options = PlatformContentAuthoringKinds.All,
             selected = kind,
@@ -361,6 +370,7 @@ private fun CreateDefinitionDialog(
                 when (option) {
                     PlatformContentAuthoringKinds.Widget -> widgetLabel
                     PlatformContentAuthoringKinds.Pipeline -> pipelineLabel
+                    PlatformContentAuthoringKinds.CodeScript -> codeScriptLabel
                     else -> commandLabel
                 }
             },
@@ -389,6 +399,8 @@ private fun CreateDefinitionDialog(
                 WidgetPayloadEditor(fields = widgetFields, onFieldsChange = { widgetFields = it })
             PlatformContentAuthoringKinds.Pipeline ->
                 PipelinePayloadEditor(payloadJson = pipelinePayloadJson, onPayloadJsonChange = { pipelinePayloadJson = it })
+            PlatformContentAuthoringKinds.CodeScript ->
+                CodeScriptPayloadEditor(payloadJson = codeScriptPayloadJson, onPayloadJsonChange = { codeScriptPayloadJson = it })
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -406,6 +418,7 @@ private fun CreateDefinitionDialog(
                         when (kind) {
                             PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
                             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
+                            PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson
                             else -> payloadJson
                         }
                     onCreate(kind, key.trim(), displayName.trim(), description, resolvedPayload)
@@ -426,6 +439,24 @@ private fun kindWidgetLabel(): String = stringResource(Res.string.admin_content_
 
 @Composable
 private fun kindPipelineLabel(): String = stringResource(Res.string.admin_content_kind_pipeline)
+
+@Composable
+private fun kindCodeScriptLabel(): String = stringResource(Res.string.admin_content_kind_code_script)
+
+/** Resolves [kind]'s display label using the SAME per-kind strings the create/draft dialogs' radio group
+ * uses — the single source of truth for "the actual kind" a definitions-list row or header names (fixes the
+ * definitions-list header that used to always read "Command" regardless of the rows actually shown). An
+ * unrecognized kind (should never happen against the closed `PlatformContentKinds` set) falls back to the
+ * raw string rather than a misleading label. */
+@Composable
+private fun kindLabel(kind: String): String =
+    when (kind) {
+        PlatformContentAuthoringKinds.Widget -> kindWidgetLabel()
+        PlatformContentAuthoringKinds.Pipeline -> kindPipelineLabel()
+        PlatformContentAuthoringKinds.CodeScript -> kindCodeScriptLabel()
+        PlatformContentAuthoringKinds.Command -> kindCommandLabel()
+        else -> kind
+    }
 
 @Composable
 private fun ContentDefinitionDetail(
@@ -612,8 +643,10 @@ private fun DraftVersionDialog(
 ) {
     val isWidget: Boolean = kind == PlatformContentAuthoringKinds.Widget
     val isPipeline: Boolean = kind == PlatformContentAuthoringKinds.Pipeline
+    val isCodeScript: Boolean = kind == PlatformContentAuthoringKinds.CodeScript
     var payloadJson: String by remember { mutableStateOf(initialPayload) }
     var pipelinePayloadJson: String by remember { mutableStateOf(if (isPipeline) initialPayload else "") }
+    var codeScriptPayloadJson: String by remember { mutableStateOf(if (isCodeScript) initialPayload else "") }
     var widgetFields: WidgetPayloadFields by remember {
         mutableStateOf(if (isWidget) WidgetPayloadFields.fromPayloadJson(initialPayload) else WidgetPayloadFields.Empty)
     }
@@ -621,6 +654,7 @@ private fun DraftVersionDialog(
         when {
             isWidget -> widgetFields.sourceCode.isNotBlank()
             isPipeline -> pipelinePayloadJson.isNotBlank()
+            isCodeScript -> codeScriptPayloadJson.isNotBlank()
             else -> payloadJson.isNotBlank()
         }
 
@@ -630,6 +664,8 @@ private fun DraftVersionDialog(
             isWidget -> WidgetPayloadEditor(fields = widgetFields, onFieldsChange = { widgetFields = it })
             isPipeline ->
                 PipelinePayloadEditor(payloadJson = pipelinePayloadJson, onPayloadJsonChange = { pipelinePayloadJson = it })
+            isCodeScript ->
+                CodeScriptPayloadEditor(payloadJson = codeScriptPayloadJson, onPayloadJsonChange = { codeScriptPayloadJson = it })
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -647,6 +683,7 @@ private fun DraftVersionDialog(
                         when {
                             isWidget -> widgetFields.toPayloadJson()
                             isPipeline -> pipelinePayloadJson
+                            isCodeScript -> codeScriptPayloadJson
                             else -> payloadJson
                         }
                     onDraft(resolvedPayload)
@@ -668,7 +705,12 @@ private fun PublishJobFailureSurface(job: PlatformContentPublishJob) {
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    if (job.rebuildFailedWidgetIds.isEmpty() && job.validationFailedPipelineIds.isEmpty()) return
+    if (
+        job.rebuildFailedWidgetIds.isEmpty() &&
+        job.validationFailedPipelineIds.isEmpty() &&
+        job.validationFailedCodeScriptIds.isEmpty()
+    )
+        return
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
         if (job.rebuildFailedWidgetIds.isNotEmpty()) {
@@ -681,6 +723,16 @@ private fun PublishJobFailureSurface(job: PlatformContentPublishJob) {
         if (job.validationFailedPipelineIds.isNotEmpty()) {
             Text(
                 text = stringResource(Res.string.admin_content_validation_failures, job.validationFailedPipelineIds.size),
+                style = typography.sm,
+                color = tokens.destructive,
+            )
+        }
+        if (job.validationFailedCodeScriptIds.isNotEmpty()) {
+            Text(
+                text = stringResource(
+                    Res.string.admin_content_validation_failures_code_script,
+                    job.validationFailedCodeScriptIds.size,
+                ),
                 style = typography.sm,
                 color = tokens.destructive,
             )

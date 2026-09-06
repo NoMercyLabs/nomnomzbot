@@ -141,6 +141,9 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.Entity<PipelineExecution>(e => e.Ignore(x => x.Pipeline));
         b.ApplyConfiguration(new PipelineExecutionConfiguration());
 
+        b.ApplyConfiguration(new CodeScriptConfiguration());
+        b.ApplyConfiguration(new CodeScriptVersionConfiguration());
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
         foreach (Type entity in UnmappedEntities)
@@ -171,6 +174,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(PipelineStepCondition),
         typeof(PipelineRunState),
         typeof(PipelineExecution),
+        typeof(CodeScript),
+        typeof(CodeScriptVersion),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -398,8 +403,12 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<ChannelChatterDay> ChannelChatterDays => throw new NotSupportedException();
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
-    public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
-    public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
+
+    // S-ADMIN-2e — the code-script kind's own tenant-side machinery: a real CodeScript/CodeScriptVersion pair,
+    // run through the real ScriptRunner/JintScriptExecutor sandbox (the execution-proof test compiles and
+    // executes real source, never infers "runs the same sandbox" from a row value).
+    public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
+    public DbSet<CodeScriptVersion> CodeScriptVersions => Set<CodeScriptVersion>();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         throw new NotSupportedException();

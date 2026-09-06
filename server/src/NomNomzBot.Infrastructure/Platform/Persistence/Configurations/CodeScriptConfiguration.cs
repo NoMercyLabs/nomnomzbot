@@ -23,11 +23,13 @@ public class CodeScriptConfiguration : IEntityTypeConfiguration<CodeScript>
         builder.Property(e => e.Name).IsRequired().HasMaxLength(100);
         builder.Property(e => e.Description).HasMaxLength(500);
         builder.Property(e => e.Language).IsRequired().HasMaxLength(20);
+        builder.Property(e => e.PlatformSourceHash).HasMaxLength(64);
 
         builder.HasIndex(e => e.BroadcasterId);
         builder.HasIndex(e => e.CurrentVersionId);
         builder.HasIndex(e => e.IsEnabled);
         builder.HasIndex(e => e.AuthorUserId);
+        builder.HasIndex(e => e.PlatformSourceDefinitionId);
         // One script per (channel, name) — projection/service-enforced; soft-deletable, so a plain index.
         builder.HasIndex(e => new { e.BroadcasterId, e.Name });
     }

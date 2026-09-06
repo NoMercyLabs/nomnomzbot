@@ -2308,6 +2308,20 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -2320,6 +2334,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasIndex("CurrentVersionId");
 
                     b.HasIndex("IsEnabled");
+
+                    b.HasIndex("PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "Name");
 
@@ -9352,6 +9368,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int>("ToVersion")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ValidationFailedCodeScriptIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ValidationFailedPipelineIds")
                         .IsRequired()

@@ -3542,7 +3542,11 @@
     <string name="admin_content_kind_command">Commando</string>
     <string name="admin_content_kind_widget">Widget</string>
     <string name="admin_content_kind_pipeline">Pijplijn</string>
+    <string name="admin_content_kind_code_script">Codescript</string>
     <string name="admin_content_kind_label">Soort inhoud</string>
+    <string name="admin_content_list_title">Inhoudsdefinities</string>
+    <string name="admin_content_code_script_editor_title">Systeemcodescript</string>
+    <string name="admin_content_code_script_no_source">Nog geen broncode geschreven.</string>
     <string name="admin_content_pipeline_editor_loading">Kan de pijplijneditor niet openen.</string>
     <string name="admin_content_widget_source_label">Vue-broncode</string>
     <string name="admin_content_widget_settings_label">Standaardinstellingen (JSON)</string>
@@ -3553,6 +3557,7 @@
     <string name="admin_content_widget_event_remove">Verwijderen</string>
     <string name="admin_content_rebuild_failures">%1$d widget-heropbouw(en) voor tenants is/zijn mislukt — die tenants lopen nu uit de pas met deze versie.</string>
     <string name="admin_content_validation_failures">%1$d tenant-pipeline(s) zijn niet gevalideerd en dus niet gemigreerd.</string>
+    <string name="admin_content_validation_failures_code_script">%1$d tenant-codescript(s) konden niet compileren en zijn niet gemigreerd — hun vorige versie blijft actief.</string>
     <string name="admin_content_current_version">Gepubliceerd v%1$d</string>
     <string name="admin_content_draft_pending">Niet-gepubliceerd concept</string>
     <string name="admin_content_retired">Ingetrokken</string>

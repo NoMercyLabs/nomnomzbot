@@ -88,6 +88,7 @@ data class PlatformContentPublishJob(
     val failureReason: String? = null,
     val rebuildFailedWidgetIds: List<String> = emptyList(),
     val validationFailedPipelineIds: List<String> = emptyList(),
+    val validationFailedCodeScriptIds: List<String> = emptyList(),
 )
 
 /** The three publish modes §2.1 defines — matches the backend's `PlatformContentPublishModes` verbatim. */
@@ -97,17 +98,18 @@ object PlatformContentPublishModes {
     const val Force: String = "force"
 }
 
-/** The content kinds this dashboard offers authoring for — a subset of the backend's closed
- * `PlatformContentKinds` (command/widget/pipeline/code_script): `code_script` has no authoring UI yet, so it
- * is deliberately absent here rather than offered and silently mishandled. `pipeline` authors through the
- * SAME tree editor (`ChainEditor`) the tenant-side Pipelines page uses (`AdminContentPipelineAuthoring.kt`)
- * — no second, worse pipeline editor. */
+/** The content kinds this dashboard offers authoring for — the full closed `PlatformContentKinds` set
+ * (command/widget/pipeline/code_script). `pipeline` authors through the SAME tree editor (`ChainEditor`) the
+ * tenant-side Pipelines page uses (`AdminContentPipelineAuthoring.kt`); `code_script` authors through the
+ * SAME multi-file project editor (`ProjectEditorIO`) the tenant-side Code Scripts page uses
+ * (`AdminContentCodeScriptAuthoring.kt`) — no second, worse editor for either kind. */
 object PlatformContentAuthoringKinds {
     const val Command: String = "command"
     const val Widget: String = "widget"
     const val Pipeline: String = "pipeline"
+    const val CodeScript: String = "code_script"
 
-    val All: List<String> = listOf(Command, Widget, Pipeline)
+    val All: List<String> = listOf(Command, Widget, Pipeline, CodeScript)
 }
 
 // ─── Request bodies ────────────────────────────────────────────────────────────────────────────

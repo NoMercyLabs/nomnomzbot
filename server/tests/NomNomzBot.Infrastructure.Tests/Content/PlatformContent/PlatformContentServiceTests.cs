@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.PlatformContent;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -42,13 +43,27 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     // sufficient for this file's constructor requirement.
     private readonly Application.Commands.Services.IPipelineService _pipelineService =
         Substitute.For<Application.Commands.Services.IPipelineService>();
+
+    // This file exercises the command/widget kinds only — the code-script kind's REAL IScriptExecutor
+    // collaboration (compile + the shared Jint sandbox) is proven end-to-end in
+    // PlatformContentServiceCodeScriptTests, which is why a bare substitute (never invoked here) is
+    // sufficient for this file's constructor requirement.
+    private readonly IScriptExecutor _scriptExecutor = Substitute.For<IScriptExecutor>();
     private readonly Guid _actingPrincipalId = Guid.NewGuid();
 
     // Tenant widget ids the simulated CompileAsync (below) treats as a failed rebuild — set per-test.
     private readonly HashSet<Guid> _simulateRebuildFailureFor = [];
 
     private PlatformContentService CreateService() =>
-        new(_db, _iam, new TestUnitOfWork(_db), _vueCompiler, _widgetService, _pipelineService);
+        new(
+            _db,
+            _iam,
+            new TestUnitOfWork(_db),
+            _vueCompiler,
+            _widgetService,
+            _pipelineService,
+            _scriptExecutor
+        );
 
     /// <summary>
     /// Stands in for the real <c>WidgetService.CompileAsync</c>: appends a new <see cref="WidgetVersion"/> row

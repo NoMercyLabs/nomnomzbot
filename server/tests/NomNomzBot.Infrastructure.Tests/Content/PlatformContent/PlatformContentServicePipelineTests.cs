@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.PlatformContent;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -85,7 +86,8 @@ public sealed class PlatformContentServicePipelineTests : IAsyncDisposable
             new TestUnitOfWork(_db),
             Substitute.For<IVueSfcCompiler>(),
             Substitute.For<IWidgetService>(),
-            CreatePipelineService()
+            CreatePipelineService(),
+            Substitute.For<IScriptExecutor>()
         );
 
     private IPipelineEngine CreateEngine() =>

@@ -15,10 +15,12 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.PlatformContent;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -31,18 +33,26 @@ namespace NomNomzBot.Infrastructure.Content.PlatformContent;
 /// <summary>
 /// <see cref="IPlatformContentService"/> — this slice implements <c>Kind = "command"</c> (system commands,
 /// backed by <see cref="ChannelBuiltinCommand"/>), <c>Kind = "widget"</c> (first-party overlay widgets,
-/// backed by <see cref="Widget"/>) and <c>Kind = "pipeline"</c> (system pipelines, backed by
-/// <see cref="PipelineEntity"/>); publish is refused with <c>VALIDATION_FAILED</c> for the remaining kind
-/// (code scripts) since its tenant-side fan-out target does not exist yet (a separate follow-up slice per
-/// platform-admin.md §6). A widget version's <c>PayloadJson</c> is a <see cref="WidgetContentPayload"/> (Vue
-/// SFC source + default settings/subscriptions); publish compiles the source through
-/// <see cref="IVueSfcCompiler"/> BEFORE anything is written — a widget that cannot compile is rejected at
-/// publish time, never discovered by a viewer with a blank overlay. A pipeline version's <c>PayloadJson</c>
-/// is the SAME wire-shape action graph <c>UpdatePipelineDto.GraphJsonCache</c> accepts (the tree editor's own
-/// format, built by <c>PipelineGraphBuilder</c>) — publish never re-implements graph validation or step
-/// persistence; it calls <see cref="IPipelineService.UpdateAsync"/> per affected tenant, the SAME entry point
-/// the dashboard's own pipeline editor uses, so a system pipeline is edited, validated and persisted through
-/// ONE machinery (platform-admin.md §2.2's "no second, worse pipeline editor"). Every public method
+/// backed by <see cref="Widget"/>), <c>Kind = "pipeline"</c> (system pipelines, backed by
+/// <see cref="PipelineEntity"/>) and <c>Kind = "code_script"</c> (S-ADMIN-2e — sandboxed code scripts,
+/// backed by <see cref="CodeScript"/>/<see cref="CodeScriptVersion"/>). A widget version's <c>PayloadJson</c>
+/// is a <see cref="WidgetContentPayload"/> (Vue SFC source + default settings/subscriptions); publish compiles
+/// the source through <see cref="IVueSfcCompiler"/> BEFORE anything is written — a widget that cannot
+/// compile is rejected at publish time, never discovered by a viewer with a blank overlay. A pipeline
+/// version's <c>PayloadJson</c> is the SAME wire-shape action graph <c>UpdatePipelineDto.GraphJsonCache</c>
+/// accepts (the tree editor's own format, built by <c>PipelineGraphBuilder</c>) — publish never
+/// re-implements graph validation or step persistence; it calls <see cref="IPipelineService.UpdateAsync"/> per
+/// affected tenant, the SAME entry point the dashboard's own pipeline editor uses, so a system pipeline is
+/// edited, validated and persisted through ONE machinery (platform-admin.md §2.2's "no second, worse
+/// pipeline editor"). A code-script version's <c>PayloadJson</c> is a <see cref="CodeScriptContentPayload"/>
+/// (raw source); publish compiles it through the SAME <see cref="IScriptExecutor.CompileAsync"/> validate-on-
+/// save path a tenant's own editor save uses — a script that cannot compile is rejected at publish time,
+/// never installed broken — and the fan-out writes the compiled bundle onto a NEW
+/// <see cref="CodeScriptVersion"/> per affected tenant, hot-swapping <see cref="CodeScript.CurrentVersionId"/>
+/// exactly like a tenant's own publish. Crucially, a platform-published script's compiled JS is later run by
+/// the SAME <c>ScriptRunner</c>/hardened Jint sandbox (<c>JintEngineFactory.CreateHardened</c>) as any
+/// tenant-authored script — there is no separate, wider-powered execution path for platform content
+/// (S-ADMIN-2e's sandboxing-is-a-safety-property requirement). Every public method
 /// re-asserts the caller's Plane-C permission via <see cref="IPlatformIamService.AuthorizePlatformAsync"/> —
 /// the one call that both decides AND audits (roles-permissions.md's single authorization funnel, mirrored
 /// from <c>PlatformAdminService</c>). A <c>content:publish</c> fan-out additionally appends its OWN audit row
@@ -56,7 +66,8 @@ public sealed class PlatformContentService(
     IUnitOfWork uow,
     IVueSfcCompiler vueCompiler,
     IWidgetService widgetService,
-    IPipelineService pipelineService
+    IPipelineService pipelineService,
+    IScriptExecutor scriptExecutor
 ) : IPlatformContentService
 {
     public async Task<Result<PagedList<PlatformContentDefinitionDto>>> ListDefinitionsAsync(
@@ -319,6 +330,11 @@ public sealed class PlatformContentService(
                 .Join(db.Channels, p => p.BroadcasterId, c => c.Id, (p, c) => c.Name)
                 .Take(10)
                 .ToListAsync(ct),
+            PlatformContentKinds.CodeScript => await db
+                .CodeScripts.Where(s => selection.AffectedRowIds.Contains(s.Id))
+                .Join(db.Channels, s => s.BroadcasterId, c => c.Id, (s, c) => c.Name)
+                .Take(10)
+                .ToListAsync(ct),
             _ => await db
                 .ChannelBuiltinCommands.Where(b => selection.AffectedRowIds.Contains(b.Id))
                 .Join(db.Channels, b => b.BroadcasterId, c => c.Id, (b, c) => c.Name)
@@ -391,6 +407,16 @@ public sealed class PlatformContentService(
                 return parseGate.WithValue<PlatformContentPublishJobDto>(null!);
         }
 
+        if (definition.Kind == PlatformContentKinds.CodeScript)
+        {
+            Result compileGate = await ValidateCodeScriptPayloadCompilesAsync(
+                version.PayloadJson,
+                ct
+            );
+            if (compileGate.IsFailure)
+                return compileGate.WithValue<PlatformContentPublishJobDto>(null!);
+        }
+
         PublishSelection freshSelection = await SelectTenantRowsAsync(
             definition,
             version,
@@ -449,6 +475,19 @@ public sealed class PlatformContentService(
                     );
                     confirmedCount = pipelineResult.Count;
                     job.ValidationFailedPipelineIds = pipelineResult.ValidationFailedPipelineIds;
+                }
+                else if (definition.Kind == PlatformContentKinds.CodeScript)
+                {
+                    CodeScriptFanOutResult codeScriptResult = await ApplyCodeScriptFanOutAsync(
+                        definition,
+                        version,
+                        freshSelection.AffectedRowIds,
+                        now,
+                        ct
+                    );
+                    confirmedCount = codeScriptResult.Count;
+                    job.ValidationFailedCodeScriptIds =
+                        codeScriptResult.ValidationFailedCodeScriptIds;
                 }
                 else
                 {
@@ -604,6 +643,38 @@ public sealed class PlatformContentService(
         }
     }
 
+    /// <summary>Code-script kind's publish gate: compiles the payload's raw source through the SAME
+    /// <see cref="IScriptExecutor.CompileAsync"/> validate-on-save path a tenant's own editor save uses — a
+    /// stateless, DB-free check that runs BEFORE any tenant row is touched. Compilation is a pure function of
+    /// the source text (no tenant state participates), so a payload that compiles here compiles identically
+    /// for every affected tenant — unlike the pipeline kind's per-tenant graph validation, there is no
+    /// tenant-dependent outcome to defer.</summary>
+    private async Task<Result> ValidateCodeScriptPayloadCompilesAsync(
+        string payloadJson,
+        CancellationToken ct
+    )
+    {
+        if (
+            !CodeScriptContentPayload.TryParse(
+                payloadJson,
+                out CodeScriptContentPayload? payload,
+                out string? error
+            )
+        )
+            return Result.Failure(error!, "VALIDATION_FAILED");
+
+        Result<ScriptCompilation> compiled = await scriptExecutor.CompileAsync(
+            payload!.SourceCode,
+            ct
+        );
+        return compiled.IsFailure
+            ? Result.Failure(
+                $"Code script source failed to compile: {compiled.ErrorMessage}",
+                "VALIDATION_FAILED"
+            )
+            : Result.Success();
+    }
+
     // --- Selection / fan-out -------------------------------------------------------------------------
 
     private readonly record struct PublishSelection(List<Guid> AffectedRowIds, int SkippedCount);
@@ -625,6 +696,11 @@ public sealed class PlatformContentService(
             PlatformContentKinds.Command => await SelectCommandRowsAsync(definition, mode, ct),
             PlatformContentKinds.Widget => await SelectWidgetRowsAsync(definition, mode, ct),
             PlatformContentKinds.Pipeline => await SelectPipelineRowsAsync(definition, mode, ct),
+            PlatformContentKinds.CodeScript => await SelectCodeScriptRowsAsync(
+                definition,
+                mode,
+                ct
+            ),
             _ => new PublishSelection([], 0),
         };
     }
@@ -747,6 +823,66 @@ public sealed class PlatformContentService(
                 foreach (PipelineEntity row in installed)
                 {
                     string liveHash = PlatformContentHash.ComputeHash(row.GraphJsonCache);
+                    if (row.PlatformSourceHash == liveHash)
+                        untouched.Add(row.Id);
+                    else
+                        skipped++;
+                }
+                return new PublishSelection(untouched, skipped);
+        }
+    }
+
+    /// <summary>
+    /// The "installed" set for a code-script definition is every tenant <see cref="CodeScript"/> row already
+    /// stamped with THIS <see cref="PlatformContentDefinition.Id"/> — opt-in-per-tenant, same shape as the
+    /// widget/pipeline kinds (no name-derived candidate set to fall back to; the seeder principle's "never
+    /// match by name" guardrail applies here too). "Untouched" compares the row's stored provenance hash
+    /// against the hash of its OWN CURRENT VERSION's live source — a tenant who authored a new version through
+    /// their own editor (or never had one yet) reads as customized/no-baseline and is skipped, never guessed.
+    /// A soft-deleted row is excluded by the global query filter before this method ever sees it.
+    /// </summary>
+    private async Task<PublishSelection> SelectCodeScriptRowsAsync(
+        PlatformContentDefinition definition,
+        string mode,
+        CancellationToken ct
+    )
+    {
+        List<CodeScript> installed = await db
+            .CodeScripts.Where(s => s.PlatformSourceDefinitionId == definition.Id)
+            .ToListAsync(ct);
+
+        switch (mode)
+        {
+            case PlatformContentPublishModes.PublishAsNew:
+                return new PublishSelection([], 0);
+
+            case PlatformContentPublishModes.Force:
+                return new PublishSelection([.. installed.Select(s => s.Id)], 0);
+
+            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
+            default:
+                List<Guid> currentVersionIds =
+                [
+                    .. installed
+                        .Where(s => s.CurrentVersionId != null)
+                        .Select(s => s.CurrentVersionId!.Value),
+                ];
+                Dictionary<Guid, string> sourceByVersionId = await db
+                    .CodeScriptVersions.Where(v => currentVersionIds.Contains(v.Id))
+                    .ToDictionaryAsync(v => v.Id, v => v.SourceCode, ct);
+
+                List<Guid> untouched = [];
+                int skipped = 0;
+                foreach (CodeScript row in installed)
+                {
+                    string? liveSource =
+                        row.CurrentVersionId is { } vid
+                        && sourceByVersionId.TryGetValue(vid, out string? src)
+                            ? src
+                            : null;
+                    string liveHash = liveSource is null
+                        ? PlatformContentHash.ComputeHash(string.Empty)
+                        : CodeScriptContentPayload.ComputeSourceHash(liveSource);
                     if (row.PlatformSourceHash == liveHash)
                         untouched.Add(row.Id);
                     else
@@ -923,6 +1059,92 @@ public sealed class PlatformContentService(
         return new PipelineFanOutResult(appliedCount, validationFailedPipelineIds);
     }
 
+    private readonly record struct CodeScriptFanOutResult(
+        int Count,
+        List<Guid> ValidationFailedCodeScriptIds
+    );
+
+    /// <summary>
+    /// Compiles the version's source ONCE (compilation is a pure function of the source text — see
+    /// <see cref="ValidateCodeScriptPayloadCompilesAsync"/>) through the SAME
+    /// <see cref="IScriptExecutor.CompileAsync"/> validate-on-save path a tenant's own editor save uses, then
+    /// writes the compiled bundle onto a NEW <see cref="CodeScriptVersion"/> appended to every affected tenant
+    /// <see cref="CodeScript"/>, hot-swapping <see cref="CodeScript.CurrentVersionId"/> to it — exactly the
+    /// same append-only-version + hot-swap shape a tenant's own <c>CreateVersionAsync</c>/
+    /// <c>PublishVersionAsync</c> produces. The compiled JS is later run by the SAME
+    /// <c>ScriptRunner</c>/hardened Jint sandbox as any tenant-authored script (S-ADMIN-2e) — this fan-out
+    /// never grants a platform-published script a wider capability or resource budget. A customized or
+    /// deleted tenant was already excluded upstream by <see cref="SelectCodeScriptRowsAsync"/> and never
+    /// reaches this loop. Since compile success/failure cannot differ per tenant, a compile failure here (the
+    /// gate already ran the identical check) fails every target uniformly rather than partially.
+    /// </summary>
+    private async Task<CodeScriptFanOutResult> ApplyCodeScriptFanOutAsync(
+        PlatformContentDefinition definition,
+        PlatformContentVersion version,
+        List<Guid> affectedRowIds,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        if (
+            !CodeScriptContentPayload.TryParse(
+                version.PayloadJson,
+                out CodeScriptContentPayload? payload,
+                out _
+            )
+        )
+            return new CodeScriptFanOutResult(0, [.. affectedRowIds]);
+
+        Result<ScriptCompilation> compiled = await scriptExecutor.CompileAsync(
+            payload!.SourceCode,
+            ct
+        );
+        if (compiled.IsFailure)
+            return new CodeScriptFanOutResult(0, [.. affectedRowIds]);
+
+        List<CodeScript> targets = await db
+            .CodeScripts.Where(s => affectedRowIds.Contains(s.Id))
+            .ToListAsync(ct);
+
+        Dictionary<Guid, int> maxVersionByScriptId = await db
+            .CodeScriptVersions.Where(v => affectedRowIds.Contains(v.CodeScriptId))
+            .GroupBy(v => v.CodeScriptId)
+            .Select(g => new { g.Key, MaxVersion = g.Max(v => v.Version) })
+            .ToDictionaryAsync(x => x.Key, x => x.MaxVersion, ct);
+
+        string declaredCapabilitiesJson = JsonSerializer.Serialize(
+            compiled.Value.DeclaredCapabilities
+        );
+        string sourceHash = payload.ComputeSourceHash();
+        foreach (CodeScript row in targets)
+        {
+            int nextVersion = maxVersionByScriptId.TryGetValue(row.Id, out int maxVersion)
+                ? maxVersion + 1
+                : 1;
+            CodeScriptVersion newVersion = new()
+            {
+                CodeScriptId = row.Id,
+                BroadcasterId = row.BroadcasterId,
+                Version = nextVersion,
+                SourceCode = payload.SourceCode,
+                CompiledJs = compiled.Value.CompiledJs,
+                CompiledHash = compiled.Value.CompiledHash,
+                ValidationStatus = "valid",
+                DeclaredCapabilitiesJson = declaredCapabilitiesJson,
+                PublishedAt = now,
+            };
+            db.CodeScriptVersions.Add(newVersion);
+
+            row.CurrentVersionId = newVersion.Id;
+            row.PlatformSourceDefinitionId = definition.Id;
+            row.PlatformSourceVersion = version.Version;
+            row.PlatformSourceHash = sourceHash;
+            row.PlatformSourceSyncedAt = now;
+        }
+
+        return new CodeScriptFanOutResult(targets.Count, []);
+    }
+
     private async Task AuditPublishOutcomeAsync(
         Guid actingPrincipalId,
         string permission,
@@ -984,6 +1206,7 @@ public sealed class PlatformContentService(
                 PlatformContentKinds.Command
                 or PlatformContentKinds.Widget
                 or PlatformContentKinds.Pipeline
+                or PlatformContentKinds.CodeScript
             )
         )
             return Result.Failure<(PlatformContentDefinition, PlatformContentVersion)>(
@@ -1089,6 +1312,7 @@ public sealed class PlatformContentService(
             job.CompletedAt,
             job.FailureReason,
             job.RebuildFailedWidgetIds,
-            job.ValidationFailedPipelineIds
+            job.ValidationFailedPipelineIds,
+            job.ValidationFailedCodeScriptIds
         );
 }

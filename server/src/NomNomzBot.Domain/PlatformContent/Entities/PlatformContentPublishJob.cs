@@ -69,6 +69,14 @@ public class PlatformContentPublishJob
     /// investigates the broken version using this list. Empty (never null) when nothing failed, or for a
     /// non-<c>pipeline</c>-kind job.</summary>
     public List<Guid> ValidationFailedPipelineIds { get; set; } = [];
+
+    /// <summary>Code-script kind only (S-ADMIN-2e): tenant <c>CodeScript</c> rows whose new source failed
+    /// compile-validation (the SAME <c>IScriptExecutor.CompileAsync</c> validate-on-save path a tenant's own
+    /// editor save goes through) during this fan-out. Their PREVIOUS valid published version stays live — a
+    /// validation failure never leaves a tenant with a broken script — so this is the only record of which
+    /// tenants did not receive the update. Empty (never null) when nothing failed, or for a non-<c>code_script</c>
+    /// -kind job.</summary>
+    public List<Guid> ValidationFailedCodeScriptIds { get; set; } = [];
 }
 
 /// <summary>The closed set of publish modes (§2.1). A publish job's mode is one of exactly these.</summary>
