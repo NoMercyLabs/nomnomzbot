@@ -117,6 +117,27 @@ public static class ProviderCompatibilityExtensions
                     continue;
                 }
 
+                // S-TENANT-GUIDCASE: Microsoft.Data.Sqlite binds a Guid parameter as canonical
+                // uppercase-hyphenated TEXT, and SQLite text comparison is ordinal (case-sensitive). A
+                // Guid column holding a non-canonical text form (a raw import, a Postgres-to-SQLite
+                // restore, a hand-written seed literal — Guid.ToString() defaults to LOWERCASE) is
+                // therefore invisible to every '=' and 'IN (...)' predicate EF issues against it,
+                // including the global tenant query filter (ApplyTenantAndSoftDeleteFilters) and every
+                // Guid-id .Contains(...) call site. Postgres has a native uuid type and never carries
+                // this, so the fix is scoped to this SQLite-only method. NOCASE only folds letter case —
+                // two DIFFERENT Guids never compare equal under it, so this cannot create a cross-tenant
+                // match; it only rescues a genuine same-Guid row whose text casing drifted. It does NOT
+                // rewrite already-corrupt stored text back to canonical form — reads are correct either
+                // way, but an external tool inspecting the raw column would still see the odd casing.
+                if (
+                    (clrType == typeof(Guid) || clrType == typeof(Guid?))
+                    && property.GetValueConverter() is null
+                )
+                {
+                    property.SetCollation("NOCASE");
+                    continue;
+                }
+
                 bool isNpgsqlNativeColumn =
                     columnType
                     is "jsonb"

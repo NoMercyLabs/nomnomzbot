@@ -101,6 +101,12 @@ public sealed class DefaultCommandsSeeder : ISeeder
     /// to match it) to Microsoft.Data.Sqlite's own canonical uppercase-hyphenated text, so the FK insert
     /// below never trips a case-only mismatch. A no-op on Postgres (native uuid type, no text casing to
     /// normalize) and a no-op once every row is already canonical.
+    ///
+    /// S-TENANT-GUIDCASE gave every Guid(?) column a NOCASE collation, so the plain <c>&lt;&gt;</c> below
+    /// would otherwise consider a lower-cased Id and its own <c>upper(Id)</c> EQUAL (same letters, different
+    /// case) and never select it — the self-heal would silently stop healing anything. The explicit
+    /// <c>COLLATE BINARY</c> overrides the column's declared collation for this one comparison, restoring the
+    /// ordinal case check this repair pass depends on.
     /// </summary>
     private async Task NormalizeChannelGuidCasingAsync(CancellationToken ct)
     {
@@ -108,11 +114,11 @@ public sealed class DefaultCommandsSeeder : ISeeder
             return;
 
         await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE Channels SET Id = upper(Id) WHERE Id <> upper(Id)",
+            "UPDATE Channels SET Id = upper(Id) WHERE Id <> upper(Id) COLLATE BINARY",
             ct
         );
         await dbContext.Database.ExecuteSqlRawAsync(
-            "UPDATE ChannelBuiltinCommands SET BroadcasterId = upper(BroadcasterId) WHERE BroadcasterId <> upper(BroadcasterId)",
+            "UPDATE ChannelBuiltinCommands SET BroadcasterId = upper(BroadcasterId) WHERE BroadcasterId <> upper(BroadcasterId) COLLATE BINARY",
             ct
         );
     }
