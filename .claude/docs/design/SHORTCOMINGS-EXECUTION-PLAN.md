@@ -248,7 +248,23 @@ not an empty one), the publish engine and `PlatformContentController`'s 9 routes
 beyond the brief and worth keeping: a force publish without a justification is REJECTED, and a publish
 carrying a stale preview count fails closed rather than fanning out against numbers the owner never saw.
 
-- [ ] **S-ADMIN-2 Platform content authoring — the owner's explicit ask.** Author and edit, at platform
+**S-ADMIN-2 CLOSED — the owner's explicit ask is delivered.** All four content kinds are authored at
+platform level on one spine, each reusing the REAL tenant editor rather than a second worse one:
+system commands (`78f816eb`/`6b342371`), first-party widgets (`debe2e42`/`b2111281`), system pipelines
+through the shared tree editor (`84e6c9be`/`8010cda2`), and sandboxed code scripts through the shared
+project editor (`ddbf75bf`). Every kind: a counted blast-radius preview, a stale count failing closed,
+a force publish rejected without a justification, and propagation proven as per-tenant STATE —
+untouched receives, customised is never overwritten, deleted is never resurrected.
+`Publish_PlatformPublishedScript_RunsUnderTheSameSandboxLimit_AsATenantAuthoredScript` hits the real
+Jint statement-limit wall identically for a platform-published and a tenant-authored script, so
+publishing from the platform grants no wider powers. The Content tab's kind header now names each
+row's actual kind instead of always saying "Command".
+
+- [ ] **Widget payload editor is the odd one out.** `AdminContentTab.kt`'s `WidgetPayloadEditor` still
+      edits widget source through a plain JSON/text field while code scripts and pipelines now use the
+      shared `ProjectEditorIO` overlay. Same-editor-everywhere is the rule this slice established.
+
+~~- [ ] **S-ADMIN-2 Platform content authoring — the owner's explicit ask.**~~ Author and edit, at platform
       level, with versioning and a stated propagation outcome per publish: **system commands** (the
       `DefaultCommandsSeeder` set), **first-party widgets** (the `FirstPartyWidgetCatalogueSeeder` gallery,
       with its Vue source and its render gallery), **system pipelines** (the raid flows and event-response
