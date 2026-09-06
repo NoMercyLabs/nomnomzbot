@@ -145,9 +145,12 @@ call, tracking a shrinking baseline of 74, verified red by injecting a second oc
 AdminScreen.kt. The render test asserts a long name's rendered HEIGHT exceeds a short one's at Compact
 width — semantics text alone cannot tell a wrap from an ellipsis.
 
-- [ ] **Webhooks rows have no Compact layout.** `OutboundRow`/`InboundRow` are not `windowSize`-gated,
-      so at true Compact width the whole action-button row is crowded, not just the name — a
-      `CompactMultiColumnRowGuardTest`-class problem the ellipsis sweep did not address.
+**CLOSED (`b6c9b959`).** `OutboundRow`/`InboundRow` stack their actions below the details at Compact
+with no horizontal overflow, and stay a single line at Wide — both asserted.
+
+- [ ] **Webhooks `OutboundRow` spends accent on three actions at once.** Edit / Test / Reenable all
+      tint `tokens.primary`, so one row carries three equal-weight "primary" actions — the same
+      scarce-accent defect `PipelineAccentScarcityGuardTest` now blocks in the pipeline tree.
 
 ## SQLITE GUID CASING — a defect that bit three times, closed at the root (2026-09-06)
 
@@ -195,9 +198,14 @@ off-screen. Fixed by wrapping the control row in a `FlowRow`. Accent was also be
 reorder arrow at every depth (19 call sites), which marks nothing; now untinted, with
 `PipelineAccentScarcityGuardTest` mutation-proven to catch a regression.
 
-- [ ] **Schedule route fails on a channel with no onboarded stream schedule** — "Kon het schema niet
-      laden: Channel is not known locally." Found while driving the client; a missing-schedule state
-      should read as empty, not as a load failure.
+**CLOSED (`b6c9b959`).** A channel with no Twitch link now reads as EMPTY rather than "Kon het schema
+niet laden: Channel is not known locally." The mapping is deliberately narrow — exactly
+`code == "not_found"` AND that exact message, which originates only from `TwitchScheduleApi.ResolveAsync`
+when this channel's `TwitchChannelId` is null in our OWN database; by then `primaryChannel()` has already
+succeeded, so the channel is real and simply not Twitch-linked, and Schedule is Twitch-only. It cannot
+mask a real failure: any other message on the same 404 — including Twitch's own "no schedule" — and any
+other code (transport, rate_limited, missing_scope) still falls through to `ScheduleState.Error` with its
+real reason, proven by three separate failure tests rather than argued.
 
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
 
