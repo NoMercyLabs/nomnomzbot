@@ -333,8 +333,30 @@ returned an empty list; a fact the system does not hold renders absent, never as
 shared `AuthTestContext` change was inspected separately because a loosened harness can manufacture
 green: it only maps the previously-ignored `EventJournal` DbSet to its real production configuration —
 strictly additive — and the full 5119-test suite across ~150 files sharing that context stayed green.
-- [ ] **S-ADMIN-8 Trust and safety, platform-wide.** Beyond the existing spam defaults: cross-tenant abuse
-      signals, network-wide blocks, and a review queue for the calls the platform made automatically.
+**S-ADMIN-8a CLOSED (`d1a9b897`).** Cross-tenant abuse signals computed from real recorded detections
+(the aggregate names the right actor, tenants and detections, and an unrelated actor is excluded), and
+a review queue for the platform's automatic calls where an overturn calls the real unban FIRST and
+only then marks and audits — with a failed reversal leaving the detection untouched, so "marked
+overturned but still banned" is impossible.
+
+**It exposed a defect class with three members, all now fixed.** A reversal that stamps a row without
+performing the undo is the never-show-unenforced-state law broken on a user-facing path:
+1. platform review queue — correct by construction (`d1a9b897`);
+2. per-channel `SpamDefenseService.OverturnDetectionAsync` — stamped `OverturnedAt` and never unbanned,
+   so a moderator's overturn left the viewer banned. Fixed `5e2d68e0`, proven red-first;
+3. `SpamCorrelationService` campaign de-qualification — stamped `ReversedAt` while its only consumer
+   merely LOGGED `AccountsToRestore`, so a whole false-positive cohort stayed actioned. Fixed
+   `20694769`: every account is attempted, but `ReversedAt` is written only when all were restored; a
+   partial restore keeps `ReversedAt` null and persists `RestoredAccountCount` +
+   `RestorationFailedAccountIds` so the shortfall is data, never silence.
+The rest of the class was traced, not assumed: `AgeConsentService`, `LiveGameEngine`, `LiveGameRunner`,
+`ModerationQueueService`, `ViewerReportService` and `TrustSafetyReviewService` all stamp only after
+their real action. Search: `ReversedAt =|OverturnedAt =|ConfirmedAt =|ResolvedAt =` then trace consumers.
+
+- [ ] **S-ADMIN-8b Network-wide blocks.** The most dangerous control in the product — it acts across
+      every tenant at once, so it needs a counted blast radius before it applies, reversibility, a
+      justification, an audit entry, and ownership by a named user rather than a role. Cross-INSTANCE
+      signature sharing stays blocked (needs a NoMercy service that does not exist).
 - [ ] **S-ADMIN-9 Make it navigable.** Eleven tabs is already past what one tab strip carries, and the work
       above adds more. Same discipline as the Moderation split (S-UX-1/3): group by JOB, one primary action
       per surface, Sleak loaded before any of it is drawn, and breakpoints honoured — an owner does reach for
