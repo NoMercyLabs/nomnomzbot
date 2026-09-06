@@ -28,11 +28,21 @@ public class ShoutoutOverrideConfiguration : IEntityTypeConfiguration<ShoutoutOv
 
         builder.Property(e => e.MessageTemplate).IsRequired().HasMaxLength(1000);
 
-        // One live override per (broadcaster, target); a soft-deleted row frees the slot for a re-add.
+        builder.Property(e => e.Kind).IsRequired().HasMaxLength(20);
+
+        // One live override per (broadcaster, target, KIND) — a person's shoutout line and their raid line
+        // are two separate rows (ModerationController.SetShoutoutOverride looks them up the same way), so
+        // the unique index must include Kind or the second kind's insert collides with the first's row.
+        // A soft-deleted row frees its slot for a re-add.
         builder
-            .HasIndex(e => new { e.BroadcasterId, e.TargetTwitchUserId })
+            .HasIndex(e => new
+            {
+                e.BroadcasterId,
+                e.TargetTwitchUserId,
+                e.Kind,
+            })
             .IsUnique()
-            .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target")
+            .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target_Kind")
             .HasFilter("\"DeletedAt\" IS NULL");
     }
 }
