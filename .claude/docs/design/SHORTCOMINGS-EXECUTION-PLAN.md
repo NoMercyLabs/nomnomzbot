@@ -112,13 +112,16 @@ started." with a real timestamp against Twitch and was cleanly reversed with `DE
 production state); shoutout reached Twitch's real API and came back 400 "The broadcaster is not
 streaming live or does not have one or more viewers" — a genuine precondition, not a wiring fault.
 
-- [ ] **The shared platform bot has no UI after first-run setup.** `a8b897e6` correctly stopped the
-      channel Integrations screen from polling the SHARED bot device endpoint (that is how a channel
-      login took over `nomz_bot` on 2026-09-04) — it now polls the channel-scoped endpoint, so a
-      channel gets its OWN bot and cannot touch the shared slot. `SetupController` keeps the shared
-      endpoint, which is right: the first-run wizard is the one place that legitimately establishes
-      the platform bot. The gap this leaves: once setup is done, nothing anywhere can re-connect or
-      replace the platform bot account. That surface belongs in the admin plane.
+**CLOSED (`e26d4e2a`).** The platform bot is now managed from the admin plane's Setup group. Status is
+read from the REAL stored credential and distinguishes three states that matter operationally: never
+connected, connected and working, and connected-but-token-unusable — the last being exactly what an
+`ENCRYPTION_KEY` rotation produces, which previously left no route back but a database edit. Re-connect
+runs the device-code flow, is permission-gated with denials audited against the operator, requires a
+justification, and shows a counted blast radius first: the preview counts only channels with no active
+bot of their own, and BOTH the device start and the poll fail closed on a stale count rather than
+half-starting a login. A completed re-connect is proven to replace the stored credential so channels
+resolve to the new token. `SetupController`'s first-run path and the channel-scoped Integrations
+endpoint are untouched — re-pointing either at the shared slot is the bug `a8b897e6` fixed.
 
 ## ROW NAMES TRUNCATED AT NARROW WIDTH — swept, 50 of 50 screens (2026-09-06, `4bc04949`)
 
