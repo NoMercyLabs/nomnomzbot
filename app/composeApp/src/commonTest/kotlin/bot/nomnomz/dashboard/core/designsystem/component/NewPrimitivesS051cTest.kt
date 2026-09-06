@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import kotlin.test.Test
 
 /**
@@ -39,14 +40,14 @@ class NewPrimitivesS051cTest {
     fun popover_shows_content_only_when_expanded_and_dismisses_on_request() = runComposeUiTest {
         setContent {
             var expanded: Boolean by mutableStateOf(false)
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Popover(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                 ) {
                     Text("Popover body")
                 }
-            }
+            } }
         }
         onNodeWithText("Popover body").assertDoesNotExist()
     }
@@ -54,14 +55,14 @@ class NewPrimitivesS051cTest {
     @Test
     fun popover_renders_its_content_when_expanded() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Popover(
                     expanded = true,
                     onDismissRequest = {},
                 ) {
                     Text("Anchored panel content")
                 }
-            }
+            } }
         }
         onNodeWithText("Anchored panel content").assertExists()
     }
@@ -71,7 +72,7 @@ class NewPrimitivesS051cTest {
         setContent {
             var expanded: Boolean by mutableStateOf(false)
             var selected: Platform? by mutableStateOf(null)
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Select(
                     value = selected,
                     options = listOf(Platform.Twitch, Platform.Kick, Platform.Youtube),
@@ -82,7 +83,7 @@ class NewPrimitivesS051cTest {
                     onExpandedChange = { expanded = it },
                     placeholder = "Choose a platform",
                 )
-            }
+            } }
         }
         onNodeWithText("Platform").assertExists()
         onNodeWithText("Choose a platform").assertExists()
@@ -99,7 +100,7 @@ class NewPrimitivesS051cTest {
     fun select_disabled_state_does_not_open_the_menu() = runComposeUiTest {
         setContent {
             var expanded: Boolean by mutableStateOf(false)
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Select(
                     value = Platform.Twitch,
                     options = listOf(Platform.Twitch, Platform.Kick),
@@ -110,7 +111,7 @@ class NewPrimitivesS051cTest {
                     onExpandedChange = { expanded = it },
                     enabled = false,
                 )
-            }
+            } }
         }
         onNodeWithText("Twitch").performClick()
         onNodeWithText("Disabled platform").assertExists()
@@ -124,7 +125,7 @@ class NewPrimitivesS051cTest {
             var query: String by mutableStateOf("")
             var expanded: Boolean by mutableStateOf(false)
             var picked: String? by mutableStateOf(null)
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Combobox(
                     query = query,
                     onQueryChange = { query = it },
@@ -140,7 +141,7 @@ class NewPrimitivesS051cTest {
                     placeholder = "Search widgets…",
                     noResultsText = "No results found.",
                 )
-            }
+            } }
         }
         onNodeWithText("Widget").assertExists()
         onNodeWithText("Search widgets…").assertExists()

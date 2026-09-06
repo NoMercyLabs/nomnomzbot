@@ -21,6 +21,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.feature.setup.state.FakeBotAuthApi
 import bot.nomnomz.dashboard.feature.setup.state.FakeConnectLauncher
 import bot.nomnomz.dashboard.feature.setup.state.FakeSetupChannelSettingsApi
@@ -75,8 +76,13 @@ class SetupWizardScreenTest {
 
         setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides testLifecycleOwner) {
+                // Pins the locale: this test asserts the ENGLISH label "Client ID", which today happens to
+                // be identical in nl and so passes by coincidence. One translation of that label and it
+                // would fail on a Dutch machine while staying green on English CI.
+                AppEnvironment(tag = "en") {
                 NomNomzTheme {
                     SetupWizardScreen(controller = controller)
+                }
                 }
             }
         }

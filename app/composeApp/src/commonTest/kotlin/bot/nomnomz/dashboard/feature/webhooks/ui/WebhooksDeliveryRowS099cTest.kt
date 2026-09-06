@@ -14,6 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.OutboundDelivery
 import kotlin.test.Test
 
@@ -53,9 +54,9 @@ class WebhooksDeliveryRowS099cTest {
     @Test
     fun pending_row_renders_the_next_retry_timestamp() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 DeliveryRow(delivery(status = "Pending", nextRetryAt = "2026-08-30T12:05:00Z"))
-            }
+            } }
         }
         onNodeWithText("2026-08-30T12:05:00Z", substring = true).assertExists()
     }
@@ -63,7 +64,7 @@ class WebhooksDeliveryRowS099cTest {
     @Test
     fun failed_row_renders_a_real_error_message_and_the_next_retry_timestamp() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 DeliveryRow(
                     delivery(
                         status = "Failed",
@@ -72,7 +73,7 @@ class WebhooksDeliveryRowS099cTest {
                         responseCode = null,
                     )
                 )
-            }
+            } }
         }
         onNodeWithText("Connection timed out after 5000ms", substring = true).assertExists()
         onNodeWithText("2026-08-30T12:10:00Z", substring = true).assertExists()
@@ -81,7 +82,7 @@ class WebhooksDeliveryRowS099cTest {
     @Test
     fun dead_letter_row_renders_the_error_and_no_further_retry_timestamp() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 DeliveryRow(
                     delivery(
                         status = "DeadLetter",
@@ -90,7 +91,7 @@ class WebhooksDeliveryRowS099cTest {
                         responseCode = 503,
                     )
                 )
-            }
+            } }
         }
         onNodeWithText("Endpoint disabled after 20 consecutive failures", substring = true).assertExists()
         onNodeWithText("DeadLetter", substring = true).assertExists()
@@ -99,9 +100,9 @@ class WebhooksDeliveryRowS099cTest {
     @Test
     fun delivered_row_renders_no_error_and_no_retry_timestamp() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 DeliveryRow(delivery(status = "Delivered", responseCode = 200))
-            }
+            } }
         }
         onNodeWithText("Delivered", substring = true).assertExists()
         onNodeWithText("200", substring = true).assertExists()

@@ -14,6 +14,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import kotlin.test.Test
 
 /**
@@ -30,7 +31,7 @@ class NewPrimitivesS051bTest {
     @Test
     fun input_renders_all_sizes_with_error_and_disabled_states() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Input(value = "", onValueChange = {}, label = "Channel name", size = InputSize.Sm)
                 Input(value = "abc", onValueChange = {}, label = "Command", size = InputSize.Default)
                 Input(value = "", onValueChange = {}, label = "Prefix", size = InputSize.Lg)
@@ -42,7 +43,7 @@ class NewPrimitivesS051bTest {
                     errorText = "This value is not allowed.",
                 )
                 Input(value = "", onValueChange = {}, label = "Disabled field", enabled = false)
-            }
+            } }
         }
         onNodeWithText("Channel name").assertExists()
         onNodeWithText("Command").assertExists()
@@ -57,7 +58,7 @@ class NewPrimitivesS051bTest {
     @Test
     fun radio_group_renders_options_with_selection_and_disabled_state() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 RadioGroup(
                     options = listOf(Platform.Twitch, Platform.Kick, Platform.Youtube),
                     selected = Platform.Twitch,
@@ -65,7 +66,7 @@ class NewPrimitivesS051bTest {
                     label = { it.name },
                     enabled = { it != Platform.Youtube },
                 )
-            }
+            } }
         }
         onNodeWithText("Twitch").assertExists()
         onNodeWithText("Kick").assertExists()
@@ -75,7 +76,7 @@ class NewPrimitivesS051bTest {
     @Test
     fun toast_renders_default_and_destructive_variants_with_dismiss() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Toast(
                     text = "Saved successfully.",
                     dismissLabel = "Dismiss",
@@ -88,7 +89,7 @@ class NewPrimitivesS051bTest {
                     onDismiss = {},
                     variant = ToastVariant.Destructive,
                 )
-            }
+            } }
         }
         onNodeWithText("Saved successfully.").assertExists()
         onNodeWithText("Couldn't save the change.").assertExists()

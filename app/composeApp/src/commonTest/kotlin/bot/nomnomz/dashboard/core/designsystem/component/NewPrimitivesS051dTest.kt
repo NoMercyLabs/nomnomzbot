@@ -23,6 +23,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import kotlin.test.Test
 
 /**
@@ -39,7 +40,7 @@ class NewPrimitivesS051dTest {
     @Test
     fun scroll_area_vertical_reaches_content_below_the_viewport() = runComposeUiTest {
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 ScrollArea(
                     modifier = Modifier.height(60.dp),
                     orientation = ScrollAreaOrientation.Vertical,
@@ -48,7 +49,7 @@ class NewPrimitivesS051dTest {
                         repeat(30) { index -> Text("Row $index", modifier = Modifier.height(40.dp)) }
                     }
                 }
-            }
+            } }
         }
         onNodeWithText("Row 0").assertExists()
         onNodeWithText("Row 29").performScrollTo()
@@ -62,7 +63,7 @@ class NewPrimitivesS051dTest {
         val viewers: List<Viewer> = listOf(Viewer("Alice", "120"), Viewer("Bob", "80"))
 
         setContent {
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Table {
                     TableHeader {
                         TableRow {
@@ -80,7 +81,7 @@ class NewPrimitivesS051dTest {
                     }
                     TableCaption("2 viewers")
                 }
-            }
+            } }
         }
 
         onNodeWithText("Name").assertExists()
@@ -96,7 +97,7 @@ class NewPrimitivesS051dTest {
     fun table_row_fires_onclick_and_reflects_the_selected_state() = runComposeUiTest {
         setContent {
             var selectedId: Int? by mutableStateOf(null)
-            NomNomzTheme {
+            AppEnvironment(tag = "en") { NomNomzTheme {
                 Table {
                     TableBody {
                         listOf(1, 2, 3).forEach { id ->
@@ -109,7 +110,7 @@ class NewPrimitivesS051dTest {
                         }
                     }
                 }
-            }
+            } }
         }
 
         onNodeWithText("Item 2").assertExists()
