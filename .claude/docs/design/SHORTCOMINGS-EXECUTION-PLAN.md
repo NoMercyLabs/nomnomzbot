@@ -329,10 +329,15 @@ Per-tenant usage reports real measured quantities from `UsageRecord` + `TtsUsage
 stated. There is no per-unit price table anywhere in the codebase, so any currency number would have
 been fabricated — which the never-show-unmeasured-state law forbids.
 
-- [ ] **S-ADMIN-4d No per-unit price table, so usage cannot be costed.** Tiers carry a price
-      (`S-ADMIN-4a`) but nothing prices a UNIT of usage, so "recover real cost, never upsell" has no
-      arithmetic behind it and the ops tab can show quantities but never money. Needs the priced-unit
-      model before any cost or margin surface is honest.
+**S-ADMIN-4d CLOSED (`97a25e60`) — S-ADMIN is now complete, 2 through 9.** The owner authors a
+priced-unit catalogue (integer minor units + explicit currency + a batch size, so a real
+sub-minor-unit rate prices exactly in integers). It ships EMPTY on purpose: a unit with no row is
+UNPRICED, and unpriced is not zero — usage still reports the measured quantity, reports cost only for
+priced units, and NAMES the unpriced ones. The render test asserts BOTH unpriced lines say so, so
+neither can quietly fall back to a zero. Repricing is deliberately not retroactive: cost is computed
+live against the current rate, because this is an operator cost view, not an invoice ledger — chosen
+and asserted rather than left implicit. Both migration sets; snapshot regenerated from a running API
+(604 paths); Infrastructure 5170, Api 935, jvmTest and wasm green.
 
 **S-ADMIN-6c CLOSED (`a785f8ce`) — S-ADMIN-6 is complete.** Error budget computed from real delivery
 outcomes (it MOVES when the underlying records move) and scoped per-tenant, matching the
