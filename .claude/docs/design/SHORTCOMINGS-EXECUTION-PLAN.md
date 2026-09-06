@@ -334,7 +334,15 @@ been fabricated — which the never-show-unmeasured-state law forbids.
       arithmetic behind it and the ops tab can show quantities but never money. Needs the priced-unit
       model before any cost or margin surface is honest.
 
-- [ ] **S-ADMIN-6c Error budget and event-store replay tools.**
+**S-ADMIN-6c CLOSED (`a785f8ce`) — S-ADMIN-6 is complete.** Error budget computed from real delivery
+outcomes (it MOVES when the underlying records move) and scoped per-tenant, matching the
+`GetTenantUsageAsync` precedent: a 2am tool exists to find WHICH tenant's integration is broken, so one
+blended platform number would defeat its purpose. Event-store replay re-applies matched `EventJournal`
+rows through each projection's own real `ApplyAsync` — the live driver's per-projection fold, not a
+second engine — with a counted preview scoped to the projection's subscribed types, a stale count
+failing closed and applying nothing, and an audit row naming operator, scope and count. Replay is
+**idempotent** rather than append-only: `IProjection.ApplyAsync` is contractually an upsert keyed on
+`EventId`, so a second identical run re-applies the same upserts instead of doubling state.
 **S-ADMIN-7 CLOSED — 7a `0c6d017f`, 7b `922073d7`, both verified.** Cross-tenant person search and a
 person view of real state (roles, standings, trust, entitlements, connections, each labelled with the
 tenant it belongs to), plus history replayed from the real event journal. Gated on the new
