@@ -56,7 +56,10 @@ import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
 import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.network.CreateContentDefinitionBody
 import bot.nomnomz.dashboard.core.network.DraftContentVersionBody
+import bot.nomnomz.dashboard.core.network.AdminSupportApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
+import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
+import bot.nomnomz.dashboard.core.network.SupportPersonView
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinitionDetail
@@ -227,6 +230,21 @@ data class AdminState(
     /** The completed publish job, shown as confirmation once a publish commits. */
     val lastPublishJob: PlatformContentPublishJob? = null,
     val contentActionError: String? = null,
+    // ── Cross-tenant support desk (S-ADMIN-7a) ──
+    /** The name/platform-id the operator last searched for across every tenant. */
+    val supportSearch: String = "",
+    /** The mandatory, audited reason the operator gave for looking. Never blank when a call is made. */
+    val supportJustification: String = "",
+    val supportResults: List<SupportPersonSearchResult> = emptyList(),
+    /** True once a search has actually run, so an empty list reads as "no matches" rather than "not searched". */
+    val supportSearched: Boolean = false,
+    val supportLoading: Boolean = false,
+    val supportError: String? = null,
+    /** The person currently open. Every list on it is REAL — an empty one means the system holds no such
+     * fact for this person, and the UI omits that block instead of rendering a zeroed row. */
+    val supportPerson: SupportPersonView? = null,
+    val supportPersonLoading: Boolean = false,
+    val supportPersonError: String? = null,
 )
 
 /** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
@@ -261,6 +279,9 @@ class AdminController(
     private val spamDefenseApi: SpamDefenseApi? = null,
     private val iamApi: PlatformIamApi,
     private val platformAdminApi: PlatformAdminApi,
+    // The cross-tenant support desk. Nullable like the other optional collaborators so a bare test
+    // controller still builds; the tab stays hidden when the build has no client for it.
+    private val supportApi: AdminSupportApi? = null,
     private val contentApi: PlatformContentApi? = null,
     private val hubClient: AdminHubClient? = null,
     private val baseUrl: () -> String? = { null },
@@ -854,6 +875,66 @@ class AdminController(
                 _state.value = _state.value.copy(auditEntries = result.value.data, auditLoading = false)
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(auditLoading = false, auditError = result.error.message)
+        }
+    }
+
+    // ── Cross-tenant support desk (S-ADMIN-7a) ───────────────────────
+
+    /** True when this build wired a support-desk client — the tab is hidden rather than dead without one. */
+    val supportDeskAvailable: Boolean get() = supportApi != null
+
+    fun setSupportSearch(value: String) {
+        _state.value = _state.value.copy(supportSearch = value)
+    }
+
+    fun setSupportJustification(value: String) {
+        _state.value = _state.value.copy(supportJustification = value)
+    }
+
+    /** Closes the open person record, returning to the result list. */
+    fun closeSupportPerson() {
+        _state.value = _state.value.copy(supportPerson = null, supportPersonError = null)
+    }
+
+    /**
+     * Finds people across EVERY tenant. The backend refuses a blank justification and audits the call, so the
+     * caller is expected to have both fields filled — this only guards against firing a call it knows is
+     * invalid.
+     */
+    suspend fun searchPeople() {
+        val api: AdminSupportApi = supportApi ?: return
+        val search: String = _state.value.supportSearch.trim()
+        val justification: String = _state.value.supportJustification.trim()
+        if (search.isBlank() || justification.isBlank()) return
+
+        _state.value = _state.value.copy(supportLoading = true, supportError = null, supportPerson = null)
+        when (val result = api.searchPeople(search = search, justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    supportResults = result.value.data,
+                    supportSearched = true,
+                    supportLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(supportLoading = false, supportError = result.error.message)
+        }
+    }
+
+    /** Opens ONE person's cross-tenant record. The same justification rides the audit row as the search. */
+    suspend fun openSupportPerson(subjectUserId: String) {
+        val api: AdminSupportApi = supportApi ?: return
+        val justification: String = _state.value.supportJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(supportPersonLoading = true, supportPersonError = null)
+        when (val result = api.getPerson(subjectUserId = subjectUserId, justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(supportPerson = result.value, supportPersonLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    supportPersonLoading = false,
+                    supportPersonError = result.error.message,
+                )
         }
     }
 

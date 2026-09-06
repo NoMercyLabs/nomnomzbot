@@ -77,6 +77,12 @@ public static class IamPermissionKeys
     // operation in the product; always audited, always preview-before-execute.
     public const string TenantErase = "tenant:erase";
 
+    // Cross-tenant support desk (S-ADMIN-7a): find one PERSON across every tenant and read their real state
+    // (IAM roles, community + moderation standing, trust/heat, entitlements, platform connections). A READ key
+    // — deliberately NOT bundled with user:impersonate, which ACTS as the person: a support agent triaging a
+    // ticket needs to see the state, never to become the subject.
+    public const string UserSupportView = "user:support:view";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -102,5 +108,6 @@ public static class IamPermissionKeys
         TenantQuotaManage,
         TenantRemigrate,
         TenantErase,
+        UserSupportView,
     };
 }

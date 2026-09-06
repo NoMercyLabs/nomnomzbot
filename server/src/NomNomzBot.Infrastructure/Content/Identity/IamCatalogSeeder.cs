@@ -70,6 +70,9 @@ public sealed class IamCatalogSeeder : ISeeder
         // The most destructive tenant operation in the product — deliberately its own key, never bundled
         // implicitly with tenant:suspend or tenant:access.
         (IamPermissionKeys.TenantErase, IamCategory.Tenant, true),
+        // Cross-tenant person lookup (S-ADMIN-7a) — reads one subject's real state in EVERY tenant, so it
+        // crosses the tenant boundary by design and is always audited against the subject.
+        (IamPermissionKeys.UserSupportView, IamCategory.Iam, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -100,6 +103,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantQuotaManage,
                 IamPermissionKeys.TenantRemigrate,
                 IamPermissionKeys.TenantErase,
+                IamPermissionKeys.UserSupportView,
             ]
         ),
         (
@@ -119,6 +123,9 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantAccess,
                 IamPermissionKeys.AuditRead,
                 IamPermissionKeys.PlatformAnalyticsRead,
+                // The support desk's own reason to exist: find the person a ticket is about and read their
+                // real state. A READ — act-as (user:impersonate) stays owner-only, deliberately unbundled.
+                IamPermissionKeys.UserSupportView,
             ]
         ),
         (

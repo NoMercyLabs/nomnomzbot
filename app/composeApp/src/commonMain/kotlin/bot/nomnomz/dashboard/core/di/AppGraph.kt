@@ -114,6 +114,8 @@ import bot.nomnomz.dashboard.core.network.RestFeaturesApi
 import bot.nomnomz.dashboard.core.network.RestFederationApi
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminApiImpl
+import bot.nomnomz.dashboard.core.network.AdminSupportApi
+import bot.nomnomz.dashboard.core.network.AdminSupportApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
@@ -374,6 +376,9 @@ class AppGraph {
     val adminApi: AdminApi = AdminApiImpl(apiClient)
     val platformIamApi: PlatformIamApi = PlatformIamApiImpl(apiClient)
     val platformAdminApi: PlatformAdminApi = PlatformAdminApiImpl(apiClient)
+
+    /** The cross-tenant support desk (S-ADMIN-7a) — gated server-side on its own `user:support:view` key. */
+    val adminSupportApi: AdminSupportApi = AdminSupportApiImpl(apiClient)
     val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
     val obsApi: ObsApi = RestObsApi(apiClient)
@@ -699,6 +704,7 @@ class AppGraph {
             spamDefenseApi = spamDefenseApi,
             iamApi = platformIamApi,
             platformAdminApi = platformAdminApi,
+            supportApi = adminSupportApi,
             contentApi = platformContentApi,
             hubClient = adminHubClient,
             baseUrl = sessionStore::baseUrl,
