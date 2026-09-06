@@ -13,8 +13,10 @@ package bot.nomnomz.dashboard.feature.webhooks.ui
 import kotlinx.coroutines.flow.SharedFlow
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import bot.nomnomz.dashboard.core.designsystem.theme.Breakpoints
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -503,7 +506,7 @@ fun WebhooksScreen(
 }
 
 @Composable
-private fun InboundRow(
+internal fun InboundRow(
     ep: InboundWebhook,
     pipelines: List<PipelineSummary>,
     manage: ManageDecision,
@@ -530,65 +533,89 @@ private fun InboundRow(
             else -> stringResource(Res.string.webhooks_inbound_target_none)
         }
 
+    val details: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(
+                text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${stringResource(Res.string.webhooks_adapter_label)}: ${adapterLabel(ep.adapter)} · ${stringResource(Res.string.webhooks_receive_count, ep.receiveCount)}",
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
+    val actions: @Composable () -> Unit = {
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = EditGlyph,
+                label = stringResource(Res.string.webhooks_edit),
+                onClick = onEdit,
+                enabled = enabled,
+                tint = tokens.primary,
+            )
+        }
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = RefreshGlyph,
+                label = stringResource(Res.string.webhooks_rotate_inbound_token),
+                onClick = onRotate,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = TrashGlyph,
+                label = stringResource(Res.string.webhooks_delete_confirm),
+                onClick = onDelete,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
+        ManageGate(manage) { enabled ->
+            Switch(
+                checked = ep.isEnabled,
+                onCheckedChange = { onToggle() },
+                enabled = enabled,
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(
-                    text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
-                    style = typography.base,
-                    color = tokens.cardForeground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${stringResource(Res.string.webhooks_adapter_label)}: ${adapterLabel(ep.adapter)} · ${stringResource(Res.string.webhooks_receive_count, ep.receiveCount)}",
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = EditGlyph,
-                    label = stringResource(Res.string.webhooks_edit),
-                    onClick = onEdit,
-                    enabled = enabled,
-                    tint = tokens.primary,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = RefreshGlyph,
-                    label = stringResource(Res.string.webhooks_rotate_inbound_token),
-                    onClick = onRotate,
-                    enabled = enabled,
-                    tint = tokens.destructive,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = TrashGlyph,
-                    label = stringResource(Res.string.webhooks_delete_confirm),
-                    onClick = onDelete,
-                    enabled = enabled,
-                    tint = tokens.destructive,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                Switch(
-                    checked = ep.isEnabled,
-                    onCheckedChange = { onToggle() },
-                    enabled = enabled,
-                )
+        // Below [Breakpoints.Wide] the name/adapter column and the four action controls squeeze into one crowded
+        // row — the actions move to their own row underneath instead (scrollable so every action stays reachable
+        // even at very narrow widths), mirroring the BoxWithConstraints idiom HomeScreen/ShellScreen use for their
+        // compact/full split.
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (maxWidth < Breakpoints.Wide) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    details()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    ) { actions() }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                ) {
+                    Box(modifier = Modifier.weight(1f)) { details() }
+                    actions()
+                }
             }
         }
         Text(
@@ -618,99 +645,123 @@ internal fun OutboundRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val details: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(
+                text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${ep.fqdn}${ep.path ?: ""}",
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = ep.subscribedEventTypes.joinToString(", ").ifBlank { "—" },
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+    val actions: @Composable () -> Unit = {
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = EditGlyph,
+                label = stringResource(Res.string.webhooks_edit),
+                onClick = onEdit,
+                enabled = enabled,
+                tint = tokens.primary,
+            )
+        }
+        GlyphButton(
+            icon = FileGlyph,
+            label = stringResource(Res.string.webhooks_deliveries),
+            onClick = onDeliveries,
+            tint = tokens.mutedForeground,
+        )
+        if (ep.disabledAt != null) {
+            ManageGate(manage) { enabled ->
+                GlyphButton(
+                    icon = PowerGlyph,
+                    label = stringResource(Res.string.webhooks_outbound_reenable),
+                    onClick = onReenable,
+                    enabled = enabled,
+                    tint = tokens.primary,
+                )
+            }
+        }
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = PlayCircleGlyph,
+                label = stringResource(Res.string.webhooks_outbound_test),
+                onClick = onTest,
+                enabled = enabled,
+                tint = tokens.primary,
+            )
+        }
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = RefreshGlyph,
+                label = stringResource(Res.string.webhooks_rotate_outbound_secret),
+                onClick = onRotateSecret,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
+        ManageGate(manage) { enabled ->
+            GlyphButton(
+                icon = TrashGlyph,
+                label = stringResource(Res.string.webhooks_delete_confirm),
+                onClick = onDelete,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
+        ManageGate(manage) { enabled ->
+            Switch(
+                checked = ep.isEnabled,
+                onCheckedChange = { onToggle() },
+                enabled = enabled,
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(
-                    text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
-                    style = typography.base,
-                    color = tokens.cardForeground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${ep.fqdn}${ep.path ?: ""}",
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = ep.subscribedEventTypes.joinToString(", ").ifBlank { "—" },
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = EditGlyph,
-                    label = stringResource(Res.string.webhooks_edit),
-                    onClick = onEdit,
-                    enabled = enabled,
-                    tint = tokens.primary,
-                )
-            }
-            GlyphButton(
-                icon = FileGlyph,
-                label = stringResource(Res.string.webhooks_deliveries),
-                onClick = onDeliveries,
-                tint = tokens.mutedForeground,
-            )
-            if (ep.disabledAt != null) {
-                ManageGate(manage) { enabled ->
-                    GlyphButton(
-                        icon = PowerGlyph,
-                        label = stringResource(Res.string.webhooks_outbound_reenable),
-                        onClick = onReenable,
-                        enabled = enabled,
-                        tint = tokens.primary,
-                    )
+        // Below [Breakpoints.Wide] the name/target column and the six action controls squeeze into one crowded
+        // row — the actions move to their own row underneath instead (scrollable so every action stays reachable
+        // even at very narrow widths), mirroring the BoxWithConstraints idiom HomeScreen/ShellScreen use for their
+        // compact/full split.
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (maxWidth < Breakpoints.Wide) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    details()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    ) { actions() }
                 }
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = PlayCircleGlyph,
-                    label = stringResource(Res.string.webhooks_outbound_test),
-                    onClick = onTest,
-                    enabled = enabled,
-                    tint = tokens.primary,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = RefreshGlyph,
-                    label = stringResource(Res.string.webhooks_rotate_outbound_secret),
-                    onClick = onRotateSecret,
-                    enabled = enabled,
-                    tint = tokens.destructive,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = TrashGlyph,
-                    label = stringResource(Res.string.webhooks_delete_confirm),
-                    onClick = onDelete,
-                    enabled = enabled,
-                    tint = tokens.destructive,
-                )
-            }
-            ManageGate(manage) { enabled ->
-                Switch(
-                    checked = ep.isEnabled,
-                    onCheckedChange = { onToggle() },
-                    enabled = enabled,
-                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                ) {
+                    Box(modifier = Modifier.weight(1f)) { details() }
+                    actions()
+                }
             }
         }
         if (ep.consecutiveFailureCount > 0 || ep.disabledReason != null) {

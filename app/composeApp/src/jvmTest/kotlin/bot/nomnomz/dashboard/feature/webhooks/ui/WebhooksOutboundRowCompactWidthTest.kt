@@ -35,10 +35,15 @@ import kotlin.test.assertTrue
  * A plain `onNodeWithText(name).assertExists()` would pass EVEN on the broken `maxLines = 1` version —
  * Compose's Text semantics carry the full original string regardless of visual truncation; only the
  * painted layout is clipped. So this test also compares the RENDERED HEIGHT of a short, one-line name
- * against a long name at the same Compact (580 dp, below the 600 dp Medium breakpoint) width: a
- * `maxLines = 1` label always renders at exactly one line's height no matter how long the string is, so
- * an unchanged height would mean the row is still silently truncating. A taller render for the long
- * name proves it actually wrapped onto a second line, not that it was clipped.
+ * against a long name at a narrow phone width: a `maxLines = 1` label always renders at exactly one
+ * line's height no matter how long the string is, so an unchanged height would mean the row is still
+ * silently truncating. A taller render for the long name proves it actually wrapped onto a second
+ * line, not that it was clipped.
+ *
+ * S-UX-EMPTY-AND-COMPACT moved the action-button row onto its own line below the details column at
+ * Compact width, so the name no longer shares its row with the buttons here — this test now uses a
+ * true phone width (320 dp) where the wrap the name itself needs is independent of that button-row
+ * placement, rather than relying on the buttons to do the squeezing.
  */
 @OptIn(ExperimentalTestApi::class)
 class WebhooksOutboundRowCompactWidthTest {
@@ -59,12 +64,11 @@ class WebhooksOutboundRowCompactWidthTest {
         runComposeUiTest {
             setContent {
                 NomNomzTheme {
-                    // 580 dp is Compact (below WindowSizeClass's 600 dp Medium breakpoint); OutboundRow's own
-                    // action-button row (Edit/Deliveries/Test/Rotate/Delete/Switch) still eats a large share of
-                    // it, leaving the name column genuinely squeezed — the real-world shape of the bug. Each
-                    // row gets its own identically-sized Box so neither name's wrap affects the other's.
+                    // 320 dp is a true phone width — narrow enough that the long name needs two lines on its
+                    // own, independent of the action-button row (which now stacks underneath, not beside it).
+                    // Each row gets its own identically-sized Box so neither name's wrap affects the other's.
                     Column {
-                        Box(modifier = Modifier.width(580.dp)) {
+                        Box(modifier = Modifier.width(320.dp)) {
                             OutboundRow(
                                 ep = endpoint(shortName),
                                 manage = ManageDecision.Allowed,
@@ -77,7 +81,7 @@ class WebhooksOutboundRowCompactWidthTest {
                                 onDelete = {},
                             )
                         }
-                        Box(modifier = Modifier.width(580.dp)) {
+                        Box(modifier = Modifier.width(320.dp)) {
                             OutboundRow(
                                 ep = endpoint(longName),
                                 manage = ManageDecision.Allowed,

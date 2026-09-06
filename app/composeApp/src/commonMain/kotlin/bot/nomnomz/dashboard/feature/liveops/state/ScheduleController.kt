@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.liveops.state
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.io.JournalFileIO
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -62,7 +63,14 @@ class ScheduleController(
 
         _state.value =
             when (val result: ApiResult<LiveOpsSchedule> = liveOpsApi.getSchedule(channel.id)) {
-                is ApiResult.Failure -> ScheduleState.Error(result.error.message)
+                is ApiResult.Failure ->
+                    // The channel already resolved above (a genuinely unknown channel fails there, not here), so a
+                    // "channel is not known locally" failure here can only mean this specific channel has no linked
+                    // Twitch account — Schedule is a Twitch-only surface, so that channel truly has no schedule to
+                    // show. Any other failure (network, upstream Twitch error, rate limit, missing scope, ...) is a
+                    // real error and stays one — this check does not catch it.
+                    if (result.error.isChannelWithoutTwitchLink()) ScheduleState.Empty
+                    else ScheduleState.Error(result.error.message)
                 is ApiResult.Ok -> {
                     val schedule: LiveOpsSchedule = result.value
                     if (schedule.segments.isEmpty() && schedule.vacation == null) {
@@ -223,3 +231,15 @@ sealed interface ScheduleState {
 
     data class Error(val detail: String) : ScheduleState
 }
+
+// TwitchScheduleApi.ResolveAsync (server) fails with exactly this code + message when the channel has no
+// TwitchChannelId on record — i.e. this specific channel simply isn't connected to Twitch. Schedule is a
+// Twitch-only surface, so that is a real, honest EMPTY (nothing to show), not a load failure. Any other
+// failure — a different message on the same "not_found" code (e.g. Twitch itself reporting no data), a
+// transport error, a rate limit, a missing scope — does NOT match this and stays ScheduleState.Error with
+// its real reason, so a genuine failure can never be silently rendered as empty.
+private const val CHANNEL_NOT_TWITCH_LINKED_CODE: String = "not_found"
+private const val CHANNEL_NOT_TWITCH_LINKED_MESSAGE: String = "Channel is not known locally."
+
+private fun ApiError.isChannelWithoutTwitchLink(): Boolean =
+    code == CHANNEL_NOT_TWITCH_LINKED_CODE && message == CHANNEL_NOT_TWITCH_LINKED_MESSAGE

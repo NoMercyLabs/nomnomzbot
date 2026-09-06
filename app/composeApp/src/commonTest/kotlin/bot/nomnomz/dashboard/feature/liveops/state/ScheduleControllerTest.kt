@@ -135,6 +135,73 @@ class ScheduleControllerTest {
     }
 
     @Test
+    fun load_treats_a_channel_with_no_twitch_link_as_empty_not_an_error() = runTest {
+        // The channel itself resolves fine (primaryChannel succeeds) — only the Twitch-only schedule read fails,
+        // with the exact code+message the server's identity resolver returns when this channel has no
+        // TwitchChannelId on record. That is a real EMPTY (no Twitch schedule to show), not a load failure.
+        val api =
+            FakeScheduleLiveOpsApi(
+                schedule = ApiResult.Failure(ApiError(404, "not_found", "Channel is not known locally."))
+            )
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
+
+        controller.load()
+
+        assertTrue(controller.state.value is ScheduleState.Empty)
+    }
+
+    @Test
+    fun load_surfaces_a_genuine_schedule_failure_as_an_error_with_its_reason() = runTest {
+        // A different failure on the SAME "not_found" code (Twitch itself reporting nothing, not our own
+        // identity-resolution short-circuit) must NOT be swallowed into Empty — it is a real failure and the
+        // page must show it, with its actual reason, so a genuine outage can never read as "nothing scheduled".
+        val api =
+            FakeScheduleLiveOpsApi(
+                schedule = ApiResult.Failure(ApiError(404, "not_found", "Twitch returned no data."))
+            )
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
+
+        controller.load()
+
+        val state: ScheduleState = controller.state.value
+        assertTrue(state is ScheduleState.Error)
+        assertEquals("Twitch returned no data.", (state as ScheduleState.Error).detail)
+    }
+
+    @Test
+    fun load_surfaces_a_transport_failure_as_an_error_even_with_a_different_code() = runTest {
+        // A wholly different failure shape (5xx / transport) also stays an error — proves the Empty mapping is
+        // narrow to the one known-benign case, not a catch-all for every failure the schedule read can produce.
+        val api =
+            FakeScheduleLiveOpsApi(
+                schedule = ApiResult.Failure(ApiError(503, "transport", "Twitch is unreachable."))
+            )
+        val controller = ScheduleController(FakeScheduleChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeScheduleStreamApi(), FakeScheduleFileIO())
+
+        controller.load()
+
+        val state: ScheduleState = controller.state.value
+        assertTrue(state is ScheduleState.Error)
+        assertEquals("Twitch is unreachable.", (state as ScheduleState.Error).detail)
+    }
+
+    @Test
+    fun load_surfaces_an_unknown_channel_as_an_error_before_the_schedule_is_even_read() = runTest {
+        // A genuinely unknown channel fails at channel resolution (primaryChannel), never reaching the schedule
+        // read at all — this is the real ERROR case the Empty mapping must never mask.
+        val channelsApi =
+            FakeScheduleChannelsApi(ApiResult.Failure(ApiError(404, "not_found", "Channel is not known locally.")))
+        val api = FakeScheduleLiveOpsApi(schedule = ApiResult.Ok(LiveOpsSchedule()))
+        val controller = ScheduleController(channelsApi, api, FakeScheduleStreamApi(), FakeScheduleFileIO())
+
+        controller.load()
+
+        val state: ScheduleState = controller.state.value
+        assertTrue(state is ScheduleState.Error)
+        assertEquals("Channel is not known locally.", (state as ScheduleState.Error).detail)
+    }
+
+    @Test
     fun delete_segment_calls_the_api_and_reloads() = runTest {
         val api =
             FakeScheduleLiveOpsApi(
