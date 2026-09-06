@@ -14,6 +14,8 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -52,6 +54,7 @@ public sealed class WidgetAlertCaptureTests
             channel,
             "follow",
             new { user = "PogChamp42", followedAt = "2026-08-29T12:00:00Z" },
+            excludeWidgetId: null,
             channelEventId: null,
             CancellationToken.None
         );
@@ -82,6 +85,7 @@ public sealed class WidgetAlertCaptureTests
             channel,
             "follow",
             new { user = "Unheard" },
+            excludeWidgetId: null,
             channelEventId: null,
             CancellationToken.None
         );
@@ -114,6 +118,7 @@ public sealed class WidgetAlertCaptureTests
                 channel,
                 "follow",
                 new { user = $"user{i}" },
+                excludeWidgetId: null,
                 channelEventId: null,
                 CancellationToken.None
             );
@@ -165,6 +170,7 @@ public sealed class WidgetAlertCaptureTests
                 channel,
                 "ChatMessage",
                 new { message = $"msg{i}" },
+                excludeWidgetId: null,
                 channelEventId: Guid.NewGuid().ToString(),
                 CancellationToken.None
             );
@@ -222,6 +228,7 @@ public sealed class WidgetAlertCaptureTests
             channel,
             "now_playing",
             new { track = "Test Track", isPlaying = true },
+            excludeWidgetId: null,
             channelEventId: null,
             CancellationToken.None
         );
@@ -277,7 +284,9 @@ public sealed class WidgetAlertCaptureTests
             Substitute.For<IDashboardNotifier>(),
             Substitute.For<IHubUserEnricher>(),
             db,
-            Substitute.For<IWidgetNotifier>()
+            Substitute.For<IWidgetNotifier>(),
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
         );
         FollowEvent followEvent = new()
         {

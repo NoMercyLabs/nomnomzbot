@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -34,7 +36,14 @@ public sealed class RoleBroadcastHandlersTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -71,7 +80,14 @@ public sealed class RoleBroadcastHandlersTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        ModeratorRemovedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorRemovedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -105,7 +121,14 @@ public sealed class RoleBroadcastHandlersTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        VipAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        VipAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -142,7 +165,14 @@ public sealed class RoleBroadcastHandlersTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        VipRemovedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        VipRemovedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -176,7 +206,14 @@ public sealed class RoleBroadcastHandlersTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -216,7 +253,14 @@ public sealed class RoleBroadcastHandlersTests
             .Returns(
                 new HubUserEnrichment("UserOne", "https://cdn/avatar.png", "he/him", "Moderator")
             );
-        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -269,7 +313,14 @@ public sealed class RoleBroadcastHandlersTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -334,7 +385,14 @@ public sealed class RoleBroadcastHandlersTests
         );
         await db.SaveChangesAsync();
 
-        VipAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        VipAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -391,7 +449,14 @@ public sealed class RoleBroadcastHandlersTests
         );
         await db.SaveChangesAsync();
 
-        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -424,7 +489,14 @@ public sealed class RoleBroadcastHandlersTests
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         Guid eventId = Guid.CreateVersion7();
-        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         ModeratorAddedEvent moderatorAdded = new()
         {
             EventId = eventId,
@@ -465,7 +537,14 @@ public sealed class RoleBroadcastHandlersTests
         );
         await db.SaveChangesAsync();
 
-        ModeratorRemovedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorRemovedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -498,7 +577,14 @@ public sealed class RoleBroadcastHandlersTests
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         Guid eventId = Guid.CreateVersion7();
-        ModeratorRemovedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorRemovedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         ModeratorRemovedEvent moderatorRemoved = new()
         {
             EventId = eventId,
@@ -523,7 +609,14 @@ public sealed class RoleBroadcastHandlersTests
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         Guid eventId = Guid.CreateVersion7();
-        VipAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        VipAddedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         VipAddedEvent vipAdded = new()
         {
             EventId = eventId,

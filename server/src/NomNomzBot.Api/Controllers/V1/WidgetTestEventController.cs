@@ -83,6 +83,7 @@ public sealed class WidgetTestEventController : BaseController
             request.EventType,
             data,
             // A manual test fire from the dashboard — no originating ChannelEvent row.
+            excludeWidgetId: null,
             channelEventId: null,
             ct
         );

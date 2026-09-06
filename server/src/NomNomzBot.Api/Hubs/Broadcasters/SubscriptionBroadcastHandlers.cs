@@ -10,6 +10,8 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
@@ -21,16 +23,22 @@ public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscript
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public NewSubscriptionBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default)
@@ -52,7 +60,10 @@ public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscript
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            @event.Provider,
             "subscription",
             dto,
             @event.EventId.ToString(),
@@ -67,16 +78,22 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public ResubscriptionBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default)
@@ -105,7 +122,10 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            @event.Provider,
             "resub",
             dto,
             @event.EventId.ToString(),
@@ -120,16 +140,22 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public GiftSubscriptionBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default)
@@ -157,7 +183,10 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            @event.Provider,
             "gift",
             dto,
             @event.EventId.ToString(),

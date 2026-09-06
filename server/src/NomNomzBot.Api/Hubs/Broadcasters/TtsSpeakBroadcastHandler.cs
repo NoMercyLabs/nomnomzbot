@@ -59,6 +59,7 @@ public sealed class TtsSpeakBroadcastHandler(
             // the triggering ChannelEvent id down through TtsSpeakRequest.ChannelEventId. A standalone chat
             // command (!tts) never logs a ChannelEvent at all, so it stays genuinely null here, not a fuzzy
             // time-window join.
+            excludeWidgetId: null,
             channelEventId: @event.ChannelEventId,
             cancellationToken
         );

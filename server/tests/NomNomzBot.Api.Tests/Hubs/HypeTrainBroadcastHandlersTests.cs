@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -48,7 +50,13 @@ public sealed class HypeTrainBroadcastHandlersTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
+        HypeTrainBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset expiresAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -93,7 +101,13 @@ public sealed class HypeTrainBroadcastHandlersTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        HypeTrainProgressBroadcastHandler handler = new(notifier, db, widgets);
+        HypeTrainProgressBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset expiresAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -133,7 +147,13 @@ public sealed class HypeTrainBroadcastHandlersTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        HypeTrainEndedBroadcastHandler handler = new(notifier, db, widgets);
+        HypeTrainEndedBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset endedAt = new(2026, 7, 1, 12, 10, 0, TimeSpan.Zero);
 
@@ -171,7 +191,13 @@ public sealed class HypeTrainBroadcastHandlersTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
+        HypeTrainBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -211,7 +237,13 @@ public sealed class HypeTrainBroadcastHandlersTests
 
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
-        HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
+        HypeTrainBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -266,7 +298,13 @@ public sealed class HypeTrainBroadcastHandlersTests
 
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
-        HypeTrainBeganBroadcastHandler handler = new(notifier, db, widgets);
+        HypeTrainBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()

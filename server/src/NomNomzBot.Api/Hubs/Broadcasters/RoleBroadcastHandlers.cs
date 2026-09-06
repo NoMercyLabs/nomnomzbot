@@ -12,6 +12,9 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -64,18 +67,24 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
     private readonly IHubUserEnricher _enricher;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public ModeratorAddedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _enricher = enricher;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(ModeratorAddedEvent @event, CancellationToken ct = default)
@@ -119,7 +128,10 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "moderator_added",
             dto,
             @event.EventId.ToString(),
@@ -135,18 +147,24 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
     private readonly IHubUserEnricher _enricher;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public ModeratorRemovedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _enricher = enricher;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(ModeratorRemovedEvent @event, CancellationToken ct = default)
@@ -190,7 +208,10 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "moderator_removed",
             dto,
             @event.EventId.ToString(),
@@ -206,18 +227,24 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
     private readonly IHubUserEnricher _enricher;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public VipAddedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _enricher = enricher;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(VipAddedEvent @event, CancellationToken ct = default)
@@ -261,7 +288,10 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "vip_added",
             dto,
             @event.EventId.ToString(),
@@ -277,18 +307,24 @@ public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
     private readonly IHubUserEnricher _enricher;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public VipRemovedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _enricher = enricher;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(VipRemovedEvent @event, CancellationToken ct = default)
@@ -332,7 +368,10 @@ public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "vip_removed",
             dto,
             @event.EventId.ToString(),

@@ -12,6 +12,9 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -63,16 +66,22 @@ public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEve
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public ShoutoutSentBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(ShoutoutSentEvent @event, CancellationToken ct = default)
@@ -105,7 +114,10 @@ public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEve
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "shoutout_sent",
             dto,
             @event.EventId.ToString(),
@@ -124,18 +136,24 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
     private readonly IHubUserEnricher _enricher;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public ShoutoutReceivedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _enricher = enricher;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(ShoutoutReceivedEvent @event, CancellationToken ct = default)
@@ -185,7 +203,10 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "shoutout_received",
             dto,
             @event.EventId.ToString(),

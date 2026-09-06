@@ -43,6 +43,7 @@ public sealed class SrQueueBroadcastHandler(
             "sr_queue",
             payload,
             // Standing queue snapshot — not a ChannelEvent-backed feed item.
+            excludeWidgetId: null,
             channelEventId: null,
             cancellationToken
         );

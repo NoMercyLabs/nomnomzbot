@@ -158,6 +158,9 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             evt.BroadcasterId,
             "ChatMessage",
             dto,
+            // Never routes to the alert queue — chat volume is excluded from CaptureAsync already; it was
+            // never a candidate for the on-air alert queue either.
+            excludeWidgetId: null,
             // Same convergent id TwitchChannelEventLogProjection keys its "channel.chat.message" row by.
             evt.EventId.ToString(),
             ct

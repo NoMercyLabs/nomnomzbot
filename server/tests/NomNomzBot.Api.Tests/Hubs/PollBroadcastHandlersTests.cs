@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -48,7 +50,13 @@ public sealed class PollBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PollBeganBroadcastHandler handler = new(notifier, db, widgets);
+        PollBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset endsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -100,7 +108,13 @@ public sealed class PollBroadcastHandlersTests
         };
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
-        PollBeganBroadcastHandler handler = new(notifier, db, widgets);
+        PollBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -145,7 +159,13 @@ public sealed class PollBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PollProgressBroadcastHandler handler = new(notifier, db, widgets);
+        PollProgressBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset endsAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -189,7 +209,13 @@ public sealed class PollBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PollEndedBroadcastHandler handler = new(notifier, db, widgets);
+        PollEndedBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -235,7 +261,13 @@ public sealed class PollBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PollBeganBroadcastHandler handler = new(notifier, db, widgets);
+        PollBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()

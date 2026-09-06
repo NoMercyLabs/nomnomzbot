@@ -10,7 +10,10 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
@@ -29,13 +32,17 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
     private readonly ISoundClipService _soundClips;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public RewardRedeemedBroadcastHandler(
         IDashboardNotifier notifier,
         IHubUserEnricher enricher,
         IApplicationDbContext db,
         IWidgetNotifier widgets,
-        ISoundClipService soundClips
+        ISoundClipService soundClips,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
@@ -43,6 +50,8 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
         _db = db;
         _widgets = widgets;
         _soundClips = soundClips;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
@@ -77,7 +86,10 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "reward_redeemed",
             dto,
             @event.EventId.ToString(),

@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -34,7 +36,13 @@ public sealed class ShoutoutBroadcastHandlersTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+        ShoutoutSentBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -80,7 +88,13 @@ public sealed class ShoutoutBroadcastHandlersTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+        ShoutoutSentBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -120,7 +134,14 @@ public sealed class ShoutoutBroadcastHandlersTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ShoutoutReceivedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -164,7 +185,14 @@ public sealed class ShoutoutBroadcastHandlersTests
         enricher
             .EnrichAsync(channel, "source-1", Arg.Any<CancellationToken>())
             .Returns(new HubUserEnrichment("SourceStreamer", "https://cdn/avatar.png", null, null));
-        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ShoutoutReceivedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -216,7 +244,14 @@ public sealed class ShoutoutBroadcastHandlersTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ShoutoutReceivedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -258,7 +293,13 @@ public sealed class ShoutoutBroadcastHandlersTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+        ShoutoutSentBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -307,7 +348,13 @@ public sealed class ShoutoutBroadcastHandlersTests
         );
         await db.SaveChangesAsync();
 
-        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+        ShoutoutSentBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -338,7 +385,13 @@ public sealed class ShoutoutBroadcastHandlersTests
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         Guid eventId = Guid.CreateVersion7();
-        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+        ShoutoutSentBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         ShoutoutSentEvent shoutoutSent = new()
         {
             EventId = eventId,
@@ -375,7 +428,14 @@ public sealed class ShoutoutBroadcastHandlersTests
         );
         await db.SaveChangesAsync();
 
-        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ShoutoutReceivedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()

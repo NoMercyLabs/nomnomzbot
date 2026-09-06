@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -48,7 +50,14 @@ public sealed class FollowBroadcastHandlerTests
             .Returns(
                 new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "they/them", "Subscriber")
             );
-        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        FollowBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -82,7 +91,14 @@ public sealed class FollowBroadcastHandlerTests
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
-        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        FollowBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -128,7 +144,14 @@ public sealed class FollowBroadcastHandlerTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        FollowBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -166,7 +189,14 @@ public sealed class FollowBroadcastHandlerTests
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
-        FollowBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        FollowBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(Guid.Empty));
 

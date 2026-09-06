@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -41,7 +43,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
         Guid channel = Guid.CreateVersion7();
-        NewSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
+        NewSubscriptionBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -96,7 +104,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         };
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
-        NewSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
+        NewSubscriptionBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -128,7 +142,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
         Guid channel = Guid.CreateVersion7();
-        ResubscriptionBroadcastHandler handler = new(notifier, db, widgets);
+        ResubscriptionBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -176,7 +196,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
         Guid channel = Guid.CreateVersion7();
-        GiftSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
+        GiftSubscriptionBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -237,7 +263,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         };
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
-        GiftSubscriptionBroadcastHandler handler = new(notifier, db, widgets);
+        GiftSubscriptionBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -272,7 +304,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
         Guid channel = Guid.CreateVersion7();
-        CheerBroadcastHandler handler = new(notifier, db, widgets);
+        CheerBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -319,7 +357,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
         Guid channel = Guid.CreateVersion7();
-        RaidBroadcastHandler handler = new(notifier, db, widgets);
+        RaidBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -364,7 +408,13 @@ public sealed class SubscriptionCheerRaidBroadcastTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        CheerBroadcastHandler handler = new(notifier, db, widgets);
+        CheerBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()

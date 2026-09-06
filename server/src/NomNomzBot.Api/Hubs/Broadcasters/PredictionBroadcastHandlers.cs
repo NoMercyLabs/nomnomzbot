@@ -10,7 +10,10 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -39,16 +42,22 @@ public sealed class PredictionBeganBroadcastHandler : IEventHandler<PredictionBe
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PredictionBeganBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PredictionBeganEvent @event, CancellationToken ct = default)
@@ -74,7 +83,10 @@ public sealed class PredictionBeganBroadcastHandler : IEventHandler<PredictionBe
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "prediction_begin",
             dto,
             @event.EventId.ToString(),
@@ -90,16 +102,22 @@ public sealed class PredictionProgressBroadcastHandler : IEventHandler<Predictio
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PredictionProgressBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PredictionProgressEvent @event, CancellationToken ct = default)
@@ -124,7 +142,10 @@ public sealed class PredictionProgressBroadcastHandler : IEventHandler<Predictio
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "prediction_progress",
             dto,
             @event.EventId.ToString(),
@@ -140,16 +161,22 @@ public sealed class PredictionLockedBroadcastHandler : IEventHandler<PredictionL
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PredictionLockedBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PredictionLockedEvent @event, CancellationToken ct = default)
@@ -173,7 +200,10 @@ public sealed class PredictionLockedBroadcastHandler : IEventHandler<PredictionL
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "prediction_lock",
             dto,
             @event.EventId.ToString(),
@@ -189,16 +219,22 @@ public sealed class PredictionEndedBroadcastHandler : IEventHandler<PredictionEn
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PredictionEndedBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PredictionEndedEvent @event, CancellationToken ct = default)
@@ -224,7 +260,10 @@ public sealed class PredictionEndedBroadcastHandler : IEventHandler<PredictionEn
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "prediction_end",
             dto,
             @event.EventId.ToString(),

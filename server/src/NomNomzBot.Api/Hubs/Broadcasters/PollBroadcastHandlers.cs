@@ -10,7 +10,10 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -29,16 +32,22 @@ public sealed class PollBeganBroadcastHandler : IEventHandler<PollBeganEvent>
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PollBeganBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PollBeganEvent @event, CancellationToken ct = default)
@@ -59,7 +68,10 @@ public sealed class PollBeganBroadcastHandler : IEventHandler<PollBeganEvent>
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "poll_begin",
             dto,
             @event.EventId.ToString(),
@@ -75,16 +87,22 @@ public sealed class PollProgressBroadcastHandler : IEventHandler<PollProgressEve
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PollProgressBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PollProgressEvent @event, CancellationToken ct = default)
@@ -109,7 +127,10 @@ public sealed class PollProgressBroadcastHandler : IEventHandler<PollProgressEve
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "poll_progress",
             dto,
             @event.EventId.ToString(),
@@ -125,16 +146,22 @@ public sealed class PollEndedBroadcastHandler : IEventHandler<PollEndedEvent>
     private readonly IDashboardNotifier _notifier;
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _widgets;
+    private readonly IAlertQueueService _alertQueue;
+    private readonly IWidgetService _widgetService;
 
     public PollEndedBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
-        IWidgetNotifier widgets
+        IWidgetNotifier widgets,
+        IAlertQueueService alertQueue,
+        IWidgetService widgetService
     )
     {
         _notifier = notifier;
         _db = db;
         _widgets = widgets;
+        _alertQueue = alertQueue;
+        _widgetService = widgetService;
     }
 
     public async Task HandleAsync(PollEndedEvent @event, CancellationToken ct = default)
@@ -155,7 +182,10 @@ public sealed class PollEndedBroadcastHandler : IEventHandler<PollEndedEvent>
         await OverlayAlertBroadcast.ToOverlaysAsync(
             _db,
             _widgets,
+            _alertQueue,
+            _widgetService,
             @event.BroadcasterId,
+            AuthEnums.Platform.Twitch,
             "poll_end",
             dto,
             @event.EventId.ToString(),

@@ -11,8 +11,10 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -52,7 +54,15 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns(new HubUserEnrichment("Stoney", "https://cdn/avatar.png", "she/her", "Vip"));
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            soundClips,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -81,7 +91,15 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         enricher
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            soundClips,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -116,7 +134,15 @@ public sealed class RewardRedeemedBroadcastHandlerTests
             .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
         RewardRedeemedEvent redemption = Event(channel);
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            soundClips,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(redemption);
 
@@ -154,7 +180,15 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            soundClips,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -208,7 +242,15 @@ public sealed class RewardRedeemedBroadcastHandlerTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            soundClips,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 
@@ -259,7 +301,15 @@ public sealed class RewardRedeemedBroadcastHandlerTests
                 Result.Success(new SoundPlaybackDto(clipId, "/sounds/clip.mp3?token=abc", 80, 1500))
             );
 
-        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            soundClips,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(Event(channel));
 

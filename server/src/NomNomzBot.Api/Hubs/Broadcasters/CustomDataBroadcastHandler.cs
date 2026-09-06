@@ -36,6 +36,7 @@ public sealed class CustomDataBroadcastHandler(IApplicationDbContext db, IWidget
             $"custom.{@event.SourceName}",
             new { fields = @event.Fields },
             // External data-source ingest — not a ChannelEvent-backed feed item.
+            excludeWidgetId: null,
             channelEventId: null,
             cancellationToken
         );

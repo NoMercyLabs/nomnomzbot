@@ -44,6 +44,13 @@ internal static class WidgetAlertDispatch
         Guid broadcasterId,
         string eventType,
         object data,
+        // S059b: the auto-provisioned "alerts" system surface's widget id, or null when this event type
+        // never reaches it (e.g. now_playing/track_saved_changed). Its own delivery is attempted by
+        // OverlayAlertBroadcast's AlertQueueService.EnqueueAsync call BEFORE this method runs — excluding
+        // it here is what stops that same widget id from being pushed a second time over the identical
+        // OverlayHub group. Every OTHER subscribed widget (goal_bar, event_ticker, custom alert widgets)
+        // still gets its push exactly as before.
+        Guid? excludeWidgetId,
         string? channelEventId,
         CancellationToken cancellationToken
     )
@@ -66,7 +73,11 @@ internal static class WidgetAlertDispatch
         // same tick out to the Stream Deck plugin's `song.changed` subscribers with zero DB access, landing
         // first every time. Reordering costs nothing: the capture is still written every tick it always was,
         // just after the thing a human is actually watching for.
-        foreach (Widget widget in subscribers)
+        //
+        // The capture below still reflects EVERY subscriber (including the alerts surface, via `subscribers`)
+        // even though the excluded widget is skipped HERE — the capture is a record of what the channel's
+        // widgets were subscribed to, not of which SignalR calls this method personally made.
+        foreach (Widget widget in subscribers.Where(w => w.Id != excludeWidgetId))
             await notifier.SendWidgetEventAsync(
                 broadcasterId.ToString(),
                 widget.Id.ToString(),
@@ -173,6 +184,8 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
                 // themselves — the overlay renders no requester row at all for a null (S-MUSIC-5b).
                 requestedBy = @event.RequestedBy,
             },
+            // Never routes to the alert queue — this is a standing snapshot, not an on-air alert.
+            excludeWidgetId: null,
             // Standing music-state snapshot, not a ChannelEvent-backed feed item.
             channelEventId: null,
             cancellationToken
@@ -203,6 +216,8 @@ public sealed class WidgetTrackSavedHandler(IApplicationDbContext db, IWidgetNot
                 artist = @event.Artist,
                 isSaved = @event.IsSaved,
             },
+            // Never routes to the alert queue — a widget-animation trigger, not an on-air alert.
+            excludeWidgetId: null,
             // Transient music-widget animation trigger, not a ChannelEvent-backed feed item.
             channelEventId: null,
             cancellationToken

@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -37,7 +39,14 @@ public sealed class BanBroadcastHandlersTests
             .Returns(
                 new HubUserEnrichment("Naughty", "https://cdn/avatar.png", "he/him", "Everyone")
             );
-        UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        UserBannedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         DateTimeOffset occurredAt = DateTimeOffset.Parse("2026-08-31T12:00:00Z");
 
         await handler.HandleAsync(
@@ -82,7 +91,14 @@ public sealed class BanBroadcastHandlersTests
         enricher
             .EnrichAsync(channel, "target2", Arg.Any<CancellationToken>())
             .Returns((HubUserEnrichment?)null);
-        UserTimedOutBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        UserTimedOutBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -122,7 +138,14 @@ public sealed class BanBroadcastHandlersTests
         enricher
             .EnrichAsync(channel, "target1", Arg.Any<CancellationToken>())
             .Returns(new HubUserEnrichment("Reformed", null, "they/them", null));
-        UserUnbannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        UserUnbannedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -171,7 +194,14 @@ public sealed class BanBroadcastHandlersTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
 
-        UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        UserBannedBroadcastHandler handler = new(
+            notifier,
+            enricher,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()

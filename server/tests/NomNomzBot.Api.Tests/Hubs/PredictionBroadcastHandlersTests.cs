@@ -11,6 +11,8 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -48,7 +50,13 @@ public sealed class PredictionBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PredictionBeganBroadcastHandler handler = new(notifier, db, widgets);
+        PredictionBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset locksAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -98,7 +106,13 @@ public sealed class PredictionBroadcastHandlersTests
         };
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
-        PredictionBeganBroadcastHandler handler = new(notifier, db, widgets);
+        PredictionBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
@@ -143,7 +157,13 @@ public sealed class PredictionBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PredictionProgressBroadcastHandler handler = new(notifier, db, widgets);
+        PredictionProgressBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset locksAt = new(2026, 7, 1, 12, 5, 0, TimeSpan.Zero);
 
@@ -188,7 +208,13 @@ public sealed class PredictionBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PredictionLockedBroadcastHandler handler = new(notifier, db, widgets);
+        PredictionLockedBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -230,7 +256,13 @@ public sealed class PredictionBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PredictionEndedBroadcastHandler handler = new(notifier, db, widgets);
+        PredictionEndedBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
         Guid channel = Guid.CreateVersion7();
 
         await handler.HandleAsync(
@@ -276,7 +308,13 @@ public sealed class PredictionBroadcastHandlersTests
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
         await using WidgetTestDbContext _ = db;
-        PredictionBeganBroadcastHandler handler = new(notifier, db, widgets);
+        PredictionBeganBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
 
         await handler.HandleAsync(
             new()
