@@ -83,11 +83,32 @@ public class SpamCampaignRecord : SoftDeletableEntity, ITenantScoped
     /// </summary>
     public bool MayContributeToNetwork { get; set; } = true;
 
-    /// <summary>Set when the cohort de-qualified and its actions were undone.</summary>
+    /// <summary>
+    /// Set only once EVERY account in <see cref="ActionedAccountIds"/> was actually restored. A partial
+    /// restore (some accounts unbanned, others still refusing) must never stamp this — the field means
+    /// "nobody this campaign touched is still actioned", not "an attempt was made".
+    /// </summary>
     public DateTime? ReversedAt { get; set; }
 
     /// <summary>Why it was reversed, in words an operator can read back later.</summary>
     public string? ReversalReason { get; set; }
+
+    /// <summary>
+    /// Who or what performed the reversal — an operator's user id, or the system actor id for the
+    /// automatic de-qualification path (<c>SpamCampaignReversalExecutor.SystemActorId</c>). Required for
+    /// an audit trail: a reversal nobody can attribute is one nobody can review.
+    /// </summary>
+    public string? ReversedByActorId { get; set; }
+
+    /// <summary>How many of <see cref="ActionedAccountIds"/> were actually restored on the last attempt.</summary>
+    public int RestoredAccountCount { get; set; }
+
+    /// <summary>
+    /// Comma-separated accounts the last restoration attempt could NOT restore — empty when the
+    /// restoration was complete. Kept so a partial failure is never silent: an operator (or a later
+    /// retry) can see exactly who is still actioned.
+    /// </summary>
+    public string RestorationFailedAccountIds { get; set; } = string.Empty;
 
     public DateTime FirstSeenAt { get; set; }
 

@@ -7662,11 +7662,21 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("QualifiedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RestorationFailedAccountIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RestoredAccountCount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ReversalReason")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReversedByActorId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Skeleton")

@@ -86,13 +86,30 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                     ct
                 );
 
-            if (cohort.Reversal is not null)
-                _logger.LogWarning(
-                    "Spam defence reversed a campaign in {Channel}: {Reason} Restoring {Count} account(s).",
-                    @event.BroadcasterId,
-                    cohort.Reversal.OperatorMessage,
-                    cohort.Reversal.AccountsToRestore.Count
-                );
+            // Truthful even when it is bad news: this logs what the platform actually did (Restoration),
+            // never just what the cohort intended (Reversal) — the exact gap that let a "reversed"
+            // campaign leave every account it caught still actioned.
+            if (cohort.Reversal is not null && cohort.Restoration is not null)
+            {
+                if (cohort.Restoration.IsComplete)
+                    _logger.LogWarning(
+                        "Spam defence reversed a campaign in {Channel}: {Reason} Restored {Count} account(s).",
+                        @event.BroadcasterId,
+                        cohort.Reversal.OperatorMessage,
+                        cohort.Restoration.Restored.Count
+                    );
+                else
+                    _logger.LogError(
+                        "Spam defence de-qualified a campaign in {Channel}: {Reason} Restored {RestoredCount} of "
+                            + "{TotalCount} account(s) — {FailedCount} still actioned and need manual review: {Failed}.",
+                        @event.BroadcasterId,
+                        cohort.Reversal.OperatorMessage,
+                        cohort.Restoration.Restored.Count,
+                        cohort.Reversal.AccountsToRestore.Count,
+                        cohort.Restoration.Failed.Count,
+                        string.Join(", ", cohort.Restoration.Failed)
+                    );
+            }
 
             // Acting is a separate step from deciding, and it happens here rather than inside the
             // service so that a channel in dry run simply never reaches this line.

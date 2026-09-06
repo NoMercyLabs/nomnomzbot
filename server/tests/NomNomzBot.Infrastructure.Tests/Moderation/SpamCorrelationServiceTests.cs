@@ -11,13 +11,18 @@
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -31,11 +36,21 @@ namespace NomNomzBot.Infrastructure.Tests.Moderation;
 public class SpamCorrelationServiceTests : IDisposable
 {
     private static readonly Guid Channel = Guid.Parse("0199c000-0000-7000-8000-0000000000f1");
+    private static readonly Guid Owner = Guid.Parse("0199c000-0000-7000-8000-0000000000f2");
     private static readonly DateTimeOffset T0 = new(2026, 9, 3, 23, 0, 0, TimeSpan.Zero);
     private const string Skeleton = "bestviewersonbigfollowscom";
 
     private readonly SqliteConnection _connection;
     private readonly FakeTimeProvider _time = new(T0);
+
+    /// <summary>
+    /// Every UnbanAsync call this test suite has recorded, across every fresh service/DbContext — so a
+    /// test can assert the real reversal was invoked per account, not merely that a flag got set.
+    /// </summary>
+    private readonly List<string> _unbannedAccounts = [];
+
+    /// <summary>Accounts <see cref="IModerationService.UnbanAsync"/> should report as failed to restore.</summary>
+    private readonly HashSet<string> _accountsThatRefuseToRestore = [];
 
     public SpamCorrelationServiceTests()
     {
@@ -49,7 +64,7 @@ public class SpamCorrelationServiceTests : IDisposable
             new Channel
             {
                 Id = Channel,
-                OwnerUserId = Guid.NewGuid(),
+                OwnerUserId = Owner,
                 Provider = AuthEnums.Platform.Twitch,
                 ExternalChannelId = "chan-ext",
                 Name = "chan",
@@ -62,6 +77,36 @@ public class SpamCorrelationServiceTests : IDisposable
     private AppDbContext NewDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
 
+    /// <summary>
+    /// A fresh moderation mock per call, matching the fresh-service-and-context pattern this suite
+    /// already uses — UnbanAsync succeeds unless the target was added to <see
+    /// cref="_accountsThatRefuseToRestore"/>, and every call is remembered in <see
+    /// cref="_unbannedAccounts"/> regardless of outcome.
+    /// </summary>
+    private IModerationService NewModerationMock()
+    {
+        IModerationService moderation = Substitute.For<IModerationService>();
+        moderation
+            .UnbanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string targetUserId = call.ArgAt<string>(2);
+                _unbannedAccounts.Add(targetUserId);
+                return Task.FromResult(
+                    _accountsThatRefuseToRestore.Contains(targetUserId)
+                        ? Result.Failure<ModerationActionResult>("twitch_unavailable")
+                        : Result.Success(new ModerationActionResult(true, null))
+                );
+            });
+        return moderation;
+    }
+
     /// <summary>A brand-new service and context each time — the restart this design has to survive.</summary>
     private async Task<CohortObservation> ObserveAsync(
         string accountId,
@@ -70,7 +115,15 @@ public class SpamCorrelationServiceTests : IDisposable
     )
     {
         using AppDbContext db = NewDbContext();
-        SpamCorrelationService service = new(db, _time);
+        SpamCorrelationService service = new(
+            db,
+            new SpamCampaignReversalExecutor(
+                db,
+                NewModerationMock(),
+                NullLogger<SpamCampaignReversalExecutor>.Instance
+            ),
+            _time
+        );
         return await service.ObserveAsync(
             Channel,
             Skeleton,
@@ -122,7 +175,15 @@ public class SpamCorrelationServiceTests : IDisposable
 
         _time.Advance(TimeSpan.FromSeconds(20));
         using AppDbContext db = NewDbContext();
-        SpamCorrelationService fresh = new(db, _time);
+        SpamCorrelationService fresh = new(
+            db,
+            new SpamCampaignReversalExecutor(
+                db,
+                NewModerationMock(),
+                NullLogger<SpamCampaignReversalExecutor>.Instance
+            ),
+            _time
+        );
 
         CohortObservation lurker = await fresh.ObserveAsync(
             Channel,
@@ -189,6 +250,105 @@ public class SpamCorrelationServiceTests : IDisposable
             .BeEquivalentTo(["stranger0", "stranger1"], "exactly who to restore, not a count");
     }
 
+    // ---- A reversal is not just a stamp — it has to actually restore people -----------------------
+
+    [Fact]
+    public async Task DequalificationActuallyRestoresEveryActionedAccount()
+    {
+        // The defect this fixes: Persist() used to stamp ReversedAt/ReversalReason on its own, with
+        // nothing downstream ever calling the real unban. Reproduced first: before the fix, this
+        // assertion on _unbannedAccounts failed with an empty list even though ReversedAt was set.
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+        Stored().ActionedCount.Should().Be(2);
+
+        await AddRegularsAsync(15);
+
+        _unbannedAccounts
+            .Should()
+            .BeEquivalentTo(
+                ["stranger0", "stranger1"],
+                "the real unban must be invoked for every account the campaign actioned"
+            );
+
+        SpamCampaignRecord record = Stored();
+        record.ReversedAt.Should().NotBeNull("both accounts actually came back");
+        record.RestoredAccountCount.Should().Be(2);
+        record.RestorationFailedAccountIds.Should().BeEmpty();
+        record
+            .ReversedByActorId.Should()
+            .Be(
+                SpamCampaignReversalExecutor.SystemActorId,
+                "an audit trail has to name WHO/WHAT reversed it"
+            );
+    }
+
+    [Fact]
+    public async Task APartialRestoreFailure_IsNeverRecordedAsACleanReversal()
+    {
+        // Twitch refuses to restore stranger1 (rate limit, account already unbanned by a moderator,
+        // whatever the reason). stranger0 still comes back fine. The record must not claim the campaign
+        // is clear while one of its victims is still sitting in a timeout — a silent partial success is
+        // exactly the shape of bug this slice exists to rule out.
+        _accountsThatRefuseToRestore.Add("stranger1");
+
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+
+        CohortObservation flipping = await ObserveAsync("regular0", SpamTrustTier.Established);
+        for (int i = 1; i < 15; i++)
+            flipping = await ObserveAsync($"regular{i}", SpamTrustTier.Established);
+
+        // Both accounts were attempted — a failure on one must never stop the attempt on the rest.
+        _unbannedAccounts.Should().Contain(["stranger0", "stranger1"]);
+
+        SpamCampaignRecord record = Stored();
+        record
+            .ReversedAt.Should()
+            .BeNull("stranger1 is still actioned — this is not a clean reversal");
+        record.RestoredAccountCount.Should().Be(1, "only stranger0 actually came back");
+        record
+            .RestorationFailedAccountIds.Should()
+            .Be("stranger1", "an operator has to see exactly who still needs manual restoring");
+        record
+            .ReversedByActorId.Should()
+            .Be(SpamCampaignReversalExecutor.SystemActorId, "the attempt itself is still audited");
+    }
+
+    [Fact]
+    public async Task TheDequalifyingObservationReportsThePartialOutcomeToItsCaller()
+    {
+        // The handler that logs this has to tell the truth about what happened, not just that a
+        // reversal was intended — so the outcome has to reach it, not just get buried in the row.
+        _accountsThatRefuseToRestore.Add("stranger1");
+
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await ObserveAsync("stranger1", SpamTrustTier.Untrusted);
+
+        CohortObservation flipping = new(CohortVerdict.Watching, false, null);
+        for (int i = 0; i < 15; i++)
+        {
+            CohortObservation observation = await ObserveAsync(
+                $"regular{i}",
+                SpamTrustTier.Established
+            );
+            if (observation.Reversal is not null)
+                flipping = observation;
+        }
+
+        flipping.Reversal.Should().NotBeNull();
+        flipping.Restoration.Should().NotBeNull();
+        flipping.Restoration!.IsComplete.Should().BeFalse();
+        flipping.Restoration.Restored.Should().BeEquivalentTo(["stranger0"]);
+        flipping.Restoration.Failed.Should().BeEquivalentTo(["stranger1"]);
+    }
+
     [Fact]
     public async Task TheReversalIsProducedOnce_NotOnEveryLaterMessage()
     {
@@ -208,6 +368,32 @@ public class SpamCorrelationServiceTests : IDisposable
 
         CohortObservation after = await ObserveAsync("regular11", SpamTrustTier.Established);
         after.Reversal.Should().BeNull("already reversed");
+    }
+
+    [Fact]
+    public async Task AnAlreadyReversedCampaign_IsNeverRestoredTwice_NoDoubleUnbanStorm()
+    {
+        // Same setup as above, but this asserts the ACTUAL platform call rather than just the domain
+        // flag: re-observing after the reversal already went through must not call UnbanAsync again for
+        // accounts that came back on the first pass.
+        await AddStrangersAsync(20);
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await ObserveAsync("stranger0", SpamTrustTier.Untrusted);
+        await AddRegularsAsync(11);
+
+        _unbannedAccounts.Should().BeEquivalentTo(["stranger0"], "restored exactly once");
+        Stored().ReversedAt.Should().NotBeNull();
+
+        // A wave of new strangers piles into the (already de-qualified, one-way) cohort. None of this
+        // may re-trigger a restore of stranger0.
+        await AddStrangersAsync(10, prefix: "wave2");
+
+        _unbannedAccounts
+            .Should()
+            .BeEquivalentTo(
+                ["stranger0"],
+                "the cohort is one-way and already reversed — no re-run should touch Twitch again"
+            );
     }
 
     [Fact]
@@ -258,7 +444,15 @@ public class SpamCorrelationServiceTests : IDisposable
     {
         // Correlating on "gg" would gather half the channel into one cohort seconds after a good play.
         using AppDbContext db = NewDbContext();
-        SpamCorrelationService service = new(db, _time);
+        SpamCorrelationService service = new(
+            db,
+            new SpamCampaignReversalExecutor(
+                db,
+                NewModerationMock(),
+                NullLogger<SpamCampaignReversalExecutor>.Instance
+            ),
+            _time
+        );
 
         for (int i = 0; i < 20; i++)
             await service.ObserveAsync(

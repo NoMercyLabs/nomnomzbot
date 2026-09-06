@@ -1006,6 +1006,9 @@ public static class DependencyInjection
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.
         services.AddScoped<SpamEnforcementExecutor>();
+        // Same split as SpamEnforcementExecutor, one layer further in: SpamCorrelationService decides a
+        // reversal is owed, this carries it out. Consumed by concrete type from SpamCorrelationService.
+        services.AddScoped<SpamCampaignReversalExecutor>();
         // Same reason: consumed by concrete type from the chat-path handler. Kept apart from
         // SpamDefenseService because correlation is stateful across messages while evaluation is not.
         services.AddScoped<SpamCorrelationService>();

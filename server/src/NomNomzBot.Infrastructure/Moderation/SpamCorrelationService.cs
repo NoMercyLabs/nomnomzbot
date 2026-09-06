@@ -21,10 +21,16 @@ namespace NomNomzBot.Infrastructure.Moderation;
 /// Whether THIS sender may be actioned right now — campaign, member, no standing, delay elapsed.
 /// </param>
 /// <param name="Reversal">Set when this observation de-qualified the cohort and actions must be undone.</param>
+/// <param name="Restoration">
+/// What actually happened when <paramref name="Reversal"/> was carried out — null unless a reversal was
+/// attempted this call. Separate from <paramref name="Reversal"/> because that record is the INTENT
+/// (who ought to be restored); this is the OUTCOME (who actually was).
+/// </param>
 public sealed record CohortObservation(
     CohortVerdict Verdict,
     bool MayActOnSender,
-    CampaignReversal? Reversal
+    CampaignReversal? Reversal,
+    CampaignRestorationOutcome? Restoration = null
 );
 
 /// <summary>
@@ -44,11 +50,17 @@ public sealed record CohortObservation(
 public sealed class SpamCorrelationService
 {
     private readonly IApplicationDbContext _db;
+    private readonly SpamCampaignReversalExecutor _reversalExecutor;
     private readonly TimeProvider _time;
 
-    public SpamCorrelationService(IApplicationDbContext db, TimeProvider time)
+    public SpamCorrelationService(
+        IApplicationDbContext db,
+        SpamCampaignReversalExecutor reversalExecutor,
+        TimeProvider time
+    )
     {
         _db = db;
+        _reversalExecutor = reversalExecutor;
         _time = time;
     }
 
@@ -130,11 +142,18 @@ public sealed class SpamCorrelationService
         CampaignReversal? reversal =
             flippedNow && settings.AutoReverseOnDequalify ? cohort.BuildReversal() : null;
 
-        Persist(record, cohort, now, reversal);
+        // The real unban/un-timeout is called BEFORE anything is stamped on the row — same ordering as
+        // TrustSafetyReviewService.OverturnAsync and SpamDefenseService.OverturnDetectionAsync: a
+        // reversal that failed, wholly or in part, must never be recorded as one that succeeded.
+        CampaignRestorationOutcome? restoration = reversal is not null
+            ? await _reversalExecutor.RestoreAsync(broadcasterId, reversal.AccountsToRestore, ct)
+            : null;
+
+        Persist(record, cohort, now, reversal, restoration);
         await SyncSignatureAsync(cohort, now, reversal is not null, ct);
         await _db.SaveChangesAsync(ct);
 
-        return new CohortObservation(verdict, mayAct, reversal);
+        return new CohortObservation(verdict, mayAct, reversal, restoration);
     }
 
     /// <summary>
@@ -204,7 +223,8 @@ public sealed class SpamCorrelationService
         SpamCampaignRecord record,
         CampaignCohort cohort,
         DateTimeOffset now,
-        CampaignReversal? reversal
+        CampaignReversal? reversal,
+        CampaignRestorationOutcome? restoration
     )
     {
         record.Verdict = cohort.Verdict;
@@ -221,10 +241,23 @@ public sealed class SpamCorrelationService
         record.ActionedAccountIds = Join(cohort.ActionedAccounts);
         record.LastSeenAt = now.UtcDateTime;
 
-        if (reversal is not null)
+        if (restoration is null)
+            return;
+
+        // The audit trail is written regardless of outcome: who attempted it, how many actually came
+        // back, and — when it was not everyone — exactly who is still actioned. A silent partial
+        // restore is the defect this replaces; recording the shortfall is what makes it not silent.
+        record.RestoredAccountCount = restoration.Restored.Count;
+        record.RestorationFailedAccountIds = Join(restoration.Failed);
+        record.ReversedByActorId = SpamCampaignReversalExecutor.SystemActorId;
+
+        // ReversedAt/ReversalReason mean "nobody this campaign touched is still actioned". Stamping
+        // them on a partial restore would claim a clean reversal that did not happen — exactly the
+        // defect this fixes, just moved one layer down.
+        if (restoration.IsComplete)
         {
             record.ReversedAt = now.UtcDateTime;
-            record.ReversalReason = reversal.OperatorMessage;
+            record.ReversalReason = reversal!.OperatorMessage;
         }
     }
 
