@@ -155,6 +155,11 @@ private object ContentPermissions {
  * "still resolving" from "resolved to nothing" and default every gate to denied rather than briefly
  * flashing every control as enabled. */
 private fun ownContentKeys(state: AdminState, currentUserId: String?): Set<String>? {
+    // An EMPTY principal list means the IAM lookup has not answered yet — not that this caller has no
+    // principal. Returning emptySet() here made "still resolving" indistinguishable from "resolved to
+    // nothing", so the read-floor gate below denied the whole tab to everyone until IAM happened to
+    // load, contradicting this function's own contract. Null keeps the tab in its resolving state.
+    if (state.principals.isEmpty()) return null
     val principal = state.principals.firstOrNull { it.userId == currentUserId } ?: return emptySet()
     return state.effectivePermissions[principal.id]?.toSet()
 }

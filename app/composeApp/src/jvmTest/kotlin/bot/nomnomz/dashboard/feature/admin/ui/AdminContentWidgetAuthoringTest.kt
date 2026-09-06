@@ -440,7 +440,11 @@ private class FakeIamApiForWidgetTest : PlatformIamApi {
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
     override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> =
         ApiResult.Ok(listOf(IamPrincipalSummary(id = "principal-1", userId = "user-1", name = "Operator")))
-    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
+    // The tab gates on the caller's OWN effective content keys, so a fake that answers "no permissions"
+    // correctly renders the read-denied panel and this test would be asserting against an empty tab.
+    // Grant the real key set an authoring operator holds.
+    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) =
+        ApiResult.Ok(listOf("content:read", "content:author", "content:publish", "content:publish:force"))
     override suspend fun createPrincipal(body: CreatePrincipalBody) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun deactivatePrincipal(principalId: String, reason: String?) =

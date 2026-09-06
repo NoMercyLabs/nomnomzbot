@@ -318,10 +318,12 @@ class AdminTabGroupingTest {
             AdminTab.System to "No health checks reported.",
             AdminTab.FeatureFlags to PROBE_FLAG_KEY,
             AdminTab.Providers to "No providers loaded.",
-            // With no IAM principal wired up for this fake session, ContentTab denies read rather than
-            // showing an empty list — the same "below the read floor" state a real under-permissioned
-            // operator would see, and just as unique a marker for "the Content tab is open" as an empty list.
-            AdminTab.Content to "Requires content:read",
+            // This fake's IAM lookup returns no principals, which means "not resolved yet" — NOT a
+            // denial. ContentTab therefore renders its empty list, and that copy is the marker. It used
+            // to assert the read-denied panel here, which only appeared because an unresolved lookup was
+            // wrongly treated as "resolved to nothing"; the denial itself is covered where a principal
+            // genuinely resolves without content:read.
+            AdminTab.Content to "No content definitions yet.",
             AdminTab.Iam to "No principals yet.",
             AdminTab.PlatformBot to "speaks through this account",
         )

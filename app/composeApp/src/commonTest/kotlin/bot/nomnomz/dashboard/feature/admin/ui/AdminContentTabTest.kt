@@ -175,14 +175,20 @@ private class FakeContentApiForUi(
     override suspend fun retireDefinition(definitionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-/** Returns one active principal for `userId = "user-1"` with no entry in effectivePermissions — ContentTab
- * treats an unresolved lookup as not-yet-denied (see `ownContentKeys`), so every gate in this test renders
- * enabled without needing to fabricate a full permission set. */
+/** Returns one active principal for `userId = "user-1"` holding the real `content:*` key set.
+ * This used to answer with NO permissions and rely on ContentTab treating an unresolved lookup as
+ * not-yet-denied — but `0961b768` made the tab actually FETCH the caller's effective permissions, so
+ * whatever this fake returns is now enforced. Granting the real keys is what keeps this test about the
+ * publish dialog rather than about the read floor. */
 private class FakeIamApiWithOnePrincipal : PlatformIamApi {
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
     override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> =
         ApiResult.Ok(listOf(IamPrincipalSummary(id = "principal-1", userId = "user-1", name = "Operator")))
-    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
+    // The tab enforces the caller's OWN effective content keys, so answering "no permissions" renders the
+    // read-denied panel and this test would assert against an empty tab. Grant what an authoring operator
+    // actually holds.
+    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) =
+        ApiResult.Ok(listOf("content:read", "content:author", "content:publish", "content:publish:force"))
     override suspend fun createPrincipal(body: CreatePrincipalBody) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun deactivatePrincipal(principalId: String, reason: String?) =
