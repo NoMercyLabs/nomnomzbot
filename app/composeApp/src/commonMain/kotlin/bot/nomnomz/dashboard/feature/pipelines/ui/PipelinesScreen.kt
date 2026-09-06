@@ -1279,7 +1279,6 @@ private fun StepCard(
                     label = upLabel,
                     onClick = onMoveUp,
                     enabled = canMoveUp,
-                    tint = tokens.primary,
                 )
             }
             ManageGate(decision = manage) { allowed ->
@@ -1289,7 +1288,6 @@ private fun StepCard(
                     label = downLabel,
                     onClick = onMoveDown,
                     enabled = canMoveDown,
-                    tint = tokens.primary,
                 )
             }
             ManageGate(decision = manage) { enabled ->
@@ -1346,10 +1344,10 @@ private fun IfBlockCard(
 
         NodeActionRow {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1)
             }
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditIf(blockId, block.condition) }, enabled = enabled)
@@ -1428,10 +1426,10 @@ private fun TryBlockCard(
 
         NodeActionRow {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1)
             }
             ManageGate(decision = manage) { enabled ->
                 DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
@@ -1514,7 +1512,7 @@ private fun LaneSection(
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 Box {
-                    GlyphButton(icon = AddGlyph, label = addLaneLabel, onClick = { addMenuExpanded = true }, enabled = enabled, tint = tokens.primary)
+                    GlyphButton(icon = AddGlyph, label = addLaneLabel, onClick = { addMenuExpanded = true }, enabled = enabled)
                     DropdownMenu(expanded = addMenuExpanded, onDismissRequest = { addMenuExpanded = false }) {
                         DropdownMenuItem(
                             text = { Text(stringResource(Res.string.pipelines_step_add)) },
@@ -1739,10 +1737,10 @@ private fun SwitchBlockCard(
 
         NodeActionRow {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1)
             }
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditSwitch(blockId, block.blockConfig) }, enabled = enabled)
@@ -1782,7 +1780,6 @@ private fun SwitchBlockCard(
                             label = caseUpLabel,
                             onClick = { controller.moveBranchStepUp(caseId) },
                             enabled = allowed && caseIndex > 0,
-                            tint = tokens.primary,
                         )
                     }
                     ManageGate(decision = manage) { allowed ->
@@ -1791,7 +1788,6 @@ private fun SwitchBlockCard(
                             label = caseDownLabel,
                             onClick = { controller.moveBranchStepDown(caseId) },
                             enabled = allowed && caseIndex < cases.size - 1,
-                            tint = tokens.primary,
                         )
                     }
                     ManageGate(decision = manage) { enabled ->
@@ -1819,7 +1815,7 @@ private fun SwitchBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddSwitchCase(blockId) }, enabled = enabled, tint = tokens.primary)
+                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddSwitchCase(blockId) }, enabled = enabled)
             }
         }
     }
@@ -1872,10 +1868,10 @@ private fun RandomBranchBlockCard(
 
         NodeActionRow {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1)
             }
             ManageGate(decision = manage) { enabled ->
                 DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
@@ -1909,7 +1905,6 @@ private fun RandomBranchBlockCard(
                             label = caseUpLabel,
                             onClick = { controller.moveBranchStepUp(caseId) },
                             enabled = allowed && caseIndex > 0,
-                            tint = tokens.primary,
                         )
                     }
                     ManageGate(decision = manage) { allowed ->
@@ -1918,7 +1913,6 @@ private fun RandomBranchBlockCard(
                             label = caseDownLabel,
                             onClick = { controller.moveBranchStepDown(caseId) },
                             enabled = allowed && caseIndex < cases.size - 1,
-                            tint = tokens.primary,
                         )
                     }
                     ManageGate(decision = manage) { enabled ->
@@ -1946,7 +1940,7 @@ private fun RandomBranchBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddRandomCase(blockId) }, enabled = enabled, tint = tokens.primary)
+                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddRandomCase(blockId) }, enabled = enabled)
             }
         }
     }
@@ -2005,10 +1999,10 @@ private fun LoopBlockCard(
 
         NodeActionRow {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1)
             }
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditLoop(blockId, block.blockConfig, block.condition) }, enabled = enabled)
