@@ -4671,7 +4671,7 @@
     <string name="pipeline_permit_role_or_capability_help">The role or capability being granted to the target.</string>
     <string name="pipeline_permit_target_variable_help">The variable holding the viewer to grant the permit to. Blank targets the user who triggered this pipeline.</string>
     <string name="pipeline_pick_from_list_list_help">The pick-list to draw a random entry from.</string>
-    <string name="pipeline_pick_from_list_variable_help">The variable name the picked entry is stored in, for later steps to read.</string>
+    <string name="pipeline_pick_from_list_variable_help">The variable the picked entry is stored in. Later steps read it in curly braces: leave this empty and use {pick}, or set it to prize and use {prize}. The pick is rolled once here, so every step that reads it sees the same entry.</string>
     <string name="pipeline_play_game_bet_help">How much currency the viewer wagers on this play.</string>
     <string name="pipeline_play_game_game_type_help">Which configured game to play.</string>
     <string name="pipeline_play_sound_clip_help">The sound clip to play on the overlay.</string>

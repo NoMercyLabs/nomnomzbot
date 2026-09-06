@@ -4657,7 +4657,7 @@
     <string name="pipeline_permit_role_or_capability_help">De rol of bevoegdheid die aan het doel wordt toegekend.</string>
     <string name="pipeline_permit_target_variable_help">De variabele met de kijker aan wie de toestemming wordt verleend. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_pick_from_list_list_help">De keuzelijst waaruit een willekeurig item wordt getrokken.</string>
-    <string name="pipeline_pick_from_list_variable_help">De variabelenaam waarin het gekozen item wordt opgeslagen, zodat latere stappen dit kunnen lezen.</string>
+    <string name="pipeline_pick_from_list_variable_help">De variabele waarin het gekozen item wordt opgeslagen. Latere stappen lezen die met accolades: laat dit leeg en gebruik {pick}, of zet het op prijs en gebruik {prijs}. Het item wordt hier eenmaal getrokken, dus elke stap die het leest ziet hetzelfde item.</string>
     <string name="pipeline_play_game_bet_help">Hoeveel valuta de kijker inzet bij dit spel.</string>
     <string name="pipeline_play_game_game_type_help">Welk geconfigureerd spel wordt gespeeld.</string>
     <string name="pipeline_play_sound_clip_help">Het geluidsfragment dat op de overlay wordt afgespeeld.</string>

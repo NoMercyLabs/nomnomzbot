@@ -19,7 +19,8 @@ namespace NomNomzBot.Infrastructure.PickLists.PipelineActions;
 /// <summary>
 /// Pipeline action <c>pick_from_list</c> — draws one random entry from a named pick list, resolves the entry
 /// through <see cref="ITemplateResolver"/>, and stores the RESOLVED text in a pipeline variable (default
-/// <c>pick</c>) for later steps to reference as <c>{{pick}}</c>. Resolving before storing matters twice over:
+/// <c>pick</c>) for later steps to reference as <c>{pick}</c> (single braces — that is what
+/// <c>TemplateResolver</c>'s variable pattern matches; a doubled brace does not resolve). Resolving before storing matters twice over:
 /// the engine's substitution is single-pass, so a stored entry like <c>"{user} is {list.pick.adjectives}"</c>
 /// would otherwise stay literal when a later step substitutes <c>{pick}</c>; and it makes the block's promise
 /// real — one pick is rolled ONCE, fully resolved (nested <c>{list.pick.*}</c>, <c>{user}</c>, grammar vars),

@@ -153,6 +153,32 @@ public sealed class PickFromListActionTests : IDisposable
         laterStep.Should().Be("and then alice bonks mighty bob!");
     }
 
+    /// <summary>
+    /// A viewer asked, in chat, how to use the variable this block stores — which means the block never
+    /// said. The answer is SINGLE braces, and the doubled form is the plausible wrong guess: the resolver's
+    /// variable pattern is <c>\{([^{}]+)\}</c>, so <c>{{pick}}</c> matches the INNER braces only and leaves
+    /// the outer pair sitting in the output as literal text. Pinned so the help text's promise stays true.
+    /// </summary>
+    [Fact]
+    public async Task A_doubled_brace_does_not_read_the_variable_it_leaves_stray_braces()
+    {
+        PipelineExecutionContext ctx = Context();
+        ctx.Variables["user"] = "alice";
+        ctx.Variables["target"] = "bob";
+        await _action.ExecuteAsync(ctx, Action(("list", "attacks")));
+
+        string single = _resolver.Resolve("{pick}", ctx.Variables);
+        string doubled = _resolver.Resolve("{{pick}}", ctx.Variables);
+
+        single.Should().Be("alice bonks mighty bob");
+        doubled
+            .Should()
+            .Be(
+                "{alice bonks mighty bob}",
+                "the doubled form resolves the inner pair and strands the outer one on screen"
+            );
+    }
+
     [Fact]
     public async Task Missing_nested_list_resolves_to_empty_never_the_raw_token()
     {
