@@ -68,6 +68,36 @@ public sealed class ChatMessageDecoratorTests
     }
 
     [Fact]
+    public async Task A_native_gif_fragment_keeps_its_id_and_url_through_the_chain()
+    {
+        // Reproduced from the live payload of message 7ddc043f (2026-09-06): Twitch's native chat GIF arrives as a
+        // "gif" fragment already carrying the render-ready url. The orchestrator works on COPIES, and that copy is
+        // where every renderer's input is decided — a field missing from it is gone for the dashboard, the overlay
+        // and the widgets alike, which is how a GIF ended up printed as its caption text instead of shown.
+        FakeCache cache = new();
+        ChatMessageDecorator decorator = Decorator(cache, EmoteChain(cache));
+
+        ChatMessageReceivedEvent evt = Event(
+            "[Umaru-Chan Ramen GIF by HIDIVE]",
+            new ChatMessageFragment
+            {
+                Type = "gif",
+                Text = "[Umaru-Chan Ramen GIF by HIDIVE]",
+                GifId = "U6kGxfqszGeUBFnOT8",
+                GifUrl = "https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif",
+            }
+        );
+
+        DecoratedChatMessage result = await decorator.DecorateAsync(evt);
+
+        ChatMessageFragment gif = result.Fragments.Should().ContainSingle().Subject;
+        gif.Type.Should().Be("gif");
+        gif.Text.Should().Be("[Umaru-Chan Ramen GIF by HIDIVE]");
+        gif.GifUrl.Should().Be("https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif");
+        gif.GifId.Should().Be("U6kGxfqszGeUBFnOT8");
+    }
+
+    [Fact]
     public async Task An_explicit_off_toggle_disables_that_provider_so_its_emote_stays_text()
     {
         FakeCache cache = new();
@@ -152,6 +182,9 @@ public sealed class ChatMessageDecoratorTests
     }
 
     private static ChatMessageReceivedEvent Event(string text) =>
+        Event(text, new ChatMessageFragment { Type = "text", Text = text });
+
+    private static ChatMessageReceivedEvent Event(string text, ChatMessageFragment fragment) =>
         new()
         {
             MessageId = "m1",
@@ -160,7 +193,7 @@ public sealed class ChatMessageDecoratorTests
             UserDisplayName = "Stoney",
             UserLogin = "stoney_eagle",
             Message = text,
-            Fragments = [new() { Type = "text", Text = text }],
+            Fragments = [fragment],
             Badges = [],
             IsSubscriber = false,
             IsVip = false,

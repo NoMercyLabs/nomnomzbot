@@ -137,23 +137,9 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         return enabled;
     }
 
-    // A field-for-field copy so in-place enrichment (e.g. setting Emote) never touches the event's own fragments,
-    // which sibling handlers still read.
-    private static ChatMessageFragment Clone(ChatMessageFragment fragment) =>
-        new()
-        {
-            Type = fragment.Type,
-            Text = fragment.Text,
-            EmoteId = fragment.EmoteId,
-            EmoteSetId = fragment.EmoteSetId,
-            EmoteOwnerId = fragment.EmoteOwnerId,
-            EmoteFormats = fragment.EmoteFormats,
-            Emote = fragment.Emote,
-            CheermotePrefix = fragment.CheermotePrefix,
-            CheermoteBits = fragment.CheermoteBits,
-            CheermoteTier = fragment.CheermoteTier,
-            MentionUserId = fragment.MentionUserId,
-            MentionUserLogin = fragment.MentionUserLogin,
-            MentionUserName = fragment.MentionUserName,
-        };
+    // A copy so in-place enrichment (e.g. setting Emote) never touches the event's own fragments, which sibling
+    // handlers still read. `with { }` copies every member the record declares, including any added later — the
+    // field-by-field version this replaces went stale the moment GIF fields landed and dropped them on every
+    // message, so the id and url never reached a renderer.
+    private static ChatMessageFragment Clone(ChatMessageFragment fragment) => fragment with { };
 }

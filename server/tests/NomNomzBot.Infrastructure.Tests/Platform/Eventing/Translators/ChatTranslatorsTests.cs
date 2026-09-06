@@ -402,10 +402,10 @@ public sealed class ChatTranslatorsTests
     [Fact]
     public async Task ChatMessage_NativeGif_PublishesGifFragmentWithTheRealUrl()
     {
-        // Regression for the priority bug reported 2026-09-01: Twitch's native chat GIF (GIPHY-backed, Tier 2+
-        // subscriber feature) delivers a "gif" fragment whose payload already carries a directly-fetchable
-        // url — there is no separate resolve step. The translator must carry that real url straight through,
-        // not drop it or substitute a placeholder.
+        // Payload copied verbatim from the live message 7ddc043f (2026-09-06): Twitch's native chat GIF
+        // (GIPHY-backed, Tier 2+ subscriber feature) delivers a "gif" fragment whose payload already carries a
+        // directly-fetchable url — there is no separate resolve step. The id field is `id`, NOT `gif_id`
+        // (dev.twitch.tv EventSub reference, "Gif" object), which is what the first cut read.
         CapturingEventBus bus = new();
         ChannelChatMessageTranslator translator = new(
             bus,
@@ -424,12 +424,15 @@ public sealed class ChatTranslatorsTests
                     "chatter_user_name": "Kanawanagasaki",
                     "message_id": "gif-1",
                     "message": {
-                        "text": "Cat Festival GIF by W&W",
+                        "text": "[Umaru-Chan Ramen GIF by HIDIVE]",
                         "fragments": [
                             {
                                 "type": "gif",
-                                "text": "Cat Festival GIF by W&W",
-                                "gif": { "gif_id": "abc123", "url": "https://media.giphy.com/media/abc123/giphy.gif" }
+                                "text": "[Umaru-Chan Ramen GIF by HIDIVE]",
+                                "cheermote": null,
+                                "emote": null,
+                                "mention": null,
+                                "gif": { "id": "U6kGxfqszGeUBFnOT8", "url": "https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif?cid=095d7a5d&ep=v1_gifs_search&rid=giphy.gif&ct=g" }
                             }
                         ]
                     },
@@ -446,9 +449,12 @@ public sealed class ChatTranslatorsTests
 
         ChatMessageFragment gif = published.Fragments.Should().ContainSingle().Subject;
         gif.Type.Should().Be("gif");
-        gif.Text.Should().Be("Cat Festival GIF by W&W");
-        gif.GifId.Should().Be("abc123");
-        gif.GifUrl.Should().Be("https://media.giphy.com/media/abc123/giphy.gif");
+        gif.Text.Should().Be("[Umaru-Chan Ramen GIF by HIDIVE]");
+        gif.GifId.Should().Be("U6kGxfqszGeUBFnOT8");
+        gif.GifUrl.Should()
+            .Be(
+                "https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif?cid=095d7a5d&ep=v1_gifs_search&rid=giphy.gif&ct=g"
+            );
     }
 
     [Fact]

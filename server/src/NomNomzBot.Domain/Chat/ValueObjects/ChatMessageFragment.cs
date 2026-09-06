@@ -13,8 +13,11 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// <summary>
 /// A single fragment of a Twitch chat message.
 /// Corresponds to one element in the EventSub channel.chat.message `fragments[]` array.
+/// A record so the decoration pipeline can copy a fragment with <c>with { }</c> — a hand-written field-by-field
+/// clone silently drops whatever field was added to this type last, which is how native GIFs reached every
+/// renderer with no url and rendered as their caption text.
 /// </summary>
-public sealed class ChatMessageFragment
+public sealed record ChatMessageFragment
 {
     /// <summary>Fragment type: "text" | "emote" | "cheermote" | "mention" | "gif"</summary>
     public string Type { get; init; } = "text";
@@ -99,7 +102,7 @@ public sealed class ChatMessageFragment
     // fragment carries the resolved GIF id and a directly-fetchable url — there is no separate resolve step
     // (unlike media-share's Twitch-clip/YouTube lookups), the wire payload already IS the real media.
 
-    /// <summary>GIPHY-backed GIF id Twitch assigns this fragment (the EventSub payload's <c>gif.gif_id</c>).</summary>
+    /// <summary>GIPHY-backed GIF id Twitch assigns this fragment (the EventSub payload's <c>gif.id</c>).</summary>
     public string? GifId { get; init; }
 
     /// <summary>The GIF's directly-fetchable image url (the EventSub payload's <c>gif.url</c>).</summary>

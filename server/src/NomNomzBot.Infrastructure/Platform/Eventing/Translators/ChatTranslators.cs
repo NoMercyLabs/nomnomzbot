@@ -70,8 +70,9 @@ internal static class ChatPayload
             MentionUserLogin = mention?.GetString("user_login"),
             MentionUserName = mention?.GetString("user_name"),
             // Native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): unlike media-share, Twitch hands us
-            // the ready-to-render url directly on the fragment — no clip/video lookup needed.
-            GifId = gif?.GetString("gif_id"),
+            // the ready-to-render url directly on the fragment — no clip/video lookup needed. The id field is
+            // `id`, not `gif_id` (EventSub reference, "Gif" object; confirmed against a live payload).
+            GifId = gif?.GetString("id"),
             GifUrl = gif?.GetString("url"),
         };
     }
