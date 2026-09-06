@@ -68,6 +68,20 @@ and committing. Binding context: `PRODUCT-ALIGNMENT.md` (D1–D12), `CLAUDE.md` 
 > not read the audit docs or the plan — everything you need is in this brief. Return ONLY the report
 > shape. Do not narrate. If blocked, say so in one line and stop.
 >
+> **Run every build and test in the FOREGROUND with a long timeout and WAIT for the exit code.** Never
+> start a background build, a monitor, or a child agent and then end your turn: the completion goes to
+> the PARENT session, never back into your own loop, so you sit there forever and a human has to resume
+> you by hand. `:composeApp:jvmTest` takes ~9 minutes — just wait for it.
+>
+> **Before writing ANY test file, check its class name and every fake/stub name against the existing
+> test projects.** Duplicate JVM class names break `compileTestKotlinJvm` for the WHOLE module and
+> block every other agent on the tree. Reuse the existing fakes; never declare a second one.
+>
+> **Never hand-edit `server/openapi/v1.json`** — regenerate it with `scripts/refresh-openapi.ps1` (it
+> falls back to a host run when Docker is down). Confirm nothing stale already holds port 5080 first:
+> the API locks that port on first boot, so an abandoned instance serves OLD routes into the snapshot
+> while every check stays green.
+>
 > Run every build and test in the FOREGROUND with a long timeout and wait for the exit code. Do NOT
 > start a background build or a monitor and end your turn: a background job's completion notification
 > goes to the parent session, never back into your own loop, so the slice stalls until someone resumes
@@ -82,6 +96,15 @@ and committing. Binding context: `PRODUCT-ALIGNMENT.md` (D1–D12), `CLAUDE.md` 
 - Parallelism: security slices S098/S114 share the limiter → serial; S111 (desktop) is disjoint →
   parallel with them; S086/S088/S089 share IAM → serial among themselves, parallel with S111.
 - Keep the verifier cheap: it only runs what the builder named. Use `model: sonnet` for both.
+- **Agents park.** The single most common failure this session was an agent starting a background build
+  and ending its turn. When a report says "waiting for…", resume it with `SendMessage` — its context is
+  intact, so never re-dispatch. The preamble above is the prevention; this is the cure.
+- **Verify what could be hollow, not what is already green.** A verifier that re-runs the suite proves
+  nothing the builder did not already claim. Ask it the questions that separate a real fix from a
+  passing test: does the test exercise the PRODUCTION path or a service reading its own table; would it
+  fail if the two seeded tenants were swapped; does a refusal assert a genuine authorization failure or
+  would an empty list also pass; and — every time a slice edits a SHARED test harness or another
+  suite's assertions — whether that edit is additive or an assertion relaxed to manufacture green.
 - Never dispatch "audit"/"explore" agents in this session — the audit is done; the plan is the truth.
 
 ## Session start
