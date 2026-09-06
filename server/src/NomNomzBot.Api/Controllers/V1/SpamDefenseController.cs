@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -33,10 +34,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class SpamDefenseController : BaseController
 {
     private readonly ISpamDefenseService _spamDefense;
+    private readonly ICurrentUserService _currentUser;
 
-    public SpamDefenseController(ISpamDefenseService spamDefense)
+    public SpamDefenseController(ISpamDefenseService spamDefense, ICurrentUserService currentUser)
     {
         _spamDefense = spamDefense;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -213,8 +216,10 @@ public class SpamDefenseController : BaseController
             return BadRequestResponse("Invalid channel id.");
         if (!Guid.TryParse(detectionId, out Guid id))
             return BadRequestResponse("Invalid detection id.");
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
 
-        Result result = await _spamDefense.OverturnDetectionAsync(tenantId, id, ct);
+        Result result = await _spamDefense.OverturnDetectionAsync(tenantId, id, operatorUserId, ct);
         return ResultResponse(result);
     }
 }

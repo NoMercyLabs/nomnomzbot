@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
 
@@ -65,7 +66,35 @@ public class SpamDefenseServiceTests : IDisposable
     private AppDbContext NewDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
 
-    private SpamDefenseService NewService(AppDbContext db) => new(db, _time);
+    private SpamDefenseService NewService(AppDbContext db, IModerationService? moderation = null) =>
+        new(db, _time, moderation ?? Substitute.For<IModerationService>());
+
+    /// <summary>An automatic (non-dry-run) escalation, the shape a moderator can actually overturn.</summary>
+    private static SpamDetection AutomaticDetection(
+        Guid broadcasterId,
+        string subjectPlatformUserId,
+        string displayName,
+        DateTime detectedAt
+    ) =>
+        new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = broadcasterId,
+            SubjectPlatformUserId = subjectPlatformUserId,
+            SubjectDisplayName = displayName,
+            Provider = AuthEnums.Platform.Twitch,
+            MessageId = Guid.NewGuid().ToString(),
+            MessageText = "free f0ll0ws check bio",
+            Skeleton = "free follows check bio",
+            Signals = nameof(SpamConfidence.High),
+            Confidence = SpamConfidence.High,
+            Tier = SpamTrustTier.Untrusted,
+            Outcome = SpamOutcome.DeleteAndEscalate,
+            WouldHaveBeen = SpamOutcome.DeleteAndEscalate,
+            WasDryRun = false,
+            Reason = "High confidence — routed to the escalation ladder.",
+            DetectedAt = detectedAt,
+        };
 
     private static SpamEvaluationRequest Message(
         string text,
@@ -603,6 +632,129 @@ public class SpamDefenseServiceTests : IDisposable
         (await db.Channels.AnyAsync(c => c.Id == SpamDefenseService.PlatformDefaultsScope))
             .Should()
             .BeFalse();
+    }
+
+    // ---- Overturn reverses the REAL effect, not merely the row ------------------------------------
+
+    [Fact]
+    public async Task Overturn_CallsUnban_AndOnlyThenStampsTheDetectionReversed()
+    {
+        Guid operatorUserId = Guid.Parse("0199c000-0000-7000-8000-0000000000ee");
+        using AppDbContext seed = NewDbContext();
+        SpamDetection detection = AutomaticDetection(Channel, "bot-9", "Bot9", Now.UtcDateTime);
+        seed.SpamDetections.Add(detection);
+        seed.SaveChanges();
+
+        IModerationService moderation = Substitute.For<IModerationService>();
+        moderation
+            .UnbanAsync(
+                Channel.ToString(),
+                operatorUserId,
+                "bot-9",
+                operatorUserId.ToString(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new ModerationActionResult(true, "unbanned")));
+
+        using AppDbContext db = NewDbContext();
+        Result overturn = await NewService(db, moderation)
+            .OverturnDetectionAsync(Channel, detection.Id, operatorUserId);
+
+        overturn.IsSuccess.Should().BeTrue();
+        await moderation
+            .Received(1)
+            .UnbanAsync(
+                Channel.ToString(),
+                operatorUserId,
+                "bot-9",
+                operatorUserId.ToString(),
+                Arg.Any<CancellationToken>()
+            );
+
+        using AppDbContext readBack = NewDbContext();
+        SpamDetection stored = await readBack.SpamDetections.SingleAsync(d => d.Id == detection.Id);
+        stored.OverturnedAt.Should().NotBeNull();
+        stored
+            .OverturnedByUserId.Should()
+            .Be(operatorUserId, "the reversal must name an accountable operator");
+    }
+
+    [Fact]
+    public async Task Overturn_WhenTheRealReversalFails_LeavesTheDetectionUntouched()
+    {
+        Guid operatorUserId = Guid.Parse("0199c000-0000-7000-8000-0000000000ef");
+        using AppDbContext seed = NewDbContext();
+        SpamDetection detection = AutomaticDetection(Channel, "bot-10", "Bot10", Now.UtcDateTime);
+        seed.SpamDetections.Add(detection);
+        seed.SaveChanges();
+
+        IModerationService moderation = Substitute.For<IModerationService>();
+        moderation
+            .UnbanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<ModerationActionResult>("Twitch is unreachable.", "transport"));
+
+        using AppDbContext db = NewDbContext();
+        Result overturn = await NewService(db, moderation)
+            .OverturnDetectionAsync(Channel, detection.Id, operatorUserId);
+
+        overturn.IsFailure.Should().BeTrue();
+        overturn.ErrorCode.Should().Be("REVERSAL_FAILED");
+
+        using AppDbContext readBack = NewDbContext();
+        SpamDetection stored = await readBack.SpamDetections.SingleAsync(d => d.Id == detection.Id);
+        stored
+            .OverturnedAt.Should()
+            .BeNull("a claim of reversal must never outrun what actually happened");
+        stored.OverturnedByUserId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Overturn_NamesTheActingOperatorAsTheModeratorSigningTheReversal()
+    {
+        // The reversal is audited by naming the operator to Twitch's own moderator_id (so Twitch's mod
+        // ledger and the local ModerationService record both attribute it), and separately by the
+        // OverturnedByUserId stamp this test asserts.
+        Guid operatorUserId = Guid.Parse("0199c000-0000-7000-8000-0000000000f0");
+        using AppDbContext seed = NewDbContext();
+        SpamDetection detection = AutomaticDetection(Channel, "bot-11", "Bot11", Now.UtcDateTime);
+        seed.SpamDetections.Add(detection);
+        seed.SaveChanges();
+
+        IModerationService moderation = Substitute.For<IModerationService>();
+        moderation
+            .UnbanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new ModerationActionResult(true, "unbanned")));
+
+        using AppDbContext db = NewDbContext();
+        await NewService(db, moderation)
+            .OverturnDetectionAsync(Channel, detection.Id, operatorUserId);
+
+        await moderation
+            .Received(1)
+            .UnbanAsync(
+                Arg.Any<string>(),
+                operatorUserId,
+                Arg.Any<string>(),
+                operatorUserId.ToString(),
+                Arg.Any<CancellationToken>()
+            );
+
+        using AppDbContext readBack = NewDbContext();
+        (await readBack.SpamDetections.SingleAsync(d => d.Id == detection.Id))
+            .OverturnedByUserId.Should()
+            .Be(operatorUserId);
     }
 
     public void Dispose() => _connection.Dispose();

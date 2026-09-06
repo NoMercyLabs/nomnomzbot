@@ -32,11 +32,17 @@ public sealed class SpamDefenseService : ISpamDefenseService
 {
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _time;
+    private readonly IModerationService _moderation;
 
-    public SpamDefenseService(IApplicationDbContext db, TimeProvider time)
+    public SpamDefenseService(
+        IApplicationDbContext db,
+        TimeProvider time,
+        IModerationService moderation
+    )
     {
         _db = db;
         _time = time;
+        _moderation = moderation;
     }
 
     /// <summary>
@@ -189,6 +195,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
     public async Task<Result> OverturnDetectionAsync(
         Guid broadcasterId,
         Guid detectionId,
+        Guid operatorUserId,
         CancellationToken ct = default
     )
     {
@@ -205,7 +212,29 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 errorCode: "spam.detection.not_found"
             );
 
+        if (detection.OverturnedAt is not null)
+            return Result.Failure("Already overturned.", "VALIDATION_FAILED");
+
+        // The reversal is attempted BEFORE anything on the row is stamped — same ordering as the
+        // platform-wide trust & safety desk (TrustSafetyReviewService.OverturnAsync, S-ADMIN-8a): a
+        // failed unban must leave the detection exactly as it was, never claiming a reversal that did
+        // not actually happen. Signed with the acting moderator's OWN token so Twitch attributes it to
+        // them and it works on any channel they moderate.
+        Result<ModerationActionResult> reversal = await _moderation.UnbanAsync(
+            broadcasterId.ToString(),
+            operatorUserId,
+            detection.SubjectPlatformUserId,
+            operatorUserId.ToString(),
+            ct
+        );
+        if (reversal.IsFailure)
+            return Result.Failure(
+                $"Could not reverse the automatic action: {reversal.ErrorMessage}",
+                "REVERSAL_FAILED"
+            );
+
         detection.OverturnedAt = _time.GetUtcNow().UtcDateTime;
+        detection.OverturnedByUserId = operatorUserId;
         await _db.SaveChangesAsync(ct);
         return Result.Success();
     }

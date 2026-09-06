@@ -98,10 +98,16 @@ public interface ISpamDefenseService
     /// Mark a verdict wrong. This is the correction path, and the number that matters when judging
     /// whether the weights are set right — a channel with a rising overturn rate is one whose settings
     /// need loosening, and the operator should be able to see that.
+    ///
+    /// <para>The row is only ever the record of a reversal that actually happened: the real Twitch
+    /// timeout/ban is lifted FIRST, signed with <paramref name="operatorUserId"/>'s own token, and the
+    /// detection is stamped reversed only once that succeeds. A failed reversal leaves the detection
+    /// exactly as it was — never a row that says "overturned" while the viewer is still banned.</para>
     /// </summary>
     Task<Result> OverturnDetectionAsync(
         Guid broadcasterId,
         Guid detectionId,
+        Guid operatorUserId,
         CancellationToken ct = default
     );
 
