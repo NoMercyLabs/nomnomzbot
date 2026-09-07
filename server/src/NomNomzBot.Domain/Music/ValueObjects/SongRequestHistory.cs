@@ -33,12 +33,19 @@ namespace NomNomzBot.Domain.Music.ValueObjects;
 /// <param name="Artist">Resolved artist at the time of the request.</param>
 /// <param name="ImageUrl">Resolved artwork at the time of the request, when the provider gave one.</param>
 /// <param name="Provider">Which source resolved it — <c>spotify</c> / <c>youtube</c>.</param>
+/// <param name="SourceEventId">
+/// The journal <c>EventId</c> this row was reconstructed from, when it was reconstructed rather than written
+/// live. It is what makes a backfill re-runnable: a second pass skips every source event it has already
+/// turned into a row, so nobody's favourite is double-counted by running the job twice. <c>null</c> on a row
+/// written live, which has no source event to point at.
+/// </param>
 public sealed record SongRequestHistory(
     string TrackUri,
     string TrackName,
     string Artist,
     string? ImageUrl,
-    string Provider
+    string Provider,
+    string? SourceEventId = null
 )
 {
     /// <summary>The <c>Record.RecordType</c> discriminator every song-request history row carries.</summary>
