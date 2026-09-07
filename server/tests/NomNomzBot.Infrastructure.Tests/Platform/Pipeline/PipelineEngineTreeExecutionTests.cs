@@ -227,6 +227,7 @@ public sealed class PipelineEngineTreeExecutionTests
             resolver,
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System,
+            sanctions: null,
             randomSource
         );
 

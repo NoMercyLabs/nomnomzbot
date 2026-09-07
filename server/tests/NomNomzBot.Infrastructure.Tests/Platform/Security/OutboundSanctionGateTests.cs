@@ -121,6 +121,59 @@ public sealed class OutboundSanctionGateTests
         sanction.ActorUserId.Should().BeNull("no person is present when stored configuration acts");
     }
 
+    [Theory]
+    [InlineData("POST")]
+    [InlineData("DELETE")]
+    public async Task A_discord_or_spotify_write_with_no_sanction_is_refused_at_the_client(
+        string verb
+    )
+    {
+        // Those two providers have no single send to guard — their calls are spread over many sites — so the
+        // rule rides their HttpClient. That also covers calls nobody has written yet, which is the point.
+        CountingHandler inner = new();
+        OutboundSanctionAccessor sanctions = new();
+        OutboundSanctionHandler gate = new(
+            sanctions,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<OutboundSanctionHandler>.Instance
+        )
+        {
+            InnerHandler = inner,
+        };
+        using HttpClient client = new(gate);
+
+        Func<Task> write = () =>
+            client.SendAsync(
+                new(new HttpMethod(verb), "https://discord.com/api/v10/guilds/1/members/2")
+            );
+
+        await write.Should().ThrowAsync<UnsanctionedOutboundCallException>();
+        inner.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_sanctioned_discord_write_goes_through_and_a_read_never_needed_one()
+    {
+        CountingHandler inner = new();
+        OutboundSanctionAccessor sanctions = new();
+        OutboundSanctionHandler gate = new(
+            sanctions,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<OutboundSanctionHandler>.Instance
+        )
+        {
+            InnerHandler = inner,
+        };
+        using HttpClient client = new(gate);
+
+        await client.GetAsync("https://discord.com/api/v10/guilds/1");
+
+        using (sanctions.Begin(OutboundSanction.ChannelConfiguration("discord_live_role")))
+        {
+            await client.PutAsync("https://discord.com/api/v10/guilds/1/members/2/roles/3", null);
+        }
+
+        inner.Calls.Should().Be(2);
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     private static (

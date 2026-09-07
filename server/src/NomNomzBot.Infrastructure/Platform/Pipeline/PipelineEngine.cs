@@ -78,6 +78,8 @@ public sealed class PipelineEngine : IPipelineEngine
     // Keyed by the tenant (channel) Guid.
     private readonly ConcurrentDictionary<Guid, int> _activeCount = new();
 
+    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor? _sanctions;
+
     public PipelineEngine(
         IApplicationDbContext db,
         IChannelRegistry registry,
@@ -86,9 +88,11 @@ public sealed class PipelineEngine : IPipelineEngine
         ITemplateResolver templateResolver,
         ILogger<PipelineEngine> logger,
         TimeProvider timeProvider,
+        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor? sanctions = null,
         Func<double>? randomSource = null
     )
     {
+        _sanctions = sanctions;
         _db = db;
         _registry = registry;
         _actions = actions;
@@ -155,6 +159,18 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct = default
     )
     {
+        // A pipeline runs because the broadcaster built and enabled it. That is the basis for anything it
+        // goes on to do to a third party — and naming the pipeline is what lets them trace an outbound
+        // change back to the thing they configured. An outer sanction (a dashboard "run now") wins.
+        using IDisposable? sanction =
+            _sanctions is null || _sanctions.Current is not null
+                ? null
+                : _sanctions.Begin(
+                    NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                        $"pipeline:{request.PipelineId?.ToString() ?? "inline"}"
+                    )
+                );
+
         DateTimeOffset startedAt = _timeProvider.GetUtcNow();
 
         // Concurrency gate

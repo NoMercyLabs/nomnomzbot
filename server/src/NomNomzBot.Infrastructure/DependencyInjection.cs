@@ -1258,7 +1258,10 @@ public static class DependencyInjection
 
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).
-        services.AddHttpClient("spotify").AddSpotifyResilienceHandler();
+        services
+            .AddHttpClient("spotify")
+            .AddSpotifyResilienceHandler()
+            .AddHttpMessageHandler<Platform.Security.OutboundSanctionHandler>();
         services.AddHttpClient("spotify-auth");
 
         // YouTube Data API v3 client backing the browser-source song-request provider's search/resolve
@@ -1290,7 +1293,13 @@ public static class DependencyInjection
         >();
         // Discord REST/gateway adapter — the only thing that talks to Discord. The named "discord" typed
         // HttpClient carries the resilience handler that honours Discord's 429 Retry-After (like Spotify/Twitch).
-        services.AddHttpClient("discord").AddDiscordResilienceHandler();
+        services.AddTransient<Platform.Security.OutboundSanctionHandler>();
+        // Discord and Spotify writes pass the same sanction rule as Twitch. Their calls are spread over many
+        // sites rather than one send, so the check rides the HttpClient and covers calls not yet written.
+        services
+            .AddHttpClient("discord")
+            .AddDiscordResilienceHandler()
+            .AddHttpMessageHandler<Platform.Security.OutboundSanctionHandler>();
         services.AddScoped<
             Application.Contracts.Discord.IDiscordBotGateway,
             Discord.Gateway.DiscordRestBotGateway
