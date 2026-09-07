@@ -51,6 +51,13 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Pipeline,
     ];
 
+    /// <summary>Seeded by <c>song_request_favorite</c> for the steps that follow it in the same pipeline —
+    /// there is no other way to produce them, so they are meaningless outside one.</summary>
+    private static readonly TemplateHelperContext[] SongRequestFavoriteOnly =
+    [
+        TemplateHelperContext.Pipeline,
+    ];
+
     private static readonly TemplateHelperContext[] TriggerContexts =
     [
         TemplateHelperContext.Command,
@@ -474,5 +481,28 @@ public static class TemplateHelperRegistry
             // ── Playlist-add (!banger) seed aliases — Pipeline only, S-OWN17 ──
             Literal("playlist_id", PlaylistAddOnly, "template.helper.playlist_id"),
             Literal("track_name", PlaylistAddOnly, "template.helper.track_name"),
+            // Seeded by song_request_favorite for the steps that follow it. Registered rather than left
+            // implicit because save-time validation rejects any placeholder it does not know: an
+            // announcement naming the song it just queued would otherwise be unsaveable.
+            Literal(
+                "music.favorite.track",
+                SongRequestFavoriteOnly,
+                "template.helper.music_favorite_track"
+            ),
+            Literal(
+                "music.favorite.artist",
+                SongRequestFavoriteOnly,
+                "template.helper.music_favorite_artist"
+            ),
+            Literal(
+                "music.favorite.count",
+                SongRequestFavoriteOnly,
+                "template.helper.music_favorite_count"
+            ),
+            Literal(
+                "music.favorite.outcome",
+                SongRequestFavoriteOnly,
+                "template.helper.music_favorite_outcome"
+            ),
         ];
 }

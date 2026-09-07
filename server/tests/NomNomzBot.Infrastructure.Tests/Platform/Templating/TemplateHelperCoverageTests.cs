@@ -137,6 +137,10 @@ public sealed partial class TemplateHelperCoverageTests
         "obs.event.", // ObsEventTriggerSource.BuildVariables — dynamic per-event-type field prefix
         "vts.event.", // VtsEventTriggerSource.BuildVariables — dynamic per-event-type field prefix
         "playlist_id",
+        "music.favorite.track",
+        "music.favorite.artist",
+        "music.favorite.count",
+        "music.favorite.outcome", // seeded by SongRequestFavoriteAction for its own pipeline's later steps
         "track_name", // PlaylistAddAction (!banger) seed aliases — S-OWN17, never assigned inside
         // TemplateResolver.cs
     };

@@ -4558,6 +4558,10 @@
     <string name="widget_custom_data_render_option_text">Text</string>
     <string name="template_helper_playlist_id">The id of the playlist the track was added to</string>
     <string name="template_helper_track_name">The name of the track that was added</string>
+    <string name="template_helper_music_favorite_track">The name of the viewer’s most-requested track</string>
+    <string name="template_helper_music_favorite_artist">The artist of the viewer’s most-requested track</string>
+    <string name="template_helper_music_favorite_count">How many times the viewer has requested that track</string>
+    <string name="template_helper_music_favorite_outcome">What happened: queued, none, or unavailable</string>
     <string name="template_helper_ad_duration">The ad break length (e.g. "3 minutes")</string>
     <string name="template_helper_ad_automatic">Whether the ad break was automatic ("true") or requester-triggered ("false")</string>
     <string name="template_helper_followed_at">When the follow happened</string>
@@ -4781,6 +4785,7 @@
     <string name="pipeline_song_ban_reason_help">The reason the track is blocked, shown in the block list. Leave blank for no reason recorded.</string>
     <string name="pipeline_song_queue_max_help">How many upcoming tracks to list. Defaults to 5.</string>
     <string name="pipeline_song_request_query_help">The song search text or link the viewer requested.</string>
+    <string name="pipeline_song_request_favorite_user_id_help">Whose request history to read. Leave empty for the viewer who triggered this.</string>
     <string name="pipeline_song_volume_volume_help">The playback volume to set, from 0 (silent) to 100 (full volume).</string>
     <string name="pipeline_start_live_game_game_type_help">Which live game to start.</string>
     <string name="pipeline_start_raid_delay_seconds_help">How many seconds to wait before starting the raid. Leave blank to raid immediately.</string>
@@ -4927,6 +4932,7 @@
     <string name="pipeline_song_previous_description">Jump back to the previous track</string>
     <string name="pipeline_song_queue_description">Show the current song request queue</string>
     <string name="pipeline_song_request_description">Request a song to be queued</string>
+    <string name="pipeline_song_request_favorite_description">Queue a viewer’s most-requested song</string>
     <string name="pipeline_song_resume_description">Resume music playback</string>
     <string name="pipeline_song_skip_description">Skip the currently playing track</string>
     <string name="pipeline_song_volume_description">Show or change the music volume</string>

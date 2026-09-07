@@ -4544,6 +4544,10 @@
     <string name="widget_custom_data_render_option_text">Tekst</string>
     <string name="template_helper_playlist_id">De id van de afspeellijst waaraan het nummer is toegevoegd</string>
     <string name="template_helper_track_name">De naam van het toegevoegde nummer</string>
+    <string name="template_helper_music_favorite_track">De naam van het meest aangevraagde nummer van de kijker</string>
+    <string name="template_helper_music_favorite_artist">De artiest van het meest aangevraagde nummer van de kijker</string>
+    <string name="template_helper_music_favorite_count">Hoe vaak de kijker dat nummer heeft aangevraagd</string>
+    <string name="template_helper_music_favorite_outcome">Wat er gebeurde: queued, none of unavailable</string>
     <string name="template_helper_ad_duration">De lengte van de reclamepauze (bijv. "3 minuten")</string>
     <string name="template_helper_ad_automatic">Of de reclamepauze automatisch was ("true") of aangevraagd ("false")</string>
     <string name="template_helper_followed_at">Wanneer de follow gebeurde</string>
@@ -4767,6 +4771,7 @@
     <string name="pipeline_song_ban_reason_help">De reden waarom het nummer wordt geblokkeerd, getoond in de blokkeerlijst. Leeg laten voor geen vastgelegde reden.</string>
     <string name="pipeline_song_queue_max_help">Hoeveel aankomende nummers worden vermeld. Standaard 5.</string>
     <string name="pipeline_song_request_query_help">De zoektekst of link van het nummer dat de kijker heeft aangevraagd.</string>
+    <string name="pipeline_song_request_favorite_user_id_help">Van wie de aanvraaggeschiedenis wordt gelezen. Laat leeg voor de kijker die dit activeerde.</string>
     <string name="pipeline_song_volume_volume_help">Het afspeelvolume dat wordt ingesteld, van 0 (stil) tot 100 (volledig volume).</string>
     <string name="pipeline_start_live_game_game_type_help">Welk live spel wordt gestart.</string>
     <string name="pipeline_start_raid_delay_seconds_help">Hoeveel seconden wordt gewacht voordat de raid start. Leeg laten om direct te raiden.</string>
@@ -4913,6 +4918,7 @@
     <string name="pipeline_song_previous_description">Spring terug naar het vorige nummer</string>
     <string name="pipeline_song_queue_description">Toon de huidige wachtrij van nummerverzoeken</string>
     <string name="pipeline_song_request_description">Vraag een nummer aan voor de wachtrij</string>
+    <string name="pipeline_song_request_favorite_description">Zet het meest aangevraagde nummer van een kijker in de wachtrij</string>
     <string name="pipeline_song_resume_description">Hervat het afspelen van muziek</string>
     <string name="pipeline_song_skip_description">Sla het nu afgespeelde nummer over</string>
     <string name="pipeline_song_volume_description">Toon of wijzig het muziekvolume</string>
