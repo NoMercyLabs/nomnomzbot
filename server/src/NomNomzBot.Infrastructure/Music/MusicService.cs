@@ -340,7 +340,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string broadcasterId,
         string trackUri,
         string? requestedBy = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? requesterUserId = null
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
@@ -386,7 +387,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             provider,
             trackInfo,
             requestedBy,
-            cancellationToken
+            cancellationToken,
+            requesterUserId
         );
     }
 
@@ -395,7 +397,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string query,
         string? requestedBy = null,
         int? requesterRoleLevel = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? requesterUserId = null
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
@@ -451,7 +454,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             provider,
             trackInfo,
             requestedBy,
-            cancellationToken
+            cancellationToken,
+            requesterUserId
         );
         if (enqueued.IsFailure)
             return Result.Failure<MusicTrack>(
@@ -544,7 +548,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         IMusicProvider provider,
         TrackInfo trackInfo,
         string? requestedBy,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        string? requesterUserId = null
     )
     {
         string trackUri = trackInfo.TrackUri;
@@ -656,7 +661,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 broadcasterId,
                 trackInfo,
                 requestedBy,
-                cancellationToken
+                cancellationToken,
+                requesterUserId
             );
             return Result.Success();
         }
@@ -726,7 +732,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             broadcasterId,
             trackInfo,
             requestedBy,
-            cancellationToken
+            cancellationToken,
+            requesterUserId
         );
         return Result.Success();
     }
@@ -739,9 +746,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string broadcasterId,
         TrackInfo trackInfo,
         string? requestedBy,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        string? requesterUserId = null
     )
     {
+        await RecordRequestHistoryAsync(tenantId, trackInfo, requesterUserId, cancellationToken);
+
         _logger.LogInformation(
             "Queued track '{Track}' for {BroadcasterId} (requested by {RequestedBy})",
             trackInfo.TrackName,
@@ -1740,5 +1750,69 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             );
 
         return null;
+    }
+
+    // The stored history shape is a contract two different readers parse, so its casing is pinned here
+    // rather than left to whatever the default happens to be.
+    private static readonly System.Text.Json.JsonSerializerOptions HistoryJson = new()
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+    };
+
+    /// <summary>
+    /// Appends this accepted request to the requester's own history — one row per acceptance, so a repeat is
+    /// countable and "most-requested" is a real count rather than a coin toss. Stored on the generic
+    /// <c>Record</c> store (the shape the legacy bot used) keyed on the requester's PLATFORM id, which is what
+    /// a modiversary notice identifies a mod by.
+    ///
+    /// <para>Skipped when no viewer is behind the request (dashboard, script, reconciler): a row keyed on
+    /// "anonymous" would pool every such request under one fake viewer and skew the counts.</para>
+    ///
+    /// <para>The resolved title/artist/art ride along, unlike the legacy bot's bare song id — reading a
+    /// viewer's top track back then needed a provider round-trip to learn what it even was, and produced
+    /// nothing once a track was delisted. Best-effort by design: a failure here must never fail a request the
+    /// viewer already had accepted.</para>
+    /// </summary>
+    private async Task RecordRequestHistoryAsync(
+        Guid tenantId,
+        TrackInfo trackInfo,
+        string? requesterUserId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (string.IsNullOrWhiteSpace(requesterUserId))
+            return;
+
+        try
+        {
+            _db.Records.Add(
+                new Domain.Platform.Entities.Record
+                {
+                    BroadcasterId = tenantId,
+                    UserId = requesterUserId,
+                    RecordType = Domain.Music.ValueObjects.SongRequestHistory.RecordType,
+                    Data = System.Text.Json.JsonSerializer.Serialize(
+                        new Domain.Music.ValueObjects.SongRequestHistory(
+                            trackInfo.TrackUri,
+                            trackInfo.TrackName,
+                            trackInfo.Artist,
+                            trackInfo.AlbumArtUrl,
+                            trackInfo.Provider
+                        ),
+                        HistoryJson
+                    ),
+                }
+            );
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Could not record song-request history for {UserId} on {TenantId}",
+                requesterUserId,
+                tenantId
+            );
+        }
     }
 }

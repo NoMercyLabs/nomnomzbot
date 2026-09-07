@@ -90,7 +90,8 @@ public sealed class PublicSongRequestControllerTests
                 "never gonna give you up",
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(
                 Result.Success(
@@ -120,7 +121,8 @@ public sealed class PublicSongRequestControllerTests
                 "never gonna give you up",
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             );
     }
 

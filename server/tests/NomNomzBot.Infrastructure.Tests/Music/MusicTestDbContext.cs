@@ -99,6 +99,11 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<NomNomzBot.Domain.Music.Entities.BlockedTrack>(b =>
             b.HasKey(x => x.Id)
         );
+        modelBuilder.Entity<Record>(b =>
+        {
+            b.HasKey(r => r.Id);
+            b.Ignore(r => r.Channel);
+        });
         // S003 — SpotifyMusicProvider resolves its connection id through this table (the vault is the
         // single token source; no Service-row read). Only the connection ROW is mapped here — the actual
         // tokens live in FakeIntegrationTokenVault's own in-memory dictionary, never in a mapped
@@ -134,6 +139,8 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
                 t != typeof(Service)
                 && t != typeof(NomNomzBot.Domain.Music.Entities.BlockedTrack)
                 && t != typeof(IntegrationConnection)
+                // Mapped for real: MusicService appends a song-request history row per accepted request.
+                && t != typeof(Record)
             ),
     ];
 
@@ -230,7 +237,10 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<Record> Records => throw new NotSupportedException();
+
+    // Mapped (not thrown): MusicService writes a per-viewer song-request history row here on every
+    // accepted request, so a test that asserts that write needs the real set.
+    public DbSet<Record> Records => Set<Record>();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>

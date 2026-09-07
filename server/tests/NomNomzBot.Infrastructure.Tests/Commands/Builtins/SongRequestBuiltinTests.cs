@@ -323,6 +323,17 @@ public sealed class SongRequestBuiltinTests
 
     // ─── Harness ──────────────────────────────────────────────────────────────
 
+    /// <summary>Builds the builtin over a caller-supplied music service, for asserting what it was ASKED.</summary>
+    private static SongRequestBuiltin BuildWithMusic(IMusicService music)
+    {
+        IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
+        composer
+            .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ci => Task.FromResult(ci.Arg<BuiltinResponseRequest>().NeutralFallback));
+
+        return new(music, composer, Substitute.For<IEventBus>());
+    }
+
     private static SongRequestBuiltin Build(Result<MusicTrack> requestResult)
     {
         IMusicService music = Substitute.For<IMusicService>();
@@ -332,7 +343,8 @@ public sealed class SongRequestBuiltinTests
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(requestResult);
 
@@ -353,7 +365,8 @@ public sealed class SongRequestBuiltinTests
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(requestResult);
 
@@ -375,6 +388,53 @@ public sealed class SongRequestBuiltinTests
             });
 
         return new(music, new BuiltinResponseComposer(resolver), Substitute.For<IEventBus>());
+    }
+
+    [Fact]
+    public async Task The_request_is_attributed_to_the_callers_platform_id_so_it_lands_in_their_history()
+    {
+        // MusicService records a request against the requester's platform id, but only if the caller hands
+        // one over. A service that CAN record and a command that never says who asked look identical right
+        // up until someone's anniversary arrives and their history turns out to be empty.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .RequestTrackAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
+            )
+            .Returns(
+                Result.Success(
+                    new MusicTrack(
+                        "spotify:track:q1",
+                        "Song Q",
+                        "Artist",
+                        "Album",
+                        null,
+                        200000,
+                        "spotify"
+                    )
+                )
+            );
+
+        SongRequestBuiltin sut = BuildWithMusic(music);
+
+        await sut.ExecuteAsync(Context("song q", roleLevel: 0), CancellationToken.None);
+
+        // "viewer-1" is the Context helper's TriggeringUserId — the platform id, not the display name.
+        await music
+            .Received(1)
+            .RequestTrackAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>(),
+                "viewer-1"
+            );
     }
 
     [Fact]
@@ -484,7 +544,8 @@ public sealed class SongRequestBuiltinTests
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(requestResult);
 

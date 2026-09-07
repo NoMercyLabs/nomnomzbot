@@ -686,7 +686,8 @@ public sealed class MusicStatePollingServiceTests
             string broadcasterId,
             string trackUri,
             string? requestedBy = null,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            string? requesterUserId = null
         ) => throw new NotSupportedException();
 
         public Task<Result<MusicTrack>> RequestTrackAsync(
@@ -694,7 +695,8 @@ public sealed class MusicStatePollingServiceTests
             string query,
             string? requestedBy = null,
             int? requesterRoleLevel = null,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            string? requesterUserId = null
         ) => throw new NotSupportedException();
 
         public Task<bool> PromoteToTopAsync(

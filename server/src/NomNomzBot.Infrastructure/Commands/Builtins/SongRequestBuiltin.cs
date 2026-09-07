@@ -61,7 +61,10 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             query,
             context.TriggeringUserDisplayName,
             context.RoleLevel,
-            ct
+            ct,
+            // The requester's platform id, so this request lands in THEIR history. The display name above is
+            // only the fair-queue owner key and cannot own a history that outlives a rename.
+            context.TriggeringUserId
         );
 
         if (requested.IsFailure)

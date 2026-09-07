@@ -170,7 +170,8 @@ public sealed class ScriptHostBridgeTests
                 "lofi beats",
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(
                 Result.Success(

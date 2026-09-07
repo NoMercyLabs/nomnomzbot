@@ -80,7 +80,9 @@ public sealed class SongRequestAction : ICommandAction
             query,
             ctx.TriggeredByDisplayName,
             requesterRoleLevel,
-            ctx.CancellationToken
+            ctx.CancellationToken,
+            // A reward redemption is a viewer's request too, so it counts toward their history.
+            ctx.TriggeredByUserId
         );
 
         if (requested.IsFailure)

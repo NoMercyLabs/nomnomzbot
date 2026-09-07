@@ -56,7 +56,8 @@ public interface IMusicService
         string broadcasterId,
         string trackUri,
         string? requestedBy = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? requesterUserId = null
     );
 
     /// <summary>
@@ -78,7 +79,12 @@ public interface IMusicService
         string query,
         string? requestedBy = null,
         int? requesterRoleLevel = null,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        // The requester's PLATFORM id (Twitch chatter_user_id). Distinct from requestedBy, which is a
+        // display name used as the fair-queue owner key: only a stable id can carry a viewer's request
+        // history, since a display name changes underneath it. Null for dashboard/script callers, which
+        // have no viewer behind them and so write no history.
+        string? requesterUserId = null
     );
 
     /// <summary>Set the playback volume (0-100). Gated on <c>Volume</c>; fails <c>VALIDATION_FAILED</c> out of range,

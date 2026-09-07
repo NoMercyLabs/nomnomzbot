@@ -208,7 +208,8 @@ public sealed class SongRequestActionTests
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(requestResult);
         // Default: an empty queue, so the code-lookup read-back is a no-op for every test that doesn't

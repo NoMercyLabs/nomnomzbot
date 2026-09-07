@@ -64,7 +64,8 @@ public sealed class MusicControllerAddToQueueTests
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(
                 Result.Success(
@@ -88,7 +89,8 @@ public sealed class MusicControllerAddToQueueTests
                 "some song",
                 "RealViewer42",
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             );
     }
 
@@ -102,7 +104,8 @@ public sealed class MusicControllerAddToQueueTests
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             )
             .Returns(
                 Result.Success(
@@ -127,7 +130,8 @@ public sealed class MusicControllerAddToQueueTests
                 "some song",
                 "TargetViewer",
                 Arg.Any<int?>(),
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>()
             );
     }
 }
