@@ -63,3 +63,29 @@ public sealed record SongRequestBackfillSummary(
     int AlreadyPresent,
     int UnresolvableFreeText
 );
+
+/// <summary>
+/// Imports the old bot's own song-request tally from its SQLite file into the ledger. Read-only on the legacy
+/// file, silent (no outbound call), and idempotent on the legacy row id — a second run imports nothing.
+///
+/// <para>
+/// Run this BEFORE <see cref="ISongRequestHistoryBackfill"/>. The two sources describe the same requests, and
+/// the journal pass reconciles against whatever this contributed rather than adding to it.
+/// </para>
+/// </summary>
+public interface ILegacySongRequestImporter
+{
+    Task<Result<LegacySongRequestImportSummary>> ImportAsync(
+        Guid broadcasterId,
+        bool dryRun = false,
+        CancellationToken cancellationToken = default
+    );
+}
+
+/// <param name="Unreadable">Legacy rows with no viewer or no song id — reported, never guessed at.</param>
+public sealed record LegacySongRequestImportSummary(
+    int Read,
+    int Imported,
+    int AlreadyPresent,
+    int Unreadable
+);

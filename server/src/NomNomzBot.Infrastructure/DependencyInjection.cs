@@ -771,6 +771,18 @@ public static class DependencyInjection
             typeof(IDeploymentProfileService) // singleton — boot detector + Current accessor (wired explicitly above)
         );
 
+        // The song-request history rebuilds. Explicit because AddServicesByConvention only binds interfaces
+        // whose name ENDS in "Service", and these two are named for what they do (a backfill, an importer)
+        // rather than padded to fit the scan.
+        services.AddScoped<
+            Application.Music.Services.ISongRequestHistoryBackfill,
+            Music.Replay.SongRequestHistoryBackfill
+        >();
+        services.AddScoped<
+            Application.Music.Services.ILegacySongRequestImporter,
+            Music.Replay.LegacySongRequestImporter
+        >();
+
         // Repositories (scoped — concrete GenericRepository<T> subclasses, consumed by type).
         services.AddRepositoriesByConvention<GenericRepository<object>>(
             infrastructure,

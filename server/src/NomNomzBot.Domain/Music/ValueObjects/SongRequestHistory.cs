@@ -33,11 +33,12 @@ namespace NomNomzBot.Domain.Music.ValueObjects;
 /// <param name="Artist">Resolved artist at the time of the request.</param>
 /// <param name="ImageUrl">Resolved artwork at the time of the request, when the provider gave one.</param>
 /// <param name="Provider">Which source resolved it — <c>spotify</c> / <c>youtube</c>.</param>
-/// <param name="SourceEventId">
-/// The journal <c>EventId</c> this row was reconstructed from, when it was reconstructed rather than written
-/// live. It is what makes a backfill re-runnable: a second pass skips every source event it has already
-/// turned into a row, so nobody's favourite is double-counted by running the job twice. <c>null</c> on a row
-/// written live, which has no source event to point at.
+/// <param name="SourceRef">
+/// Where this row came from, when it was reconstructed rather than written live: <c>event:&lt;EventId&gt;</c>
+/// for a request rebuilt from the journal, <c>legacy:&lt;RecordId&gt;</c> for one imported from the old bot's
+/// own tally. It is what makes both jobs re-runnable — a second pass skips every source it has already turned
+/// into a row, so nobody's favourite is double-counted by running an import twice. <c>null</c> on a live row,
+/// which has no earlier source to point at.
 /// </param>
 public sealed record SongRequestHistory(
     string TrackUri,
@@ -45,7 +46,7 @@ public sealed record SongRequestHistory(
     string Artist,
     string? ImageUrl,
     string Provider,
-    string? SourceEventId = null
+    string? SourceRef = null
 )
 {
     /// <summary>The <c>Record.RecordType</c> discriminator every song-request history row carries.</summary>

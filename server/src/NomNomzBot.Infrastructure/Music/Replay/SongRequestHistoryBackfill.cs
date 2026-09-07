@@ -85,10 +85,10 @@ public sealed partial class SongRequestHistoryBackfill : ISongRequestHistoryBack
 
         HashSet<string> rewardTitles = new(options.RewardTitles, StringComparer.OrdinalIgnoreCase);
         List<string> commands = [.. options.CommandNames.Select(c => c.Trim().ToLowerInvariant())];
-        HashSet<string> alreadyImported = await LoadImportedSourceIdsAsync(
-            broadcasterId,
-            cancellationToken
-        );
+        LedgerState ledger = await LoadLedgerAsync(broadcasterId, cancellationToken);
+        HashSet<string> alreadyImported = ledger.SourceRefs;
+        Dictionary<(string, string), int> legacyPerPair = ledger.LegacyCountPerPair;
+        Dictionary<(string, string), int> seenPerPair = [];
 
         int scanned = 0;
         int found = 0;
@@ -137,7 +137,22 @@ public sealed partial class SongRequestHistoryBackfill : ISongRequestHistoryBack
 
                 found++;
 
-                if (!alreadyImported.Add(record.EventId.ToString()))
+                if (!alreadyImported.Add($"event:{record.EventId}"))
+                {
+                    alreadyPresent++;
+                    continue;
+                }
+
+                // ── The ledger rule ──────────────────────────────────────────────────────────────────
+                // The old bot's own tally and this journal describe the SAME requests, so adding both
+                // would double-count nearly every one. Their timestamps cannot be matched either: the old
+                // bot backfilled 1,082 of its rows at a single instant, so "same second" means nothing.
+                // What holds is per (viewer, track): the ledger keeps whichever source saw MORE of that
+                // request, never their sum. A journal row is therefore only written once this pair's
+                // journal count has overtaken what the legacy import already contributed.
+                (string, string) pair = (request.UserId, request.TrackUri);
+                seenPerPair[pair] = seenPerPair.GetValueOrDefault(pair) + 1;
+                if (seenPerPair[pair] <= legacyPerPair.GetValueOrDefault(pair))
                 {
                     alreadyPresent++;
                     continue;
@@ -161,7 +176,7 @@ public sealed partial class SongRequestHistoryBackfill : ISongRequestHistoryBack
                                 Artist: string.Empty,
                                 ImageUrl: null,
                                 Provider: "spotify",
-                                SourceEventId: record.EventId.ToString()
+                                SourceRef: $"event:{record.EventId}"
                             ),
                             HistoryJson
                         ),
@@ -194,39 +209,60 @@ public sealed partial class SongRequestHistoryBackfill : ISongRequestHistoryBack
         );
     }
 
-    /// <summary>Source event ids this channel has already turned into rows — what makes a re-run a no-op.</summary>
-    private async Task<HashSet<string>> LoadImportedSourceIdsAsync(
+    /// <summary>
+    /// What the ledger already holds for this channel: every source reference it has claimed (so a re-run
+    /// writes nothing), and how many rows the LEGACY import contributed per (viewer, track) — the figure the
+    /// journal pass has to overtake before it may add a row of its own.
+    /// </summary>
+    private async Task<LedgerState> LoadLedgerAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken
     )
     {
-        List<string> rows = await _db
+        List<(string UserId, string Data)> rows = await _db
             .Records.AsNoTracking()
             .Where(r =>
                 r.BroadcasterId == broadcasterId && r.RecordType == SongRequestHistory.RecordType
             )
-            .Select(r => r.Data)
+            .Select(r => new ValueTuple<string, string>(r.UserId, r.Data))
             .ToListAsync(cancellationToken);
 
-        HashSet<string> ids = new(StringComparer.Ordinal);
-        foreach (string row in rows)
+        HashSet<string> refs = new(StringComparer.Ordinal);
+        Dictionary<(string, string), int> legacy = [];
+        foreach ((string userId, string data) in rows)
         {
-            try
-            {
-                string? sourceId = JsonSerializer
-                    .Deserialize<SongRequestHistory>(row, HistoryJson)
-                    ?.SourceEventId;
-                if (sourceId is not null)
-                    ids.Add(sourceId);
-            }
-            catch (JsonException)
-            {
-                // An unreadable row cannot claim a source event; worst case its event is re-imported once.
-            }
+            SongRequestHistory? history = Deserialize(data);
+            if (history?.SourceRef is not { } sourceRef)
+                continue;
+
+            refs.Add(sourceRef);
+            if (!sourceRef.StartsWith("legacy:", StringComparison.Ordinal))
+                continue;
+
+            (string, string) pair = (userId, history.TrackUri);
+            legacy[pair] = legacy.GetValueOrDefault(pair) + 1;
         }
 
-        return ids;
+        return new(refs, legacy);
     }
+
+    private SongRequestHistory? Deserialize(string data)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<SongRequestHistory>(data, HistoryJson);
+        }
+        catch (JsonException)
+        {
+            // An unreadable row cannot claim a source; worst case its event is re-imported once.
+            return null;
+        }
+    }
+
+    private sealed record LedgerState(
+        HashSet<string> SourceRefs,
+        Dictionary<(string, string), int> LegacyCountPerPair
+    );
 
     /// <summary>The request carried by this event, or null when the event is not a song request at all.
     /// A non-null result with a null uri is a request whose track cannot be recovered.</summary>

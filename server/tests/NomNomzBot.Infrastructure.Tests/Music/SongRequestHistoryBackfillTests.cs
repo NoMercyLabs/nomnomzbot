@@ -285,4 +285,87 @@ public sealed class SongRequestHistoryBackfillTests
             "ChatMessageReceivedEvent",
             JsonSerializer.Serialize(new { UserId = userId, Message = message })
         );
+
+    [Fact]
+    public async Task A_request_the_legacy_import_already_holds_is_not_counted_twice_by_the_journal()
+    {
+        // THE ledger rule. The old bot's tally and this journal describe the same requests — its own table was
+        // itself backfilled from these very redemptions (1,049 of 1,050 verified on the real data). Summing
+        // them would roughly double every viewer's count. Timestamps cannot separate them either: the old bot
+        // wrote 1,082 of its rows at one instant, so "same second" means nothing.
+        (SongRequestHistoryBackfill sut, MusicTestDbContext db) = Build(
+            Redemption("42660213", "Spotify Song Request", Link("5pQm6DRBsKUvwqw3fLuifB"))
+        );
+        SeedLegacy(db, "42660213", "spotify:track:5pQm6DRBsKUvwqw3fLuifB", count: 1);
+
+        Result<SongRequestBackfillSummary> run = await sut.RunAsync(Channel, Options);
+
+        run.Value.RowsWritten.Should().Be(0, "the legacy import already holds this request");
+        db.Records.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task The_ledger_keeps_whichever_source_saw_more_of_the_same_request()
+    {
+        // The journal saw this viewer ask for the track three times; the legacy tally only caught one. Keeping
+        // the legacy count alone would understate a favourite, and adding them would overstate it by four.
+        // The truth is the larger observation: three.
+        (SongRequestHistoryBackfill sut, MusicTestDbContext db) = Build(
+            Redemption("42660213", "Spotify Song Request", Link("5pQm6DRBsKUvwqw3fLuifB")),
+            Redemption("42660213", "Spotify Song Request", Link("5pQm6DRBsKUvwqw3fLuifB")),
+            Redemption("42660213", "Spotify Song Request", Link("5pQm6DRBsKUvwqw3fLuifB"))
+        );
+        SeedLegacy(db, "42660213", "spotify:track:5pQm6DRBsKUvwqw3fLuifB", count: 1);
+
+        Result<SongRequestBackfillSummary> run = await sut.RunAsync(Channel, Options);
+
+        run.Value.RowsWritten.Should().Be(2);
+        db.Records.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task A_legacy_request_for_a_different_track_never_masks_a_journal_one()
+    {
+        // Reconciliation is per (viewer, track). If it collapsed to the viewer, one legacy row would swallow
+        // every other song they ever asked for.
+        (SongRequestHistoryBackfill sut, MusicTestDbContext db) = Build(
+            Redemption("42660213", "Spotify Song Request", Link("2ygMBIctKIAfbEBcT9065L"))
+        );
+        SeedLegacy(db, "42660213", "spotify:track:5pQm6DRBsKUvwqw3fLuifB", count: 3);
+
+        Result<SongRequestBackfillSummary> run = await sut.RunAsync(Channel, Options);
+
+        run.Value.RowsWritten.Should().Be(1);
+        db.Records.Should().HaveCount(4);
+    }
+
+    private static string Link(string trackId) => $"https://open.spotify.com/track/{trackId}";
+
+    private static void SeedLegacy(MusicTestDbContext db, string userId, string uri, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            db.Records.Add(
+                new RequestRecord
+                {
+                    BroadcasterId = Channel,
+                    UserId = userId,
+                    RecordType = SongRequestHistory.RecordType,
+                    Data = JsonSerializer.Serialize(
+                        new SongRequestHistory(
+                            uri,
+                            string.Empty,
+                            string.Empty,
+                            null,
+                            "spotify",
+                            SourceRef: $"legacy:{Guid.NewGuid()}"
+                        ),
+                        Json
+                    ),
+                }
+            );
+        }
+
+        db.SaveChanges();
+    }
 }
