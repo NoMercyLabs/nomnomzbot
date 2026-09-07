@@ -42,6 +42,8 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// </summary>
 public sealed class WebSocketEventSubTransport : IEventSubTransport
 {
+    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
+
     private const string DefaultWsUrl =
         "wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30";
 
@@ -67,9 +69,11 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         IServiceScopeFactory scopeFactory,
         IEventSubConditionBuilder conditionBuilder,
         TimeProvider clock,
-        ILogger<WebSocketEventSubTransport> logger
+        ILogger<WebSocketEventSubTransport> logger,
+        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions
     )
     {
+        _sanctions = sanctions;
         _channelFactory = channelFactory;
         _scopeFactory = scopeFactory;
         _conditionBuilder = conditionBuilder;
@@ -158,6 +162,14 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         CancellationToken ct = default
     )
     {
+        // Keeping its own event subscriptions current is inherent to the bot being connected at all — the
+        // broadcaster consented to it by onboarding. Named so the traffic is still attributable.
+        using IDisposable sanction = _sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.PlatformConfiguration(
+                "eventsub_subscription_lifecycle"
+            )
+        );
+
         if (handle.SessionId is null)
             return Result.Failure<TwitchSubscriptionResult>(
                 "Cannot create a WebSocket subscription without a session id.",
@@ -215,6 +227,12 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         CancellationToken ct = default
     )
     {
+        using IDisposable sanction = _sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.PlatformConfiguration(
+                "eventsub_subscription_lifecycle"
+            )
+        );
+
         // Sign the delete with the SAME identity that created the subscription. Twitch scopes this endpoint
         // to the calling token's own user: deleting a broadcaster-owned subscription with the bot token is
         // not "already gone", it is "not yours", and both answer 404.

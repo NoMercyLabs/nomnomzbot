@@ -25,14 +25,17 @@ namespace NomNomzBot.Infrastructure.Discord.EventHandlers;
 public sealed class DiscordLiveRoleOfflineHandler : IEventHandler<ChannelOfflineEvent>
 {
     private readonly IDiscordLiveRoleService _liveRoleService;
+    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<DiscordLiveRoleOfflineHandler> _logger;
 
     public DiscordLiveRoleOfflineHandler(
         IDiscordLiveRoleService liveRoleService,
+        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
         ILogger<DiscordLiveRoleOfflineHandler> logger
     )
     {
         _liveRoleService = liveRoleService;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -43,6 +46,15 @@ public sealed class DiscordLiveRoleOfflineHandler : IEventHandler<ChannelOffline
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        // Assigning a role on somebody's Discord server is the same class of act as granting a Twitch
+        // moderator. It is allowed here because the broadcaster configured a live role, and the sanction
+        // names that setting so the change is traceable to it.
+        using IDisposable sanction = _sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                "discord_live_role"
+            )
+        );
 
         try
         {

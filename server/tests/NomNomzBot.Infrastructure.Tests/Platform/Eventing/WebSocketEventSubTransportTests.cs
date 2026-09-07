@@ -86,7 +86,8 @@ public sealed class WebSocketEventSubTransportTests
             new SingleServiceScopeFactory(new NoopHelixTransport()),
             new EventSubConditionBuilder(),
             clock,
-            NullLogger<WebSocketEventSubTransport>.Instance
+            NullLogger<WebSocketEventSubTransport>.Instance,
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
         );
         transport.BindSink(sink);
         return transport;

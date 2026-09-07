@@ -42,6 +42,7 @@ public sealed class HelixChatProvider : IChatPlatform
     private readonly IApplicationDbContext _db;
     private readonly IHelixBadgeSendGate _badgeGate;
     private readonly TwitchOptions _options;
+    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<HelixChatProvider> _logger;
 
     // Bot sender identity resolved PER BROADCASTER — never one process-wide account. On a multi-tenant
@@ -59,7 +60,8 @@ public sealed class HelixChatProvider : IChatPlatform
         IApplicationDbContext db,
         IHelixBadgeSendGate badgeGate,
         IOptions<TwitchOptions> options,
-        ILogger<HelixChatProvider> logger
+        ILogger<HelixChatProvider> logger,
+        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions
     )
     {
         _transport = transport;
@@ -68,27 +70,60 @@ public sealed class HelixChatProvider : IChatPlatform
         _db = db;
         _badgeGate = badgeGate;
         _options = options.Value;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
-    public Task<bool> SendMessageAsync(
+    /// <summary>
+    /// A fallback basis for the bot SPEAKING. Talking in the channel is what connecting the bot is for, so a
+    /// send never needs a separate reason — but it still has to carry one, so an outbound message is
+    /// attributable like everything else. Deliberately NOT extended to the coercive operations below: a
+    /// timeout or ban must name the rule or the person that called for it, and its callers do.
+    /// </summary>
+    private IDisposable? Speaking() =>
+        _sanctions.Current is null
+            ? _sanctions.Begin(
+                NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                    "chat_send"
+                )
+            )
+            : null;
+
+    public async Task<bool> SendMessageAsync(
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
-    ) => PostChatMessageAsync(broadcasterId, message, null, cancellationToken);
+    )
+    {
+        using IDisposable? sanction = Speaking();
+        return await PostChatMessageAsync(broadcasterId, message, null, cancellationToken);
+    }
 
-    public Task<bool> SendMessageAsBroadcasterAsync(
+    public async Task<bool> SendMessageAsBroadcasterAsync(
         Guid broadcasterId,
         string message,
         CancellationToken cancellationToken = default
-    ) => PostChatMessageAsBroadcasterAsync(broadcasterId, message, cancellationToken);
+    )
+    {
+        using IDisposable? sanction = Speaking();
+        return await PostChatMessageAsBroadcasterAsync(broadcasterId, message, cancellationToken);
+    }
 
-    public Task<bool> SendReplyAsync(
+    public async Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
         string message,
         CancellationToken cancellationToken = default
-    ) => PostChatMessageAsync(broadcasterId, message, replyToMessageId, cancellationToken);
+    )
+    {
+        using IDisposable? sanction = Speaking();
+        return await PostChatMessageAsync(
+            broadcasterId,
+            message,
+            replyToMessageId,
+            cancellationToken
+        );
+    }
 
     public Task TimeoutUserAsync(
         Guid broadcasterId,

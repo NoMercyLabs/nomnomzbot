@@ -59,7 +59,8 @@ public sealed class HelixChatProviderTests
                     BotUsername = "b",
                 }
             ),
-            NullLogger<HelixChatProvider>.Instance
+            NullLogger<HelixChatProvider>.Instance,
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
         );
         return (provider, transport);
     }
@@ -799,7 +800,8 @@ public sealed class HelixChatProviderTests
                     BotUsername = "b",
                 }
             ),
-            NullLogger<HelixChatProvider>.Instance
+            NullLogger<HelixChatProvider>.Instance,
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
         );
 
         ChatUnbanOutcome outcome = await provider.UnbanUserAsync(Owner, "target-1");
@@ -833,7 +835,8 @@ public sealed class HelixChatProviderTests
                     BotUsername = "b",
                 }
             ),
-            NullLogger<HelixChatProvider>.Instance
+            NullLogger<HelixChatProvider>.Instance,
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
         );
 
         ChatUnbanOutcome outcome = await provider.UnbanUserAsync(Owner, "target-2");

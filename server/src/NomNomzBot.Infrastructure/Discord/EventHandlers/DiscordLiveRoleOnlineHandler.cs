@@ -26,14 +26,17 @@ public sealed class DiscordLiveRoleOnlineHandler : IEventHandler<ChannelOnlineEv
     private const string Trigger = "live_role";
 
     private readonly IDiscordLiveRoleService _liveRoleService;
+    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<DiscordLiveRoleOnlineHandler> _logger;
 
     public DiscordLiveRoleOnlineHandler(
         IDiscordLiveRoleService liveRoleService,
+        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
         ILogger<DiscordLiveRoleOnlineHandler> logger
     )
     {
         _liveRoleService = liveRoleService;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -46,6 +49,15 @@ public sealed class DiscordLiveRoleOnlineHandler : IEventHandler<ChannelOnlineEv
             return;
 
         string dedupeKey = $"{Trigger}:{@event.StartedAt.UtcDateTime:O}";
+
+        // Assigning a role on somebody's Discord server is the same class of act as granting a Twitch
+        // moderator. It is allowed here because the broadcaster configured a live role, and the sanction
+        // names that setting so the change is traceable to it.
+        using IDisposable sanction = _sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                "discord_live_role"
+            )
+        );
 
         try
         {
