@@ -81,9 +81,12 @@ public static class EventResponsePresetCatalog
         ),
         Preset("engagement.watch_streak", ["user", "user.id", "viewer.name", "engagement.streak"]),
         Preset("engagement.session_first_message", ["user", "user.id", "viewer.name"]),
-        // NO engagement.modiversary: Twitch exposes no mod-anniversary signal anywhere — it is not among
-        // channel.chat.notification's notice types and Helix Get Moderators carries no granted-at date, so
-        // there is no truthful data to fire it from. Deliberately absent rather than faked.
+        // Sourced from channel.chat.notification's `modiversary` notice, which carries a typed months count.
+        // (Helix Get Moderators genuinely has no granted-at date, but the notice does — the signal exists.)
+        Preset(
+            "engagement.modiversary",
+            ["user", "user.id", "viewer.name", "engagement.months", "engagement.years"]
+        ),
         Preset("supporter.tip", SupporterVariables),
         Preset("supporter.membership", SupporterVariables),
         Preset("supporter.merch", SupporterVariables),

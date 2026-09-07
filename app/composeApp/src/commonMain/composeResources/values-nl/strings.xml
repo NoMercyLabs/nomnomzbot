@@ -4567,6 +4567,8 @@
     <string name="template_helper_viewer_name">De weergavenaam van de kijker (engagement-triggers)</string>
     <string name="template_helper_engagement_days_since_last_seen">Dagen sinds deze kijker voor het laatst chatte</string>
     <string name="template_helper_engagement_streak">De huidige kijk-streak van de kijker</string>
+    <string name="template_helper_engagement_months">Hoeveel maanden deze moderator het kanaal al modereert</string>
+    <string name="template_helper_engagement_years">Hetzelfde jubileum in jaren, afgerond om voor te lezen</string>
     <string name="template_helper_supporter_name">De weergavenaam van de supporter</string>
     <string name="template_helper_supporter_kind">Het type supporter-gebeurtenis (tip, lidmaatschap, merch, goed doel)</string>
     <string name="template_helper_supporter_amount">Het supporterbedrag, in grote valuta-eenheden (bijv. "12,34")</string>
@@ -4958,6 +4960,7 @@
     <string name="eventresponse_preset_engagement_first_time_chatter_template">Welkom bij de stream, {user}!</string>
     <string name="eventresponse_preset_engagement_returning_chatter_template">Welkom terug, {user}!</string>
     <string name="eventresponse_preset_engagement_watch_streak_template">{user} kijkt al {engagement.streak} streams op rij!</string>
+    <string name="eventresponse_preset_engagement_modiversary_template">{user} is hier al {engagement.months} maanden moderator. Bedankt!</string>
     <string name="eventresponse_preset_engagement_session_first_message_template">Kom binnen, {user}!</string>
     <string name="eventresponse_preset_supporter_tip_template">{user} heeft {supporter.amount} {supporter.currency} gedoneerd — bedankt!</string>
     <string name="eventresponse_preset_supporter_membership_template">{user} is lid geworden — bedankt!</string>

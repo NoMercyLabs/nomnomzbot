@@ -13,6 +13,7 @@ using System.Text.Json;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Engagement.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
@@ -391,6 +392,38 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
                     UserDisplayName = notice.ChatterDisplayName,
                     StreakMonths = streak.GetInt("streak_count"),
                     ChannelPointsEarned = streak.GetInt("channel_points_awarded"),
+                },
+                ct
+            );
+
+        // A modiversary notice is the only truthful mod-anniversary signal Twitch offers — Helix Get Moderators
+        // carries no granted-at date — so this is where the celebration trigger is sourced. The month count is
+        // read from the typed `modiversary.months` field rather than scraped out of system_message, which would
+        // break the moment Twitch rewords the sentence.
+        //
+        // Deliberately NOT handling shared_chat_modiversary: that notice belongs to another channel in a shared
+        // session, so the mod being celebrated does not moderate here. Firing it would queue a stranger's track
+        // into this stream.
+        if (
+            noticeType == "modiversary"
+            && payload.GetObject("modiversary") is { } modiversary
+            // A broadcaster moderates their own channel and Twitch fires this for them too. Left unguarded the
+            // channel throws itself a party and queues the streamer their own top track.
+            && !string.Equals(
+                notice.ChatterUserId,
+                payload.GetRequiredString("broadcaster_user_id"),
+                StringComparison.Ordinal
+            )
+        )
+            await PublishAsync(
+                new ModiversaryReachedEvent
+                {
+                    BroadcasterId = notification.BroadcasterId,
+                    OccurredAt = Clock.GetUtcNow(),
+                    ViewerExternalUserId = notice.ChatterUserId,
+                    ViewerDisplayName = notice.ChatterDisplayName,
+                    ViewerLogin = notice.ChatterLogin,
+                    Months = modiversary.GetInt("months"),
                 },
                 ct
             );

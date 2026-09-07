@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Domain.Engagement.Events;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
@@ -926,5 +927,113 @@ public sealed class ChatTranslatorsTests
 
         bus.EventsOf<WatchStreakReceivedEvent>().Should().BeEmpty();
         bus.EventsOf<ChatNotificationEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ChatNotification_Modiversary_PublishesTheModsAnniversaryWithItsMonthCount()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "42660213",
+                    "chatter_user_login": "dukasoft",
+                    "chatter_user_name": "DukaSoft",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-3",
+                    "message": { "text": "still here", "fragments": [] },
+                    "notice_type": "modiversary",
+                    "system_message": "DukaSoft has been a moderator for 84 months!",
+                    "modiversary": { "months": 84 }
+                }
+                """
+            )
+        );
+
+        ModiversaryReachedEvent published = bus.EventsOf<ModiversaryReachedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        published.BroadcasterId.Should().Be(Tenant);
+        // The mod's PLATFORM id, because that is the key their song-request history is written under — the
+        // celebration reads that history, so an event carrying only a display name could never find it.
+        published.ViewerExternalUserId.Should().Be("42660213");
+        published.ViewerDisplayName.Should().Be("DukaSoft");
+        published.ViewerLogin.Should().Be("dukasoft");
+        // Twitch carries the count as a typed field. Reading it out of system_message (what the legacy bot
+        // did) breaks the moment Twitch rewords the sentence or the viewer's locale changes it.
+        published.Months.Should().Be(84);
+    }
+
+    [Fact]
+    public async Task ChatNotification_BroadcastersOwnModiversary_IsNotCelebrated()
+    {
+        // A broadcaster is a moderator of their own channel and Twitch fires the notice for them too. Left
+        // unguarded, the channel throws itself a party and queues the streamer their own top track.
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "broadcaster-99",
+                    "chatter_user_login": "stoney_eagle",
+                    "chatter_user_name": "Stoney_Eagle",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-4",
+                    "message": { "text": "", "fragments": [] },
+                    "notice_type": "modiversary",
+                    "system_message": "Stoney_Eagle has been a moderator for 120 months!",
+                    "modiversary": { "months": 120 }
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<ModiversaryReachedEvent>().Should().BeEmpty();
+        // The notice itself still reaches chat consumers — only the celebration is withheld.
+        bus.EventsOf<ChatNotificationEvent>().Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ChatNotification_SharedChatModiversary_IsNotCelebratedHere()
+    {
+        // shared_chat_* means the notice happened in ANOTHER channel of a shared session and is merely being
+        // shown here. That mod is not this channel's mod, so celebrating it would queue a stranger's track
+        // into this stream and shout out someone who moderates elsewhere.
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "source_broadcaster_user_id": "other-channel-7",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "cool_user",
+                    "chatter_user_name": "Cool_User",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-5",
+                    "message": { "text": "", "fragments": [] },
+                    "notice_type": "shared_chat_modiversary",
+                    "system_message": "Cool_User has been a moderator for 30 months!",
+                    "shared_chat_modiversary": { "months": 30 }
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<ModiversaryReachedEvent>().Should().BeEmpty();
     }
 }

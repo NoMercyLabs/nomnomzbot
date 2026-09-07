@@ -4581,6 +4581,8 @@
     <string name="template_helper_viewer_name">The viewer's display name (engagement triggers)</string>
     <string name="template_helper_engagement_days_since_last_seen">Days since this viewer was last seen chatting</string>
     <string name="template_helper_engagement_streak">The viewer's current watch-streak count</string>
+    <string name="template_helper_engagement_months">How many months this moderator has moderated the channel</string>
+    <string name="template_helper_engagement_years">The same anniversary in years, rounded for reading aloud</string>
     <string name="template_helper_supporter_name">The supporter's display name</string>
     <string name="template_helper_supporter_kind">The kind of supporter event (tip, membership, merch, charity)</string>
     <string name="template_helper_supporter_amount">The supporter amount, in major currency units (e.g. "12.34")</string>
@@ -4972,6 +4974,7 @@
     <string name="eventresponse_preset_engagement_first_time_chatter_template">Welcome to the stream, {user}!</string>
     <string name="eventresponse_preset_engagement_returning_chatter_template">Welcome back, {user}!</string>
     <string name="eventresponse_preset_engagement_watch_streak_template">{user} is on a {engagement.streak}-stream watch streak!</string>
+    <string name="eventresponse_preset_engagement_modiversary_template">{user} has been a moderator here for {engagement.months} months. Thank you!</string>
     <string name="eventresponse_preset_engagement_session_first_message_template">Welcome in, {user}!</string>
     <string name="eventresponse_preset_supporter_tip_template">{user} tipped {supporter.amount} {supporter.currency} — thank you!</string>
     <string name="eventresponse_preset_supporter_membership_template">{user} just became a member — thank you!</string>

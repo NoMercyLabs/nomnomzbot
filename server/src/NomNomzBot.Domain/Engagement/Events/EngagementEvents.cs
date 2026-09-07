@@ -43,3 +43,26 @@ public sealed class WatchStreakMilestoneEvent : DomainEventBase
     public required string ViewerDisplayName { get; init; }
     public required int StreakCount { get; init; }
 }
+
+/// <summary>
+/// A moderator reached an anniversary of moderating THIS channel, as announced by Twitch. Trigger kind
+/// <c>engagement.modiversary</c>.
+///
+/// <para>
+/// Unlike its siblings here this one is not bot-computed — it comes straight off EventSub
+/// (<c>channel.chat.notification</c>, notice_type=modiversary), translated by
+/// <c>ChannelChatNotificationTranslator</c>. There is no internal user Guid on it for that reason: the
+/// translator sees only what Twitch sent, and the mod may not have a <c>Users</c> row yet. The platform id is
+/// the identifier that matters anyway — it is the key a viewer's song-request history is written under, which
+/// is what the celebration reads.
+/// </para>
+/// </summary>
+public sealed class ModiversaryReachedEvent : DomainEventBase
+{
+    public required string ViewerExternalUserId { get; init; }
+    public required string ViewerDisplayName { get; init; }
+    public required string ViewerLogin { get; init; }
+
+    /// <summary>Whole months moderating this channel, from Twitch's own typed <c>modiversary.months</c>.</summary>
+    public required int Months { get; init; }
+}

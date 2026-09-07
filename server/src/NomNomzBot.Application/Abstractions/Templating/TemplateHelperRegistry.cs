@@ -275,6 +275,20 @@ public static class TemplateHelperRegistry
                 "template.helper.engagement_streak",
                 eventScoped: true
             ),
+            Literal(
+                "engagement.months",
+                EventSourceOnlyContexts,
+                "template.helper.engagement_months",
+                eventScoped: true
+            ),
+            // Seeded beside months rather than left to the operator: the templating language has no
+            // arithmetic, so "7 years" could otherwise only be written as a literal that goes stale.
+            Literal(
+                "engagement.years",
+                EventSourceOnlyContexts,
+                "template.helper.engagement_years",
+                eventScoped: true
+            ),
             // ── Supporter events (supporter.tip/.membership/.merch/.charity/.any) ──
             Literal(
                 "supporter.name",

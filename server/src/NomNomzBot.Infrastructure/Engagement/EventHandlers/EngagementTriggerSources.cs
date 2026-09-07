@@ -121,3 +121,54 @@ public sealed class WatchStreakTriggerSource
     public Task HandleAsync(WatchStreakMilestoneEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
+
+/// <summary>
+/// Fires the bound response for a moderator's anniversary of moderating this channel (trigger kind
+/// <c>engagement.modiversary</c>). Exposes <c>{engagement.months}</c> and <c>{engagement.years}</c>.
+///
+/// <para>
+/// Years is seeded alongside months because that is the number the celebration copy actually reads at the
+/// higher tiers ("has been a mod for 7 years"), and a template language has no arithmetic to derive it — an
+/// operator writing that line by hand would have to hardcode a number that goes stale a month later.
+/// </para>
+/// </summary>
+public sealed class ModiversaryTriggerSource
+    : TwitchAlertHandlerBase<ModiversaryReachedEvent>,
+        IEventHandler<ModiversaryReachedEvent>
+{
+    protected override string EventTypeKey => "engagement.modiversary";
+
+    public ModiversaryTriggerSource(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<ModiversaryTriggerSource> l
+    )
+        : base(s, p, l) { }
+
+    protected override string? GetUserId(ModiversaryReachedEvent e) => e.ViewerExternalUserId;
+
+    protected override string? GetUserDisplayName(ModiversaryReachedEvent e) => e.ViewerDisplayName;
+
+    protected override Dictionary<string, string> BuildVariables(ModiversaryReachedEvent e) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["user"] = e.ViewerDisplayName,
+            ["user.id"] = e.ViewerExternalUserId,
+            ["viewer.name"] = e.ViewerDisplayName,
+            ["engagement.months"] = e.Months.ToString(),
+            ["engagement.years"] = FormatYears(e.Months),
+        };
+
+    public Task HandleAsync(ModiversaryReachedEvent @event, CancellationToken ct = default) =>
+        HandleCoreAsync(@event, ct);
+
+    /// <summary>Whole years when the count lands close enough to one ("7"), one decimal otherwise ("7.5") — a
+    /// raw <c>months / 12</c> would put "7.0833333" in a chat announcement.</summary>
+    private static string FormatYears(int months)
+    {
+        double years = months / 12.0;
+        return Math.Abs(years - Math.Round(years)) < 0.05
+            ? ((int)Math.Round(years)).ToString()
+            : years.ToString("0.0");
+    }
+}

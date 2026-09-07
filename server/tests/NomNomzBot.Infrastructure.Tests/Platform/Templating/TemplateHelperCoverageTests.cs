@@ -122,6 +122,8 @@ public sealed partial class TemplateHelperCoverageTests
         "viewer.name",
         "engagement.daysSinceLastSeen",
         "engagement.streak",
+        "engagement.months",
+        "engagement.years", // both supplied by ModiversaryTriggerSource.BuildVariables
         "supporter.name",
         "supporter.kind",
         "supporter.amount",
