@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.Widgets.PipelineActions;
 using NSubstitute;
 
@@ -118,6 +119,29 @@ public sealed class WidgetEventActionTests
         data["user"].Should().Be("alice");
         data["count"].Should().Be(5L);
         data["vip"].Should().Be(true);
+    }
+
+    [Fact]
+    public async Task A_ulid_form_widget_id_still_resolves()
+    {
+        WidgetResolves(enabled: true);
+        string ulid = OwnedIdCodec.Encode(WidgetId);
+        ActionDefinition action = System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(
+            $$"""{"type":"widget_event","widget_id":"{{ulid}}","event_type":"alert"}"""
+        )!;
+
+        ActionResult result = await Action().ExecuteAsync(Ctx(), action);
+
+        result.Succeeded.Should().BeTrue();
+        await _overlay
+            .Received(1)
+            .SendWidgetEventAsync(
+                Broadcaster,
+                WidgetId,
+                "alert",
+                Arg.Any<object?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

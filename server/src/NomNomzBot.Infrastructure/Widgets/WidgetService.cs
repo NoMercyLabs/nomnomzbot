@@ -23,6 +23,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.PlatformContent.Entities;
@@ -1294,19 +1295,11 @@ public class WidgetService : IWidgetService
 
     // Decodes the bundle route's widget id, accepting BOTH wire forms a client may hold: the 26-char ULID the JSON
     // API serializes owned ids as (UlidGuidJsonConverter), and the raw UUIDv7 Guid the server-built overlay URL
-    // carries. This public, anonymous route reaches the service as a raw string (no model binder), so it mirrors the
-    // API-boundary GuidUlidCodec here — ULID first (its fixed 26-char length never collides with any Guid format),
+    // carries. This public, anonymous route reaches the service as a raw string (no model binder), so it decodes
+    // via the shared OwnedIdCodec — ULID first (its fixed 26-char length never collides with any Guid format),
     // then a raw Guid — rather than 404ing a perfectly valid ULID-serialized id like every other widget route accepts.
-    private static bool TryDecodeWidgetId(string value, out Guid id)
-    {
-        if (Ulid.TryParse(value, out Ulid ulid))
-        {
-            id = ulid.ToGuid();
-            return true;
-        }
-
-        return Guid.TryParse(value, out id);
-    }
+    private static bool TryDecodeWidgetId(string value, out Guid id) =>
+        OwnedIdCodec.TryDecode(value, out id);
 
     public IReadOnlyList<WidgetTemplate> GetTemplates()
     {

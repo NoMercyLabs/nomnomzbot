@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.Webhooks.PipelineActions;
 using NSubstitute;
@@ -144,6 +145,27 @@ public sealed class SendWebhookActionTests
                 Arg.Any<string>(),
                 Arg.Any<IReadOnlyDictionary<string, string>>(),
                 Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_ulid_form_endpoint_id_still_resolves()
+    {
+        (SendWebhookAction action, IOutboundWebhookDispatcher dispatcher) = Build();
+        string ulid = OwnedIdCodec.Encode(EndpointId);
+
+        ActionResult result = await action.ExecuteAsync(Context(), Action(("endpoint", ulid)));
+
+        result.Succeeded.Should().BeTrue();
+        await dispatcher
+            .Received(1)
+            .EnqueueForEndpointAsync(
+                Channel,
+                EndpointId,
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                null,
                 Arg.Any<CancellationToken>()
             );
     }

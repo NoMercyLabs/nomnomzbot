@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Webhooks.PipelineActions;
 
@@ -63,7 +64,7 @@ public sealed class SendWebhookAction : ICommandAction
         string? endpointRaw = action.GetString("endpoint");
         if (
             string.IsNullOrWhiteSpace(endpointRaw)
-            || !Guid.TryParse(endpointRaw, out Guid endpointId)
+            || !OwnedIdCodec.TryDecode(endpointRaw, out Guid endpointId)
         )
             return ActionResult.Failure(
                 "send_webhook requires an 'endpoint' parameter (an outbound webhook endpoint id)."

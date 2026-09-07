@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Widgets.PipelineActions;
 
@@ -67,7 +68,7 @@ public sealed class WidgetEventAction : ICommandAction
         ActionDefinition action
     )
     {
-        if (!Guid.TryParse(action.GetString("widget_id"), out Guid widgetId))
+        if (!OwnedIdCodec.TryDecode(action.GetString("widget_id"), out Guid widgetId))
             return ActionResult.Failure("widget_event requires a 'widget_id' (GUID).");
 
         string? eventType = action.GetString("event_type");

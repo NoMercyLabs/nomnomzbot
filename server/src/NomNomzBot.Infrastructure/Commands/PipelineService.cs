@@ -323,6 +323,16 @@ public class PipelineService : IPipelineService
             )
                 parentStepId = mappedParentId;
 
+            // Resource-id fields (run_code's code_script_id, send_webhook's endpoint, ...) arrive here in
+            // whatever form the dashboard's picker sent — typically the 26-char ULID the API just served it
+            // as — but every ICommandAction reading such a field back at execution time expects a raw Guid
+            // (S045). ValidatePipelineAsync/ValidateAction already rejected anything that isn't a decodable
+            // ULID-or-Guid, so this normalizes the accepted value into the canonical form before it is
+            // persisted, rather than storing the wire form and leaving every future run to fail closed.
+            ActionDefinition normalizedAction = _validator.NormalizeResourceIdFields(
+                stepDef.Action
+            );
+
             PipelineStep step = new()
             {
                 Id = freshIds[i],
@@ -334,7 +344,7 @@ public class PipelineService : IPipelineService
                 BlockConfigJson = stepDef.BlockConfig?.GetRawText(),
                 Order = stepDef.Order ?? i,
                 ActionType = stepDef.Action.Type,
-                ConfigJson = JsonSerializer.Serialize(stepDef.Action),
+                ConfigJson = JsonSerializer.Serialize(normalizedAction),
                 IsEnabled = true,
             };
             _db.PipelineSteps.Add(step);

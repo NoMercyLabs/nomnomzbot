@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.CustomCode.Enums;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.CustomCode.PipelineActions;
 
@@ -44,7 +45,7 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
         ActionDefinition action
     )
     {
-        if (!Guid.TryParse(action.GetString("code_script_id"), out Guid codeScriptId))
+        if (!OwnedIdCodec.TryDecode(action.GetString("code_script_id"), out Guid codeScriptId))
             return ActionResult.Failure("run_code requires a valid code_script_id.");
 
         IReadOnlyList<string> args =

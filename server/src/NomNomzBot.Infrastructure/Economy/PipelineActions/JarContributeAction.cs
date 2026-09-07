@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Economy.PipelineActions;
 
@@ -51,7 +52,7 @@ public sealed class JarContributeAction(ISavingsJarService jars) : ICommandActio
     {
         if (!Guid.TryParse(ctx.TriggeredByUserId, out Guid viewer))
             return ActionResult.Failure("jar_contribute requires a valid triggering viewer.");
-        if (!Guid.TryParse(action.GetString("jar_id"), out Guid jarId))
+        if (!OwnedIdCodec.TryDecode(action.GetString("jar_id"), out Guid jarId))
             return ActionResult.Failure("jar_contribute requires a valid 'jar_id'.");
 
         int amount = action.GetInt("amount");

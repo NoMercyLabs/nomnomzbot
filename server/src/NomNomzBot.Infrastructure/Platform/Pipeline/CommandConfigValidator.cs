@@ -12,6 +12,7 @@ using System.Text.Json;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 
@@ -38,6 +39,18 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
         "credential",
         "authorization",
         "bearer",
+    };
+
+    // Field kinds that reference one of the tenant's OWN owned-Guid entities — as opposed to
+    // PipelineActionFieldKind.DiscordChannel/DiscordRole/TwitchUser/Reward, which are native ids from an
+    // external platform and never carry our ULID wire form. The dashboard's picker for any of these returns
+    // the id in whatever form the API last served it (a 26-char ULID), so all four decode the same way.
+    private static readonly HashSet<PipelineActionFieldKind> OwnedIdFieldKinds = new()
+    {
+        PipelineActionFieldKind.ResourceId,
+        PipelineActionFieldKind.Widget,
+        PipelineActionFieldKind.SoundClip,
+        PipelineActionFieldKind.Asset,
     };
 
     // Patterns that indicate a value looks like a URL or credential (heuristic).
@@ -93,6 +106,47 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
                         )
                     );
             }
+        }
+
+        return Result.Success(PipelineValidationResult.Valid());
+    }
+
+    /// <summary>Validates every field an action declares <see cref="PipelineActionFieldKind.ResourceId"/> —
+    /// a reference to one of the tenant's own entities (a code script, a webhook endpoint, a widget, ...).
+    /// The dashboard's picker for such a field returns the id in whatever form the API last served it
+    /// (a 26-char ULID), so a value that decodes as neither a ULID nor a raw Guid is a malformed reference
+    /// that would otherwise only surface as a silent runtime failure the first time the step ran.</summary>
+    private Result<PipelineValidationResult> ValidateResourceIdFields(
+        string actionType,
+        IReadOnlyDictionary<string, object?> config
+    )
+    {
+        if (!_actionsByType.TryGetValue(actionType, out ICommandAction? action))
+            return Result.Success(PipelineValidationResult.Valid());
+
+        foreach (
+            PipelineActionFieldDescriptor field in action.Fields.Where(f =>
+                OwnedIdFieldKinds.Contains(f.Kind)
+            )
+        )
+        {
+            if (
+                !config.TryGetValue(field.Name, out object? rawValue)
+                || rawValue is not JsonElement { ValueKind: JsonValueKind.String } element
+            )
+                continue;
+
+            string? value = element.GetString();
+            if (string.IsNullOrEmpty(value))
+                continue;
+
+            if (!OwnedIdCodec.TryDecode(value, out _))
+                return Result.Success(
+                    PipelineValidationResult.Invalid(
+                        $"Field '{field.Name}' is not a valid resource reference.",
+                        "INVALID_RESOURCE_ID"
+                    )
+                );
         }
 
         return Result.Success(PipelineValidationResult.Valid());
@@ -187,6 +241,13 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
             );
             if (!templateValidation.Value.IsValid)
                 return Task.FromResult(templateValidation);
+
+            Result<PipelineValidationResult> resourceIdValidation = ValidateResourceIdFields(
+                step.ActionType,
+                step.Config
+            );
+            if (!resourceIdValidation.Value.IsValid)
+                return Task.FromResult(resourceIdValidation);
         }
 
         return Task.FromResult(Result.Success(PipelineValidationResult.Valid()));
@@ -212,7 +273,7 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
 
         if (action.Parameters is not null)
         {
-            foreach (KeyValuePair<string, System.Text.Json.JsonElement> kv in action.Parameters)
+            foreach (KeyValuePair<string, JsonElement> kv in action.Parameters)
             {
                 if (BannedConfigKeys.Contains(kv.Key))
                     return Result.Success(
@@ -222,7 +283,7 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
                         )
                     );
 
-                if (kv.Value.ValueKind == System.Text.Json.JsonValueKind.String)
+                if (kv.Value.ValueKind == JsonValueKind.String)
                 {
                     string strVal = kv.Value.GetString() ?? string.Empty;
                     if (
@@ -246,14 +307,68 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
                 }
             }
 
+            Dictionary<string, object?> paramsAsObjects = action.Parameters.ToDictionary(
+                kv => kv.Key,
+                kv => (object?)kv.Value
+            );
+
             Result<PipelineValidationResult> templateValidation = ValidateTemplatedFields(
                 action.Type,
-                action.Parameters.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+                paramsAsObjects
             );
             if (!templateValidation.Value.IsValid)
                 return templateValidation;
+
+            Result<PipelineValidationResult> resourceIdValidation = ValidateResourceIdFields(
+                action.Type,
+                paramsAsObjects
+            );
+            if (!resourceIdValidation.Value.IsValid)
+                return resourceIdValidation;
         }
 
         return Result.Success(PipelineValidationResult.Valid());
+    }
+
+    public ActionDefinition NormalizeResourceIdFields(ActionDefinition action)
+    {
+        if (
+            action.Parameters is null
+            || action.Parameters.Count == 0
+            || !_actionsByType.TryGetValue(action.Type, out ICommandAction? handler)
+        )
+            return action;
+
+        List<PipelineActionFieldDescriptor> resourceIdFields =
+        [
+            .. handler.Fields.Where(f => OwnedIdFieldKinds.Contains(f.Kind)),
+        ];
+        if (resourceIdFields.Count == 0)
+            return action;
+
+        Dictionary<string, JsonElement>? normalized = null;
+        foreach (PipelineActionFieldDescriptor field in resourceIdFields)
+        {
+            if (
+                !action.Parameters.TryGetValue(field.Name, out JsonElement raw)
+                || raw.ValueKind != JsonValueKind.String
+            )
+                continue;
+
+            string? value = raw.GetString();
+            if (
+                string.IsNullOrEmpty(value)
+                || !OwnedIdCodec.TryDecode(value, out Guid decoded)
+                || value == decoded.ToString()
+            )
+                continue;
+
+            normalized ??= new Dictionary<string, JsonElement>(action.Parameters);
+            normalized[field.Name] = JsonSerializer.SerializeToElement(decoded.ToString());
+        }
+
+        return normalized is null
+            ? action
+            : new ActionDefinition { Type = action.Type, Parameters = normalized };
     }
 }

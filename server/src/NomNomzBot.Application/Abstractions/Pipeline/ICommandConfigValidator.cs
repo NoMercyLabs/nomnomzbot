@@ -28,6 +28,16 @@ public interface ICommandConfigValidator
 
     /// <summary>Validates a single action definition in isolation.</summary>
     Result<PipelineValidationResult> ValidateAction(ActionDefinition action);
+
+    /// <summary>
+    /// Returns <paramref name="action"/> with every <see cref="PipelineActionFieldKind.ResourceId"/> field's
+    /// value normalized to its canonical raw-<see cref="Guid"/> string — decoding a ULID wire form when the
+    /// caller sent one (the dashboard's resource pickers return the owned id in whichever form the API last
+    /// served it in). Only call this on an action that already passed validation: a value that fails to decode
+    /// is left untouched, since <see cref="ValidatePipelineAsync"/>/<see cref="ValidateAction"/> already reject
+    /// that upstream.
+    /// </summary>
+    ActionDefinition NormalizeResourceIdFields(ActionDefinition action);
 }
 
 public sealed record PipelineGraphInput(IReadOnlyList<PipelineStepInput> Steps);

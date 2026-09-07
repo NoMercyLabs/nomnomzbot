@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.CustomCode.Enums;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.CustomCode.PipelineActions;
 using NSubstitute;
 
@@ -39,6 +40,16 @@ public sealed class RunCodeActionTests
                     ["code_script_id"] = JsonSerializer.SerializeToElement(g.ToString()),
                 }
                 : null,
+        };
+
+    private static ActionDefinition ActionWithRawCodeScriptId(string codeScriptId) =>
+        new()
+        {
+            Type = "run_code",
+            Parameters = new Dictionary<string, JsonElement>
+            {
+                ["code_script_id"] = JsonSerializer.SerializeToElement(codeScriptId),
+            },
         };
 
     private static PipelineExecutionContext Context() =>
@@ -114,6 +125,53 @@ public sealed class RunCodeActionTests
         ActionResult result = await sut.ExecuteAsync(Context(), Action(null));
 
         result.Succeeded.Should().BeFalse();
+    }
+
+    /// <summary>
+    /// Reproduces the live bug on qtkitte's channel: the dashboard's code-script picker stores whatever id
+    /// form the API last served it in — a 26-char ULID (UlidGuidJsonConverter) — and a step saved before the
+    /// save-time normalization (PipelineService.SyncStepRowsFromGraphAsync /
+    /// CommandConfigValidator.NormalizeResourceIdFields) landed carries that ULID in ConfigJson verbatim. A
+    /// bare Guid.TryParse on a ULID always fails, so run_code never even reached the script runner
+    /// (CodeScripts.LastRanAt stayed null) — the "!hug" command silently did nothing every time.
+    /// </summary>
+    [Fact]
+    public async Task A_ulid_form_code_script_id_still_resolves_and_runs()
+    {
+        IScriptRunner runner = RunnerReturning(
+            new(
+                ScriptExecutionOutcome.Success,
+                new Dictionary<string, string>(),
+                "hugs!",
+                StopPipeline: false,
+                ErrorMessage: null,
+                DenialReason: null
+            )
+        );
+        RunCodeAction sut = new(runner);
+        string ulid = OwnedIdCodec.Encode(ScriptId);
+
+        ActionResult result = await sut.ExecuteAsync(Context(), ActionWithRawCodeScriptId(ulid));
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("hugs!");
+        await runner
+            .Received(1)
+            .RunAsync(ScriptId, Arg.Any<ScriptInvocation>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_garbage_code_script_id_fails_with_the_same_message_as_missing()
+    {
+        RunCodeAction sut = new(Substitute.For<IScriptRunner>());
+
+        ActionResult result = await sut.ExecuteAsync(
+            Context(),
+            ActionWithRawCodeScriptId("not-an-id")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("run_code requires a valid code_script_id.");
     }
 
     [Fact]

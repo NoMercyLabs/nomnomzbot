@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Giveaways.Dtos;
 using NomNomzBot.Application.Giveaways.Services;
 using NomNomzBot.Domain.Giveaways.Entities;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Giveaways.PipelineActions;
 
@@ -46,7 +47,7 @@ public sealed class OpenGiveawayAction(IGiveawayService giveaways) : ICommandAct
         ActionDefinition action
     )
     {
-        if (!Guid.TryParse(action.GetString("giveaway_id"), out Guid giveawayId))
+        if (!OwnedIdCodec.TryDecode(action.GetString("giveaway_id"), out Guid giveawayId))
             return ActionResult.Failure("open_giveaway requires a 'giveaway_id'.");
 
         Result<GiveawayDto> opened = await giveaways.OpenAsync(
@@ -86,7 +87,7 @@ public sealed class DrawGiveawayAction(IGiveawayService giveaways, IApplicationD
         ActionDefinition action
     )
     {
-        Guid? giveawayId = Guid.TryParse(action.GetString("giveaway_id"), out Guid parsed)
+        Guid? giveawayId = OwnedIdCodec.TryDecode(action.GetString("giveaway_id"), out Guid parsed)
             ? parsed
             : await GiveawayActionSupport.ResolveActiveAsync(
                 db,
@@ -140,7 +141,7 @@ public sealed class EnterGiveawayAction(IGiveawayService giveaways, IApplication
         if (!Guid.TryParse(ctx.TriggeredByUserId, out Guid viewerUserId))
             return ActionResult.Failure("enter_giveaway requires a valid triggering viewer.");
 
-        Guid? giveawayId = Guid.TryParse(action.GetString("giveaway_id"), out Guid parsed)
+        Guid? giveawayId = OwnedIdCodec.TryDecode(action.GetString("giveaway_id"), out Guid parsed)
             ? parsed
             : await GiveawayActionSupport.ResolveActiveAsync(
                 db,

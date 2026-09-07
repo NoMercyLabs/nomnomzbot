@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Infrastructure.Sound.Audio;
@@ -360,7 +361,7 @@ internal sealed class SoundClipService : ISoundClipService
         CancellationToken ct = default
     )
     {
-        SoundClip? clip = Guid.TryParse(clipRef, out Guid clipId)
+        SoundClip? clip = OwnedIdCodec.TryDecode(clipRef, out Guid clipId)
             ? await _db.SoundClips.FirstOrDefaultAsync(
                 c => c.BroadcasterId == broadcasterId && c.Id == clipId && c.IsEnabled,
                 ct
