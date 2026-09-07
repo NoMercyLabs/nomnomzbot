@@ -117,6 +117,7 @@ public sealed class AutoModerationHandlerHeatTests
                 TimeProvider.System,
                 NullLogger<AutoModRuleCache>.Instance
             ),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
             NullLogger<AutoModerationHandler>.Instance
         );
 

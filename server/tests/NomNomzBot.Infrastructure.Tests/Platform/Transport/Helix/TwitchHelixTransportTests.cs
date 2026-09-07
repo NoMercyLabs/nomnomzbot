@@ -57,11 +57,18 @@ public class TwitchHelixTransportTests
 
         FakeTwitchTokenResolver resolver = new();
         CapturingEventBus bus = new();
+        // These tests exercise auth, retry and rate limiting, not the sanction gate, so the harness holds a
+        // standing sanction. The gate's own behaviour is proven in OutboundSanctionGateTests.
+        NomNomzBot.Infrastructure.Platform.Security.OutboundSanctionAccessor sanctions = new();
+        sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.UserAction("test", null)
+        );
         TwitchHelixTransport transport = new(
             new SingleClientFactory(httpClient),
             resolver,
             new StubCredentialsProvider(dbClientId),
             bus,
+            sanctions,
             NullLogger<TwitchHelixTransport>.Instance
         );
         return (transport, wire, resolver, bus);

@@ -46,6 +46,7 @@ public sealed class BotJoinOnOnboardingHandler(
     IApplicationDbContext db,
     ITwitchModeratorsApi moderators,
     IConfiguration configuration,
+    NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
     ILogger<BotJoinOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -111,6 +112,12 @@ public sealed class BotJoinOnOnboardingHandler(
                 );
                 return;
             }
+
+            using IDisposable sanction = sanctions.Begin(
+                NomNomzBot.Application.Contracts.Security.OutboundSanction.PlatformConfiguration(
+                    $"saas_bot_moderator_grant:{sharedBot.BotUsername}"
+                )
+            );
 
             Result modResult = await moderators.AddModeratorAsync(
                 @event.BroadcasterId,

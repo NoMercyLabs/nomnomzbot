@@ -482,7 +482,13 @@ public sealed class OnboardingSeedHandlerTests
             .Returns(Result.Success());
 
         ListLogger<BotJoinOnOnboardingHandler> log = new();
-        BotJoinOnOnboardingHandler sut = new(db, moderators, SaasBotConfig("tw-bot-1"), log);
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig("tw-bot-1"),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            log
+        );
 
         await sut.HandleAsync(Event());
 
@@ -498,7 +504,13 @@ public sealed class OnboardingSeedHandlerTests
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
 
         ListLogger<BotJoinOnOnboardingHandler> log = new();
-        BotJoinOnOnboardingHandler sut = new(db, moderators, SaasBotConfig("tw-bot-1"), log);
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig("tw-bot-1"),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            log
+        );
 
         await sut.HandleAsync(Event());
 
@@ -525,7 +537,13 @@ public sealed class OnboardingSeedHandlerTests
             );
 
         ListLogger<BotJoinOnOnboardingHandler> log = new();
-        BotJoinOnOnboardingHandler sut = new(db, moderators, SaasBotConfig("tw-bot-1"), log);
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig("tw-bot-1"),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            log
+        );
 
         Func<Task> act = () => sut.HandleAsync(Event());
 
@@ -546,7 +564,13 @@ public sealed class OnboardingSeedHandlerTests
             .ThrowsAsync(new InvalidOperationException("twitch is down"));
 
         ListLogger<BotJoinOnOnboardingHandler> log = new();
-        BotJoinOnOnboardingHandler sut = new(db, moderators, SaasBotConfig("tw-bot-1"), log);
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig("tw-bot-1"),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            log
+        );
 
         Func<Task> act = () => sut.HandleAsync(Event());
 
@@ -1077,6 +1101,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig("some-other-bot-id"),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
             log
         );
 
@@ -1098,7 +1123,13 @@ public sealed class OnboardingSeedHandlerTests
 
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
         ListLogger<BotJoinOnOnboardingHandler> log = new();
-        BotJoinOnOnboardingHandler sut = new(db, moderators, SaasBotConfig(), log);
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig(),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            log
+        );
 
         await sut.HandleAsync(Event());
 
@@ -1125,6 +1156,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig(username: "NomNomzBot"),
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
             log
         );
 

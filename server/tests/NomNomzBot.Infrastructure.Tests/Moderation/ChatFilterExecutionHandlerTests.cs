@@ -98,6 +98,7 @@ public sealed class ChatFilterExecutionHandlerTests
             moderation,
             escalation,
             users,
+            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
             NullLogger<ChatFilterExecutionHandler>.Instance
         );
         return new(handler, db, moderation, escalation, database);

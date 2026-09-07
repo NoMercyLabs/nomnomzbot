@@ -134,6 +134,8 @@ try
         {
             options.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider());
             options.Conventions.Add(new RateLimitReadTierConvention());
+            // Gate-2 pass -> the sanction the Helix transport demands for any outbound write.
+            options.Filters.Add<NomNomzBot.Api.Authorization.OutboundSanctionFilter>();
         })
         .AddJsonOptions(o =>
         {

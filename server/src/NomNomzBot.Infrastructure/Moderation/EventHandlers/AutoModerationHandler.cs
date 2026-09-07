@@ -43,16 +43,19 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAutoModRuleCache _rules;
+    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<AutoModerationHandler> _logger;
 
     public AutoModerationHandler(
         IServiceScopeFactory scopeFactory,
         IAutoModRuleCache rules,
+        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
         ILogger<AutoModerationHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _rules = rules;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -73,6 +76,13 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
             return;
+
+        // The channel's own automod rules are what authorise the ban/timeout below.
+        using IDisposable sanction = _sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                "automod_rule"
+            )
+        );
 
         IReadOnlyList<AutoModRule> rules = await _rules.GetAsync(broadcasterId, cancellationToken);
         if (rules.Count == 0)

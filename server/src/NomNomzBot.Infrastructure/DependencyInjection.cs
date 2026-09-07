@@ -771,6 +771,13 @@ public static class DependencyInjection
             typeof(IDeploymentProfileService) // singleton — boot detector + Current accessor (wired explicitly above)
         );
 
+        // Ambient outbound-sanction scope. Singleton because the AsyncLocal it wraps is process-wide state,
+        // and a scoped instance would hand each DI scope its own empty view of a flow already in progress.
+        services.AddSingleton<
+            Application.Contracts.Security.IOutboundSanctionAccessor,
+            Platform.Security.OutboundSanctionAccessor
+        >();
+
         // The song-request history rebuilds. Explicit because AddServicesByConvention only binds interfaces
         // whose name ENDS in "Service", and these two are named for what they do (a backfill, an importer)
         // rather than padded to fit the scan.

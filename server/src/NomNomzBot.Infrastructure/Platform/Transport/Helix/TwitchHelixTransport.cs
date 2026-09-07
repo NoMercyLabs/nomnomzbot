@@ -42,10 +42,43 @@ public sealed class TwitchHelixTransport(
     ITwitchTokenResolver tokenResolver,
     ISystemCredentialsProvider credentials,
     IEventBus eventBus,
+    NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
     ILogger<TwitchHelixTransport> logger
 ) : ITwitchHelixTransport
 {
     private const string HelixBase = "https://api.twitch.tv/helix";
+
+    /// <summary>
+    /// Every outbound call funnels through <c>SendCoreAsync</c>, so this is the one place that can make
+    /// "the bot only changes a third party's state when sanctioned" true rather than merely believed.
+    /// Fails CLOSED: a write with nothing claiming responsibility for it does not leave the process.
+    /// Reads pass untouched — reading changes nothing that belongs to anybody else.
+    /// </summary>
+    private Result RequireSanction(TwitchHelixRequest request)
+    {
+        if (!IsWrite(request.Method) || sanctions.Current is not null)
+            return Result.Success();
+
+        logger.LogError(
+            "Refused an unsanctioned outbound {Method} {Path} for {BroadcasterId}: no user action or "
+                + "configured basis claimed it. A write must name what authorised it.",
+            request.Method,
+            request.Path,
+            request.BroadcasterId
+        );
+
+        return Result.Failure(
+            "This action was not sanctioned: nothing recorded who or what authorised changing another "
+                + "platform's state.",
+            "UNSANCTIONED_WRITE"
+        );
+    }
+
+    private static bool IsWrite(HttpMethod method) =>
+        method == HttpMethod.Post
+        || method == HttpMethod.Patch
+        || method == HttpMethod.Put
+        || method == HttpMethod.Delete;
 
     // Twitch wire JSON is snake_case end to end (read and write). The naming policy lets the
     // per-endpoint DTOs stay plain PascalCase records with no per-property annotations, and
@@ -199,6 +232,10 @@ public sealed class TwitchHelixTransport(
         CancellationToken ct
     )
     {
+        Result sanctioned = RequireSanction(request);
+        if (sanctioned.IsFailure)
+            return sanctioned.WithValue<HttpResponseMessage>(null!);
+
         Result<TwitchAccessContext> tokenResult = request.Auth switch
         {
             TwitchHelixAuth.Operator when request.OperatorUserId is { } op =>

@@ -46,6 +46,7 @@ public sealed partial class ChatFilterExecutionHandler(
     ITwitchModerationApi moderation,
     IModerationEscalationService escalation,
     IUserService users,
+    NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
     ILogger<ChatFilterExecutionHandler> logger
 ) : IEventHandler<ChatMessageReceivedEvent>
 {
@@ -56,6 +57,14 @@ public sealed partial class ChatFilterExecutionHandler(
         CancellationToken cancellationToken = default
     )
     {
+        // The channel's own saved filters are what authorise every enforcement below; without this the
+        // transport refuses the timeout, which is the correct default for anything acting on its own.
+        using IDisposable sanction = sanctions.Begin(
+            NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                "chat_filter"
+            )
+        );
+
         // Enforcement rides Helix (Twitch-only), and the broadcaster + moderators are never auto-filtered.
         if (@event.IsBroadcaster || @event.IsModerator)
             return;
