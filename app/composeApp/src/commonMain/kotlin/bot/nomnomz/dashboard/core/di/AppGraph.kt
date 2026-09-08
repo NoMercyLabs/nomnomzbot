@@ -496,6 +496,7 @@ class AppGraph {
             builtinsApi = builtinsApi,
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
+            codeScriptsApi = codeScriptsApi,
             feedback = feedbackController,
             resourceLimits = billingApi::resourceLimits,
         )

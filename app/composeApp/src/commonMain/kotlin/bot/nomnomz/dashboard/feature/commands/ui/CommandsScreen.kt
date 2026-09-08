@@ -64,6 +64,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -74,6 +75,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
+import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
@@ -112,6 +114,11 @@ import nomnomzbot.composeapp.generated.resources.commands_delete_confirm
 import nomnomzbot.composeapp.generated.resources.commands_delete_message
 import nomnomzbot.composeapp.generated.resources.commands_delete_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.commands_dialog_code_script_choose
+import nomnomzbot.composeapp.generated.resources.commands_dialog_code_script_create_confirm
+import nomnomzbot.composeapp.generated.resources.commands_dialog_code_script_create_new
+import nomnomzbot.composeapp.generated.resources.commands_dialog_code_script_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_code_script_new_name
 import nomnomzbot.composeapp.generated.resources.commands_dialog_create
 import nomnomzbot.composeapp.generated.resources.commands_default_template
 import nomnomzbot.composeapp.generated.resources.commands_dialog_create_title
@@ -259,10 +266,16 @@ fun CommandsScreen(
             is CommandsState.Empty -> s.pickListNames
             else -> emptyList()
         }
+        val codeScripts: List<CodeScriptSummary> = when (val s: CommandsState = state) {
+            is CommandsState.Ready -> s.codeScripts
+            is CommandsState.Empty -> s.codeScripts
+            else -> emptyList()
+        }
         CommandFormDialog(
             editor = open,
             pipelines = pipelines,
             pickListNames = pickListNames,
+            codeScripts = codeScripts,
             templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
             onSubmit = { input ->
@@ -274,6 +287,11 @@ fun CommandsScreen(
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onTestRunPipeline = { pipelineId, variables -> controller.testRunPipeline(pipelineId, variables) },
+            onCreateCodeScript = { name -> controller.createCodeScript(name) },
+            onResolveCodeScriptId = { pipelineId -> controller.resolveCodeScriptId(pipelineId) },
+            onBindCodeScript = { existingPipelineId, codeScriptId, commandName ->
+                controller.bindCodeScript(existingPipelineId, codeScriptId, commandName)
+            },
         )
     }
 
@@ -674,11 +692,15 @@ private fun CommandFormDialog(
     editor: CommandEditor,
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
+    codeScripts: List<CodeScriptSummary>,
     templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onSubmit: (CommandInput) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
+    onCreateCodeScript: suspend (name: String) -> CodeScriptSummary?,
+    onResolveCodeScriptId: suspend (pipelineId: String) -> String?,
+    onBindCodeScript: suspend (existingPipelineId: String?, codeScriptId: String, commandName: String) -> String?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -707,6 +729,18 @@ private fun CommandFormDialog(
     val aliases: SnapshotStateList<String> =
         remember { mutableStateListOf<String>().apply { addAll(editor.aliases) } }
     var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
+    var selectedCodeScriptId: String? by remember { mutableStateOf(null) }
+    var creatingCodeScript: Boolean by remember { mutableStateOf(false) }
+    var newCodeScriptName: String by remember { mutableStateOf("") }
+
+    // A "code" command's reaction is a single-step run_code pipeline behind the scenes (S046-code-tier-link) —
+    // opening the edit dialog on one has to look inside that bound pipeline to know which script is shown as
+    // selected. Not needed on create (nothing bound yet) or for any other tier.
+    LaunchedEffect(editor.tier, editor.pipelineId) {
+        if (editor.tier == "code") {
+            selectedCodeScriptId = editor.pipelineId?.let { onResolveCodeScriptId(it) }
+        }
+    }
     var cooldown: String by remember { mutableStateOf(editor.cooldownSeconds.toString()) }
     var cooldownPerUser: Boolean by remember { mutableStateOf(editor.cooldownPerUser) }
     var userCooldown: String by remember { mutableStateOf(editor.userCooldownSeconds.toString()) }
@@ -726,7 +760,7 @@ private fun CommandFormDialog(
     val hasReaction: Boolean =
         when (tier) {
             "pipeline" -> selectedPipelineId != null
-            "code" -> true
+            "code" -> selectedCodeScriptId != null
             else -> if (randomMode) responses.any { it.isNotBlank() } else response.isNotBlank()
         }
     val canSubmit: Boolean =
@@ -813,11 +847,69 @@ private fun CommandFormDialog(
                             onClick = { testRunController.reset(); testRunDialogOpen = true },
                         )
                     }
-                    "code" ->
+                    "code" -> {
                         Text(
                             text = stringResource(Res.string.commands_tier_code_hint),
                             color = tokens.mutedForeground,
                         )
+                        if (creatingCodeScript) {
+                            AppTextField(
+                                value = newCodeScriptName,
+                                onValueChange = { newCodeScriptName = it },
+                                label = stringResource(Res.string.commands_dialog_code_script_new_name),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(onClick = { creatingCodeScript = false; newCodeScriptName = "" }) {
+                                    Text(
+                                        text = stringResource(Res.string.commands_dialog_cancel),
+                                        color = tokens.mutedForeground,
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        val scriptName: String = newCodeScriptName.trim()
+                                        testRunScope.launch {
+                                            val created: CodeScriptSummary? = onCreateCodeScript(scriptName)
+                                            if (created != null) {
+                                                selectedCodeScriptId = created.id
+                                                creatingCodeScript = false
+                                                newCodeScriptName = ""
+                                            }
+                                        }
+                                    },
+                                    enabled = newCodeScriptName.isNotBlank(),
+                                ) {
+                                    Text(
+                                        text = stringResource(Res.string.commands_dialog_code_script_create_confirm),
+                                        color = tokens.primary,
+                                    )
+                                }
+                            }
+                        } else {
+                            EntityPickerField(
+                                items = codeScripts,
+                                selectedId = selectedCodeScriptId,
+                                onSelect = { selectedCodeScriptId = it },
+                                idOf = { it.id },
+                                labelOf = { it.name },
+                                label = stringResource(Res.string.commands_dialog_code_script_label),
+                                placeholder = stringResource(Res.string.commands_dialog_code_script_choose),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            TextButton(onClick = { creatingCodeScript = true }) {
+                                AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
+                                Text(
+                                    text = stringResource(Res.string.commands_dialog_code_script_create_new),
+                                    color = tokens.primary,
+                                )
+                            }
+                        }
+                    }
                     else -> {
                         // Single response ↔ random-response list.
                         SwitchRow(
@@ -968,30 +1060,44 @@ private fun CommandFormDialog(
             }
         },
         confirmButton = {
+            // A "code" command's reaction has no field of its own to send — it IS a single-step run_code
+            // pipeline (S046-code-tier-link), so submitting it first creates/repoints that wrapping pipeline
+            // (onBindCodeScript) and only then submits with the resulting pipelineId. Every other tier submits
+            // straight away with whatever pipelineId is already resolved.
+            fun buildInput(resolvedPipelineId: String?): CommandInput =
+                CommandInput(
+                    name = name,
+                    tier = tier,
+                    minPermissionLevel = minLevel,
+                    prefixMode = prefixMode,
+                    customPrefix = if (prefixMode == "Custom") customPrefix else null,
+                    matchMode = matchMode,
+                    matchPattern = if (matchMode == "Regex") matchPattern else null,
+                    templateResponse =
+                        if (tier == "template" && !randomMode) response else null,
+                    templateResponses =
+                        if (tier == "template" && randomMode) responses.toList() else emptyList(),
+                    pipelineId = resolvedPipelineId,
+                    cooldownSeconds = cooldownValue ?: 0,
+                    userCooldownSeconds = userCooldownValue ?: 0,
+                    cooldownPerUser = cooldownPerUser,
+                    description = description,
+                    aliases = aliases.toList(),
+                    isEnabled = enabled,
+                )
+
             TextButton(
                 onClick = {
-                    onSubmit(
-                        CommandInput(
-                            name = name,
-                            tier = tier,
-                            minPermissionLevel = minLevel,
-                            prefixMode = prefixMode,
-                            customPrefix = if (prefixMode == "Custom") customPrefix else null,
-                            matchMode = matchMode,
-                            matchPattern = if (matchMode == "Regex") matchPattern else null,
-                            templateResponse =
-                                if (tier == "template" && !randomMode) response else null,
-                            templateResponses =
-                                if (tier == "template" && randomMode) responses.toList() else emptyList(),
-                            pipelineId = if (tier == "pipeline") selectedPipelineId else null,
-                            cooldownSeconds = cooldownValue ?: 0,
-                            userCooldownSeconds = userCooldownValue ?: 0,
-                            cooldownPerUser = cooldownPerUser,
-                            description = description,
-                            aliases = aliases.toList(),
-                            isEnabled = enabled,
-                        )
-                    )
+                    val codeScriptId: String? = selectedCodeScriptId
+                    if (tier == "code" && codeScriptId != null) {
+                        testRunScope.launch {
+                            val boundPipelineId: String? =
+                                onBindCodeScript(selectedPipelineId, codeScriptId, name.trim())
+                            if (boundPipelineId != null) onSubmit(buildInput(boundPipelineId))
+                        }
+                    } else if (tier != "code") {
+                        onSubmit(buildInput(if (tier == "pipeline") selectedPipelineId else null))
+                    }
                 },
                 enabled = canSubmit,
             ) {

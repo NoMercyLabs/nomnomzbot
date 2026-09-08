@@ -852,6 +852,11 @@
     <string name="commands_tier_pipeline">Pijplijn</string>
     <string name="commands_tier_code">Codescript</string>
     <string name="commands_tier_code_hint">Code wordt bewerkt in de Codescripts-editor; dit commando behoudt zijn script.</string>
+    <string name="commands_dialog_code_script_label">Codescript</string>
+    <string name="commands_dialog_code_script_choose">Kies een codescript</string>
+    <string name="commands_dialog_code_script_create_new">Nieuw codescript maken</string>
+    <string name="commands_dialog_code_script_new_name">Naam nieuw script</string>
+    <string name="commands_dialog_code_script_create_confirm">Maken</string>
     <string name="commands_dialog_permission_label">Wie mag het gebruiken</string>
     <string name="commands_perm_everyone">Iedereen</string>
     <string name="commands_perm_subscriber">Abonnees</string>

@@ -19,20 +19,27 @@ import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CodeScriptSummary
+import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
+import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
+import bot.nomnomz.dashboard.core.network.PipelineNode
+import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
+import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -59,6 +66,10 @@ class CommandsController(
     private val builtinsApi: BuiltinsApi,
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
+    // Nullable like every other optional integration this controller can run without (feature not wired for
+    // this deployment) — mirrors PipelinesController's own codeScriptsApi, which the "code" tier's underlying
+    // run_code pipeline step already depends on.
+    private val codeScriptsApi: CodeScriptsApi? = null,
     private val feedback: Feedback = NoOpFeedback,
     // The channel's truthful resource-limit report (S-BUDGETS-b1's `GET .../billing/limits`), narrowed to just
     // the read this controller needs — a lambda default rather than the full `BillingApi` so this controller's
@@ -106,6 +117,7 @@ class CommandsController(
         val builtinsResult: ApiResult<List<BuiltinCommand>> = builtinsApi.list(channel.id)
         val pipelinesResult: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)
         val pickListsResult: ApiResult<List<PickList>> = pickListsApi.list()
+        val codeScriptsResult: ApiResult<List<CodeScriptSummary>>? = codeScriptsApi?.list()
 
         when (commandsResult) {
             is ApiResult.Failure -> {
@@ -124,6 +136,11 @@ class CommandsController(
         // to no helper (an empty list renders nothing) — it must never block the commands page.
         val pickListNames: List<String> =
             if (pickListsResult is ApiResult.Ok) pickListsResult.value.map { it.name } else emptyList()
+        // The channel's code scripts for the "code" tier's script picker. A failure — or the feature not being
+        // wired for this deployment (codeScriptsApi null) — degrades to an empty picker (the field still shows,
+        // just with nothing to pick yet); it must never block the commands page.
+        val codeScripts: List<CodeScriptSummary> =
+            if (codeScriptsResult is ApiResult.Ok) codeScriptsResult.value else emptyList()
 
         // Best-effort: a failure to fetch the limits report just leaves the create affordance unblocked (never
         // fails the page) — the backend still enforces the real limit on the write itself either way.
@@ -135,13 +152,14 @@ class CommandsController(
 
         _state.value =
             if (commands.isEmpty() && builtins.isEmpty())
-                CommandsState.Empty(pipelines = pipelines, pickListNames = pickListNames)
+                CommandsState.Empty(pipelines = pipelines, pickListNames = pickListNames, codeScripts = codeScripts)
             else
                 CommandsState.Ready(
                     commands = commands,
                     builtins = builtins,
                     pipelines = pipelines,
                     pickListNames = pickListNames,
+                    codeScripts = codeScripts,
                 )
     }
 
@@ -172,6 +190,88 @@ class CommandsController(
                 )
         ) {
             is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
+    }
+
+    /**
+     * Create a new code script named [name] with an empty starter body — the "code" tier's create-and-bind
+     * flow (mirrors [bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController.createCodeScript]): the
+     * operator never has to leave this dialog to first make a script on the Code Scripts page. Returns the
+     * created [CodeScriptSummary] so the caller can select it immediately, or null on failure (surfaced on the
+     * frame like every other write here).
+     */
+    suspend fun createCodeScript(name: String): CodeScriptSummary? {
+        val api: CodeScriptsApi = codeScriptsApi ?: return null
+        return when (val result: ApiResult<CodeScriptSummary> = api.create(CreateScriptBody(name = name, sourceCode = ""))) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
+    }
+
+    /**
+     * Resolve the code script currently bound to the "code" tier command's underlying [pipelineId] — that
+     * pipeline's sole `run_code` step's `code_script_id` param. There is no HTTP path that runs a script
+     * directly (custom-code.md §5): a "code" command's reaction IS a single-step pipeline behind the scenes
+     * (S046-code-tier-link), so opening the edit dialog on one has to look inside that pipeline to know which
+     * script is bound. Null on a missing pipeline, a fetch failure, or a pipeline whose graph was hand-edited
+     * away from the single-run_code-step shape this dialog always writes.
+     */
+    suspend fun resolveCodeScriptId(pipelineId: String): String? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<PipelineDetail> = pipelinesApi.get(channel, pipelineId)) {
+            is ApiResult.Ok ->
+                result.value.chain.steps
+                    .firstOrNull { it.action.type == "run_code" }
+                    ?.action
+                    ?.params
+                    ?.get("code_script_id")
+            is ApiResult.Failure -> null
+        }
+    }
+
+    /**
+     * Bind [codeScriptId] as the "code" tier command's reaction: a single-step `run_code` pipeline is the ONLY
+     * way a script executes (custom-code.md §5 — "no HTTP endpoint runs a script"), so this creates that
+     * wrapping pipeline when [existingPipelineId] is null, or repoints an already-bound one's graph at the
+     * (possibly changed) script otherwise. Named after [commandName] so it reads sensibly on the Pipelines
+     * page. Returns the bound pipeline's id, or null on failure (surfaced on the frame).
+     */
+    suspend fun bindCodeScript(
+        existingPipelineId: String?,
+        codeScriptId: String,
+        commandName: String,
+    ): String? {
+        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        val graph: JsonObject =
+            PipelineGraph(
+                steps = listOf(PipelineStep(action = PipelineNode(type = "run_code", params = mapOf("code_script_id" to codeScriptId)))),
+            ).toJson()
+
+        if (existingPipelineId == null) {
+            return when (
+                val result: ApiResult<PipelineDetail> =
+                    pipelinesApi.createReturning(
+                        channel,
+                        CreatePipelineBody(name = commandName.ifBlank { "command" }, graph = graph),
+                    )
+            ) {
+                is ApiResult.Ok -> result.value.id
+                is ApiResult.Failure -> {
+                    failWrite(result.error.message)
+                    null
+                }
+            }
+        }
+
+        return when (val result: ApiResult<Unit> = pipelinesApi.update(channel, existingPipelineId, UpdatePipelineBody(graph = graph))) {
+            is ApiResult.Ok -> existingPipelineId
             is ApiResult.Failure -> {
                 failWrite(result.error.message)
                 null
@@ -369,16 +469,19 @@ sealed interface CommandsState {
         val builtins: List<BuiltinCommand> = emptyList(),
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
+        val codeScripts: List<CodeScriptSummary> = emptyList(),
         val actionError: String? = null,
     ) : CommandsState
 
     /**
-     * No commands yet, but the channel is onboarded. Carries [pipelines] and [pickListNames] so the create dialog
-     * (with its pipeline selector + random-response insert helper) still works.
+     * No commands yet, but the channel is onboarded. Carries [pipelines], [pickListNames] and [codeScripts] so
+     * the create dialog (with its pipeline selector, random-response insert helper, and code-script picker)
+     * still works.
      */
     data class Empty(
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
+        val codeScripts: List<CodeScriptSummary> = emptyList(),
     ) : CommandsState
 
     data class Error(val detail: String) : CommandsState

@@ -1651,6 +1651,72 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
+    public async Task A_code_tier_command_dispatches_through_the_bound_pipeline_not_the_template_fallback()
+    {
+        // A "code" command has no field of its own to execute — its reaction IS a single-step run_code
+        // pipeline (custom-code.md §5: no HTTP endpoint runs a script, only the run_code pipeline action
+        // does), so it must dispatch through the exact same bound-pipeline path as a "pipeline" command
+        // rather than falling into the template/builtin branch (regression: 2026-09-08, the "code" tier had
+        // no dispatch branch at all and fell straight through to the template fallback).
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["runscript"] = new()
+        {
+            Name = "runscript",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "code",
+            PipelineGraphJson =
+                "{\"steps\":[{\"action\":{\"type\":\"run_code\",\"code_script_id\":\"abc\"}}]}",
+        };
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+        IInboundOriginChatSender chat = NoopChatSender();
+        IEventBus bus = Substitute.For<IEventBus>();
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        pipeline
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-4",
+                    Outcome = PipelineOutcome.Completed,
+                    Duration = TimeSpan.Zero,
+                }
+            );
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            chat,
+            pipeline,
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            bus,
+            new(),
+            TimeProvider.System,
+            new OutboundSanctionAccessor(),
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(MessageEvent("!runscript"), CancellationToken.None);
+
+        await pipeline
+            .Received(1)
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "runscript" && e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Reply_form_rejected_falls_back_to_a_plain_mention_and_still_reports_success()
     {
         // Twitch refuses the reply form (e.g. a deleted/invalid parent message) — the response must still

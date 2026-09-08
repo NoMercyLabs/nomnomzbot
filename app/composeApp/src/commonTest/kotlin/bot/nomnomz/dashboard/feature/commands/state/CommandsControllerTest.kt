@@ -443,6 +443,121 @@ class CommandsControllerTest {
 
         assertEquals("engine exploded", (result as ApiResult.Failure).error.message)
     }
+
+    // S046-code-tier-link — the "code" tier's reaction IS a single-step run_code pipeline (custom-code.md §5:
+    // no HTTP endpoint runs a script directly), so binding a script has to create/repoint that wrapping
+    // pipeline, and opening the edit dialog on one has to read the script back out of it.
+
+    @Test
+    fun bind_code_script_creates_a_wrapping_pipeline_when_none_is_bound_yet() = runTest {
+        val pipelinesApi = RecordingPipelinesApi()
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+            )
+        controller.load()
+
+        val boundId: String? = controller.bindCodeScript(null, "script-9", "!runscript")
+
+        assertEquals("new-pipe-1", boundId)
+        assertEquals("!runscript", pipelinesApi.lastCreatedName)
+        assertEquals("ch1", pipelinesApi.lastCreatedChannelId)
+        val steps: kotlinx.serialization.json.JsonArray =
+            pipelinesApi.lastCreatedGraph?.get("steps") as kotlinx.serialization.json.JsonArray
+        assertEquals(1, steps.size)
+        val action: kotlinx.serialization.json.JsonObject =
+            (steps[0] as kotlinx.serialization.json.JsonObject)["action"] as kotlinx.serialization.json.JsonObject
+        assertEquals("run_code", (action["type"] as kotlinx.serialization.json.JsonPrimitive).content)
+        assertEquals("script-9", (action["code_script_id"] as kotlinx.serialization.json.JsonPrimitive).content)
+    }
+
+    @Test
+    fun bind_code_script_repoints_an_already_bound_pipeline_instead_of_creating_a_second_one() = runTest {
+        val pipelinesApi = RecordingPipelinesApi()
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+            )
+        controller.load()
+
+        val boundId: String? = controller.bindCodeScript("existing-pipe-1", "script-42", "!runscript")
+
+        assertEquals("existing-pipe-1", boundId)
+        assertEquals("existing-pipe-1", pipelinesApi.lastUpdatedId)
+        assertEquals("ch1", pipelinesApi.lastUpdatedChannelId)
+        assertNull(pipelinesApi.lastCreatedName)
+        val steps: kotlinx.serialization.json.JsonArray =
+            pipelinesApi.lastUpdatedGraph?.get("steps") as kotlinx.serialization.json.JsonArray
+        val action: kotlinx.serialization.json.JsonObject =
+            (steps[0] as kotlinx.serialization.json.JsonObject)["action"] as kotlinx.serialization.json.JsonObject
+        assertEquals("script-42", (action["code_script_id"] as kotlinx.serialization.json.JsonPrimitive).content)
+    }
+
+    @Test
+    fun resolve_code_script_id_reads_it_from_the_bound_pipelines_run_code_step() = runTest {
+        val graph: kotlinx.serialization.json.JsonObject =
+            kotlinx.serialization.json.JsonObject(
+                mapOf(
+                    "steps" to kotlinx.serialization.json.JsonArray(
+                        listOf(
+                            kotlinx.serialization.json.JsonObject(
+                                mapOf(
+                                    "action" to kotlinx.serialization.json.JsonObject(
+                                        mapOf(
+                                            "type" to kotlinx.serialization.json.JsonPrimitive("run_code"),
+                                            "code_script_id" to kotlinx.serialization.json.JsonPrimitive("script-7"),
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        val pipelinesApi =
+            RecordingPipelinesApi(getResult = ApiResult.Ok(PipelineDetail(id = "pipe-1", name = "x", graph = graph)))
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+            )
+        controller.load()
+
+        val resolved: String? = controller.resolveCodeScriptId("pipe-1")
+
+        assertEquals("script-7", resolved)
+    }
+
+    @Test
+    fun create_code_script_creates_a_script_with_an_empty_starter_body() = runTest {
+        val codeScriptsApi = RecordingCodeScriptsApi()
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+                codeScriptsApi = codeScriptsApi,
+            )
+        controller.load()
+
+        val created: bot.nomnomz.dashboard.core.network.CodeScriptSummary? = controller.createCodeScript("greeter")
+
+        assertEquals("greeter", created?.name)
+        assertEquals("greeter", codeScriptsApi.lastCreatedName)
+    }
 }
 
 // ── Fakes ────────────────────────────────────────────────────────────────────────────────────────
@@ -580,9 +695,14 @@ private class FakePipelinesApi : PipelinesApi {
 private class RecordingPipelinesApi(
     private val createResult: ApiResult<PipelineDetail>? = null,
     private val testRunResult: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult>? = null,
+    private val getResult: ApiResult<PipelineDetail>? = null,
 ) : PipelinesApi {
     var lastCreatedName: String? = null
     var lastCreatedChannelId: String? = null
+    var lastCreatedGraph: kotlinx.serialization.json.JsonObject? = null
+    var lastUpdatedId: String? = null
+    var lastUpdatedChannelId: String? = null
+    var lastUpdatedGraph: kotlinx.serialization.json.JsonObject? = null
     var lastTestRunPipelineId: String? = null
     var lastTestRunChannelId: String? = null
     var lastTestRunVariables: Map<String, String>? = null
@@ -593,18 +713,23 @@ private class RecordingPipelinesApi(
         ApiResult.Ok(PipelineCatalogueRemote())
 
     override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
-        ApiResult.Failure(ApiError(404, "NOT_FOUND", "not found"))
+        getResult ?: ApiResult.Failure(ApiError(404, "NOT_FOUND", "not found"))
 
     override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = ApiResult.Ok(Unit)
 
     override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> {
         lastCreatedName = body.name
         lastCreatedChannelId = channelId
+        lastCreatedGraph = body.graph
         return createResult ?: ApiResult.Ok(PipelineDetail(id = "new-pipe-1", name = body.name))
     }
 
-    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> {
+        lastUpdatedId = id
+        lastUpdatedChannelId = channelId
+        lastUpdatedGraph = body.graph
+        return ApiResult.Ok(Unit)
+    }
 
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
@@ -624,6 +749,65 @@ private class RecordingPipelinesApi(
         lastTestRunVariables = body.variables
         return testRunResult ?: ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult(success = true))
     }
+}
+
+// Records the create-and-bind call the "code" tier's script picker makes.
+private class RecordingCodeScriptsApi : bot.nomnomz.dashboard.core.network.CodeScriptsApi {
+    var lastCreatedName: String? = null
+
+    override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.CodeScriptSummary>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun get(id: String): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptDetail> =
+        error("stub")
+
+    override suspend fun create(
+        body: bot.nomnomz.dashboard.core.network.CreateScriptBody
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptSummary> {
+        lastCreatedName = body.name
+        return ApiResult.Ok(bot.nomnomz.dashboard.core.network.CodeScriptSummary(id = "script-new-1", name = body.name))
+    }
+
+    override suspend fun createVersion(
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.CreateVersionBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptVersion> = error("stub")
+
+    override suspend fun getProject(id: String): ApiResult<bot.nomnomz.dashboard.core.network.ProjectDto> =
+        error("stub")
+
+    override suspend fun putProject(
+        id: String,
+        project: bot.nomnomz.dashboard.core.network.ProjectDto,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptVersion> = error("stub")
+
+    override suspend fun listVersions(
+        id: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PaginatedEnvelope<bot.nomnomz.dashboard.core.network.CodeScriptVersion>> =
+        error("stub")
+
+    override suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit> = error("stub")
+
+    override suspend fun publishVersion(
+        id: String,
+        versionId: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptSummary> = error("stub")
+
+    override suspend fun setEnabled(
+        id: String,
+        enabled: Boolean,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptSummary> = error("stub")
+
+    override suspend fun delete(id: String): ApiResult<Unit> = error("stub")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> = error("stub")
+
+    override suspend fun testRun(
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.ScriptTestRunBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> = error("stub")
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful

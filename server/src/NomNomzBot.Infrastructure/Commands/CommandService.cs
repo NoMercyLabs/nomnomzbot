@@ -444,7 +444,10 @@ public class CommandService : ICommandService
         if (command is null)
             return Errors.NotFound<string>("Command", commandName);
 
-        if (command is { Tier: "pipeline", PipelineId: not null })
+        // A "code" command's reaction IS a single-step run_code pipeline (custom-code.md §5 — no HTTP
+        // endpoint runs a script directly), so it dispatches through the same bound-pipeline path as a
+        // "pipeline" command.
+        if (command.Tier is "pipeline" or "code" && command.PipelineId is not null)
         {
             // Load the pipeline's graph cache to drive the engine (steps-first engine is Slice 4).
             Pipeline? pipeline = await _db.Pipelines.FirstOrDefaultAsync(

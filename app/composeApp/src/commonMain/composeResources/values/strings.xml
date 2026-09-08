@@ -855,6 +855,11 @@
     <string name="commands_tier_pipeline">Pipeline</string>
     <string name="commands_tier_code">Code script</string>
     <string name="commands_tier_code_hint">Code is authored in the Code Scripts editor; this command keeps its script.</string>
+    <string name="commands_dialog_code_script_label">Code script</string>
+    <string name="commands_dialog_code_script_choose">Choose a code script</string>
+    <string name="commands_dialog_code_script_create_new">Create a new code script</string>
+    <string name="commands_dialog_code_script_new_name">New script name</string>
+    <string name="commands_dialog_code_script_create_confirm">Create</string>
     <string name="commands_dialog_permission_label">Who can use it</string>
     <string name="commands_perm_everyone">Everyone</string>
     <string name="commands_perm_subscriber">Subscribers</string>
