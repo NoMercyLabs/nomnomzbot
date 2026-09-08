@@ -113,6 +113,28 @@ public sealed class PipelineServiceValidationTests
             .Be("send_message");
     }
 
+    /// <summary>
+    /// The dashboard always creates a brand-new pipeline with a zero-step starter graph
+    /// (<c>{"steps":[]}</c>) — every "New Pipeline" button and every create-and-bind flow (commands, event
+    /// responses, timers, rewards) sends exactly this — then the tree editor is where actions get added.
+    /// Rejecting a zero-step graph here would make every one of those first-save flows fail before the
+    /// operator ever gets a chance to add a step (regression: 2026-09-08, this was live in production for a
+    /// time under error code EMPTY_PIPELINE).
+    /// </summary>
+    [Fact]
+    public async Task CreateAsync_accepts_the_dashboards_zero_step_starter_graph()
+    {
+        (PipelineService service, AuthDbContext db) = Build();
+
+        Result<PipelineDto> result = await service.CreateAsync(
+            Broadcaster.ToString(),
+            new() { Name = "brand-new", GraphJsonCache = GraphWith() }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        (await db.Pipelines.CountAsync()).Should().Be(1);
+    }
+
     [Fact]
     public async Task CreateAsync_rejects_a_graph_exceeding_the_step_cap()
     {

@@ -182,12 +182,12 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
         CancellationToken ct = default
     )
     {
-        if (graph.Steps.Count == 0)
-            return Task.FromResult(
-                Result.Success(
-                    PipelineValidationResult.Invalid("Pipeline has no steps.", "EMPTY_PIPELINE")
-                )
-            );
+        // A newly created pipeline always starts as an empty graph — the dashboard creates it with zero
+        // steps, then the tree editor is where actions get added (PipelinesControllerTest's
+        // "create_posts_an_empty_starter_graph..." pins this). A zero-step pipeline is a legitimate, if
+        // inert, entity: ChatMessageHandler already tolerates and logs a pipeline command whose graph is
+        // empty rather than treating it as an error. Rejecting it here would make every "New Pipeline"
+        // and create-and-bind action in the app fail on its first save.
 
         if (graph.Steps.Count > 100)
             return Task.FromResult(
