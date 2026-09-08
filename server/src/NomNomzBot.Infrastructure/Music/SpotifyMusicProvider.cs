@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Services;
@@ -84,6 +85,7 @@ public sealed class SpotifyMusicProvider
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<SpotifyMusicProvider> _logger;
     private readonly Identity.IConnectionRefreshGate _refreshGate;
+    private readonly IOutboundSanctionAccessor _sanctions;
 
     public SpotifyMusicProvider(
         IApplicationDbContext db,
@@ -95,7 +97,8 @@ public sealed class SpotifyMusicProvider
         ILogger<SpotifyMusicProvider> logger,
         ISystemCredentialsProvider credentials,
         Identity.IConnectionRefreshGate refreshGate,
-        IChannelCredentialsResolver channelCredentials
+        IChannelCredentialsResolver channelCredentials,
+        IOutboundSanctionAccessor sanctions
     )
     {
         _db = db;
@@ -108,6 +111,7 @@ public sealed class SpotifyMusicProvider
         _credentials = credentials;
         _refreshGate = refreshGate;
         _channelCredentials = channelCredentials;
+        _sanctions = sanctions;
     }
 
     public string Provider => ProviderName;
@@ -1543,6 +1547,15 @@ public sealed class SpotifyMusicProvider
 
         try
         {
+            // Keeping the broadcaster's own vaulted Spotify token fresh is inherent to their having connected
+            // it — the same "already-opted-in, no person present" basis as HelixChatProvider's chat-send and
+            // PipelineEngine's step execution. Without this, background readers (the now-playing widget's
+            // poll, a scheduled refresh sweep) carry no ambient sanction at all, so OutboundSanctionHandler
+            // refuses the refresh POST and the whole integration goes silently dark once the token expires —
+            // it is not a write to anything the broadcaster didn't already consent to.
+            using IDisposable sanction = _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration("spotify:oauth_token_refresh")
+            );
             HttpResponseMessage response = await _http.PostAsync(
                 SpotifyTokenEndpoint,
                 form,

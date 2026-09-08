@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -170,7 +171,8 @@ public sealed class SpotifyMusicProviderRetryStormTests
             NullLogger<SpotifyMusicProvider>.Instance,
             new FixedSpotifyCredentialsProvider(),
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(new FixedSpotifyCredentialsProvider())
+            new NullChannelCredentialsResolver(new FixedSpotifyCredentialsProvider()),
+            new OutboundSanctionAccessor()
         );
 
         return (provider, vault, upsert.Value.Id);

@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -162,7 +163,8 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
             NullLogger<SpotifyMusicProvider>.Instance,
             new FixedSpotifyCredentialsProvider(),
             gate,
-            new NullChannelCredentialsResolver(new FixedSpotifyCredentialsProvider())
+            new NullChannelCredentialsResolver(new FixedSpotifyCredentialsProvider()),
+            new OutboundSanctionAccessor()
         );
     }
 

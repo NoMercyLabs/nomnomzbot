@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -421,7 +422,8 @@ public sealed class SpotifyMusicProviderManageWriteTests
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
+            new OutboundSanctionAccessor()
         );
         YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 

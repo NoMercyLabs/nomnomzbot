@@ -11,9 +11,11 @@
 using System.Net;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -59,7 +61,7 @@ public sealed class LastActiveSpotifyDeviceTrackerTests
         await handler.HandleAsync(
             new()
             {
-                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                Provider = AuthEnums.Platform.Twitch,
                 BroadcasterId = endingChannel,
                 BroadcasterDisplayName = "Stoney_Eagle",
                 StreamDuration = TimeSpan.FromHours(2),
@@ -179,7 +181,8 @@ public sealed class SpotifyMusicProviderDeviceRecoveryTests
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
+            new OutboundSanctionAccessor()
         );
         return (spotify, handler, tracker);
     }

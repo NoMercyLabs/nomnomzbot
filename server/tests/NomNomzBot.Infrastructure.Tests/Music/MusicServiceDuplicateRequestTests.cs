@@ -16,6 +16,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -175,7 +176,8 @@ public sealed class MusicServiceDuplicateRequestTests
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
+            new OutboundSanctionAccessor()
         );
 
         MusicService sut = new(

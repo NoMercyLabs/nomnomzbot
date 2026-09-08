@@ -16,6 +16,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -192,7 +193,7 @@ public sealed class MusicServiceQueuePushTests
 
     // POST only â€” a GET to the same path is the duplicate-check's own provider-queue probe (one per
     // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
-    // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
+    // POST only ï¿½ a GET to the same path is the duplicate-check's own provider-queue probe (one per
     // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
     private static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
@@ -261,7 +262,8 @@ public sealed class MusicServiceQueuePushTests
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
+            new OutboundSanctionAccessor()
         );
 
         MusicService sut = new(

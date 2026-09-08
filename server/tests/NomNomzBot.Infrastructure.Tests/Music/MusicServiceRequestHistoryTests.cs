@@ -20,6 +20,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 using RequestRecord = NomNomzBot.Domain.Platform.Entities.Record;
@@ -142,7 +143,8 @@ public sealed class MusicServiceRequestHistoryTests
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
+            new OutboundSanctionAccessor()
         );
 
         MusicService sut = new(

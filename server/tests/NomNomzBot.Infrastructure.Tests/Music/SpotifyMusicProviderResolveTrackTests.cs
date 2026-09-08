@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -232,7 +233,8 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             NullLogger<SpotifyMusicProvider>.Instance,
             NullSystemCredentialsProvider.Instance,
             new ConnectionRefreshGate(),
-            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance)
+            new NullChannelCredentialsResolver(NullSystemCredentialsProvider.Instance),
+            new OutboundSanctionAccessor()
         );
         return (provider, handler);
     }
