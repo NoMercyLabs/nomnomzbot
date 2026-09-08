@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
@@ -46,6 +47,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
     private readonly IMusicRealtimeSignal _realtime;
     private readonly ISongRequestQueueStore _queueStore;
     private readonly TimeProvider _clock;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<SpotifyDealerHostedService> _logger;
 
     private readonly ConcurrentDictionary<Guid, RunningConnection> _running = new();
@@ -58,6 +60,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
         IMusicRealtimeSignal realtime,
         ISongRequestQueueStore queueStore,
         TimeProvider clock,
+        IOutboundSanctionAccessor sanctions,
         ILogger<SpotifyDealerHostedService> logger
     )
     {
@@ -68,6 +71,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
         _realtime = realtime;
         _queueStore = queueStore;
         _clock = clock;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -173,6 +177,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
             _realtime,
             _queueStore,
             _clock,
+            _sanctions,
             _logger
         );
         Task run = connection.RunAsync(cts.Token);

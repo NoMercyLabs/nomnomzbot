@@ -12,8 +12,11 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Discord.EventHandlers;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
@@ -42,13 +45,14 @@ public sealed class DiscordGoLiveNotificationHandlerTests
         Guid channel = Guid.CreateVersion7();
         DiscordGoLiveNotificationHandler handler = new(
             dispatcher,
+            new OutboundSanctionAccessor(),
             NullLogger<DiscordGoLiveNotificationHandler>.Instance
         );
 
         await handler.HandleAsync(
             new()
             {
-                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                Provider = AuthEnums.Platform.Twitch,
                 BroadcasterId = channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamTitle = "blame the lag",
@@ -71,6 +75,58 @@ public sealed class DiscordGoLiveNotificationHandlerTests
             );
     }
 
+    /// <summary>
+    /// The go-live post reaches Discord through the same sanctioned "discord" HttpClient the pipeline action
+    /// and the live-role handlers use — proven live by <c>UnsanctionedOutboundCallException</c> reaching
+    /// broadcasters until this handler opened its own scope. Asserts the REAL basis
+    /// <see cref="OutboundSanction"/> the dispatch call runs under, not merely that a disposable was created.
+    /// </summary>
+    [Fact]
+    public async Task HandleAsync_OpensAChannelConfigurationSanction_BeforeDispatching()
+    {
+        OutboundSanctionAccessor sanctions = new();
+        OutboundSanction? observedDuringDispatch = null;
+        IDiscordNotificationDispatcher dispatcher =
+            Substitute.For<IDiscordNotificationDispatcher>();
+        dispatcher
+            .DispatchAsync(Arg.Any<DiscordDispatchRequest>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+            {
+                observedDuringDispatch = sanctions.Current;
+                return Result.Success(
+                    new DiscordDispatchOutcomeDto(Guid.CreateVersion7(), "sent", "m1", null)
+                );
+            });
+        DiscordGoLiveNotificationHandler handler = new(
+            dispatcher,
+            sanctions,
+            NullLogger<DiscordGoLiveNotificationHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Guid.CreateVersion7(),
+                BroadcasterDisplayName = "Stoney",
+                StreamTitle = "t",
+                GameName = "g",
+                StartedAt = DateTimeOffset.UtcNow,
+            }
+        );
+
+        observedDuringDispatch
+            .Should()
+            .NotBeNull("nothing else in this event-driven path opens one");
+        observedDuringDispatch!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        observedDuringDispatch.Detail.Should().Be("discord_go_live_notification");
+        sanctions
+            .Current.Should()
+            .BeNull(
+                "the scope must close once the dispatch returns, not leak into whatever runs next"
+            );
+    }
+
     [Fact]
     public async Task HandleAsync_NoConfiguredRule_IsANoOp()
     {
@@ -88,6 +144,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
 
         DiscordGoLiveNotificationHandler handler = new(
             dispatcher,
+            new OutboundSanctionAccessor(),
             NullLogger<DiscordGoLiveNotificationHandler>.Instance
         );
 
@@ -96,7 +153,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
             handler.HandleAsync(
                 new()
                 {
-                    Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                    Provider = AuthEnums.Platform.Twitch,
                     BroadcasterId = Guid.CreateVersion7(),
                     BroadcasterDisplayName = "Stoney",
                     StreamTitle = "t",
@@ -115,13 +172,14 @@ public sealed class DiscordGoLiveNotificationHandlerTests
             Substitute.For<IDiscordNotificationDispatcher>();
         DiscordGoLiveNotificationHandler handler = new(
             dispatcher,
+            new OutboundSanctionAccessor(),
             NullLogger<DiscordGoLiveNotificationHandler>.Instance
         );
 
         await handler.HandleAsync(
             new()
             {
-                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                Provider = AuthEnums.Platform.Twitch,
                 BroadcasterId = Guid.Empty, // platform sentinel — not a real tenant
                 BroadcasterDisplayName = "x",
                 StreamTitle = "t",

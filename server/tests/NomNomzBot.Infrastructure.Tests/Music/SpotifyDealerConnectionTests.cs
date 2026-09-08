@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.Realtime;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -215,6 +216,7 @@ public sealed class SpotifyDealerConnectionTests
             realtime,
             new SongRequestQueueStore(),
             clock,
+            new OutboundSanctionAccessor(),
             NullLogger.Instance
         );
 
@@ -258,6 +260,67 @@ public sealed class SpotifyDealerConnectionTests
         catch (OperationCanceledException) { }
     }
 
+    /// <summary>
+    /// The live incident: the dealer's subscribe PUT runs from a background reconnect loop with no chat
+    /// command, no dashboard action, nothing that would have opened an <see cref="IOutboundSanctionAccessor"/>
+    /// scope — confirmed live by <c>UnsanctionedOutboundCallException</c> on
+    /// <c>https://api.spotify.com/v1/me/notifications/player</c> reaching broadcasters. Runs the REAL
+    /// <see cref="OutboundSanctionHandler"/> (the exact chain the "spotify" named HttpClient gets in
+    /// production, per DependencyInjection.cs) with no ambient sanction open anywhere on the call stack.
+    /// </summary>
+    [Fact]
+    public async Task SubscribeAsync_ReachesSpotify_ThroughTheRealSanctionGate_WithNoAmbientSanctionOpen()
+    {
+        ScriptedChannel channel = new([ConnectionIdFrame("conn-1")], idleAfterScript: true);
+        ScriptedChannelFactory factory = new(channel);
+
+        RecordingEventBus bus = new();
+        MusicRealtimeSignal realtime = new();
+        FakeTimeProvider clock = new(new(2026, 9, 4, 12, 0, 0, TimeSpan.Zero));
+        RecordingSubscribeHandler inner = new();
+        OutboundSanctionHandler gate = new(
+            new OutboundSanctionAccessor(),
+            NullLogger<OutboundSanctionHandler>.Instance
+        )
+        {
+            InnerHandler = inner,
+        };
+        HttpClient http = new(gate) { BaseAddress = new("https://api.spotify.com") };
+
+        SpotifyDealerConnection connection = new(
+            ChannelId,
+            factory,
+            http,
+            _ => Task.FromResult<string?>("test-access-token"),
+            bus,
+            realtime,
+            new SongRequestQueueStore(),
+            clock,
+            new OutboundSanctionAccessor(),
+            NullLogger.Instance
+        );
+
+        using CancellationTokenSource cts = new();
+        Task run = connection.RunAsync(cts.Token);
+
+        for (int i = 0; i < 60 && inner.SubscribedConnectionIds.Count < 1; i++)
+            await Task.Delay(15);
+
+        inner
+            .SubscribedConnectionIds.Should()
+            .Equal(
+                ["conn-1"],
+                "the subscribe PUT must reach Spotify even though nothing above this call opened a sanction"
+            );
+
+        await cts.CancelAsync();
+        try
+        {
+            await run;
+        }
+        catch (OperationCanceledException) { }
+    }
+
     private static SpotifyDealerConnection NewConnection(
         RecordingEventBus bus,
         MusicRealtimeSignal realtime,
@@ -273,6 +336,7 @@ public sealed class SpotifyDealerConnectionTests
             realtime,
             queueStore ?? new SongRequestQueueStore(),
             clock,
+            new OutboundSanctionAccessor(),
             NullLogger.Instance
         );
 

@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -220,7 +221,7 @@ public sealed class ChatCommandEffectiveLevelTests
         // The short-circuit: the badge already met the floor, so the DB seam was never touched.
         await users
             .DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
         await resolver.DidNotReceiveWithAnyArgs().ResolveEffectiveLevelAsync(default, default);
     }
 
@@ -248,7 +249,7 @@ public sealed class ChatCommandEffectiveLevelTests
             );
         await users
             .DidNotReceiveWithAnyArgs()
-            .GetOrCreateAsync(default!, default!, default!, default!, default);
+            .GetOrCreateAsync(default!, default!, default!, default!);
         await resolver.DidNotReceiveWithAnyArgs().ResolveEffectiveLevelAsync(default, default);
     }
 
@@ -322,8 +323,8 @@ public sealed class ChatCommandEffectiveLevelTests
             );
 
         ServiceCollection services = new();
-        services.AddSingleton<IUserService>(users);
-        services.AddSingleton<IRoleResolver>(resolver);
+        services.AddSingleton(users);
+        services.AddSingleton(resolver);
         ServiceProvider provider = services.BuildServiceProvider();
 
         ITemplateResolver templates = Substitute.For<ITemplateResolver>();
@@ -349,6 +350,7 @@ public sealed class ChatCommandEffectiveLevelTests
             Substitute.For<IEventBus>(),
             new(),
             clock,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

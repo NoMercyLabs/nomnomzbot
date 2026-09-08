@@ -11,6 +11,7 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -28,14 +29,17 @@ public sealed class DiscordGoLiveNotificationHandler : IEventHandler<ChannelOnli
     private const string Trigger = "go_live";
 
     private readonly IDiscordNotificationDispatcher _dispatcher;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<DiscordGoLiveNotificationHandler> _logger;
 
     public DiscordGoLiveNotificationHandler(
         IDiscordNotificationDispatcher dispatcher,
+        IOutboundSanctionAccessor sanctions,
         ILogger<DiscordGoLiveNotificationHandler> logger
     )
     {
         _dispatcher = dispatcher;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -60,6 +64,13 @@ public sealed class DiscordGoLiveNotificationHandler : IEventHandler<ChannelOnli
             ["title"] = @event.StreamTitle,
             ["game"] = @event.GameName,
         };
+
+        // Posting to the broadcaster's Discord server is the same class of act as the live-role assignment
+        // this event also drives. It is allowed here because the broadcaster configured a go-live rule, and
+        // the sanction names that setting so the post is traceable to it.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("discord_go_live_notification")
+        );
 
         Result<DiscordDispatchOutcomeDto> result = await _dispatcher.DispatchAsync(
             new(@event.BroadcasterId, Trigger, dedupeKey, StreamId: null, templateData),

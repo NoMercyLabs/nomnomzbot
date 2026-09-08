@@ -26,6 +26,7 @@ using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -85,10 +86,8 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
     }
 
     [Fact]
@@ -158,10 +157,8 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
     }
 
     [Fact]
@@ -176,7 +173,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.BroadcasterId == Broadcaster
                     && e.CommandName == BuiltinKey
@@ -201,10 +198,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
-                default!,
-                default
-            );
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(default!);
     }
 
     // ── per-command trigger model (Commands.PrefixMode / MatchMode — commands-pipelines.md §3.2.1) ──────
@@ -228,7 +222,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("?hype"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "hype" && e.Succeeded
                 ),
@@ -256,10 +250,9 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(MessageEvent("!hype"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
                 Arg.Any<CancellationToken>()
             );
@@ -285,7 +278,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("!hi there"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "hi"
                 ),
@@ -312,7 +305,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("time to party tonight"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "party"
                 ),
@@ -339,7 +332,7 @@ public sealed class ChatMessageHandlerTests
         await startsWithSut.HandleAsync(MessageEvent("!go now"), CancellationToken.None);
         await startsWithBus
             .Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -356,12 +349,10 @@ public sealed class ChatMessageHandlerTests
         (ChatMessageHandler exactSut, IInboundOriginChatSender exactChat, IEventBus exactBus) =
             BuildWithGames(exactCtx, new());
         await exactSut.HandleAsync(MessageEvent("!go now"), CancellationToken.None);
-        await exactChat
-            .DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await exactChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         await exactBus
             .DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
                 Arg.Any<CancellationToken>()
             );
@@ -402,6 +393,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -410,8 +402,7 @@ public sealed class ChatMessageHandlerTests
         await pipelineEngine
             .DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default!, Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
     }
 
     // ── per-channel command prefix (Channel.CommandPrefix) ──────────────────
@@ -429,7 +420,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("?hello"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.BroadcasterId == Broadcaster && e.CommandName == "hello" && e.Succeeded
                 ),
@@ -453,15 +444,10 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
-                default!,
-                default
-            );
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(default!);
     }
 
     [Fact]
@@ -503,7 +489,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.BroadcasterId == Broadcaster && e.CommandName == BuiltinKey && e.Succeeded
                 ),
@@ -593,6 +579,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -632,6 +619,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -666,6 +654,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -788,6 +777,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
         return (sut, executor);
@@ -999,6 +989,7 @@ public sealed class ChatMessageHandlerTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1049,15 +1040,10 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
 
         // No reply, no send, and — critically — no fabricated execution fact (analytics must not count it).
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
-                default!,
-                default
-            );
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(default!);
 
         // The guard is a READ-ONLY deferral: it never mutated or terminated the round, so LiveGameInputListener
         // (the authoritative consumer on its own fan-out) still owns the message and its !heist keyword.
@@ -1093,7 +1079,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == HeistCommand && e.Succeeded
                 ),
@@ -1129,7 +1115,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "drop" && e.Succeeded
                 ),
@@ -1177,13 +1163,9 @@ public sealed class ChatMessageHandlerTests
                 "You don't have permission to use that command.",
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
-                default!,
-                default
-            );
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(default!);
     }
 
     [Fact]
@@ -1228,6 +1210,7 @@ public sealed class ChatMessageHandlerTests
             bus,
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1242,10 +1225,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
-                default!,
-                default
-            );
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(default!);
     }
 
     // ── S-MOD-NO-COOLDOWN: broadcaster/moderator are never held by a command cooldown ──────────
@@ -1277,7 +1257,7 @@ public sealed class ChatMessageHandlerTests
         );
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1318,7 +1298,7 @@ public sealed class ChatMessageHandlerTests
         );
 
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1358,7 +1338,7 @@ public sealed class ChatMessageHandlerTests
         );
 
         await bus.Received(2)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1390,7 +1370,7 @@ public sealed class ChatMessageHandlerTests
         );
 
         await bus.Received(2)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1504,6 +1484,7 @@ public sealed class ChatMessageHandlerTests
             bus,
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1588,6 +1569,7 @@ public sealed class ChatMessageHandlerTests
             bus,
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1602,7 +1584,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "broken" && !e.Succeeded
                 ),
@@ -1653,17 +1635,16 @@ public sealed class ChatMessageHandlerTests
             bus,
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
         await sut.HandleAsync(MessageEvent("!clean"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1741,7 +1722,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == BuiltinKey && !e.Succeeded
                 ),
@@ -1767,10 +1748,9 @@ public sealed class ChatMessageHandlerTests
                 BuiltinResponse,
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1824,7 +1804,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == BuiltinKey && !e.Succeeded
                 ),
@@ -1858,10 +1838,9 @@ public sealed class ChatMessageHandlerTests
                 BuiltinResponse,
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1920,7 +1899,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "hello" && !e.Succeeded
                 ),
@@ -1967,7 +1946,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+            .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -2092,6 +2071,7 @@ public sealed class ChatMessageHandlerTests
             bus,
             games,
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -2149,6 +2129,7 @@ public sealed class ChatMessageHandlerTests
             bus,
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

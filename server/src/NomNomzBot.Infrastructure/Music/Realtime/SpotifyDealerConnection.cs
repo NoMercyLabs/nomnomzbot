@@ -12,6 +12,7 @@ using System.Net.WebSockets;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Contracts.Music;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
@@ -50,6 +51,7 @@ internal sealed class SpotifyDealerConnection
     private readonly IMusicRealtimeSignal _realtime;
     private readonly ISongRequestQueueStore _queueStore;
     private readonly TimeProvider _clock;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger _logger;
 
     // Every base (pre-jitter) backoff delay scheduled so far, in issue order — a test/diagnostics seam for
@@ -70,6 +72,7 @@ internal sealed class SpotifyDealerConnection
         IMusicRealtimeSignal realtime,
         ISongRequestQueueStore queueStore,
         TimeProvider clock,
+        IOutboundSanctionAccessor sanctions,
         ILogger logger
     )
     {
@@ -81,6 +84,7 @@ internal sealed class SpotifyDealerConnection
         _realtime = realtime;
         _queueStore = queueStore;
         _clock = clock;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -247,6 +251,13 @@ internal sealed class SpotifyDealerConnection
 
         try
         {
+            // Subscribing this connection to state-change pushes is inherent to the broadcaster's own
+            // dealer socket staying useful — the same "already-opted-in, no person present" basis as the
+            // token refresh this connection also depends on. It changes nothing on the broadcaster's
+            // account; it only tells Spotify where to push events for a connection they already granted.
+            using IDisposable sanction = _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration("spotify:dealer_subscribe")
+            );
             using HttpRequestMessage request = new(
                 HttpMethod.Put,
                 $"{SubscribeUrl}?connection_id={Uri.EscapeDataString(connectionId)}"

@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -59,6 +60,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IEventBus _eventBus;
     private readonly LiveGameSessionRegistry _gameSessions;
     private readonly TimeProvider _timeProvider;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger<ChatMessageHandler> _logger;
 
     public ChatMessageHandler(
@@ -72,6 +74,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IEventBus eventBus,
         LiveGameSessionRegistry gameSessions,
         TimeProvider timeProvider,
+        IOutboundSanctionAccessor sanctions,
         ILogger<ChatMessageHandler> logger
     )
     {
@@ -85,6 +88,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _eventBus = eventBus;
         _gameSessions = gameSessions;
         _timeProvider = timeProvider;
+        _sanctions = sanctions;
         _logger = logger;
     }
 
@@ -386,19 +390,26 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         try
         {
-            // A pipeline command with no executable graph used to fall silently through to the template
+            // A "code" command has no field of its own to execute — its reaction IS a single-step run_code
+            // pipeline (custom-code.md §5: no HTTP endpoint runs a script, execution happens only via the
+            // run_code pipeline action), so it dispatches through the exact same bound-pipeline path as a
+            // "pipeline" command.
+            bool isPipelineBound = command.Tier is "pipeline" or "code";
+
+            // A pipeline-bound command with no executable graph used to fall silently through to the template
             // branch and answer nothing — the command "ran" (CommandExecutedEvent and all) while the flow
             // behind it never executed, which is indistinguishable from a broken feature. Say it instead:
             // the pipeline is missing, disabled, or was never built.
-            if (command.Tier == "pipeline" && string.IsNullOrEmpty(command.PipelineGraphJson))
+            if (isPipelineBound && string.IsNullOrEmpty(command.PipelineGraphJson))
                 _logger.LogWarning(
-                    "Command !{Command} on channel {BroadcasterId} is a pipeline command with no executable "
-                        + "graph — its pipeline is missing, disabled, or has never been saved. Nothing ran.",
+                    "Command !{Command} on channel {BroadcasterId} is a pipeline-bound command with no "
+                        + "executable graph — its pipeline is missing, disabled, or has never been saved. "
+                        + "Nothing ran.",
                     command.Name,
                     @event.BroadcasterId
                 );
 
-            if (command.Tier == "pipeline" && !string.IsNullOrEmpty(command.PipelineGraphJson))
+            if (isPipelineBound && !string.IsNullOrEmpty(command.PipelineGraphJson))
             {
                 // Pipelines gate on `user.role` via SYNCHRONOUS conditions, so the variable must carry
                 // the EFFECTIVE role up front — a badge-less Editor or a !permit elevation would
@@ -760,6 +771,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         Result<string> result;
         try
         {
+            // A built-in runs because the broadcaster left it enabled for their channel (or it is reserved
+            // and always on) — the same basis IPipelineEngine already claims for a channel's own pipelines.
+            // Naming the built-in key is what lets a broadcaster trace an outbound change (e.g. a song
+            // landing in their Spotify queue) back to the feature they left switched on.
+            using IDisposable sanction = _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration($"builtin:{builtin.BuiltinKey}")
+            );
             result = await builtin.ExecuteAsync(builtinCtx, ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)

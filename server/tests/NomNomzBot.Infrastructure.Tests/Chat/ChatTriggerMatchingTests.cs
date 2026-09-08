@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -140,6 +141,7 @@ public sealed class ChatTriggerMatchingTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
         return (sut, chat, pipeline);
@@ -245,8 +247,7 @@ public sealed class ChatTriggerMatchingTests
         (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line("the secret word"), CancellationToken.None);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
 
         await sut.HandleAsync(Line("the secret word", isModerator: true), CancellationToken.None);
         await chat.Received(1)
@@ -285,8 +286,7 @@ public sealed class ChatTriggerMatchingTests
                 ),
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
     }
 
     [Fact]
@@ -337,6 +337,7 @@ public sealed class ChatTriggerMatchingTests
             Substitute.For<IEventBus>(),
             new(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -352,8 +353,7 @@ public sealed class ChatTriggerMatchingTests
                 2,
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
 
         // An out-of-range number is NOT a vote — it falls through to the trigger surface as usual.
         await sut.HandleAsync(Line("9"), CancellationToken.None);
@@ -389,10 +389,8 @@ public sealed class ChatTriggerMatchingTests
         await sut.HandleAsync(Line("hello everyone"), CancellationToken.None);
         await sut.HandleAsync(Line("!uptime"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default!);
         await pipeline
             .DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default!, Arg.Any<CancellationToken>());
@@ -410,7 +408,6 @@ public sealed class ChatTriggerMatchingTests
 
         await sut.HandleAsync(Line("!uptime"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
     }
 }

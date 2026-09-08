@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.Realtime;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -80,6 +81,7 @@ public sealed class SpotifyDealerHostedServiceTests
             new MusicRealtimeSignal(),
             new SongRequestQueueStore(),
             new FakeTimeProvider(new(2026, 9, 4, 0, 0, 0, TimeSpan.Zero)),
+            new OutboundSanctionAccessor(),
             NullLogger<SpotifyDealerHostedService>.Instance
         );
 
@@ -129,6 +131,7 @@ public sealed class SpotifyDealerHostedServiceTests
             new MusicRealtimeSignal(),
             new SongRequestQueueStore(),
             new FakeTimeProvider(new(2026, 9, 4, 0, 0, 0, TimeSpan.Zero)),
+            new OutboundSanctionAccessor(),
             NullLogger<SpotifyDealerHostedService>.Instance
         );
 
