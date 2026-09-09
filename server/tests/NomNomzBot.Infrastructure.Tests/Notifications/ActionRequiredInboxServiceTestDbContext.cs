@@ -38,9 +38,9 @@ namespace NomNomzBot.Infrastructure.Tests.Notifications;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over just the entities the action-required inbox aggregation
-/// exercises (S071a) — <see cref="IntegrationConnection"/> and <see cref="NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem"/>
-/// — on a real relational SQLite connection, mirroring the "declare every DbSet, throw on the unmapped ones"
-/// shape of <c>Moderation/ModerationServiceTestDbContext.cs</c>.
+/// exercises (S071a) — <see cref="IntegrationConnection"/>, <see cref="NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem"/>,
+/// and <see cref="Reward"/> — on a real relational SQLite connection, mirroring the "declare every DbSet, throw
+/// on the unmapped ones" shape of <c>Moderation/ModerationServiceTestDbContext.cs</c>.
 /// </summary>
 internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IApplicationDbContext
 {
@@ -103,6 +103,8 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
         Set<NomNomzBot.Domain.Moderation.Entities.SpamSignature>();
 
+    public DbSet<Reward> Rewards => Set<Reward>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<IntegrationConnection>(e =>
@@ -115,6 +117,12 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         b.Entity<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem>(e =>
         {
             e.HasKey(i => i.Id);
+        });
+
+        b.Entity<Reward>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Ignore(r => r.Channel);
         });
 
         b.ApplyConfiguration(
@@ -132,6 +140,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(IntegrationConnection),
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem),
         typeof(NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal),
+        typeof(Reward),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -160,7 +169,6 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
-    public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();

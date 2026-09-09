@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Notifications.Entities;
+using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Notifications;
 
 namespace NomNomzBot.Infrastructure.Tests.Notifications;
@@ -386,5 +387,129 @@ public sealed class ActionRequiredInboxServiceTests
                 [$"held:{liveHold.Id}"],
                 "another channel's dismissal of the same key never reaches this tenant"
             );
+    }
+
+    // ── Unmanaged rewards — the ownership-migration onboarding signal (rewards.md) ──
+
+    private static Reward UnmanagedReward(string twitchRewardId, DateTime createdAt) =>
+        new()
+        {
+            BroadcasterId = ChannelId,
+            Title = twitchRewardId,
+            Cost = 100,
+            TwitchRewardId = twitchRewardId,
+            IsManageable = false,
+            CreatedAt = createdAt,
+        };
+
+    [Fact]
+    public async Task GetItemsAsync_SurfacesUnmanagedRewards_GroupedIntoOneItem_WithInfoSeverity()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        DateTime t0 = new(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
+        db.Rewards.AddRange(
+            UnmanagedReward("ext-1", t0),
+            UnmanagedReward("ext-2", t0.AddMinutes(5))
+        );
+        await db.SaveChangesAsync();
+        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+
+        Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
+
+        ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
+        item.Kind.Should().Be("unmanaged_rewards");
+        item.Severity.Should().Be("info");
+        item.Count.Should().Be(2);
+        item.DeepLinkRoute.Should().Be("/rewards");
+        item.DetectedAt.Should().Be(t0.AddMinutes(5), "the item surfaces at its newest reward");
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_DoesNotSurfaceManageableOrLocalOnlyRewards()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        db.Rewards.AddRange(
+            new Reward
+            {
+                BroadcasterId = ChannelId,
+                Title = "Bot Reward",
+                Cost = 100,
+                TwitchRewardId = "mine-1",
+                IsManageable = true,
+            },
+            new Reward
+            {
+                BroadcasterId = ChannelId,
+                Title = "Never synced with Twitch",
+                Cost = 50,
+                TwitchRewardId = null,
+                IsManageable = false,
+            }
+        );
+        await db.SaveChangesAsync();
+        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+
+        Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
+
+        result.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_MentionsThePendingFinalizationCount_WhenSomeAreParked()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        DateTime t0 = new(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
+        Reward plain = UnmanagedReward("ext-1", t0);
+        Reward parked = UnmanagedReward("ext-2", t0.AddMinutes(1));
+        parked.PendingMigrationRequestedAt = t0.AddMinutes(2);
+        db.Rewards.AddRange(plain, parked);
+        await db.SaveChangesAsync();
+        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+
+        Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
+
+        ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
+        item.Count.Should().Be(2);
+        item.Message.Should().Contain("1").And.Contain("waiting on you to free up their title");
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_SurfacesANewUnmanagedReward_AfterDismissingTheOldSet()
+    {
+        // Same "the key encodes the set, not just the channel" guarantee as the held-message group and dead
+        // token cases above: dismissing today's unmanaged rewards must not permanently hide a reward that
+        // shows up unmanaged LATER.
+        await using ActionRequiredInboxServiceTestDbContext db =
+            ActionRequiredInboxServiceTestDbContext.New();
+        DateTime t0 = new(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
+        db.Rewards.Add(UnmanagedReward("ext-1", t0));
+        await db.SaveChangesAsync();
+        Guid dismisser = Guid.Parse("0192b000-0000-7000-8000-0000000000a9");
+        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+
+        ActionRequiredItemDto first = (await sut.GetItemsAsync(ChannelId))
+            .Value.Should()
+            .ContainSingle()
+            .Subject;
+        (await sut.DismissAsync(ChannelId, dismisser, [first.Id])).Value.Should().Be(1);
+        (await sut.GetItemsAsync(ChannelId))
+            .Value.Should()
+            .BeEmpty("the only unmanaged reward was dismissed");
+
+        db.Rewards.Add(UnmanagedReward("ext-2", t0.AddDays(1)));
+        await db.SaveChangesAsync();
+
+        Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
+
+        ActionRequiredItemDto second = result.Value.Should().ContainSingle().Subject;
+        second
+            .Id.Should()
+            .NotBe(first.Id, "a different set of unmanaged rewards is a different key");
+        second
+            .Count.Should()
+            .Be(2, "both rewards are still unmanaged — the dismissal did not delete either");
     }
 }

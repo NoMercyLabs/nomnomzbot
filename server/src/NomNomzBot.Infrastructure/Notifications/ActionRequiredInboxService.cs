@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -18,14 +20,16 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Notifications.Entities;
+using NomNomzBot.Domain.Rewards.Entities;
 
 namespace NomNomzBot.Infrastructure.Notifications;
 
 /// <summary>
-/// Aggregates the action-required inbox (S071a) from the two existing signals that genuinely back it today:
-/// dead/expired <see cref="IntegrationConnection"/> rows and pending AutoMod-held <see cref="ModerationQueueItem"/>
-/// rows. See <see cref="IActionRequiredInboxService"/> for why the other three candidate categories (missing
-/// scopes, failed timers, unban requests) are deliberately excluded rather than faked.
+/// Aggregates the action-required inbox (S071a) from the existing signals that genuinely back it today:
+/// dead/expired <see cref="IntegrationConnection"/> rows, pending AutoMod-held <see cref="ModerationQueueItem"/>
+/// rows, and unmanaged (externally-created) <see cref="Reward"/> rows once imported. See
+/// <see cref="IActionRequiredInboxService"/> for why the other candidate categories (missing scopes, failed
+/// timers, unban requests) are deliberately excluded rather than faked.
 /// <para>
 /// S-OWN22 T2: every item carries a stable <see cref="ActionRequiredItemDto.Id"/>, held messages are grouped
 /// per sender (N pending holds from one user = ONE item), and persisted
@@ -39,6 +43,7 @@ public sealed class ActionRequiredInboxService(IApplicationDbContext db, TimePro
     private const string HeldKeyPrefix = "held:";
     private const string HeldUserKeyPrefix = "held-user:";
     private const string TokenKeyPrefix = "token:";
+    private const string UnmanagedRewardsKeyPrefix = "unmanaged-rewards:";
 
     private static readonly HashSet<string> DeadConnectionStatuses = new(
         StringComparer.OrdinalIgnoreCase
@@ -60,6 +65,9 @@ public sealed class ActionRequiredInboxService(IApplicationDbContext db, TimePro
         );
         items.AddRange(
             await BuildHeldMessageItemsAsync(channelId, dismissedKeys, cancellationToken)
+        );
+        items.AddRange(
+            await BuildUnmanagedRewardItemsAsync(channelId, dismissedKeys, cancellationToken)
         );
         return Result.Success(items.OrderByDescending(i => i.DetectedAt).ToList());
     }
@@ -105,6 +113,7 @@ public sealed class ActionRequiredInboxService(IApplicationDbContext db, TimePro
             else if (
                 id.StartsWith(HeldKeyPrefix, StringComparison.Ordinal)
                 || id.StartsWith(TokenKeyPrefix, StringComparison.Ordinal)
+                || id.StartsWith(UnmanagedRewardsKeyPrefix, StringComparison.Ordinal)
             )
             {
                 itemKeys.Add(id);
@@ -278,6 +287,80 @@ public sealed class ActionRequiredInboxService(IApplicationDbContext db, TimePro
         }
 
         return items;
+    }
+
+    /// <summary>
+    /// Rewards imported from Twitch with <c>IsManageable = false</c> (created in the Twitch dashboard or by
+    /// another app — rewards.md) are read-only until "taken control of" from the Rewards page. Grouped as ONE
+    /// item per channel rather than one per reward, since the fix (visit Rewards, take control) is the same
+    /// action regardless of count.
+    /// </summary>
+    private async Task<List<ActionRequiredItemDto>> BuildUnmanagedRewardItemsAsync(
+        Guid channelId,
+        HashSet<string> dismissedKeys,
+        CancellationToken cancellationToken
+    )
+    {
+        List<Reward> unmanaged = await db
+            .Rewards.Where(r =>
+                r.BroadcasterId == channelId && r.TwitchRewardId != null && !r.IsManageable
+            )
+            .OrderBy(r => r.Id)
+            .ToListAsync(cancellationToken);
+        if (unmanaged.Count == 0)
+            return [];
+
+        string key = UnmanagedRewardsKey(channelId, unmanaged.Select(r => r.Id));
+        if (dismissedKeys.Contains(key))
+            return [];
+
+        int pendingFinalization = unmanaged.Count(r => r.PendingMigrationRequestedAt is not null);
+
+        return
+        [
+            new ActionRequiredItemDto(
+                Id: key,
+                Kind: "unmanaged_rewards",
+                Severity: "info",
+                Title: unmanaged.Count == 1
+                    ? "1 channel-point reward isn't managed by NomNomzBot yet"
+                    : $"{unmanaged.Count} channel-point rewards aren't managed by NomNomzBot yet",
+                Message: BuildUnmanagedRewardText(unmanaged.Count, pendingFinalization),
+                DetectedAt: unmanaged.Max(r => r.CreatedAt),
+                DeepLinkRoute: "/rewards",
+                SourceUserId: null,
+                SourceUserName: null,
+                Count: unmanaged.Count,
+                QueueItemIds: []
+            ),
+        ];
+    }
+
+    private static string BuildUnmanagedRewardText(int count, int pendingFinalization)
+    {
+        string baseText =
+            count == 1
+                ? "Created in the Twitch dashboard or by another app, it can't be edited, paused, or deleted from here — take control of it on the Rewards page."
+                : "Created in the Twitch dashboard or by another app, they can't be edited, paused, or deleted from here — take control of them on the Rewards page.";
+
+        return pendingFinalization > 0
+            ? baseText
+                + $" {pendingFinalization} of them are waiting on you to free up their title on Twitch before the migration can finish."
+            : baseText;
+    }
+
+    /// <summary>
+    /// The dismissal key embeds the SET of unmanaged reward ids (not just the channel), the same "the key
+    /// encodes what would make the old dismissal stale" pattern <see cref="TokenKey"/> uses for a re-invalidated
+    /// connection — a streamer who dismisses "these 3 unmanaged rewards" must see the item again the moment a
+    /// 4th one appears, not have it hidden forever by one old dismissal. Hashed (not joined raw) since the
+    /// dismissal's persisted <c>ItemKey</c> column has a bounded length and a channel can have many rewards.
+    /// </summary>
+    private static string UnmanagedRewardsKey(Guid channelId, IEnumerable<Guid> rewardIds)
+    {
+        string joined = string.Join(',', rewardIds.OrderBy(id => id));
+        string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(joined)))[..16];
+        return $"{UnmanagedRewardsKeyPrefix}{channelId}:{hash}";
     }
 
     private static string BuildHeldMessageText(int count, string? username, string? category)

@@ -66,6 +66,60 @@ References (owned elsewhere, never mutated here): **F.7 `EventSubSubscriptions`*
 **Pipelines/PipelineSteps** (`commands-pipelines.md`), **EventJournal** (`event-store.md`), **Channels/Users**
 (`identity-auth.md`).
 
+### 1.0 Ground-truth correction (the spec below misrepresents current state)
+
+§1's "Schema delta" never happened as written: `IsPlatform` was **not** renamed to `IsManaged`. What actually
+shipped is a **separate, new** boolean, `Reward.IsManageable`, added alongside the unchanged `IsPlatform`
+(`AddRewardIsManageable`, 2026-07-06). `IsManageable` carries exactly the semantics §1.1 describes below for
+`IsManaged` — read every `IsManaged` in §1.1/§2/§3/§4 below as `IsManageable`; `IsPlatform` is a separate,
+unrelated flag (bot-vs-external-app provenance metadata) that this document does not otherwise cover.
+
+**Discovery also diverged from §1.1's plan.** The shipped mechanism is a bulk pull, `IRewardService
+.ImportFromTwitchAsync` — Helix `GET custom_rewards?only_manageable_rewards=false` for the FULL reward set,
+then a second `=true` read for the manageable subset (the payload carries no `is_manageable` field of its own;
+manageability is derived purely from subset membership) — rather than the redemption-time auto-stub §1.1
+describes. Both are legitimate: a redemption-time auto-stub still exists for a reward the streamer never
+imported and then a viewer redeems mid-stream, but `ImportFromTwitchAsync` is what an operator (or the
+onboarding auto-sync in §1.2) uses to discover a channel's full pre-existing reward set up front, without
+waiting for a redemption.
+
+**Taking control (new, not in §1.1's original plan) — `IRewardService.RecreateUnderBotAsync`.** Twitch's API
+gives no way to transfer an existing reward to a different `client_id`; the only way to make an unmanaged
+reward bot-manageable is to **recreate an equivalent reward** under the bot's own client (title/cost/prompt/
+enabled copied across), leaving the original external reward and its redemption history untouched. Twitch also
+requires every reward's title be unique among ALL of a broadcaster's rewards regardless of enabled/paused
+state, so a straight recreate always 400s while the external reward still holds that title (an unmanaged
+reward cannot be renamed, disabled, or deleted through the bot's client_id either — only the client_id that
+created it can). Rather than a dead-end failure, `RecreateUnderBotAsync` **parks** the request:
+`Reward.PendingMigrationRequestedAt` is stamped, nothing is lost (the row already carries every field the
+recreate needs), and the result carries `MIGRATION_PENDING_EXTERNAL_REMOVAL` telling the operator to rename or
+delete the reward on Twitch's own dashboard. The dashboard swaps its "Take control" action to "Finalize
+migration"; retrying the SAME action re-checks Twitch's live reward list (not the local table — a stray
+same-titled reward the bot never imported would go undetected by a local-only check) and, once the title is
+free, completes the recreate and clears the marker.
+
+### 1.2 Onboarding — surfacing pre-existing unmanaged rewards without a manual step
+
+A streamer with rewards created before ever installing the bot has nothing to import until
+`ImportFromTwitchAsync` runs at least once — and nothing prompted them to run it. Two additions close that
+gap without inventing new infrastructure:
+
+- **`RewardsController`'s reward list (`GET /rewards` → `IRewardService.ListAsync`) auto-syncs itself**,
+  throttled by a new `Channel.RewardsSyncedAt` timestamp: null or older than 6 hours → runs
+  `ImportFromTwitchAsync` in the background of the list call (best-effort; a failure is logged and never
+  fails the list itself), then stamps `RewardsSyncedAt` regardless of outcome so a dead/erroring connection
+  is not retried on every page load. A streamer's very first visit to Rewards therefore surfaces their
+  pre-existing Twitch-dashboard rewards as read-only ("Take control") rows without ever finding a manual
+  Import button — the 6-hour throttle also means a reward created or removed on Twitch's own dashboard later
+  eventually reflects here too, not just once at first-ever visit.
+- **The dashboard's action-required inbox** (`S-OWN22-23-moderation-inbox-and-trust-plan.md`'s
+  `IActionRequiredInboxService`, `NomNomzBot.Application/Notifications/Services/`) gains a third category,
+  `unmanaged_rewards`: one grouped item per channel (not one per reward) whenever
+  `Reward.IsManageable = false` rows with a `TwitchRewardId` exist, severity `info`, deep-linking to
+  `/rewards`. The item's stable dismiss key hashes the SET of unmanaged reward ids (mirroring how a dead
+  integration token's key embeds its invalidation instant) — dismissing today's set does not hide a
+  DIFFERENT reward that becomes unmanaged later.
+
 ### 1.1 Managed vs unmanaged — the load-bearing distinction
 
 A channel-point reward on Twitch can be updated, deleted, and have its redemptions marked
@@ -216,6 +270,21 @@ public interface IRewardService
     // upsert/repair drift (cost/title/paused), and flag local managed rows missing on Twitch as retired. Does
     // NOT pull unmanaged rewards (those arrive via redemption). Idempotent.
     Task<Result<RewardSyncReportDto>> SyncWithTwitchAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    // Bulk-pulls the FULL reward set (only_manageable_rewards=false), deriving manageability per reward from a
+    // second only_manageable_rewards=true read (§1.0/§1.2) — upserts by TwitchRewardId then by Title, so a
+    // reward already recreated under the bot (RecreateUnderBotAsync) reconciles onto its own row instead of a
+    // second one sharing its predecessor's title. Idempotent; a failed Helix read surfaces its real error
+    // rather than persisting "everything unmanaged".
+    Task<Result> ImportFromTwitchAsync(string broadcasterId, CancellationToken ct = default);
+
+    // "Take control" of an unmanaged reward (§1.0): recreates it under the bot's client_id as a SECOND,
+    // manageable row, leaving the original external row and its redemption history untouched. ALREADY_EXISTS
+    // if the reward is already manageable. A live Twitch title conflict (the original still holds the title)
+    // PARKS the request (Reward.PendingMigrationRequestedAt stamped) and returns
+    // MIGRATION_PENDING_EXTERNAL_REMOVAL instead of failing outright; re-calling the same method later
+    // re-checks Twitch and finalizes once the title is free.
+    Task<Result<RewardDetailDto>> RecreateUnderBotAsync(string broadcasterId, string rewardId, CancellationToken ct = default);
 }
 ```
 
@@ -332,6 +401,8 @@ enforces the per-route floor (403 `FORBIDDEN` below). Effective level =
 | POST | `/{rewardId}/pipeline` | `{ Guid? pipelineId }` | `StatusResponseDto<RewardDetailDto>` | management / Broadcaster · `reward:manage` |
 | DELETE | `/{rewardId}` | — | `StatusResponseDto<object>` | management / Broadcaster · `reward:manage` |
 | POST | `/sync` | — | `StatusResponseDto<RewardSyncReportDto>` | management / Broadcaster · `reward:sync` |
+| POST | `/import` | — | `StatusResponseDto<object>` | management / Broadcaster · `reward:sync` |
+| POST | `/{rewardId}/recreate` | — | `StatusResponseDto<RewardDetailDto>` | management / Broadcaster · `reward:sync` |
 | GET | `/redemptions` | `RedemptionFilter`+`PageRequestDto` | `PaginatedResponse<RewardRedemptionDto>` | management / Moderator · `reward:redemption:read` |
 | POST | `/redemptions/{twitchRedemptionId}/fulfill` | `FulfillRedemptionRequest` | `StatusResponseDto<object>` | management / Moderator · `reward:redemption:fulfill` |
 | POST | `/redemptions/{twitchRedemptionId}/refund` | `RefundRedemptionRequest` | `StatusResponseDto<object>` | management / Moderator · `reward:redemption:refund` |

@@ -15,15 +15,17 @@ namespace NomNomzBot.Application.Notifications.Services;
 
 /// <summary>
 /// Aggregates the dashboard's "action required" notification centre (S071a) from existing, already-tracked
-/// signals — never a fabricated or hardcoded list. This slice covers the two categories with a genuine,
-/// already-persisted backing signal today: dead/expired integration connections
-/// (<c>IntegrationConnection.Status</c> = <c>needs_reauth</c>/<c>expired</c>, written by
-/// <c>IIntegrationTokenVault.MarkRefreshFailureAsync</c>) and AutoMod-held chat messages pending review
-/// (<c>ModerationQueueItem</c>, source=AutoMod, status=pending). Missing OAuth scopes, failed timer runs, and
-/// pending unban requests are deliberately NOT included: the scope-diagnostics matrix documents a missing
-/// progressive scope as feature-gated (not an error), timers carry no run-failure signal today, and unban
-/// requests are read live from Twitch under an operator token this channel-scoped aggregation does not carry —
-/// surfacing any of those honestly would require new tracking, which is out of scope for this slice.
+/// signals — never a fabricated or hardcoded list. Categories with a genuine, already-persisted backing signal
+/// today: dead/expired integration connections (<c>IntegrationConnection.Status</c> = <c>needs_reauth</c>/
+/// <c>expired</c>, written by <c>IIntegrationTokenVault.MarkRefreshFailureAsync</c>), AutoMod-held chat messages
+/// pending review (<c>ModerationQueueItem</c>, source=AutoMod, status=pending), and unmanaged channel-point
+/// rewards (<c>Reward.IsManageable = false</c>, written by <c>IRewardService.ImportFromTwitchAsync</c> —
+/// rewards.md's ownership-migration flow: a reward created in the Twitch dashboard or by another app, which
+/// Twitch's API will not let this client_id take over without recreating it). Missing OAuth scopes, failed
+/// timer runs, and pending unban requests are deliberately NOT included: the scope-diagnostics matrix documents
+/// a missing progressive scope as feature-gated (not an error), timers carry no run-failure signal today, and
+/// unban requests are read live from Twitch under an operator token this channel-scoped aggregation does not
+/// carry — surfacing any of those honestly would require new tracking, which is out of scope for this slice.
 /// </summary>
 public interface IActionRequiredInboxService
 {

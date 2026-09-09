@@ -542,6 +542,7 @@ fun attentionRouteFor(kind: String): String? =
     when (kind) {
         "held_chat_message" -> "Moderation"
         "integration_token_dead" -> "Integrations"
+        "unmanaged_rewards" -> "Rewards"
         else -> null
     }
 
