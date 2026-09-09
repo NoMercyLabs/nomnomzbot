@@ -40,7 +40,6 @@ import bot.nomnomz.dashboard.core.navigation.RouteStore
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
 import bot.nomnomz.dashboard.feature.connect.ui.UnreachableScreen
 import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyle
-import bot.nomnomz.dashboard.feature.landing.ui.LandingScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
@@ -141,17 +140,6 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             booting = false
         }
 
-        // The public landing page shows FIRST for a booted-but-not-connected visitor; its "Get started" CTA
-        // flips this so the gate advances to the Connect sign-in card.
-        var showLanding: Boolean by remember { mutableStateOf(true) }
-
-        // Once the operator has been Connected this session (fresh sign-in OR a silent session restore), the
-        // marketing landing page must never reappear on a later logout — they get the sign-in card (Connect),
-        // not the front page. A never-connected first-time visitor still sees Landing.
-        LaunchedEffect(phase) {
-            if (phase == SessionPhase.Connected) showLanding = false
-        }
-
         val restoreUnreachable: Boolean by graph.connectController.restoreUnreachable.collectAsStateWithLifecycle()
 
         // S050 — keep retrying the restore automatically while the backend is unreachable, so a returning
@@ -169,7 +157,6 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             phase == SessionPhase.Connected -> Destination.Shell
             phase == SessionPhase.NeedsSetup -> Destination.Setup
             restoreUnreachable -> Destination.Unreachable
-            showLanding -> Destination.Landing
             else -> Destination.Connect
         }
 
@@ -184,7 +171,7 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         var enteredViaConnect: Boolean by remember { mutableStateOf(false) }
         LaunchedEffect(destination) {
             when (destination) {
-                Destination.Landing, Destination.Connect, Destination.Setup -> enteredViaConnect = true
+                Destination.Connect, Destination.Setup -> enteredViaConnect = true
                 Destination.Shell -> if (enteredViaConnect) routeStore.pushConnectEntry()
                 else -> Unit
             }
@@ -209,7 +196,6 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                 Crossfade(targetState = destination) { target ->
                     when (target) {
                         Destination.Splash -> SplashScreen()
-                        Destination.Landing -> LandingScreen(onGetStarted = { showLanding = false })
                         Destination.Connect -> ConnectScreen(controller = graph.connectController)
                         Destination.Unreachable ->
                             UnreachableScreen(

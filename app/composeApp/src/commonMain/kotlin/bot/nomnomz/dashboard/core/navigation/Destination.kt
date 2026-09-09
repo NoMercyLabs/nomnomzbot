@@ -11,23 +11,23 @@
 package bot.nomnomz.dashboard.core.navigation
 
 // The top-level destinations of the FOUNDATION spine. The gate in App.kt resolves these
-// from the boot timer + the session phase, in the order Splash -> Landing -> Connect -> Setup -> Shell.
-// Landing is the public front page shown to a booted-but-not-connected visitor; its "Get started" CTA
-// advances to Connect (the sign-in card).
+// from the boot timer + the session phase, in the order Splash -> Connect -> Setup -> Shell. The
+// public marketing pitch is the fast static page the API serves at `/` (Api/Assets/landing) —
+// its "Get started" CTA links straight to `/app`, so the booted Compose bundle goes directly to the
+// sign-in card instead of repeating the same pitch a second time behind an extra click.
 //
 // Next slice replaces this with the full type-safe `@Serializable sealed interface Route`
 // graph + Navigation Compose NavHost (frontend.md §5).
 enum class Destination {
     Splash,
-    Landing,
     Connect,
     Setup,
     Shell,
 
     /**
      * A remembered session exists but the backend could not be reached to confirm it (S050 — "remembered-session
-     * vs unreachable distinction"). Distinct from [Connect]/[Landing]: those mean "no session, sign in"; this
-     * means "you have a session, we just cannot reach your bot right now" — never conflate the two.
+     * vs unreachable distinction"). Distinct from [Connect]: that means "no session, sign in"; this means "you
+     * have a session, we just cannot reach your bot right now" — never conflate the two.
      */
     Unreachable,
 }

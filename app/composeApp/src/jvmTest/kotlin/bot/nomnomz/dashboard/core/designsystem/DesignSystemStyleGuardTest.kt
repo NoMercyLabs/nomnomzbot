@@ -34,7 +34,6 @@ class DesignSystemStyleGuardTest {
             "connect/ui/ConnectModal.kt" to 8,
             "connect/ui/ConnectModalGlyphs.kt" to 6,
             "shell/ui/ShellGlyphs.kt" to 4,
-            "landing/ui/LandingScreen.kt" to 1,
             "economy/ui/EconomyScreen.kt" to 1,
             "chat/ui/EmoteComposerField.kt" to 1,
         )
