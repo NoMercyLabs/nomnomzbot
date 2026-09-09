@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 
 namespace NomNomzBot.Infrastructure.Rewards;
@@ -24,19 +25,29 @@ public class RewardService : IRewardService
 {
     private readonly IApplicationDbContext _db;
     private readonly ITwitchChannelPointsApi _channelPoints;
+    private readonly TimeProvider _clock;
     private readonly ILogger<RewardService> _logger;
 
     /// <summary>How many dependent names the preview lists by name before it just counts them.</summary>
     private const int SampleSize = 5;
 
+    // How long a channel's imported-from-Twitch reward snapshot (Reward.IsManageable, PendingMigrationRequestedAt,
+    // and the external rows themselves) is trusted before ListAsync re-syncs it in the background. Rewards change
+    // rarely — a Helix round trip on every single page load would add real latency for no benefit — but a
+    // streamer who creates or removes a reward on Twitch's own dashboard should see it reflected without needing
+    // to know the manual Import button exists.
+    private static readonly TimeSpan AutoImportThrottle = TimeSpan.FromHours(6);
+
     public RewardService(
         IApplicationDbContext db,
         ITwitchChannelPointsApi channelPoints,
+        TimeProvider clock,
         ILogger<RewardService> logger
     )
     {
         _db = db;
         _channelPoints = channelPoints;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -391,6 +402,8 @@ public class RewardService : IRewardService
                 "VALIDATION_FAILED"
             );
 
+        await EnsureRecentlyImportedAsync(broadcaster, cancellationToken);
+
         IQueryable<Reward> query = _db.Rewards.Where(r => r.BroadcasterId == broadcaster);
         int total = await query.CountAsync(cancellationToken);
 
@@ -612,6 +625,50 @@ public class RewardService : IRewardService
             broadcasterId
         );
         return Result.Success();
+    }
+
+    /// <summary>
+    /// The onboarding half of the ownership-migration flow (rewards.md): a streamer's pre-existing
+    /// Twitch-dashboard-created rewards need to become visible (read-only, "Take control") without them ever
+    /// finding the manual Import button. Runs <see cref="ImportFromTwitchAsync"/> in the background of an
+    /// ordinary <see cref="ListAsync"/> call, throttled by <see cref="Channel.RewardsSyncedAt"/> so it costs a
+    /// Helix round trip only once per <see cref="AutoImportThrottle"/> window per channel — never on every page
+    /// load. A failed import (dead token, no Twitch connection, transient error) is logged and swallowed: it
+    /// must never break the reward list itself, and the throttle stamp still advances either way so a
+    /// struggling channel is not retried on every single visit.
+    /// </summary>
+    private async Task EnsureRecentlyImportedAsync(
+        Guid broadcaster,
+        CancellationToken cancellationToken
+    )
+    {
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
+            c => c.Id == broadcaster,
+            cancellationToken
+        );
+        if (channel is null)
+            return;
+
+        DateTime nowUtc = _clock.GetUtcNow().UtcDateTime;
+        if (
+            channel.RewardsSyncedAt is not null
+            && nowUtc - channel.RewardsSyncedAt.Value < AutoImportThrottle
+        )
+            return;
+
+        Result importResult = await ImportFromTwitchAsync(
+            broadcaster.ToString(),
+            cancellationToken
+        );
+        if (importResult.IsFailure)
+            _logger.LogDebug(
+                "Reward auto-import (background sync from ListAsync) failed for {BroadcasterId}: {Error}",
+                broadcaster,
+                importResult.ErrorMessage
+            );
+
+        channel.RewardsSyncedAt = nowUtc;
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Result> ImportFromTwitchAsync(

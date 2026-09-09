@@ -111,6 +111,15 @@ public class Channel : SoftDeletableEntity
 
     public DateTime? BotJoinedAt { get; set; }
 
+    /// <summary>
+    /// When <see cref="Rewards.Services.IRewardService.ListAsync"/> last ran its throttled background
+    /// <see cref="Rewards.Services.IRewardService.ImportFromTwitchAsync"/> for this channel (rewards.md) — null
+    /// until the first Rewards page load. Lets a streamer's pre-existing Twitch-dashboard-created rewards
+    /// surface as bot-visible (read-only, "Take control") without them ever pressing the manual Import button,
+    /// while keeping the Helix round trip off every single page load once it has run recently.
+    /// </summary>
+    public DateTime? RewardsSyncedAt { get; set; }
+
     [MaxLength(36)]
     public string OverlayToken { get; set; } = Guid.NewGuid().ToString();
 

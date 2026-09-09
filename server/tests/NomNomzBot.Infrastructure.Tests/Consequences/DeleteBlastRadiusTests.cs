@@ -126,7 +126,12 @@ public class DeleteBlastRadiusTests
         );
 
     private static RewardService NewRewards(BlastRadiusTestDbContext db) =>
-        new(db, Substitute.For<ITwitchChannelPointsApi>(), NullLogger<RewardService>.Instance);
+        new(
+            db,
+            Substitute.For<ITwitchChannelPointsApi>(),
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
 
     private static GiveawayCodePoolService NewPools(BlastRadiusTestDbContext db) =>
         new(

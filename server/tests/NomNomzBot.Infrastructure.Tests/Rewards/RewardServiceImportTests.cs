@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -49,7 +50,14 @@ public sealed class RewardServiceImportTests
         db.SaveChanges();
 
         ITwitchChannelPointsApi points = Substitute.For<ITwitchChannelPointsApi>();
-        RewardService sut = new(db, points, NullLogger<RewardService>.Instance);
+        // The real clock: these tests complete in milliseconds, and the throttle-specific tests below set
+        // Reward.RewardsSyncedAt relative to DateTime.UtcNow directly rather than needing a fake to advance.
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
         return (sut, db, points);
     }
 
@@ -553,5 +561,109 @@ public sealed class RewardServiceImportTests
         external.Cost.Should().Be(550);
         external.IsManageable.Should().BeFalse();
         rewards.Single(r => r.TwitchRewardId == "bot-1").IsManageable.Should().BeTrue();
+    }
+
+    // ── Onboarding: ListAsync auto-imports in the background, throttled by Channel.RewardsSyncedAt ──────────
+
+    [Fact]
+    public async Task List_triggers_an_import_the_first_time_a_channel_has_never_synced()
+    {
+        // Channel.RewardsSyncedAt is null (never synced) — a streamer's pre-existing Twitch-dashboard reward
+        // must surface on the very first Rewards page load, without them ever finding the manual Import button.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        StubGetRewards(
+            points,
+            full: [TwitchReward("ext-1", "StreamElements Reward", 300, enabled: true)],
+            manageable: []
+        );
+
+        Result<PagedList<RewardDetail>> result = await sut.ListAsync(
+            Channel.ToString(),
+            new PaginationParams(1, 25)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Items.Should()
+            .ContainSingle(r => r.Title == "StreamElements Reward" && !r.IsManageable);
+
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == Channel);
+        channel.RewardsSyncedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task List_does_not_reimport_within_the_throttle_window()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == Channel);
+        channel.RewardsSyncedAt = DateTime.UtcNow.AddMinutes(-5);
+        await db.SaveChangesAsync();
+
+        await sut.ListAsync(Channel.ToString(), new PaginationParams(1, 25));
+
+        await points
+            .DidNotReceive()
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task List_reimports_once_the_throttle_window_has_elapsed()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == Channel);
+        DateTime staleSync = DateTime.UtcNow.AddHours(-7);
+        channel.RewardsSyncedAt = staleSync;
+        await db.SaveChangesAsync();
+        StubGetRewards(points, full: [], manageable: []);
+
+        await sut.ListAsync(Channel.ToString(), new PaginationParams(1, 25));
+
+        await points
+            .Received(1)
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            );
+        Channel reloaded = await db.Channels.SingleAsync(c => c.Id == Channel);
+        reloaded.RewardsSyncedAt.Should().BeAfter(staleSync);
+    }
+
+    [Fact]
+    public async Task List_still_succeeds_and_advances_the_throttle_when_the_background_import_fails()
+    {
+        // A dead token or transient Helix error during the background sync must never break the reward list
+        // itself, and must still advance the throttle stamp — otherwise a struggling channel gets retried on
+        // every single Rewards page load instead of backing off like every other Twitch-facing poll in this
+        // codebase.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<IReadOnlyList<TwitchCustomReward>>(
+                    "Twitch rejected the token.",
+                    TwitchErrorCodes.Unauthorized
+                )
+            );
+
+        Result<PagedList<RewardDetail>> result = await sut.ListAsync(
+            Channel.ToString(),
+            new PaginationParams(1, 25)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == Channel);
+        channel.RewardsSyncedAt.Should().NotBeNull();
     }
 }

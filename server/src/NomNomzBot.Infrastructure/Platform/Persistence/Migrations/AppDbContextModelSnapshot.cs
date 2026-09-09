@@ -4904,6 +4904,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime?>("RewardsSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ShoutoutInterval")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")

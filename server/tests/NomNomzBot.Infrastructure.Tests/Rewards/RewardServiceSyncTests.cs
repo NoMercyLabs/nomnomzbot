@@ -53,7 +53,12 @@ public sealed class RewardServiceSyncTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
-        RewardService sut = new(db, points, NullLogger<RewardService>.Instance);
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
         return (sut, db, points);
     }
 

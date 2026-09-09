@@ -31,7 +31,12 @@ public sealed class RewardServiceRedemptionsTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000d701");
 
     private static RewardService Build(AuthDbContext db) =>
-        new(db, Substitute.For<ITwitchChannelPointsApi>(), NullLogger<RewardService>.Instance);
+        new(
+            db,
+            Substitute.For<ITwitchChannelPointsApi>(),
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
 
     private static Redemption Redeem(string id, string status, DateTime at) =>
         new()
@@ -143,7 +148,12 @@ public sealed class RewardServiceRedemptionsTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success<IReadOnlyList<TwitchCustomRewardRedemption>>([]));
-        RewardService sut = new(db, points, NullLogger<RewardService>.Instance);
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
 
         Result result = await sut.SetRedemptionStatusAsync(
             Channel.ToString(),
@@ -173,6 +183,7 @@ public sealed class RewardServiceRedemptionsTests
         RewardService sut = new(
             db,
             Substitute.For<ITwitchChannelPointsApi>(),
+            TimeProvider.System,
             NullLogger<RewardService>.Instance
         );
 

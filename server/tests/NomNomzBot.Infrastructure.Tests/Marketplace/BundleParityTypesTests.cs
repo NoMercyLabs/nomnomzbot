@@ -180,7 +180,12 @@ public sealed class BundleParityTypesTests
                     )
                 );
             });
-        RewardService rewards = new(db, channelPoints, NullLogger<RewardService>.Instance);
+        RewardService rewards = new(
+            db,
+            channelPoints,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
         TimerManagementService timers = new(
             db,
             bus,

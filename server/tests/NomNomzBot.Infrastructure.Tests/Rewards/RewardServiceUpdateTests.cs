@@ -55,7 +55,12 @@ public sealed class RewardServiceUpdateTests
         db.SaveChanges();
 
         ITwitchChannelPointsApi points = Substitute.For<ITwitchChannelPointsApi>();
-        RewardService sut = new(db, points, NullLogger<RewardService>.Instance);
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
         return (sut, db, points);
     }
 
