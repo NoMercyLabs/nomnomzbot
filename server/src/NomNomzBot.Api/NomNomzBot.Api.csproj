@@ -49,6 +49,12 @@
     <Content Include="Assets\editor\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The static landing page (Assets/landing) served at the exact root path for an anonymous visitor — same
+       "committed source, not the gitignored wwwroot build output" reasoning as Assets/editor above. -->
+  <ItemGroup>
+    <Content Include="Assets\landing\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\NomNomzBot.Application\NomNomzBot.Application.csproj" />
     <ProjectReference Include="..\NomNomzBot.Infrastructure\NomNomzBot.Infrastructure.csproj" />

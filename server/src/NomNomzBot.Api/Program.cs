@@ -912,6 +912,44 @@ try
     // Suppress browser-generated favicon requests from producing 500 errors
     app.MapGet("/favicon.ico", () => Results.NotFound()).ExcludeFromDescription();
 
+    // Landing page (owner report 2026-09-09: the root path forced every anonymous visitor to download and boot
+    // the whole ~40MB Compose/Wasm dashboard bundle just to see marketing copy — "loads in an instant, no
+    // excuses"). A genuinely separate, instant-loading static page — no Wasm, committed source (not the
+    // gitignored wwwroot build output), same pattern as the /editor assets below. Only the EXACT root path is
+    // intercepted; every deep dashboard link (and this page's own "Get started", which points at /app) still
+    // falls through to MapFallbackToFile untouched. A session already signed in (the nnz_refresh_token cookie)
+    // skips straight past the landing page into the real app, exactly as hitting / always has.
+    string landingFile = Path.Combine(
+        app.Environment.ContentRootPath,
+        "Assets",
+        "landing",
+        "index.html"
+    );
+    if (File.Exists(landingFile))
+    {
+        app.MapGet(
+                "/",
+                (HttpContext context) =>
+                {
+                    if (!context.Request.Cookies.ContainsKey("nnz_refresh_token"))
+                    {
+                        context.Response.Headers.CacheControl = "no-cache, must-revalidate";
+                        return Results.File(landingFile, "text/html; charset=utf-8");
+                    }
+
+                    string shell = Path.Combine(
+                        app.Environment.WebRootPath ?? string.Empty,
+                        "index.html"
+                    );
+                    if (!File.Exists(shell))
+                        return Results.NotFound();
+                    context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+                    return Results.File(shell, "text/html; charset=utf-8");
+                }
+            )
+            .ExcludeFromDescription();
+    }
+
     // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's
     // entry document, so a browser hitting / (or a client-side deep link) loads the Compose/Wasm app shell. Returns
     // 404 when no dashboard is bundled (empty web root), preserving the API-only behavior.

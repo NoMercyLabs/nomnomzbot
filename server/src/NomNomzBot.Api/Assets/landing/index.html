@@ -1,0 +1,233 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NomNomzBot — Your channel, supercharged</title>
+<meta name="description" content="NomNomzBot runs your commands, timers, moderation, alerts, music, and more — one dashboard for your whole stream, across Twitch, Kick, YouTube, and X." />
+<style>
+  /* Palette lifted verbatim from the dashboard's own dark theme tokens (Tokens.kt DarkTokens) so this page
+     and the app it leads into never look like two different products. */
+  :root {
+    --bg: #111111;
+    --card: #191919;
+    --card-hover: #1f1f1f;
+    --fg: #eeeeee;
+    --muted: #b5b5b5;
+    --border: #1f1f1f;
+    --accent: #b188d2;
+    --accent-fg: #17131a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header.nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  .mark {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: var(--accent); color: var(--accent-fg);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 17px; flex: none;
+  }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; font-weight: 600; text-decoration: none;
+    padding: 11px 22px; font-size: 15px; border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { background: transparent; color: var(--fg); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--card); }
+  .btn-lg { padding: 15px 34px; font-size: 16px; }
+
+  section.hero {
+    text-align: center;
+    padding: 64px 0 56px;
+  }
+  .hero .mark { width: 72px; height: 72px; border-radius: 20px; font-size: 34px; margin: 0 auto 28px; }
+  h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 16px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 18px;
+    max-width: 560px;
+    margin: 0 auto 32px;
+  }
+  .platforms {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    margin-top: 40px;
+  }
+  .platform-chip {
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  section.features { padding: 40px 0 72px; }
+  h2 {
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .card .icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--card-hover);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+    font-size: 18px;
+  }
+  .card h3 { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
+  .card p { color: var(--muted); font-size: 14px; margin: 0; }
+
+  section.cta {
+    text-align: center;
+    padding: 56px 0 72px;
+    border-top: 1px solid var(--border);
+  }
+  section.cta h2 { margin-bottom: 12px; }
+  section.cta p { color: var(--muted); margin: 0 0 28px; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 28px 0 40px;
+    color: var(--muted);
+    font-size: 13px;
+    display: flex; flex-wrap: wrap; gap: 12px;
+    align-items: center; justify-content: space-between;
+  }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--fg); }
+  footer .links { display: flex; gap: 20px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="nav">
+      <div class="brand">
+        <span class="mark">N</span>
+        NomNomzBot
+      </div>
+      <a class="btn btn-ghost" href="/app">Get started</a>
+    </header>
+  </div>
+
+  <section class="hero">
+    <div class="wrap">
+      <span class="mark">N</span>
+      <h1>Your channel, supercharged</h1>
+      <p class="subtitle">NomNomzBot runs your commands, timers, moderation, alerts, music, and more — one dashboard for your whole stream.</p>
+      <a class="btn btn-primary btn-lg" href="/app">Get started</a>
+      <div class="platforms">
+        <span class="platform-chip">Twitch</span>
+        <span class="platform-chip">Kick</span>
+        <span class="platform-chip">YouTube</span>
+        <span class="platform-chip">X</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="wrap">
+      <h2>What you get</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="icon">⊞</div>
+          <h3>One dashboard, every platform</h3>
+          <p>Connect Twitch, Kick, YouTube, and X, and run one channel live across all of them from a single dashboard.</p>
+        </div>
+        <div class="card">
+          <div class="icon">⌘</div>
+          <h3>Commands, built visually</h3>
+          <p>Build chat commands and automated responses with a visual pipeline editor — no scripting required.</p>
+        </div>
+        <div class="card">
+          <div class="icon">◍</div>
+          <h3>Know your community, moderate with confidence</h3>
+          <p>A viewer directory shows who's active in your community, and moderation tools handle timeouts, bans, and rule enforcement.</p>
+        </div>
+        <div class="card">
+          <div class="icon">◔</div>
+          <h3>Text-to-speech that says it right</h3>
+          <p>Give viewers a voice, pick from a library of voices, and set custom pronunciations for the names and words your channel uses.</p>
+        </div>
+        <div class="card">
+          <div class="icon">◆</div>
+          <h3>Currency, games, and giveaways</h3>
+          <p>Run a channel currency, play games, host giveaways, and track it all on a leaderboard.</p>
+        </div>
+        <div class="card">
+          <div class="icon">⇄</div>
+          <h3>Spotify, Discord, and YouTube, connected</h3>
+          <p>Share what's playing from Spotify, post updates to Discord, and bring in YouTube — all from one dashboard.</p>
+        </div>
+        <div class="card">
+          <div class="icon">▭</div>
+          <h3>Overlays for OBS</h3>
+          <p>Add browser-source overlays and widgets to OBS for alerts, now-playing, and more.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="wrap">
+      <h2>Ready to run your stream from one place?</h2>
+      <p>Connect a platform and you're live in the dashboard in under a minute.</p>
+      <a class="btn btn-primary btn-lg" href="/app">Get started</a>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <footer>
+      <span>© NomNomzBot — free, open-source software (AGPL-3.0)</span>
+      <span class="links">
+        <a href="https://github.com/NoMercyLabs/nomnomzbot" target="_blank" rel="noopener">GitHub</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>
