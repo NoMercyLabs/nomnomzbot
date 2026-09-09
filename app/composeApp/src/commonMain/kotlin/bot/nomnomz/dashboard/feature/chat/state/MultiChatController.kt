@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 
 // The multi-channel chat-watch page's state-holder (frontend-ia.md — the Chat group; owner requirement
 // 2026-07-10: "a viewer+ should be able to view multiple chats at once so mods can monitor multiple channels").
@@ -273,7 +275,10 @@ class MultiChatController(
                     if (line.id.isNotEmpty() && ready.messages.any { it.id == line.id }) return@collect
                     _state.value = ready.copy(messages = merge(ready.messages, listOf(line)))
                 }
-                is HubEvent.ChannelEvent -> applyShieldModeEvent(evt.event)
+                is HubEvent.ChannelEvent -> {
+                    applyShieldModeEvent(evt.event)
+                    applyChatModerationEvent(evt.event)
+                }
                 else -> Unit
             }
         }
@@ -291,6 +296,46 @@ class MultiChatController(
                 _state.value = ready.copy(shieldModeActiveChannelIds = ready.shieldModeActiveChannelIds + event.broadcasterId)
             "shield_mode_end" ->
                 _state.value = ready.copy(shieldModeActiveChannelIds = ready.shieldModeActiveChannelIds - event.broadcasterId)
+        }
+    }
+
+    // A message removed anywhere in a watched channel (a delete, a whole-channel clear, or a targeted per-chatter
+    // purge) must disappear from the merged feed the same instant it disappears from that platform's own chat —
+    // owner report 2026-09-09. Same generic ChannelEvent wire shape as Shield Mode; filtered to the merged feed's
+    // OWN messages by [ChatMessage.channelId] (never all watched channels at once) since [event.broadcasterId]
+    // names exactly one of them.
+    private fun applyChatModerationEvent(event: HubChannelEvent) {
+        val ready: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
+        if (ready.watched.none { it.id == event.broadcasterId }) return
+        val data: JsonElement = event.data ?: return
+        when (event.type) {
+            "chat_cleared" ->
+                _state.value =
+                    ready.copy(messages = ready.messages.filterNot { it.channelId == event.broadcasterId })
+            "message_deleted" -> {
+                val payload: MessageDeletedPayload =
+                    runCatching { ChatModerationJson.decodeFromJsonElement<MessageDeletedPayload>(data) }
+                        .getOrNull() ?: return
+                _state.value =
+                    ready.copy(
+                        messages =
+                            ready.messages.filterNot {
+                                it.channelId == event.broadcasterId && it.id == payload.messageId
+                            }
+                    )
+            }
+            "user_messages_cleared" -> {
+                val payload: UserMessagesClearedPayload =
+                    runCatching { ChatModerationJson.decodeFromJsonElement<UserMessagesClearedPayload>(data) }
+                        .getOrNull() ?: return
+                _state.value =
+                    ready.copy(
+                        messages =
+                            ready.messages.filterNot {
+                                it.channelId == event.broadcasterId && it.userId == payload.targetUserId
+                            }
+                    )
+            }
         }
     }
 

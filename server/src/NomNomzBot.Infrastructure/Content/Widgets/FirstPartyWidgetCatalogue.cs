@@ -177,7 +177,14 @@ public static class FirstPartyWidgetCatalogue
                 ["hideBots"] = true,
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: ["ChatMessage", "ChatMessageEnriched"]
+            DefaultEventSubscriptions:
+            [
+                "ChatMessage",
+                "ChatMessageEnriched",
+                "ChatCleared",
+                "MessageDeleted",
+                "UserMessagesCleared",
+            ]
         ),
         new(
             Key: "now_playing",

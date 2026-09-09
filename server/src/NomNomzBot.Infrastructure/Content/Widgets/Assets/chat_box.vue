@@ -128,8 +128,11 @@ interface ChatPaint {
 interface ChatLine {
   id: string
   // The RAW chat message id, unlike `id` which is suffixed with a sequence to stay unique when the same
-  // message id arrives twice. Enrichment arrives keyed on this one.
+  // message id arrives twice. Enrichment and a single-message delete arrive keyed on this one.
   sourceId: string
+  // The chatter's internal user id — a targeted "clear this person's messages" (channel.chat.clear_user_messages)
+  // removes every line matching this, not just one sourceId.
+  userId: string
   // Set when the bot later learned what this line meant — a song request resolving to a real track. When
   // present it REPLACES the body: the point is not to show "!sr <query>" and a card, it is to show the track.
   card: LinkCard | null
@@ -253,6 +256,7 @@ function onChat(m: any): void {
   const line: ChatLine = {
     id: (m.id || '') + '-' + (++seq),
     sourceId: m.id || '',
+    userId: typeof m.userId === 'string' ? m.userId : '',
     card: null,
     name: m.displayName || m.username || 'Someone',
     color: hexColor(m.color),
@@ -287,6 +291,28 @@ function onChat(m: any): void {
   }
 }
 
+// A moderator (or Twitch AutoMod) deleted ONE message — Twitch removes it from its own chat immediately, so a
+// line this overlay kept rendering after that is the exact "unacceptable" gap being fixed here. Matched on the
+// same RAW message id onEnriched already keys off; a line already scrolled off finds nothing and is a no-op.
+function onMessageDeleted(e: any): void {
+  const id: string = e && e.messageId ? String(e.messageId) : ''
+  if (!id) return
+  lines.value = lines.value.filter((l: ChatLine) => l.sourceId !== id)
+}
+
+// A whole-channel "Clear chat" — every currently-rendered line goes, not just future ones.
+function onChatCleared(): void {
+  lines.value = []
+}
+
+// A targeted per-chatter purge (channel.chat.clear_user_messages) — every line from that ONE person goes;
+// everyone else's messages stay exactly as they were.
+function onUserMessagesCleared(e: any): void {
+  const targetUserId: string = e && e.targetUserId ? String(e.targetUserId) : ''
+  if (!targetUserId) return
+  lines.value = lines.value.filter((l: ChatLine) => l.userId !== targetUserId)
+}
+
 onMounted(() => {
   if (!nnz) return
   nnz.onSettings((s: any) => {
@@ -308,6 +334,9 @@ onMounted(() => {
   })
   nnz.on('ChatMessage', onChat)
   nnz.on('ChatMessageEnriched', onEnriched)
+  nnz.on('MessageDeleted', onMessageDeleted)
+  nnz.on('ChatCleared', onChatCleared)
+  nnz.on('UserMessagesCleared', onUserMessagesCleared)
 })
 
 onUnmounted(() => {
@@ -315,6 +344,9 @@ onUnmounted(() => {
   if (!nnz) return
   nnz.off('ChatMessage', onChat)
   nnz.off('ChatMessageEnriched', onEnriched)
+  nnz.off('MessageDeleted', onMessageDeleted)
+  nnz.off('ChatCleared', onChatCleared)
+  nnz.off('UserMessagesCleared', onUserMessagesCleared)
 })
 </script>
 

@@ -121,6 +121,12 @@ public record ChatClearedDto(string ClearedByUserId);
 
 public record MessageDeletedDto(string MessageId, string DeletedByUserId, string TargetUserId);
 
+public record UserMessagesClearedDto(
+    string TargetUserId,
+    string TargetUserDisplayName,
+    string TargetUserLogin
+);
+
 public record IntegrationEventDto(string Integration);
 
 // ─── Poll alert data DTOs ─────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.core.realtime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Sealed hierarchy of hub invocations the DashboardHub pushes to connected clients.
@@ -292,6 +293,10 @@ data class HubChannelEvent(
     val broadcasterId: String = "",
     val userId: String? = null,
     val userDisplayName: String? = null,
+    // The backend's ChannelEventDto.Data is `object?` — a different shape per [type] (e.g. chat_cleared carries
+    // ChatClearedDto, message_deleted carries MessageDeletedDto). Left as raw JSON here; a consumer that cares
+    // about a specific [type] decodes it into that type's own small payload class.
+    val data: JsonElement? = null,
     val timestamp: String = "",
 )
 

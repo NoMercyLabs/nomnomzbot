@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 
 // The Chat page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then loads
 // its real recent chat from the backend (persisted from EventSub `channel.chat.message`; no fabricated lines).
@@ -213,7 +215,10 @@ class ChatController(
                     val capped: List<ChatMessage> = (ready.messages + newLine).takeLast(200)
                     _state.value = ready.copy(messages = capped)
                 }
-                is HubEvent.ChannelEvent -> applyShieldModeEvent(evt.event)
+                is HubEvent.ChannelEvent -> {
+                    applyShieldModeEvent(evt.event)
+                    applyChatModerationEvent(evt.event)
+                }
                 else -> Unit
             }
         }
@@ -231,6 +236,34 @@ class ChatController(
         when (event.type) {
             "shield_mode_begin" -> _state.value = current.copy(shieldEnabled = true, shieldAvailable = true)
             "shield_mode_end" -> _state.value = current.copy(shieldEnabled = false, shieldAvailable = true)
+        }
+    }
+
+    // A message removed anywhere (a moderator/AutoMod delete, a whole-channel clear, or a targeted per-chatter
+    // purge) must disappear from THIS feed the same instant it disappears from Twitch's own chat — owner report
+    // 2026-09-09: it was staying on screen. Same generic ChannelEvent wire shape as Shield Mode, decoded per
+    // [ChatModerationJson] since ChannelEventDto.Data is a different DTO shape per event type.
+    private fun applyChatModerationEvent(event: HubChannelEvent) {
+        if (event.broadcasterId != channelId) return
+        val current: ChatState = _state.value
+        if (current !is ChatState.Ready) return
+        val data: JsonElement = event.data ?: return
+        when (event.type) {
+            "chat_cleared" -> _state.value = current.copy(messages = emptyList())
+            "message_deleted" -> {
+                val payload: MessageDeletedPayload =
+                    runCatching { ChatModerationJson.decodeFromJsonElement<MessageDeletedPayload>(data) }
+                        .getOrNull() ?: return
+                _state.value =
+                    current.copy(messages = current.messages.filterNot { it.id == payload.messageId })
+            }
+            "user_messages_cleared" -> {
+                val payload: UserMessagesClearedPayload =
+                    runCatching { ChatModerationJson.decodeFromJsonElement<UserMessagesClearedPayload>(data) }
+                        .getOrNull() ?: return
+                _state.value =
+                    current.copy(messages = current.messages.filterNot { it.userId == payload.targetUserId })
+            }
         }
     }
 
