@@ -57,7 +57,8 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// a play/pause flip, or a "seek" (observed progress diverging from elapsed-time-implied progress by more than
 /// <see cref="SeekDriftToleranceMs"/> while track + play state are otherwise unchanged) triggers a publish. The
 /// very first observation of a channel always publishes once, establishing the dashboard's baseline instead of
-/// waiting for the next real change.
+/// waiting for the next real change. A provider reporting "nothing playing" (no active device) only counts as a
+/// real stop after <see cref="NullConfirmationTicks"/> consecutive ticks agree — see its own doc comment.
 /// </para>
 ///
 /// <para>
@@ -78,6 +79,15 @@ public sealed class MusicStatePollingService : BackgroundService
     // times larger than this.
     internal const int SeekDriftToleranceMs = 750;
 
+    // A provider returning "nothing playing" (Spotify: 204/NO_ACTIVE_DEVICE) is not always a real stop — some
+    // Spotify Connect playback targets (smart TVs in particular) drop their device-presence heartbeat for a tick
+    // or two while genuinely still playing. Treating the FIRST such null as an authoritative stop published a
+    // real is-playing:false, then the very next tick published is-playing:true again the moment the target's
+    // heartbeat came back — the overlay widget saw this as isPlaying flapping and its progress bar snapping to 0
+    // and back. Requiring the null to repeat for this many consecutive ticks before it counts as a real stop
+    // absorbs a one-tick blip; a genuine pause/stop is still reflected within a couple of seconds.
+    internal const int NullConfirmationTicks = 2;
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
@@ -86,6 +96,7 @@ public sealed class MusicStatePollingService : BackgroundService
 
     private readonly ConcurrentDictionary<Guid, ChannelPlaybackSnapshot> _lastState = new();
     private readonly ConcurrentDictionary<Guid, ChannelBackoff> _backoff = new();
+    private readonly ConcurrentDictionary<Guid, int> _consecutiveNullPolls = new();
 
     public MusicStatePollingService(
         IServiceScopeFactory scopeFactory,
@@ -262,6 +273,26 @@ public sealed class MusicStatePollingService : BackgroundService
         CancellationToken cancellationToken
     )
     {
+        if (nowPlaying is null)
+        {
+            int consecutiveNulls = _consecutiveNullPolls.AddOrUpdate(
+                channelId,
+                1,
+                (_, count) => count + 1
+            );
+
+            // A lone blip: keep showing the last known (playing) state and don't publish anything for
+            // it — there's nothing stale to correct here since nothing changed on the overlay's side yet.
+            // A channel with no prior observation at all has no "last known playing state" to protect, so
+            // its first-ever null still publishes immediately, same as before.
+            if (consecutiveNulls < NullConfirmationTicks && _lastState.ContainsKey(channelId))
+                return;
+        }
+        else
+        {
+            _consecutiveNullPolls.TryRemove(channelId, out _);
+        }
+
         ChannelPlaybackSnapshot next = nowPlaying is null
             ? new(false, null, 0, 100, observedAt, true, true, true, true, true, true, true)
             : new ChannelPlaybackSnapshot(

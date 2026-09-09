@@ -160,6 +160,60 @@ public sealed class MusicStatePollingServiceTests
         published[1].TrackName.Should().Be("Song A");
     }
 
+    /// <summary>The Samsung-Connect-target bug: a provider blipping to "nothing playing" for a single tick
+    /// (some Spotify Connect targets — smart TVs in particular — drop their device-presence heartbeat for a
+    /// tick or two while genuinely still playing) must NOT flap the overlay's isPlaying — that reads as the
+    /// widget's play/pause toggling and its progress bar snapping to 0 and back. One null tick publishes
+    /// nothing; the last known playing state stands until the blip either resolves or is confirmed real.</summary>
+    [Fact]
+    public async Task A_single_null_poll_is_absorbed_and_does_not_publish_a_stop()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.SetResponse(ChannelA, null); // one tick of "nothing playing" — the blip
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .HaveCount(1, "a single null tick must not publish a stop — only the initial baseline");
+
+        // The blip resolves on the very next tick, back to the same track — must NOT publish either, since
+        // nothing about the actually-visible state ever changed from the overlay's point of view.
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .HaveCount(1, "the blip resolving back to the unchanged state publishes nothing new");
+    }
+
+    /// <summary>The other half: a real stop (the null persists) must still surface, just after
+    /// confirmation instead of on the first tick.</summary>
+    [Fact]
+    public async Task A_null_poll_confirmed_over_consecutive_ticks_publishes_a_real_stop()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.SetResponse(ChannelA, null);
+        for (int tick = 0; tick < MusicStatePollingService.NullConfirmationTicks; tick++)
+            await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        List<PlaybackStateChangedEvent> published =
+        [
+            .. bus.Published.OfType<PlaybackStateChangedEvent>(),
+        ];
+        published
+            .Should()
+            .HaveCount(2, "the confirmed stop publishes once the blip window is exhausted");
+        published[1].IsPlaying.Should().BeFalse();
+    }
+
     [Fact]
     public async Task Seek_jump_beyond_drift_tolerance_publishes_again()
     {
