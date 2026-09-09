@@ -115,9 +115,16 @@ internal static class SdkRuntimeSurface
         StringBuilder sb = new();
         AppendBotFacade(sb);
         sb.AppendLine();
+        AppendBatteryInterfaces(sb);
+        AppendApiInterfaces(sb);
         sb.AppendLine("declare const nnz: {");
-        AppendBatteries(sb);
-        AppendApi(sb);
+        sb.AppendLine("  units: NnzUnits;");
+        sb.AppendLine("  time: NnzTime;");
+        sb.AppendLine("  math: NnzMath;");
+        sb.AppendLine("  str: NnzStr;");
+        sb.AppendLine("  json: NnzJson;");
+        sb.AppendLine("  random: NnzRandom;");
+        sb.AppendLine("  api: NnzApi;");
         sb.Append("};");
         return sb.ToString();
     }
@@ -193,95 +200,164 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("};");
     }
 
-    private static void AppendBatteries(StringBuilder sb)
+    // One named interface per nnz.<namespace> — hovering `nnz` itself now shows six short type references
+    // instead of the whole batteries tree inline (owner: "a better type definition than it being a big
+    // object"), and hovering e.g. `nnz.time` shows the named NnzTime signature directly.
+    private static void AppendBatteryInterfaces(StringBuilder sb)
     {
-        sb.AppendLine("  units: {");
-        sb.AppendLine("    convert(value: number, from: string, to: string): number;");
-        sb.AppendLine("  };");
-        sb.AppendLine("  time: {");
-        sb.AppendLine("    now(): string;");
-        sb.AppendLine("    parse(iso: string): number;");
-        sb.AppendLine("    format(epochMs: number): string;");
-        sb.AppendLine("    add(iso: string, ms: number): string;");
-        sb.AppendLine("    diff(a: string, b: string): number;");
-        sb.AppendLine("  };");
-        sb.AppendLine("  math: {");
-        sb.AppendLine("    clamp(value: number, min: number, max: number): number;");
-        sb.AppendLine("    round(value: number, digits?: number): number;");
-        sb.AppendLine("    lerp(a: number, b: number, t: number): number;");
-        sb.AppendLine("    sum(values: number[]): number;");
-        sb.AppendLine("    avg(values: number[]): number;");
-        sb.AppendLine("    min(values: number[]): number;");
-        sb.AppendLine("    max(values: number[]): number;");
-        sb.AppendLine("    randomInt(min: number, max: number): number;");
-        sb.AppendLine("  };");
-        sb.AppendLine("  str: {");
-        sb.AppendLine("    padStart(value: string, length: number, pad?: string): string;");
-        sb.AppendLine("    padEnd(value: string, length: number, pad?: string): string;");
-        sb.AppendLine("    trim(value: string): string;");
-        sb.AppendLine("    upper(value: string): string;");
-        sb.AppendLine("    lower(value: string): string;");
-        sb.AppendLine("    title(value: string): string;");
-        sb.AppendLine("    truncate(value: string, length: number, ellipsis?: string): string;");
-        sb.AppendLine("    slugify(value: string): string;");
-        sb.AppendLine("    format(template: string, values: Record<string, unknown>): string;");
-        sb.AppendLine("  };");
-        sb.AppendLine("  json: {");
-        sb.AppendLine("    parse(text: string): unknown;");
-        sb.AppendLine("    stringify(value: unknown): string;");
-        sb.AppendLine("  };");
-        sb.AppendLine("  random: {");
-        sb.AppendLine("    int(min: number, max: number): number;");
-        sb.AppendLine("    pick<T>(items: T[]): T;");
-        sb.AppendLine("    shuffle<T>(items: T[]): T[];");
-        sb.AppendLine("    uuid(): string;");
-        sb.AppendLine("  };");
+        sb.AppendLine("interface NnzUnits {");
+        sb.AppendLine("  convert(value: number, from: string, to: string): number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzTime {");
+        sb.AppendLine("  now(): string;");
+        sb.AppendLine("  parse(iso: string): number;");
+        sb.AppendLine("  format(epochMs: number): string;");
+        sb.AppendLine("  add(iso: string, ms: number): string;");
+        sb.AppendLine("  diff(a: string, b: string): number;");
+        sb.AppendLine(
+            "  /** Blocks up to 5000ms (clamped) before the script's NEXT statement runs — there is no "
+        );
+        sb.AppendLine(
+            "   * event loop to resume a callback on, so this is a synchronous pause, not setTimeout. Counts "
+        );
+        sb.AppendLine(
+            "   * against the run's own wall-clock budget. Typical use: nnz.time.sleep(nnz.api.tts.speak(line).durationMs) "
+        );
+        sb.AppendLine(
+            "   * before nnz.api.chat.send(line), so the message lands once the line is actually spoken. */"
+        );
+        sb.AppendLine("  sleep(ms: number): void;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzMath {");
+        sb.AppendLine("  clamp(value: number, min: number, max: number): number;");
+        sb.AppendLine("  round(value: number, digits?: number): number;");
+        sb.AppendLine("  lerp(a: number, b: number, t: number): number;");
+        sb.AppendLine("  sum(values: number[]): number;");
+        sb.AppendLine("  avg(values: number[]): number;");
+        sb.AppendLine("  min(values: number[]): number;");
+        sb.AppendLine("  max(values: number[]): number;");
+        sb.AppendLine("  randomInt(min: number, max: number): number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzStr {");
+        sb.AppendLine("  padStart(value: string, length: number, pad?: string): string;");
+        sb.AppendLine("  padEnd(value: string, length: number, pad?: string): string;");
+        sb.AppendLine("  trim(value: string): string;");
+        sb.AppendLine("  upper(value: string): string;");
+        sb.AppendLine("  lower(value: string): string;");
+        sb.AppendLine("  title(value: string): string;");
+        sb.AppendLine("  truncate(value: string, length: number, ellipsis?: string): string;");
+        sb.AppendLine("  slugify(value: string): string;");
+        sb.AppendLine("  format(template: string, values: Record<string, unknown>): string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzJson {");
+        sb.AppendLine("  parse(text: string): unknown;");
+        sb.AppendLine("  stringify(value: unknown): string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzRandom {");
+        sb.AppendLine("  int(min: number, max: number): number;");
+        sb.AppendLine("  pick<T>(items: T[]): T;");
+        sb.AppendLine("  shuffle<T>(items: T[]): T[];");
+        sb.AppendLine("  uuid(): string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 
-    private static void AppendApi(StringBuilder sb)
+    // One named interface per nnz.api.<namespace>, plus the NnzApi interface that groups them — same
+    // readability goal as AppendBatteryInterfaces, one level deeper.
+    private static void AppendApiInterfaces(StringBuilder sb)
     {
-        sb.AppendLine("  api: {");
-        sb.AppendLine("    user: { get(id?: string): NnzApiUser | null };");
-        sb.AppendLine("    economy: { balance(userId?: string): number };");
-        sb.AppendLine("    chat: { send(text: string): void; reply(text: string): void };");
+        sb.AppendLine("interface NnzApiUserNamespace {");
+        sb.AppendLine("  get(id?: string): NnzApiUser | null;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzApiEconomyNamespace {");
+        sb.AppendLine("  balance(userId?: string): number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzApiChatNamespace {");
+        sb.AppendLine("  send(text: string): void;");
+        sb.AppendLine("  reply(text: string): void;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzApiMusicNamespace {");
+        sb.AppendLine("  nowPlaying(): NnzApiTrack | null;");
+        sb.AppendLine("  queue(uri: string): boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzApiHttpNamespace {");
+        sb.AppendLine("  fetch(url: string): string | null;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine(
-            "    music: { nowPlaying(): NnzApiTrack | null; queue(uri: string): boolean };"
+            "/** Per-channel key/value state that persists between runs (64 KB per value, 200 keys). */"
         );
-        sb.AppendLine("    http: { fetch(url: string): string | null };");
+        sb.AppendLine("interface NnzApiStorageNamespace {");
+        sb.AppendLine("  get(key: string): string | null;");
+        sb.AppendLine("  set(key: string, value: string): boolean;");
+        sb.AppendLine("  delete(key: string): boolean;");
+        sb.AppendLine("  list(prefix?: string): string[];");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine(
-            "    /** Per-channel key/value state that persists between runs (64 KB per value, 200 keys). */"
+            "/** Speak text on the overlay; read/assign a viewer's per-channel voice (setVoice with no voiceId clears to the channel default). */"
         );
+        sb.AppendLine("interface NnzApiTtsNamespace {");
+        sb.AppendLine("  speak(text: string, voiceId?: string): NnzApiTtsResult | null;");
+        sb.AppendLine("  getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;");
+        sb.AppendLine("  setVoice(userIdOrLogin: string, voiceId?: string): boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine(
-            "    storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
+            "/** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
         );
+        sb.AppendLine("interface NnzApiStatsNamespace {");
+        sb.AppendLine("  viewer(userIdOrLogin?: string): NnzApiViewerStats;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine(
-            "    /** Speak text on the overlay; read/assign a viewer's per-channel voice (setVoice with no voiceId clears to the channel default). */"
+            "/** Push an event to one of this channel's enabled widgets (by id or name). */"
         );
+        sb.AppendLine("interface NnzApiWidgetNamespace {");
         sb.AppendLine(
-            "    tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null; getVoice(userIdOrLogin: string): NnzApiTtsVoice | null; setVoice(userIdOrLogin: string, voiceId?: string): boolean };"
+            "  emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean;"
         );
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine(
-            "    /** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
+            "/** Read / patch a channel-point reward (by id or title); update needs a bot-manageable reward. */"
         );
-        sb.AppendLine("    stats: { viewer(userIdOrLogin?: string): NnzApiViewerStats };");
+        sb.AppendLine("interface NnzApiRewardNamespace {");
+        sb.AppendLine("  get(rewardIdOrTitle: string): NnzApiReward | null;");
+        sb.AppendLine("  update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine(
-            "    /** Push an event to one of this channel's enabled widgets (by id or name). */"
+            "/** Schedule a saved pipeline to run once after a delay in seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
         );
+        sb.AppendLine("interface NnzApiScheduleNamespace {");
         sb.AppendLine(
-            "    widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
+            "  pipeline(pipelineName: string, delaySeconds: number, variables?: Record<string, string>, dedupeKey?: string): boolean;"
         );
-        sb.AppendLine(
-            "    /** Read / patch a channel-point reward (by id or title); update needs a bot-manageable reward. */"
-        );
-        sb.AppendLine(
-            "    reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
-        );
-        sb.AppendLine(
-            "    /** Schedule a saved pipeline to run once after a delay in seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
-        );
-        sb.AppendLine(
-            "    schedule: { pipeline(pipelineName: string, delaySeconds: number, variables?: Record<string, string>, dedupeKey?: string): boolean };"
-        );
-        sb.AppendLine("  };");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzApi {");
+        sb.AppendLine("  user: NnzApiUserNamespace;");
+        sb.AppendLine("  economy: NnzApiEconomyNamespace;");
+        sb.AppendLine("  chat: NnzApiChatNamespace;");
+        sb.AppendLine("  music: NnzApiMusicNamespace;");
+        sb.AppendLine("  http: NnzApiHttpNamespace;");
+        sb.AppendLine("  storage: NnzApiStorageNamespace;");
+        sb.AppendLine("  tts: NnzApiTtsNamespace;");
+        sb.AppendLine("  stats: NnzApiStatsNamespace;");
+        sb.AppendLine("  widget: NnzApiWidgetNamespace;");
+        sb.AppendLine("  reward: NnzApiRewardNamespace;");
+        sb.AppendLine("  schedule: NnzApiScheduleNamespace;");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 }

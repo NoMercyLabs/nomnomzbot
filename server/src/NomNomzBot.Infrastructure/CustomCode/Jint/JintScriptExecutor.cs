@@ -32,6 +32,11 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
 {
     public ScriptRuntimeKind Runtime => ScriptRuntimeKind.Jint;
 
+    // The ceiling on a single nnz.time.sleep(ms) call — comfortably covers the going use case (holding a
+    // chat.send for TTS's own reported durationMs, typically 1-3s) without letting one call alone claim the
+    // whole self-host baseline wall-clock budget (ScriptContracts.WallClockMs: 8000).
+    private const double MaxSleepMs = 5000;
+
     // Builds the `bot` facade and the batteries-included `nnz` SDK (dev-platform.md §3.1) from the host
     // primitives. Host-driven Execute (not guest eval), so it is allowed under DisableStringCompilation:
     // JSON.parse, Date, and regex literals are safe builtins (not code-from-string). The `nnz` global carries
@@ -86,7 +91,15 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 parse: function (iso) { return Date.parse(String(iso)); },
                 format: function (epochMs) { return new Date(Number(epochMs)).toISOString(); },
                 add: function (iso, ms) { return new Date(Date.parse(String(iso)) + Number(ms)).toISOString(); },
-                diff: function (a, b) { return Date.parse(String(a)) - Date.parse(String(b)); }
+                diff: function (a, b) { return Date.parse(String(a)) - Date.parse(String(b)); },
+                // A bounded, synchronous pause — NOT a callback-based setTimeout: Jint runs the script to
+                // completion in one call with no event loop to invoke a callback afterward, so a script simply
+                // holds here (consuming its own wall-clock budget, request.Budget.WallClockMs — no separate
+                // timer, no extra thread) before its NEXT statement runs. Clamped host-side (__sleep) so one
+                // call can never claim the whole budget. The going example: nnz.api.tts.speak(line) returns
+                // { durationMs }, and nnz.time.sleep(result.durationMs) holds chat.send until the line is
+                // actually spoken.
+                sleep: function (ms) { __sleep(Number(ms)); }
             },
             math: {
                 clamp: function (v, lo, hi) { v = Number(v); lo = Number(lo); hi = Number(hi); return v < lo ? lo : (v > hi ? hi : v); },
@@ -305,6 +318,24 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 )
             );
             engine.SetValue("__argsJson", JsonConvert.SerializeObject(request.Inputs.Args));
+            // Genuinely blocks the calling thread for up to MaxSleepMs — Jint has no event loop to resume a
+            // suspended script on, so this is the honest cost of nnz.time.sleep, not a Task.Delay a caller can
+            // await around it. Clamped so one call can never claim the whole per-execution wall-clock budget on
+            // its own; Task.Delay (not Thread.Sleep) so the SAME `timeout` token that bounds the rest of the
+            // execution also cuts a sleep short the instant the overall budget expires, surfacing as the usual
+            // ScriptExecutionOutcome.Timeout below rather than a second, uncancellable wait.
+            engine.SetValue(
+                "__sleep",
+                (Action<double>)(
+                    ms =>
+                        Task.Delay(
+                                TimeSpan.FromMilliseconds(Math.Clamp(ms, 0, MaxSleepMs)),
+                                timeout.Token
+                            )
+                            .GetAwaiter()
+                            .GetResult()
+                )
+            );
 
             engine.Execute(Bootstrap);
             engine.Execute(request.CompiledJs);

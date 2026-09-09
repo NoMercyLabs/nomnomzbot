@@ -195,38 +195,124 @@ public sealed class SdkTypeEmitterTests
     [Fact]
     public void Script_dts_declares_the_batteries_and_full_api_surface()
     {
-        string ts = RealEmitter().EmitTypeScript(SdkContext.Script);
+        // Normalized to \n: SdkRuntimeSurface builds the .d.ts with StringBuilder.AppendLine, which emits
+        // Environment.NewLine (\r\n on Windows) — the raw-string blocks below are \n-only, so without this the
+        // multi-line Contain assertions fail on an invisible CRLF/LF mismatch despite matching text.
+        string ts = RealEmitter().EmitTypeScript(SdkContext.Script).ReplaceLineEndings("\n");
 
-        // Batteries — the pure-JS floor, with real signatures (not just a name).
+        // Batteries — the pure-JS floor, with real signatures (not just a name) — each its own named
+        // interface (not one sprawling inline object) so hovering `nnz.time` etc. shows a short, readable type.
+        ts.Should().Contain("interface NnzUnits {");
         ts.Should().Contain("convert(value: number, from: string, to: string): number;");
+        ts.Should().Contain("interface NnzTime {");
+        ts.Should().Contain("sleep(ms: number): void;");
+        ts.Should().Contain("interface NnzStr {");
         ts.Should().Contain("slugify(value: string): string;");
+        ts.Should().Contain("interface NnzMath {");
         ts.Should().Contain("randomInt(min: number, max: number): number;");
+        ts.Should()
+            .Contain(
+                """
+                declare const nnz: {
+                  units: NnzUnits;
+                  time: NnzTime;
+                  math: NnzMath;
+                  str: NnzStr;
+                  json: NnzJson;
+                  random: NnzRandom;
+                  api: NnzApi;
+                };
+                """
+            );
 
-        // The typed api wrappers, including the write/privileged surface, and their return interfaces.
-        ts.Should().Contain("chat: { send(text: string): void; reply(text: string): void };");
-        ts.Should().Contain("http: { fetch(url: string): string | null };");
+        // The typed api wrappers, including the write/privileged surface — same one-interface-per-namespace
+        // shape, grouped under NnzApi — and their return interfaces.
+        ts.Should()
+            .Contain(
+                """
+                interface NnzApiChatNamespace {
+                  send(text: string): void;
+                  reply(text: string): void;
+                }
+                """
+            );
+        ts.Should()
+            .Contain(
+                """
+                interface NnzApiHttpNamespace {
+                  fetch(url: string): string | null;
+                }
+                """
+            );
         ts.Should().Contain("queue(uri: string): boolean");
         ts.Should().Contain("get(id?: string): NnzApiUser | null");
         ts.Should().Contain("interface NnzApiUser {");
         ts.Should().Contain("interface NnzApiTrack {");
+        ts.Should()
+            .Contain(
+                """
+                interface NnzApi {
+                  user: NnzApiUserNamespace;
+                  economy: NnzApiEconomyNamespace;
+                  chat: NnzApiChatNamespace;
+                  music: NnzApiMusicNamespace;
+                  http: NnzApiHttpNamespace;
+                  storage: NnzApiStorageNamespace;
+                  tts: NnzApiTtsNamespace;
+                  stats: NnzApiStatsNamespace;
+                  widget: NnzApiWidgetNamespace;
+                  reward: NnzApiRewardNamespace;
+                  schedule: NnzApiScheduleNamespace;
+                }
+                """
+            );
 
         // The storage / tts / widget / reward groups with their typed signatures + payload interfaces.
         ts.Should()
             .Contain(
-                "storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
+                """
+                interface NnzApiStorageNamespace {
+                  get(key: string): string | null;
+                  set(key: string, value: string): boolean;
+                  delete(key: string): boolean;
+                  list(prefix?: string): string[];
+                }
+                """
             );
         ts.Should()
             .Contain(
-                "tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null; getVoice(userIdOrLogin: string): NnzApiTtsVoice | null; setVoice(userIdOrLogin: string, voiceId?: string): boolean };"
+                """
+                interface NnzApiTtsNamespace {
+                  speak(text: string, voiceId?: string): NnzApiTtsResult | null;
+                  getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;
+                  setVoice(userIdOrLogin: string, voiceId?: string): boolean;
+                }
+                """
             );
-        ts.Should().Contain("stats: { viewer(userIdOrLogin?: string): NnzApiViewerStats };");
         ts.Should()
             .Contain(
-                "widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
+                """
+                interface NnzApiStatsNamespace {
+                  viewer(userIdOrLogin?: string): NnzApiViewerStats;
+                }
+                """
             );
         ts.Should()
             .Contain(
-                "reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
+                """
+                interface NnzApiWidgetNamespace {
+                  emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean;
+                }
+                """
+            );
+        ts.Should()
+            .Contain(
+                """
+                interface NnzApiRewardNamespace {
+                  get(rewardIdOrTitle: string): NnzApiReward | null;
+                  update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean;
+                }
+                """
             );
         ts.Should().Contain("interface NnzApiTtsResult {");
         ts.Should().Contain("interface NnzApiTtsVoice {");

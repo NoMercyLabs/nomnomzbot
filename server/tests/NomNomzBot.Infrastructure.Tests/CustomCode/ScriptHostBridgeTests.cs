@@ -539,6 +539,9 @@ public sealed class ScriptHostBridgeTests
         JObject outcome = JObject.Parse(json!);
         outcome["voiceId"]!.Value<string>().Should().Be("en-US-Aria");
         outcome["characterCount"]!.Value<int>().Should().Be(12);
+        // A script pairing tts.speak with chat.send needs this to hold the message back until the line is
+        // actually spoken (nnz.time.sleep(result.durationMs)) — previously dropped from the JSON entirely.
+        outcome["durationMs"]!.Value<int>().Should().Be(900);
 
         // The dispatch request mirrors PlayTtsAction's shape: this tenant, pipeline-style requester.
         seen.Should().NotBeNull();

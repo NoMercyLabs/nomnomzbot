@@ -365,7 +365,16 @@ public sealed class ScriptHostBridge(
             return null;
 
         return JsonConvert.SerializeObject(
-            new { voiceId = outcome.Value.VoiceId, characterCount = outcome.Value.CharacterCount }
+            new
+            {
+                voiceId = outcome.Value.VoiceId,
+                characterCount = outcome.Value.CharacterCount,
+                // How long the utterance actually takes to play — a script pairing tts.speak with chat.send
+                // needs this to hold the message back until the line is spoken, not fire both in the same tick
+                // (owner report 2026-09-09: "it takes about 1.5 seconds for the tts to be ready and makes the
+                // typed action feel disconnected"). See nnz.time.sleep.
+                durationMs = outcome.Value.DurationMs,
+            }
         );
     }
 

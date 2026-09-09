@@ -106,6 +106,48 @@ public sealed class JintScriptExecutorTests
     }
 
     [Fact]
+    public async Task Nnz_time_sleep_actually_blocks_for_roughly_the_requested_duration()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(
+                Request("nnz.time.sleep(200); bot.send('done');"),
+                Grant(),
+                NoBridge
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.ChatOutput.Should().Be("done");
+        // Proves the sleep is a REAL pause (not a no-op sugar) — the execution's own elapsed time must have
+        // actually grown by roughly the requested amount, not just returned instantly.
+        r.ElapsedMs.Should().BeGreaterThanOrEqualTo(180);
+    }
+
+    /// <summary>
+    /// nnz.time.sleep(ms) is clamped host-side (JintScriptExecutor.MaxSleepMs) so one call can never claim the
+    /// whole per-execution wall-clock budget. Proven the same way as the wall-clock timeout case below: a script
+    /// asking to sleep far longer than the budget allows must still finish successfully inside a budget that is
+    /// generous relative to the clamp but nowhere near enough for the UNCLAMPED request — if the clamp were not
+    /// applied, this would time out instead.
+    /// </summary>
+    [Fact]
+    public async Task Nnz_time_sleep_is_clamped_so_it_cannot_consume_the_whole_wall_clock_budget()
+    {
+        JintScriptExecutor sut = new();
+        ScriptExecutionRequest request = Request("nnz.time.sleep(999999); bot.send('done');") with
+        {
+            Budget = ScriptResourceBudget.Baseline with { WallClockMs = 6_000 },
+        };
+
+        ScriptExecutionOutcomeResult r = (await sut.ExecuteAsync(request, Grant(), NoBridge)).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.ChatOutput.Should().Be("done");
+    }
+
+    [Fact]
     public async Task A_runaway_loop_is_contained()
     {
         JintScriptExecutor sut = new();
