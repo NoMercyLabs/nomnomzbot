@@ -11,6 +11,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
@@ -122,6 +123,26 @@ try
     builder.Services.AddMemoryCache();
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // Compresses the Wasm dashboard bundle (tens of MB uncompressed) and its JS/CSS/octet-stream siblings —
+    // nothing else. Scoped to exactly those MIME types (not the default set, which would also compress
+    // application/json) so an authenticated API response is never compressed alongside attacker-influenceable
+    // input — the classic BREACH-attack precondition this deliberately avoids reintroducing for a load-time
+    // win. EnableForHttps=true because the whole app is served over HTTPS in every real deployment.
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.MimeTypes =
+        [
+            "application/wasm",
+            "text/javascript",
+            "application/javascript",
+            "text/css",
+            "application/octet-stream",
+        ];
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+    });
 
     // Controllers.
     //
@@ -736,6 +757,9 @@ try
     // (index.html) via MapFallbackToFile at the end. With no dashboard bundled (empty web root) this is a no-op and
     // the API-only behavior is unchanged. The explicit ".wasm" mapping guarantees the correct MIME so the browser
     // instantiates the module.
+    // Must run before UseStaticFiles so the wasm/js/css bytes it writes are compressed on the way out.
+    app.UseResponseCompression();
+
     FileExtensionContentTypeProvider staticContentTypes = new();
     staticContentTypes.Mappings[".wasm"] = "application/wasm";
     app.UseStaticFiles(
