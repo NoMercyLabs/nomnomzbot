@@ -105,7 +105,11 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.Entity<UserTtsVoice>(e => e.HasKey(v => v.Id));
+        b.Entity<UserTtsVoice>(e =>
+        {
+            e.HasKey(v => v.Id);
+            e.HasIndex(v => new { v.BroadcasterId, v.UserId }).IsUnique();
+        });
         b.Entity<TtsLexiconEntry>(e => e.HasKey(l => l.Id));
         b.Entity<UserIdentity>(e =>
         {
@@ -194,6 +198,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         throw new NotSupportedException();

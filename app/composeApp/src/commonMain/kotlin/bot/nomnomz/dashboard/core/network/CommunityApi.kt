@@ -14,11 +14,13 @@ import kotlinx.serialization.Serializable
 
 // The typed community facade — the channel's real viewers, sourced from the Twitch API + chat history by the
 // backend (no fabricated viewer lists). It lists the members and lets a moderator manage each one: set their
-// trust level, ban them, or lift a ban. State holders depend on this interface and fake it in tests without
-// HTTP.
+// trust level, ban them, or lift a ban. It also serves the Community Profile page's single-person read (owner
+// punch list 2026-09-08 §3) — every per-channel-per-user data point the domain model tracks. State holders
+// depend on this interface and fake it in tests without HTTP.
 //
 // Backend routes (CommunityController / RewardsController):
 //   GET    /api/v1/channels/{channelId}/community                    →  PaginatedResponse<CommunityUserDto>
+//   GET    /api/v1/channels/{channelId}/community/{userId}/profile    →  StatusResponseDto<ViewerProfileSummaryDto>
 //   GET    /api/v1/channels/{channelId}/rewards/leaderboard          →  StatusResponseDto<List<LeaderboardEntryDto>>
 //   PUT    /api/v1/channels/{channelId}/community/{userId}/trust      →  StatusResponseDto<UserDetailDto>
 //   POST   /api/v1/channels/{channelId}/community/{userId}/ban        →  204 No Content
@@ -26,7 +28,9 @@ import kotlinx.serialization.Serializable
 // The list is a `PaginatedResponse<CommunityUserDto>` (a flat `{ data: [...] }`), so it is read with getDirect
 // like the channel list. The writes treat any 2xx as success (the trust PUT returns the refreshed user, which
 // the controller re-derives by reloading the list — so it is read through putUnit), and `userId` is the Twitch
-// id carried by CommunityMember.id.
+// id carried by CommunityMember.id EXCEPT for `profile`, which is keyed on the internal `User.Id` Guid (the
+// Directory row's `CommunityMember.internalUserId`) — a Profile is only reachable for a viewer who already has
+// a local User row.
 interface CommunityApi {
     /** The channel's community — the first page of viewers (chatters + mods) the backend resolves. */
     suspend fun members(channelId: String): ApiResult<List<CommunityMember>>
@@ -93,6 +97,13 @@ interface CommunityApi {
 
     /** Channel community counts (followers / subscribers / VIPs / moderators). */
     suspend fun stats(channelId: String): ApiResult<CommunityStats>
+
+    /**
+     * The Community Profile page's single-person view (`GET /community/{userId}/profile`, owner punch list
+     * 2026-09-08 §3) — every per-channel-per-user data point the domain model tracks. [userId] is the internal
+     * `User.Id` Guid ([CommunityMember.internalUserId] / [ViewerIdentity.userId]), not the Twitch id.
+     */
+    suspend fun profile(channelId: String, userId: String): ApiResult<ViewerProfileSummary>
 }
 
 class RestCommunityApi(private val client: ApiClient) : CommunityApi {
@@ -165,6 +176,9 @@ class RestCommunityApi(private val client: ApiClient) : CommunityApi {
 
     override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
         client.getEnvelope("api/v1/channels/$channelId/community/stats")
+
+    override suspend fun profile(channelId: String, userId: String): ApiResult<ViewerProfileSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/community/${userId.encodeQuery()}/profile")
 }
 
 /** Channel community counts (backend `CommunityStatsDto`) — the followers / subscribers / VIPs / moderators panel. */
@@ -266,3 +280,113 @@ data class ChatActivityEntry(
     val displayName: String = "",
     val points: Int = 0,
 )
+
+// ── Community Profile page (owner punch list 2026-09-08 §3) ─────────────────────────────────────────────────
+//
+// Everything the domain model tracks about one person within one channel, mirrored from the backend
+// `ViewerProfileSummaryDto` and its groups. A null/empty group means the person genuinely has no data there
+// yet — never a fetch that silently failed. Several groups reuse existing typed DTOs rather than re-declare
+// the same shape a second time: [UserModerationHistorySummary] / [UserTrustSummary] (ModerationApi.kt — the
+// SAME summary the Moderation Desk quick-action popup already renders), [ViewerAnalyticsProfile] /
+// [WatchStreak] (AnalyticsApi.kt), [CurrencyAccountSummary] (EconomyApi.kt), [PermitGrant] (RolesApi.kt),
+// [UserTtsVoice] (TtsApi.kt), and [Quote] (QuotesApi.kt).
+
+/** The Community Profile page's single-person view (backend `ViewerProfileSummaryDto`). */
+@Serializable
+data class ViewerProfileSummary(
+    val identity: ViewerIdentity = ViewerIdentity(),
+    val moderationHistory: UserModerationHistorySummary? = null,
+    val trust: UserTrustSummary? = null,
+    val activity: ViewerAnalyticsProfile? = null,
+    val streak: WatchStreak? = null,
+    val economy: ViewerEconomy = ViewerEconomy(),
+    val permits: ViewerPermits = ViewerPermits(),
+    val overrides: ViewerOverrides = ViewerOverrides(),
+    val commandUsage: ViewerCommandUsage = ViewerCommandUsage(),
+    val freeFormData: List<ViewerDatum> = emptyList(),
+    // Bounded first page (newest first) of quotes attributed to this person. The backend's own doc comment
+    // names a `?userId=` filter on `GET /quotes` to page further, but the live `QuotesController` route
+    // (`api/v1/quotes`, tenant resolved from the JWT) carries neither a `{channelId}` segment nor a `userId`
+    // query parameter today — so only this embedded first page is wired here; paging beyond it needs that
+    // backend filter to exist first (flagged, not fabricated).
+    val recentQuotes: List<Quote> = emptyList(),
+    val totalQuoteCount: Int = 0,
+)
+
+/** Identity & standing (owner punch list §3 row 1) — backend `ViewerIdentityDto`. */
+@Serializable
+data class ViewerIdentity(
+    val userId: String = "",
+    val twitchUserId: String? = null,
+    val username: String = "",
+    val displayName: String = "",
+    val profileImageUrl: String? = null,
+    val pronoun: String? = null,
+    val altPronoun: String? = null,
+    val linkedIdentities: List<LinkedIdentity> = emptyList(),
+    // The ladder-valued chat-badge standing (Plane A — CommunityStanding: everyone/subscriber/vip/…), a
+    // system-derived read: it reflects Twitch follow/sub/VIP/mod state, not something this page writes.
+    val communityStanding: String = "everyone",
+    val subTier: String? = null,
+    // The management-role side (Plane B) — set/cleared here via RolesApi (roles:manage).
+    val managementRole: String? = null,
+    val memberSinceUtc: String? = null,
+    val firstSeenUtc: String = "",
+)
+
+/** One linked platform identity (backend `LinkedIdentityDto`). */
+@Serializable
+data class LinkedIdentity(
+    val provider: String = "",
+    val providerUsername: String = "",
+    val providerDisplayName: String? = null,
+    val providerAvatarUrl: String? = null,
+    val isPrimary: Boolean = false,
+)
+
+/** Economy & games (owner punch list §3 row 4) — backend `ViewerEconomyDto`. Display-only on this page. */
+@Serializable
+data class ViewerEconomy(
+    val wallet: CurrencyAccountSummary? = null,
+    val giveawayEntryCount: Int = 0,
+    val giveawayWinCount: Int = 0,
+    val leaderboardOptedOut: Boolean = false,
+)
+
+/**
+ * Permits & consent (owner punch list §3 row 5) — backend `ViewerPermitsDto`. [activePermits] is genuinely
+ * editable (grant/revoke via RolesApi's permit endpoints); [ageConsentGranted] has no mutation endpoint on
+ * this page — it is the viewer's own GDPR consent record, display-only here.
+ */
+@Serializable
+data class ViewerPermits(
+    val activePermits: List<PermitGrant> = emptyList(),
+    val ageConsentGranted: Boolean? = null,
+    val ageConsentConfirmedUtc: String? = null,
+)
+
+/**
+ * Custom bot behavior overrides (owner punch list §3 row 6) — backend `ViewerOverridesDto`. All three fields
+ * are genuinely editable: [shoutoutMessageTemplate] / [raidMessageTemplate] via ModerationApi's shoutout-
+ * override endpoints (keyed on the person's Twitch id), [ttsVoice] via TtsApi's per-viewer voice endpoints.
+ */
+@Serializable
+data class ViewerOverrides(
+    val shoutoutMessageTemplate: String? = null,
+    val raidMessageTemplate: String? = null,
+    val ttsVoice: UserTtsVoice? = null,
+)
+
+/** Command usage (owner punch list §3 row 7) — backend `ViewerCommandUsageDto`. Display-only. */
+@Serializable
+data class ViewerCommandUsage(
+    val totalCommandsUsed: Int = 0,
+    val lastUsedUtc: String? = null,
+)
+
+/**
+ * One free-form `ViewerDatum` key/value pair (owner punch list §3 row 8) — backend `ViewerDatumDto`. The
+ * existing generic "Community Data" editor (ViewerDataApi) reads/writes these, keyed on [ViewerIdentity.userId].
+ */
+@Serializable
+data class ViewerDatum(val key: String = "", val value: String = "")

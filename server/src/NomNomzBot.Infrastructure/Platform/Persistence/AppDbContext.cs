@@ -71,6 +71,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>

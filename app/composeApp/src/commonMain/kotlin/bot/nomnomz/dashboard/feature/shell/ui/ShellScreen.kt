@@ -574,7 +574,12 @@ private fun ShellContent(
                 role = role,
                 hubEvents = graph.multiChatHubClient.events,
             )
-            ShellRoute.Community -> CommunityScreen(controller = graph.communityController, role = role)
+            ShellRoute.Community ->
+                CommunityScreen(
+                    controller = graph.communityController,
+                    profileController = graph.viewerProfileController,
+                    role = role,
+                )
             ShellRoute.Commands ->
                 CommandsScreen(
                     controller = graph.commandsController,

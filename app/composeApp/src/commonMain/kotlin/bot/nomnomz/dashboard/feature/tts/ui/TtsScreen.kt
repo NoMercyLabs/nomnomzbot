@@ -75,6 +75,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -187,6 +189,11 @@ import nomnomzbot.composeapp.generated.resources.tts_overlay_title
 import nomnomzbot.composeapp.generated.resources.tts_overlay_url_label
 import nomnomzbot.composeapp.generated.resources.tts_status_disabled
 import nomnomzbot.composeapp.generated.resources.tts_status_enabled
+import nomnomzbot.composeapp.generated.resources.tts_tab_general
+import nomnomzbot.composeapp.generated.resources.tts_tab_per_viewer
+import nomnomzbot.composeapp.generated.resources.tts_tab_pronunciation
+import nomnomzbot.composeapp.generated.resources.tts_tab_queue_and_test
+import nomnomzbot.composeapp.generated.resources.tts_tab_voices
 import nomnomzbot.composeapp.generated.resources.widgets_url_copied
 import nomnomzbot.composeapp.generated.resources.widgets_url_copy
 import nomnomzbot.composeapp.generated.resources.tts_toggle_enabled
@@ -318,6 +325,29 @@ private val TTS_PROVIDERS: List<Pair<String, StringResource>> =
         "elevenlabs" to Res.string.tts_provider_elevenlabs,
     )
 
+// The TTS page's tabs (owner-punch-list-2026-09-08.md §2): the page used to stack eight unrelated
+// sections in one long scroll (overlay test, global settings, voice browser, BYOK keys, ad-hoc test,
+// per-viewer voice, pronunciation dictionary, live queue). Grouped here by JOB, matching AdminScreen's
+// [TabsList]/[TabsTrigger] pattern — one shared screen file that swaps sections rather than a separate
+// route per tab, since every tab reads the same loaded [TtsConfig] and none of them is reachable on its
+// own from navigation.
+internal enum class TtsTab(val label: StringResource) {
+    /** Enable toggle, provider selection, default voice, permissions/limits — the plain settings form. */
+    General(Res.string.tts_tab_general),
+
+    /** The searchable voice browser and the BYOK provider keys that unlock paid providers. */
+    Voices(Res.string.tts_tab_voices),
+
+    /** Assign or clear one viewer's voice override. */
+    PerViewer(Res.string.tts_tab_per_viewer),
+
+    /** The phrase → spoken-replacement pronunciation dictionary. */
+    Pronunciation(Res.string.tts_tab_pronunciation),
+
+    /** Live queue controls, the overlay test dispatch, the ad-hoc voice test, and the moderator queue. */
+    QueueAndTest(Res.string.tts_tab_queue_and_test),
+}
+
 @Composable
 private fun ReadyContent(
     state: TtsState.Ready,
@@ -394,114 +424,365 @@ private fun ReadyContent(
     // local recomputed each recomposition (the `var`s are State-backed), so this re-evaluates as fields change.
     val canSave: Boolean = maxLengthValid && minBitsValid && edited != loaded && !state.saving
 
+    // Which tab is showing. Hoisted above the `when` dispatch (not inside any tab), same as every editable
+    // `var` above it — so switching tabs never loses an in-progress edit (e.g. picking a voice on the Voices
+    // tab, then opening General to hit Save): the field's State lives in this composable, the tab body is
+    // just what's currently rendered from it.
+    var selectedTab: TtsTab by remember { mutableStateOf(TtsTab.General) }
+    val typography = LocalTypography.current
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_tts),
+            modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s4),
+        )
+        TabsList(modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s2)) {
+            TtsTab.entries.forEach { tab ->
+                TabsTrigger(selected = selectedTab == tab, onClick = { selectedTab = tab }) {
+                    Text(text = stringResource(tab.label), style = typography.sm)
+                }
+            }
+        }
+
+        when (selectedTab) {
+            TtsTab.General ->
+                GeneralTab(
+                    isEnabled = isEnabled,
+                    onEnabledChange = { isEnabled = it },
+                    mode = mode,
+                    onModeChange = { mode = it },
+                    defaultProvider = defaultProvider,
+                    onProviderChange = { defaultProvider = it },
+                    defaultVoiceId = defaultVoiceId,
+                    onVoiceChange = { defaultVoiceId = it },
+                    maxLengthText = maxLengthText,
+                    onMaxLengthChange = { maxLengthText = it.filter { c -> c.isDigit() } },
+                    maxLengthValid = maxLengthValid,
+                    minPermission = minPermission,
+                    onPermissionChange = { minPermission = it },
+                    skipBotMessages = skipBotMessages,
+                    onSkipBotMessagesChange = { skipBotMessages = it },
+                    readUsernames = readUsernames,
+                    onReadUsernamesChange = { readUsernames = it },
+                    profanityCensorEnabled = profanityCensorEnabled,
+                    onProfanityCensorChange = { profanityCensorEnabled = it },
+                    modApprovalRequired = modApprovalRequired,
+                    onModApprovalChange = { modApprovalRequired = it },
+                    minBitsText = minBitsText,
+                    onMinBitsChange = { minBitsText = it.filter { c -> c.isDigit() } },
+                    minBitsValid = minBitsValid,
+                    viewerVoiceSelfService = viewerVoiceSelfService,
+                    onViewerVoiceSelfServiceChange = { viewerVoiceSelfService = it },
+                    manage = manage,
+                    formEnabled = !state.saving,
+                    saving = state.saving,
+                    justSaved = state.justSaved,
+                    saveError = state.saveError,
+                    canSave = canSave,
+                    onSave = { onSave(edited) },
+                )
+            TtsTab.Voices ->
+                VoicesTab(
+                    browser = state.voiceBrowser,
+                    currentVoiceId = defaultVoiceId,
+                    manage = manage,
+                    onSearch = onSearchVoices,
+                    onSelect = { defaultVoiceId = it },
+                    onPreviewFallback = { voiceId -> onTestSpeak(voiceId, VOICE_PREVIEW_SAMPLE) },
+                    byokConfig = loaded,
+                    saving = state.saving,
+                    onSetByok = onSetByok,
+                    onRemoveByok = onRemoveByok,
+                )
+            TtsTab.PerViewer ->
+                PerViewerTab(
+                    voices = state.voices,
+                    viewerVoice = state.viewerVoice,
+                    manage = manage,
+                    searchViewers = searchViewers,
+                    onLookup = onLookupViewerVoice,
+                    onAssign = onAssignViewerVoice,
+                    onClear = onClearViewerVoice,
+                )
+            TtsTab.Pronunciation ->
+                PronunciationTab(
+                    lexicon = state.lexicon,
+                    busy = state.lexiconBusy,
+                    error = state.lexiconError,
+                    manage = manage,
+                    onAdd = onAddLexicon,
+                    onUpdate = onUpdateLexicon,
+                    onDelete = onDeleteLexicon,
+                )
+            TtsTab.QueueAndTest ->
+                QueueAndTestTab(
+                    overlay = state.overlay,
+                    manage = manage,
+                    sending = state.overlayTestSending,
+                    sent = state.overlayTestSent,
+                    overlayError = state.overlayTestError,
+                    onTestOverlay = onTestOverlay,
+                    playbackBusy = state.playbackControlBusy,
+                    playbackPaused = state.playbackPaused,
+                    playbackError = state.playbackControlError,
+                    onSkip = onSkipPlayback,
+                    onClear = onClearPlayback,
+                    onPause = onPausePlayback,
+                    onResume = onResumePlayback,
+                    currentVoiceId = defaultVoiceId,
+                    testing = state.testing,
+                    testResult = state.testResult,
+                    testError = state.testError,
+                    onTestSpeak = { voiceId, text -> onTestSpeak(voiceId, text) },
+                    queueController = queueController,
+                    queueManage = queueManage,
+                )
+        }
+    }
+}
+
+// General (owner-punch-list-2026-09-08.md §2): the enable toggle, provider selection, default voice, and
+// permissions/limits, plus the Save action that commits every field on the page (including the voice
+// picked from the Voices tab and the default-voice text field here) — kept together so the page's one
+// primary write action sits with the fields it visibly governs.
+@Composable
+internal fun GeneralTab(
+    isEnabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    mode: String,
+    onModeChange: (String) -> Unit,
+    defaultProvider: String,
+    onProviderChange: (String) -> Unit,
+    defaultVoiceId: String,
+    onVoiceChange: (String) -> Unit,
+    maxLengthText: String,
+    onMaxLengthChange: (String) -> Unit,
+    maxLengthValid: Boolean,
+    minPermission: String,
+    onPermissionChange: (String) -> Unit,
+    skipBotMessages: Boolean,
+    onSkipBotMessagesChange: (Boolean) -> Unit,
+    readUsernames: Boolean,
+    onReadUsernamesChange: (Boolean) -> Unit,
+    profanityCensorEnabled: Boolean,
+    onProfanityCensorChange: (Boolean) -> Unit,
+    modApprovalRequired: Boolean,
+    onModApprovalChange: (Boolean) -> Unit,
+    minBitsText: String,
+    onMinBitsChange: (String) -> Unit,
+    minBitsValid: Boolean,
+    viewerVoiceSelfService: Boolean,
+    onViewerVoiceSelfServiceChange: (Boolean) -> Unit,
+    manage: ManageDecision,
+    // Whether the form fields accept input right now (false while a save is in flight) — distinct from
+    // [isEnabled], which is the TTS-enabled toggle's own value.
+    formEnabled: Boolean,
+    saving: Boolean,
+    justSaved: Boolean,
+    saveError: String?,
+    canSave: Boolean,
+    onSave: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        PageHeader(title = stringResource(Res.string.shell_nav_tts))
         StatusBanner(isEnabled = isEnabled)
-        OverlayCard(
-            overlay = state.overlay,
-            manage = manage,
-            sending = state.overlayTestSending,
-            sent = state.overlayTestSent,
-            error = state.overlayTestError,
-            onTest = onTestOverlay,
-            playbackBusy = state.playbackControlBusy,
-            playbackPaused = state.playbackPaused,
-            playbackError = state.playbackControlError,
-            onSkip = onSkipPlayback,
-            onClear = onClearPlayback,
-            onPause = onPausePlayback,
-            onResume = onResumePlayback,
-        )
-
         EditCard(
             isEnabled = isEnabled,
-            onEnabledChange = { isEnabled = it },
+            onEnabledChange = onEnabledChange,
             mode = mode,
-            onModeChange = { mode = it },
+            onModeChange = onModeChange,
             defaultProvider = defaultProvider,
-            onProviderChange = { defaultProvider = it },
+            onProviderChange = onProviderChange,
             defaultVoiceId = defaultVoiceId,
-            onVoiceChange = { defaultVoiceId = it },
+            onVoiceChange = onVoiceChange,
             maxLengthText = maxLengthText,
-            onMaxLengthChange = { maxLengthText = it.filter { c -> c.isDigit() } },
+            onMaxLengthChange = onMaxLengthChange,
             maxLengthValid = maxLengthValid,
             minPermission = minPermission,
-            onPermissionChange = { minPermission = it },
+            onPermissionChange = onPermissionChange,
             skipBotMessages = skipBotMessages,
-            onSkipBotMessagesChange = { skipBotMessages = it },
+            onSkipBotMessagesChange = onSkipBotMessagesChange,
             readUsernames = readUsernames,
-            onReadUsernamesChange = { readUsernames = it },
+            onReadUsernamesChange = onReadUsernamesChange,
             profanityCensorEnabled = profanityCensorEnabled,
-            onProfanityCensorChange = { profanityCensorEnabled = it },
+            onProfanityCensorChange = onProfanityCensorChange,
             modApprovalRequired = modApprovalRequired,
-            onModApprovalChange = { modApprovalRequired = it },
+            onModApprovalChange = onModApprovalChange,
             minBitsText = minBitsText,
-            onMinBitsChange = { minBitsText = it.filter { c -> c.isDigit() } },
+            onMinBitsChange = onMinBitsChange,
             minBitsValid = minBitsValid,
             viewerVoiceSelfService = viewerVoiceSelfService,
-            onViewerVoiceSelfServiceChange = { viewerVoiceSelfService = it },
+            onViewerVoiceSelfServiceChange = onViewerVoiceSelfServiceChange,
             manage = manage,
-            enabled = !state.saving,
+            enabled = formEnabled,
         )
-
         SaveBar(
-            saving = state.saving,
-            justSaved = state.justSaved,
-            saveError = state.saveError,
+            saving = saving,
+            justSaved = justSaved,
+            saveError = saveError,
             canSave = canSave,
             manage = manage,
-            onSave = { onSave(edited) },
+            onSave = onSave,
         )
+    }
+}
 
+// Voices (owner-punch-list-2026-09-08.md §2): the searchable voice catalogue and the BYOK provider keys
+// together — browsing what a channel COULD speak with and supplying the credentials that unlock the paid
+// providers are the same job of picking what this channel actually speaks with.
+@Composable
+internal fun VoicesTab(
+    browser: VoiceBrowserState?,
+    currentVoiceId: String,
+    manage: ManageDecision,
+    onSearch: (q: String, locale: String, gender: String, provider: String, accent: String, page: Int) -> Unit,
+    onSelect: (String) -> Unit,
+    onPreviewFallback: (voiceId: String) -> Unit,
+    byokConfig: TtsConfig,
+    saving: Boolean,
+    onSetByok: (provider: String, apiKey: String, region: String?) -> Unit,
+    onRemoveByok: (provider: String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
         VoiceBrowser(
-            browser = state.voiceBrowser,
-            currentVoiceId = defaultVoiceId,
+            browser = browser,
+            currentVoiceId = currentVoiceId,
             manage = manage,
-            onSearch = onSearchVoices,
-            onSelect = { defaultVoiceId = it },
-            onPreviewFallback = { voiceId -> onTestSpeak(voiceId, VOICE_PREVIEW_SAMPLE) },
+            onSearch = onSearch,
+            onSelect = onSelect,
+            onPreviewFallback = onPreviewFallback,
         )
-
         ByokSection(
-            config = loaded,
-            saving = state.saving,
+            config = byokConfig,
+            saving = saving,
             manage = manage,
             onSetByok = onSetByok,
             onRemoveByok = onRemoveByok,
         )
+    }
+}
 
-        TestSpeakSection(
-            currentVoiceId = defaultVoiceId,
-            testing = state.testing,
-            testResult = state.testResult,
-            testError = state.testError,
-            manage = manage,
-            onTest = { voiceId, text -> onTestSpeak(voiceId, text) },
-        )
-
+// Per-viewer (owner-punch-list-2026-09-08.md §2): assign or clear one viewer's TTS voice override. Stays
+// on the TTS page for now — a later, separate effort may move this onto a per-person Community profile
+// page once that page exists; it doesn't yet, so this isn't blocked on it.
+@Composable
+internal fun PerViewerTab(
+    voices: List<TtsVoice>,
+    viewerVoice: ViewerVoiceState?,
+    manage: ManageDecision,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onLookup: (userId: String) -> Unit,
+    onAssign: (userId: String, voiceId: String) -> Unit,
+    onClear: (userId: String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
         ViewerVoiceSection(
-            voices = state.voices,
-            viewerVoice = state.viewerVoice,
+            voices = voices,
+            viewerVoice = viewerVoice,
             manage = manage,
             searchViewers = searchViewers,
-            onLookup = onLookupViewerVoice,
-            onAssign = onAssignViewerVoice,
-            onClear = onClearViewerVoice,
+            onLookup = onLookup,
+            onAssign = onAssign,
+            onClear = onClear,
         )
+    }
+}
 
+// Pronunciation (owner-punch-list-2026-09-08.md §2): the phrase → spoken-replacement dictionary, on its
+// own tab since it is a self-contained editor unrelated to the settings form or the voice catalogue.
+@Composable
+internal fun PronunciationTab(
+    lexicon: List<TtsLexiconEntry>,
+    busy: Boolean,
+    error: String?,
+    manage: ManageDecision,
+    onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
+    onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
+    onDelete: (id: String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
         PronunciationSection(
-            lexicon = state.lexicon,
-            busy = state.lexiconBusy,
-            error = state.lexiconError,
+            lexicon = lexicon,
+            busy = busy,
+            error = error,
             manage = manage,
-            onAdd = onAddLexicon,
-            onUpdate = onUpdateLexicon,
-            onDelete = onDeleteLexicon,
+            onAdd = onAdd,
+            onUpdate = onUpdate,
+            onDelete = onDelete,
         )
+    }
+}
 
+// Queue & test (owner-punch-list-2026-09-08.md §2): the live playback queue controls, the overlay test
+// dispatch, the ad-hoc voice test, and the moderator approval queue — everything about what is playing,
+// about to play, or waiting on a mod right now, grouped so an operator watching the stream has one place
+// to look instead of scrolling past the settings form and the voice catalogue to find it.
+@Composable
+internal fun QueueAndTestTab(
+    overlay: TtsOverlay?,
+    manage: ManageDecision,
+    sending: Boolean,
+    sent: Boolean,
+    overlayError: String?,
+    onTestOverlay: () -> Unit,
+    playbackBusy: Boolean,
+    playbackPaused: Boolean,
+    playbackError: String?,
+    onSkip: () -> Unit,
+    onClear: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    currentVoiceId: String,
+    testing: Boolean,
+    testResult: TtsTestResult?,
+    testError: String?,
+    onTestSpeak: (voiceId: String, text: String) -> Unit,
+    queueController: TtsQueueController,
+    queueManage: ManageDecision,
+) {
+    val spacing = LocalSpacing.current
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+    ) {
+        OverlayCard(
+            overlay = overlay,
+            manage = manage,
+            sending = sending,
+            sent = sent,
+            error = overlayError,
+            onTest = onTestOverlay,
+            playbackBusy = playbackBusy,
+            playbackPaused = playbackPaused,
+            playbackError = playbackError,
+            onSkip = onSkip,
+            onClear = onClear,
+            onPause = onPause,
+            onResume = onResume,
+        )
+        TestSpeakSection(
+            currentVoiceId = currentVoiceId,
+            testing = testing,
+            testResult = testResult,
+            testError = testError,
+            manage = manage,
+            onTest = onTestSpeak,
+        )
         TtsQueueSection(controller = queueController, manage = queueManage)
     }
 }

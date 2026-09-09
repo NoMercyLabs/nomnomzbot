@@ -91,13 +91,20 @@ public sealed class QuoteService : IQuoteService
                     return Result.Failure<QuoteDto>(next.ErrorMessage, next.ErrorCode);
 
                 DateTime createdAt = _timeProvider.GetUtcNow().UtcDateTime;
+                string? quotedDisplayName = request.QuotedDisplayName?.Trim();
+                Guid? resolvedUserId = await ResolveQuotedUserIdAsync(
+                    broadcasterId,
+                    quotedDisplayName,
+                    token
+                );
                 Quote quote = new()
                 {
                     Id = Guid.CreateVersion7(),
                     BroadcasterId = broadcasterId,
                     Number = (int)next.Value,
                     Text = text,
-                    QuotedDisplayName = request.QuotedDisplayName?.Trim(),
+                    QuotedDisplayName = quotedDisplayName,
+                    UserId = resolvedUserId,
                     ContextGame = request.ContextGame?.Trim(),
                     QuotedAt = request.QuotedAt ?? createdAt,
                     CreatedByUserId = request.CreatedByUserId,
@@ -210,7 +217,42 @@ public sealed class QuoteService : IQuoteService
                 q.QuotedDisplayName,
                 q.ContextGame,
                 q.QuotedAt,
-                q.CreatedAt
+                q.CreatedAt,
+                q.UserId
+            ))
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<QuoteDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    public async Task<Result<PagedList<QuoteDto>>> ListByUserAsync(
+        Guid broadcasterId,
+        Guid userId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        IQueryable<Quote> query = _db.Quotes.Where(q =>
+            q.BroadcasterId == broadcasterId && q.UserId == userId
+        );
+
+        int total = await query.CountAsync(ct);
+
+        List<QuoteDto> items = await query
+            .OrderByDescending(q => q.Number)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(q => new QuoteDto(
+                q.Id,
+                q.Number,
+                q.Text,
+                q.QuotedDisplayName,
+                q.ContextGame,
+                q.QuotedAt,
+                q.CreatedAt,
+                q.UserId
             ))
             .ToListAsync(ct);
 
@@ -296,6 +338,46 @@ public sealed class QuoteService : IQuoteService
         return Result.Success();
     }
 
+    /// <summary>
+    /// Best-effort attribution (owner punch list 2026-09-08 §3): matches <paramref name="displayName"/>
+    /// case-insensitively against a known chatter of THIS channel (username or display name), never a
+    /// same-named user from an unrelated channel. Ambiguous (matches &gt; 1) or unresolved → null; a quote is
+    /// never mis-attributed to a guess.
+    /// </summary>
+    private async Task<Guid?> ResolveQuotedUserIdAsync(
+        Guid broadcasterId,
+        string? displayName,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+            return null;
+
+        string term = displayName.Trim().ToLowerInvariant();
+        List<Guid> matches = await _db
+            .Users.Where(u =>
+                (u.UsernameNormalized == term || u.DisplayName.ToLower() == term)
+                && u.TwitchUserId != null
+                && _db.ChatMessages.Any(m =>
+                    m.BroadcasterId == broadcasterId && m.UserId == u.TwitchUserId
+                )
+            )
+            .Select(u => u.Id)
+            .Take(2)
+            .ToListAsync(ct);
+
+        return matches.Count == 1 ? matches[0] : null;
+    }
+
     private static QuoteDto ToDto(Quote q) =>
-        new(q.Id, q.Number, q.Text, q.QuotedDisplayName, q.ContextGame, q.QuotedAt, q.CreatedAt);
+        new(
+            q.Id,
+            q.Number,
+            q.Text,
+            q.QuotedDisplayName,
+            q.ContextGame,
+            q.QuotedAt,
+            q.CreatedAt,
+            q.UserId
+        );
 }

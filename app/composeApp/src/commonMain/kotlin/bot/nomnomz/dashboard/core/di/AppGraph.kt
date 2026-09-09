@@ -178,6 +178,7 @@ import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
+import bot.nomnomz.dashboard.feature.community.state.ViewerProfileController
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
 import bot.nomnomz.dashboard.feature.automation.state.AutomationController
 import bot.nomnomz.dashboard.feature.discord.state.DiscordController
@@ -478,14 +479,23 @@ class AppGraph {
         )
 
     val communityController: CommunityController =
-        CommunityController(
+        CommunityController(channelsApi = channelsApi, communityApi = communityApi)
+
+    // The Community Profile page (owner punch list 2026-09-08 §3) — the single-person view a Directory row
+    // opens. Owns every genuinely-editable per-person section through its own existing endpoint: shoutout/raid
+    // overrides + history notes (moderationApi), TTS voice (ttsApi), management role + permits (rolesApi),
+    // free-form viewer data (viewerDataApi), and the broadcaster-only GDPR export/erase that moved off the old
+    // Community stats dialog (gdprApi/usersApi).
+    val viewerProfileController: ViewerProfileController =
+        ViewerProfileController(
             channelsApi = channelsApi,
             communityApi = communityApi,
-            usersApi = usersApi,
-            viewerDataApi = viewerDataApi,
             moderationApi = moderationApi,
-            analyticsApi = analyticsApi,
+            ttsApi = ttsApi,
+            rolesApi = rolesApi,
+            viewerDataApi = viewerDataApi,
             gdprApi = gdprApi,
+            usersApi = usersApi,
             fileBridge = journalFileBridge,
         )
 
@@ -612,7 +622,7 @@ class AppGraph {
         )
 
     val chatController: ChatController =
-        ChatController(channelsApi = channelsApi, chatApi = chatApi)
+        ChatController(channelsApi = channelsApi, chatApi = chatApi, moderationApi = moderationApi)
 
     // A DEDICATED hub connection for the multi-watch page, kept SEPARATE from [dashboardHubClient]: the main
     // hub's single-channel Chat page appends every ChatMessage it receives, so joining extra channels on it would
@@ -626,6 +636,7 @@ class AppGraph {
             chatApi = chatApi,
             joinChannel = { channelId -> multiChatHubClient.join(channelId) },
             leaveChannel = { channelId -> multiChatHubClient.leave(channelId) },
+            moderationApi = moderationApi,
         )
 
     val quotesController: QuotesController =

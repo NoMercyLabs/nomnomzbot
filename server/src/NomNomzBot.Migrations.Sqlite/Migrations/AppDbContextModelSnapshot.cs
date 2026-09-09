@@ -7498,6 +7498,70 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ModerationEscalationStates");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ModeratorDisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ModeratorTwitchUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ModeratorUserId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "OccurredAt")
+                        .HasDatabaseName("IX_ModerationHistoryEntry_Broadcaster_OccurredAt");
+
+                    b.HasIndex("BroadcasterId", "SubjectUserId", "OccurredAt")
+                        .HasDatabaseName("IX_ModerationHistoryEntry_Broadcaster_Subject_OccurredAt");
+
+                    b.ToTable("ModerationHistoryEntries");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9575,10 +9639,19 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("BroadcasterId", "Number")
                         .IsUnique();
+
+                    b.HasIndex("BroadcasterId", "UserId")
+                        .HasDatabaseName("IX_Quote_Broadcaster_UserId");
 
                     b.ToTable("Quotes");
                 });
@@ -10742,9 +10815,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
             modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.UserTtsVoice", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
 
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("TEXT")
@@ -12346,7 +12420,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Channel");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Rewards.Entities.Reward", b =>

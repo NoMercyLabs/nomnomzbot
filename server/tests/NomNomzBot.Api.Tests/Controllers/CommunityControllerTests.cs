@@ -16,6 +16,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -47,7 +48,8 @@ public sealed class CommunityControllerTests
             moderation ?? Substitute.For<ITwitchModerationApi>(),
             TimeProvider.System,
             Substitute.For<ICommunityStandingService>(),
-            Substitute.For<ICurrentUserService>()
+            Substitute.For<ICurrentUserService>(),
+            Substitute.For<IViewerProfileService>()
         )
         {
             ControllerContext = new()

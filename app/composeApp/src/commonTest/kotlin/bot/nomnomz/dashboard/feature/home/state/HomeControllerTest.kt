@@ -1054,6 +1054,8 @@ private class FakeCommunityApi : CommunityApi {
 
     override suspend fun member(channelId: String, userId: String) =
         ApiResult.Ok(CommunityMember(id = userId))
+
+    override suspend fun profile(channelId: String, userId: String) = error("stub")
 }
 
 private class FakeNotificationsApi(
@@ -1143,6 +1145,12 @@ private class FakeModerationApi : ModerationApi {
     override suspend fun bans(channelId: String) = error("stub")
     override suspend fun unban(channelId: String, userId: String) = error("stub")
     override suspend fun modLog(channelId: String) = error("stub")
+    override suspend fun history(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+        filter: bot.nomnomz.dashboard.core.network.ModerationHistoryFilter,
+    ) = error("stub")
     override suspend fun shieldMode(channelId: String) = error("stub")
     override suspend fun setShieldMode(channelId: String, enabled: Boolean) = error("stub")
     override suspend fun blockedTerms(channelId: String) = error("stub")
@@ -1198,6 +1206,9 @@ private class FakeModerationApi : ModerationApi {
         pinned: Boolean?,
     ) = error("stub")
     override suspend fun deleteNote(channelId: String, noteId: String) = error("stub")
+    override suspend fun historyForUser(channelId: String, userId: String, page: Int, pageSize: Int) =
+        error("stub")
+    override suspend fun addHistoryNote(channelId: String, userId: String, note: String) = error("stub")
     override suspend fun announce(channelId: String, message: String, color: String?) = error("stub")
     override suspend fun warn(channelId: String, userId: String, reason: String) = error("stub")
     override suspend fun setSuspicious(channelId: String, userId: String, status: String) = error("stub")

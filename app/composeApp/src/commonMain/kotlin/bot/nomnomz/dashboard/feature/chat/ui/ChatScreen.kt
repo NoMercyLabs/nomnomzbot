@@ -79,6 +79,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeToggle
+import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeUnavailableNotice
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
@@ -144,6 +146,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_announce_message_lab
 import nomnomzbot.composeapp.generated.resources.moderation_announce_message_required
 import nomnomzbot.composeapp.generated.resources.moderation_announce_send
 import nomnomzbot.composeapp.generated.resources.moderation_announce_title
+import nomnomzbot.composeapp.generated.resources.moderation_shield_unavailable
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.chat_error
 import nomnomzbot.composeapp.generated.resources.chat_loading
@@ -236,6 +239,22 @@ fun ChatScreen(
                     enabled = enabled,
                     onToggle = { updated -> scope.launch { controller.updateSettings(updated) } },
                 )
+            }
+        }
+
+        // Emergency Shield Mode (S076c) — the same PATCH .../moderation/shield route the Moderation -> Desk
+        // toggle already calls (ChatController.setShieldMode -> ModerationApi.setShieldMode), so this is the
+        // SAME shield, not a second one. Hidden until the first read lands (shieldEnabled == null); shown as a
+        // needs-permission notice instead of the toggle when the live Twitch read/write failed here.
+        if (currentState is ChatState.Ready && currentState.shieldEnabled != null) {
+            if (currentState.shieldAvailable) {
+                ShieldModeToggle(
+                    enabled = currentState.shieldEnabled,
+                    manage = manage,
+                    onToggle = { on -> scope.launch { controller.setShieldMode(on) } },
+                )
+            } else {
+                ShieldModeUnavailableNotice(stringResource(Res.string.moderation_shield_unavailable))
             }
         }
 

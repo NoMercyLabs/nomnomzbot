@@ -33,5 +33,9 @@ public sealed record QuoteDto(
     string? QuotedDisplayName,
     string? ContextGame,
     DateTime? QuotedAt,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    // The resolved local User this quote is attributed to (owner punch list 2026-09-08 §3) — null for a
+    // quote whose QuotedDisplayName never resolved to a known chatter (including every quote added before
+    // this column existed). Powers "quotes by this person" on the Community Profile page.
+    Guid? UserId = null
 );

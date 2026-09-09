@@ -19,6 +19,11 @@ import androidx.compose.ui.unit.sp
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.inter
 import nomnomzbot.composeapp.generated.resources.noto_emoji
+import nomnomzbot.composeapp.generated.resources.noto_sans
+import nomnomzbot.composeapp.generated.resources.noto_sans_arabic
+import nomnomzbot.composeapp.generated.resources.noto_sans_kr
+import nomnomzbot.composeapp.generated.resources.noto_sans_sc
+import nomnomzbot.composeapp.generated.resources.noto_sans_thai
 import nomnomzbot.composeapp.generated.resources.twemoji_color
 import org.jetbrains.compose.resources.Font
 
@@ -39,11 +44,30 @@ data class Typography(
 
 internal val DefaultTypography: Typography = Typography()
 
-// The bundled type face: Inter (the design-system's intended sans, §1.3) with a bundled emoji fallback so
-// Unicode emoji render as glyphs instead of □ tofu — INCLUDING in editable text fields, where the inline-image
-// [EmojiText] path cannot reach. Every [Typography] style carries this family, so all app text (and the fields
-// that read `typography.*`) share one emoji-capable font. Skia/Wasm has no system fonts, so the fallback only
-// works because the emoji face is bundled here.
+// The bundled type face: Inter (the design-system's intended sans, §1.3) with bundled script-fallback and
+// emoji faces so text renders as real glyphs instead of □ tofu — INCLUDING in editable text fields, where
+// the inline-image [EmojiText] path cannot reach. Every [Typography] style carries this family, so all app
+// text (and the fields that read `typography.*`) shares the same coverage. Skia/Wasm has no system fonts,
+// so every fallback only works because its face is bundled here — there is nothing else to fall through to.
+//
+// Inter (Latin only) covers the app's own UI languages (en, nl), but chat messages and viewer-entered
+// content (display names, quotes, custom command text) can be in ANY script regardless of the app's UI
+// language. FontFamily resolves per-glyph, in list order: for each character, Skia walks the fonts below
+// until one has that glyph, so a mixed-script string (e.g. Latin + Cyrillic in one line) renders correctly
+// without the app knowing the language in advance. Coverage was verified against each face's actual cmap
+// (fontTools), not assumed from the family name:
+// - Noto Sans (variable): Cyrillic, Greek, Vietnamese, Devanagari, extended Latin
+// - Noto Sans Arabic: Arabic script (incl. Persian/Urdu extensions)
+// - Noto Sans Thai: Thai script
+// - Noto Sans SC: Han ideographs (Simplified + Traditional codepoints) + Hiragana/Katakana + Bopomofo —
+//   covers Chinese and the Han/Kana portion of Japanese; Han glyph *shapes* default to the Simplified
+//   style even for Traditional-only codepoints, so Traditional Chinese/Japanese text stays legible but
+//   won't always show the regionally-preferred stroke form
+// - Noto Sans KR: Hangul syllables + Jamo — Noto Sans SC does NOT include Hangul, so Korean needs this
+//   separate face
+// Not covered by this set (a scope call, not an oversight): Armenian, Georgian, Hebrew, and scripts
+// outside the six above. All five Noto faces are Google's Noto Sans family, SIL Open Font License 1.1
+// (github.com/google/fonts, ofl/notosans*), same redistribution terms as bundling any other open font.
 //
 // [colorEmoji] picks the emoji face live from the operator's persisted EmojiStyle preference: the color
 // (Twemoji COLR) face by default, or the monochrome (Noto Emoji) face as the fallback for a browser/Skia
@@ -56,6 +80,11 @@ fun appTypography(colorEmoji: Boolean): Typography {
             Font(Res.font.inter, FontWeight.Medium),
             Font(Res.font.inter, FontWeight.SemiBold),
             Font(Res.font.inter, FontWeight.Bold),
+            Font(Res.font.noto_sans),
+            Font(Res.font.noto_sans_arabic),
+            Font(Res.font.noto_sans_thai),
+            Font(Res.font.noto_sans_sc),
+            Font(Res.font.noto_sans_kr),
             Font(if (colorEmoji) Res.font.twemoji_color else Res.font.noto_emoji),
         )
     return Typography(

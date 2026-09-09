@@ -91,7 +91,17 @@ class ModerationSectionOwnershipTest {
                     "chat-filters-card",
                 ),
             // Find what happened.
-            "History" to setOf("log-header", "log-card", "nuke-header", "nuke-card"),
+            "History" to
+                setOf(
+                    "log-header",
+                    "log-card",
+                    "nuke-header",
+                    "nuke-card",
+                    "history-log-header",
+                    "history-log-controls",
+                    "history-log-card",
+                    "history-log-pager",
+                ),
         )
 
     private val ownedItem: Regex =
@@ -145,8 +155,11 @@ class ModerationSectionOwnershipTest {
     @Test
     fun the_four_pages_together_still_carry_everything_the_one_page_did() {
         // The split must not LOSE capability — the owner asked for less complexity, not fewer features.
-        // 49 items were counted on the page before the split: 47 owned + the 2 shared chrome items.
+        // 49 items were counted on the page before the split: 47 owned + the 2 shared chrome items. History
+        // grew by 4 (owner punch list 2026-09-08 §12 — the browsable filtered log: header, filter controls,
+        // list card, pager) when the empty-hiding mod-log/nuke-batch bug fix reused their EXISTING keys
+        // rather than adding new ones.
         val owned: Int = expectedOwners.values.sumOf { it.size }
-        assertEquals(47, owned, "a moderation section was dropped or added without a decision")
+        assertEquals(51, owned, "a moderation section was dropped or added without a decision")
     }
 }

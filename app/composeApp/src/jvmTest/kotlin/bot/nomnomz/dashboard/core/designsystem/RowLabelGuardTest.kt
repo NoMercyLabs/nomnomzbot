@@ -54,7 +54,12 @@ class RowLabelGuardTest {
     // corrected regex. GiveawaysScreen.kt was fixed in THIS pass (giveaway.title row/edit/delete/close/
     // draw + code-pool name/delete) and its count is the one that actually moved this time.
     private val rawRenderedAssignmentBaseline: Map<String, Int> =
-        mapOf()
+        mapOf(
+            // Both sites are `candidate.name` inside `ManagementRole.entries.forEach { candidate -> ... }` —
+            // Kotlin's built-in Enum.name, never null/blank by language guarantee, not a domain field that
+            // can arrive empty from the backend. Not the defect this guard exists to catch.
+            "community/ui/ViewerProfileScreen.kt" to 2,
+        )
 
     // Editor/state-controller constructor form-seeds — an `edit(summary)` factory populating an
     // EDITABLE field's default value (e.g. `name = command.name` in CommandEditor.edit()). Never

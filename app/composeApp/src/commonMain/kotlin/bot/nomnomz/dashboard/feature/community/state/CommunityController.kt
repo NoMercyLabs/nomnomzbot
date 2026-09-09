@@ -11,78 +11,50 @@
 package bot.nomnomz.dashboard.feature.community.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
-import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityPage
-import bot.nomnomz.dashboard.core.io.JournalFileIO
-import bot.nomnomz.dashboard.core.network.DataExport
-import bot.nomnomz.dashboard.core.network.GdprApi
-import bot.nomnomz.dashboard.core.network.ModerationApi
-import bot.nomnomz.dashboard.core.network.ShoutoutOverride
-import bot.nomnomz.dashboard.core.network.UserStats
-import bot.nomnomz.dashboard.core.network.UsersApi
-import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
-import bot.nomnomz.dashboard.core.network.ViewerDataApi
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// The Community page's state-holder (frontend-ia.md §3 — the channel's viewers). Resolves the active channel,
-// then loads its real community list from the backend (Twitch API + chat history; no fabricated viewers). It
-// also drives the page's per-member management — set trust level, ban, unban — each of which re-loads on
-// success so the screen always reflects the backend's truth. The screen renders [state]; a pull / reconnect
-// calls [load] again.
+// The Community DIRECTORY page's state-holder (owner punch list 2026-09-08 §3A) — a search-first list for
+// finding someone fast. Resolves the active channel, then loads its real member list from the backend (Twitch
+// API + chat history; no fabricated viewers). Every management action on a person — trust, ban/VIP, TTS voice,
+// overrides, permits, GDPR — lives on the Community PROFILE page ([ViewerProfileController]) that a Directory
+// row opens, never duplicated here: this controller's only job is finding and sorting, matching the owner's
+// "mirrors how Moderation was already split by job instead of topic" framing. The screen renders [state]; a
+// pull / reconnect calls [load] again.
 class CommunityController(
     private val channelsApi: ChannelsApi,
     private val communityApi: CommunityApi,
-    private val usersApi: UsersApi,
-    private val viewerDataApi: ViewerDataApi,
-    // The per-person message lines (shoutout / raid) live behind the moderation API but belong to the PERSON,
-    // so they are edited here — in the panel that already shows who this viewer is — rather than on a
-    // channel-wide settings page where they were unfindable among fifteen unrelated sections.
-    private val moderationApi: ModerationApi,
-    // Optional: the channel-scoped analytics facade the per-viewer detail panel reads a FOREIGN viewer's stats
-    // through (`analytics/viewers/{internalUserId}`), which a moderator may call for anyone — unlike the self-only
-    // usersApi.stats. Nullable so existing state-holder tests construct the controller without it.
-    private val analyticsApi: AnalyticsApi? = null,
-    // The compliance-plane export a moderator fulfils a right-of-access request with, plus the shared
-    // file bridge that hands the document to the OS. Required, not optional: an export control wired to
-    // nothing is exactly the failure this slice is fixing.
-    private val gdprApi: GdprApi,
-    private val fileBridge: JournalFileIO,
 ) {
     private val _state: MutableStateFlow<CommunityState> = MutableStateFlow(CommunityState.Loading)
 
     /** The page render state: loading / ready (with the members) / empty / error. */
     val state: StateFlow<CommunityState> = _state.asStateFlow()
 
-    // The channel the writes target — resolved by [load] and reused by every mutation so a write never has to
-    // re-resolve the channel. Null until the first successful resolve.
+    // The channel the reads target — resolved by [load] and reused by [selectRole]/paging/search so they never
+    // have to re-resolve it. Null until the first successful resolve.
     private var channelId: String? = null
 
-    // The paging cursor the page currently sits on. The role-filtered member list is served one page at a time
-    // (the "stuck on page 1" fix): the page-numbered tabs walk [currentPage]; the cursor-paginated followers tab
-    // walks [followerCursorTrail] (each entry the cursor that fetched a page, the last one the current page), so
-    // prev can step back. [lastNextCursor] is the follower continuation the backend just handed us.
+    // The paging cursor the page currently sits on. The role-filtered member list is served one page at a time:
+    // the page-numbered tabs walk [currentPage]; the cursor-paginated followers tab walks [followerCursorTrail]
+    // (each entry the cursor that fetched a page, the last one the current page), so prev can step back.
+    // [lastNextCursor] is the follower continuation the backend just handed us.
     private var currentRole: String = CommunityRole.All
     private var currentPage: Int = 1
     private var lastNextCursor: String? = null
     private val followerCursorTrail: ArrayDeque<String?> = ArrayDeque()
 
-    // Top chatters is supplementary and range-wide (not per member-page), so it is fetched once by [load] and
-    // reused across every page/role/write reload rather than re-requested each time.
-    private var topChatters: List<ChatActivityEntry> = emptyList()
-
-    /** Resolve the active channel, load its top chatters, then load the first page of all members. */
+    /** Resolve the active channel, then load the first page of all members. */
     suspend fun load() {
-        // Only show the full-page loading state on first load; a refetch after a mutation keeps
-        // the current content on screen (no flash) and swaps it when the new data arrives.
+        // Only show the full-page loading state on first load; a refetch keeps the current content on screen
+        // (no flash) and swaps it when the new data arrives.
         if (_state.value !is CommunityState.Ready) _state.value = CommunityState.Loading
 
         val channel: ChannelSummary =
@@ -95,13 +67,6 @@ class CommunityController(
             }
         channelId = channel.id
 
-        // Top chatters is supplementary — a failure just surfaces an empty leaderboard, not a page error.
-        topChatters =
-            when (val result: ApiResult<List<ChatActivityEntry>> = communityApi.topChatters(channel.id)) {
-                is ApiResult.Ok -> result.value
-                is ApiResult.Failure -> emptyList()
-            }
-
         // Reset to the first page of the unfiltered list.
         currentRole = CommunityRole.All
         currentPage = 1
@@ -110,7 +75,7 @@ class CommunityController(
         fetchPage(isInitial = true)
     }
 
-    /** Switch the active role tab (all / follower / vip / moderator) and load its first page. */
+    /** Switch the active role filter (all / follower / vip / moderator) and load its first page. */
     suspend fun selectRole(role: String) {
         currentRole = role
         currentPage = 1
@@ -122,7 +87,7 @@ class CommunityController(
         fetchPage(isInitial = false)
     }
 
-    /** Advance to the next page of the current role tab. The screen only calls this while `hasMore` is true. */
+    /** Advance to the next page of the current role filter. The screen only calls this while `hasMore` is true. */
     suspend fun nextPage() {
         if (currentRole == CommunityRole.Follower) {
             val next: String = lastNextCursor ?: return
@@ -133,7 +98,7 @@ class CommunityController(
         fetchPage(isInitial = false)
     }
 
-    /** Step back to the previous page of the current role tab. A no-op on the first page. */
+    /** Step back to the previous page of the current role filter. A no-op on the first page. */
     suspend fun prevPage() {
         if (currentRole == CommunityRole.Follower) {
             if (followerCursorTrail.size <= 1) return
@@ -146,10 +111,9 @@ class CommunityController(
     }
 
     /**
-     * Autocomplete over the channel's known viewers by name (the "reach a viewer beyond this page" picker). Each
-     * [PickerOption.id] is the viewer's Twitch user id — the id the ban / VIP / trust writes key on. Best-effort:
-     * no resolved channel or a failed search yields an empty list so the picker shows "no matches" rather than an
-     * error. The write that follows re-checks authorization.
+     * Autocomplete over the channel's known viewers by name (the "reach a viewer beyond this page" search). Each
+     * [PickerOption.id] is the viewer's Twitch user id. Best-effort: no resolved channel or a failed search
+     * yields an empty list so the search shows "no matches" rather than an error.
      */
     suspend fun searchViewers(query: String): List<PickerOption> {
         val channel: String = channelId ?: return emptyList()
@@ -159,9 +123,29 @@ class CommunityController(
         }
     }
 
-    // Fetch the current role/page and project it. [isInitial] distinguishes the first full-page load (a failure or
-    // a truly empty community becomes a full-page Error/Empty) from a navigation/reload (a failure surfaces over
-    // the kept list, an empty filtered role just shows an empty list under its tabs).
+    /**
+     * Resolve a search hit's real member state — critically, its [CommunityMember.internalUserId], the id a
+     * Directory row needs to open that person's Profile (the search endpoint only returns a Twitch id). Returns
+     * null when the channel hasn't resolved or the lookup fails.
+     */
+    suspend fun memberDetail(twitchUserId: String): CommunityMember? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<CommunityMember> = communityApi.member(channel, twitchUserId)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> null
+        }
+    }
+
+    // Fetch the current role/page, sort it "most recently active first" (the default the owner asked for —
+    // [CommunityMember.lastSeen] is an ISO-8601 string, so a plain descending string sort orders it correctly),
+    // and project it. [isInitial] distinguishes the first full-page load (a failure or a truly empty community
+    // becomes a full-page Error/Empty) from a navigation/reload (a failure surfaces over the kept list, an
+    // empty filtered role just shows an empty list under its filter).
+    //
+    // NOTE: this sorts each fetched PAGE, not the whole community — the backend's `GET /community` has no
+    // `sort=recentlyActive` query parameter today (`CommunityController.ListMembers` orders the "all" role by
+    // Twitch id only), so a true cross-page recency ordering needs that backend support added first; flagged,
+    // not silently faked as a page-only sort would otherwise look like.
     private suspend fun fetchPage(isInitial: Boolean) {
         val channel: String =
             channelId
@@ -181,12 +165,11 @@ class CommunityController(
             is ApiResult.Ok -> {
                 val page: CommunityPage = result.value
                 lastNextCursor = page.nextCursor
-                val members: List<CommunityMember> = page.data
+                val members: List<CommunityMember> = page.data.sortedByDescending { it.lastSeen }
                 _state.value =
                     if (
                         isInitial &&
                         members.isEmpty() &&
-                        topChatters.isEmpty() &&
                         currentRole == CommunityRole.All &&
                         currentPage == 1
                     ) {
@@ -194,7 +177,6 @@ class CommunityController(
                     } else {
                         CommunityState.Ready(
                             members = members,
-                            topChatters = topChatters,
                             role = currentRole,
                             page = currentPage,
                             hasPrev =
@@ -205,221 +187,6 @@ class CommunityController(
                         )
                     }
             }
-        }
-    }
-
-    /** Set [userId]'s trust [level] (non-destructive), then reload so the row's badge reflects it. */
-    suspend fun setTrust(userId: String, level: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(communityApi.setTrust(channel, userId, level))
-    }
-
-    /** Ban [userId] with [reason], then reload so the row shows as banned. The screen confirms this first. */
-    suspend fun ban(userId: String, reason: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(communityApi.ban(channel, userId, reason))
-    }
-
-    /** Lift the ban on [userId], then reload so the row drops its banned badge. The screen confirms this first. */
-    suspend fun unban(userId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(communityApi.unban(channel, userId))
-    }
-
-    /** Grant VIP status to [userId], then reload so the badge reflects it. The screen confirms this first. */
-    suspend fun addVip(userId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(communityApi.addVip(channel, userId))
-    }
-
-    /** Revoke VIP status from [userId], then reload so the badge drops. The screen confirms this first. */
-    suspend fun removeVip(userId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(communityApi.removeVip(channel, userId))
-    }
-
-    /** Send a /shoutout to [targetTwitchUserId] in the channel. No page reload needed (fire and forget). */
-    suspend fun shoutout(targetTwitchUserId: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        when (val result: ApiResult<Unit> = communityApi.shoutout(channel, targetTwitchUserId)) {
-            is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> failWrite(result.error.message)
-        }
-    }
-
-    /**
-     * Load engagement stats for a specific viewer. Returns the stats on success or null on failure. Callers
-     * drive their own loading/error state for the per-user detail panel.
-     */
-    suspend fun getUserStats(userId: String): UserStats? =
-        when (val result: ApiResult<UserStats> = usersApi.stats(userId)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> null
-        }
-
-    /**
-     * Fetch [userId]'s REAL member state (trust level + ban status) so a searched-viewer row reflects the truth
-     * — Unban for an already-banned viewer, Revoke-VIP for an existing VIP — instead of a synthesized "not banned
-     * / not VIP" default that could re-ban or re-grant. Returns null on failure or before the channel resolves;
-     * the caller falls back to a name-only row while loading.
-     */
-    suspend fun memberDetail(userId: String): CommunityMember? {
-        val channel: String = channelId ?: return null
-        return when (val result: ApiResult<CommunityMember> = communityApi.member(channel, userId)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> null
-        }
-    }
-
-    /**
-     * Load [member]'s channel-scoped analytics profile via their [CommunityMember.internalUserId] — the moderator-
-     * accessible read that works for ANY viewer (unlike self-only [getUserStats]). Returns null when the member
-     * has no resolved internal id, the analytics facade is absent, the channel hasn't resolved, or the call fails.
-     */
-    suspend fun getViewerAnalytics(member: CommunityMember): ViewerAnalyticsProfile? {
-        val internalId: String = member.internalUserId ?: return null
-        val api: AnalyticsApi = analyticsApi ?: return null
-        val channel: String = channelId ?: return null
-        return when (val result: ApiResult<ViewerAnalyticsProfile> = api.viewerProfile(channel, internalId)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> null
-        }
-    }
-
-    /**
-     * Load a viewer's custom key/value data (the per-viewer store pipelines write). Returns the map on success
-     * (empty when the viewer has none) or null on failure. [userId] is the community member's Twitch id — the
-     * backend resolves it to the viewer. The caller drives its own loading/error state for the detail panel.
-     */
-    suspend fun getViewerData(userId: String): Map<String, String>? =
-        when (val result: ApiResult<Map<String, String>> = viewerDataApi.getData(userId)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> null
-        }
-
-    /**
-     * Upsert one custom-data [key]=[value] for [userId]. Returns null on success, or the backend's error message
-     * on failure (e.g. an over-cap value, which the backend rejects rather than truncates — surface it verbatim).
-     */
-    suspend fun setViewerDatum(userId: String, key: String, value: String): String? =
-        when (val result: ApiResult<Unit> = viewerDataApi.setDatum(userId, key, value)) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> result.error.message
-        }
-
-    /**
-     * This channel's own custom lines for [targetTwitchUserId] — the shoutout line and the raid line — as a
-     * kind-keyed map. Returns an empty map when this person has neither, or null when the load failed, so the
-     * panel can tell "nothing written yet" apart from "could not read".
-     */
-    suspend fun getPersonalMessages(targetTwitchUserId: String): Map<String, String>? {
-        val channel: String = channelId ?: return null
-        return when (val result: ApiResult<List<ShoutoutOverride>> = moderationApi.shoutoutOverrides(channel)) {
-            is ApiResult.Ok ->
-                result.value
-                    .filter { it.targetTwitchUserId == targetTwitchUserId }
-                    .associate { it.kind to it.messageTemplate }
-            is ApiResult.Failure -> null
-        }
-    }
-
-    /**
-     * Write this channel's [kind] line for [targetTwitchUserId] ([ShoutoutOverrideKind]). Returns null on
-     * success or the backend's message on failure. Saving one kind never disturbs the other — the backend keys
-     * the row on (target, kind).
-     */
-    suspend fun setPersonalMessage(
-        targetTwitchUserId: String,
-        targetDisplayName: String,
-        kind: String,
-        messageTemplate: String,
-    ): String? {
-        val channel: String = channelId ?: return NoChannelError
-        return when (
-            val result: ApiResult<Unit> =
-                moderationApi.setShoutoutOverride(
-                    channelId = channel,
-                    targetTwitchUserId = targetTwitchUserId,
-                    targetDisplayName = targetDisplayName,
-                    messageTemplate = messageTemplate,
-                    kind = kind,
-                )
-        ) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> result.error.message
-        }
-    }
-
-    /** Clear this channel's [kind] line for [targetTwitchUserId]. Returns null on success, else the error. */
-    suspend fun clearPersonalMessage(targetTwitchUserId: String, kind: String): String? {
-        val channel: String = channelId ?: return NoChannelError
-        return when (
-            val result: ApiResult<Unit> =
-                moderationApi.deleteShoutoutOverride(channel, targetTwitchUserId, kind)
-        ) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> result.error.message
-        }
-    }
-
-    /** Delete one custom-data [key] for [userId]. Returns null on success, or the error message on failure. */
-    suspend fun deleteViewerDatum(userId: String, key: String): String? =
-        when (val result: ApiResult<Unit> = viewerDataApi.deleteDatum(userId, key)) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> result.error.message
-        }
-
-    /**
-     * Request a GDPR data export for [userId]. The backend emails the export to the user. Broadcaster-only.
-     * Returns `null` on success (nothing to show other than a confirmation), or an error string on failure.
-     */
-    /**
-     * Fulfil a right-of-access request for [userId] and hand the document to the OS.
-     *
-     * <p>This used to POST `users/{id}/export`, a route the API has never served — the button 404'd on
-     * every click while reading as "export queued". It now calls the compliance plane's real export and
-     * saves the returned JSON through the same file bridge the self-service My-data export uses, so the
-     * operator ends up holding the document rather than trusting that something was emailed.</p>
-     *
-     * Returns null on success, an error string on failure. A user who cancels the save dialog gets
-     * neither: nothing failed, and nothing was delivered.
-     */
-    suspend fun exportUserData(userId: String): String? {
-        return when (val result: ApiResult<DataExport> = gdprApi.exportSubject(userId, channelId)) {
-            is ApiResult.Failure -> result.error.message
-            is ApiResult.Ok ->
-                if (
-                    fileBridge.saveFile(
-                        suggestedName = "nomnomz-subject-$userId.json",
-                        bytes = result.value.document.encodeToByteArray(),
-                    )
-                ) {
-                    null
-                } else {
-                    // The user closed the save dialog. Nothing failed and nothing was delivered, so
-                    // there is no error to show — and no success to claim either.
-                    null
-                }
-        }
-    }
-
-    /**
-     * Permanently erase all data for [userId] (GDPR erasure). Broadcaster-only. Irreversible — the screen
-     * must confirm before calling this. Returns `null` on success, error string on failure.
-     */
-    suspend fun eraseUserData(userId: String): String? =
-        when (val result: ApiResult<Unit> = usersApi.erase(userId)) {
-            is ApiResult.Ok -> null
-            is ApiResult.Failure -> result.error.message
-        }
-
-    // A write either reloads the CURRENT page (success) or surfaces its error over the current Ready list without
-    // losing it (failure) — so a failed trust/ban/unban leaves the page intact with a visible reason, and a
-    // successful one reflects the backend's truth without yanking the operator back to page 1.
-    private suspend fun afterWrite(result: ApiResult<Unit>) {
-        when (result) {
-            is ApiResult.Ok -> fetchPage(isInitial = false)
-            is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
@@ -437,8 +204,9 @@ class CommunityController(
 }
 
 /**
- * The role filters the community list offers (the backend `role` query value). "all" is the unfiltered list;
- * [Follower] is served cursor-paginated straight from Twitch, the rest are page-numbered.
+ * The role filters the Directory offers (the backend `role` query value). "all" is the unfiltered list (the
+ * default, sorted most-recently-active first); [Follower] is served cursor-paginated straight from Twitch, the
+ * rest are page-numbered.
  */
 object CommunityRole {
     const val All: String = "all"
@@ -446,24 +214,22 @@ object CommunityRole {
     const val Vip: String = "vip"
     const val Moderator: String = "moderator"
 
-    /** Ordered for the tab strip. */
+    /** Ordered for the filter control. */
     val tabs: List<String> = listOf(All, Follower, Vip, Moderator)
 }
 
-/** The Community page render state. */
+/** The Community Directory page render state. */
 sealed interface CommunityState {
     data object Loading : CommunityState
 
     /**
-     * The channel's members are listed, one page of the active [role] tab. [topChatters] are the top 50 by
-     * message count (empty when the leaderboard call fails). [page] is the 1-based page number; [hasPrev]/[hasMore]
-     * drive the prev/next controls and [total] the "of N" count when the backend knows it. [actionError] is
-     * non-null only when the last set-trust/ban/unban/vip/shoutout failed — surfaced as a transient banner while
-     * the list stays rendered.
+     * The channel's members are listed, one page of the active [role] filter, sorted most-recently-active
+     * first. [page] is the 1-based page number; [hasPrev]/[hasMore] drive the prev/next controls and [total]
+     * the "of N" count when the backend knows it. [actionError] is non-null only when the last page fetch or
+     * search failed — surfaced as a transient banner while the list stays rendered.
      */
     data class Ready(
         val members: List<CommunityMember>,
-        val topChatters: List<ChatActivityEntry> = emptyList(),
         val role: String = CommunityRole.All,
         val page: Int = 1,
         val hasPrev: Boolean = false,

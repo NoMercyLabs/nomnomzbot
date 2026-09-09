@@ -16,7 +16,9 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -44,6 +46,11 @@ class MultiChatController(
     private val joinChannel: (channelId: String) -> Unit,
     private val leaveChannel: (channelId: String) -> Unit,
     private val watchListStore: WatchListStore = WatchListStore.NoOp,
+    // Emergency Shield Mode read/write (S076c) — the SAME ModerationApi.shieldMode / setShieldMode the
+    // Moderation -> Desk toggle and the single-channel Chat page already call, so there is exactly one way to
+    // flip Shield Mode in the dashboard. Optional and nullable: a state-holder test that does not exercise
+    // Shield Mode omits it, and [shieldModeActiveChannelIds] then only ever changes via the live hub push.
+    private val moderationApi: ModerationApi? = null,
 ) {
     private val _state: MutableStateFlow<MultiChatState> = MutableStateFlow(MultiChatState.Loading)
 
@@ -105,6 +112,12 @@ class MultiChatController(
                 _state.value = current.copy(messages = merge(current.messages, result.value))
             }
         }
+
+        // Load the channel's CURRENT Shield Mode state (S076c) so the per-channel indicator/toggle reflects
+        // reality even when the mode was already active BEFORE this operator started watching — a
+        // shield_mode_begin/end hub push only fires on the begin/end TRANSITION, never on join, so relying on
+        // the push alone would miss a mode already in effect.
+        refreshShieldMode(channelId)
     }
 
     /**
@@ -121,8 +134,51 @@ class MultiChatController(
             ready.copy(
                 watched = watched,
                 messages = ready.messages.filterNot { it.channelId == channelId },
+                // Drop the unwatched channel's Shield Mode reading too — a stale entry here would show a
+                // banner/toggle for a channel this operator is no longer watching.
+                shieldModeActiveChannelIds = ready.shieldModeActiveChannelIds - channelId,
             )
         watchListStore.write(watched.map { it.id })
+    }
+
+    /**
+     * Turn emergency Shield Mode on or off ([enabled]) for [channelId] — the SAME `PATCH .../moderation/shield`
+     * route the Moderation -> Desk toggle and the single-channel Chat page call
+     * ([ModerationApi.setShieldMode]). Re-reads the fresh per-channel state on success so the indicator reflects
+     * the backend's truth immediately, without waiting on the hub's own begin/end echo; surfaces the error as
+     * [MultiChatState.Ready.actionError] on failure. No-ops when no [moderationApi] is wired.
+     */
+    suspend fun setShieldMode(channelId: String, enabled: Boolean) {
+        val api: ModerationApi = moderationApi ?: return
+        when (val result: ApiResult<Unit> = api.setShieldMode(channelId, enabled)) {
+            is ApiResult.Ok -> refreshShieldMode(channelId)
+            is ApiResult.Failure -> {
+                val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
+                _state.value = current.copy(actionError = result.error.message)
+            }
+        }
+    }
+
+    // Re-read [channelId]'s live Shield Mode state and fold it into [MultiChatState.Ready.shieldModeActiveChannelIds]
+    // — used both to seed a just-added channel's initial reading and to confirm a toggle's outcome. Re-reads
+    // the CURRENT state after the (suspending) API call rather than closing over a stale snapshot, so a
+    // concurrent add/remove of another channel is never clobbered. A read failure is silently skipped (best
+    // effort) — the hub push remains the fallback source of truth for that channel. No-ops when no
+    // [moderationApi] is wired.
+    private suspend fun refreshShieldMode(channelId: String) {
+        val api: ModerationApi = moderationApi ?: return
+        when (val result: ApiResult<ShieldStatus> = api.shieldMode(channelId)) {
+            is ApiResult.Ok -> {
+                val latest: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
+                _state.value =
+                    latest.copy(
+                        shieldModeActiveChannelIds =
+                            if (result.value.enabled) latest.shieldModeActiveChannelIds + channelId
+                            else latest.shieldModeActiveChannelIds - channelId,
+                    )
+            }
+            is ApiResult.Failure -> Unit
+        }
     }
 
     /**

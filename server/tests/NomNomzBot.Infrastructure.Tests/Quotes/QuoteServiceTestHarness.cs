@@ -11,6 +11,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
@@ -56,6 +57,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         throw new NotSupportedException();
@@ -115,6 +118,26 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(c => c.Events);
         });
 
+        // Mapped for real (not thrown) so AddAsync's QuotedDisplayName->UserId resolution — a channel chatter
+        // lookup by username/display name — can actually be exercised end to end, not just asserted against a
+        // throwing stub. Nav-heavy/PII-shred columns are ignored; only what the resolver reads is needed.
+        modelBuilder.Entity<User>(b =>
+        {
+            b.HasKey(u => u.Id);
+            b.Ignore(u => u.Pronoun);
+            b.Ignore(u => u.AltPronoun);
+            b.Ignore(u => u.Channel);
+        });
+
+        modelBuilder.Entity<ChatMessage>(b =>
+        {
+            b.HasKey(m => m.Id);
+            b.Ignore(m => m.Fragments);
+            b.Ignore(m => m.Badges);
+            b.Ignore(m => m.Channel);
+            b.Ignore(m => m.Stream);
+        });
+
         modelBuilder.ApplyConfiguration(new QuoteConfiguration());
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.EventStore.Persistence.TenantSequenceConfiguration()
@@ -147,11 +170,17 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
                 && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
             )
             .Select(p => p.PropertyType.GetGenericArguments()[0])
-            .Where(t => t != typeof(Quote) && t != typeof(TenantSequence) && t != typeof(Channel)),
+            .Where(t =>
+                t != typeof(Quote)
+                && t != typeof(TenantSequence)
+                && t != typeof(Channel)
+                && t != typeof(User)
+                && t != typeof(ChatMessage)
+            ),
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
@@ -182,8 +211,7 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
-        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>

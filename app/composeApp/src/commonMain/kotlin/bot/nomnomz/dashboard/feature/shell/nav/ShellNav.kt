@@ -128,6 +128,15 @@ object ShellNav {
             NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
             NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),
             NavPage(ShellRoute.PickLists, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "picklists:read"),
+            // Pipelines belongs in Chat per frontend-ia.md §3/§8 ("Pipelines folds into the Chat workspace") —
+            // reconciled here after drifting to Stream in 18159a77 (2026-07-03).
+            NavPage(ShellRoute.Pipelines, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "pipelines:read"),
+            // Overlays and Code Scripts are the T2/T3 targets the Commands editor opens into (Commands row
+            // above): building one command with a custom overlay/script needs both in Commands/Pipelines'
+            // group, not a separate Stream group (owner punch list §9, 2026-09-08). Stream keeps only the
+            // broadcast-facing pages — Event Responses, Analytics (frontend-ia.md §3 Stream, reconciled).
+            NavPage(ShellRoute.Widgets, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
+            NavPage(ShellRoute.CodeScripts, NavGroup.Chat, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             // The moderation surface is four pages, one per job (frontend-ia.md §Moderation). They share the
             // `moderation:read` key because they read the same data; only the MANAGE floor differs.
             NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
@@ -153,11 +162,8 @@ object ShellNav {
             // config write floors at Editor (media:write), gated per-control inside the page.
             NavPage(ShellRoute.MediaShare, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "media:read"),
             NavPage(ShellRoute.Tts, NavGroup.Music, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "tts:config:read"),
-            NavPage(ShellRoute.Widgets, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "widget:read"),
             NavPage(ShellRoute.Alerts, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = null),
             NavPage(ShellRoute.Schedule, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "live-ops:schedule:read"),
-            NavPage(ShellRoute.Pipelines, NavGroup.Stream, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "pipelines:read"),
-            NavPage(ShellRoute.CodeScripts, NavGroup.Stream, ManagementRole.Broadcaster, ManagementRole.Broadcaster, readActionKey = null),
             NavPage(ShellRoute.Analytics, NavGroup.Stream, ManagementRole.Moderator, null, readActionKey = "analytics:read"),
             NavPage(ShellRoute.Community, NavGroup.Community, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "community:read"),
             NavPage(ShellRoute.Discord, NavGroup.Connect, ManagementRole.Moderator, ManagementRole.SuperMod, readActionKey = "discord:connection:read"),

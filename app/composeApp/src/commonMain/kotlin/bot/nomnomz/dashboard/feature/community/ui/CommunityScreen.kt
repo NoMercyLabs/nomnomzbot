@@ -20,16 +20,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
-import bot.nomnomz.dashboard.core.designsystem.component.Button
-import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import bot.nomnomz.dashboard.core.designsystem.icon.DotsVerticalGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,552 +34,301 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
-import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
-import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
-import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
-import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
-import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
-import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
-import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
-import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
-import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
-import bot.nomnomz.dashboard.feature.community.state.CommunityRole
-import bot.nomnomz.dashboard.core.network.UserStats
-import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
+import bot.nomnomz.dashboard.feature.community.state.CommunityRole
 import bot.nomnomz.dashboard.feature.community.state.CommunityState
+import bot.nomnomz.dashboard.feature.community.state.ViewerProfileController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
-import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
-import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
-import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.shell_nav_community
-import nomnomzbot.composeapp.generated.resources.community_messages_section
-import nomnomzbot.composeapp.generated.resources.community_messages_shoutout_label
-import nomnomzbot.composeapp.generated.resources.community_messages_raid_label
-import nomnomzbot.composeapp.generated.resources.community_messages_shoutout_help
-import nomnomzbot.composeapp.generated.resources.community_messages_raid_help
-import nomnomzbot.composeapp.generated.resources.community_messages_placeholder
-import nomnomzbot.composeapp.generated.resources.community_messages_save
-import nomnomzbot.composeapp.generated.resources.community_messages_clear
-import nomnomzbot.composeapp.generated.resources.community_messages_clear_title
-import nomnomzbot.composeapp.generated.resources.community_messages_clear_message
-import nomnomzbot.composeapp.generated.resources.community_messages_clear_confirm
-import nomnomzbot.composeapp.generated.resources.community_messages_error
 import nomnomzbot.composeapp.generated.resources.community_action_error
-import nomnomzbot.composeapp.generated.resources.community_chatter_row_type
-import nomnomzbot.composeapp.generated.resources.community_data_add
-import nomnomzbot.composeapp.generated.resources.community_data_delete
-import nomnomzbot.composeapp.generated.resources.community_data_delete_confirm
-import nomnomzbot.composeapp.generated.resources.community_data_delete_message
-import nomnomzbot.composeapp.generated.resources.community_data_delete_title
-import nomnomzbot.composeapp.generated.resources.community_data_empty
-import nomnomzbot.composeapp.generated.resources.community_data_key
-import nomnomzbot.composeapp.generated.resources.community_data_key_required
-import nomnomzbot.composeapp.generated.resources.community_data_section
-import nomnomzbot.composeapp.generated.resources.community_data_value
-import nomnomzbot.composeapp.generated.resources.community_ban_action
-import nomnomzbot.composeapp.generated.resources.community_ban_action_short
-import nomnomzbot.composeapp.generated.resources.community_ban_confirm
-import nomnomzbot.composeapp.generated.resources.community_ban_dismiss
-import nomnomzbot.composeapp.generated.resources.community_ban_message
-import nomnomzbot.composeapp.generated.resources.community_ban_reason
-import nomnomzbot.composeapp.generated.resources.community_ban_title
 import nomnomzbot.composeapp.generated.resources.community_banned
-import nomnomzbot.composeapp.generated.resources.community_empty
+import nomnomzbot.composeapp.generated.resources.community_directory_search_hint
+import nomnomzbot.composeapp.generated.resources.community_directory_subtitle
+import nomnomzbot.composeapp.generated.resources.community_directory_title
 import nomnomzbot.composeapp.generated.resources.community_error
 import nomnomzbot.composeapp.generated.resources.community_loading
-import nomnomzbot.composeapp.generated.resources.community_retry
-import nomnomzbot.composeapp.generated.resources.community_row_description
-import nomnomzbot.composeapp.generated.resources.community_trust_label
-import nomnomzbot.composeapp.generated.resources.community_trust_moderator
-import nomnomzbot.composeapp.generated.resources.community_trust_picker
-import nomnomzbot.composeapp.generated.resources.community_trust_subscriber
-import nomnomzbot.composeapp.generated.resources.community_trust_viewer
-import nomnomzbot.composeapp.generated.resources.community_trust_vip
-import nomnomzbot.composeapp.generated.resources.community_unban_action
-import nomnomzbot.composeapp.generated.resources.community_unban_action_short
-import nomnomzbot.composeapp.generated.resources.community_more_actions
+import nomnomzbot.composeapp.generated.resources.community_no_internal_id
 import nomnomzbot.composeapp.generated.resources.community_no_members_in_role
+import nomnomzbot.composeapp.generated.resources.community_open_profile
 import nomnomzbot.composeapp.generated.resources.community_page_indicator
 import nomnomzbot.composeapp.generated.resources.community_page_indicator_total
 import nomnomzbot.composeapp.generated.resources.community_pager_next
 import nomnomzbot.composeapp.generated.resources.community_pager_prev
+import nomnomzbot.composeapp.generated.resources.community_retry
 import nomnomzbot.composeapp.generated.resources.community_role_all
 import nomnomzbot.composeapp.generated.resources.community_role_follower
 import nomnomzbot.composeapp.generated.resources.community_role_moderator
 import nomnomzbot.composeapp.generated.resources.community_role_vip
+import nomnomzbot.composeapp.generated.resources.community_row_description
 import nomnomzbot.composeapp.generated.resources.community_search_label
 import nomnomzbot.composeapp.generated.resources.community_search_placeholder
-import nomnomzbot.composeapp.generated.resources.community_shoutout_action
-import nomnomzbot.composeapp.generated.resources.community_top_chatters_messages
-import nomnomzbot.composeapp.generated.resources.community_top_chatters_title
-import nomnomzbot.composeapp.generated.resources.community_shoutout_action_desc
-import nomnomzbot.composeapp.generated.resources.community_unban_confirm
-import nomnomzbot.composeapp.generated.resources.community_unban_dismiss
-import nomnomzbot.composeapp.generated.resources.community_unban_message
-import nomnomzbot.composeapp.generated.resources.community_unban_title
-import nomnomzbot.composeapp.generated.resources.community_vip_grant
-import nomnomzbot.composeapp.generated.resources.community_vip_grant_desc
-import nomnomzbot.composeapp.generated.resources.community_vip_revoke
-import nomnomzbot.composeapp.generated.resources.community_vip_revoke_desc
-import nomnomzbot.composeapp.generated.resources.community_view_stats
-import nomnomzbot.composeapp.generated.resources.community_stats_title
-import nomnomzbot.composeapp.generated.resources.community_stats_messages
-import nomnomzbot.composeapp.generated.resources.community_stats_watch_hours
-import nomnomzbot.composeapp.generated.resources.community_stats_commands_used
-import nomnomzbot.composeapp.generated.resources.community_stats_redemptions
-import nomnomzbot.composeapp.generated.resources.community_stats_follower
-import nomnomzbot.composeapp.generated.resources.community_stats_subscriber
-import nomnomzbot.composeapp.generated.resources.community_stats_yes
-import nomnomzbot.composeapp.generated.resources.community_stats_no
-import nomnomzbot.composeapp.generated.resources.community_stats_first_seen
-import nomnomzbot.composeapp.generated.resources.community_stats_last_active
-import nomnomzbot.composeapp.generated.resources.community_stats_never
-import nomnomzbot.composeapp.generated.resources.community_stats_loading
-import nomnomzbot.composeapp.generated.resources.community_stats_error
-import nomnomzbot.composeapp.generated.resources.community_stats_close
-import nomnomzbot.composeapp.generated.resources.community_gdpr_section
-import nomnomzbot.composeapp.generated.resources.community_gdpr_export
-import nomnomzbot.composeapp.generated.resources.community_gdpr_export_desc
-import nomnomzbot.composeapp.generated.resources.community_gdpr_export_confirm
-import nomnomzbot.composeapp.generated.resources.community_gdpr_export_done
-import nomnomzbot.composeapp.generated.resources.community_gdpr_erase
-import nomnomzbot.composeapp.generated.resources.community_gdpr_erase_desc
-import nomnomzbot.composeapp.generated.resources.community_gdpr_erase_confirm
-import nomnomzbot.composeapp.generated.resources.community_gdpr_erase_done
+import nomnomzbot.composeapp.generated.resources.community_trust_moderator
+import nomnomzbot.composeapp.generated.resources.community_trust_subscriber
+import nomnomzbot.composeapp.generated.resources.community_trust_viewer
+import nomnomzbot.composeapp.generated.resources.community_trust_vip
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-// The Community page (frontend-ia.md §3): the channel's viewers — every member is real data from
-// [CommunityController] (the backend sources it from the Twitch API + chat history). The screen is a pure
-// projection of the controller's state; it loads on first composition and offers a retry on failure. Each
-// member is actionable: a trust-level picker that acts directly (non-destructive) and a Ban / Unban
-// affordance that lifts/applies a ban only once the moderator confirms it in the shared ConfirmDialog.
+// The Community page (frontend-ia.md §3, owner punch list 2026-09-08 §3): two jobs, two views, exactly the
+// split the owner asked for (mirroring how Moderation is already split by job instead of topic) — a search-
+// first DIRECTORY for finding someone fast, and a full single-person PROFILE opened from a Directory row. This
+// replaces the old page's role-filter-tabs-on-one-flat-list structure: switching a filter used to just reorder
+// the same rows with nothing about the page's STRUCTURE changing — now the Directory's job is finding someone,
+// full stop, and every management action on that person (trust, ban/VIP, TTS voice, overrides, permits, GDPR)
+// lives on their Profile, never duplicated on both views. [openProfileUserId] is this composable's own local
+// nav state (no ShellNav route exists for a per-person drill-down); it is the internal `User.Id` Guid a
+// Directory row already resolved.
 @Composable
-fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
+fun CommunityScreen(
+    controller: CommunityController,
+    profileController: ViewerProfileController,
+    role: ManagementRole?,
+) {
+    var openProfileUserId: String? by remember { mutableStateOf(null) }
+
+    val target: String? = openProfileUserId
+    if (target != null) {
+        ViewerProfileScreen(
+            controller = profileController,
+            userId = target,
+            role = role,
+            onBack = { openProfileUserId = null },
+        )
+    } else {
+        DirectoryScreen(
+            controller = controller,
+            onOpenProfile = { userId -> openProfileUserId = userId },
+        )
+    }
+}
+
+// Directory is deliberately read-only (owner punch list §3A: "a browse/search list for finding someone
+// fast") — every management action moved to the person's Profile, so there is no [ManagementRole] write floor
+// to gate here.
+@Composable
+private fun DirectoryScreen(
+    controller: CommunityController,
+    onOpenProfile: (userId: String) -> Unit,
+) {
     val state: CommunityState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val spacing = LocalSpacing.current
 
-    // One decision for the whole page: Community gates every write control at its single Moderator manage floor
-    // (frontend-ia.md §3). A caller below it sees the member list but the trust-picker / ban / unban controls
-    // are disabled with "Requires Moderator" (§7); the backend re-checks every write regardless.
-    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Community)
-    val isBroadcaster: Boolean = role == ManagementRole.Broadcaster
-    // Viewer custom-data WRITE floor is Editor (handoff: read Moderator, write Editor) — higher than the page's
-    // Moderator manage floor, so the add/delete controls get their own decision, disabled-with-reason below it.
-    val dataWrite: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Editor)
-
-    // Per-user stats dialog state — null means closed.
-    var statsTarget: CommunityMember? by remember { mutableStateOf(null) }
-    var statsData: UserStats? by remember { mutableStateOf(null) }
-    // The foreign-viewer-capable channel analytics profile (fetched via internalUserId) — the moderator-readable
-    // per-viewer engagement, distinct from the self-only usersApi stats.
-    var viewerAnalytics: ViewerAnalyticsProfile? by remember { mutableStateOf(null) }
-    var statsLoading: Boolean by remember { mutableStateOf(false) }
-    var statsError: Boolean by remember { mutableStateOf(false) }
-    // The selected viewer's custom key/value data (null until loaded; empty map = loaded, none). Independent of
-    // the stats load so the data section shows even when the self-only stats call fails for a foreign viewer.
-    var viewerData: Map<String, String>? by remember { mutableStateOf(null) }
-    var viewerDataError: String? by remember { mutableStateOf(null) }
-    // This channel's own shoutout / raid lines for the selected viewer, keyed by kind. Loaded alongside the
-    // custom data; [personalMessagesError] separates a failed read from "this person has none written".
-    var personalMessages: Map<String, String>? by remember { mutableStateOf(null) }
-    var personalMessagesError: Boolean by remember { mutableStateOf(false) }
+    // A viewer found via the "reach a person beyond this page" search, resolved to their real member state so
+    // the row can tell whether they even have a Profile to open (a local User row / internalUserId).
+    var pickedViewer: PickerRef? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
-
-    // When a stats target is selected, load their engagement (channel analytics profile + self stats) and their
-    // custom data. The analytics profile works for ANY viewer (moderator read via internalUserId); the self-only
-    // usersApi stats supplements it with first-seen / last-active when available.
-    LaunchedEffect(statsTarget) {
-        val target: CommunityMember = statsTarget ?: return@LaunchedEffect
-        statsData = null
-        viewerAnalytics = null
-        statsError = false
-        statsLoading = true
-        viewerData = null
-        viewerDataError = null
-        personalMessages = null
-        personalMessagesError = false
-        viewerAnalytics = controller.getViewerAnalytics(target)
-        statsData = controller.getUserStats(target.id)
-        // Only a true error when NEITHER source produced anything (e.g. a foreign viewer with no internal id).
-        statsError = viewerAnalytics == null && statsData == null
-        statsLoading = false
-        viewerData = controller.getViewerData(target.id)
-        val lines: Map<String, String>? = controller.getPersonalMessages(target.id)
-        personalMessagesError = lines == null
-        personalMessages = lines
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (val current: CommunityState = state) {
             is CommunityState.Loading -> CenteredMessage(stringResource(Res.string.community_loading))
-            is CommunityState.Empty -> CenteredMessage(stringResource(Res.string.community_empty))
             is CommunityState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+            // A channel with zero known members today still gets the full Directory shell — search
+            // reaches ANY known viewer, not just the current page (owner punch list §3A), so hiding it
+            // behind a bare "empty" message would defeat the one thing this state should never block.
+            is CommunityState.Empty ->
+                DirectoryList(
+                    members = emptyList(),
+                    role = CommunityRole.All,
+                    page = 1,
+                    hasPrev = false,
+                    hasMore = false,
+                    total = 0,
+                    actionError = null,
+                    pickedViewer = pickedViewer,
+                    onSelectRole = { newRole -> scope.launch { controller.selectRole(newRole) } },
+                    onPrevPage = { scope.launch { controller.prevPage() } },
+                    onNextPage = { scope.launch { controller.nextPage() } },
+                    onSearchViewers = { query -> controller.searchViewers(query) },
+                    onPickViewer = { picked -> pickedViewer = picked },
+                    onClearPicked = { pickedViewer = null },
+                    onFetchMember = { twitchId -> controller.memberDetail(twitchId) },
+                    onOpenProfile = onOpenProfile,
+                )
             is CommunityState.Ready ->
-                MemberList(
+                DirectoryList(
                     members = current.members,
-                    topChatters = current.topChatters,
                     role = current.role,
                     page = current.page,
                     hasPrev = current.hasPrev,
                     hasMore = current.hasMore,
                     total = current.total,
                     actionError = current.actionError,
-                    manage = manage,
-                    onSelectRole = { role -> scope.launch { controller.selectRole(role) } },
+                    pickedViewer = pickedViewer,
+                    onSelectRole = { newRole -> scope.launch { controller.selectRole(newRole) } },
                     onPrevPage = { scope.launch { controller.prevPage() } },
                     onNextPage = { scope.launch { controller.nextPage() } },
                     onSearchViewers = { query -> controller.searchViewers(query) },
-                    onFetchMember = { userId -> controller.memberDetail(userId) },
-                    onSetTrust = { userId, level -> scope.launch { controller.setTrust(userId, level) } },
-                    onBan = { userId, reason -> scope.launch { controller.ban(userId, reason) } },
-                    onUnban = { userId -> scope.launch { controller.unban(userId) } },
-                    onShoutout = { userId -> scope.launch { controller.shoutout(userId) } },
-                    onVipToggle = { userId, isVip ->
-                        scope.launch {
-                            if (isVip) controller.removeVip(userId) else controller.addVip(userId)
-                        }
-                    },
-                    onViewStats = { member -> statsTarget = member },
+                    onPickViewer = { picked -> pickedViewer = picked },
+                    onClearPicked = { pickedViewer = null },
+                    onFetchMember = { twitchId -> controller.memberDetail(twitchId) },
+                    onOpenProfile = onOpenProfile,
                 )
         }
-    }
-
-    // Per-member stats + GDPR dialog (shown above the main content).
-    statsTarget?.let { target ->
-        val name: String = memberName(target)
-        ViewerStatsDialog(
-            name = name,
-            stats = statsData,
-            analytics = viewerAnalytics,
-            loading = statsLoading,
-            error = statsError,
-            isBroadcaster = isBroadcaster,
-            viewerData = viewerData,
-            dataWrite = dataWrite,
-            dataError = viewerDataError,
-            personalMessages = personalMessages,
-            personalMessagesError = personalMessagesError,
-            onSetDatum = { key, value ->
-                scope.launch {
-                    val err: String? = controller.setViewerDatum(target.id, key, value)
-                    viewerDataError = err
-                    if (err == null) viewerData = controller.getViewerData(target.id)
-                }
-            },
-            onDeleteDatum = { key ->
-                scope.launch {
-                    val err: String? = controller.deleteViewerDatum(target.id, key)
-                    viewerDataError = err
-                    if (err == null) viewerData = controller.getViewerData(target.id)
-                }
-            },
-            onSavePersonalMessage = { kind, messageTemplate ->
-                scope.launch {
-                    // The person is already resolved here, so the id and display name come from the row the
-                    // operator opened - they never retype a Twitch id the way the moderation page made them.
-                    val err: String? =
-                        controller.setPersonalMessage(target.id, name, kind, messageTemplate)
-                    viewerDataError = err
-                    if (err == null) {
-                        val lines: Map<String, String>? = controller.getPersonalMessages(target.id)
-                        personalMessagesError = lines == null
-                        personalMessages = lines
-                    }
-                }
-            },
-            onClearPersonalMessage = { kind ->
-                scope.launch {
-                    val err: String? = controller.clearPersonalMessage(target.id, kind)
-                    viewerDataError = err
-                    if (err == null) {
-                        val lines: Map<String, String>? = controller.getPersonalMessages(target.id)
-                        personalMessagesError = lines == null
-                        personalMessages = lines
-                    }
-                }
-            },
-            onExport = {
-                scope.launch {
-                    // Close only on success; a failed export keeps the dialog open with the error instead of
-                    // silently vanishing as if it worked.
-                    val err: String? = controller.exportUserData(target.id)
-                    if (err == null) statsTarget = null else viewerDataError = err
-                }
-            },
-            onErase = {
-                scope.launch {
-                    // Erase is IRREVERSIBLE — a failure must never read as success. Surface it and keep the
-                    // dialog open; only close when the erase actually completed.
-                    val err: String? = controller.eraseUserData(target.id)
-                    if (err == null) statsTarget = null else viewerDataError = err
-                }
-            },
-            onDismiss = { statsTarget = null },
-        )
     }
 }
 
 @Composable
-private fun MemberList(
+private fun DirectoryList(
     members: List<CommunityMember>,
-    topChatters: List<ChatActivityEntry>,
     role: String,
     page: Int,
     hasPrev: Boolean,
     hasMore: Boolean,
     total: Int?,
     actionError: String?,
-    manage: ManageDecision,
+    pickedViewer: PickerRef?,
     onSelectRole: (String) -> Unit,
     onPrevPage: () -> Unit,
     onNextPage: () -> Unit,
     onSearchViewers: suspend (String) -> List<PickerOption>,
-    onFetchMember: suspend (userId: String) -> CommunityMember?,
-    onSetTrust: (userId: String, level: String) -> Unit,
-    onBan: (userId: String, reason: String) -> Unit,
-    onUnban: (userId: String) -> Unit,
-    onShoutout: (userId: String) -> Unit,
-    onVipToggle: (userId: String, isVip: Boolean) -> Unit,
-    onViewStats: (CommunityMember) -> Unit,
+    onPickViewer: (PickerRef) -> Unit,
+    onClearPicked: () -> Unit,
+    onFetchMember: suspend (twitchId: String) -> CommunityMember?,
+    onOpenProfile: (userId: String) -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    // The member awaiting a ban / unban confirmation, if any — the screen owns the dialog's open/closed state.
-    var pendingBan: CommunityMember? by remember { mutableStateOf(null) }
-    var pendingUnban: CommunityMember? by remember { mutableStateOf(null) }
-    // A viewer found via the "reach a viewer beyond this page" picker — synthesized into a member row so the same
-    // ban / VIP / trust / shoutout / stats actions apply to them by their Twitch id.
-    var pickedViewer: PickerRef? by remember { mutableStateOf(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_community)) }
+        item(key = "page-header") {
+            PageHeader(
+                title = stringResource(Res.string.community_directory_title),
+                subtitle = stringResource(Res.string.community_directory_subtitle),
+            )
+        }
         actionError?.let { detail ->
             item(key = "action-error") {
                 ActionErrorBanner(message = stringResource(Res.string.community_action_error, detail))
             }
         }
-        item(key = "role-tabs") {
-            RoleTabs(role = role, onSelectRole = onSelectRole)
-        }
-        item(key = "viewer-search") {
+        // Search is the PROMINENT, first-class tool (owner punch list §3A: "a prominent search box") — it
+        // reaches any known viewer, not just the current page, and is the primary way to find someone fast.
+        item(key = "search") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 SearchPickerField(
                     search = onSearchViewers,
                     selected = pickedViewer,
-                    onSelect = { pickedViewer = it },
-                    onClear = { pickedViewer = null },
+                    onSelect = onPickViewer,
+                    onClear = onClearPicked,
                     label = stringResource(Res.string.community_search_label),
                     placeholder = stringResource(Res.string.community_search_placeholder),
                 )
+                Text(
+                    text = stringResource(Res.string.community_directory_search_hint),
+                    style = LocalTypography.current.xs,
+                    color = LocalTokens.current.mutedForeground,
+                )
                 pickedViewer?.let { picked ->
-                    // Fetch the viewer's REAL state (trust + ban) so the row shows the truth — Unban for an
-                    // already-banned viewer, Revoke-VIP for an existing VIP — instead of a synthesized "not
-                    // banned / not VIP" default that re-bans or re-grants. Fall back to a name-only row while the
-                    // fetch is in flight or if it fails.
-                    var pickedMember: CommunityMember? by remember(picked.id) { mutableStateOf(null) }
-                    LaunchedEffect(picked.id) { pickedMember = onFetchMember(picked.id) }
-                    val member: CommunityMember =
-                        pickedMember ?: CommunityMember(id = picked.id, displayName = picked.name)
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        MemberRow(
-                            member = member,
-                            manage = manage,
-                            onSetTrust = { level -> onSetTrust(picked.id, level) },
-                            onBan = { pendingBan = member },
-                            onUnban = { pendingUnban = member },
-                            onShoutout = { onShoutout(picked.id) },
-                            onVipToggle = {
-                                onVipToggle(picked.id, member.trustLevel == CommunityTrustLevel.Vip)
-                            },
-                            onViewStats = { onViewStats(member) },
+                        SearchedPersonRow(
+                            twitchId = picked.id,
+                            fallbackName = picked.name,
+                            onFetchMember = onFetchMember,
+                            onOpenProfile = onOpenProfile,
                         )
                     }
                 }
             }
         }
-        if (topChatters.isNotEmpty()) {
-            item(key = "top-chatters-header") {
-                Text(
-                    text = stringResource(Res.string.community_top_chatters_title),
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.s1, vertical = spacing.s1),
-                )
-            }
-            item(key = "top-chatters-card") {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    val chatters: List<ChatActivityEntry> = topChatters.take(10)
-                    chatters.forEachIndexed { index, entry ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = "#${entry.rank}",
-                                    style = typography.sm,
-                                    color = tokens.mutedForeground,
-                                )
-                                val chatterDisplayName: String =
-                                    resolveRowLabel(
-                                        primary = entry.displayName,
-                                        secondary = entry.userId,
-                                        typeLabel = stringResource(Res.string.community_chatter_row_type),
-                                        discriminatorSource = entry.userId,
-                                    )
-                                Text(
-                                    text = chatterDisplayName,
-                                    style = typography.sm,
-                                    color = tokens.foreground,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            Text(
-                                text = stringResource(Res.string.community_top_chatters_messages, entry.points),
-                                style = typography.sm,
-                                color = tokens.mutedForeground,
-                            )
-                        }
-                        if (index < chatters.lastIndex) {
-                            Separator()
-                        }
-                    }
-                }
-            }
-            item(key = "top-chatters-spacer") {
-                androidx.compose.foundation.layout.Spacer(
-                    modifier = Modifier.padding(top = spacing.s2),
-                )
-            }
-        }
+        // A compact SECONDARY refinement, not the page's primary structure (the mess the owner flagged: role
+        // tabs used to BE the whole page). Default stays "all", sorted most-recently-active first.
+        item(key = "role-filter") { RoleFilter(role = role, onSelectRole = onSelectRole) }
         item(key = "members-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 if (members.isEmpty()) {
                     Text(
                         text = stringResource(Res.string.community_no_members_in_role),
-                        style = typography.sm,
-                        color = tokens.mutedForeground,
+                        style = LocalTypography.current.sm,
+                        color = LocalTokens.current.mutedForeground,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = spacing.s4, vertical = spacing.s4),
                     )
                 } else {
                     members.forEachIndexed { index, member ->
-                        MemberRow(
-                            member = member,
-                            manage = manage,
-                            onSetTrust = { level -> onSetTrust(member.id, level) },
-                            onBan = { pendingBan = member },
-                            onUnban = { pendingUnban = member },
-                            onShoutout = { onShoutout(member.id) },
-                            onVipToggle = { onVipToggle(member.id, member.trustLevel == CommunityTrustLevel.Vip) },
-                            onViewStats = { onViewStats(member) },
-                        )
-                        if (index < members.lastIndex) {
-                            Separator()
-                        }
+                        DirectoryRow(member = member, onOpenProfile = onOpenProfile)
+                        if (index < members.lastIndex) Separator()
                     }
                 }
             }
         }
         item(key = "pager") {
-            Pager(
-                page = page,
-                total = total,
-                hasPrev = hasPrev,
-                hasMore = hasMore,
-                onPrev = onPrevPage,
-                onNext = onNextPage,
-            )
+            Pager(page = page, total = total, hasPrev = hasPrev, hasMore = hasMore, onPrev = onPrevPage, onNext = onNextPage)
         }
-    }
-
-    val banReason: String = stringResource(Res.string.community_ban_reason)
-    pendingBan?.let { member ->
-        val name: String = memberName(member)
-        ConfirmDialog(
-            title = stringResource(Res.string.community_ban_title),
-            message = stringResource(Res.string.community_ban_message, name),
-            confirmLabel = stringResource(Res.string.community_ban_confirm),
-            dismissLabel = stringResource(Res.string.community_ban_dismiss),
-            destructive = true,
-            onConfirm = {
-                onBan(member.id, banReason)
-                pendingBan = null
-            },
-            onDismiss = { pendingBan = null },
-        )
-    }
-
-    pendingUnban?.let { member ->
-        val name: String = memberName(member)
-        ConfirmDialog(
-            title = stringResource(Res.string.community_unban_title),
-            message = stringResource(Res.string.community_unban_message, name),
-            confirmLabel = stringResource(Res.string.community_unban_confirm),
-            dismissLabel = stringResource(Res.string.community_unban_dismiss),
-            destructive = true,
-            onConfirm = {
-                onUnban(member.id)
-                pendingUnban = null
-            },
-            onDismiss = { pendingUnban = null },
-        )
     }
 }
 
-// The role filter tab strip: all / followers / VIPs / moderators. Switching a tab reloads its first page.
+// A row found via search. Search only returns a Twitch id, but a Profile is addressed by the internal `User.Id`
+// Guid — so this row resolves the person's real member state first (same [DirectoryRow.canOpen] rule: no local
+// User row yet means no Profile to open yet) rather than guessing at a Guid or opening the wrong resource.
 @Composable
-private fun RoleTabs(role: String, onSelectRole: (String) -> Unit) {
-    val typography = LocalTypography.current
+private fun SearchedPersonRow(
+    twitchId: String,
+    fallbackName: String,
+    onFetchMember: suspend (twitchId: String) -> CommunityMember?,
+    onOpenProfile: (userId: String) -> Unit,
+) {
+    var resolved: CommunityMember? by remember(twitchId) { mutableStateOf(null) }
+    LaunchedEffect(twitchId) { resolved = onFetchMember(twitchId) }
 
+    val member: CommunityMember = resolved ?: CommunityMember(id = twitchId, displayName = fallbackName)
+    val name: String = memberName(member)
+    val canOpen: Boolean = member.internalUserId != null
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = LocalSpacing.current.s4, vertical = LocalSpacing.current.s3),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = name, style = LocalTypography.current.base, color = LocalTokens.current.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        if (canOpen) {
+            TextButton(onClick = { onOpenProfile(member.internalUserId!!) }) {
+                Text(text = stringResource(Res.string.community_open_profile), color = LocalTokens.current.primary, maxLines = 1)
+            }
+        } else {
+            Text(
+                text = stringResource(Res.string.community_no_internal_id),
+                style = LocalTypography.current.xs,
+                color = LocalTokens.current.mutedForeground,
+            )
+        }
+    }
+}
+
+// The role filter: all / followers / VIPs / moderators. Kept as a compact secondary control (not the page's
+// primary organizing structure the owner flagged as the problem).
+@Composable
+private fun RoleFilter(role: String, onSelectRole: (String) -> Unit) {
+    val typography = LocalTypography.current
     TabsList(modifier = Modifier.fillMaxWidth()) {
         CommunityRole.tabs.forEach { tab ->
             TabsTrigger(
@@ -601,71 +342,16 @@ private fun RoleTabs(role: String, onSelectRole: (String) -> Unit) {
     }
 }
 
-// The prev/next pager under the member list. Prev/next are disabled at the ends; the indicator shows the current
-// page and, when the backend knows it, the total member count for the active role.
 @Composable
-private fun Pager(
-    page: Int,
-    total: Int?,
-    hasPrev: Boolean,
-    hasMore: Boolean,
-    onPrev: () -> Unit,
-    onNext: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s2),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextButton(onClick = onPrev, enabled = hasPrev) {
-            Text(
-                text = stringResource(Res.string.community_pager_prev),
-                color = if (hasPrev) tokens.primary else tokens.mutedForeground,
-                maxLines = 1,
-            )
-        }
-        Text(
-            text =
-                if (total != null) stringResource(Res.string.community_page_indicator_total, page, total)
-                else stringResource(Res.string.community_page_indicator, page),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Center,
-        )
-        TextButton(onClick = onNext, enabled = hasMore) {
-            Text(
-                text = stringResource(Res.string.community_pager_next),
-                color = if (hasMore) tokens.primary else tokens.mutedForeground,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MemberRow(
-    member: CommunityMember,
-    manage: ManageDecision,
-    onSetTrust: (level: String) -> Unit,
-    onBan: () -> Unit,
-    onUnban: () -> Unit,
-    onShoutout: () -> Unit,
-    onVipToggle: () -> Unit,
-    onViewStats: () -> Unit,
-) {
+private fun DirectoryRow(member: CommunityMember, onOpenProfile: (userId: String) -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     val name: String = memberName(member)
     val standingLabel: String = stringResource(trustLabel(member.trustLevel))
-    val rowDescription: String =
-        stringResource(Res.string.community_row_description, name, standingLabel)
+    val rowDescription: String = stringResource(Res.string.community_row_description, name, standingLabel)
+    val canOpen: Boolean = member.internalUserId != null
 
     Row(
         modifier = Modifier
@@ -674,239 +360,53 @@ private fun MemberRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
-        Text(
-            text = name,
-            style = typography.base,
-            color = tokens.cardForeground,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            // The identity reads as one node; the controls below carry their own action labels.
-            modifier = Modifier
-                .weight(1f)
-                .clearAndSetSemantics { contentDescription = rowDescription },
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = standingLabel,
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
         if (member.isBanned) {
-            Badge(
+            DirectoryBadge(
                 label = stringResource(Res.string.community_banned),
                 background = tokens.destructive,
                 foreground = tokens.destructiveForeground,
             )
         }
-        TrustPicker(name = name, current = member.trustLevel, manage = manage, onSelect = onSetTrust)
-        if (member.isBanned) {
-            UnbanButton(name = name, manage = manage, onUnban = onUnban)
-        } else {
-            BanButton(name = name, manage = manage, onBan = onBan)
-        }
-        MoreActionsMenu(
-            name = name,
-            isVip = member.trustLevel == CommunityTrustLevel.Vip,
-            manage = manage,
-            onShoutout = onShoutout,
-            onVipToggle = onVipToggle,
-            onViewStats = onViewStats,
-        )
-    }
-}
-
-// Overflow menu (⋮) that holds the secondary per-member actions: /shoutout and VIP grant/revoke. Both are
-// gated behind the manage decision so they stay unreachable when the caller lacks the Moderator floor.
-@Composable
-private fun MoreActionsMenu(
-    name: String,
-    isVip: Boolean,
-    manage: ManageDecision,
-    onShoutout: () -> Unit,
-    onVipToggle: () -> Unit,
-    onViewStats: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    val moreDesc: String = stringResource(Res.string.community_more_actions, name)
-
-    var expanded: Boolean by remember { mutableStateOf(false) }
-
-    Box {
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                icon = DotsVerticalGlyph,
-                label = moreDesc,
-                onClick = { expanded = true },
-                enabled = enabled,
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(Res.string.community_view_stats),
-                        style = typography.sm,
-                        color = tokens.popoverForeground,
-                    )
-                },
-                onClick = {
-                    expanded = false
-                    onViewStats()
-                },
-            )
-            val shoutoutLabel: String = stringResource(Res.string.community_shoutout_action_desc, name)
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(Res.string.community_shoutout_action),
-                        style = typography.sm,
-                        color = tokens.popoverForeground,
-                    )
-                },
-                modifier = Modifier.semantics {
-                    role = Role.Button
-                    contentDescription = shoutoutLabel
-                },
-                onClick = {
-                    expanded = false
-                    onShoutout()
-                },
-            )
-            val vipLabel: String = stringResource(
-                if (isVip) Res.string.community_vip_revoke_desc else Res.string.community_vip_grant_desc,
-                name,
-            )
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(
-                            if (isVip) Res.string.community_vip_revoke else Res.string.community_vip_grant
-                        ),
-                        style = typography.sm,
-                        color = if (isVip) tokens.destructive else tokens.popoverForeground,
-                    )
-                },
-                modifier = Modifier.semantics {
-                    role = Role.Button
-                    contentDescription = vipLabel
-                },
-                onClick = {
-                    expanded = false
-                    onVipToggle()
-                },
-            )
-        }
-    }
-}
-
-// The non-destructive trust control: a labelled trigger that opens the closed menu of trust levels and sets
-// the chosen one directly (no confirmation — it's reversible). The trigger announces the member and the
-// active level; each item is a menu option for screen readers.
-@Composable
-private fun TrustPicker(
-    name: String,
-    current: String,
-    manage: ManageDecision,
-    onSelect: (level: String) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-
-    var expanded: Boolean by remember { mutableStateOf(false) }
-    val activeLabel: String = stringResource(trustLabel(current))
-    val pickerLabel: String = stringResource(Res.string.community_trust_picker, name, activeLabel)
-
-    // The picker trigger is the write affordance: opening the menu is the only path to setting a trust level,
-    // so gating the trigger gates the write (the menu items stay unreachable when denied).
-    Box {
-        ManageGate(decision = manage) { enabled ->
+        if (canOpen) {
             TextButton(
-                onClick = { expanded = true },
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = pickerLabel },
+                onClick = { onOpenProfile(member.internalUserId!!) },
+                modifier = Modifier.semantics {
+                    role = Role.Button
+                    contentDescription = rowDescription
+                },
             ) {
-                Text(
-                    text = activeLabel,
-                    style = typography.sm,
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
+                Text(text = stringResource(Res.string.community_open_profile), color = tokens.primary, maxLines = 1)
             }
-        }
-
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            CommunityTrustLevel.all.forEach { level ->
-                val label: String = stringResource(trustLabel(level))
-                // Resolved here (a @Composable call) so the semantics lambda only reads the plain string.
-                val itemLabel: String = stringResource(Res.string.community_trust_label, label)
-                DropdownMenuItem(
-                    text = { Text(text = label, style = typography.sm, color = tokens.popoverForeground) },
-                    modifier = Modifier.semantics {
-                        role = Role.Button
-                        contentDescription = itemLabel
-                    },
-                    onClick = {
-                        expanded = false
-                        if (level != current) onSelect(level)
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BanButton(name: String, manage: ManageDecision, onBan: () -> Unit) {
-    val tokens = LocalTokens.current
-    val banLabel: String = stringResource(Res.string.community_ban_action, name)
-
-    ManageGate(decision = manage) { enabled ->
-        TextButton(
-            onClick = onBan,
-            enabled = enabled,
-            modifier = Modifier.clearAndSetSemantics {
-                role = Role.Button
-                contentDescription = banLabel
-            },
-        ) {
+        } else {
             Text(
-                text = stringResource(Res.string.community_ban_action_short),
-                color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                maxLines = 1,
+                text = stringResource(Res.string.community_no_internal_id),
+                style = typography.xs,
+                color = tokens.mutedForeground,
             )
         }
     }
 }
 
 @Composable
-private fun UnbanButton(name: String, manage: ManageDecision, onUnban: () -> Unit) {
-    val tokens = LocalTokens.current
-    val unbanLabel: String = stringResource(Res.string.community_unban_action, name)
-
-    ManageGate(decision = manage) { enabled ->
-        TextButton(
-            onClick = onUnban,
-            enabled = enabled,
-            modifier = Modifier.clearAndSetSemantics {
-                role = Role.Button
-                contentDescription = unbanLabel
-            },
-        ) {
-            Text(
-                text = stringResource(Res.string.community_unban_action_short),
-                color = if (enabled) tokens.primary else tokens.mutedForeground,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
-@Composable
-private fun Badge(
-    label: String,
-    background: Color,
-    foreground: Color,
-) {
+private fun DirectoryBadge(label: String, background: Color, foreground: Color) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(tokens.radius.sm))
@@ -918,22 +418,41 @@ private fun Badge(
 }
 
 @Composable
+private fun Pager(page: Int, total: Int?, hasPrev: Boolean, hasMore: Boolean, onPrev: () -> Unit, onNext: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s2),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onPrev, enabled = hasPrev) {
+            Text(text = stringResource(Res.string.community_pager_prev), color = if (hasPrev) tokens.primary else tokens.mutedForeground, maxLines = 1)
+        }
+        Text(
+            text = if (total != null) stringResource(Res.string.community_page_indicator_total, page, total) else stringResource(Res.string.community_page_indicator, page),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center,
+        )
+        TextButton(onClick = onNext, enabled = hasMore) {
+            Text(text = stringResource(Res.string.community_pager_next), color = if (hasMore) tokens.primary else tokens.mutedForeground, maxLines = 1)
+        }
+    }
+}
+
+@Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Text(
-                text = stringResource(Res.string.community_error, detail),
-                style = typography.base,
-                color = tokens.mutedForeground,
-                textAlign = TextAlign.Center,
-            )
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Text(text = stringResource(Res.string.community_error, detail), style = typography.base, color = tokens.mutedForeground, textAlign = TextAlign.Center)
             TextButton(onClick = onRetry) { Text(text = stringResource(Res.string.community_retry)) }
         }
     }
@@ -943,480 +462,9 @@ private fun ErrorContent(detail: String, onRetry: () -> Unit) {
 private fun CenteredMessage(text: String) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
-
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = text, style = typography.base, color = tokens.mutedForeground)
     }
-}
-
-// Per-viewer engagement stats + GDPR dialog. Shown when a moderator taps "View stats" in the overflow menu.
-// Stats load in the background (LaunchedEffect in the parent); the dialog handles loading/error inline.
-// GDPR actions (export/erase) are hidden for non-Broadcaster callers.
-@Composable
-private fun ViewerStatsDialog(
-    name: String,
-    stats: UserStats?,
-    analytics: ViewerAnalyticsProfile?,
-    loading: Boolean,
-    error: Boolean,
-    isBroadcaster: Boolean,
-    viewerData: Map<String, String>?,
-    dataWrite: ManageDecision,
-    dataError: String?,
-    // This channel's own lines for this person, keyed by [ShoutoutOverrideKind]. Null while loading or on a
-    // read failure; an empty map means "loaded, nothing written yet".
-    personalMessages: Map<String, String>?,
-    personalMessagesError: Boolean,
-    onSetDatum: (key: String, value: String) -> Unit,
-    onDeleteDatum: (key: String) -> Unit,
-    onSavePersonalMessage: (kind: String, messageTemplate: String) -> Unit,
-    onClearPersonalMessage: (kind: String) -> Unit,
-    onExport: () -> Unit,
-    onErase: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var pendingErase: Boolean by remember { mutableStateOf(false) }
-    var pendingExport: Boolean by remember { mutableStateOf(false) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(Res.string.community_stats_title, name), style = typography.base) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                when {
-                    loading -> {
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Spinner(color = tokens.primary)
-                        }
-                        Text(
-                            text = stringResource(Res.string.community_stats_loading),
-                            style = typography.sm,
-                            color = tokens.mutedForeground,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    error -> {
-                        Text(
-                            text = stringResource(Res.string.community_stats_error),
-                            style = typography.sm,
-                            color = tokens.destructive,
-                        )
-                    }
-                    else -> {
-                        val yes: String = stringResource(Res.string.community_stats_yes)
-                        val no: String = stringResource(Res.string.community_stats_no)
-                        // The channel analytics profile (foreign-viewer-capable) is the authoritative engagement
-                        // source; the self-only usersApi stats is the fallback when no internal id resolved.
-                        if (analytics != null) {
-                            StatRow(label = stringResource(Res.string.community_stats_messages), value = analytics.totalMessages.toString())
-                            StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = (analytics.totalWatchSeconds / 3600.0).toFixed1())
-                            StatRow(label = stringResource(Res.string.community_stats_commands_used), value = analytics.totalCommandsUsed.toString())
-                            StatRow(label = stringResource(Res.string.community_stats_redemptions), value = analytics.totalRedemptions.toString())
-                            StatRow(label = stringResource(Res.string.community_stats_follower), value = if (analytics.isFollower) yes else no)
-                            StatRow(
-                                label = stringResource(Res.string.community_stats_subscriber),
-                                value = if (analytics.isSubscriber) analytics.subTier?.takeIf { it.isNotBlank() } ?: yes else no,
-                            )
-                        } else if (stats != null) {
-                            StatRow(label = stringResource(Res.string.community_stats_messages), value = stats.messageCount.toString())
-                            StatRow(label = stringResource(Res.string.community_stats_watch_hours), value = stats.watchHours.toFixed1())
-                            StatRow(label = stringResource(Res.string.community_stats_commands_used), value = stats.commandsUsed.toString())
-                        }
-                        stats?.let {
-                            StatRow(
-                                label = stringResource(Res.string.community_stats_first_seen),
-                                value = it.firstSeen ?: stringResource(Res.string.community_stats_never),
-                            )
-                            StatRow(
-                                label = stringResource(Res.string.community_stats_last_active),
-                                value = it.lastActive ?: stringResource(Res.string.community_stats_never),
-                            )
-                        }
-
-                        if (isBroadcaster) {
-                            Spacer(modifier = Modifier.height(spacing.s2))
-                            Separator()
-                            Spacer(modifier = Modifier.height(spacing.s2))
-                            Text(
-                                text = stringResource(Res.string.community_gdpr_section),
-                                style = typography.xs,
-                                color = tokens.mutedForeground,
-                            )
-                            TextButton(
-                                onClick = { pendingExport = true },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(
-                                    text = stringResource(Res.string.community_gdpr_export),
-                                    style = typography.sm,
-                                    color = tokens.primary,
-                                )
-                            }
-                            TextButton(
-                                onClick = { pendingErase = true },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(
-                                    text = stringResource(Res.string.community_gdpr_erase),
-                                    style = typography.sm,
-                                    color = tokens.destructive,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(spacing.s2))
-                Separator()
-                Spacer(modifier = Modifier.height(spacing.s2))
-                PersonalMessagesSection(
-                    name = name,
-                    messages = personalMessages,
-                    loadFailed = personalMessagesError,
-                    write = dataWrite,
-                    onSave = onSavePersonalMessage,
-                    onClear = onClearPersonalMessage,
-                )
-
-                Spacer(modifier = Modifier.height(spacing.s2))
-                Separator()
-                Spacer(modifier = Modifier.height(spacing.s2))
-                ViewerDataSection(
-                    data = viewerData,
-                    write = dataWrite,
-                    saveError = dataError,
-                    onSet = onSetDatum,
-                    onDelete = onDeleteDatum,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(Res.string.community_stats_close), color = tokens.primary)
-            }
-        },
-    )
-
-    if (pendingExport) {
-        ConfirmDialog(
-            title = stringResource(Res.string.community_gdpr_export),
-            message = stringResource(Res.string.community_gdpr_export_desc, name),
-            confirmLabel = stringResource(Res.string.community_gdpr_export_confirm),
-            dismissLabel = stringResource(Res.string.community_stats_close),
-            destructive = false,
-            onConfirm = {
-                pendingExport = false
-                onExport()
-            },
-            onDismiss = { pendingExport = false },
-        )
-    }
-
-    if (pendingErase) {
-        ConfirmDialog(
-            title = stringResource(Res.string.community_gdpr_erase),
-            message = stringResource(Res.string.community_gdpr_erase_desc, name),
-            confirmLabel = stringResource(Res.string.community_gdpr_erase_confirm),
-            dismissLabel = stringResource(Res.string.community_stats_close),
-            destructive = true,
-            onConfirm = {
-                pendingErase = false
-                onErase()
-            },
-            onDismiss = { pendingErase = false },
-        )
-    }
-}
-
-@Composable
-private fun StatRow(label: String, value: String) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-    val spacing = LocalSpacing.current
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = label, style = typography.sm, color = tokens.mutedForeground, modifier = Modifier.padding(end = spacing.s2))
-        Text(text = value, style = typography.sm, color = tokens.foreground)
-    }
-}
-
-// This channel's OWN lines for this person: what the bot says when shouting them out, and what it says when
-// raiding them. Both are facts about a PERSON, so they are edited here - where the operator already sees who
-// this viewer is - rather than on a channel-wide settings page where a per-person editor asked them to retype
-// a Twitch id they had just looked up. Empty means "no custom line": the channel default is used, which is why
-// clearing is a plain action and not a destructive one.
-@Composable
-private fun PersonalMessagesSection(
-    name: String,
-    messages: Map<String, String>?,
-    loadFailed: Boolean,
-    write: ManageDecision,
-    onSave: (kind: String, messageTemplate: String) -> Unit,
-    onClear: (kind: String) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = stringResource(Res.string.community_messages_section),
-        style = typography.xs,
-        color = tokens.mutedForeground,
-    )
-
-    if (loadFailed) {
-        Text(
-            text = stringResource(Res.string.community_messages_error),
-            style = typography.sm,
-            color = tokens.destructive,
-        )
-        return
-    }
-
-    PersonalMessageField(
-        name = name,
-        kind = ShoutoutOverrideKind.Shoutout,
-        label = stringResource(Res.string.community_messages_shoutout_label),
-        help = stringResource(Res.string.community_messages_shoutout_help),
-        saved = messages?.get(ShoutoutOverrideKind.Shoutout),
-        write = write,
-        onSave = onSave,
-        onClear = onClear,
-    )
-    PersonalMessageField(
-        name = name,
-        kind = ShoutoutOverrideKind.Raid,
-        label = stringResource(Res.string.community_messages_raid_label),
-        help = stringResource(Res.string.community_messages_raid_help),
-        saved = messages?.get(ShoutoutOverrideKind.Raid),
-        write = write,
-        onSave = onSave,
-        onClear = onClear,
-    )
-}
-
-// One editable line. [saved] is the backend's current value (null = none written). The field re-seeds from
-// [saved] whenever it changes, so a save or a clear is reflected without the operator retyping. Save is
-// disabled until the text actually differs from what is stored - a Save that would write the same string is a
-// button that does nothing - and Clear only appears when there is something to clear.
-@Composable
-private fun PersonalMessageField(
-    name: String,
-    kind: String,
-    label: String,
-    help: String,
-    saved: String?,
-    write: ManageDecision,
-    onSave: (kind: String, messageTemplate: String) -> Unit,
-    onClear: (kind: String) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var draft: String by remember(kind) { mutableStateOf(saved.orEmpty()) }
-    var pendingClear: Boolean by remember(kind) { mutableStateOf(false) }
-    LaunchedEffect(saved) { draft = saved.orEmpty() }
-
-    ManageGate(decision = write) { enabled ->
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-            AppTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                label = label,
-                placeholder = stringResource(Res.string.community_messages_placeholder),
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(text = help, style = typography.xs, color = tokens.mutedForeground)
-
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                val canSave: Boolean = enabled && draft.trim().isNotBlank() && draft.trim() != saved.orEmpty()
-                TextButton(onClick = { if (canSave) onSave(kind, draft.trim()) }, enabled = canSave) {
-                    Text(
-                        text = stringResource(Res.string.community_messages_save),
-                        style = typography.sm,
-                        color = if (canSave) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
-                }
-                if (!saved.isNullOrBlank()) {
-                    TextButton(onClick = { pendingClear = true }, enabled = enabled) {
-                        Text(
-                            text = stringResource(Res.string.community_messages_clear),
-                            style = typography.sm,
-                            color = if (enabled) tokens.foreground else tokens.mutedForeground,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (pendingClear) {
-        ConfirmDialog(
-            title = stringResource(Res.string.community_messages_clear_title),
-            message = stringResource(Res.string.community_messages_clear_message, label.lowercase(), name),
-            confirmLabel = stringResource(Res.string.community_messages_clear_confirm),
-            dismissLabel = stringResource(Res.string.community_stats_close),
-            destructive = false,
-            onConfirm = {
-                pendingClear = false
-                onClear(kind)
-            },
-            onDismiss = { pendingClear = false },
-        )
-    }
-}
-
-// The viewer's custom key/value data (per-viewer-data.md) — the map pipelines write (death counters, quest
-// flags, "favorite game"). Read is shown to anyone who can open the dialog; add/delete are gated at [write]
-// (Editor) and disabled-with-reason below it. Values over the backend cap are rejected (not truncated) — the
-// backend's message surfaces in [saveError]. Delete confirms first (destructive). [data] is null until loaded.
-@Composable
-private fun ViewerDataSection(
-    data: Map<String, String>?,
-    write: ManageDecision,
-    saveError: String?,
-    onSet: (key: String, value: String) -> Unit,
-    onDelete: (key: String) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var newKey: String by remember { mutableStateOf("") }
-    var newValue: String by remember { mutableStateOf("") }
-    var keyError: Boolean by remember { mutableStateOf(false) }
-    var pendingDelete: String? by remember { mutableStateOf(null) }
-
-    Text(
-        text = stringResource(Res.string.community_data_section),
-        style = typography.xs,
-        color = tokens.mutedForeground,
-    )
-
-    val entries: List<Map.Entry<String, String>> =
-        (data ?: emptyMap()).entries.sortedBy { it.key }
-
-    if (entries.isEmpty()) {
-        Text(
-            text = stringResource(Res.string.community_data_empty),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-        )
-    } else {
-        entries.forEach { entry ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = entry.key,
-                        style = typography.sm,
-                        color = tokens.foreground,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = entry.value,
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (write.isAllowed) {
-                    GlyphButton(
-                        icon = TrashGlyph,
-                        label = stringResource(Res.string.community_data_delete, entry.key),
-                        onClick = { pendingDelete = entry.key },
-                        tint = tokens.destructive,
-                    )
-                }
-            }
-        }
-    }
-
-    if (write.isAllowed) {
-        FieldPair(
-            verticalAlignment = Alignment.Top,
-            first = { fieldModifier ->
-                AppTextField(
-                    value = newKey,
-                    onValueChange = { newKey = it; keyError = false },
-                    label = stringResource(Res.string.community_data_key),
-                    isError = keyError,
-                    errorText =
-                        if (keyError) stringResource(Res.string.community_data_key_required) else null,
-                    modifier = fieldModifier,
-                )
-            },
-            second = { fieldModifier ->
-                AppTextField(
-                    value = newValue,
-                    onValueChange = { newValue = it },
-                    label = stringResource(Res.string.community_data_value),
-                    modifier = fieldModifier,
-                )
-            },
-        )
-        Button(
-            onClick = {
-                val key: String = newKey.trim().lowercase()
-                if (key.isEmpty()) {
-                    keyError = true
-                    return@Button
-                }
-                onSet(key, newValue)
-                newKey = ""
-                newValue = ""
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(Res.string.community_data_add))
-        }
-    } else {
-        write.deniedReason?.let { reason ->
-            Text(text = reason, style = typography.xs, color = tokens.mutedForeground)
-        }
-    }
-
-    saveError?.let { detail ->
-        Text(text = detail, style = typography.xs, color = tokens.destructive)
-    }
-
-    pendingDelete?.let { key ->
-        ConfirmDialog(
-            title = stringResource(Res.string.community_data_delete_title),
-            message = stringResource(Res.string.community_data_delete_message, key),
-            confirmLabel = stringResource(Res.string.community_data_delete_confirm),
-            dismissLabel = stringResource(Res.string.community_stats_close),
-            destructive = true,
-            onConfirm = {
-                pendingDelete = null
-                onDelete(key)
-            },
-            onDismiss = { pendingDelete = null },
-        )
-    }
-}
-
-/** Format a [Double] to one decimal place without JVM-only String.format. */
-private fun Double.toFixed1(): String {
-    val scaled: Long = (this * 10).toLong()
-    return "${scaled / 10}.${kotlin.math.abs(scaled % 10)}"
 }
 
 /** The member's best display name: display name, then login, then the raw id. */
@@ -1434,7 +482,7 @@ private fun trustLabel(trustLevel: String): StringResource =
         else -> Res.string.community_trust_viewer
     }
 
-/** Map a role tab key to its localized label. */
+/** Map a role filter key to its localized label. */
 private fun roleTabLabel(role: String): StringResource =
     when (role) {
         CommunityRole.Follower -> Res.string.community_role_follower

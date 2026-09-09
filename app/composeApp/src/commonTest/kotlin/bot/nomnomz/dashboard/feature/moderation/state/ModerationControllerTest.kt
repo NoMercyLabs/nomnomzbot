@@ -25,6 +25,11 @@ import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationHistoryActionTypes
+import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
+import bot.nomnomz.dashboard.core.network.ModerationHistoryFilter
+import bot.nomnomz.dashboard.core.network.ModerationHistoryPage
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationRule
@@ -1017,11 +1022,17 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeCommunityApi(
     private val searchResult: ApiResult<List<ViewerOption>> = ApiResult.Ok(emptyList()),
 ) : CommunityApi {
+    // Keyed by Twitch id, so a test can prove the Twitch-id → internal-Guid resolution
+    // (ModerationController.setHistorySubjectFilter) picks up the RIGHT row for the RIGHT id, not just any
+    // configured result. A userId with no entry falls back to a member with no internalUserId (the real
+    // "no local User row yet" case).
+    val memberResults: MutableMap<String, ApiResult<CommunityMember>> = mutableMapOf()
+
     override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
         ApiResult.Ok(CommunityStats())
 
     override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> =
-        ApiResult.Ok(CommunityMember(id = userId))
+        memberResults[userId] ?: ApiResult.Ok(CommunityMember(id = userId))
 
     override suspend fun searchViewers(
         channelId: String,
@@ -1044,6 +1055,7 @@ private class FakeCommunityApi(
     override suspend fun addVip(channelId: String, userId: String) = error("stub")
     override suspend fun removeVip(channelId: String, userId: String) = error("stub")
     override suspend fun shoutout(channelId: String, targetTwitchUserId: String) = error("stub")
+    override suspend fun profile(channelId: String, userId: String) = error("stub")
 }
 
 // S066-mod-actions: the moderator roster loads into state, and add/remove/clear-chat each call the
@@ -1218,6 +1230,41 @@ internal class FakeModerationApi(
 
     override suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>> = modLogResult
 
+    // A REAL in-memory dataset that history() actually filters + paginates — the same "no canned response"
+    // discipline as savedOverrides above. A test seeds [historyEntries] and asserts the CONTROLLER's resulting
+    // state narrowed to the matching rows, which proves the filter reached the query and the response was
+    // applied — not merely that a call was made.
+    var historyEntries: List<ModerationHistoryEntry> = emptyList()
+    val historyCalls: MutableList<Triple<Int, Int, ModerationHistoryFilter>> = mutableListOf()
+    var historyResult: ApiResult<PaginatedEnvelope<ModerationHistoryEntry>>? = null
+
+    override suspend fun history(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+        filter: ModerationHistoryFilter,
+    ): ApiResult<PaginatedEnvelope<ModerationHistoryEntry>> {
+        historyCalls.add(Triple(page, pageSize, filter))
+        historyResult?.let { return it }
+        val filtered: List<ModerationHistoryEntry> =
+            historyEntries
+                .filter { entry ->
+                    (filter.subjectUserId == null || entry.subjectUserId == filter.subjectUserId) &&
+                        (filter.actionType == null || entry.actionType == filter.actionType) &&
+                        (filter.fromUtc == null || entry.occurredAt >= filter.fromUtc) &&
+                        (filter.toUtc == null || entry.occurredAt <= filter.toUtc)
+                }
+                // Newest first, same as the real backend's OrderByDescending(OccurredAt) — a fake that ignored
+                // ordering could pass a narrowing test while still lying about what page 2 contains.
+                .sortedByDescending { it.occurredAt }
+        val start: Int = (page - 1) * pageSize
+        val pageItems: List<ModerationHistoryEntry> = filtered.drop(start).take(pageSize)
+        val hasMore: Boolean = start + pageSize < filtered.size
+        return ApiResult.Ok(
+            PaginatedEnvelope(data = pageItems, hasMore = hasMore, nextPage = if (hasMore) page + 1 else null)
+        )
+    }
+
     val userContextCalls: MutableList<Pair<String, String>> = mutableListOf()
     var userContextResult: ApiResult<UserModerationContext> = ApiResult.Ok(UserModerationContext())
 
@@ -1258,14 +1305,61 @@ internal class FakeModerationApi(
         return ApiResult.Ok(Unit)
     }
 
+    var historyPageResult: ApiResult<ModerationHistoryPage> = ApiResult.Ok(ModerationHistoryPage())
+    val historyForUserCalls: MutableList<Triple<String, String, Int>> = mutableListOf()
+
+    override suspend fun historyForUser(
+        channelId: String,
+        userId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ModerationHistoryPage> {
+        historyForUserCalls.add(Triple(channelId, userId, page))
+        return historyPageResult
+    }
+
+    var addHistoryNoteResult: ApiResult<ModerationHistoryEntry> =
+        ApiResult.Ok(ModerationHistoryEntry())
+    val addedHistoryNotes: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun addHistoryNote(
+        channelId: String,
+        userId: String,
+        note: String,
+    ): ApiResult<ModerationHistoryEntry> {
+        addedHistoryNotes.add(userId to note)
+        return addHistoryNoteResult
+    }
+
     var lastShieldToggle: Boolean? = null
         private set
 
-    override suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus> = shieldResult
+    // Overridable so a caller (Chat / MultiChat state-holder tests included — this fake is shared, `internal`
+    // visibility) can prove a failed Shield Mode write surfaces its error without disturbing the rest of the
+    // page, the same way every other write result on this fake is overridable.
+    var setShieldModeResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    // Per-channel override of [shieldResult] — Shield Mode is a per-channel Twitch state, so the multi-watch
+    // lane's tests need DIFFERENT channels to read as active/inactive from the SAME fake instance. A channel
+    // absent from this map falls back to the single constant [shieldResult] (every single-channel caller's
+    // usage, unchanged). A successful [setShieldMode] call updates this map so the NEXT [shieldMode] read for
+    // that channel reflects the write — a real state change, not a fixed stub.
+    val shieldResultByChannel: MutableMap<String, ApiResult<ShieldStatus>> = mutableMapOf()
+
+    // Every setShieldMode call, as (channelId, enabled) — lets a caller prove the write routed to the RIGHT
+    // channel, not merely that some write happened.
+    val setShieldCalls: MutableList<Pair<String, Boolean>> = mutableListOf()
+
+    override suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus> =
+        shieldResultByChannel[channelId] ?: shieldResult
 
     override suspend fun setShieldMode(channelId: String, enabled: Boolean): ApiResult<Unit> {
         lastShieldToggle = enabled
-        return ApiResult.Ok(Unit)
+        setShieldCalls.add(channelId to enabled)
+        if (setShieldModeResult is ApiResult.Ok) {
+            shieldResultByChannel[channelId] = ApiResult.Ok(ShieldStatus(enabled))
+        }
+        return setShieldModeResult
     }
 
     override suspend fun blockedTerms(channelId: String): ApiResult<List<String>> =
@@ -1847,4 +1941,167 @@ class TrustAutomationControllerTest {
 
         assertEquals(120, assertNotNull(api.lastSavedAutomod).heatTimeoutSeconds)
     }
+}
+
+// The browsable, filterable moderation-history log (owner punch list 2026-09-08 §12). These assert real state
+// change through the whole controller → fake pipeline — a filter that narrows the REAL fetched data, a pager
+// that requests the REAL next page, and an empty state that is a real, distinguishable outcome of a filter
+// matching nothing — not "the call didn't throw."
+class ModerationHistoryLogTests {
+
+    private fun channel(
+        api: FakeModerationApi,
+        community: FakeCommunityApi = FakeCommunityApi(),
+    ): ModerationController =
+        ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, community)
+
+    private fun entry(
+        id: String,
+        subjectUserId: String = "user-1",
+        actionType: String = ModerationHistoryActionTypes.Ban,
+        occurredAt: String = "2026-09-01T00:00:00Z",
+    ): ModerationHistoryEntry =
+        ModerationHistoryEntry(
+            id = id,
+            subjectUserId = subjectUserId,
+            subjectTwitchUserId = "twitch-$subjectUserId",
+            actionType = actionType,
+            occurredAt = occurredAt,
+        )
+
+    @Test
+    fun load_fetches_the_first_page_of_the_history_log() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.historyEntries = listOf(entry("h1"), entry("h2"))
+        val controller = channel(api)
+
+        controller.load()
+
+        val ready = controller.state.value as ModerationState.Ready
+        assertEquals(2, ready.historyEntries.size)
+        assertEquals(1, ready.historyPage)
+        assertFalse(ready.historyHasMore)
+    }
+
+    @Test
+    fun setHistoryFilter_by_action_type_narrows_to_only_the_matching_rows() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.historyEntries =
+            listOf(
+                entry("h-ban", actionType = ModerationHistoryActionTypes.Ban),
+                entry("h-warn", actionType = ModerationHistoryActionTypes.Warn),
+                entry("h-timeout", actionType = ModerationHistoryActionTypes.Timeout),
+            )
+        val controller = channel(api)
+        controller.load()
+
+        // The exact entry point the History page's action-type dropdown calls.
+        controller.setHistoryActionType(ModerationHistoryActionTypes.Warn)
+
+        val ready = controller.state.value as ModerationState.Ready
+        assertEquals(1, ready.historyEntries.size)
+        assertEquals("h-warn", ready.historyEntries.single().id)
+        assertEquals(1, ready.historyPage)
+    }
+
+    @Test
+    fun setHistoryFilter_by_date_range_narrows_to_only_the_matching_rows() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.historyEntries =
+            listOf(
+                entry("h-early", occurredAt = "2026-08-01T00:00:00Z"),
+                entry("h-in-range", occurredAt = "2026-09-05T00:00:00Z"),
+                entry("h-late", occurredAt = "2026-10-01T00:00:00Z"),
+            )
+        val controller = channel(api)
+        controller.load()
+
+        // The exact entry point the History page's from/to date fields call.
+        controller.setHistoryDateRange(fromUtc = "2026-09-01", toUtc = "2026-09-30")
+
+        val ready = controller.state.value as ModerationState.Ready
+        assertEquals(1, ready.historyEntries.size)
+        assertEquals("h-in-range", ready.historyEntries.single().id)
+    }
+
+    @Test
+    fun setHistorySubjectFilter_resolves_the_twitch_id_to_the_internal_guid_before_querying() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.historyEntries = listOf(entry("h-mine", subjectUserId = "guid-1"), entry("h-other", subjectUserId = "guid-2"))
+        val community = FakeCommunityApi()
+        community.memberResults["twitch-42"] =
+            ApiResult.Ok(CommunityMember(id = "twitch-42", internalUserId = "guid-1"))
+        val controller = channel(api, community)
+        controller.load()
+
+        controller.setHistorySubjectFilter("twitch-42")
+
+        val ready = controller.state.value as ModerationState.Ready
+        assertEquals(1, ready.historyEntries.size)
+        assertEquals("h-mine", ready.historyEntries.single().id)
+        assertEquals("guid-1", ready.historyFilter.subjectUserId)
+        assertEquals("guid-1", api.historyCalls.last().third.subjectUserId)
+    }
+
+    @Test
+    fun setHistorySubjectFilter_with_no_local_user_row_excludes_everyone_instead_of_showing_all_history() =
+        runTest {
+            // The bug this guards: an unresolvable person silently DROPPING the filter would show every
+            // other person's history too — reading as "here is their history" when it is actually everyone's.
+            val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+            api.historyEntries = listOf(entry("h-someone-else", subjectUserId = "guid-2"))
+            val community = FakeCommunityApi()
+            community.memberResults["twitch-99"] =
+                ApiResult.Ok(CommunityMember(id = "twitch-99", internalUserId = null))
+            val controller = channel(api, community)
+            controller.load()
+
+            controller.setHistorySubjectFilter("twitch-99")
+
+            val ready = controller.state.value as ModerationState.Ready
+            assertTrue(ready.historyEntries.isEmpty())
+            assertNotNull(ready.historyFilter.subjectUserId)
+        }
+
+    @Test
+    fun nextHistoryPage_requests_the_next_real_page_and_prevHistoryPage_goes_back() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.historyEntries =
+            (1..30).map { n ->
+                entry("h$n", occurredAt = "2026-09-${(n % 28 + 1).toString().padStart(2, '0')}T00:00:00Z")
+            }
+        val controller = channel(api)
+        controller.load()
+        val firstReady = controller.state.value as ModerationState.Ready
+        assertEquals(25, firstReady.historyEntries.size)
+        assertTrue(firstReady.historyHasMore)
+
+        controller.nextHistoryPage()
+
+        val secondReady = controller.state.value as ModerationState.Ready
+        assertEquals(2, secondReady.historyPage)
+        assertEquals(5, secondReady.historyEntries.size)
+        assertFalse(secondReady.historyHasMore)
+        assertEquals(listOf(1 to 25, 2 to 25), api.historyCalls.map { it.first to it.second })
+
+        controller.prevHistoryPage()
+
+        assertEquals(1, (controller.state.value as ModerationState.Ready).historyPage)
+    }
+
+    @Test
+    fun a_filter_yielding_zero_rows_leaves_the_history_entries_list_empty_for_the_screens_empty_state() =
+        runTest {
+            val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+            api.historyEntries = listOf(entry("h1", actionType = ModerationHistoryActionTypes.Ban))
+            val controller = channel(api)
+            controller.load()
+            assertTrue((controller.state.value as ModerationState.Ready).historyEntries.isNotEmpty())
+
+            controller.setHistoryFilter(ModerationHistoryFilter(actionType = ModerationHistoryActionTypes.Warn))
+
+            val ready = controller.state.value as ModerationState.Ready
+            assertTrue(ready.historyEntries.isEmpty())
+            assertEquals(ModerationHistoryActionTypes.Warn, ready.historyFilter.actionType)
+        }
 }

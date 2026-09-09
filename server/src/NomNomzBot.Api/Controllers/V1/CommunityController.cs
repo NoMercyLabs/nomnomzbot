@@ -19,6 +19,8 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Community.Dtos;
+using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -45,6 +47,7 @@ public class CommunityController : BaseController
     private readonly TimeProvider _timeProvider;
     private readonly ICommunityStandingService _communityStanding;
     private readonly ICurrentUserService _currentUser;
+    private readonly IViewerProfileService _viewerProfile;
 
     public CommunityController(
         IApplicationDbContext db,
@@ -54,7 +57,8 @@ public class CommunityController : BaseController
         ITwitchModerationApi moderation,
         TimeProvider timeProvider,
         ICommunityStandingService communityStanding,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IViewerProfileService viewerProfile
     )
     {
         _db = db;
@@ -65,6 +69,36 @@ public class CommunityController : BaseController
         _timeProvider = timeProvider;
         _communityStanding = communityStanding;
         _currentUser = currentUser;
+        _viewerProfile = viewerProfile;
+    }
+
+    // ── Full Profile (owner punch list 2026-09-08 §3) ───────────────────────────
+
+    /// <summary>
+    /// The Community Profile page's single-person view — every per-channel-per-user data point the domain
+    /// model tracks (identity/standing, moderation-history summary, chat/watch activity, economy, permits/
+    /// consent, shoutout/raid/TTS overrides, command usage, free-form viewer data, and a bounded page of
+    /// attributed quotes). <paramref name="userId"/> is the internal <c>User.Id</c> Guid (see
+    /// <see cref="CommunityUserDto.InternalUserId"/>), not the Twitch user id the rest of this controller
+    /// keys on — a Profile is opened from a Directory row that already resolved one.
+    /// </summary>
+    [RequireAction("community:read")]
+    [HttpGet("{userId:guid}/profile")]
+    [ProducesResponseType<StatusResponseDto<ViewerProfileSummaryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetProfile(string channelId, Guid userId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<ViewerProfileSummaryDto> result = await _viewerProfile.GetProfileAsync(
+            broadcasterId,
+            userId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return Ok(new StatusResponseDto<ViewerProfileSummaryDto> { Data = result.Value });
     }
 
     // ── Viewer analytics lookup ───────────────────────────────────────────────

@@ -49,6 +49,9 @@ class TruncatedPrimaryLabelGuardTest {
             "chatpolls/ui/ChatPollsCard.kt" to 1,
             "chattriggers/ui/ChatTriggersScreen.kt" to 2,
             "commands/ui/CommandsScreen.kt" to 1,
+            // ProfileFact(label, value) — a generic key/value detail row (e.g. "First seen: 2026-01-01"),
+            // never the row's own primary name (shown once in the page header, not repeated per fact).
+            "community/ui/ViewerProfileScreen.kt" to 1,
             "customevents/ui/CustomEventsScreen.kt" to 2,
             "discord/ui/DiscordScreen.kt" to 2,
             "economy/ui/EconomyScreen.kt" to 11,

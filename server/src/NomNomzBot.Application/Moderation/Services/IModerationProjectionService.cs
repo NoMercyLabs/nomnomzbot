@@ -26,14 +26,21 @@ public interface IModerationProjectionService
     /// (<c>ban</c> | <c>unban</c> | <c>timeout</c> | <c>warn</c> | <c>delete_message</c> |
     /// <c>automod_denied</c> | <c>filter_hit</c> | <c>report_validated</c>), accrues its heat delta
     /// (ban +40, timeout +15, automod/filter +5, validated report +10; half-life 24 h), recomputes the
-    /// J.5 trust score, and fires <c>UserHeatThresholdCrossedEvent</c> on an UPWARD crossing of the
-    /// channel's configured threshold.
+    /// J.5 trust score, fires <c>UserHeatThresholdCrossedEvent</c> on an UPWARD crossing of the channel's
+    /// configured threshold, and appends one row to the queryable <c>ModerationHistoryEntry</c> log (owner
+    /// punch list 2026-09-08 §3) — this is the single choke point every ban/timeout/unban/warn already
+    /// funnels through regardless of source (bot-issued, Twitch-side, Kick, legacy import), so it is also
+    /// the single place the per-action history log is written from.
     /// </summary>
     Task<Result> ApplyActionAsync(
         Guid broadcasterId,
         string subjectTwitchUserId,
         string actionType,
         DateTime occurredAtUtc,
+        string? moderatorTwitchUserId = null,
+        string? moderatorDisplayName = null,
+        string? reason = null,
+        int? durationSeconds = null,
         CancellationToken ct = default
     );
 

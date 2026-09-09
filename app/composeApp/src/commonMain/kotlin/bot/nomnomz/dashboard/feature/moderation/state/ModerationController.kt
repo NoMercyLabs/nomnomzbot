@@ -22,8 +22,12 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.ChatFilter
 import bot.nomnomz.dashboard.core.network.CommunityApi
+import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
+import bot.nomnomz.dashboard.core.network.ModerationHistoryFilter
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.CreateChatFilterBody
 import bot.nomnomz.dashboard.core.network.UpdateChatFilterBody
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
@@ -299,6 +303,22 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The browsable, filterable moderation-history log (owner punch list 2026-09-08 §12) — page 1, no
+        // filter, on every full load. Resilient — a failure degrades to an empty page rather than failing the
+        // whole Moderation page; [loadHistoryPage] re-fetches this slice alone on a filter/page change.
+        val historyPageResult: ApiResult<PaginatedEnvelope<ModerationHistoryEntry>> =
+            moderationApi.history(channel.id, page = 1)
+        val historyEntries: List<ModerationHistoryEntry> =
+            when (historyPageResult) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> historyPageResult.value.data
+            }
+        val historyHasMore: Boolean =
+            when (historyPageResult) {
+                is ApiResult.Failure -> false
+                is ApiResult.Ok -> historyPageResult.value.hasMore
+            }
+
         // This channel's own custom shoutout announcement template — also what OTHER streamers see when THEY
         // shout this channel out. Resilient — a failure just means "use the built-in default" for display.
         val shoutoutTemplate: String? =
@@ -371,6 +391,7 @@ class ModerationController(
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
                     automodQueue.isEmpty() &&
+                    historyEntries.isEmpty() &&
                     // The Trust & Automation section always has something to show when it is readable —
                     // the automation summary states what fires automatically even when the answer is
                     // "nothing", and that answer is exactly what an operator came to check. So a
@@ -405,6 +426,10 @@ class ModerationController(
                     escalationPolicy = escalationPolicy,
                     sharedBanSettings = sharedBanSettings,
                     nukeBatches = nukeBatches,
+                    historyEntries = historyEntries,
+                    historyPage = 1,
+                    historyHasMore = historyHasMore,
+                    historyFilter = ModerationHistoryFilter(),
                     shoutoutTemplate = shoutoutTemplate,
                     twitchAutoMod = twitchAutoMod,
                     trustPolicy = trustPolicy,
@@ -657,6 +682,87 @@ class ModerationController(
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> setActionError(result.error.message)
         }
+    }
+
+    /**
+     * Load one page of the browsable moderation-history log under [filter] (defaults to the current
+     * [ModerationState.Ready.historyFilter]), replacing only that slice of the Ready state — mirrors
+     * [EconomyController]'s `loadAccountsPage` pattern so a filter/page change never touches the rest of the
+     * page. Clamped to page ≥ 1.
+     */
+    suspend fun loadHistoryPage(page: Int, filter: ModerationHistoryFilter? = null) {
+        val channel: String = channelId ?: return
+        val current: ModerationState.Ready = _state.value as? ModerationState.Ready ?: return
+        val target: Int = page.coerceAtLeast(1)
+        val effectiveFilter: ModerationHistoryFilter = filter ?: current.historyFilter
+        when (
+            val result: ApiResult<PaginatedEnvelope<ModerationHistoryEntry>> =
+                moderationApi.history(channel, target, filter = effectiveFilter)
+        ) {
+            is ApiResult.Ok ->
+                _state.value =
+                    current.copy(
+                        historyEntries = result.value.data,
+                        historyPage = target,
+                        historyHasMore = result.value.hasMore,
+                        historyFilter = effectiveFilter,
+                    )
+            is ApiResult.Failure -> _state.value = current.copy(actionError = result.error.message)
+        }
+    }
+
+    /** Apply a new date-range / action-type history filter, resetting to page 1. The person leg is set
+     *  separately via [setHistorySubjectFilter] (it needs an async id resolution first). */
+    suspend fun setHistoryFilter(filter: ModerationHistoryFilter) = loadHistoryPage(1, filter)
+
+    /** Apply a new [fromUtc]/[toUtc] leg to the history filter (the person / action-type legs stay as they
+     *  were), resetting to page 1. No-ops off a Ready state. */
+    suspend fun setHistoryDateRange(fromUtc: String?, toUtc: String?) {
+        val current: ModerationState.Ready = _state.value as? ModerationState.Ready ?: return
+        setHistoryFilter(current.historyFilter.copy(fromUtc = fromUtc, toUtc = toUtc))
+    }
+
+    /** Apply a new [actionType] leg to the history filter (the other legs stay as they were), resetting to
+     *  page 1. `null` clears it back to "all actions". No-ops off a Ready state. */
+    suspend fun setHistoryActionType(actionType: String?) {
+        val current: ModerationState.Ready = _state.value as? ModerationState.Ready ?: return
+        setHistoryFilter(current.historyFilter.copy(actionType = actionType))
+    }
+
+    /**
+     * Apply the "search a person" leg of the history filter: [twitchUserId] is the Twitch id the shared
+     * viewer picker returns (same [searchViewers] used by every other picker on this page), resolved here to
+     * the internal `User.Id` the backend's history query actually filters on
+     * (`ModerationHistoryQuery.SubjectUserId`) via the community member lookup — `null` clears the person leg.
+     * A viewer with no local `User` row yet has produced ZERO moderation-history rows by construction (the
+     * entry's SubjectUserId is a real foreign key), so an unresolvable id sets the filter to a Guid nothing
+     * will ever match rather than silently dropping the filter — which would show EVERYONE's history instead
+     * of correctly showing this person has none, a truthful-empty-state, not a broken filter.
+     */
+    suspend fun setHistorySubjectFilter(twitchUserId: String?) {
+        val current: ModerationState.Ready = _state.value as? ModerationState.Ready ?: return
+        if (twitchUserId == null) {
+            setHistoryFilter(current.historyFilter.copy(subjectUserId = null))
+            return
+        }
+        val channel: String = channelId ?: return
+        val internalUserId: String? =
+            when (val result: ApiResult<CommunityMember> = communityApi.member(channel, twitchUserId)) {
+                is ApiResult.Ok -> result.value.internalUserId
+                is ApiResult.Failure -> null
+            }
+        setHistoryFilter(current.historyFilter.copy(subjectUserId = internalUserId ?: NO_MATCH_USER_ID))
+    }
+
+    /** Next / previous history page under the current filter. No-ops past the ends. */
+    suspend fun nextHistoryPage() {
+        val current: ModerationState.Ready = _state.value as? ModerationState.Ready ?: return
+        if (current.historyHasMore) loadHistoryPage(current.historyPage + 1)
+    }
+
+    suspend fun prevHistoryPage() {
+        val current: ModerationState.Ready = _state.value as? ModerationState.Ready ?: return
+        if (current.historyPage > 1) loadHistoryPage(current.historyPage - 1)
     }
 
     /**
@@ -1267,6 +1373,13 @@ sealed interface ModerationState {
         val escalationPolicy: EscalationPolicy? = null,
         val sharedBanSettings: SharedBanSettings? = null,
         val nukeBatches: List<NetworkNukeBatch> = emptyList(),
+        // The browsable, filterable moderation-history log (owner punch list 2026-09-08 §12) — the current
+        // page's rows, which page it is, whether another page follows, and the filter that produced it. See
+        // [ModerationController.loadHistoryPage].
+        val historyEntries: List<ModerationHistoryEntry> = emptyList(),
+        val historyPage: Int = 1,
+        val historyHasMore: Boolean = false,
+        val historyFilter: ModerationHistoryFilter = ModerationHistoryFilter(),
         // This channel's own custom shoutout announcement template (null/blank = built-in default) — also
         // what OTHER streamers see when THEY shout this channel out. See load().
         val shoutoutTemplate: String? = null,
@@ -1290,6 +1403,15 @@ sealed interface ModerationState {
 
 /** How far the four trust weights may drift from 1.0 before the backend refuses the policy. */
 private const val TRUST_WEIGHT_SUM_TOLERANCE: Double = 0.001
+
+/**
+ * A syntactically valid Guid no [bot.nomnomz.dashboard.core.network.ModerationHistoryEntry] ever carries as its
+ * `subjectUserId` (the backend mints every id via `Guid.CreateVersion7()`, which never produces all-zeros) —
+ * used by [ModerationController.setHistorySubjectFilter] to represent "this person has no local User row, so
+ * they provably have zero moderation-history rows" as a real, truthful filter rather than silently dropping it
+ * (which would show everyone's history instead of correctly showing this one person has none).
+ */
+private const val NO_MATCH_USER_ID: String = "00000000-0000-0000-0000-000000000000"
 
 /**
  * True when the four score weights of [body] sum to 1.0 (within [TRUST_WEIGHT_SUM_TOLERANCE]) — the same rule the

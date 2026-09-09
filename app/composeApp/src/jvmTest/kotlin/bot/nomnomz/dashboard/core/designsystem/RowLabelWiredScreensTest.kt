@@ -395,15 +395,6 @@ class RowLabelWiredScreensTest {
                 secondaryB = null,
                 idB = "builtin-bbb",
             ),
-            // CommunityScreen.kt top-chatters row — secondary identity is the chatter's userId.
-            WiredRowCase(
-                screen = "CommunityScreen.chatter",
-                typeLabel = "Chatter",
-                secondaryA = "chatter-aaa",
-                idA = "chatter-aaa",
-                secondaryB = "chatter-bbb",
-                idB = "chatter-bbb",
-            ),
             // ConnectScreen.kt SavedConnectionRow — secondary identity is the saved connection's base URL.
             WiredRowCase(
                 screen = "ConnectScreen.saved",

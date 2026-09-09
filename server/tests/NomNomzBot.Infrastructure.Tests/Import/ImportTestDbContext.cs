@@ -48,6 +48,9 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
         throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
+        Set<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +96,41 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
                 );
         });
 
+        // QuoteService.ResolveQuotedUserIdAsync (added alongside the Quote.UserId FK) now reads Users and
+        // ChatMessages on every AddAsync — real tables the StreamElements import path exercises transitively,
+        // not throwing stubs anymore.
+        modelBuilder.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.Ignore(u => u.Pronoun);
+            e.Ignore(u => u.AltPronoun);
+            e.Ignore(u => u.Channel);
+        });
+        modelBuilder.Entity<NomNomzBot.Domain.Chat.Entities.ChatMessage>(e =>
+        {
+            e.HasKey(m => m.Id);
+            e.Ignore(m => m.Channel);
+            e.Ignore(m => m.Stream);
+            e.Property(m => m.Fragments)
+                .HasConversion(
+                    JsonValueConverter.Converter<
+                        List<NomNomzBot.Domain.Chat.ValueObjects.ChatMessageFragment>
+                    >(),
+                    JsonValueConverter.Comparer<
+                        List<NomNomzBot.Domain.Chat.ValueObjects.ChatMessageFragment>
+                    >()
+                );
+            e.Property(m => m.Badges)
+                .HasConversion(
+                    JsonValueConverter.Converter<
+                        List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>
+                    >(),
+                    JsonValueConverter.Comparer<
+                        List<NomNomzBot.Domain.Chat.ValueObjects.ChatBadge>
+                    >()
+                );
+        });
+
         modelBuilder.ApplyConfiguration(new QuoteConfiguration());
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.EventStore.Persistence.TenantSequenceConfiguration()
@@ -113,6 +151,8 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
         typeof(Quote),
         typeof(TenantSequence),
         typeof(Channel),
+        typeof(User),
+        typeof(NomNomzBot.Domain.Chat.Entities.ChatMessage),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -128,7 +168,6 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
@@ -154,6 +193,8 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         throw new NotSupportedException();
@@ -209,8 +250,6 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
         throw new NotSupportedException();

@@ -111,6 +111,7 @@ the unfloored `/effective/me` self-introspection (§7), never on the raw default
 | **Pipelines** | `Pipelines` | Moderator | Editor | `commands-pipelines.md` — the visual pipeline builder (folded in from the dropped single-item Automation group) |
 | **Timers** | `Timers` | Moderator | Editor | `commands-pipelines.md` §3.7 |
 | **Quotes** | `Quotes` | Moderator | Editor | `commands-pipelines.md` — quote book CRUD + recall command |
+| **Overlays** | `Widgets` (+ `WidgetEditor`) | Moderator | Editor | `widgets-overlays.md` — first-party catalogue, install, settings, clone-to-edit, the code editor. Re-homed from Stream (2026-09-09, owner punch list §9): it is the T3 target the Commands editor opens into, so it belongs beside Commands/Pipelines, not in the stream-facing group |
 
 #### Moderation
 
@@ -149,9 +150,12 @@ Music is a **first-class area**: `Music` is the **area home** (remote/transport/
 #### Stream
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
-| **Overlays** | `Widgets` (+ `WidgetEditor`) | Moderator | Editor | `widgets-overlays.md` — first-party catalogue, install, settings, clone-to-edit, the code editor |
 | **Event Responses** | `EventResponses` (shipped also as `Alerts` — reconcile to one route) | Moderator | Editor | `commands-pipelines.md` + `twitch-eventsub.md` — follow/sub/raid/cheer/gift event responses (event-triggered pipelines); the on-air **alert** is what an event response produces, not the page |
 | **Analytics** | `Analytics` | Moderator | — | `analytics.md` — the projection dashboards |
+
+Overlays moved to Chat (2026-09-09, owner punch list §9) — see the Chat table above. Stream now holds only
+the pages a streamer reads/reacts to *while broadcasting* (what an event produced, how the stream performed),
+not the tools used to *build* a command's response.
 
 #### Community
 | Page | Route | Read | Manage | Backend spec |
@@ -188,10 +192,10 @@ not listed in §3; the 21 rows above are unchanged):
 
 | Group | Shipped extra routes | Disposition |
 |---|---|---|
-| Chat | `MultiChat`, `ChatTriggers`, `PickLists` | `MultiChat` = the multi-channel feed lane of the Chat page (`chat-client.md` §0, provider-merged); `ChatTriggers` + `PickLists` = sub-pages of Commands (`commands-pipelines.md`, `pick-lists` builtin) |
+| Chat | `MultiChat`, `ChatTriggers`, `PickLists`, `CodeScripts` | `MultiChat` = the multi-channel feed lane of the Chat page (`chat-client.md` §0, provider-merged); `ChatTriggers` + `PickLists` = sub-pages of Commands (`commands-pipelines.md`, `pick-lists` builtin); `CodeScripts` = the T3 editor (`custom-code.md`, Broadcaster floor) — re-homed from Stream (2026-09-09, owner punch list §9), the other T2/T3 target the Commands editor opens into |
 | Loyalty | `Giveaways` | own page (`giveaways.md`) |
 | Music | `SoundClips`, `Assets`, `MediaShare` | own pages (`sound-system.md`, asset library, `media-share.md`) |
-| Stream | `Alerts`, `Schedule`, `CodeScripts` | `Alerts` merges into `EventResponses` (one route); `Schedule` = live-ops schedule (`broadcaster-liveops.md`); `CodeScripts` = the T3 editor (`custom-code.md`, Broadcaster floor) |
+| Stream | `Alerts`, `Schedule` | `Alerts` merges into `EventResponses` (one route); `Schedule` = live-ops schedule (`broadcaster-liveops.md`) |
 | Connect | `Webhooks`, `Federation`, `CustomEvents`, `Supporters`, `Obs`, `Vts`, `Automation` | own pages (`webhooks.md`, `federation-oidc.md`, `custom-events.md`, `supporter-events.md`, `obs-control.md`, `vtube-studio.md`, `automation-api.md`) |
 | Setup | `Bundles`, `Features`, `MyData` | `Bundles` (`marketplace.md`), `Features` (feature toggles, `platform-conventions.md`); `MyData` moves to the participant rung (§3a — D4, every signed-in viewer) |
 | — | `Admin` | not a sidebar page — the Plane-C graph reached from the profile menu (§4, §6), unchanged |
@@ -346,6 +350,13 @@ All settled and binding:
 - **Roles & Permits re-homed into Setup** (configure-once owner ownership), surfacing memberships + the
   action-permission matrix + permits.
 - **The single-item Automation group is dropped**; Pipelines folds into the Chat workspace.
+- **Overlays and Code Scripts moved from Stream into Chat** (2026-09-09, owner punch list §9) — both are the
+  T2/T3 targets the Commands editor opens into (§3 Chat "Commands" row: "T2 opens the pipeline editor, T3 the
+  widget/code editor"), so building one command with a custom overlay/script no longer requires jumping
+  sidebar groups. Stream keeps only the broadcast-facing pages — Event Responses, Analytics, Schedule — a
+  smaller, narrower move than merging Chat+Stream wholesale, which would have pulled unrelated live-broadcast
+  pages into the build-workflow group. **Templates has no page anywhere in this spec** — undecided, tracked
+  separately; this reorg does not block adding one later to either group.
 - **Feature pages carry no wire-up controls** — provider/credential setup lives in the Setup group.
 - **One shell, three rungs** — participant (Rung 0, §3a) / Mod / Broadcaster; the streamer and delegated
   managers share the management rungs, gated on the caller's **effective held-capabilities** (§7) — hide a

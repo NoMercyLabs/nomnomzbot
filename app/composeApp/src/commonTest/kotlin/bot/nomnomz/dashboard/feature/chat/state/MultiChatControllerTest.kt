@@ -20,10 +20,12 @@ import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -169,6 +171,124 @@ class MultiChatControllerTest {
         // The matching end push clears it again.
         events.emit(HubEvent.ChannelEvent(HubChannelEvent(type = "shield_mode_end", broadcasterId = "a", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-07-18T12:05:00Z")))
         assertTrue((controller.state.value as MultiChatState.Ready).shieldModeActiveChannelIds.isEmpty())
+    }
+
+    // ─── Shield Mode (S076c) — the multi-watch lane's per-channel indicator + toggle, wired to the SAME
+    // ModerationApi the Moderation -> Desk toggle and the single-channel Chat page both call ──────────────────
+
+    @Test
+    fun add_channel_seeds_the_current_shield_mode_reading_even_before_any_hub_push() = runTest {
+        // Shield Mode was ALREADY active on "a" before this operator started watching it — a begin/end hub push
+        // only fires on the TRANSITION, so relying on the push alone would miss a mode already in effect.
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.shieldResultByChannel["a"] = ApiResult.Ok(ShieldStatus(enabled = true))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                FakeMultiChatApi(),
+                joinChannel = {},
+                leaveChannel = {},
+                moderationApi = moderationApi,
+            )
+        controller.load()
+
+        controller.addChannel("a")
+
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals(setOf("a"), ready.shieldModeActiveChannelIds)
+    }
+
+    @Test
+    fun the_shield_mode_indicator_is_genuinely_per_channel_not_one_shared_flag() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.shieldResultByChannel["a"] = ApiResult.Ok(ShieldStatus(enabled = true))
+        moderationApi.shieldResultByChannel["b"] = ApiResult.Ok(ShieldStatus(enabled = false))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha"), channel("b", "Beta")))),
+                FakeMultiChatApi(),
+                joinChannel = {},
+                leaveChannel = {},
+                moderationApi = moderationApi,
+            )
+        controller.load()
+
+        controller.addChannel("a")
+        controller.addChannel("b")
+
+        // "a" reads active, "b" reads inactive — the SAME state field distinguishes them by id, proving this is
+        // a per-channel set, not one page-wide flag that would report both the same way.
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals(setOf("a"), ready.shieldModeActiveChannelIds)
+    }
+
+    @Test
+    fun set_shield_mode_calls_the_same_endpoint_for_the_target_channel_and_leaves_other_channels_untouched() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha"), channel("b", "Beta")))),
+                FakeMultiChatApi(),
+                joinChannel = {},
+                leaveChannel = {},
+                moderationApi = moderationApi,
+            )
+        controller.load()
+        controller.addChannel("a")
+        controller.addChannel("b")
+
+        controller.setShieldMode("a", enabled = true)
+
+        // The SAME ModerationApi.setShieldMode the Moderation -> Desk toggle and the single-channel Chat page
+        // call fired for "a" only.
+        assertEquals(listOf("a" to true), moderationApi.setShieldCalls)
+        // Only "a" reads active afterward — "b" was never touched by this channel-scoped write.
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals(setOf("a"), ready.shieldModeActiveChannelIds)
+    }
+
+    @Test
+    fun remove_channel_drops_its_shield_mode_reading_so_a_stale_indicator_never_lingers() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.shieldResultByChannel["a"] = ApiResult.Ok(ShieldStatus(enabled = true))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                FakeMultiChatApi(),
+                joinChannel = {},
+                leaveChannel = {},
+                moderationApi = moderationApi,
+            )
+        controller.load()
+        controller.addChannel("a")
+        assertEquals(setOf("a"), (controller.state.value as MultiChatState.Ready).shieldModeActiveChannelIds)
+
+        controller.removeChannel("a")
+
+        assertTrue((controller.state.value as MultiChatState.Ready).shieldModeActiveChannelIds.isEmpty())
+    }
+
+    @Test
+    fun set_shield_mode_failure_surfaces_the_action_error_and_leaves_the_indicator_unchanged() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.setShieldModeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                FakeMultiChatApi(),
+                joinChannel = {},
+                leaveChannel = {},
+                moderationApi = moderationApi,
+            )
+        controller.load()
+        controller.addChannel("a")
+
+        controller.setShieldMode("a", enabled = true)
+
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals("Missing scope.", ready.actionError)
+        // The write failed, so the indicator must still read inactive — no optimistic flip on a failed call.
+        assertTrue(ready.shieldModeActiveChannelIds.isEmpty())
     }
 
     @Test

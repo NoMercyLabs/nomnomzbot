@@ -296,4 +296,85 @@ public sealed class ModerationProjectionServiceTests
             .Should()
             .BeLessThan(CleanScoreAt(T0), "the rebuilt ban+timeout penalties apply");
     }
+
+    // ── The queryable per-action history log (owner punch list 2026-09-08 §3/§12) ──────────────
+
+    /// <summary>
+    /// <c>ApplyActionAsync</c> is the single choke point every ban/timeout/unban/warn already funnels
+    /// through (ModerationProjectionHandlers) — so it must ALSO append one row to the queryable
+    /// <see cref="ModerationHistoryEntry"/> log, carrying the moderator/reason/duration the caller supplied,
+    /// not just bump the J.4 rollup counters.
+    /// </summary>
+    [Fact]
+    public async Task ApplyActionAsync_AppendsAModerationHistoryEntry_WithModeratorReasonAndDuration()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+
+        Result result = await sut.ApplyActionAsync(
+            Channel,
+            SubjectTwitchId,
+            "timeout",
+            T0,
+            moderatorTwitchUserId: "mod-99",
+            moderatorDisplayName: "ModName",
+            reason: "spamming links",
+            durationSeconds: 600
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        ModerationHistoryEntry entry = await db.ModerationHistoryEntries.SingleAsync();
+        entry.BroadcasterId.Should().Be(Channel);
+        entry.SubjectUserId.Should().Be(Subject);
+        entry.SubjectTwitchUserId.Should().Be(SubjectTwitchId);
+        entry.ActionType.Should().Be("timeout");
+        entry.ModeratorTwitchUserId.Should().Be("mod-99");
+        entry.ModeratorDisplayName.Should().Be("ModName");
+        entry.Reason.Should().Be("spamming links");
+        entry.DurationSeconds.Should().Be(600);
+        entry.OccurredAt.Should().Be(T0);
+    }
+
+    /// <summary>
+    /// Every action projects its OWN row — the queryable log is the individual events behind the J.4
+    /// rollup, never collapsed/deduplicated into the rollup's single running counters.
+    /// </summary>
+    [Fact]
+    public async Task Repeated_actions_each_append_their_own_history_row_not_one_collapsed_row()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+
+        await sut.ApplyActionAsync(Channel, SubjectTwitchId, "warn", T0, reason: "first warning");
+        await sut.ApplyActionAsync(
+            Channel,
+            SubjectTwitchId,
+            "timeout",
+            T0.AddMinutes(5),
+            durationSeconds: 300
+        );
+        await sut.ApplyActionAsync(Channel, SubjectTwitchId, "ban", T0.AddMinutes(10));
+
+        List<ModerationHistoryEntry> entries = await db
+            .ModerationHistoryEntries.OrderBy(e => e.OccurredAt)
+            .ToListAsync();
+        entries.Should().HaveCount(3);
+        entries.Select(e => e.ActionType).Should().Equal("warn", "timeout", "ban");
+        // The rollup still reflects the same three actions — the log is additive, not a replacement.
+        UserModerationHistory history = await db.UserModerationHistories.SingleAsync();
+        history.WarningCount.Should().Be(1);
+        history.TimeoutCount.Should().Be(1);
+        history.BanCount.Should().Be(1);
+    }
+
+    /// <summary>An unresolvable subject (no local User) projects neither the rollup nor a history row.</summary>
+    [Fact]
+    public async Task ApplyActionAsync_WritesNoHistoryEntry_ForAnUnresolvedSubject()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+
+        await sut.ApplyActionAsync(Channel, "stranger-nobody-knows", "ban", T0);
+
+        (await db.ModerationHistoryEntries.CountAsync()).Should().Be(0);
+    }
 }

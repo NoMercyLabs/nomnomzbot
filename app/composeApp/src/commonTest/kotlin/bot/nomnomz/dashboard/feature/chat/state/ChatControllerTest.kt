@@ -20,10 +20,14 @@ import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -488,6 +492,150 @@ class ChatControllerTest {
         assertTrue(state is ChatState.Ready)
         // The redelivered id appears exactly once; the feed's id-keyed LazyColumn would crash on a duplicate key.
         assertEquals(listOf("hist", "live1"), (state as ChatState.Ready).messages.map { it.id })
+    }
+
+    // ─── Shield Mode (S076c) — the single-channel Chat page's toggle, wired to the SAME ModerationApi the
+    // Moderation -> Desk toggle calls ───────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun load_reads_shield_mode_and_lands_it_on_the_ready_state() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Ok(ShieldStatus(enabled = true)),
+            )
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", message = "hey")))),
+                moderationApi = moderationApi,
+            )
+
+        controller.load()
+
+        val state: ChatState = controller.state.value
+        assertTrue(state is ChatState.Ready)
+        assertEquals(true, (state as ChatState.Ready).shieldEnabled)
+        assertTrue(state.shieldAvailable)
+    }
+
+    @Test
+    fun load_marks_shield_mode_unavailable_when_the_read_fails() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
+            )
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", message = "hey")))),
+                moderationApi = moderationApi,
+            )
+
+        controller.load()
+
+        val state: ChatState = controller.state.value
+        assertTrue(state is ChatState.Ready)
+        // Unavailable is NOT the same as "off" — the page must show a needs-permission notice, never a phantom
+        // off toggle.
+        assertFalse((state as ChatState.Ready).shieldAvailable)
+    }
+
+    @Test
+    fun set_shield_mode_hits_the_same_moderation_endpoint_and_reflects_the_reload() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Ok(ShieldStatus(enabled = false)),
+            )
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", message = "hey")))),
+                moderationApi = moderationApi,
+            )
+        controller.load()
+
+        controller.setShieldMode(true)
+
+        // The SAME ModerationApi.setShieldMode the Moderation -> Desk toggle calls fired with the resolved
+        // channel's chosen value.
+        assertEquals(true, moderationApi.lastShieldToggle)
+        val state: ChatState = controller.state.value
+        assertTrue(state is ChatState.Ready)
+        // The controller RE-READ the fresh state after the write (rather than optimistically flipping a local
+        // flag) — the fake's shieldMode() now reflects the value the write actually persisted, proving the
+        // reload path runs a real read, not just a UI-side guess.
+        assertEquals(true, (state as ChatState.Ready).shieldEnabled)
+        assertTrue(state.shieldAvailable)
+    }
+
+    @Test
+    fun set_shield_mode_surfaces_the_error_and_keeps_the_feed_when_the_write_fails() = runTest {
+        val moderationApi =
+            FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.setShieldModeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))
+        val line = ChatMessage(id = "m1", message = "hey")
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(line))),
+                moderationApi = moderationApi,
+            )
+        controller.load()
+
+        controller.setShieldMode(true)
+
+        val state: ChatState = controller.state.value
+        assertTrue(state is ChatState.Ready)
+        assertEquals("Missing scope.", (state as ChatState.Ready).actionError)
+        // The feed is intact — a failed shield write must not disturb the chat messages.
+        assertEquals(listOf("m1"), state.messages.map { it.id })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun shield_mode_begin_and_end_push_updates_the_live_state_for_the_active_channel_only() = runTest {
+        val moderationApi =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                shieldResult = ApiResult.Ok(ShieldStatus(enabled = false)),
+            )
+        val controller =
+            ChatController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeChatApi(ApiResult.Ok(listOf(ChatMessage(id = "m1", message = "hey")))),
+                moderationApi = moderationApi,
+            )
+        controller.load() // shieldEnabled starts false — this page's active channel is "ch1"
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A push for a DIFFERENT channel is ignored — this page must never show another channel's Shield state.
+        events.emit(
+            HubEvent.ChannelEvent(
+                HubChannelEvent(type = "shield_mode_begin", broadcasterId = "ch9", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-09-07T12:00:00Z")
+            )
+        )
+        assertEquals(false, (controller.state.value as ChatState.Ready).shieldEnabled)
+
+        // The real push for the active channel flips the state live, with no reload/poll involved.
+        events.emit(
+            HubEvent.ChannelEvent(
+                HubChannelEvent(type = "shield_mode_begin", broadcasterId = "ch1", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-09-07T12:00:01Z")
+            )
+        )
+        assertEquals(true, (controller.state.value as ChatState.Ready).shieldEnabled)
+
+        // The matching end push clears it again.
+        events.emit(
+            HubEvent.ChannelEvent(
+                HubChannelEvent(type = "shield_mode_end", broadcasterId = "ch1", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-09-07T12:05:00Z")
+            )
+        )
+        assertEquals(false, (controller.state.value as ChatState.Ready).shieldEnabled)
     }
 }
 

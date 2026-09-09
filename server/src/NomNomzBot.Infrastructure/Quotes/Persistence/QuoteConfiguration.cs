@@ -28,6 +28,8 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
 
         builder.Property(e => e.QuotedDisplayName).HasMaxLength(100);
 
+        builder.Property(e => e.UserId);
+
         builder.Property(e => e.ContextGame).HasMaxLength(100);
 
         builder.Property(e => e.QuotedAt);
@@ -43,5 +45,17 @@ public class QuoteConfiguration : IEntityTypeConfiguration<Quote>
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Nullable, best-effort attribution (owner punch list 2026-09-08 §3) — a hard-deleted User (GDPR
+        // erasure) should never take the quote down with it, so SetNull rather than Cascade/Restrict.
+        builder
+            .HasOne(e => e.User)
+            .WithMany()
+            .HasForeignKey(e => e.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.UserId })
+            .HasDatabaseName("IX_Quote_Broadcaster_UserId");
     }
 }

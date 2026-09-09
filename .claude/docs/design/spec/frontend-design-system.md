@@ -117,8 +117,12 @@ scales are pinned here too, so nothing is improvised:
 - **Typography:** a fixed type scale (`xs 12/16`, `sm 14/20`, `base 16/24`, `lg 18/28`, `xl 20/28`,
   `2xl 24/32`, `3xl 30/36`, `4xl 36/40` — size & line-height both in `sp`, letter-spacing `0`, default weight `normal 400`) with weights `{normal 400, medium 500,
   semibold 600, bold 700}`. **Font = Inter** (bundled, open-source, wasm-safe) as the `FontFamily`
-  token — swapped in one place only if the designer ships a brand font. Exposed as `Typography.*`; no
-  inline `TextStyle`.
+  token — swapped in one place only if the designer ships a brand font. Inter is Latin-only, so the
+  same `FontFamily` also bundles five Noto Sans faces (core + Arabic/Thai/SC/KR, all SIL OFL 1.1) as a
+  glyph-fallback cascade — chat text and viewer-entered content can be in any script regardless of the
+  app's own `en`/`nl` UI language, and Skia/Wasm has no system fonts to fall back to otherwise (owner
+  punch list §10; `appTypography()` in `core/designsystem/theme/Typography.kt`). Exposed as
+  `Typography.*`; no inline `TextStyle`.
 
 ---
 

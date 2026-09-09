@@ -17585,7 +17585,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -19581,7 +19581,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -20189,7 +20189,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -21181,7 +21181,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -23181,7 +23181,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24076,7 +24076,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24176,7 +24176,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24278,7 +24278,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -24378,7 +24378,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -32583,7 +32583,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -32677,7 +32677,7 @@
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -40745,7 +40745,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -42143,7 +42143,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -42711,7 +42711,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -42722,7 +42722,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "403": {
@@ -42733,7 +42733,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -42744,7 +42744,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "429": {
@@ -42755,7 +42755,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "500": {
@@ -42766,7 +42766,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -42812,7 +42812,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -42823,7 +42823,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "403": {
@@ -42834,7 +42834,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -42845,7 +42845,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "429": {
@@ -42856,7 +42856,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "500": {
@@ -42867,7 +42867,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -46036,7 +46036,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -46664,7 +46664,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -46766,7 +46766,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -46860,7 +46860,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -48441,7 +48441,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -49257,7 +49257,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -49490,7 +49490,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -50056,7 +50056,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -51336,7 +51336,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -51546,7 +51546,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -51756,7 +51756,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -51866,7 +51866,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -52594,7 +52594,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -52698,7 +52698,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -53182,7 +53182,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -53590,13 +53590,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -53710,13 +53710,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -53830,13 +53830,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -54048,13 +54048,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -54292,13 +54292,13 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "503": {
             "description": "Service Unavailable",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -56794,7 +56794,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -56810,7 +56810,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "403": {
@@ -56826,7 +56826,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -56842,7 +56842,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "429": {
@@ -56858,7 +56858,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "500": {
@@ -56874,7 +56874,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -59417,7 +59417,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -66649,7 +66649,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -69055,7 +69055,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -69066,7 +69066,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "403": {
@@ -69077,7 +69077,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -69088,7 +69088,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "429": {
@@ -69099,7 +69099,7 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "500": {
@@ -69110,14 +69110,14 @@
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               },
-              "application/json": { }
+              "application/json": {}
             }
           },
           "200": {
             "description": "OK",
             "content": {
-              "application/json": { },
-              "text/plain": { }
+              "application/json": {},
+              "text/plain": {}
             }
           }
         }
@@ -74122,7 +74122,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -82564,7 +82564,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           }
         }
@@ -83971,6 +83971,422 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/community/{userId}/profile": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Get the full Community Profile page aggregation for one viewer in this channel.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/history": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Page the channel's browsable per-action moderation history log, filterable by user/date/action type.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/history/{userId}": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Page one person's per-action moderation history log.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/history/{userId}/notes": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Add a manual moderator note to a person's moderation history log.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
                 }
               }
             }
@@ -89378,7 +89794,7 @@
             "maxLength": 30,
             "type": "string"
           },
-          "graph": { }
+          "graph": {}
         },
         "description": "Request to create a new pipeline."
       },
@@ -94700,8 +95116,8 @@
         },
         "description": "Withdraw from a jar back to a viewer's account (economy.md §4). long JarWithdrawRequest.Amount &gt; 0."
       },
-      "JsonElement": { },
-      "JsonNode": { },
+      "JsonElement": {},
+      "JsonNode": {},
       "LeaderboardEntryDto": {
         "required": [
           "rank",
@@ -110320,7 +110736,7 @@
           "status": {
             "type": "string"
           },
-          "data": { },
+          "data": {},
           "message": {
             "type": [
               "null",
@@ -117949,7 +118365,7 @@
               "string"
             ]
           },
-          "graph": { }
+          "graph": {}
         },
         "description": "Request to update an existing pipeline."
       },
@@ -120701,7 +121117,7 @@
           "group": {
             "$ref": "#/components/schemas/LocalizedText"
           },
-          "default": { },
+          "default": {},
           "help": {
             "oneOf": [
               {

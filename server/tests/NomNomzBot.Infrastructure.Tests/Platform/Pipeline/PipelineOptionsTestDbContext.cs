@@ -195,6 +195,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>

@@ -260,4 +260,68 @@ class ShellNavTest {
             assertTrue(ShellNav.hasManagementAccess(role, emptySet()), "$role must always reach the management shell")
         }
     }
+
+    // ── Chat/Stream reorg (frontend-ia.md §3/§8, owner punch list 2026-09-08 §9) ───────────────────────────
+    //
+    // Building one command with a custom overlay/script used to require jumping between the Chat group
+    // (Commands/Pipelines) and a separate Stream group (Overlays/Code Scripts). These assertions prove the
+    // actual structure that fixes it: Overlays, Code Scripts and Pipelines render under the SAME group as
+    // Commands, and Stream sheds them without losing its own remaining pages or role floors.
+
+    @Test
+    fun overlays_and_code_scripts_and_pipelines_share_the_commands_group() {
+        val commandsGroup: NavGroup = ShellNav.pages.first { it.route == ShellRoute.Commands }.group
+
+        assertEquals(NavGroup.Chat, commandsGroup)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Widgets }.group)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.CodeScripts }.group)
+        assertEquals(commandsGroup, ShellNav.pages.first { it.route == ShellRoute.Pipelines }.group)
+    }
+
+    @Test
+    fun stream_group_keeps_only_the_broadcast_facing_pages_after_the_reorg() {
+        val streamRoutes: Set<ShellRoute> = ShellNav.pages.filter { it.group == NavGroup.Stream }.map { it.route }.toSet()
+
+        // Overlays, Code Scripts and Pipelines moved OUT — Stream is not merged away, it just sheds the
+        // build-workflow tools; Alerts/Schedule/Analytics stay exactly where they were (EventResponses already
+        // shipped under Chat before this reorg — untouched here, out of this slice's scope).
+        assertEquals(setOf(ShellRoute.Alerts, ShellRoute.Schedule, ShellRoute.Analytics), streamRoutes)
+        assertFalse(streamRoutes.contains(ShellRoute.Widgets))
+        assertFalse(streamRoutes.contains(ShellRoute.CodeScripts))
+        assertFalse(streamRoutes.contains(ShellRoute.Pipelines))
+    }
+
+    @Test
+    fun moving_overlays_and_code_scripts_into_chat_does_not_change_their_role_floors() {
+        // A regrouping must not silently relax or tighten who can see/mutate a page — only WHERE it renders
+        // changes. Overlays keeps its Moderator-read/Editor-manage floor; Code Scripts keeps its
+        // Broadcaster-only floor (a sandboxed code editor is not a Moderator-grade surface just because it
+        // now sits beside Commands).
+        val widgets: NavPage = ShellNav.pages.first { it.route == ShellRoute.Widgets }
+        val codeScripts: NavPage = ShellNav.pages.first { it.route == ShellRoute.CodeScripts }
+
+        assertEquals(ManagementRole.Moderator, widgets.readFloor)
+        assertEquals(ManagementRole.Editor, widgets.manageFloor)
+        assertEquals(ManagementRole.Broadcaster, codeScripts.readFloor)
+        assertEquals(ManagementRole.Broadcaster, codeScripts.manageFloor)
+
+        // Consequence, not just the raw floor: an Editor (below Code Scripts' Broadcaster floor) must not
+        // see it in their visible page set, even though it now lives in the Chat group they otherwise see.
+        val editorVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Editor).map { it.route }.toSet()
+        assertTrue(editorVisible.contains(ShellRoute.Widgets), "an Editor must still see Overlays in its new group")
+        assertFalse(editorVisible.contains(ShellRoute.CodeScripts), "Editor is still below Code Scripts' Broadcaster floor")
+        val broadcasterVisible: Set<ShellRoute> = ShellNav.visiblePagesFor(ManagementRole.Broadcaster).map { it.route }.toSet()
+        assertTrue(broadcasterVisible.contains(ShellRoute.CodeScripts), "only a Broadcaster clears Code Scripts")
+    }
+
+    @Test
+    fun an_editor_can_manage_overlays_but_only_a_broadcaster_can_manage_code_scripts() {
+        // canManage is the actual consequence a screen renders (button enabled vs. disabled-with-reason) —
+        // assert it, not just the raw manageFloor field, so a regression in canManage's own logic would fail
+        // this test even if the floors above stayed correct.
+        assertTrue(ShellNav.canManage(ManagementRole.Editor, ShellRoute.Widgets))
+        assertFalse(ShellNav.canManage(ManagementRole.Moderator, ShellRoute.Widgets), "Moderator is below Overlays' Editor manage floor")
+        assertFalse(ShellNav.canManage(ManagementRole.Editor, ShellRoute.CodeScripts), "Editor is below Code Scripts' Broadcaster floor")
+        assertTrue(ShellNav.canManage(ManagementRole.Broadcaster, ShellRoute.CodeScripts))
+    }
 }

@@ -7143,6 +7143,66 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("ModerationEscalationStates");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ModeratorDisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ModeratorTwitchUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid?>("ModeratorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SubjectTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("SubjectUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "OccurredAt")
+                        .HasDatabaseName("IX_ModerationHistoryEntry_Broadcaster_OccurredAt");
+
+                    b.HasIndex("BroadcasterId", "SubjectUserId", "OccurredAt")
+                        .HasDatabaseName("IX_ModerationHistoryEntry_Broadcaster_Subject_OccurredAt");
+
+                    b.ToTable("ModerationHistoryEntries");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9143,10 +9203,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("BroadcasterId", "Number")
                         .IsUnique();
+
+                    b.HasIndex("BroadcasterId", "UserId")
+                        .HasDatabaseName("IX_Quote_Broadcaster_UserId");
 
                     b.ToTable("Quotes");
                 });
@@ -10276,11 +10344,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.UserTtsVoice", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
@@ -11844,7 +11910,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Channel");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Rewards.Entities.Reward", b =>

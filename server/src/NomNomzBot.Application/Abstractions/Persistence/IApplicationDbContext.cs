@@ -53,6 +53,7 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates { get; }

@@ -156,6 +156,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<NetworkBlock> NetworkBlocks => throw new NotSupportedException();
     public DbSet<UserModerationHistory> UserModerationHistories =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
+        throw new NotSupportedException();
     public DbSet<UserTrustScore> UserTrustScores => throw new NotSupportedException();
     public DbSet<ModerationEscalationPolicy> ModerationEscalationPolicies =>
         throw new NotSupportedException();

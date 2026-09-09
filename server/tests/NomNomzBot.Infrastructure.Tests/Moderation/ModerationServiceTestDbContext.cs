@@ -210,6 +210,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // The J.4/J.5 projections — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.UserModerationHistory),
         typeof(NomNomzBot.Domain.Moderation.Entities.UserTrustScore),
+        // The per-action queryable history log ApplyActionAsync now also writes — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry),
         // The escalation ladder (J.10/J.11) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy),
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState),
@@ -258,6 +260,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserTrustScore>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies =>

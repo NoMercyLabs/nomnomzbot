@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeToggle
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -142,6 +143,7 @@ fun MultiChatScreen(
                     onDelete = { channelId, messageId -> scope.launch { controller.deleteMessage(channelId, messageId) } },
                     onTimeout = { channelId, userId -> scope.launch { controller.timeoutUser(channelId, userId) } },
                     onBan = { channelId, userId -> scope.launch { controller.banUser(channelId, userId) } },
+                    onToggleShield = { channelId, on -> scope.launch { controller.setShieldMode(channelId, on) } },
                 )
         }
     }
@@ -156,6 +158,7 @@ private fun ReadyContent(
     onDelete: (channelId: String, messageId: String) -> Unit,
     onTimeout: (channelId: String, userId: String) -> Unit,
     onBan: (channelId: String, userId: String) -> Unit,
+    onToggleShield: (channelId: String, enabled: Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     // channelId -> display name, so each feed line can be tagged with its source channel.
@@ -170,6 +173,19 @@ private fun ReadyContent(
         ready.actionError?.let { ActionErrorBanner(message = it) }
 
         ChannelPicker(available = ready.available, watched = ready.watched, onToggle = onToggle)
+
+        // Emergency Shield Mode (S076c) — ONE row per watched channel (never a single global banner: Shield
+        // Mode is per-channel, and one watched channel's lockdown says nothing about another's), each wired to
+        // the SAME PATCH .../moderation/shield route the Moderation -> Desk toggle and the single-channel Chat
+        // page already call (MultiChatController.setShieldMode -> ModerationApi.setShieldMode).
+        if (ready.watched.isNotEmpty()) {
+            ShieldModeSection(
+                watched = ready.watched,
+                activeChannelIds = ready.shieldModeActiveChannelIds,
+                manage = manage,
+                onToggle = onToggleShield,
+            )
+        }
 
         when {
             ready.watched.isEmpty() ->
@@ -259,6 +275,38 @@ private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSe
                 Button(onClick = ::submit, enabled = enabled && draft.isNotBlank()) {
                     Text(text = stringResource(Res.string.multichat_composer_send))
                 }
+            }
+        }
+    }
+}
+
+// One collapsible-free list, one row per WATCHED channel (never a single global banner — Shield Mode is a
+// per-channel Twitch state, so one watched channel's lockdown must never be read as another's). Each row is the
+// shared [ShieldModeToggle], titled with that channel's own name so the rows read as a per-channel list rather
+// than one ambiguous "Shield Mode" control; [activeChannelIds] (from the live hub push, seeded on add by
+// [MultiChatController.addChannel]'s own read) decides whether that row shows on or off.
+@Composable
+private fun ShieldModeSection(
+    watched: List<ChannelSummary>,
+    activeChannelIds: Set<String>,
+    manage: ManageDecision,
+    onToggle: (channelId: String, enabled: Boolean) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            watched.forEach { channel ->
+                ShieldModeToggle(
+                    enabled = channel.id in activeChannelIds,
+                    manage = manage,
+                    onToggle = { enabled -> onToggle(channel.id, enabled) },
+                    title =
+                        resolveRowLabel(
+                            primary = channel.displayName,
+                            secondary = channel.login,
+                            typeLabel = "Channel",
+                            discriminatorSource = channel.id,
+                        ),
+                )
             }
         }
     }

@@ -63,6 +63,10 @@ public sealed class ModerationProjectionService(
         string subjectTwitchUserId,
         string actionType,
         DateTime occurredAtUtc,
+        string? moderatorTwitchUserId = null,
+        string? moderatorDisplayName = null,
+        string? reason = null,
+        int? durationSeconds = null,
         CancellationToken ct = default
     )
     {
@@ -87,6 +91,27 @@ public sealed class ModerationProjectionService(
             occurredAtUtc,
             ct
         );
+
+        Guid? moderatorUserId = string.IsNullOrEmpty(moderatorTwitchUserId)
+            ? null
+            : await ResolveUserIdAsync(moderatorTwitchUserId, ct);
+
+        db.ModerationHistoryEntries.Add(
+            new()
+            {
+                BroadcasterId = broadcasterId,
+                SubjectUserId = subjectUserId.Value,
+                SubjectTwitchUserId = subjectTwitchUserId,
+                ActionType = actionType,
+                ModeratorUserId = moderatorUserId,
+                ModeratorTwitchUserId = moderatorTwitchUserId,
+                ModeratorDisplayName = moderatorDisplayName,
+                Reason = reason,
+                DurationSeconds = durationSeconds,
+                OccurredAt = occurredAtUtc,
+            }
+        );
+
         TrustPolicy policy = await trustPolicy.GetAsync(broadcasterId, ct);
         await RecomputeAsync(
             broadcasterId,

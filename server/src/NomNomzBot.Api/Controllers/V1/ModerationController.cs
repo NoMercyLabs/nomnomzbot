@@ -51,6 +51,7 @@ public class ModerationController : BaseController
     private readonly ITwitchChatApi _chatApi;
     private readonly ITwitchModerationApi _twitchModeration;
     private readonly ITemplateHelperValidator _templateHelperValidator;
+    private readonly IModerationHistoryService _history;
 
     public ModerationController(
         IModerationService moderationService,
@@ -65,7 +66,8 @@ public class ModerationController : BaseController
         TimeProvider timeProvider,
         ITwitchChatApi chatApi,
         ITwitchModerationApi twitchModeration,
-        ITemplateHelperValidator templateHelperValidator
+        ITemplateHelperValidator templateHelperValidator,
+        IModerationHistoryService history
     )
     {
         _twitchModeration = twitchModeration;
@@ -81,6 +83,7 @@ public class ModerationController : BaseController
         _timeProvider = timeProvider;
         _chatApi = chatApi;
         _templateHelperValidator = templateHelperValidator;
+        _history = history;
     }
 
     // ─── Ban (this channel, or every channel the operator moderates) ───────────
@@ -492,6 +495,96 @@ public class ModerationController : BaseController
         );
         return GetPaginatedResponse(mapped, request);
     }
+
+    // ─── History (queryable per-action log — owner punch list 2026-09-08 §3/§12) ──
+
+    /// <summary>
+    /// The channel's browsable moderation history — every ban/timeout/unban/warn/note, newest first,
+    /// filterable by person and date range and paginated. Backs the Moderation History page; also reachable
+    /// per-person from the Community Profile page (<c>userId</c>).
+    /// </summary>
+    [RequireAction("moderation:history:read")]
+    [HttpGet("history")]
+    [ProducesResponseType<PaginatedResponse<ModerationHistoryEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistory(
+        string channelId,
+        [FromQuery] PageRequestDto request,
+        [FromQuery] Guid? userId,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? actionType,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<ModerationHistoryEntryDto>> result = await _history.GetHistoryAsync(
+            broadcasterId,
+            new ModerationHistoryQuery(userId, from, to, actionType),
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        PagedList<ModerationHistoryEntryDto> value = result.Value;
+        return GetPaginatedResponse(
+            new PagedList<ModerationHistoryEntryDto>(
+                value.Items,
+                value.Page,
+                value.PageSize,
+                value.TotalCount
+            ),
+            request
+        );
+    }
+
+    /// <summary>One person's moderation history within this channel — the Community Profile page's history section.</summary>
+    [RequireAction("moderation:history:read")]
+    [HttpGet("history/{userId:guid}")]
+    [ProducesResponseType<PaginatedResponse<ModerationHistoryEntryDto>>(StatusCodes.Status200OK)]
+    public Task<IActionResult> GetHistoryForUser(
+        string channelId,
+        Guid userId,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    ) => GetHistory(channelId, request, userId, null, null, null, ct);
+
+    /// <summary>
+    /// Adds a manual, non-enforcement note to a person's moderation history — a moderator leaving context with
+    /// no matching Twitch action (<see cref="Domain.Moderation.Entities.ModerationHistoryEntryKinds.Note"/>).
+    /// </summary>
+    [RequireAction("moderation:history:write")]
+    [HttpPost("history/{userId:guid}/notes")]
+    [ProducesResponseType<StatusResponseDto<ModerationHistoryEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddHistoryNote(
+        string channelId,
+        Guid userId,
+        [FromBody] AddModerationNoteRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(_currentUser.UserId, out Guid moderatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<ModerationHistoryEntryDto> result = await _history.AddNoteAsync(
+            broadcasterId,
+            userId,
+            moderatorUserId,
+            request.Note,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return Ok(new StatusResponseDto<ModerationHistoryEntryDto> { Data = result.Value });
+    }
+
+    public record AddModerationNoteRequest(string Note);
 
     // ─── Shield Mode ─────────────────────────────────────────────────────────
 

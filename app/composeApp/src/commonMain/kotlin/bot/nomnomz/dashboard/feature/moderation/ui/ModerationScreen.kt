@@ -71,6 +71,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeToggle
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -95,6 +96,9 @@ import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationHistoryActionTypes
+import bot.nomnomz.dashboard.core.network.ModerationHistoryEntry
+import bot.nomnomz.dashboard.core.network.ModerationHistoryFilter
 import bot.nomnomz.dashboard.core.network.NetworkNukeBatch
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
@@ -177,6 +181,31 @@ import nomnomzbot.composeapp.generated.resources.moderation_bans_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_log_by
 import nomnomzbot.composeapp.generated.resources.moderation_log_row_description
 import nomnomzbot.composeapp.generated.resources.moderation_log_title
+import nomnomzbot.composeapp.generated.resources.moderation_log_empty
+import nomnomzbot.composeapp.generated.resources.moderation_nuke_batches_empty
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_title
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_empty
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_person_label
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_person_placeholder
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_from_label
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_to_label
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_date_hint
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_label
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_all
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_ban
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_timeout
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_warn
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_unban
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_delete_message
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_automod_denied
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_filter_hit
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_report_validated
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_type_note
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_reason_none
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_duration
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_page
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_prev
+import nomnomzbot.composeapp.generated.resources.moderation_history_log_next
 import nomnomzbot.composeapp.generated.resources.moderation_notes_add_action
 import nomnomzbot.composeapp.generated.resources.moderation_notes_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_notes_cancel
@@ -190,11 +219,6 @@ import nomnomzbot.composeapp.generated.resources.moderation_notes_pin
 import nomnomzbot.composeapp.generated.resources.moderation_notes_save
 import nomnomzbot.composeapp.generated.resources.moderation_notes_title
 import nomnomzbot.composeapp.generated.resources.moderation_notes_unpin
-import nomnomzbot.composeapp.generated.resources.moderation_shield_disable
-import nomnomzbot.composeapp.generated.resources.moderation_shield_disable_action
-import nomnomzbot.composeapp.generated.resources.moderation_shield_enable
-import nomnomzbot.composeapp.generated.resources.moderation_shield_enable_action
-import nomnomzbot.composeapp.generated.resources.moderation_shield_title
 import nomnomzbot.composeapp.generated.resources.moderation_shield_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_terms_add
 import nomnomzbot.composeapp.generated.resources.moderation_terms_add_label
@@ -512,6 +536,10 @@ fun ModerationScreen(
                     escalationPolicy = current.escalationPolicy,
                     sharedBanSettings = current.sharedBanSettings,
                     nukeBatches = current.nukeBatches,
+                    historyEntries = current.historyEntries,
+                    historyPage = current.historyPage,
+                    historyHasMore = current.historyHasMore,
+                    historyFilter = current.historyFilter,
                     shoutoutTemplate = current.shoutoutTemplate,
                     templateHelpersApi = templateHelpersApi,
                     // Computed from the very config objects enforcement reads — never a hardcoded claim.
@@ -558,6 +586,17 @@ fun ModerationScreen(
                     onAddTrusted = { id -> scope.launch { controller.addTrustedChannel(id) } },
                     onRemoveTrusted = { id -> scope.launch { controller.removeTrustedChannel(id) } },
                     onRevertNuke = { batchId -> scope.launch { controller.revertNuke(batchId) } },
+                    onHistorySubjectSelected = { twitchUserId ->
+                        scope.launch { controller.setHistorySubjectFilter(twitchUserId) }
+                    },
+                    onHistoryDateRangeChanged = { fromUtc, toUtc ->
+                        scope.launch { controller.setHistoryDateRange(fromUtc, toUtc) }
+                    },
+                    onHistoryActionTypeChanged = { actionType ->
+                        scope.launch { controller.setHistoryActionType(actionType) }
+                    },
+                    onNextHistoryPage = { scope.launch { controller.nextHistoryPage() } },
+                    onPrevHistoryPage = { scope.launch { controller.prevHistoryPage() } },
                     onResolveUnban = { requestId, approve, note ->
                         scope.launch { controller.resolveUnbanRequest(requestId, approve, note) }
                     },
@@ -675,6 +714,10 @@ private fun BansList(
     escalationPolicy: EscalationPolicy?,
     sharedBanSettings: SharedBanSettings?,
     nukeBatches: List<NetworkNukeBatch>,
+    historyEntries: List<ModerationHistoryEntry>,
+    historyPage: Int,
+    historyHasMore: Boolean,
+    historyFilter: ModerationHistoryFilter,
     shoutoutTemplate: String?,
     templateHelpersApi: TemplateHelpersApi,
     // The derived "what happens automatically" account, plus the two broadcaster-gated editors behind it.
@@ -702,6 +745,11 @@ private fun BansList(
     onAddTrusted: (trustedChannelId: String) -> Unit,
     onRemoveTrusted: (trustedChannelId: String) -> Unit,
     onRevertNuke: (batchId: String) -> Unit,
+    onHistorySubjectSelected: (twitchUserId: String?) -> Unit,
+    onHistoryDateRangeChanged: (fromUtc: String?, toUtc: String?) -> Unit,
+    onHistoryActionTypeChanged: (actionType: String?) -> Unit,
+    onNextHistoryPage: () -> Unit,
+    onPrevHistoryPage: () -> Unit,
     onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
     onResolveReport: (reportId: String, action: String) -> Unit,
     onResolveAutomodQueueItem: (queueItemId: String, action: String) -> Unit,
@@ -795,7 +843,7 @@ private fun BansList(
         sectionItem(section, ModerationSection.Desk, "shield-toggle") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 if (shieldAvailable) {
-                    ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
+                    ShieldModeToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
                 } else {
                     SectionUnavailable(stringResource(Res.string.moderation_shield_unavailable))
                 }
@@ -982,17 +1030,22 @@ private fun BansList(
                 }
             }
         }
-        if (modLog.isNotEmpty()) {
-            sectionItem(section, ModerationSection.History, "log-header") {
-                Text(
-                    text = stringResource(Res.string.moderation_log_title),
-                    style = typography.lg,
-                    color = tokens.cardForeground,
-                    maxLines = 1,
-                )
-            }
-            sectionItem(section, ModerationSection.History, "log-card") {
-                Card(modifier = Modifier.fillMaxWidth()) {
+        // Header + card always render — a bug fix (owner punch list 2026-09-08 §12): this list used to
+        // disappear ENTIRELY with no message when empty, which read as "History is broken" rather than "no
+        // moderator actions yet."
+        sectionItem(section, ModerationSection.History, "log-header") {
+            Text(
+                text = stringResource(Res.string.moderation_log_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        sectionItem(section, ModerationSection.History, "log-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                if (modLog.isEmpty()) {
+                    EmptyStateText(stringResource(Res.string.moderation_log_empty))
+                } else {
                     Column {
                         modLog.forEachIndexed { index, entry ->
                             ModLogRow(entry = entry)
@@ -1328,18 +1381,21 @@ private fun BansList(
                 }
             }
         }
-        // Network-nuke batch history (J.2a). Shown only when there is a batch to revert or review.
-        if (nukeBatches.isNotEmpty()) {
-            sectionItem(section, ModerationSection.History, "nuke-header") {
-                Text(
-                    text = stringResource(Res.string.moderation_nuke_batches_title),
-                    style = typography.lg,
-                    color = tokens.cardForeground,
-                    maxLines = 1,
-                )
-            }
-            sectionItem(section, ModerationSection.History, "nuke-card") {
-                Card(modifier = Modifier.fillMaxWidth()) {
+        // Network-nuke batch history (J.2a). Header + card always render — same empty-state fix as the mod
+        // log above (owner punch list 2026-09-08 §12).
+        sectionItem(section, ModerationSection.History, "nuke-header") {
+            Text(
+                text = stringResource(Res.string.moderation_nuke_batches_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        sectionItem(section, ModerationSection.History, "nuke-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                if (nukeBatches.isEmpty()) {
+                    EmptyStateText(stringResource(Res.string.moderation_nuke_batches_empty))
+                } else {
                     Column {
                         nukeBatches.forEachIndexed { index, batch ->
                             NukeBatchRow(
@@ -1354,6 +1410,54 @@ private fun BansList(
                     }
                 }
             }
+        }
+
+        // The browsable, filterable moderation-history log (owner punch list 2026-09-08 §12) — the actual
+        // fix for "History is thin": date range, per-person search, action-type filter, real server paging,
+        // surfacing every kind the backend's ModerationHistoryEntryKinds enum captures (warn included —
+        // previously only a raw event, never browsable here).
+        sectionItem(section, ModerationSection.History, "history-log-header") {
+            Text(
+                text = stringResource(Res.string.moderation_history_log_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        sectionItem(section, ModerationSection.History, "history-log-controls") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                HistoryLogFilterControls(
+                    filter = historyFilter,
+                    searchViewers = searchViewers,
+                    onSubjectSelected = onHistorySubjectSelected,
+                    onDateRangeChanged = onHistoryDateRangeChanged,
+                    onActionTypeChanged = onHistoryActionTypeChanged,
+                )
+            }
+        }
+        sectionItem(section, ModerationSection.History, "history-log-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                if (historyEntries.isEmpty()) {
+                    EmptyStateText(stringResource(Res.string.moderation_history_log_empty))
+                } else {
+                    Column {
+                        historyEntries.forEachIndexed { index, entry ->
+                            HistoryLogEntryRow(entry = entry)
+                            if (index < historyEntries.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        sectionItem(section, ModerationSection.History, "history-log-pager") {
+            HistoryLogPager(
+                page = historyPage,
+                hasMore = historyHasMore,
+                onPrev = onPrevHistoryPage,
+                onNext = onNextHistoryPage,
+            )
         }
         sectionItem(section, ModerationSection.Rules, "rules-header") {
             Row(
@@ -3152,52 +3256,6 @@ private fun SectionUnavailable(message: String) {
     )
 }
 
-@Composable
-private fun ShieldToggle(enabled: Boolean, manage: ManageDecision, onToggle: (Boolean) -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val actionLabel: String =
-        stringResource(
-            if (enabled) Res.string.moderation_shield_disable_action
-            else Res.string.moderation_shield_enable_action
-        )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Text(
-            text = stringResource(Res.string.moderation_shield_title),
-            style = typography.base,
-            color = if (enabled) tokens.destructive else tokens.cardForeground,
-            maxLines = 1,
-            modifier = Modifier.weight(1f),
-        )
-        ManageGate(decision = manage) { canManage ->
-            TextButton(
-                onClick = { onToggle(!enabled) },
-                enabled = canManage,
-                modifier = Modifier.semantics { contentDescription = actionLabel },
-            ) {
-                Text(
-                    text =
-                        stringResource(
-                            if (enabled) Res.string.moderation_shield_disable
-                            else Res.string.moderation_shield_enable
-                        ),
-                    color = if (canManage) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
 // One mod-log row: the action + target (e.g. "timeout Baduser") over "by <moderator>". Read-only history.
 @Composable
 private fun ModLogRow(entry: ModLogEntry) {
@@ -3241,6 +3299,237 @@ private fun ModLogRow(entry: ModLogEntry) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+// A small in-card empty-state line — distinct from the full-page [CenteredMessage]: this sits inside a Card
+// that would otherwise render nothing when its list is empty. That silent disappearance (owner punch list
+// 2026-09-08 §12) is exactly why History used to read as broken rather than "nothing here yet."
+@Composable
+private fun EmptyStateText(text: String) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = text,
+        style = typography.sm,
+        color = tokens.mutedForeground,
+        modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+        textAlign = TextAlign.Center,
+    )
+}
+
+// The localized label for one moderation-history action-type kind. Driven off the SAME closed vocabulary
+// (ModerationHistoryActionTypes) the filter dropdown offers, so a kind the backend fills in later needs no
+// new branch here beyond what the dropdown already lists.
+@Composable
+private fun historyActionTypeLabel(actionType: String): String =
+    when (actionType) {
+        ModerationHistoryActionTypes.Ban -> stringResource(Res.string.moderation_history_log_type_ban)
+        ModerationHistoryActionTypes.Timeout -> stringResource(Res.string.moderation_history_log_type_timeout)
+        ModerationHistoryActionTypes.Warn -> stringResource(Res.string.moderation_history_log_type_warn)
+        ModerationHistoryActionTypes.Unban -> stringResource(Res.string.moderation_history_log_type_unban)
+        ModerationHistoryActionTypes.DeleteMessage ->
+            stringResource(Res.string.moderation_history_log_type_delete_message)
+        ModerationHistoryActionTypes.AutoModDenied ->
+            stringResource(Res.string.moderation_history_log_type_automod_denied)
+        ModerationHistoryActionTypes.FilterHit -> stringResource(Res.string.moderation_history_log_type_filter_hit)
+        ModerationHistoryActionTypes.ReportValidated ->
+            stringResource(Res.string.moderation_history_log_type_report_validated)
+        ModerationHistoryActionTypes.Note -> stringResource(Res.string.moderation_history_log_type_note)
+        else -> actionType
+    }
+
+// Groups the nine kinds by severity so the badge color carries meaning without inventing a new color per
+// kind (Sleak: scarce accent) — the row's TEXT label is what makes each of the nine kinds individually
+// distinguishable; the variant groups them by how serious the action was.
+private fun historyActionTypeBadgeVariant(actionType: String): BadgeVariant =
+    when (actionType) {
+        ModerationHistoryActionTypes.Ban,
+        ModerationHistoryActionTypes.Timeout,
+        ModerationHistoryActionTypes.DeleteMessage,
+        -> BadgeVariant.Destructive
+        ModerationHistoryActionTypes.Warn,
+        ModerationHistoryActionTypes.ReportValidated,
+        -> BadgeVariant.Default
+        ModerationHistoryActionTypes.Unban,
+        ModerationHistoryActionTypes.Note,
+        -> BadgeVariant.Secondary
+        else -> BadgeVariant.Outline
+    }
+
+// One row of the browsable moderation-history log: a kind badge (+ timeout duration when present), the
+// reason (or a truthful "no reason recorded" — never a blank line), the acting moderator when known, and
+// the date. Read-only history, same posture as [ModLogRow]. Internal (not private), like
+// [SpamCampaignsSection], so HistoryLogEntryRowRenderTest can render it directly per kind.
+@Composable
+internal fun HistoryLogEntryRow(entry: ModerationHistoryEntry) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Badge(variant = historyActionTypeBadgeVariant(entry.actionType)) {
+                    Text(text = historyActionTypeLabel(entry.actionType), style = typography.xs)
+                }
+                entry.durationSeconds?.let { seconds ->
+                    Text(
+                        text = stringResource(Res.string.moderation_history_log_duration, seconds),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+            Text(
+                text =
+                    entry.reason?.takeIf { it.isNotBlank() }
+                        ?: stringResource(Res.string.moderation_history_log_reason_none),
+                style = typography.sm,
+                color = tokens.cardForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            entry.moderatorDisplayName?.let { moderator ->
+                Text(
+                    text = stringResource(Res.string.moderation_log_by, moderator),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+        Text(text = datePart(entry.occurredAt), style = typography.xs, color = tokens.mutedForeground)
+    }
+}
+
+// The history log's filter row: a person search (resolved to the internal id the backend actually filters
+// on — see ModerationController.setHistorySubjectFilter), a from/to date range, and an action-type dropdown.
+// Every control applies its change immediately (no separate "Apply" step) so the list underneath always
+// reflects what is currently selected.
+@Composable
+private fun HistoryLogFilterControls(
+    filter: ModerationHistoryFilter,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onSubjectSelected: (twitchUserId: String?) -> Unit,
+    onDateRangeChanged: (fromUtc: String?, toUtc: String?) -> Unit,
+    onActionTypeChanged: (actionType: String?) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var subject: PickerRef? by remember { mutableStateOf(null) }
+    var fromText: String by remember { mutableStateOf(filter.fromUtc.orEmpty()) }
+    var toText: String by remember { mutableStateOf(filter.toUtc.orEmpty()) }
+    var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
+
+    val dateFormat: Regex = remember { Regex("""\d{4}-\d{2}-\d{2}""") }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        SearchPickerField(
+            search = searchViewers,
+            selected = subject,
+            onSelect = { ref ->
+                subject = ref
+                onSubjectSelected(ref.id)
+            },
+            onClear = {
+                subject = null
+                onSubjectSelected(null)
+            },
+            label = stringResource(Res.string.moderation_history_log_person_label),
+            placeholder = stringResource(Res.string.moderation_history_log_person_placeholder),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            AppTextField(
+                value = fromText,
+                onValueChange = { text ->
+                    fromText = text
+                    if (text.isEmpty() || dateFormat.matches(text)) {
+                        onDateRangeChanged(text.ifEmpty { null }, toText.ifEmpty { null })
+                    }
+                },
+                label = stringResource(Res.string.moderation_history_log_from_label),
+                modifier = Modifier.wrapContentWidth(),
+            )
+            AppTextField(
+                value = toText,
+                onValueChange = { text ->
+                    toText = text
+                    if (text.isEmpty() || dateFormat.matches(text)) {
+                        onDateRangeChanged(fromText.ifEmpty { null }, text.ifEmpty { null })
+                    }
+                },
+                label = stringResource(Res.string.moderation_history_log_to_label),
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        Text(
+            text = stringResource(Res.string.moderation_history_log_date_hint),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        val typeOptions: List<Pair<String?, String>> =
+            listOf(null to stringResource(Res.string.moderation_history_log_type_all)) +
+                ModerationHistoryActionTypes.All.map { it to historyActionTypeLabel(it) }
+        AppSelectField(
+            label = stringResource(Res.string.moderation_history_log_type_label),
+            value = typeOptions.first { it.first == filter.actionType }.second,
+            expanded = typeMenuOpen,
+            onExpandedChange = { typeMenuOpen = it },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            typeOptions.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = { Text(label, color = tokens.cardForeground) },
+                    onClick = {
+                        typeMenuOpen = false
+                        onActionTypeChanged(value)
+                    },
+                )
+            }
+        }
+    }
+}
+
+// Real prev/next paging against the backend's own page/hasMore (never a client-side slice of one big fetch).
+// Prev is disabled on page 1; Next is disabled once the backend says there is no further page.
+@Composable
+private fun HistoryLogPager(page: Int, hasMore: Boolean, onPrev: () -> Unit, onNext: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s2),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onPrev, enabled = page > 1) {
+            Text(text = stringResource(Res.string.moderation_history_log_prev))
+        }
+        Text(
+            text = stringResource(Res.string.moderation_history_log_page, page),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        TextButton(onClick = onNext, enabled = hasMore) {
+            Text(text = stringResource(Res.string.moderation_history_log_next))
         }
     }
 }

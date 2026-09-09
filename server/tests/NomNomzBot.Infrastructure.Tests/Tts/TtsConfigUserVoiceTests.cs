@@ -206,4 +206,63 @@ public sealed class TtsConfigUserVoiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
+
+    // ── Id type fix (owner punch list 2026-09-08 §3 — schema P.3: "Id guid PK (was int -> surrogate)") ──
+
+    /// <summary>
+    /// <c>UserTtsVoice.Id</c> used to be a bare <c>int</c> surrogate, drifted from its own locked schema and
+    /// from every other per-user entity's PK convention. Proves the fixed column round-trips a real,
+    /// distinct <see cref="Guid"/> per row — not merely that the type declaration changed.
+    /// </summary>
+    [Fact]
+    public async Task Id_IsAGuid_AssignedAppSide_AndDistinctPerRow()
+    {
+        Harness h = Build("voice-a", "voice-b");
+
+        Result<UserTtsVoiceDto> first = await h.Service.SetUserVoiceAsync(
+            Tenant,
+            "viewer-1",
+            Set("voice-a")
+        );
+        Result<UserTtsVoiceDto> second = await h.Service.SetUserVoiceAsync(
+            Tenant,
+            "viewer-2",
+            Set("voice-b")
+        );
+        first.IsSuccess.Should().BeTrue();
+        second.IsSuccess.Should().BeTrue();
+
+        List<UserTtsVoice> rows = await h.Db.UserTtsVoices.OrderBy(v => v.UserId).ToListAsync();
+        rows.Should().HaveCount(2);
+        rows[0].Id.Should().NotBe(Guid.Empty);
+        rows[1].Id.Should().NotBe(Guid.Empty);
+        rows[0].Id.Should().NotBe(rows[1].Id, "each row gets its own distinct surrogate key");
+    }
+
+    /// <summary>The (BroadcasterId, UserId) uniqueness the surrogate-key change must not have weakened.</summary>
+    [Fact]
+    public async Task TheUniqueBroadcasterUserIndex_StillRejectsATrueDuplicate()
+    {
+        TtsTestDbContext db = TtsTestDbContext.New();
+        db.UserTtsVoices.Add(
+            new()
+            {
+                BroadcasterId = Tenant,
+                UserId = Viewer,
+                VoiceId = "voice-a",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        db.UserTtsVoices.Add(
+            new()
+            {
+                BroadcasterId = Tenant,
+                UserId = Viewer,
+                VoiceId = "voice-b",
+            }
+        );
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+    }
 }

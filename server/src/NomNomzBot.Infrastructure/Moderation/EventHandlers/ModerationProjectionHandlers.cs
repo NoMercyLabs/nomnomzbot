@@ -29,7 +29,10 @@ public sealed class UserBannedProjectionHandler(IModerationProjectionService pro
             @event.TargetUserId,
             "ban",
             @event.OccurredAt.UtcDateTime,
-            ct
+            @event.ModeratorUserId,
+            @event.ModeratorDisplayName,
+            @event.Reason,
+            ct: ct
         );
 }
 
@@ -43,6 +46,10 @@ public sealed class UserTimedOutProjectionHandler(IModerationProjectionService p
             @event.TargetUserId,
             "timeout",
             @event.OccurredAt.UtcDateTime,
+            @event.ModeratorUserId,
+            @event.ModeratorDisplayName,
+            @event.Reason,
+            @event.DurationSeconds,
             ct
         );
 }
@@ -57,7 +64,9 @@ public sealed class UserUnbannedProjectionHandler(IModerationProjectionService p
             @event.TargetUserId,
             "unban",
             @event.OccurredAt.UtcDateTime,
-            ct
+            @event.ModeratorUserId,
+            @event.ModeratorDisplayName,
+            ct: ct
         );
 }
 
@@ -71,7 +80,10 @@ public sealed class WarningSentProjectionHandler(IModerationProjectionService pr
             @event.UserId,
             "warn",
             @event.OccurredAt.UtcDateTime,
-            ct
+            @event.ModeratorId,
+            @event.ModeratorDisplayName,
+            @event.Reason,
+            ct: ct
         );
 }
 
@@ -85,6 +97,6 @@ public sealed class MessageAutoModdedProjectionHandler(IModerationProjectionServ
             @event.UserId,
             "automod_denied",
             @event.OccurredAt.UtcDateTime,
-            ct
+            ct: ct
         );
 }

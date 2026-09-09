@@ -23,14 +23,16 @@ import bot.nomnomz.dashboard.core.network.ChatGif
 import bot.nomnomz.dashboard.core.network.ChatMention
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
+import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
 
 // The Chat page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then loads
 // its real recent chat from the backend (persisted from EventSub `channel.chat.message`; no fabricated lines).
@@ -44,6 +46,12 @@ import kotlinx.coroutines.flow.filterIsInstance
 class ChatController(
     private val channelsApi: ChannelsApi,
     private val chatApi: ChatApi,
+    // The channel's emergency Shield Mode read/write (S076c) — the SAME ModerationApi.shieldMode /
+    // setShieldMode the Moderation -> Desk toggle already calls, so there is exactly one way to flip Shield
+    // Mode in the dashboard. Optional and nullable like [ModerationController]'s equally-optional
+    // dependencies: a state-holder test that does not exercise Shield Mode omits it, and the toggle then
+    // stays hidden rather than rendering a state nobody read.
+    private val moderationApi: ModerationApi? = null,
 ) {
     private val _state: MutableStateFlow<ChatState> = MutableStateFlow(ChatState.Loading)
 
@@ -104,11 +112,58 @@ class ChatController(
                     else ChatState.Ready(result.value, settings = existingSettings)
             }
         }
-        // Load settings + the composer emote catalogue on first load (once each).
+        // Load settings + the composer emote catalogue + Shield Mode's current state on first load (once each);
+        // Shield Mode also stays live afterward via [applyShieldModeEvent] over the hub push, so it is never
+        // re-polled on every refresh like the messages themselves are.
         val fresh: ChatState = _state.value
         if (fresh is ChatState.Ready) {
             if (fresh.settings == null) loadSettings()
             if (fresh.emotes.isEmpty()) loadEmotes()
+            // Retry whenever the state isn't a confirmed reading yet (never loaded, or the last read failed) —
+            // unlike settings/emotes this can legitimately flip on the backend at any time (Twitch's own
+            // automated trigger), so a transient failure (missing scope not yet re-granted) is worth re-checking
+            // on the next poll tick rather than staying stuck unavailable for the rest of the page's life.
+            if (fresh.shieldEnabled == null || !fresh.shieldAvailable) loadShieldMode(resolved)
+        }
+    }
+
+    /**
+     * Load emergency Shield Mode's current state (S076c) for [channel] into the Ready state. A failure means
+     * unavailable here — NOT "off" (a phantom lie) — [ChatState.Ready.shieldAvailable] flips false so the screen
+     * shows a needs-permission notice instead of an off toggle, mirroring [ModerationController]'s identical
+     * read. No-ops when no [moderationApi] is wired (a state-holder test that never exercises Shield Mode).
+     */
+    private suspend fun loadShieldMode(channel: String) {
+        val api: ModerationApi = moderationApi ?: return
+        when (val result: ApiResult<ShieldStatus> = api.shieldMode(channel)) {
+            is ApiResult.Ok -> {
+                val current: ChatState = _state.value
+                if (current is ChatState.Ready) {
+                    _state.value = current.copy(shieldEnabled = result.value.enabled, shieldAvailable = true)
+                }
+            }
+            is ApiResult.Failure -> {
+                val current: ChatState = _state.value
+                if (current is ChatState.Ready) {
+                    _state.value = current.copy(shieldEnabled = false, shieldAvailable = false)
+                }
+            }
+        }
+    }
+
+    /**
+     * Turn emergency Shield Mode on or off ([enabled]) for the active channel — the SAME
+     * `PATCH .../moderation/shield` route the Moderation -> Desk toggle calls
+     * ([ModerationApi.setShieldMode]). Re-reads the fresh state on success so the toggle reflects the backend's
+     * truth; surfaces the error over the intact feed on failure. No-ops when no channel is loaded or no
+     * [moderationApi] is wired.
+     */
+    suspend fun setShieldMode(enabled: Boolean) {
+        val channel: String = channelId ?: return
+        val api: ModerationApi = moderationApi ?: return
+        when (val result: ApiResult<Unit> = api.setShieldMode(channel, enabled)) {
+            is ApiResult.Ok -> loadShieldMode(channel)
+            is ApiResult.Failure -> failAction(result.error.message)
         }
     }
 
@@ -125,31 +180,57 @@ class ChatController(
     }
 
     /**
-     * Subscribe to [hubEvents], appending each incoming [HubEvent.ChatMessage] to the feed so new messages
-     * appear at the bottom instantly, without waiting for a poll tick. If the feed is in Empty / Loading /
-     * Error state when the first live message arrives, we bootstrap a fresh Ready list — so chat works even
-     * when there's no history to load. Must be called from a coroutine scope that outlives the page (e.g. the
-     * screen's LaunchedEffect). The subscription is cancelled when that scope cancels — no explicit teardown.
+     * Subscribe to [hubEvents]:
+     * - [HubEvent.ChatMessage]: appends the new line to the feed so it appears at the bottom instantly, without
+     *   waiting for a poll tick. If the feed is in Empty / Loading / Error state when the first live message
+     *   arrives, we bootstrap a fresh Ready list — so chat works even when there's no history to load.
+     * - [HubEvent.ChannelEvent]: a `shield_mode_begin` / `shield_mode_end` push (S076c — Twitch's own automated
+     *   protection-mode toggle) for the active channel updates [ChatState.Ready.shieldEnabled] live, the same
+     *   generic `ChannelEventDto` wire shape [MultiChatController] already handles for the multi-watch lane.
+     *
+     * Must be called from a coroutine scope that outlives the page (e.g. the screen's LaunchedEffect). The
+     * subscription is cancelled when that scope cancels — no explicit teardown.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
-        hubEvents.filterIsInstance<HubEvent.ChatMessage>().collect { evt ->
-            val newLine: ChatMessage = evt.message.toLocalMessage()
-            val current: ChatState = _state.value
-            val ready: ChatState.Ready =
-                when (current) {
-                    is ChatState.Ready -> current
-                    // No history yet — bootstrap a fresh feed; the first message makes the page live.
-                    else -> ChatState.Ready(messages = emptyList())
+        hubEvents.collect { evt ->
+            when (evt) {
+                is HubEvent.ChatMessage -> {
+                    val newLine: ChatMessage = evt.message.toLocalMessage()
+                    val current: ChatState = _state.value
+                    val ready: ChatState.Ready =
+                        when (current) {
+                            is ChatState.Ready -> current
+                            // No history yet — bootstrap a fresh feed; the first message makes the page live.
+                            else -> ChatState.Ready(messages = emptyList())
+                        }
+                    // Skip a NON-BLANK id already in the feed. EventSub is at-least-once (redelivers
+                    // channel.chat.message on a WS reconnect), the operator's own line echoes back, and the
+                    // safety-net poll re-fetches the same persisted lines — and the feed's LazyColumn is keyed by
+                    // id, so a duplicate key would crash the page. A blank id can't be de-duped, so it always
+                    // appends: never suppress a live line just because its id failed to resolve.
+                    if (newLine.id.isNotEmpty() && ready.messages.any { it.id == newLine.id }) return@collect
+                    // Append (newest at bottom) and cap at 200 so the list stays bounded.
+                    val capped: List<ChatMessage> = (ready.messages + newLine).takeLast(200)
+                    _state.value = ready.copy(messages = capped)
                 }
-            // Skip a NON-BLANK id already in the feed. EventSub is at-least-once (redelivers channel.chat.message
-            // on a WS reconnect), the operator's own line echoes back, and the safety-net poll re-fetches the same
-            // persisted lines — and the feed's LazyColumn is keyed by id, so a duplicate key would crash the page.
-            // A blank id can't be de-duped, so it always appends: never suppress a live line just because its id
-            // failed to resolve.
-            if (newLine.id.isNotEmpty() && ready.messages.any { it.id == newLine.id }) return@collect
-            // Append (newest at bottom) and cap at 200 so the list stays bounded.
-            val capped: List<ChatMessage> = (ready.messages + newLine).takeLast(200)
-            _state.value = ready.copy(messages = capped)
+                is HubEvent.ChannelEvent -> applyShieldModeEvent(evt.event)
+                else -> Unit
+            }
+        }
+    }
+
+    // Shield Mode begin/end arrives as a generic ChannelEvent (type "shield_mode_begin" / "shield_mode_end"),
+    // never a dedicated HubEvent case — see [MultiChatController.applyShieldModeEvent], the same push routed
+    // through the same backend ChannelEventDto wire shape. Ignored for any channel other than the one currently
+    // on screen, and only applied once Shield Mode's initial state has actually been loaded (a push for a page
+    // that never read Shield Mode yet has nothing meaningful to update).
+    private fun applyShieldModeEvent(event: HubChannelEvent) {
+        if (event.broadcasterId != channelId) return
+        val current: ChatState = _state.value
+        if (current !is ChatState.Ready || current.shieldEnabled == null) return
+        when (event.type) {
+            "shield_mode_begin" -> _state.value = current.copy(shieldEnabled = true, shieldAvailable = true)
+            "shield_mode_end" -> _state.value = current.copy(shieldEnabled = false, shieldAvailable = true)
         }
     }
 
@@ -357,12 +438,19 @@ sealed interface ChatState {
      * The channel's recent chat is listed (oldest first). [settings] is loaded once on first render.
      * [actionError] is non-null only when the last action (send/delete/timeout/announce/settings-change)
      * failed — the screen surfaces it as a transient banner while keeping the feed rendered.
+     *
+     * [shieldEnabled] is emergency Shield Mode's current state (S076c) — null until [ChatController] has loaded
+     * it once (the toggle stays hidden until then, like [settings]); [shieldAvailable] is false when that read
+     * (or the last write) failed here (missing scope / bot not installed on this channel) — NOT reported as
+     * "off", so the screen can show a needs-permission notice instead of a phantom off toggle.
      */
     data class Ready(
         val messages: List<ChatMessage>,
         val settings: ChatSettings? = null,
         val actionError: String? = null,
         val emotes: List<ChatEmoteCatalogue> = emptyList(),
+        val shieldEnabled: Boolean? = null,
+        val shieldAvailable: Boolean = true,
     ) : ChatState
 
     data object Empty : ChatState

@@ -43,6 +43,19 @@ public interface IQuoteService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Lists the quotes resolved-attributed to one person (<c>Quote.UserId</c>, owner punch list 2026-09-08
+    /// §3), newest first — the Community Profile page's "quotes by this person" section. A quote whose
+    /// <c>QuotedDisplayName</c> never resolved to this user (including every quote predating the column)
+    /// never appears here even if the display name matches.
+    /// </summary>
+    Task<Result<PagedList<QuoteDto>>> ListByUserAsync(
+        Guid broadcasterId,
+        Guid userId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
     /// <summary>Edits a quote's text/attribution. The <c>Number</c> is immutable.</summary>
     Task<Result<QuoteDto>> EditAsync(
         Guid broadcasterId,

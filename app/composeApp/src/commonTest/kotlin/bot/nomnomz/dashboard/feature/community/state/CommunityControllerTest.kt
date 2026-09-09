@@ -10,33 +10,19 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
-import bot.nomnomz.dashboard.core.network.BannedUser
-import bot.nomnomz.dashboard.core.network.ShoutoutOverride
-import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
-import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
-import bot.nomnomz.dashboard.core.network.AnalyticsApi
-import bot.nomnomz.dashboard.core.network.AnalyticsSummary
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
-import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
-import bot.nomnomz.dashboard.core.network.CommunityStats
 import bot.nomnomz.dashboard.core.network.CommunityPage
-import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
-import bot.nomnomz.dashboard.core.network.DailyMetricRow
-import bot.nomnomz.dashboard.core.network.StreamAnalytics
-import bot.nomnomz.dashboard.core.network.StreamListItem
-import bot.nomnomz.dashboard.core.network.TopViewerEntry
-import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
-import bot.nomnomz.dashboard.core.network.ViewerEngagementDay
+import bot.nomnomz.dashboard.core.network.CommunityStats
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ViewerOption
-import bot.nomnomz.dashboard.core.network.ViewerProfilePage
-import bot.nomnomz.dashboard.core.network.WatchStreak
+import bot.nomnomz.dashboard.core.network.ViewerProfileSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -44,78 +30,32 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
-// Proves the Community page state machine the screen renders: resolve the active channel, surface the real
-// member list (empty as Empty, a failure of either step as Error), and manage each member — set their trust
-// level, ban them, or lift a ban. Each action must hit the right backend route with the resolved channel,
-// reload on success so the list reflects the backend's truth, and surface a failure over the intact list.
-// The screen is a pure projection of this, so testing it proves the page acts on real data and degrades
-// cleanly.
+// Proves the Community DIRECTORY page's state machine (owner punch list 2026-09-08 §3A — a search-first list
+// for finding someone fast, everything management-shaped now lives on the Profile page instead). This
+// controller's whole job: resolve the active channel, list members sorted MOST RECENTLY ACTIVE FIRST by
+// default (the default sort the owner asked for, replacing the old role-filter-tabs-as-structure page), page
+// through a role filter, and resolve a searched Twitch id to the real member (so the row can tell whether a
+// Profile even exists for them). No ban/trust/VIP/shoutout methods live here anymore — those moved to
+// [ViewerProfileController] and are proven by ViewerProfileControllerTest.
 class CommunityControllerTest {
 
     @Test
-    fun member_detail_returns_the_real_ban_and_vip_state_for_a_searched_viewer() = runTest {
-        // A searched viewer's row must reflect the TRUTH, so memberDetail fetches the real member (already
-        // banned + already VIP) rather than the screen synthesizing a "not banned / not VIP" default that
-        // would offer Ban / Grant-VIP and re-ban or re-grant them.
-        val real =
-            CommunityMember(id = "42", displayName = "Naughty", trustLevel = CommunityTrustLevel.Vip, isBanned = true)
-        val api =
-            FakeCommunityApi(
-                membersResults = listOf(ApiResult.Ok(emptyList())),
-                memberResult = ApiResult.Ok(real),
-            )
-        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-        controller.load()
-
-        val member: CommunityMember? = controller.memberDetail("42")
-
-        assertEquals(listOf("42"), api.memberCalls)
-        assertNotNull(member)
-        assertTrue(member.isBanned)
-        assertEquals(CommunityTrustLevel.Vip, member.trustLevel)
-    }
-
-    @Test
-    fun member_detail_is_null_when_the_lookup_fails() = runTest {
-        // Default memberResult is a 404 failure — the row then falls back to the name-only placeholder.
-        val api = FakeCommunityApi(membersResults = listOf(ApiResult.Ok(emptyList())))
-        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-        controller.load()
-
-        assertNull(controller.memberDetail("99"))
-    }
-
-    @Test
-    fun load_surfaces_the_community_members_on_success() = runTest {
+    fun load_surfaces_members_sorted_most_recently_active_first() = runTest {
+        // The backend's own ordering (by Twitch id) is NOT recency — the controller must re-sort the fetched
+        // page by lastSeen descending, the default the owner asked for ("not alphabetical, not role-grouped").
+        val stale = CommunityMember(id = "u1", displayName = "Stale Viewer", lastSeen = "2026-01-01T00:00:00Z")
+        val fresh = CommunityMember(id = "u2", displayName = "Fresh Viewer", lastSeen = "2026-09-01T00:00:00Z")
         val controller =
             CommunityController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(
-                    ApiResult.Ok(
-                        listOf(
-                            CommunityMember(
-                                id = "u1",
-                                username = "stoney_eagle",
-                                displayName = "Stoney_Eagle",
-                                trustLevel = "moderator",
-                            ),
-                            CommunityMember(id = "u2", displayName = "Viewer Two"),
-                        )
-                    )
-                ),
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeCommunityApi(membersPageResults = listOf(ApiResult.Ok(CommunityPage(data = listOf(stale, fresh))))),
             )
 
         controller.load()
 
         val state: CommunityState = controller.state.value
         assertTrue(state is CommunityState.Ready)
-        val members: List<CommunityMember> = (state as CommunityState.Ready).members
-        assertEquals(2, members.size)
-        assertEquals("Stoney_Eagle", members[0].displayName)
-        assertEquals("moderator", members[0].trustLevel)
-        assertEquals("u2", members[1].id)
+        assertEquals(listOf("u2", "u1"), (state as CommunityState.Ready).members.map { it.id })
     }
 
     @Test
@@ -123,9 +63,7 @@ class CommunityControllerTest {
         val controller =
             CommunityController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeCommunityApi(membersPageResults = listOf(ApiResult.Ok(CommunityPage()))),
             )
 
         controller.load()
@@ -140,9 +78,7 @@ class CommunityControllerTest {
         val controller =
             CommunityController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeCommunityApi(membersPageResults = listOf(ApiResult.Failure(ApiError(500, "ERR", "boom")))),
             )
 
         controller.load()
@@ -157,9 +93,7 @@ class CommunityControllerTest {
         val controller =
             CommunityController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeCommunityApi(membersPageResults = listOf(ApiResult.Ok(CommunityPage()))),
             )
 
         controller.load()
@@ -168,295 +102,23 @@ class CommunityControllerTest {
     }
 
     @Test
-    fun set_trust_calls_the_trust_route_then_reloads_the_updated_member() = runTest {
-        val viewer = CommunityMember(id = "u1", displayName = "Viewer One", trustLevel = "viewer")
-        val communityApi =
-            FakeCommunityApi(
-                // The reload after the trust write returns the member at the new level.
-                membersResults =
-                    listOf(
-                        ApiResult.Ok(listOf(viewer)),
-                        ApiResult.Ok(listOf(viewer.copy(trustLevel = CommunityTrustLevel.Vip))),
-                    )
-            )
-        val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-
-        controller.load()
-        controller.setTrust("u1", CommunityTrustLevel.Vip)
-
-        // The write hit the trust route with the resolved channel, the member, and the chosen level.
-        assertEquals(listOf(Triple("ch1", "u1", CommunityTrustLevel.Vip)), communityApi.trustCalls)
-        // The list reloaded and the member's badge now reflects the new level.
-        val state: CommunityState = controller.state.value
-        assertTrue(state is CommunityState.Ready)
-        assertEquals(CommunityTrustLevel.Vip, (state as CommunityState.Ready).members.first().trustLevel)
-        assertNull(state.actionError)
-    }
-
-    @Test
-    fun set_trust_surfaces_the_error_and_keeps_the_list_when_it_fails() = runTest {
-        val viewer = CommunityMember(id = "u1", displayName = "Viewer One", trustLevel = "viewer")
-        val communityApi =
-            FakeCommunityApi(
-                membersResults = listOf(ApiResult.Ok(listOf(viewer))),
-                trustResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
-            )
-        val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-
-        controller.load()
-        controller.setTrust("u1", CommunityTrustLevel.Moderator)
-
-        assertEquals(listOf(Triple("ch1", "u1", CommunityTrustLevel.Moderator)), communityApi.trustCalls)
-        val state: CommunityState = controller.state.value
-        assertTrue(state is CommunityState.Ready)
-        // The list is intact (still the viewer, unchanged) and the failure is surfaced on the Ready state.
-        assertEquals(listOf("u1"), (state as CommunityState.Ready).members.map { it.id })
-        assertEquals("viewer", state.members.first().trustLevel)
-        assertEquals("Missing scope.", state.actionError)
-        // Only the initial load fetched members; the failed write did not trigger a reload.
-        assertEquals(1, communityApi.membersCalls)
-    }
-
-    @Test
-    fun ban_calls_the_ban_route_then_reloads_with_the_member_banned() = runTest {
-        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = false)
-        val communityApi =
-            FakeCommunityApi(
-                membersResults =
-                    listOf(
-                        ApiResult.Ok(listOf(troll)),
-                        ApiResult.Ok(listOf(troll.copy(isBanned = true))),
-                    )
-            )
-        val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-
-        controller.load()
-        controller.ban("u1", "Spamming links")
-
-        // The write hit the ban route with the resolved channel, the member, and the reason.
-        assertEquals(listOf(Triple("ch1", "u1", "Spamming links")), communityApi.banCalls)
-        // The list reloaded and the member now reads as banned.
-        val state: CommunityState = controller.state.value
-        assertTrue(state is CommunityState.Ready)
-        assertTrue((state as CommunityState.Ready).members.first().isBanned)
-        assertNull(state.actionError)
-    }
-
-    @Test
-    fun ban_surfaces_the_error_and_keeps_the_list_when_it_fails() = runTest {
-        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = false)
-        val communityApi =
-            FakeCommunityApi(
-                membersResults = listOf(ApiResult.Ok(listOf(troll))),
-                banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
-            )
-        val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-
-        controller.load()
-        controller.ban("u1", "Spamming links")
-
-        assertEquals(listOf(Triple("ch1", "u1", "Spamming links")), communityApi.banCalls)
-        val state: CommunityState = controller.state.value
-        assertTrue(state is CommunityState.Ready)
-        // The list is intact (still not banned) and the failure is surfaced.
-        assertEquals(false, (state as CommunityState.Ready).members.first().isBanned)
-        assertEquals("Missing scope.", state.actionError)
-        assertEquals(1, communityApi.membersCalls)
-    }
-
-    @Test
-    fun unban_calls_the_unban_route_then_reloads_with_the_member_cleared() = runTest {
-        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = true)
-        val communityApi =
-            FakeCommunityApi(
-                membersResults =
-                    listOf(
-                        ApiResult.Ok(listOf(troll)),
-                        ApiResult.Ok(listOf(troll.copy(isBanned = false))),
-                    )
-            )
-        val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-
-        controller.load()
-        controller.unban("u1")
-
-        // The write hit the unban route with the resolved channel and the member.
-        assertEquals(listOf("ch1" to "u1"), communityApi.unbanCalls)
-        // The list reloaded and the member is no longer banned.
-        val state: CommunityState = controller.state.value
-        assertTrue(state is CommunityState.Ready)
-        assertEquals(false, (state as CommunityState.Ready).members.first().isBanned)
-        assertNull(state.actionError)
-    }
-
-    @Test
-    fun unban_surfaces_the_error_and_keeps_the_list_when_it_fails() = runTest {
-        val troll = CommunityMember(id = "u1", displayName = "Troll", isBanned = true)
-        val communityApi =
-            FakeCommunityApi(
-                membersResults = listOf(ApiResult.Ok(listOf(troll))),
-                unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
-            )
-        val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
-
-        controller.load()
-        controller.unban("u1")
-
-        assertEquals(listOf("ch1" to "u1"), communityApi.unbanCalls)
-        val state: CommunityState = controller.state.value
-        assertTrue(state is CommunityState.Ready)
-        // The list is intact (still banned) and the failure is surfaced.
-        assertTrue((state as CommunityState.Ready).members.first().isBanned)
-        assertEquals("Missing scope.", state.actionError)
-        assertEquals(1, communityApi.membersCalls)
-    }
-
-    @Test
-    fun set_viewer_datum_returns_null_on_success() = runTest {
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
-            )
-
-        // A successful upsert returns null (no error to surface) — the consequence the dialog keys off.
-        assertNull(controller.setViewerDatum("u1", "deaths", "5"))
-    }
-
-    @Test
-    fun set_viewer_datum_surfaces_the_backend_error_on_failure() = runTest {
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(
-                    setResult =
-                        ApiResult.Failure(ApiError(400, "TOO_LONG", "Value exceeds 500 characters."))
-                ),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                gdprApi = FakeGdprApi(),
-                fileBridge = FakeFileBridge(),
-            )
-
-        // An over-cap value is rejected by the backend; the controller returns its verbatim message so the
-        // dialog can show WHY the save failed rather than a generic error.
-        assertEquals(
-            "Value exceeds 500 characters.",
-            controller.setViewerDatum("u1", "deaths", "x"),
-        )
-    }
-
-    @Test
-    fun get_viewer_analytics_reads_the_channel_profile_by_internal_user_id() = runTest {
-        val member = CommunityMember(id = "u1", internalUserId = "iu1", displayName = "Viewer One")
-        val analytics =
-            FakeAnalyticsApi(
-                profile = ViewerAnalyticsProfile(
-                    viewerUserId = "iu1",
-                    totalMessages = 42,
-                    totalRedemptions = 3,
-                    isSubscriber = true,
-                    subTier = "1000",
-                )
-            )
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(listOf(member))),
-                FakeUsersApi(),
-                FakeViewerDataApi(),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                analyticsApi = analytics,
-                gdprApi = FakeGdprApi(),
-                fileBridge = FakeFileBridge(),
-            )
-
-        controller.load()
-        val profile: ViewerAnalyticsProfile? = controller.getViewerAnalytics(member)
-
-        // The channel-scoped profile is addressed by the resolved channel + the member's INTERNAL id (not the
-        // Twitch id) — the moderator-readable path that works for a foreign viewer.
-        assertEquals("ch1", analytics.requestedChannelId)
-        assertEquals("iu1", analytics.requestedViewerId)
-        assertEquals(42, profile?.totalMessages)
-        assertEquals(3, profile?.totalRedemptions)
-        assertTrue(profile?.isSubscriber == true)
-    }
-
-    @Test
-    fun get_viewer_analytics_is_null_when_the_member_has_no_internal_id() = runTest {
-        val member = CommunityMember(id = "u1", displayName = "Viewer One") // no internalUserId
-        val analytics = FakeAnalyticsApi()
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(listOf(member))),
-                FakeUsersApi(),
-                FakeViewerDataApi(),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                analyticsApi = analytics,
-                gdprApi = FakeGdprApi(),
-                fileBridge = FakeFileBridge(),
-            )
-
-        controller.load()
-
-        // No internal id → no analytics call at all (the profile route can't be addressed).
-        assertNull(controller.getViewerAnalytics(member))
-        assertNull(analytics.requestedViewerId)
-    }
-
-    @Test
-    fun get_viewer_data_returns_the_stored_map() = runTest {
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(data = mapOf("deaths" to "12", "favorite_game" to "Elden Ring")),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                gdprApi = FakeGdprApi(),
-                fileBridge = FakeFileBridge(),
-            )
-
-        val data: Map<String, String>? = controller.getViewerData("u1")
-        assertEquals(mapOf("deaths" to "12", "favorite_game" to "Elden Ring"), data)
-    }
-
-    @Test
-    fun select_role_loads_the_first_page_of_that_role() = runTest {
+    fun select_role_loads_the_first_page_of_that_filter() = runTest {
         val allMember = CommunityMember(id = "u1", displayName = "Everyone")
         val vipMember = CommunityMember(id = "u2", displayName = "A Vip", trustLevel = "vip")
         val communityApi =
             FakeCommunityApi(
                 // load() consumes the "all" page; selectRole("vip") consumes the "vip" page.
-                membersResults =
+                membersPageResults =
                     listOf(
-                        ApiResult.Ok(listOf(allMember)),
-                        ApiResult.Ok(listOf(vipMember)),
+                        ApiResult.Ok(CommunityPage(data = listOf(allMember))),
+                        ApiResult.Ok(CommunityPage(data = listOf(vipMember))),
                     )
             )
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                communityApi,
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
-            )
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
 
         controller.load()
         controller.selectRole(CommunityRole.Vip)
 
-        // The role-filtered fetch threaded the "vip" role and reset to the first page, and the list swapped.
         val lastCall: Triple<String?, Int, String?> = communityApi.pageCalls.last()
         assertEquals(CommunityRole.Vip, lastCall.first)
         assertEquals(1, lastCall.second)
@@ -468,25 +130,44 @@ class CommunityControllerTest {
     }
 
     @Test
+    fun next_page_advances_and_prev_page_steps_back() = runTest {
+        val pageOne = CommunityMember(id = "u1", displayName = "Page One")
+        val pageTwo = CommunityMember(id = "u2", displayName = "Page Two")
+        val communityApi =
+            FakeCommunityApi(
+                membersPageResults =
+                    listOf(
+                        ApiResult.Ok(CommunityPage(data = listOf(pageOne), hasMore = true)),
+                        ApiResult.Ok(CommunityPage(data = listOf(pageTwo), hasMore = false)),
+                        ApiResult.Ok(CommunityPage(data = listOf(pageOne), hasMore = true)),
+                    )
+            )
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
+        controller.load()
+
+        controller.nextPage()
+        var state: CommunityState.Ready = controller.state.value as CommunityState.Ready
+        assertEquals(2, state.page)
+        assertEquals(listOf("u2"), state.members.map { it.id })
+
+        controller.prevPage()
+        state = controller.state.value as CommunityState.Ready
+        assertEquals(1, state.page)
+        assertEquals(listOf("u1"), state.members.map { it.id })
+    }
+
+    @Test
     fun search_viewers_maps_backend_options_to_picker_options_keyed_on_twitch_id() = runTest {
         val communityApi =
             FakeCommunityApi(
-                membersResults = listOf(ApiResult.Ok(emptyList())),
-                searchResults =
-                    listOf(ViewerOption(id = "tw-42", label = "Nibbles", subLabel = "nibbles")),
+                membersPageResults = listOf(ApiResult.Ok(CommunityPage())),
+                searchResults = listOf(ViewerOption(id = "tw-42", label = "Nibbles", subLabel = "nibbles")),
             )
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                communityApi,
-                FakeUsersApi(),
-                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
-            )
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi)
         controller.load()
 
         val options: List<PickerOption> = controller.searchViewers("nib")
 
-        // The search hit the resolved channel, and each option carries the Twitch id the ban/vip/trust writes key on.
         assertEquals(listOf("ch1" to "nib"), communityApi.searchCalls)
         assertEquals(1, options.size)
         assertEquals("tw-42", options.first().id)
@@ -494,260 +175,38 @@ class CommunityControllerTest {
         assertEquals("nibbles", options.first().sublabel)
     }
 
-    // ── Right-of-access export ────────────────────────────────────────────────
-    //
-    // This control used to POST users/{id}/export, a route the API has never served: it 404'd on every
-    // click while the dialog closed as if the export had been queued. The tests below assert the two
-    // things that were missing — the real route is called for the right subject and channel, and the
-    // operator ends up HOLDING the document rather than being told it was sent somewhere.
-
     @Test
-    fun export_user_data_calls_the_compliance_plane_for_the_subject_and_channel() = runTest {
-        val gdpr = FakeGdprApi()
-        val bridge = FakeFileBridge()
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                gdprApi = gdpr,
-                fileBridge = bridge,
-            )
+    fun member_detail_resolves_the_real_member_so_a_profile_can_be_opened() = runTest {
+        // A search hit only carries a Twitch id; opening a Profile needs the internal Guid — memberDetail is
+        // what resolves it, the same real-state lookup the old page used to avoid a synthesized default.
+        val resolved = CommunityMember(id = "42", internalUserId = "iu-42", displayName = "Naughty")
+        val api = FakeCommunityApi(membersPageResults = listOf(ApiResult.Ok(CommunityPage())), memberResult = ApiResult.Ok(resolved))
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        assertNull(controller.exportUserData("u1"))
+        val member: CommunityMember? = controller.memberDetail("42")
 
-        assertEquals(listOf<Pair<String, String?>>("u1" to "ch1"), gdpr.exportSubjectCalls.toList())
+        assertEquals(listOf("42"), api.memberCalls)
+        assertNotNull(member)
+        assertEquals("iu-42", member.internalUserId)
     }
 
     @Test
-    fun export_user_data_writes_the_returned_document_to_a_file() = runTest {
-        val bridge = FakeFileBridge()
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                gdprApi = FakeGdprApi(),
-                fileBridge = bridge,
-            )
+    fun member_detail_is_null_when_the_lookup_fails() = runTest {
+        val api = FakeCommunityApi(membersPageResults = listOf(ApiResult.Ok(CommunityPage())))
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
         controller.load()
 
-        controller.exportUserData("u1")
-
-        // The bytes are the export document itself, not a summary of it — an export the operator
-        // cannot open is not a fulfilled access request.
-        assertEquals("{\"subject\":\"u1\"}", bridge.savedBytes?.decodeToString())
-        assertEquals("nomnomz-subject-u1.json", bridge.savedName)
+        assertNull(controller.memberDetail("99"))
     }
-
-    @Test
-    fun export_user_data_surfaces_the_backend_error_and_saves_nothing() = runTest {
-        val bridge = FakeFileBridge()
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                gdprApi =
-                    FakeGdprApi(
-                        ApiResult.Failure(ApiError(403, "FORBIDDEN", "compliance:erasure required."))
-                    ),
-                fileBridge = bridge,
-            )
-        controller.load()
-
-        assertEquals("compliance:erasure required.", controller.exportUserData("u1"))
-        assertNull(bridge.savedBytes)
-    }
-
-    @Test
-    fun cancelling_the_save_dialog_is_neither_an_error_nor_a_delivered_export() = runTest {
-        // The dialog must not report a failure the operator did not cause, and must not claim success
-        // for a document that was never written.
-        val bridge = FakeFileBridge(accept = false)
-        val controller =
-            CommunityController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeCommunityApi(ApiResult.Ok(emptyList())),
-                FakeUsersApi(),
-                FakeViewerDataApi(),
-                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
-                gdprApi = FakeGdprApi(),
-                fileBridge = bridge,
-            )
-        controller.load()
-
-        assertNull(controller.exportUserData("u1"))
-    }
-
-    // ── Per-person message lines (S-UX-2) ────────────────────────────────────────────────────────────────
-    // These moved out of the Moderation page's per-person editor and into the Community viewer panel, where
-    // the operator has the person open already. The contract that makes that safe is the (target, kind) key:
-    // a channel's shoutout line and its raid line for the same person are two independent rows.
-
-    @Test
-    fun a_persons_shoutout_and_raid_lines_are_read_back_separately() = runTest {
-        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
-        moderationApi.savedOverrides.add(
-            ShoutoutOverride("42", "Friend", "Go follow Friend!", ShoutoutOverrideKind.Shoutout)
-        )
-        moderationApi.savedOverrides.add(
-            ShoutoutOverride("42", "Friend", "Sending you to Friend!", ShoutoutOverrideKind.Raid)
-        )
-        // Someone else's line must not bleed into this person's panel.
-        moderationApi.savedOverrides.add(
-            ShoutoutOverride("99", "Stranger", "Not this one", ShoutoutOverrideKind.Shoutout)
-        )
-        val controller = communityController(moderationApi)
-        controller.load()
-
-        val lines: Map<String, String>? = controller.getPersonalMessages("42")
-
-        assertEquals(
-            mapOf(
-                ShoutoutOverrideKind.Shoutout to "Go follow Friend!",
-                ShoutoutOverrideKind.Raid to "Sending you to Friend!",
-            ),
-            lines,
-        )
-    }
-
-    @Test
-    fun a_person_with_no_lines_reads_as_empty_not_as_a_failure() = runTest {
-        // Empty and unreadable must stay distinguishable: the panel shows editable fields for the first,
-        // and an error for the second. Collapsing them would offer an editor over data it could not read.
-        val controller = communityController(FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())))
-        controller.load()
-
-        assertEquals(emptyMap(), controller.getPersonalMessages("42"))
-    }
-
-    @Test
-    fun a_failed_read_of_a_persons_lines_is_null_not_an_empty_map() = runTest {
-        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
-        moderationApi.shoutoutOverridesResult = ApiResult.Failure(ApiError(500, "ERR", "boom"))
-        val controller = communityController(moderationApi)
-        controller.load()
-
-        assertNull(controller.getPersonalMessages("42"))
-    }
-
-    @Test
-    fun saving_a_raid_line_leaves_the_same_persons_shoutout_line_alone() = runTest {
-        // The bug this guards: one row per person would make the raid editor silently overwrite the shoutout
-        // the broadcaster wrote, and they would only find out on their next shoutout.
-        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
-        val controller = communityController(moderationApi)
-        controller.load()
-
-        assertNull(
-            controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Go follow Friend!")
-        )
-        assertNull(
-            controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Raid, "Sending you to Friend!")
-        )
-
-        assertEquals(
-            mapOf(
-                ShoutoutOverrideKind.Shoutout to "Go follow Friend!",
-                ShoutoutOverrideKind.Raid to "Sending you to Friend!",
-            ),
-            controller.getPersonalMessages("42"),
-        )
-    }
-
-    @Test
-    fun re_saving_one_kind_replaces_that_line_rather_than_adding_a_second() = runTest {
-        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
-        val controller = communityController(moderationApi)
-        controller.load()
-
-        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "First try")
-        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Better wording")
-
-        assertEquals(
-            mapOf(ShoutoutOverrideKind.Shoutout to "Better wording"),
-            controller.getPersonalMessages("42"),
-        )
-        assertEquals(1, moderationApi.savedOverrides.size)
-    }
-
-    @Test
-    fun clearing_the_raid_line_keeps_the_shoutout_line() = runTest {
-        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
-        val controller = communityController(moderationApi)
-        controller.load()
-        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Go follow Friend!")
-        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Raid, "Sending you to Friend!")
-
-        assertNull(controller.clearPersonalMessage("42", ShoutoutOverrideKind.Raid))
-
-        assertEquals(
-            mapOf(ShoutoutOverrideKind.Shoutout to "Go follow Friend!"),
-            controller.getPersonalMessages("42"),
-        )
-    }
-
-    @Test
-    fun a_write_before_a_channel_resolves_reports_the_no_channel_error_rather_than_reading_as_saved() =
-        runTest {
-            // load() never ran, so there is no channel to write to. Returning null here would tell the panel
-            // the line was saved and let the operator close the dialog believing it.
-            val controller =
-                communityController(FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())))
-
-            assertNotNull(
-                controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Go follow!")
-            )
-            assertNotNull(controller.clearPersonalMessage("42", ShoutoutOverrideKind.Shoutout))
-        }
-
-    @Test
-    fun a_rejected_line_surfaces_the_backends_own_message() = runTest {
-        // The backend rejects an unknown kind and an over-long template with a specific reason. Swallowing it
-        // and showing a generic "could not save" would hide the one thing that tells the operator what to fix.
-        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
-        moderationApi.setShoutoutOverrideResult =
-            ApiResult.Failure(ApiError(400, "BAD_REQUEST", "'nonsense' is not a message kind."))
-        val controller = communityController(moderationApi)
-        controller.load()
-
-        assertEquals(
-            "'nonsense' is not a message kind.",
-            controller.setPersonalMessage("42", "Friend", "nonsense", "Go follow!"),
-        )
-    }
-
-    private fun communityController(moderationApi: FakeModerationApi): CommunityController =
-        CommunityController(
-            FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-            FakeCommunityApi(ApiResult.Ok(emptyList())),
-            FakeUsersApi(),
-            FakeViewerDataApi(),
-            moderationApi,
-            gdprApi = FakeGdprApi(),
-            fileBridge = FakeFileBridge(),
-        )
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
-
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
-
     override suspend fun join(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-
     override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-
     override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-
     override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun channelScopes(channelId: String) = error("stub")
     override suspend fun startChannelBotConnect(channelId: String) = error("stub")
@@ -757,50 +216,18 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 }
 
 private class FakeCommunityApi(
-    private val membersResults: List<ApiResult<List<CommunityMember>>>,
-    private val trustResult: ApiResult<Unit> = ApiResult.Ok(Unit),
-    private val banResult: ApiResult<Unit> = ApiResult.Ok(Unit),
-    private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val membersPageResults: List<ApiResult<CommunityPage>>,
     private val searchResults: List<ViewerOption> = emptyList(),
-    private val memberResult: ApiResult<CommunityMember> =
-        ApiResult.Failure(ApiError(404, "NOT_FOUND", "no member")),
+    private val memberResult: ApiResult<CommunityMember> = ApiResult.Failure(ApiError(404, "NOT_FOUND", "no member")),
 ) : CommunityApi {
-    override suspend fun stats(channelId: String): ApiResult<CommunityStats> =
-        ApiResult.Ok(CommunityStats())
-
-    val memberCalls: MutableList<String> = mutableListOf()
-
-    override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> {
-        memberCalls.add(userId)
-        return memberResult
-    }
-
-    // Single-result convenience for the read-only tests (one members() result, default-OK writes).
-    constructor(result: ApiResult<List<CommunityMember>>) : this(membersResults = listOf(result))
-
-    // The controller loads the list through membersPage; membersCalls counts those page fetches. Each call walks
-    // the configured script so a post-write reload observes the next scripted state (the last entry repeats).
-    var membersCalls: Int = 0
+    var pageCallCount: Int = 0
         private set
 
-    val trustCalls: MutableList<Triple<String, String, String>> = mutableListOf()
-    val banCalls: MutableList<Triple<String, String, String>> = mutableListOf()
-    val unbanCalls: MutableList<Pair<String, String>> = mutableListOf()
-
-    /** Each membersPage call recorded as (role, page, cursor) — proves the role tab / paging thread through. */
     val pageCalls: MutableList<Triple<String?, Int, String?>> = mutableListOf()
     val searchCalls: MutableList<Pair<String, String>> = mutableListOf()
+    val memberCalls: MutableList<String> = mutableListOf()
 
-    override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> =
-        ApiResult.Ok(emptyList())
-
-    private fun nextMembersResult(): ApiResult<List<CommunityMember>> {
-        val index: Int = minOf(membersCalls, membersResults.lastIndex)
-        membersCalls += 1
-        return membersResults[index]
-    }
-
-    override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> = nextMembersResult()
+    override suspend fun members(channelId: String): ApiResult<List<CommunityMember>> = ApiResult.Ok(emptyList())
 
     override suspend fun membersPage(
         channelId: String,
@@ -810,188 +237,31 @@ private class FakeCommunityApi(
         cursor: String?,
     ): ApiResult<CommunityPage> {
         pageCalls.add(Triple(role, page, cursor))
-        return when (val result: ApiResult<List<CommunityMember>> = nextMembersResult()) {
-            is ApiResult.Ok ->
-                ApiResult.Ok(CommunityPage(data = result.value, hasMore = false, total = result.value.size))
-            is ApiResult.Failure -> ApiResult.Failure(result.error)
-        }
+        val index: Int = minOf(pageCallCount, membersPageResults.lastIndex)
+        pageCallCount += 1
+        return membersPageResults[index]
     }
 
-    override suspend fun searchViewers(
-        channelId: String,
-        query: String,
-        limit: Int,
-    ): ApiResult<List<ViewerOption>> {
+    override suspend fun searchViewers(channelId: String, query: String, limit: Int): ApiResult<List<ViewerOption>> {
         searchCalls.add(channelId to query)
         return ApiResult.Ok(searchResults)
     }
 
-    override suspend fun setTrust(channelId: String, userId: String, level: String): ApiResult<Unit> {
-        trustCalls.add(Triple(channelId, userId, level))
-        return trustResult
+    override suspend fun member(channelId: String, userId: String): ApiResult<CommunityMember> {
+        memberCalls.add(userId)
+        return memberResult
     }
 
-    override suspend fun ban(channelId: String, userId: String, reason: String): ApiResult<Unit> {
-        banCalls.add(Triple(channelId, userId, reason))
-        return banResult
-    }
+    override suspend fun topChatters(channelId: String): ApiResult<List<ChatActivityEntry>> = ApiResult.Ok(emptyList())
 
-    override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> {
-        unbanCalls.add(channelId to userId)
-        return unbanResult
-    }
-
+    override suspend fun setTrust(channelId: String, userId: String, level: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun ban(channelId: String, userId: String, reason: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun unban(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun addVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-
     override suspend fun removeVip(channelId: String, userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-
     override suspend fun shoutout(channelId: String, targetTwitchUserId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-}
+    override suspend fun stats(channelId: String): ApiResult<CommunityStats> = ApiResult.Ok(CommunityStats())
 
-private class FakeUsersApi : bot.nomnomz.dashboard.core.network.UsersApi {
-    override suspend fun search(
-        query: String,
-        limit: Int,
-    ): ApiResult<List<bot.nomnomz.dashboard.core.network.UserSearchResult>> = ApiResult.Ok(emptyList())
-
-    override suspend fun stats(userId: String): ApiResult<bot.nomnomz.dashboard.core.network.UserStats> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.UserStats())
-
-    override suspend fun erase(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-}
-
-private class FakeViewerDataApi(
-    private val data: Map<String, String> = emptyMap(),
-    private val setResult: ApiResult<Unit> = ApiResult.Ok(Unit),
-    private val deleteResult: ApiResult<Unit> = ApiResult.Ok(Unit),
-) : bot.nomnomz.dashboard.core.network.ViewerDataApi {
-    override suspend fun getData(viewerId: String): ApiResult<Map<String, String>> = ApiResult.Ok(data)
-
-    override suspend fun setDatum(viewerId: String, key: String, value: String): ApiResult<Unit> = setResult
-
-    override suspend fun deleteDatum(viewerId: String, key: String): ApiResult<Unit> = deleteResult
-}
-
-private class FakeAnalyticsApi(
-    private val profile: ViewerAnalyticsProfile = ViewerAnalyticsProfile(),
-) : AnalyticsApi {
-    var requestedChannelId: String? = null
-    var requestedViewerId: String? = null
-
-    override suspend fun summary(channelId: String, from: String, to: String): ApiResult<AnalyticsSummary> =
-        ApiResult.Ok(AnalyticsSummary())
-
-    override suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>> =
-        ApiResult.Ok(emptyList())
-
-    override suspend fun streams(channelId: String): ApiResult<List<StreamListItem>> = ApiResult.Ok(emptyList())
-
-    override suspend fun streamDetail(channelId: String, streamId: String): ApiResult<StreamAnalytics> =
-        ApiResult.Ok(StreamAnalytics())
-
-    override suspend fun topViewers(
-        channelId: String,
-        metric: String,
-        from: String,
-        to: String,
-        top: Int,
-    ): ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList())
-
-    override suspend fun listViewers(
-        channelId: String,
-        search: String?,
-        sort: String,
-        followersOnly: Boolean?,
-        subscribersOnly: Boolean?,
-        page: Int,
-        pageSize: Int,
-    ): ApiResult<ViewerProfilePage> = ApiResult.Ok(ViewerProfilePage())
-
-    override suspend fun viewerProfile(
-        channelId: String,
-        viewerUserId: String,
-    ): ApiResult<ViewerAnalyticsProfile> {
-        requestedChannelId = channelId
-        requestedViewerId = viewerUserId
-        return ApiResult.Ok(profile)
-    }
-
-    override suspend fun viewerEngagement(
-        channelId: String,
-        viewerUserId: String,
-        from: String,
-        to: String,
-    ): ApiResult<List<ViewerEngagementDay>> = ApiResult.Ok(emptyList())
-
-    override suspend fun viewerStreak(channelId: String, viewerUserId: String): ApiResult<WatchStreak> =
-        ApiResult.Ok(WatchStreak())
-
-    override suspend fun setAnalyticsOptOut(
-        channelId: String,
-        viewerUserId: String,
-        optedOut: Boolean,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
-}
-
-// The compliance-plane export the viewer panel fulfils a right-of-access request through, and the OS
-// save seam it hands the document to. Both record what they were asked for, because "the export
-// happened" is not the claim under test — "the operator ended up holding the right document" is.
-private class FakeGdprApi(
-    private val result: ApiResult<bot.nomnomz.dashboard.core.network.DataExport> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.DataExport(document = "{\"subject\":\"u1\"}")),
-) : bot.nomnomz.dashboard.core.network.GdprApi {
-    val exportSubjectCalls: MutableList<Pair<String, String?>> = mutableListOf()
-
-    override suspend fun exportData(): ApiResult<bot.nomnomz.dashboard.core.network.DataExport> = result
-
-    override suspend fun exportSubject(
-        subjectUserId: String,
-        channelId: String?,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.DataExport> {
-        exportSubjectCalls += subjectUserId to channelId
-        return result
-    }
-
-    override suspend fun previewErasure(): ApiResult<bot.nomnomz.dashboard.core.network.ErasurePreview> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasurePreview())
-
-    override suspend fun requestErasure(
-        scope: String
-    ): ApiResult<bot.nomnomz.dashboard.core.network.ErasureRequest> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasureRequest())
-
-    override suspend fun optOut(): ApiResult<bot.nomnomz.dashboard.core.network.ErasureRequest> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasureRequest())
-
-    override suspend fun requests(): ApiResult<List<bot.nomnomz.dashboard.core.network.ErasureRequest>> =
-        ApiResult.Ok(emptyList())
-
-    override suspend fun request(
-        id: String
-    ): ApiResult<bot.nomnomz.dashboard.core.network.ErasureRequest> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasureRequest())
-
-    override suspend fun consents(): ApiResult<List<bot.nomnomz.dashboard.core.network.ConsentRecord>> =
-        ApiResult.Ok(emptyList())
-
-    override suspend fun grantConsent(
-        body: bot.nomnomz.dashboard.core.network.GrantConsentBody
-    ): ApiResult<bot.nomnomz.dashboard.core.network.ConsentRecord> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ConsentRecord())
-
-    override suspend fun withdrawConsent(consentType: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-}
-
-private class FakeFileBridge(private val accept: Boolean = true) :
-    bot.nomnomz.dashboard.core.io.JournalFileIO {
-    var savedName: String? = null
-    var savedBytes: ByteArray? = null
-
-    override suspend fun saveFile(suggestedName: String, bytes: ByteArray): Boolean {
-        savedName = suggestedName
-        savedBytes = bytes
-        return accept
-    }
-
-    override suspend fun pickFile(): bot.nomnomz.dashboard.core.io.PickedFile? = null
+    override suspend fun profile(channelId: String, userId: String): ApiResult<ViewerProfileSummary> =
+        ApiResult.Failure(ApiError(404, "NOT_FOUND", "no profile"))
 }

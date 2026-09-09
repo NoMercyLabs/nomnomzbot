@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Domain.Stream.Entities;
@@ -129,6 +130,62 @@ public sealed class ShoutoutOverrideConfigurationTests : IAsyncDisposable
         // The fix narrows uniqueness to include Kind — it must not have widened it away entirely. A true
         // duplicate (same broadcaster, target AND kind) is still rejected at the database.
         await Assert.ThrowsAsync<DbUpdateException>(() => _db.SaveChangesAsync());
+    }
+
+    /// <summary>
+    /// Owner punch list 2026-09-08 §3: "confirm live whether shoutout/raid overrides are genuinely
+    /// per-person... one older code note describes the entity as per-channel, not per-viewer." Checked
+    /// against the real key: <see cref="ShoutoutOverride.BroadcasterId"/> IS the leading column of the
+    /// unique index and of every read (<c>ModerationController</c> always filters by it), so the SAME
+    /// target Twitch user id gets a genuinely INDEPENDENT row — and independent message text — per
+    /// broadcaster. The old code note was stale; nothing here needed fixing.
+    /// </summary>
+    [Fact]
+    public async Task TheSameTargetPerson_GetsIndependentOverrides_PerBroadcaster()
+    {
+        const string sameTargetAcrossChannels = "773007254";
+        Guid broadcasterA = Guid.NewGuid();
+        Guid broadcasterB = Guid.NewGuid();
+
+        _db.ShoutoutOverrides.Add(
+            new ShoutoutOverride
+            {
+                BroadcasterId = broadcasterA,
+                TargetTwitchUserId = sameTargetAcrossChannels,
+                TargetDisplayName = "Viewer One",
+                MessageTemplate = "Channel A's own line for Viewer One",
+                Kind = ShoutoutOverrideKinds.Shoutout,
+            }
+        );
+        _db.ShoutoutOverrides.Add(
+            new ShoutoutOverride
+            {
+                BroadcasterId = broadcasterB,
+                TargetTwitchUserId = sameTargetAcrossChannels,
+                TargetDisplayName = "Viewer One",
+                MessageTemplate = "Channel B's DIFFERENT line for the same viewer",
+                Kind = ShoutoutOverrideKinds.Shoutout,
+            }
+        );
+        await _db.SaveChangesAsync();
+
+        // Both rows persist independently — the unique index (BroadcasterId, TargetTwitchUserId, Kind) does
+        // NOT collapse them, proving the row is keyed per (channel, viewer), not per viewer alone.
+        List<ShoutoutOverride> both = await _db
+            .ShoutoutOverrides.AsNoTracking()
+            .Where(o => o.TargetTwitchUserId == sameTargetAcrossChannels)
+            .ToListAsync();
+        both.Should().HaveCount(2);
+
+        // A read scoped to broadcaster A (the real lookup shape every controller action uses) sees ONLY
+        // A's own line — B's edit never leaks across the channel boundary.
+        ShoutoutOverride? seenByA = await _db
+            .ShoutoutOverrides.AsNoTracking()
+            .FirstOrDefaultAsync(o =>
+                o.BroadcasterId == broadcasterA && o.TargetTwitchUserId == sameTargetAcrossChannels
+            );
+        seenByA.Should().NotBeNull();
+        seenByA!.MessageTemplate.Should().Be("Channel A's own line for Viewer One");
     }
 }
 

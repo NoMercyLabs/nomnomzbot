@@ -35,6 +35,15 @@ public class Quote : SoftDeletableEntity, ITenantScoped
     [MaxLength(100)]
     public string? QuotedDisplayName { get; set; }
 
+    /// <summary>
+    /// The local <see cref="User"/> this quote is attributed to, when the quoted display name resolved to a
+    /// known chatter at add time (owner punch list 2026-09-08 §3). Nullable: <see cref="QuotedDisplayName"/>
+    /// is free text and quotes predating this column — and quotes for someone who has never chatted here —
+    /// have no resolvable user. Never backfilled for old rows; set going forward wherever a quote is added
+    /// against a known chatter.
+    /// </summary>
+    public Guid? UserId { get; set; }
+
     /// <summary>Game/category at the time the line was said.</summary>
     [MaxLength(100)]
     public string? ContextGame { get; set; }
@@ -47,4 +56,7 @@ public class Quote : SoftDeletableEntity, ITenantScoped
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
+
+    [ForeignKey(nameof(UserId))]
+    public virtual User? User { get; set; }
 }

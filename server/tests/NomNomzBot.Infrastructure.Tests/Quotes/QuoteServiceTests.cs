@@ -378,4 +378,164 @@ public sealed class QuoteServiceTests
         Result<PagedList<QuoteDto>> listA = await reader.ListAsync(channelA, new(null), new(1, 25));
         listA.Value.Items.Should().ContainSingle().Which.Text.Should().Be("a-one");
     }
+
+    // ── UserId resolution (owner punch list 2026-09-08 §3 — quotes gain a real per-user FK) ──────
+
+    private static async Task<Guid> SeedChatterAsync(
+        QuoteSqliteTestDatabase database,
+        Guid channelId,
+        string username,
+        string displayName
+    )
+    {
+        Guid userId = Guid.CreateVersion7();
+        string twitchId = Guid.CreateVersion7().ToString("N")[..12];
+        await using QuoteTestDbContext db = database.NewContext();
+        db.Users.Add(
+            new()
+            {
+                Id = userId,
+                TwitchUserId = twitchId,
+                Username = username,
+                UsernameNormalized = username.ToLowerInvariant(),
+                DisplayName = displayName,
+            }
+        );
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7().ToString(),
+                BroadcasterId = channelId,
+                UserId = twitchId,
+                Username = username,
+                DisplayName = displayName,
+                UserType = "viewer",
+                Message = "hello chat",
+            }
+        );
+        await db.SaveChangesAsync();
+        return userId;
+    }
+
+    /// <summary>
+    /// A quote added with a QuotedDisplayName matching a real chatter of THIS channel gets a resolved
+    /// UserId — the FK the owner punch list added, set going forward at add time.
+    /// </summary>
+    [Fact]
+    public async Task AddAsync_ResolvesUserId_WhenQuotedDisplayNameMatchesAKnownChatter()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid stoneyId = await SeedChatterAsync(database, channel, "stoney_eagle", "Stoney_Eagle");
+        RecordingEventBus bus = new();
+
+        Result<QuoteDto> created;
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteService service = NewService(db, bus);
+            created = await service.AddAsync(
+                channel,
+                new("blame the lag", "Stoney_Eagle", null, null, null)
+            );
+        }
+
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        created
+            .Value.UserId.Should()
+            .Be(stoneyId, "the display name resolved to a real channel chatter");
+
+        await using QuoteTestDbContext reader = database.NewContext();
+        Quote stored = await reader.Quotes.SingleAsync(q => q.BroadcasterId == channel);
+        stored
+            .UserId.Should()
+            .Be(stoneyId, "the FK must actually be persisted, not just returned in the DTO");
+    }
+
+    /// <summary>
+    /// A QuotedDisplayName with no matching chatter in THIS channel — including a same-named user who only
+    /// ever chatted in a DIFFERENT channel — leaves UserId null rather than guessing.
+    /// </summary>
+    [Fact]
+    public async Task AddAsync_LeavesUserIdNull_WhenTheDisplayNameMatchesNoChatterOfThisChannel()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channelA = await SeedChannelAsync(database);
+        Guid channelB = await SeedChannelAsync(database);
+        // "Alice" only ever chatted in channel B.
+        await SeedChatterAsync(database, channelB, "alice", "Alice");
+        RecordingEventBus bus = new();
+
+        Result<QuoteDto> created;
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteService service = NewService(db, bus);
+            created = await service.AddAsync(
+                channelA,
+                new("said by a stranger", "Alice", null, null, null)
+            );
+        }
+
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        created
+            .Value.UserId.Should()
+            .BeNull(
+                "Alice never chatted in channel A — a same-named stranger elsewhere must never be guessed"
+            );
+    }
+
+    /// <summary>A quote with no QuotedDisplayName at all has nothing to resolve — UserId stays null.</summary>
+    [Fact]
+    public async Task AddAsync_LeavesUserIdNull_WhenNoQuotedDisplayNameWasGiven()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        RecordingEventBus bus = new();
+
+        Result<QuoteDto> created;
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteService service = NewService(db, bus);
+            created = await service.AddAsync(
+                channel,
+                new("anonymous wisdom", null, null, null, null)
+            );
+        }
+
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        created.Value.UserId.Should().BeNull();
+    }
+
+    /// <summary><c>ListByUserAsync</c> pages only the quotes actually resolved-attributed to that person.</summary>
+    [Fact]
+    public async Task ListByUserAsync_ReturnsOnlyQuotesResolvedToThatPerson()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid stoneyId = await SeedChatterAsync(database, channel, "stoney_eagle", "Stoney_Eagle");
+        RecordingEventBus bus = new();
+
+        await using (QuoteTestDbContext db = database.NewContext())
+        {
+            QuoteService service = NewService(db, bus);
+            await service.AddAsync(channel, new("by stoney one", "Stoney_Eagle", null, null, null));
+            await service.AddAsync(channel, new("by stoney two", "Stoney_Eagle", null, null, null));
+            await service.AddAsync(channel, new("attributed to nobody", null, null, null, null));
+        }
+
+        await using QuoteTestDbContext reader = database.NewContext();
+        QuoteService readerService = NewService(reader, bus);
+        Result<PagedList<QuoteDto>> byUser = await readerService.ListByUserAsync(
+            channel,
+            stoneyId,
+            new(1, 25)
+        );
+
+        byUser.IsSuccess.Should().BeTrue(byUser.ErrorMessage);
+        byUser.Value.TotalCount.Should().Be(2);
+        byUser
+            .Value.Items.Should()
+            .OnlyContain(q => q.UserId == stoneyId)
+            .And.Contain(q => q.Text == "by stoney one")
+            .And.Contain(q => q.Text == "by stoney two");
+    }
 }

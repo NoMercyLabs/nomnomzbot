@@ -123,4 +123,8 @@ data class Quote(
     val contextGame: String? = null,
     val quotedAt: String? = null,
     val createdAt: String = "",
+    // The resolved local User this quote is attributed to (backend `QuoteDto.UserId`, owner punch list
+    // 2026-09-08 §3) — null for a quote whose `quotedDisplayName` never resolved to a known chatter. Powers
+    // "quotes by this person" on the Community Profile page (see [ViewerProfileSummary.recentQuotes]).
+    val userId: String? = null,
 )

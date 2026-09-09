@@ -35,6 +35,20 @@ interface ModerationApi {
     /** The channel's recent moderator action log — newest first (bans / timeouts / unbans / deletes / etc.). */
     suspend fun modLog(channelId: String): ApiResult<List<ModLogEntry>>
 
+    /**
+     * The channel's browsable, filterable moderation-history log (owner punch list 2026-09-08 §12) — every
+     * ban/timeout/unban/warn/note, newest first, real-server-paginated ([page]/[pageSize]) and narrowed by
+     * [filter]. Distinct from [modLog] (an unfiltered recent-N feed): this is the log the Moderation History
+     * page's filters and pager query directly, against the backend's own paging (never a client-side slice
+     * of one big fetch).
+     */
+    suspend fun history(
+        channelId: String,
+        page: Int,
+        pageSize: Int = 25,
+        filter: ModerationHistoryFilter = ModerationHistoryFilter(),
+    ): ApiResult<PaginatedEnvelope<ModerationHistoryEntry>>
+
     /** Whether emergency Shield Mode is active for the channel. */
     suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus>
 
@@ -160,6 +174,27 @@ interface ModerationApi {
 
     /** Delete note [noteId]. */
     suspend fun deleteNote(channelId: String, noteId: String): ApiResult<Unit>
+
+    /**
+     * One person's full, browsable moderation history within this channel — every ban/timeout/unban/warn/note,
+     * newest first, paginated (`GET /moderation/history/{userId}`, owner punch list 2026-09-08 §3/§12). [userId]
+     * is the internal `User.Id` Guid ([ViewerIdentity.userId]). Backs the Community Profile page's "full log"
+     * link — the SAME per-action log the Moderation History page browses for the whole channel, never a second
+     * copy of it.
+     */
+    suspend fun historyForUser(
+        channelId: String,
+        userId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ModerationHistoryPage>
+
+    /**
+     * Adds a manual, non-enforcement note to [userId]'s moderation history — a moderator leaving context with no
+     * matching Twitch action (`POST /moderation/history/{userId}/notes`). Distinct from [createNote]/[UserNote]
+     * (the mod-team's free-text notes list): this lands as a dated row IN the history log itself.
+     */
+    suspend fun addHistoryNote(channelId: String, userId: String, note: String): ApiResult<ModerationHistoryEntry>
 
     /**
      * Send a chat announcement to [channelId]. [color] is one of `"blue"`, `"green"`, `"orange"`, `"purple"`,
@@ -356,6 +391,25 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
 
+    // The history log is also a flat PaginatedResponse (moderation/history), read with getDirect like the mod
+    // log — but the WHOLE envelope (hasMore/nextPage) is returned here rather than just `.data`, since the
+    // History page drives real prev/next paging off it (never a client-side slice of one big fetch).
+    override suspend fun history(
+        channelId: String,
+        page: Int,
+        pageSize: Int,
+        filter: ModerationHistoryFilter,
+    ): ApiResult<PaginatedEnvelope<ModerationHistoryEntry>> =
+        client.getDirect(
+            buildString {
+                append("api/v1/channels/$channelId/moderation/history?page=$page&pageSize=$pageSize")
+                filter.subjectUserId?.let { append("&userId=").append(it.encodeURLQueryComponent()) }
+                filter.fromUtc?.let { append("&from=").append(it.encodeURLQueryComponent()) }
+                filter.toUtc?.let { append("&to=").append(it.encodeURLQueryComponent()) }
+                filter.actionType?.let { append("&actionType=").append(it.encodeURLQueryComponent()) }
+            }
+        )
+
     // Shield mode is a single-value StatusResponseDto envelope ({ data: { enabled } }), so getEnvelope reads it.
     override suspend fun shieldMode(channelId: String): ApiResult<ShieldStatus> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/shield")
@@ -490,6 +544,27 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
 
     override suspend fun deleteNote(channelId: String, noteId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/moderation/notes/$noteId")
+
+    // A flat PaginatedResponse (`{ data, hasMore, nextPage, total }`), like the mod log — getDirect.
+    override suspend fun historyForUser(
+        channelId: String,
+        userId: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<ModerationHistoryPage> =
+        client.getDirect(
+            "api/v1/channels/$channelId/moderation/history/${userId.encodeURLPathPart()}?page=$page&take=$pageSize"
+        )
+
+    override suspend fun addHistoryNote(
+        channelId: String,
+        userId: String,
+        note: String,
+    ): ApiResult<ModerationHistoryEntry> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/moderation/history/${userId.encodeURLPathPart()}/notes",
+            AddHistoryNoteBody(note = note),
+        )
 
     // The POST body is a ChatController.AnnounceRequest (message, color?); the backend calls Helix on the tenant's behalf.
     override suspend fun announce(channelId: String, message: String, color: String?): ApiResult<Unit> =
@@ -805,6 +880,64 @@ data class ModLogEntry(
     val timestamp: String = "",
     val duration: Int? = null,
 )
+
+/**
+ * The person / date-range / kind narrowing for the browsable moderation-history log (backend
+ * `ModerationHistoryQuery`) — every field optional; an all-null filter is the whole channel log, matching the
+ * default view. [subjectUserId] is the internal `User.Id` (a Guid) the backend filters on, NOT a Twitch id —
+ * resolve a picked viewer to it first (`ModerationController.setHistorySubjectFilter` does this via
+ * `CommunityApi.member(...).internalUserId`). [fromUtc]/[toUtc] are `yyyy-MM-dd` dates; [actionType] is one of
+ * [ModerationHistoryActionTypes].
+ */
+data class ModerationHistoryFilter(
+    val subjectUserId: String? = null,
+    val fromUtc: String? = null,
+    val toUtc: String? = null,
+    val actionType: String? = null,
+)
+
+/**
+ * One row of the channel's browsable moderation-history log (backend `ModerationHistoryEntryDto`) — every
+ * ban/timeout/unban/warn/note, newest first (owner punch list 2026-09-08 §12). Distinct from
+ * [ModerationActionLog] (the per-user rap-sheet rollup shown in the mod panel) and [ModLogEntry] (the
+ * unfiltered recent-N feed): this is the full paginated, filterable row the Moderation History page browses.
+ * Also backs the Community Profile page's per-person log (filtered to one [subjectUserId]) — the same rows,
+ * never duplicated as two different shapes.
+ */
+@Serializable
+data class ModerationHistoryEntry(
+    val id: String = "",
+    val subjectUserId: String = "",
+    val subjectTwitchUserId: String = "",
+    val actionType: String = "",
+    val moderatorUserId: String? = null,
+    val moderatorDisplayName: String? = null,
+    val reason: String? = null,
+    val durationSeconds: Int? = null,
+    val occurredAt: String = "",
+)
+
+/**
+ * The closed set of [ModerationHistoryEntry.actionType] values the backend's `ModerationHistoryEntryKinds`
+ * declares. Not every kind has a live producer today — [DeleteMessage]/[FilterHit]/[ReportValidated] are
+ * reserved in the schema but nothing writes them yet (verified against `ModerationProjectionHandlers.cs` /
+ * `AutoModerationHandler.cs` — only ban/timeout/unban/warn/automod_denied/note are ever emitted); the filter
+ * dropdown still offers all nine so a real backend fill-in for the reserved three needs no frontend change.
+ */
+object ModerationHistoryActionTypes {
+    const val Ban: String = "ban"
+    const val Timeout: String = "timeout"
+    const val Warn: String = "warn"
+    const val Unban: String = "unban"
+    const val DeleteMessage: String = "delete_message"
+    const val AutoModDenied: String = "automod_denied"
+    const val FilterHit: String = "filter_hit"
+    const val ReportValidated: String = "report_validated"
+    const val Note: String = "note"
+
+    val All: List<String> =
+        listOf(Ban, Timeout, Warn, Unban, DeleteMessage, AutoModDenied, FilterHit, ReportValidated, Note)
+}
 
 /**
  * A viewer's per-user moderation rap sheet (backend `UserModerationContextDto`). The counts + recent actions are
@@ -1159,6 +1292,19 @@ data class UserTrustSummary(
     val heatScore: Double = 0.0,
     val computedAt: String = "",
 )
+
+/** One page of the moderation history log (backend `PaginatedResponse<ModerationHistoryEntryDto>`). */
+@Serializable
+data class ModerationHistoryPage(
+    val data: List<ModerationHistoryEntry> = emptyList(),
+    val nextPage: Int? = null,
+    val hasMore: Boolean = false,
+    val total: Int? = null,
+)
+
+/** Request body to add a manual history note (backend `AddModerationNoteRequest`). */
+@Serializable
+data class AddHistoryNoteBody(val note: String)
 
 /**
  * One platform identity's bot-side standing (backend `ModerationStandingDto`, J.12). [standing] is one of
