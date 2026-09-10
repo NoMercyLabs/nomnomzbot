@@ -131,4 +131,7 @@ private class UnreachableObsApi : ObsApi {
         error("unreachable")
     override suspend fun setStreaming(channelId: String, action: Int): ApiResult<Unit> = error("unreachable")
     override suspend fun setRecording(channelId: String, action: Int): ApiResult<Unit> = error("unreachable")
+    override suspend fun setReplayBuffer(channelId: String, action: Int): ApiResult<Unit> = error("unreachable")
+    override suspend fun saveReplayBuffer(channelId: String): ApiResult<Unit> = error("unreachable")
+    override suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit> = error("unreachable")
 }

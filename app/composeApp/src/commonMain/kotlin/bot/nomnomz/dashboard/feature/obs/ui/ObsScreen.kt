@@ -103,12 +103,16 @@ import nomnomzbot.composeapp.generated.resources.obs_mode_label
 import nomnomzbot.composeapp.generated.resources.obs_no_scenes
 import nomnomzbot.composeapp.generated.resources.obs_not_reachable
 import nomnomzbot.composeapp.generated.resources.obs_not_reachable_detail
+import nomnomzbot.composeapp.generated.resources.obs_outputs_label
 import nomnomzbot.composeapp.generated.resources.obs_password_hint
 import nomnomzbot.composeapp.generated.resources.obs_password_label
 import nomnomzbot.composeapp.generated.resources.obs_password_stored
 import nomnomzbot.composeapp.generated.resources.obs_port_label
 import nomnomzbot.composeapp.generated.resources.obs_recording_start
 import nomnomzbot.composeapp.generated.resources.obs_recording_stop
+import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_save
+import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_start
+import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_stop
 import nomnomzbot.composeapp.generated.resources.obs_retry
 import nomnomzbot.composeapp.generated.resources.obs_save
 import nomnomzbot.composeapp.generated.resources.obs_input_row_type
@@ -120,6 +124,7 @@ import nomnomzbot.composeapp.generated.resources.obs_status_error
 import nomnomzbot.composeapp.generated.resources.obs_streaming_start
 import nomnomzbot.composeapp.generated.resources.obs_streaming_stop
 import nomnomzbot.composeapp.generated.resources.obs_subtitle
+import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_toggle
 import nomnomzbot.composeapp.generated.resources.shell_nav_obs
 import org.jetbrains.compose.resources.stringResource
 
@@ -205,6 +210,9 @@ fun ObsScreen(
                         onSwitchScene = { scene -> scope.launch { controller.switchScene(scene) } },
                         onToggleStreaming = { scope.launch { controller.toggleStreaming() } },
                         onToggleRecording = { scope.launch { controller.toggleRecording() } },
+                        onToggleReplayBuffer = { scope.launch { controller.toggleReplayBuffer() } },
+                        onSaveReplayBuffer = { scope.launch { controller.saveReplayBuffer() } },
+                        onToggleVirtualCam = { scope.launch { controller.toggleVirtualCam() } },
                         // The retry re-reads EVERYTHING (bridge status + setup + probe + live), not just live — a
                         // bridge that just came online is reflected here, not only after a full page reload.
                         onRefresh = { scope.launch { controller.refresh() } },
@@ -408,6 +416,9 @@ private fun ControlCard(
     onSwitchScene: (String) -> Unit,
     onToggleStreaming: () -> Unit,
     onToggleRecording: () -> Unit,
+    onToggleReplayBuffer: () -> Unit,
+    onSaveReplayBuffer: () -> Unit,
+    onToggleVirtualCam: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -504,6 +515,40 @@ private fun ControlCard(
                                 if (live.state.recording) stringResource(Res.string.obs_recording_stop)
                                 else stringResource(Res.string.obs_recording_start)
                         )
+                    }
+                }
+            }
+
+            Separator()
+
+            // Replay buffer / virtual cam — neither is broadcast-impacting (nothing a viewer sees changes), so
+            // both gate at the control floor and stay Outline throughout: streaming already carries the page's
+            // one primary accent, and these are secondary controls next to it, never a second competing accent.
+            // Virtual cam has no OBS-WS status query today, so it is a single stateless toggle, not a start/stop
+            // pair like the others.
+            Text(text = stringResource(Res.string.obs_outputs_label), style = typography.sm, color = tokens.mutedForeground)
+            ManageGate(decision = controlManage) { gateEnabled ->
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Button(
+                        onClick = onToggleReplayBuffer,
+                        enabled = gateEnabled,
+                        variant = if (live.state.replayBufferActive) ButtonVariant.Destructive else ButtonVariant.Outline,
+                    ) {
+                        Text(
+                            text =
+                                if (live.state.replayBufferActive) stringResource(Res.string.obs_replay_buffer_stop)
+                                else stringResource(Res.string.obs_replay_buffer_start)
+                        )
+                    }
+                    Button(
+                        onClick = onSaveReplayBuffer,
+                        enabled = gateEnabled && live.state.replayBufferActive,
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(text = stringResource(Res.string.obs_replay_buffer_save))
+                    }
+                    Button(onClick = onToggleVirtualCam, enabled = gateEnabled, variant = ButtonVariant.Outline) {
+                        Text(text = stringResource(Res.string.obs_virtual_cam_toggle))
                     }
                 }
             }

@@ -33,6 +33,9 @@ import kotlinx.serialization.Serializable
 //   POST   /api/v1/channels/{channelId}/obs/scene                 →  StatusResponseDto<ObsResponse>
 //   POST   /api/v1/channels/{channelId}/obs/streaming             →  StatusResponseDto<ObsResponse>
 //   POST   /api/v1/channels/{channelId}/obs/recording             →  StatusResponseDto<ObsResponse>
+//   POST   /api/v1/channels/{channelId}/obs/replay-buffer         →  StatusResponseDto<ObsResponse>
+//   POST   /api/v1/channels/{channelId}/obs/replay-buffer/save    →  StatusResponseDto<ObsResponse>
+//   POST   /api/v1/channels/{channelId}/obs/virtual-cam           →  StatusResponseDto<ObsResponse>
 interface ObsApi {
     /** The channel's OBS connection config (mode / host / port / password + bridge-token flags, enablement). */
     suspend fun connection(channelId: String): ApiResult<ObsConnection>
@@ -79,6 +82,15 @@ interface ObsApi {
 
     /** Control the recording output ([action]: see [ObsRecordAction]). */
     suspend fun setRecording(channelId: String, action: Int): ApiResult<Unit>
+
+    /** Control the replay buffer ([action]: 0 = start, 1 = stop, 2 = toggle — see [ObsToggle]). */
+    suspend fun setReplayBuffer(channelId: String, action: Int): ApiResult<Unit>
+
+    /** Save the last replay-buffer clip to disk. */
+    suspend fun saveReplayBuffer(channelId: String): ApiResult<Unit>
+
+    /** Control the virtual camera output ([action]: 0 = start, 1 = stop, 2 = toggle — see [ObsToggle]). */
+    suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit>
 }
 
 class RestObsApi(private val client: ApiClient) : ObsApi {
@@ -133,6 +145,15 @@ class RestObsApi(private val client: ApiClient) : ObsApi {
 
     override suspend fun setRecording(channelId: String, action: Int): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/obs/recording", ObsRecordBody(action = action))
+
+    override suspend fun setReplayBuffer(channelId: String, action: Int): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/obs/replay-buffer", ObsToggleBody(action = action))
+
+    override suspend fun saveReplayBuffer(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/obs/replay-buffer/save")
+
+    override suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/obs/virtual-cam", ObsToggleBody(action = action))
 }
 
 /**

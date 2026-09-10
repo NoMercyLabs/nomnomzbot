@@ -22,10 +22,12 @@ import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
 import bot.nomnomz.dashboard.core.network.ObsScene
 import bot.nomnomz.dashboard.core.network.ObsState
+import bot.nomnomz.dashboard.core.network.ObsToggle
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubObsLiveState
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -94,6 +96,54 @@ class ObsControllerTest {
         assertFalse(state.state.streaming, "a push for another channel must never reload this one")
         subscription.cancel()
     }
+
+    // S-PL5b: the "server has it, UI didn't" outputs — replay buffer (start/stop/save) and virtual cam. These
+    // prove the state holder sends the RIGHT action for the RIGHT current state, all the way through to the
+    // [ObsApi] call — not just that a button exists.
+
+    @Test
+    fun toggle_replay_buffer_starts_it_when_not_active() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState(replayBufferActive = false))
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.toggleReplayBuffer()
+
+        assertEquals(ObsToggle.Start, obsApi.lastReplayBufferAction)
+    }
+
+    @Test
+    fun toggle_replay_buffer_stops_it_when_active() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState(replayBufferActive = true))
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.toggleReplayBuffer()
+
+        assertEquals(ObsToggle.Stop, obsApi.lastReplayBufferAction)
+    }
+
+    @Test
+    fun save_replay_buffer_calls_the_api_and_refreshes_live_state() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState(replayBufferActive = true))
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.saveReplayBuffer()
+
+        assertTrue(obsApi.replayBufferSaveCalled)
+    }
+
+    @Test
+    fun toggle_virtual_cam_always_sends_the_stateless_toggle_action() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.toggleVirtualCam()
+
+        assertEquals(ObsToggle.Toggle, obsApi.lastVirtualCamAction)
+    }
 }
 
 private class FixedChannelChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -118,6 +168,9 @@ private class FixedChannelChannelsApi(private val result: ApiResult<ChannelSumma
 /** An [ObsApi] whose [state] read reflects [currentState] live, so a re-read after mutating it proves a reload happened. */
 private class RecordingObsApi(initial: ObsState) : ObsApi {
     var currentState: ObsState = initial
+    var lastReplayBufferAction: Int? = null
+    var replayBufferSaveCalled: Boolean = false
+    var lastVirtualCamAction: Int? = null
 
     override suspend fun connection(channelId: String): ApiResult<ObsConnection> = ApiResult.Ok(ObsConnection())
     override suspend fun upsertConnection(channelId: String, body: UpsertObsConnectionBody): ApiResult<ObsConnection> =
@@ -136,4 +189,19 @@ private class RecordingObsApi(initial: ObsState) : ObsApi {
         error("not used by this test")
     override suspend fun setStreaming(channelId: String, action: Int): ApiResult<Unit> = error("not used by this test")
     override suspend fun setRecording(channelId: String, action: Int): ApiResult<Unit> = error("not used by this test")
+
+    override suspend fun setReplayBuffer(channelId: String, action: Int): ApiResult<Unit> {
+        lastReplayBufferAction = action
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun saveReplayBuffer(channelId: String): ApiResult<Unit> {
+        replayBufferSaveCalled = true
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit> {
+        lastVirtualCamAction = action
+        return ApiResult.Ok(Unit)
+    }
 }

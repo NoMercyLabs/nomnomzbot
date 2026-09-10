@@ -206,6 +206,30 @@ class ObsController(
         afterLiveAction(obsApi.setRecording(id, if (recording) ObsRecordAction.Stop else ObsRecordAction.Start))
     }
 
+    /** Start or stop the replay buffer based on the current live flag; then re-read live state. */
+    suspend fun toggleReplayBuffer() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        val active: Boolean = (_state.value as? ObsUiState.Ready)?.live?.state?.replayBufferActive == true
+        afterLiveAction(obsApi.setReplayBuffer(id, if (active) ObsToggle.Stop else ObsToggle.Start))
+    }
+
+    /** Save the last replay-buffer clip to disk; then re-read live state. */
+    suspend fun saveReplayBuffer() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.saveReplayBuffer(id))
+    }
+
+    /**
+     * Toggle the virtual camera. Unlike streaming/recording/replay-buffer, OBS-WS exposes no status query for
+     * this output today, so there is no "current" flag to flip off of — this always sends [ObsToggle.Toggle] and
+     * lets OBS itself decide the resulting state; then re-reads live state (which does not yet reflect virtual
+     * cam, but keeps the rest of the page in sync with anything else that changed).
+     */
+    suspend fun toggleVirtualCam() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setVirtualCam(id, ObsToggle.Toggle))
+    }
+
     // ── internals ────────────────────────────────────────────────────────────
 
     // The truthful reachability read: PROBE first. The passive state read returns a graceful empty 200 even when

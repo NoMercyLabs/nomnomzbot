@@ -4136,6 +4136,11 @@
     <string name="obs_streaming_stop">Streamen stoppen</string>
     <string name="obs_recording_start">Opname starten</string>
     <string name="obs_recording_stop">Opname stoppen</string>
+    <string name="obs_outputs_label">Overige uitvoer</string>
+    <string name="obs_replay_buffer_start">Replaybuffer starten</string>
+    <string name="obs_replay_buffer_stop">Replaybuffer stoppen</string>
+    <string name="obs_replay_buffer_save">Replay opslaan</string>
+    <string name="obs_virtual_cam_toggle">Virtuele camera omschakelen</string>
     <string name="obs_mixer_title">Audiomixer</string>
     <string name="obs_mixer_desc">Demp en stel het niveau van elke OBS-audio-invoer in.</string>
     <string name="obs_mixer_empty">Geen audio-invoeren gerapporteerd.</string>
