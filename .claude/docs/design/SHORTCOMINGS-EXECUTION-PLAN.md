@@ -40,19 +40,21 @@ concurrent, disjoint files only).
       check whether reauth is writing a NEW row while lookups still resolve the OLD one, before
       assuming a scope/token problem.
 - [ ] **S-PL5 split (2026-09-10):**
-  - **S-PL5a** (dispatched) State desync: dashboard live-control doesn't know the streamer is already
-    streaming/recording. Anchors: `ObsUiState`/`ObsController.kt` (app), `ObsBridgeStateBroadcastHandler.cs`
-    + `ObsControlService.cs` (server).
+  - ~~**S-PL5a** State desync~~ — CLOSED `b5a8c449`: `DirectObsTransport` probes real stream/record
+    state on (re)connect, publishes `ObsConnectionEstablishedEvent`, pushed to the dashboard via
+    `ObsConnectionEstablishedBroadcastHandler` → `ObsLiveStateChanged` hub event → `ObsController`
+    reload. Verified.
   - **S-PL5b** Full OBS feature set on the dashboard's live-control surface — today's surface is a
     subset (scene switch + whatever else already exists in `ObsApi.kt`/`ObsControlService.cs`); needs
     a real inventory of the obs-websocket surface this codebase already wraps vs. what's exposed in UI
     (sources, mute state, transitions, replay buffer, virtual cam, studio mode, stats — audit before
-    building). Own slice, after S-PL5a.
+    building). Own slice, now unblocked.
   - **S-PL5c** New Stream Deck plugin for OBS control, parity with the existing Spotify plugin
     (`tools/streamdeck/`) — "work the same way as the music controls." Needs S-PL5b's feature inventory
     decided first (a Stream Deck action per exposed control), so it runs after, not parallel.
-- [ ] **S-PL6** 7TV name-paint (color) needs its own global on/off toggle next to the existing 7TV
-      emote toggle (same settings surface, chat-decoration config).
+- ~~[ ] **S-PL6**~~ CLOSED `0b1df4e8`: `showSevenTvPaints` sibling toggle to the emote toggle, gates
+      `chat_box.vue`'s name-paint rendering; surfaced via the generic schema-driven settings form, no
+      new Compose UI needed. Verified.
 - [ ] **S-PL7** Some dashboard pages still have broken overflow/squashed content — owner wants ONE
       shared scroll/panel layout across every page (aaoa's convention). Needs a page-by-page sweep
       against whatever the design system's canonical scroll-container pattern already is
