@@ -12,7 +12,7 @@ work only). A slice may be split further while executing, never merged. 🔒 = n
 skip it and continue. Persona priority (owner): streamer → moderator of many → viewer.
 
 **Ordering rule (owner, 2026-08-22): stabilize the CURRENT feature set first; merge new code only
-where a fix requires it; add the new stuff after.** Phases: ~~0-S security first (COMPLETE 2026-08-23)~~ · 0 truth-and-safety · 1 runtime stability ·
+where a fix requires it; add the new stuff after.** Phases: 0 truth-and-safety · 1 runtime stability ·
 2 existing platforms made to work (minimal spine) · 3 form infrastructure · 4 existing-feature truth/
 reach · 5 new model (one channel, many platforms; any login) · 6 new features + personas · 7 polish.
 Slice IDs are stable; the order is the queue.
@@ -323,14 +323,6 @@ overlay (entry `index.vue`, language `vue`), so all four content kinds author th
 editor. Settings schema and event subscriptions were asserted to still round-trip beside it — a silent
 regression there would have broken widget publishing.
 
-~~- [ ] **S-ADMIN-2 Platform content authoring — the owner's explicit ask.**~~ Author and edit, at platform
-      level, with versioning and a stated propagation outcome per publish: **system commands** (the
-      `DefaultCommandsSeeder` set), **first-party widgets** (the `FirstPartyWidgetCatalogueSeeder` gallery,
-      with its Vue source and its render gallery), **system pipelines** (the raid flows and event-response
-      defaults, in the real tree-model pipeline editor — not a second, worse editor), and **code scripts**
-      (sandboxed, with the same VS Code-web editor and typed SDK the tenant surface gets). Done-when: a
-      default command can be fixed, published, and its effect on an untouched tenant AND a customised tenant
-      both demonstrated on the rendered client.
 **S-ADMIN-4a CLOSED (`d191bc3e`, label + contract follow-up `365392eb`).** Tiers and prices are
 authored from the admin plane: the edit persists and writes an audit entry, the blast-radius preview
 returns the real counted number of tenants on the tier, and an apply carrying a stale confirmed count
