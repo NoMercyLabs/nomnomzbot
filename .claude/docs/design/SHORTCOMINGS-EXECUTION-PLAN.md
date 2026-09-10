@@ -1487,7 +1487,21 @@ later.)
   twice on stream. Sanity-checked by disabling the exclusion and watching that test and the presence
   check go red, so neither is vacuous. Every pre-existing `_reaches_a_subscribed_widget_` test across
   the eleven broadcasters still passes unmodified.
-  Still open: moderation retraction (§2a) cancelling a queued-but-undelivered entry.
+  **Scope correction (2026-09-10):** re-checked against the code, not just this line — `§2a` (the
+  WHOLE retraction mechanism: `OverlayContentRetractedEvent`, `OverlayModerationRetractionHandler`,
+  `IOverlayClient.Retract`, and all five surface obligations — TTS/Chat/Alert/Sound/Custom widgets)
+  is **entirely unbuilt**, not just the queued-alert-cancellation edge. Grep for `Retract` across
+  `server/src` returns nothing. This is too large for one slice; split before dispatch:
+  - **S-RETRACT-a** Domain event + hub plumbing: `OverlayContentRetractedEvent`, `RetractPayload`,
+    `IOverlayClient.Retract`, `OverlayModerationRetractionHandler` subscribing to message-deleted /
+    user-timeout / user-ban / mod-retract, pushed on the same connection as the content it cancels
+    (spec `widgets-overlays.md` §2a). Every other sub-slice depends on this landing first.
+  - **S-RETRACT-b** Chat + Alert surfaces honour it (remove the message node / cancel an on-screen or
+    queued `AlertQueueEntry` — this is where the original "queued-but-undelivered" note lives).
+  - **S-RETRACT-c** TTS surface (`tts.md` §3.4a — stop mid-sentence, drop matching queued utterances).
+  - **S-RETRACT-d** Sound clip + custom-widget SDK surfaces (`widget-sdk.md` — the SDK's chat/alert
+    helpers retract automatically; a bespoke widget reading raw events must retain `SourceMessageId`
+    to correlate).
 - **S071** Notification centre + Home — action-required inbox (dead tokens, missing scopes, failed
   timers, held messages, pending unbans) with click-through; Home hero tile + collapsed activity feed
   + first-run next steps (U·B6, K). Done-when: a dead Spotify token is visible on Home within a minute.
