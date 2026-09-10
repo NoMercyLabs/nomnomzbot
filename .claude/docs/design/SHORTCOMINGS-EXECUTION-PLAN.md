@@ -44,10 +44,11 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       input list, hotkey list) — judged lower value than replay buffer/virtual cam for a streamer's
       live-control surface, so deferred rather than built in S-PL5b. `SetRecording` also only sends
       Start/Stop/Toggle though `RecordAction` supports Pause/Resume/Split.
-- [ ] **S-STREAMDECK-OBS-REMAINDER** `obs_replay_buffer`/`obs_virtual_cam` Stream Deck keys (backend
-      action types already auto-provisioning-eligible, just needs manifest entries); a scene/input
-      dropdown picker (current property inspector is free-text); live icon state (mute/streaming/
-      recording tile feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
+- [ ] **S-STREAMDECK-OBS-REMAINDER** Replay-buffer/virtual-cam keys shipped (`44aa4e1e`+`64a902e7`,
+      48/48 tests green including real instantiated-class proofs — icons are placeholders, reusing
+      `record-start.svg`/`device.svg` pending real OBS-themed art). Still open: a scene/input dropdown
+      picker (current property inspector is free-text); live icon state (mute/streaming/recording tile
+      feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
 - [ ] **S-STREAMDECK-ACTION-TESTS** CLOSED the underlying gap (`617c2c81`): vitest transformed `.ts` via
       oxc, which parsed but never down-leveled `@action(...)`'s TC39 stage-3 decorator syntax — Node has
       no native runtime support for it at all. `vitest.config.ts` now runs the real `tsc` (matching the
