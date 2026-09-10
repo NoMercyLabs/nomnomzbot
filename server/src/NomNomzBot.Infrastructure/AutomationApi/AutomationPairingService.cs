@@ -407,7 +407,7 @@ public class AutomationPairingService : IAutomationPairingService
             );
         }
         if (issued.IsSuccess && IsStreamDeck(device.Kind))
-            await EnsureMusicActionPipelinesAsync(broadcasterId, ct);
+            await EnsureStreamDeckActionPipelinesAsync(broadcasterId, ct);
 
         return issued;
     }
@@ -415,40 +415,75 @@ public class AutomationPairingService : IAutomationPairingService
     private static bool IsStreamDeck(string deviceKind) =>
         string.Equals(deviceKind.Trim(), StreamDeckDeviceKind, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Action-type prefixes the NomNomzBot Stream Deck plugin's manifest keys invoke by name —
+    /// "NomNomzBot: Music" (22 actions) plus "NomNomzBot: OBS" (S-PL5c: scene switch, mute toggle,
+    /// stream/record start-stop-toggle, riding the SAME <c>obs_switch_scene</c> / <c>obs_input_mute</c> /
+    /// <c>obs_streaming</c> / <c>obs_recording</c> actions the dashboard pipeline builder already has —
+    /// no new ICommandAction types, just new manifest keys invoking them with a fixed verb). A future
+    /// device kind invoking a different action family adds its prefix here, not a new method.</summary>
+    private static readonly string[] StreamDeckActionPrefixes = ["music_", "obs_"];
+
     /// <summary>
-    /// Auto-provisions D7's remaining gap: one single-step pipeline per registered <c>music_*</c> action,
-    /// named identically to its <see cref="ICommandAction.ActionType"/>. The Stream Deck plugin invokes
-    /// pipelines BY NAME (automation-api.md §3 <c>AutomationInvokeRequest.PipelineName</c>) assuming a
-    /// pipeline matching each of its 22 manifest actions already exists — this makes that true on first
-    /// pairing, with zero manual dashboard setup. Derives the action list from the live
-    /// <see cref="ICommandAction"/> registry rather than a hardcoded string list, so a future <c>music_*</c>
-    /// action is auto-provisioned too. Idempotent: skips any name that's already taken.
+    /// Auto-provisions D7's remaining gap: one single-step pipeline per registered action whose
+    /// <see cref="ICommandAction.ActionType"/> starts with one of <see cref="StreamDeckActionPrefixes"/>,
+    /// named identically to that action type. The Stream Deck plugin invokes pipelines BY NAME
+    /// (automation-api.md §3 <c>AutomationInvokeRequest.PipelineName</c>) assuming a pipeline matching
+    /// each of its manifest actions already exists — this makes that true on first pairing, with zero
+    /// manual dashboard setup. Derives the action list from the live <see cref="ICommandAction"/>
+    /// registry rather than a hardcoded string list, so a future action under an existing prefix is
+    /// auto-provisioned too. Idempotent: skips any name that's already taken.
+    ///
+    /// Each parameterized field is seeded with a literal <c>"{fieldName}"</c> placeholder (S-PL5c fix):
+    /// every action under these two prefixes resolves such a placeholder against
+    /// <c>PipelineExecutionContext.Variables</c> at execute time (<c>MusicTransferDeviceAction.ResolveStringParam</c>,
+    /// <c>MusicSetVolumeAction.ResolveIntParam</c>, <c>ObsActionBase.Param</c>/<c>TryRequire</c> all share this
+    /// convention) — and <c>AutomationClient.invoke</c> (the Stream Deck plugin's only call site) sends the
+    /// key's own Settings as exactly that variables dict. Before this, an auto-provisioned step carried NO
+    /// Parameters at all, so a key's own setting (which OBS scene, which input, start vs. stop) never
+    /// reached the action — every parameterized Stream Deck key silently acted on an empty/default value.
+    /// Actions with no <see cref="ICommandAction.Fields"/> (most music_* transport keys, obs_switch_scene's
+    /// scene aside) are unaffected: no fields, no placeholders, same shape as before.
     /// </summary>
-    private async Task EnsureMusicActionPipelinesAsync(Guid broadcasterId, CancellationToken ct)
+    private async Task EnsureStreamDeckActionPipelinesAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
     {
-        string[] musicActionTypes =
-        [
-            .. _actions
-                .Select(a => a.ActionType)
-                .Where(t => t.StartsWith("music_", StringComparison.Ordinal))
-                .Distinct(),
-        ];
-        if (musicActionTypes.Length == 0)
+        Dictionary<string, ICommandAction> eligible = new(StringComparer.Ordinal);
+        foreach (ICommandAction candidate in _actions)
+        {
+            if (
+                StreamDeckActionPrefixes.Any(prefix =>
+                    candidate.ActionType.StartsWith(prefix, StringComparison.Ordinal)
+                )
+            )
+                eligible.TryAdd(candidate.ActionType, candidate);
+        }
+        if (eligible.Count == 0)
             return;
 
+        string[] actionTypes = [.. eligible.Keys];
         HashSet<string> existingNames = (
             await _db
                 .Pipelines.Where(p =>
-                    p.BroadcasterId == broadcasterId && musicActionTypes.Contains(p.Name)
+                    p.BroadcasterId == broadcasterId && actionTypes.Contains(p.Name)
                 )
                 .Select(p => p.Name)
                 .ToListAsync(ct)
         ).ToHashSet(StringComparer.Ordinal);
 
-        foreach (string actionType in musicActionTypes)
+        foreach ((string actionType, ICommandAction action) in eligible)
         {
             if (existingNames.Contains(actionType))
                 continue;
+
+            Dictionary<string, JsonElement>? parameters = null;
+            if (action.Fields is { Count: > 0 })
+            {
+                parameters = new(StringComparer.Ordinal);
+                foreach (PipelineActionFieldDescriptor field in action.Fields)
+                    parameters[field.Name] = JsonSerializer.SerializeToElement($"{{{field.Name}}}");
+            }
 
             _db.Pipelines.Add(
                 new()
@@ -462,7 +497,13 @@ public class AutomationPairingService : IAutomationPairingService
                     GraphJsonCache = JsonSerializer.Serialize(
                         new PipelineDefinition
                         {
-                            Steps = [new() { Action = new() { Type = actionType } }],
+                            Steps =
+                            [
+                                new()
+                                {
+                                    Action = new() { Type = actionType, Parameters = parameters },
+                                },
+                            ],
                         }
                     ),
                 }

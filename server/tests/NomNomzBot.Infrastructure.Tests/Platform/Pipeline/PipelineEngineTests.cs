@@ -132,7 +132,7 @@ public class InfraPipelineEngineTests
     // ─── Automation auto-provisioned pipelines ───────────────────────────────
 
     /// <summary>
-    /// Proves the exact GraphJsonCache shape AutomationPairingService.EnsureMusicActionPipelinesAsync
+    /// Proves the exact GraphJsonCache shape AutomationPairingService.EnsureStreamDeckActionPipelinesAsync
     /// writes for each auto-provisioned Stream Deck pipeline — {"steps":[{"action":{"type":"music_..."}}]}
     /// via JsonSerializer.Serialize(PipelineDefinition) — is not just valid JSON but actually reaches and
     /// runs a real ICommandAction through the real engine. This is the layer the DTO-level pairing tests

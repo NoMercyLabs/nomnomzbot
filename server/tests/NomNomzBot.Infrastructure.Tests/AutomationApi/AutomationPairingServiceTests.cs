@@ -122,10 +122,14 @@ public sealed class AutomationPairingServiceTests
     private static DeviceInfo StreamDeckPlugin(string? name = "Office Deck") =>
         new() { Kind = "streamdeck", Name = name };
 
-    private static ICommandAction FakeAction(string type)
+    private static ICommandAction FakeAction(
+        string type,
+        IReadOnlyList<PipelineActionFieldDescriptor>? fields = null
+    )
     {
         ICommandAction action = Substitute.For<ICommandAction>();
         action.ActionType.Returns(type);
+        action.Fields.Returns(fields ?? []);
         return action;
     }
 
@@ -289,6 +293,92 @@ public sealed class AutomationPairingServiceTests
         pipelines.Should().HaveCount(2, "only the music_* actions get a pipeline, not chat_send");
         pipelines.Select(p => p.Name).Should().BeEquivalentTo(["music_play", "music_pause"]);
         pipelines.Should().OnlyContain(p => p.GraphJsonCache!.Contains("\"type\":\"music_"));
+    }
+
+    /// <summary>S-PL5c: the "NomNomzBot: OBS" Stream Deck actions ride the same auto-provisioning as
+    /// music_*, alongside it (both prefixes at once) — not a separate mechanism, and not exclusive of
+    /// each other on one device. Invokes the SAME obs_switch_scene/obs_input_mute the dashboard pipeline
+    /// builder already has (obs-control.md §5), not bespoke Stream-Deck-only action types.</summary>
+    [Fact]
+    public async Task Pairing_a_stream_deck_auto_provisions_one_pipeline_per_obs_action_too()
+    {
+        Harness h = Build(
+            actions:
+            [
+                FakeAction("music_play"),
+                FakeAction("obs_switch_scene"),
+                FakeAction("obs_input_mute"),
+                FakeAction("chat_send"),
+            ]
+        );
+        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
+            Channel,
+            Operator,
+            new() { DeviceLabel = "Studio Deck" }
+        );
+
+        await h.Service.RedeemCodeAsync(
+            minted.Value.Code,
+            StreamDeckPlugin(),
+            "203.0.113.7",
+            Backend
+        );
+
+        List<Domain.Commands.Entities.Pipeline> pipelines = await h
+            .Db.Pipelines.Where(p => p.BroadcasterId == Channel)
+            .ToListAsync();
+        pipelines
+            .Should()
+            .HaveCount(3, "music_* and obs_* actions both get a pipeline, not chat_send");
+        pipelines
+            .Select(p => p.Name)
+            .Should()
+            .BeEquivalentTo(["music_play", "obs_switch_scene", "obs_input_mute"]);
+    }
+
+    /// <summary>
+    /// S-PL5c fix: before this, the auto-provisioned step carried NO Parameters at all, so a
+    /// parameterized action (which OBS scene, which input) could never learn the Stream Deck key's own
+    /// setting — <c>ObsActionBase.Param</c>/<c>TryRequire</c> (and the equivalent music_* helpers) only
+    /// resolve a variable when the step's OWN field value is the literal placeholder <c>"{fieldName}"</c>.
+    /// Proves the provisioned step now carries exactly that placeholder for every declared field, so
+    /// <c>AutomationClient.invoke</c>'s <c>variables</c> dict (the key's Settings) actually reaches the action.
+    /// </summary>
+    [Fact]
+    public async Task Auto_provisioned_pipelines_seed_a_variable_placeholder_for_every_declared_field()
+    {
+        Harness h = Build(
+            actions:
+            [
+                FakeAction(
+                    "obs_switch_scene",
+                    fields: [new("scene", PipelineActionFieldKind.ResourceId, Required: true)]
+                ),
+            ]
+        );
+        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
+            Channel,
+            Operator,
+            new() { DeviceLabel = "Studio Deck" }
+        );
+
+        await h.Service.RedeemCodeAsync(
+            minted.Value.Code,
+            StreamDeckPlugin(),
+            "203.0.113.7",
+            Backend
+        );
+
+        Domain.Commands.Entities.Pipeline pipeline = await h.Db.Pipelines.SingleAsync(p =>
+            p.BroadcasterId == Channel
+        );
+        pipeline
+            .GraphJsonCache.Should()
+            .Contain(
+                "\"scene\":\"{scene}\"",
+                "the field's value must be the literal placeholder so ObsActionBase.Param resolves it "
+                    + "from the invoke's variables dict at execute time"
+            );
     }
 
     [Fact]
