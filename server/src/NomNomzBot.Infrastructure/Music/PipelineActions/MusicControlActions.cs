@@ -221,6 +221,92 @@ public sealed class MusicPreviousAction : ICommandAction
     }
 }
 
+/// <summary>
+/// Generic "play one track now" primitive (owner ask: a go-live intro song on the starting-soon
+/// screen, a raid-start song — the SAME reusable step, not a bespoke action per trigger). Plays
+/// <see cref="ActionResult"/>-configured <c>track_uri</c> immediately via
+/// <see cref="IMusicService.PlayTrackOnceAsync"/> (pushes onto the provider's own queue then skips to
+/// it — never touches the song-request fair queue), first capturing whatever was already playing so
+/// <see cref="PlayOnceResumeHandler"/> can put it back exactly where it left off once this track is
+/// over.
+///
+/// Usage example:
+///   { "type": "play_track_once", "track_uri": "spotify:track:4uLU6hMCjMI75M1A2tKUQC" }
+/// </summary>
+public sealed class MusicPlayTrackOnceAction : ICommandAction
+{
+    private readonly IMusicService _music;
+    private readonly IPlayOnceResumeTracker _resumeTracker;
+
+    public string ActionType => "play_track_once";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.play_track_once.description");
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new(
+                "track_uri",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.play_track_once.track_uri.help")
+            ),
+        ];
+
+    public MusicPlayTrackOnceAction(IMusicService music, IPlayOnceResumeTracker resumeTracker)
+    {
+        _music = music;
+        _resumeTracker = resumeTracker;
+    }
+
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
+        string trackUri = MusicTransferDeviceAction.ResolveStringParam(
+            action,
+            "track_uri",
+            ctx.Variables
+        );
+        if (string.IsNullOrWhiteSpace(trackUri))
+            return ActionResult.Failure("play_track_once requires a non-empty 'track_uri'");
+
+        string broadcasterId = ctx.BroadcasterId.ToString();
+
+        // Capture the ambient context BEFORE interrupting it — the ONLY point this is ever knowable,
+        // since PlayTrackOnceAsync below is about to replace it.
+        NowPlaying? prior = await _music.GetNowPlayingAsync(broadcasterId, ctx.CancellationToken);
+        _resumeTracker.Remember(
+            ctx.BroadcasterId,
+            new PlayOnceResumeState(
+                trackUri,
+                prior?.TrackUri,
+                prior?.ProgressMs ?? 0,
+                prior?.IsPlaying ?? false
+            )
+        );
+
+        Result result = await _music.PlayTrackOnceAsync(
+            broadcasterId,
+            trackUri,
+            ctx.CancellationToken
+        );
+        if (result.IsFailure)
+        {
+            // Nothing actually started — don't leave a resume armed for an interruption that never
+            // happened; the next real state change must not be misread as "this track finished".
+            _resumeTracker.TryTake(ctx.BroadcasterId, out _);
+            return ActionResult.Failure(
+                result.ErrorCode ?? result.ErrorMessage ?? "failed to play the track"
+            );
+        }
+
+        return ActionResult.Success($"playing: {trackUri}");
+    }
+}
+
 public sealed class MusicSetVolumeAction : ICommandAction
 {
     private readonly IMusicService _music;

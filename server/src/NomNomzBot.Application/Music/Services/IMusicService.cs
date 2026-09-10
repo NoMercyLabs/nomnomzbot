@@ -102,6 +102,24 @@ public interface IMusicService
     );
 
     /// <summary>
+    /// Plays <paramref name="trackUri"/> immediately, WITHOUT touching the song-request fair queue and
+    /// without replacing whatever playback context (playlist/album) the provider currently has loaded:
+    /// pushes the track onto the provider's own live queue (the same primitive
+    /// <see cref="AddToQueueAsync"/>'s admission path pushes to the provider) then immediately
+    /// <see cref="SkipAsync">skips</see> to it — the provider's context keeps playing from wherever it
+    /// left off once this track (or whatever plays after it) ends, instead of being replaced outright.
+    /// The generic "play one track now" pipeline primitive (go-live intro, raid start, any other
+    /// automation) — reusable anywhere a pipeline needs to interrupt playback for exactly one track.
+    /// Fails <c>VALIDATION_FAILED</c> on a blank track, <c>SERVICE_UNAVAILABLE</c> with no active
+    /// provider, <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c> per music-sr.md §3.1.
+    /// </summary>
+    Task<Result> PlayTrackOnceAsync(
+        string broadcasterId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// A fast, possibly-a-few-seconds-stale read of whether the channel is currently playing, backed by
     /// the same warm cache <see cref="GetNowPlayingAsync"/> keeps fresh on every real read (poller
     /// cadence for an actively streaming channel). Null when there is no fresh enough cached reading —

@@ -731,6 +731,14 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        // The poller never calls this member (see class summary) — stubbed only to satisfy
+        // IMusicService, same as every other unreachable member on this fake.
+        public Task<Result> PlayTrackOnceAsync(
+            string broadcasterId,
+            string trackUri,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<MusicQueue> GetQueueAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default

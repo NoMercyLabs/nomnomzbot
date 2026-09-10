@@ -356,6 +356,13 @@ public static class DependencyInjection
         services.AddSingleton<Application.Chat.Services.IChatColorMemory, ChatColorMemory>();
         // Per-channel pre-mute volume memory so unmute restores the real prior level (cache-only). Stateless → singleton.
         services.AddSingleton<Application.Music.Services.IMuteVolumeMemory, MuteVolumeMemory>();
+        // Per-channel memory of an in-flight play_track_once interruption, so PlayOnceResumeHandler can put
+        // the prior playback context back once the interrupting track is over (cache-only). Singleton — must
+        // outlive the scoped pipeline-action execution that wrote it.
+        services.AddSingleton<
+            Application.Music.Services.IPlayOnceResumeTracker,
+            PlayOnceResumeTracker
+        >();
         // The song-request queue must outlive the scoped MusicService instance that mutates it — one instance
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
