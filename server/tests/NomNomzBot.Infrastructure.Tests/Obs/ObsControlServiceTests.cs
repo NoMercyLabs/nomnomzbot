@@ -178,6 +178,53 @@ public sealed class ObsControlServiceTests
     }
 
     [Fact]
+    public async Task Switch_scene_succeeds_whether_or_not_the_target_is_already_active()
+    {
+        // Models real obs-websocket behavior: SetCurrentProgramScene is a plain "set" request — it
+        // validates the scene exists, then applies it (obs_frontend_set_current_scene). OBS never
+        // compares against the scene that's already active, so requesting the CURRENT scene answers
+        // requestStatus.result = true exactly like requesting any other valid scene — it's a genuine
+        // no-op at the protocol level, not something this codebase needs to special-case.
+        string currentScene = "Starting Soon";
+        Harness h = Build(request =>
+        {
+            if (request.RequestType == "SetCurrentProgramScene")
+            {
+                currentScene = (string)request.RequestData!["sceneName"]!;
+                return new ObsResponse(true, null, null);
+            }
+            return request.RequestType == "GetCurrentProgramScene"
+                ? new(
+                    true,
+                    new Dictionary<string, object?> { ["currentProgramSceneName"] = currentScene },
+                    null
+                )
+                : new ObsResponse(true, null, null);
+        });
+        ObsSwitchSceneAction action = new(h.Service);
+        PipelineExecutionContext ctx = NewContext();
+
+        // Regression: switching to a DIFFERENT scene still succeeds.
+        ActionResult toDifferent = await action.ExecuteAsync(
+            ctx,
+            Definition("""{ "type": "obs_switch_scene", "scene": "Live" }""")
+        );
+        toDifferent.Succeeded.Should().BeTrue(toDifferent.ErrorMessage);
+        currentScene.Should().Be("Live");
+
+        // The go-live pipeline needs to land on "Starting Soon" and be forgiving if it's already
+        // there — switching to the scene that's ALREADY active must also succeed, not surface as a
+        // pipeline-execution error.
+        ActionResult toAlreadyActive = await action.ExecuteAsync(
+            ctx,
+            Definition("""{ "type": "obs_switch_scene", "scene": "Live" }""")
+        );
+        toAlreadyActive.Succeeded.Should().BeTrue(toAlreadyActive.ErrorMessage);
+        ctx.Variables.Should().NotContainKey("obs.last_error");
+        h.Requests.Count(r => r.RequestType == "SetCurrentProgramScene").Should().Be(2);
+    }
+
+    [Fact]
     public async Task A_failed_obs_call_lands_in_obs_last_error()
     {
         Harness h = Build(_ => new(false, null, "output already active"));
