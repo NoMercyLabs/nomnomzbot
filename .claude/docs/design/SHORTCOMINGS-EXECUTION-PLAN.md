@@ -58,9 +58,21 @@ concurrent, disjoint files only).
       `GetSceneItemList`, `GetSceneTransitionList`, `GetSourceFilterList` are genuinely NOT implemented
       server-side at all — real obs-websocket protocol gaps in `ObsControlService`, not just wiring.
     - `SetRecording` only sends Start/Stop/Toggle though `RecordAction` also supports Pause/Resume/Split.
-  - **S-PL5c** New Stream Deck plugin for OBS control, parity with the existing Spotify plugin
-    (`tools/streamdeck/`) — "work the same way as the music controls." S-PL5b's inventory is now
-    decided (a Stream Deck action per exposed control) — unblocked.
+  - ~~**S-PL5c** Stream Deck OBS plugin~~ — CLOSED `b72c491c`: 8 new keys (Switch Scene, Toggle Mute,
+    Start/Stop/Toggle Streaming, Start/Stop/Toggle Recording), built via the automation-invoke pipeline
+    mechanism (the real integration point — not the REST controller directly, the original brief's
+    premise was wrong here and self-corrected). Found and fixed a real cross-cutting bug along the way
+    (`5eba6182`): an auto-provisioned Stream Deck pipeline carried no `Parameters`, so pressing an
+    EXISTING key silently defaulted several music actions to 0/empty/false — fixed for every
+    placeholder-seeded action; the two stragglers (`music_set_shuffle`/`music_set_repeat`, a different
+    code path) fixed separately in `5f8ad377`. Verified.
+    **S-PL5c follow-up, not built:** `obs_replay_buffer`/`obs_virtual_cam` Stream Deck keys (backend
+    action types already auto-provisioning-eligible, just needs manifest entries); a scene/input
+    dropdown picker (current property inspector is free-text); live icon state (mute/streaming/recording
+    tile feedback — no OBS equivalent of music's `song.changed` WS push exists yet). Also noted:
+    `tools/streamdeck`'s vitest setup cannot import ANY `@action(...)`-decorated file at all (reproduced
+    on the already-shipped `play.ts`) — no action-level test has ever been possible here, for music or
+    OBS; a real gap in this project's own test infra, not scoped to this slice.
 - ~~[ ] **S-PL6**~~ CLOSED `0b1df4e8`: `showSevenTvPaints` sibling toggle to the emote toggle, gates
       `chat_box.vue`'s name-paint rendering; surfaced via the generic schema-driven settings form, no
       new Compose UI needed. Verified.
