@@ -19,6 +19,53 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER PUNCH LIST 2026-09-10 (jump the queue, dispatched immediately)
+
+Owner's own words, verbatim, each triaged below. Dispatch top to bottom as slots free up (cap ~3
+concurrent, disjoint files only).
+
+- [ ] **S-PL1** All used overlay widgets show an error on the dashboard. Needs live repro first
+      (which page, which widget, the actual error text/status) — dispatch an investigate-and-fix
+      slice against the Widgets dashboard screen + its `GET .../widgets` list load path.
+- [ ] **S-PL2** TTS per-viewer voice: cannot set a user's voice, and cannot search for a voice that
+      exists (works on another page, so the voice catalogue itself is fine — this is a wiring/UI gap
+      in the per-viewer TTS screen, not a missing backend voice list).
+- [ ] **S-PL3** "Take control" on a Twitch reward returns 400 instead of onboarding the reward —
+      `RewardsController`/`TwitchChannelPointsApi` import/claim path; needs a proper guided flow, not
+      a bare error.
+- [ ] **S-PL4** Discord integration 401s everywhere (notification channel setup, live-role setup),
+      even immediately after a fresh reauth. Strong lead: the "reconnect creates a second live
+      IntegrationConnection row, dashboard reads the stale one" defect class already hit this exact
+      area before (handoff history 2026-07-13/07-18, same "Discord request failed (401)" symptom) —
+      check whether reauth is writing a NEW row while lookups still resolve the OLD one, before
+      assuming a scope/token problem.
+- [ ] **S-PL5** OBS live control: not aware the streamer is already live/recording (state desync);
+      owner wants the FULL OBS feature set exposed, both on the dashboard's live-control surface and
+      as a Stream Deck plugin (parity with the existing Spotify Stream Deck plugin —
+      `tools/streamdeck/`). Large — split into dashboard-state-sync, dashboard-full-feature-set, and
+      Stream Deck plugin sub-slices before dispatch.
+- [ ] **S-PL6** 7TV name-paint (color) needs its own global on/off toggle next to the existing 7TV
+      emote toggle (same settings surface, chat-decoration config).
+- [ ] **S-PL7** Some dashboard pages still have broken overflow/squashed content — owner wants ONE
+      shared scroll/panel layout across every page (aaoa's convention). Needs a page-by-page sweep
+      against whatever the design system's canonical scroll-container pattern already is
+      (`frontend-design-system.md`) — systemic, not a one-file fix.
+- [ ] **S-PL8** `!skip N` currently skips the CURRENTLY PLAYING song; it should instead remove song N
+      from the requester's own queued entries, never touch what's playing now. Song-request queue
+      pipeline action / command.
+- [ ] **S-PL9 + S-PL11 (same underlying ask, build ONE generic action):** a pipeline action that
+      plays one specific track immediately without disturbing the current Spotify autoplay
+      queue/playlist — owner wants it in the go-live pipeline (an intro song on the "starting soon"
+      screen) AND wants the raid-start pipeline to optionally do the same (same or a different song),
+      as a customizable step available in any pipeline/script, not hardcoded to one trigger. Generic
+      primitive, not two bespoke ones ([[generic-primitives-not-bespoke-features]]).
+- [ ] **S-PL10** The go-live pipeline action that switches OBS to the "starting soon" scene should be
+      idempotent/forgiving — if already on that scene, it must not error or fight the current state.
+
+**Not yet dispatched** — this list was just triaged; see ledger for what has actually been picked up.
+
+---
+
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
 
 Owner's chat, 22:01-22:02, with the ids checked against Spotify's own API:
