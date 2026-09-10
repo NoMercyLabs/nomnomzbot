@@ -24,21 +24,20 @@ Slice IDs are stable; the order is the queue.
 Owner's own words, verbatim, each triaged below. Dispatch top to bottom as slots free up (cap ~3
 concurrent, disjoint files only).
 
-- [ ] **S-PL1** All used overlay widgets show an error on the dashboard. Needs live repro first
-      (which page, which widget, the actual error text/status) — dispatch an investigate-and-fix
-      slice against the Widgets dashboard screen + its `GET .../widgets` list load path.
+- ~~[ ] **S-PL1**~~ CLOSED `358a27f4`: `ClearRuntimeErrorAsync` on `IWidgetService`/`WidgetService`,
+      called from `OverlayHub` on a browser source's (re)connect, clears a stale recorded runtime
+      error so a working overlay stops showing a permanent error badge on the dashboard. Verified.
 - ~~[ ] **S-PL2**~~ CLOSED `4e148a52`: per-viewer voice picker now searches the live catalogue (not a
       cached first page) and an Assign action persists the pick; verified full-tree `jvmTest` green
       after `92e2fc34` fixed an unrelated duplicate-JVM-class break from the S-PL5a commit.
-- [ ] **S-PL3** "Take control" on a Twitch reward returns 400 instead of onboarding the reward —
-      `RewardsController`/`TwitchChannelPointsApi` import/claim path; needs a proper guided flow, not
-      a bare error.
-- [ ] **S-PL4** Discord integration 401s everywhere (notification channel setup, live-role setup),
-      even immediately after a fresh reauth. Strong lead: the "reconnect creates a second live
-      IntegrationConnection row, dashboard reads the stale one" defect class already hit this exact
-      area before (handoff history 2026-07-13/07-18, same "Discord request failed (401)" symptom) —
-      check whether reauth is writing a NEW row while lookups still resolve the OLD one, before
-      assuming a scope/token problem.
+- ~~[ ] **S-PL3**~~ CLOSED `d5e85cea`: a reward Twitch rejects because it wasn't created via the bot's
+      own client id (so it can't be API-managed) now parks as a distinct `MIGRATION_PENDING_EXTERNAL_REMOVAL`
+      state instead of forwarding Twitch's raw 400; the external reward's own fields are left untouched
+      and no stray local row is inserted. Verified.
+- ~~[ ] **S-PL4**~~ CLOSED `c534b773`: guild REST calls (notification channels, live role) now
+      authenticate with the platform's static bot token (`DISCORD_BOT_TOKEN`) instead of the per-user
+      OAuth access_token Discord's guild endpoints reject regardless of reauth; a missing bot token now
+      fails closed with a distinct code instead of a raw 401. Verified.
 - [ ] **S-PL5 split (2026-09-10):**
   - ~~**S-PL5a** State desync~~ — CLOSED `b5a8c449`: `DirectObsTransport` probes real stream/record
     state on (re)connect, publishes `ObsConnectionEstablishedEvent`, pushed to the dashboard via
