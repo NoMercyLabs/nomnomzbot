@@ -49,6 +49,13 @@ sealed interface HubEvent {
     data class ObsBridgeStateChanged(val state: HubObsBridgeState) : HubEvent
 
     /**
+     * The channel's OBS WebSocket connection (re)established, carrying the REAL current stream/record
+     * status read right then — so a session already live/recording when the bot (re)connects shows up
+     * immediately instead of only after a future start/stop event.
+     */
+    data class ObsLiveStateChanged(val state: HubObsLiveState) : HubEvent
+
+    /**
      * A channel's configuration changed in some domain — a command added, a timer edited, a quote
      * deleted — by ANY operator or by the bot itself. The backend has always broadcast this; the client
      * used to drop it as [Unknown], which is why a page kept showing stale rows until it was reloaded.
@@ -85,6 +92,7 @@ sealed interface HubEvent {
                     "ChannelEvent" -> ChannelEvent(json.decodeFromString(first))
                     "PermissionChanged" -> PermissionChanged(json.decodeFromString(first))
                     "ObsBridgeStateChanged" -> ObsBridgeStateChanged(json.decodeFromString(first))
+                    "ObsLiveStateChanged" -> ObsLiveStateChanged(json.decodeFromString(first))
                     "ConfigChanged" -> ConfigChanged(json.decodeFromString(first))
                     "RewardChanged" -> RewardChanged(json.decodeFromString(first))
                     "automod_queue_changed" -> AutoModQueueChanged(json.decodeFromString(first))
@@ -306,6 +314,19 @@ data class HubObsBridgeState(
     val broadcasterId: String = "",
     val instanceCount: Int = 0,
     val hasLeader: Boolean = false,
+    val timestamp: String = "",
+)
+
+/**
+ * Pushed when the channel's OBS WebSocket connection (re)establishes (backend `ObsLiveStateDto`):
+ * the REAL current stream/record status read right then, so a pre-existing live/recording session
+ * shows up on the OBS page immediately instead of only after a future start/stop event.
+ */
+@Serializable
+data class HubObsLiveState(
+    val broadcasterId: String = "",
+    val streaming: Boolean = false,
+    val recording: Boolean = false,
     val timestamp: String = "",
 )
 

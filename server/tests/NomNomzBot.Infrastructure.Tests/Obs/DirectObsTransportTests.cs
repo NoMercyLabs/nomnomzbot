@@ -158,12 +158,14 @@ public sealed class DirectObsTransportTests
         Harness h = Build(withPassword: true);
         QueueHandshake(h.Socket, withAuth: true);
 
-        // Reply to the request once it arrives so SendAsync completes.
+        // Reply to the request once it arrives so SendAsync completes. Connect fetches the real
+        // current stream/record state first (op 8) before the caller's own request goes out.
         Task<Result<ObsResponse>> send = h.Transport.SendAsync(
             Channel,
             Guid.CreateVersion7(),
             new("GetVersion", null)
         );
+        await ReplyToFirstBatchAsync(h.Socket, streamActive: false, recordActive: false);
         await ReplyToFirstRequestAsync(h.Socket, ok: true);
         Result<ObsResponse> result = await send.WaitAsync(TimeSpan.FromSeconds(20));
 
@@ -193,6 +195,7 @@ public sealed class DirectObsTransportTests
             Guid.CreateVersion7(),
             new("SetCurrentProgramScene", new Dictionary<string, object?> { ["sceneName"] = "BRB" })
         );
+        await ReplyToFirstBatchAsync(h.Socket, streamActive: false, recordActive: false);
         string requestId = await ReplyToFirstRequestAsync(
             h.Socket,
             ok: false,
@@ -204,7 +207,12 @@ public sealed class DirectObsTransportTests
         result.Value.Ok.Should().BeFalse();
         result.Value.Error.Should().Be("No source was found");
 
-        JsonElement sent = JsonDocument.Parse(h.Socket.Sent[1]).RootElement;
+        // The connect-time state-fetch batch (op 8) is a detached background task racing this test's own
+        // request on the wire — either can land first, so locate this request by its id rather than assume
+        // a fixed index into Sent.
+        JsonElement sent = JsonDocument
+            .Parse(h.Socket.Sent.Single(f => f.Contains("\"op\":6") && f.Contains(requestId)))
+            .RootElement;
         sent.GetProperty("op").GetInt32().Should().Be(6);
         sent.GetProperty("d").GetProperty("requestId").GetString().Should().Be(requestId);
         sent.GetProperty("d")
@@ -225,6 +233,7 @@ public sealed class DirectObsTransportTests
             Guid.CreateVersion7(),
             new("GetVersion", null)
         );
+        await ReplyToFirstBatchAsync(h.Socket, streamActive: false, recordActive: false);
         await ReplyToFirstRequestAsync(h.Socket, ok: true);
         await send.WaitAsync(TimeSpan.FromSeconds(20));
 
@@ -261,6 +270,96 @@ public sealed class DirectObsTransportTests
         );
         bridgeResult.IsFailure.Should().BeTrue();
         bridgeResult.ErrorCode.Should().Be("OBS_WRONG_MODE");
+    }
+
+    [Fact]
+    public async Task Connect_publishes_the_real_stream_and_record_state_when_OBS_is_already_live()
+    {
+        Harness h = Build();
+        QueueHandshake(h.Socket);
+
+        Task<Result<ObsResponse>> send = h.Transport.SendAsync(
+            Channel,
+            Guid.CreateVersion7(),
+            new("GetVersion", null)
+        );
+        // OBS answers the connect-time probe as ALREADY streaming and recording — a session that
+        // predates the bot's connection, so no StreamStateChanged/RecordStateChanged event will ever
+        // fire for it.
+        await ReplyToFirstBatchAsync(h.Socket, streamActive: true, recordActive: true);
+        await ReplyToFirstRequestAsync(h.Socket, ok: true);
+        (await send.WaitAsync(TimeSpan.FromSeconds(20))).IsSuccess.Should().BeTrue();
+
+        ObsConnectionEstablishedEvent published = await WaitForAsync(() =>
+            h.Bus.Published.OfType<ObsConnectionEstablishedEvent>().FirstOrDefault()
+        );
+        published.BroadcasterId.Should().Be(Channel);
+        published.Streaming.Should().BeTrue();
+        published.Recording.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_failed_connect_time_state_probe_never_fails_the_connect_or_publishes()
+    {
+        Harness h = Build();
+        QueueHandshake(h.Socket);
+
+        Task<Result<ObsResponse>> send = h.Transport.SendAsync(
+            Channel,
+            Guid.CreateVersion7(),
+            new("GetVersion", null)
+        );
+        await ReplyToFirstBatchAsync(h.Socket, ok: false);
+        await ReplyToFirstRequestAsync(h.Socket, ok: true);
+
+        (await send.WaitAsync(TimeSpan.FromSeconds(20)))
+            .IsSuccess.Should()
+            .BeTrue("a failed best-effort state probe must never block/fail the actual connect");
+        await Task.Delay(50);
+        h.Bus.Published.OfType<ObsConnectionEstablishedEvent>().Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// Waits for the connect-time op-8 state-fetch batch and replies op 9. A successful reply carries
+    /// [streamActive]/[recordActive] as each request's <c>outputActive</c>; <c>ok: false</c> answers
+    /// the whole batch as a failed OBS-WS request instead (the best-effort-probe-fails path).
+    /// </summary>
+    private static async Task<string> ReplyToFirstBatchAsync(
+        FakeObsSocket socket,
+        bool streamActive = false,
+        bool recordActive = false,
+        bool ok = true
+    )
+    {
+        string requestFrame = await WaitForAsync(() =>
+            socket.Sent.FirstOrDefault(f => f.Contains("\"op\":8"))
+        );
+        string requestId = JsonDocument
+            .Parse(requestFrame)
+            .RootElement.GetProperty("d")
+            .GetProperty("requestId")
+            .GetString()!;
+        string results = ok
+            ? $$"""
+                [
+                  { "requestType": "GetStreamStatus", "requestStatus": { "result": true, "code": 100 }, "responseData": { "outputActive": {{(
+                    streamActive ? "true" : "false"
+                )}} } },
+                  { "requestType": "GetRecordStatus", "requestStatus": { "result": true, "code": 100 }, "responseData": { "outputActive": {{(
+                    recordActive ? "true" : "false"
+                )}} } }
+                ]
+                """
+            : """
+                [
+                  { "requestType": "GetStreamStatus", "requestStatus": { "result": false, "code": 600, "comment": "not ready" } },
+                  { "requestType": "GetRecordStatus", "requestStatus": { "result": false, "code": 600, "comment": "not ready" } }
+                ]
+                """;
+        socket.QueueIncoming(
+            $$"""{ "op": 9, "d": { "requestId": "{{requestId}}", "results": {{results}} } }"""
+        );
+        return requestId;
     }
 
     /// <summary>Waits for the op-6 frame, replies op 7 with its request id, and returns that id.</summary>

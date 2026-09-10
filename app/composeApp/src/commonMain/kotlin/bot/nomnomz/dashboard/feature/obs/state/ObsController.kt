@@ -120,16 +120,22 @@ class ObsController(
     }
 
     /**
-     * Subscribe to hub events so the bridge indicator + live control reflect a browser-source connect/disconnect
-     * the instant it happens, not only on a manual refresh. On an [HubEvent.ObsBridgeStateChanged] for the active
-     * channel, re-read the page (bridge status + probe + live). The full-refresh-on-retry path stays as a fallback
-     * for surfaces without a live hub connection.
+     * Subscribe to hub events so the bridge indicator + live control reflect a browser-source connect/disconnect,
+     * or the OBS WebSocket connection (re)establishing, the instant it happens — not only on a manual refresh.
+     * [HubEvent.ObsBridgeStateChanged] and [HubEvent.ObsLiveStateChanged] (the latter fired the moment the direct
+     * OBS connection comes up, carrying the REAL current stream/record status so an already-live/recording session
+     * shows up immediately instead of waiting for a future start/stop event) both re-read the page for the active
+     * channel. The full-refresh-on-retry path stays as a fallback for surfaces without a live hub connection.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
-            if (evt is HubEvent.ObsBridgeStateChanged && evt.state.broadcasterId == channelId) {
-                refresh()
-            }
+            val matchesChannel: Boolean =
+                when (evt) {
+                    is HubEvent.ObsBridgeStateChanged -> evt.state.broadcasterId == channelId
+                    is HubEvent.ObsLiveStateChanged -> evt.state.broadcasterId == channelId
+                    else -> false
+                }
+            if (matchesChannel) refresh()
         }
     }
 

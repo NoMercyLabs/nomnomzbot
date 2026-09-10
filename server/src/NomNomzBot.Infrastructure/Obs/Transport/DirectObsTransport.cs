@@ -297,6 +297,28 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
                 config.LastConnectedAt = _clock.GetUtcNow().UtcDateTime;
                 config.LastError = null;
                 await db.SaveChangesAsync(ct);
+
+                // Detached, never awaited: this probe holds the SAME per-broadcaster connect gate this
+                // method is running under, so awaiting it inline would make every connect (and therefore
+                // the very first real command after it) wait on an extra OBS round-trip — one that, unlike
+                // every other request here, has no caller demanding an answer. "Best-effort" has to mean
+                // it can never slow down or block real traffic, not just that its own failure is swallowed.
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await PublishCurrentStateAsync(broadcasterId, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(
+                            ex,
+                            "OBS current-state probe failed for channel {Channel}.",
+                            broadcasterId
+                        );
+                    }
+                });
+
                 return Result.Success(session);
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
@@ -319,6 +341,46 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
             gate.Release();
         }
     }
+
+    /// <summary>
+    /// Right after the Identify handshake succeeds, actively asks OBS for its REAL current stream/record
+    /// status and publishes <see cref="ObsConnectionEstablishedEvent"/> — otherwise a session already
+    /// live/recording when the bot (re)connects stays invisible on the dashboard until the next actual
+    /// start/stop transition, since OBS-WS never replays a state-change event for history that predates
+    /// the connection. Best-effort: a failed probe here never fails the connect itself.
+    /// </summary>
+    private async Task PublishCurrentStateAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        Result<IReadOnlyList<ObsResponse>> batch = await SendBatchAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new([new("GetStreamStatus", null), new("GetRecordStatus", null)]),
+            ct
+        );
+        if (batch.IsFailure)
+            return;
+
+        // Only publish when OBS actually answered both probes — never assert a false "not live" from
+        // a request OBS itself rejected or didn't answer.
+        ObsResponse? streamStatus = batch.Value.ElementAtOrDefault(0);
+        ObsResponse? recordStatus = batch.Value.ElementAtOrDefault(1);
+        if (streamStatus is not { Ok: true } || recordStatus is not { Ok: true })
+            return;
+
+        await _eventBus.PublishAsync(
+            new ObsConnectionEstablishedEvent
+            {
+                BroadcasterId = broadcasterId,
+                OccurredAt = _clock.GetUtcNow(),
+                Streaming = GetBool(streamStatus, "outputActive"),
+                Recording = GetBool(recordStatus, "outputActive"),
+            },
+            ct
+        );
+    }
+
+    private static bool GetBool(ObsResponse? response, string key) =>
+        response?.ResponseData?.GetValueOrDefault(key) is bool and true;
 
     private async Task<ObsSession> ConnectAndIdentifyAsync(
         Guid broadcasterId,

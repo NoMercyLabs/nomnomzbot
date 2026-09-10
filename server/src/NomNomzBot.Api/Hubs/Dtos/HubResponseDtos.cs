@@ -167,6 +167,18 @@ public record ObsBridgeStateDto(
     string Timestamp
 );
 
+/// <summary>
+/// Pushed to the channel's dashboards when the OBS WebSocket connection (re)establishes, carrying the
+/// REAL current stream/record status read right then — so a session already live/recording when the
+/// bot (re)connects is reflected immediately, not only after a future start/stop event (obs-control.md §2).
+/// </summary>
+public record ObsLiveStateDto(
+    string BroadcasterId,
+    bool Streaming,
+    bool Recording,
+    string Timestamp
+);
+
 public record WidgetEventDto(string WidgetId, string EventType, object? Data);
 
 /// <summary>

@@ -32,3 +32,16 @@ public sealed class ObsBridgeStateChangedEvent : DomainEventBase
     public required bool HasLeader { get; init; }
     public string? LastError { get; init; }
 }
+
+/// <summary>
+/// The channel's direct OBS WebSocket connection was (re)established, carrying the REAL current
+/// stream/record status read right then via <c>GetStreamStatus</c>/<c>GetRecordStatus</c>
+/// (obs-control.md §2/§3.2/D1). OBS-WS never replays a <c>StreamStateChanged</c>/<c>RecordStateChanged</c>
+/// event for a session that predates the connection, so without this a pre-existing live/recording
+/// session stays invisible on the dashboard until the next actual start/stop transition.
+/// </summary>
+public sealed class ObsConnectionEstablishedEvent : DomainEventBase
+{
+    public required bool Streaming { get; init; }
+    public required bool Recording { get; init; }
+}
