@@ -93,6 +93,13 @@ public class OverlayHub : Hub<IOverlayClient>
                     w.Id == parsedWidgetId && w.BroadcasterId == broadcasterId
                 )
             : null;
+
+        // A real browser source just (re)connected — proof the widget is alive right now, so a fault stamped
+        // by a past session (S-PL1: e.g. a one-off autoplay block on first load) must not keep painting the
+        // dashboard row red forever. ReportRuntimeError re-stamps it below if the fault is still live.
+        if (widget is not null)
+            await _widgetService.ClearRuntimeErrorAsync(broadcasterId.ToString(), widgetId);
+
         return new(true, null, widget?.Settings);
     }
 

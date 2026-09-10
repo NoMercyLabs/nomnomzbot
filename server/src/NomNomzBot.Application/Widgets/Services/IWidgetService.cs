@@ -161,6 +161,18 @@ public interface IWidgetService
     );
 
     /// <summary>
+    /// The success-side counterpart to <see cref="RecordRuntimeErrorAsync"/>: clears a stamped
+    /// <c>LastRuntimeError</c> and stamps <c>LastRanAt</c>, so a widget whose browser source has since
+    /// (re)connected cleanly stops showing a stale fault forever. A no-op (but still success) on a widget with
+    /// no error stamped — it never fabricates a "last ran" time for a widget that has never reported in.
+    /// </summary>
+    Task<Result> ClearRuntimeErrorAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// The public, token-resolved overlay manifest: the channel's enabled, successfully-built widgets with their
     /// bundle URLs, hashes, trust tiers, and settings. Token-auth only (never the user JWT); resolves the channel
     /// by <c>Channels.OverlayToken</c>. This read intentionally bypasses the tenant query filter (the caller is

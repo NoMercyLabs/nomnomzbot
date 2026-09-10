@@ -1079,6 +1079,36 @@ public class WidgetService : IWidgetService
         return Result.Success();
     }
 
+    public async Task<Result> ClearRuntimeErrorAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Result.Failure($"Widget '{widgetId}' was not found.", "NOT_FOUND");
+
+        // Nothing to clear: leave LastRanAt untouched rather than fabricating a "last ran" time for a widget
+        // that has never actually reported in.
+        if (widget.LastRuntimeError is null)
+            return Result.Success();
+
+        widget.LastRuntimeError = null;
+        widget.LastRanAt = _timeProvider.GetUtcNow().UtcDateTime;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public async Task<Result<OverlayManifest>> GetOverlayManifestAsync(
         string overlayToken,
         CancellationToken cancellationToken = default

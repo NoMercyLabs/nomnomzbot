@@ -489,4 +489,87 @@ public sealed class WidgetServiceCompileTests
             missing.ErrorCode.Should().Be("NOT_FOUND");
         }
     }
+
+    // S-PL1: the dashboard row painted `widget.lastRuntimeError` red forever once RecordRuntimeErrorAsync
+    // stamped it — nothing ever cleared it, so a transient fault (e.g. a browser-source autoplay block on
+    // first load) still read as broken three weeks later even though the overlay had since reconnected and
+    // run fine. ClearRuntimeErrorAsync is the success-side counterpart: OverlayHub.JoinWidget calls it on
+    // every real browser-source (re)connect, so a live widget's dashboard row reflects its CURRENT health.
+    [Fact]
+    public async Task ClearRuntimeErrorAsync_ClearsAStaleStampedError_AndStampsLastRanAt()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid widget = await SeedWidgetAsync(database, channel);
+        IEventBus bus = Substitute.For<IEventBus>();
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, bus, BuildReturning(Ok()));
+            Result stamped = await service.RecordRuntimeErrorAsync(
+                channel.ToString(),
+                widget.ToString(),
+                "audio playback blocked: Failed to load because no supported source was found."
+            );
+            stamped.IsSuccess.Should().BeTrue(stamped.ErrorMessage);
+        }
+
+        Clock.Advance(TimeSpan.FromDays(21));
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, bus, BuildReturning(Ok()));
+            Result cleared = await service.ClearRuntimeErrorAsync(
+                channel.ToString(),
+                widget.ToString()
+            );
+            cleared.IsSuccess.Should().BeTrue(cleared.ErrorMessage);
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget storedWidget = await db.Widgets.SingleAsync(w => w.Id == widget);
+            storedWidget.LastRuntimeError.Should().BeNull();
+            storedWidget.LastRanAt.Should().Be(Clock.GetUtcNow().UtcDateTime);
+        }
+    }
+
+    [Fact]
+    public async Task ClearRuntimeErrorAsync_OnAWidgetWithNoError_IsANoOp_AndNotFoundForUnknownWidget()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid widget = await SeedWidgetAsync(database, channel);
+        IEventBus bus = Substitute.For<IEventBus>();
+
+        // A widget that has never errored has no LastRanAt yet either — clearing must not fabricate one, so
+        // an ordinary healthy join never makes an untouched widget look like it "ran" when it never reported in.
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, bus, BuildReturning(Ok()));
+            Result cleared = await service.ClearRuntimeErrorAsync(
+                channel.ToString(),
+                widget.ToString()
+            );
+            cleared.IsSuccess.Should().BeTrue(cleared.ErrorMessage);
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget storedWidget = await db.Widgets.SingleAsync(w => w.Id == widget);
+            storedWidget.LastRuntimeError.Should().BeNull();
+            storedWidget.LastRanAt.Should().BeNull();
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, bus, BuildReturning(Ok()));
+            Result missing = await service.ClearRuntimeErrorAsync(
+                channel.ToString(),
+                Guid.NewGuid().ToString()
+            );
+            missing.IsFailure.Should().BeTrue();
+            missing.ErrorCode.Should().Be("NOT_FOUND");
+        }
+    }
 }
