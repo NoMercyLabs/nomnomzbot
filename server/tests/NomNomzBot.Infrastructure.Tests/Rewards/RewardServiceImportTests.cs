@@ -507,6 +507,79 @@ public sealed class RewardServiceImportTests
     }
 
     [Fact]
+    public async Task Recreate_parks_a_conflict_the_live_list_pre_check_itself_missed()
+    {
+        // Verified against production (2026-09-10, channel 019f146e-8303-71ef-b698-18d1098d7d7e): the live-list
+        // pre-check read no conflicting title, yet Twitch's own Create Custom Reward validation still rejected
+        // the create with the raw message "CREATE_CUSTOM_REWARD_DUPLICATE_REWARD" — Twitch's duplicate check
+        // sees more than the list endpoint reflects (a just-freed title held in reserve). Before this fix that
+        // fell straight through as an opaque twitch_error/503 with no guidance; it must park instead, exactly
+        // like the pre-check catching it directly.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e006");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = externalId,
+                BroadcasterId = Channel,
+                Title = "First",
+                Description = "redeem me",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = "ext-6",
+                IsManageable = false,
+                IsPlatform = false,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // The pre-check sees a clean list — only `external`'s own live entry, no other title match.
+        StubGetRewards(
+            points,
+            full: [TwitchReward("ext-6", "First", 1, enabled: true)],
+            manageable: []
+        );
+
+        // But Twitch's create call itself rejects it with its real, raw duplicate signal.
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<TwitchCustomReward>(
+                    "Twitch request failed (400).",
+                    TwitchErrorCodes.TwitchError,
+                    "CREATE_CUSTOM_REWARD_DUPLICATE_REWARD"
+                )
+            );
+
+        Result<RewardDetail> result = await sut.RecreateUnderBotAsync(
+            Channel.ToString(),
+            externalId.ToString()
+        );
+
+        // Parked with the same actionable code the pre-check path gives — never the raw twitch_error/503.
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("MIGRATION_PENDING_EXTERNAL_REMOVAL");
+        result.ErrorMessage.Should().Contain("First").And.Contain("Finalize migration");
+
+        Reward parked = await db.Rewards.SingleAsync(r => r.Id == externalId);
+        parked.PendingMigrationRequestedAt.Should().NotBeNull();
+        // Nothing configured was lost while parked.
+        parked.Title.Should().Be("First");
+        parked.Cost.Should().Be(1);
+        parked.TwitchRewardId.Should().Be("ext-6");
+        parked.IsManageable.Should().BeFalse();
+
+        // No local bot-copy row was ever inserted from the rejected create.
+        (await db.Rewards.CountAsync(r => r.BroadcasterId == Channel))
+            .Should()
+            .Be(1);
+    }
+
+    [Fact]
     public async Task Importing_again_after_a_recreate_reconciles_both_rows_without_a_duplicate_title_crash()
     {
         // Recreating leaves two rows that share a title (the external "First Light" and the bot copy). A second

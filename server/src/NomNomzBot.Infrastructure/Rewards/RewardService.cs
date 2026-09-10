@@ -808,6 +808,13 @@ public class RewardService : IRewardService
         // local row that ever carried this title, so a local-only check always finds nothing taken and sails
         // straight into CreateCustomReward, which Twitch then 400s with the raw DUPLICATE_REWARD error (the
         // operator-parking path never engages). Same reasoning as CreateAsync's pre-check above.
+        //
+        // This live-list read is a best-effort short-circuit, not a guarantee: verified in production
+        // (2026-09-10) that Twitch's own create validation can still reject a title as a duplicate even when
+        // this very read, moments earlier, showed no conflicting entry — Twitch appears to hold a just-freed
+        // title in reserve past what the list endpoint reflects. The failure branch below on the CREATE call
+        // itself is the real backstop: it recognizes that same Twitch signal and parks exactly like this does,
+        // so a miss here still ends in the guided flow instead of leaking a raw Twitch error code.
         Result<IReadOnlyList<TwitchCustomReward>> liveRewards =
             await _channelPoints.GetCustomRewardsAsync(
                 broadcaster,
@@ -825,20 +832,7 @@ public class RewardService : IRewardService
             && string.Equals(r.Title, external.Title, StringComparison.OrdinalIgnoreCase)
         );
         if (titleStillTaken)
-        {
-            if (external.PendingMigrationRequestedAt is null)
-            {
-                external.PendingMigrationRequestedAt = DateTime.UtcNow;
-                await _db.SaveChangesAsync(cancellationToken);
-            }
-            return Result.Failure<RewardDetail>(
-                $"Twitch won't allow a second reward titled \"{external.Title}\" — and the bot can't rename or "
-                    + "remove the original since it wasn't created by this client. Rename or delete "
-                    + $"\"{external.Title}\" in your Twitch Creator Dashboard, then click Finalize migration to "
-                    + "finish taking control — nothing you've configured here will be lost while you wait.",
-                "MIGRATION_PENDING_EXTERNAL_REMOVAL"
-            );
-        }
+            return await ParkPendingMigrationAsync(external, cancellationToken);
 
         // The title is free — either this is a first attempt, or the operator cleared the conflict on Twitch
         // and is finalizing a previously-parked migration. Either way, proceed and drop any pending marker.
@@ -857,7 +851,15 @@ public class RewardService : IRewardService
             cancellationToken
         );
         if (created.IsFailure)
+        {
+            // Twitch's create validation caught a duplicate title the live-list pre-check above missed (see the
+            // comment on that check) — trust Twitch's own signal and park exactly the same way, rather than
+            // surfacing its raw error code as an opaque, unactionable failure.
+            if (IsDuplicateRewardSignal(created.ErrorDetail))
+                return await ParkPendingMigrationAsync(external, cancellationToken);
+
             return created.WithValue<RewardDetail>(default!);
+        }
 
         TwitchCustomReward tr = created.Value;
         Reward botReward = new()
@@ -888,6 +890,44 @@ public class RewardService : IRewardService
         );
         return Result.Success(ToDetail(botReward));
     }
+
+    /// <summary>
+    /// Marks <paramref name="external"/> as a parked migration and returns the actionable
+    /// <c>MIGRATION_PENDING_EXTERNAL_REMOVAL</c> failure — the shared outcome for BOTH duplicate-title paths in
+    /// <see cref="RecreateUnderBotAsync"/> (the live-list pre-check and the create-call backstop): nothing
+    /// configured on <paramref name="external"/> is lost, and the operator gets a concrete next step instead of
+    /// a dead-end failure.
+    /// </summary>
+    private async Task<Result<RewardDetail>> ParkPendingMigrationAsync(
+        Reward external,
+        CancellationToken cancellationToken
+    )
+    {
+        if (external.PendingMigrationRequestedAt is null)
+        {
+            external.PendingMigrationRequestedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        return Result.Failure<RewardDetail>(
+            $"Twitch won't allow a second reward titled \"{external.Title}\" — and the bot can't rename or "
+                + "remove the original since it wasn't created by this client. Rename or delete "
+                + $"\"{external.Title}\" in your Twitch Creator Dashboard, then click Finalize migration to "
+                + "finish taking control — nothing you've configured here will be lost while you wait.",
+            "MIGRATION_PENDING_EXTERNAL_REMOVAL"
+        );
+    }
+
+    /// <summary>
+    /// Recognizes Twitch's own Create Custom Reward duplicate-title rejection from the raw Helix error detail
+    /// (<see cref="Result{T}.ErrorDetail"/>) — confirmed against production (2026-09-10) to be the literal
+    /// message <c>CREATE_CUSTOM_REWARD_DUPLICATE_REWARD</c>. Matched by substring, case-insensitively, so a
+    /// minor wording change on Twitch's side degrades to "no match" (falls through to the generic Twitch-error
+    /// path) rather than throwing.
+    /// </summary>
+    private static bool IsDuplicateRewardSignal(string? twitchErrorDetail) =>
+        twitchErrorDetail is not null
+        && twitchErrorDetail.Contains("DUPLICATE_REWARD", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Upserts a set of Twitch rewards into the local table, matching first by Twitch id, then by title
