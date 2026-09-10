@@ -66,6 +66,18 @@ concurrent, disjoint files only).
       screen) AND wants the raid-start pipeline to optionally do the same (same or a different song),
       as a customizable step available in any pipeline/script, not hardcoded to one trigger. Generic
       primitive, not two bespoke ones ([[generic-primitives-not-bespoke-features]]).
+  - **Sanction-audit dependency, found 2026-09-10:** `MusicService`'s provider-write methods only
+    carry an `OutboundSanction` when reached from a real HTTP request (`OutboundSanctionFilter`);
+    `HandOverNextAsync` and `EnqueueResolvedAsync`'s own admission push were missing theirs — this
+    silently blocked the whole SR queue from ever dispatching a second request and is fixed
+    (`b12de689`, `136921c5`). `PlayTrackOnceAsync` (this S-PL9/S-PL11 action) was given the same
+    sanction pre-emptively, but `PauseAsync`/`PlayAsync`/`SkipAsync`/`PreviousAsync` and any other
+    provider-write method on `MusicService` were NOT audited and likely have the same gap — concretely,
+    `PlayOnceResumeHandler.HandleAsync`'s call to `PauseAsync` runs with no HTTP request behind it
+    (a `PlaybackStateChangedEvent` handler), same shape as the bugs just fixed. Audit every
+    provider-write method `MusicService` exposes for a background caller before or alongside this
+    slice's deploy — a missing sanction there fails the exact same silent way (refused write, no
+    exception surfaced to the user, feature looks "wired" but does nothing).
 - [ ] **S-PL10** The go-live pipeline action that switches OBS to the "starting soon" scene should be
       idempotent/forgiving — if already on that scene, it must not error or fight the current state.
 
