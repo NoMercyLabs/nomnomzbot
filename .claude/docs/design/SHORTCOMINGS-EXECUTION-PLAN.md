@@ -27,9 +27,9 @@ concurrent, disjoint files only).
 - [ ] **S-PL1** All used overlay widgets show an error on the dashboard. Needs live repro first
       (which page, which widget, the actual error text/status) — dispatch an investigate-and-fix
       slice against the Widgets dashboard screen + its `GET .../widgets` list load path.
-- [ ] **S-PL2** TTS per-viewer voice: cannot set a user's voice, and cannot search for a voice that
-      exists (works on another page, so the voice catalogue itself is fine — this is a wiring/UI gap
-      in the per-viewer TTS screen, not a missing backend voice list).
+- ~~[ ] **S-PL2**~~ CLOSED `4e148a52`: per-viewer voice picker now searches the live catalogue (not a
+      cached first page) and an Assign action persists the pick; verified full-tree `jvmTest` green
+      after `92e2fc34` fixed an unrelated duplicate-JVM-class break from the S-PL5a commit.
 - [ ] **S-PL3** "Take control" on a Twitch reward returns 400 instead of onboarding the reward —
       `RewardsController`/`TwitchChannelPointsApi` import/claim path; needs a proper guided flow, not
       a bare error.
