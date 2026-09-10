@@ -1,9 +1,9 @@
 {
-  "Name": "NomNomzBot Music",
+  "Name": "NomNomzBot",
   "UUID": "bot.nomnomzbot.streamdeck",
-  "Version": "1.0.1",
+  "Version": "1.1.0",
   "Author": "NoMercy Labs",
-  "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
+  "Description": "Control Spotify (and any other connected NomNomzBot music provider) and OBS Studio through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
   "Icon": "imgs/plugin/marketplace",
   "CodePath": "bin/plugin.js",
   "PropertyInspectorPath": "ui/settings.html",
@@ -14,7 +14,7 @@
     { "Platform": "mac", "MinimumVersion": "10.15" }
   ],
   "Nodejs": { "Version": "20", "Debug": "enabled" },
-  "Category": "NomNomzBot: Music",
+  "Category": "NomNomzBot",
   "CategoryIcon": "imgs/plugin/category",
   "Actions": [
     {
@@ -215,6 +215,70 @@
       "Tooltip": "Unfollows the current track's artist.",
       "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/unfollow" }]
+    },
+    {
+      "Name": "Switch Scene",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-switch-scene",
+      "Icon": "imgs/actions/scene",
+      "Tooltip": "Switches the active OBS scene to the one configured on this key.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/scene" }]
+    },
+    {
+      "Name": "Toggle Mute",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-toggle-mute",
+      "Icon": "imgs/actions/mic-mute",
+      "Tooltip": "Mutes/unmutes the OBS audio input configured on this key.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/mic-mute" }]
+    },
+    {
+      "Name": "Start Streaming",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-start-streaming",
+      "Icon": "imgs/actions/stream-start",
+      "Tooltip": "Starts the OBS stream output.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/stream-start" }]
+    },
+    {
+      "Name": "Stop Streaming",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-stop-streaming",
+      "Icon": "imgs/actions/stream-stop",
+      "Tooltip": "Stops the OBS stream output.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/stream-stop" }]
+    },
+    {
+      "Name": "Toggle Streaming",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-toggle-streaming",
+      "Icon": "imgs/actions/stream-start",
+      "Tooltip": "Starts or stops the OBS stream output depending on its current state.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/stream-start" }]
+    },
+    {
+      "Name": "Start Recording",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-start-recording",
+      "Icon": "imgs/actions/record-start",
+      "Tooltip": "Starts OBS recording.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/record-start" }]
+    },
+    {
+      "Name": "Stop Recording",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-stop-recording",
+      "Icon": "imgs/actions/record-stop",
+      "Tooltip": "Stops OBS recording.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/record-stop" }]
+    },
+    {
+      "Name": "Toggle Recording",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-toggle-recording",
+      "Icon": "imgs/actions/record-start",
+      "Tooltip": "Starts or stops OBS recording depending on its current state.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/record-start" }]
     }
   ]
 }

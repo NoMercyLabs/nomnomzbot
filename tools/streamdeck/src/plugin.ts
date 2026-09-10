@@ -37,6 +37,15 @@ import { RemoveFromPlaylistAction } from "./actions/removeFromPlaylist.js";
 import { FollowArtistAction } from "./actions/followArtist.js";
 import { UnfollowArtistAction } from "./actions/unfollowArtist.js";
 
+import { SwitchSceneAction } from "./actions/obsSwitchScene.js";
+import { ToggleMuteAction } from "./actions/obsToggleMute.js";
+import { StartStreamingAction } from "./actions/obsStartStreaming.js";
+import { StopStreamingAction } from "./actions/obsStopStreaming.js";
+import { ToggleStreamingAction } from "./actions/obsToggleStreaming.js";
+import { StartRecordingAction } from "./actions/obsStartRecording.js";
+import { StopRecordingAction } from "./actions/obsStopRecording.js";
+import { ToggleRecordingAction } from "./actions/obsToggleRecording.js";
+
 streamDeck.logger.setLevel("info");
 
 // One shared connection + state for every key instance (streamdeck-plugin.md P2).
@@ -64,6 +73,14 @@ for (const registration of [
   new RemoveFromPlaylistAction(),
   new FollowArtistAction(),
   new UnfollowArtistAction(),
+  new SwitchSceneAction(),
+  new ToggleMuteAction(),
+  new StartStreamingAction(),
+  new StopStreamingAction(),
+  new ToggleStreamingAction(),
+  new StartRecordingAction(),
+  new StopRecordingAction(),
+  new ToggleRecordingAction(),
 ]) {
   streamDeck.actions.registerAction(registration);
 }

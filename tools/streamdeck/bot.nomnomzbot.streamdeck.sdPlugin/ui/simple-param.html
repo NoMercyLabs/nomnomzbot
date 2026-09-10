@@ -53,6 +53,12 @@
             default: "off",
           },
         ],
+        "bot.nomnomzbot.streamdeck.obs-switch-scene": [
+          { key: "scene", label: "Scene name", type: "text", default: "" },
+        ],
+        "bot.nomnomzbot.streamdeck.obs-toggle-mute": [
+          { key: "inputName", label: "Input name", type: "text", default: "" },
+        ],
       };
 
       document.addEventListener("pi:ready", (ev) => {
@@ -76,7 +82,10 @@
             input.value = String(value);
           } else {
             input = document.createElement("sdpi-textfield");
-            input.setAttribute("type", field.type === "range" ? "number" : "number");
+            // Was unconditionally "number" here (a degenerate ternary bug — both branches picked the
+            // same value), so a "text" field (OBS scene/input name) rendered as a numeric-only input
+            // and could never accept a real name. Only "number"/"range" fields are numeric now.
+            input.setAttribute("type", field.type === "number" || field.type === "range" ? "number" : "text");
             input.value = String(value);
           }
           input.addEventListener("change", (changeEv) => {
