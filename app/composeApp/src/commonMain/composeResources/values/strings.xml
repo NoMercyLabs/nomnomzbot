@@ -4529,6 +4529,7 @@
     <string name="widget_chat_box_fadeAfterMs_label">Fade after (ms, 0 = never)</string>
     <string name="widget_chat_box_showBadges_label">Show badges</string>
     <string name="widget_chat_box_showEmotes_label">Show emotes</string>
+    <string name="widget_chat_box_showSevenTvPaints_label">Show 7TV name colours</string>
     <string name="widget_chat_box_hideCommands_label">Hide command messages</string>
     <string name="widget_chat_box_hideBots_label">Hide bot messages</string>
     <string name="widget_chat_box_accentColor_label">Accent colour</string>

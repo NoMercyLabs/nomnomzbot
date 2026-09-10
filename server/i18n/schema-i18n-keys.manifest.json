@@ -473,6 +473,7 @@
     "widget.chat_box.maxMessages.label",
     "widget.chat_box.showBadges.label",
     "widget.chat_box.showEmotes.label",
+    "widget.chat_box.showSevenTvPaints.label",
     "widget.chat_box.showTimestamps.label",
     "widget.chat_box.theme.label",
     "widget.chat_box.theme.option.dark",

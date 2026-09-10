@@ -4515,6 +4515,7 @@
     <string name="widget_chat_box_fadeAfterMs_label">Vervagen na (ms, 0 = nooit)</string>
     <string name="widget_chat_box_showBadges_label">Badges tonen</string>
     <string name="widget_chat_box_showEmotes_label">Emotes tonen</string>
+    <string name="widget_chat_box_showSevenTvPaints_label">7TV-naamkleuren tonen</string>
     <string name="widget_chat_box_hideCommands_label">Commandoberichten verbergen</string>
     <string name="widget_chat_box_hideBots_label">Botberichten verbergen</string>
     <string name="widget_chat_box_accentColor_label">Accentkleur</string>

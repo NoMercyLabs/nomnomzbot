@@ -162,6 +162,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 NumberField(d, "fadeAfterMs", Behaviour, min: 0, step: 100),
                 Bool(d, "showBadges", Content),
                 Bool(d, "showEmotes", Content),
+                Bool(d, "showSevenTvPaints", Content),
                 Bool(d, "hideCommands", Content),
                 Bool(d, "hideBots", Content),
                 Accent(d),

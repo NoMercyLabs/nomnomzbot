@@ -173,6 +173,9 @@ public static class FirstPartyWidgetCatalogue
                 ["fadeAfterMs"] = 0,
                 ["showBadges"] = true,
                 ["showEmotes"] = true,
+                // Default true — matches the always-on behaviour before this toggle existed, so shipping it is
+                // never a silent regression for a channel already relying on painted names.
+                ["showSevenTvPaints"] = true,
                 ["hideCommands"] = true,
                 ["hideBots"] = true,
                 ["accentColor"] = "#9146ff",

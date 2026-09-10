@@ -14,6 +14,7 @@ interface ChatBoxConfig {
   fadeAfterMs: number    // 0 = never fade
   showBadges: boolean
   showEmotes: boolean
+  showSevenTvPaints: boolean // false = names fall back to plain chat colour even when a paint resolved
   hideCommands: boolean  // drop messages starting with '!'
   hideBots: boolean      // drop well-known bot accounts
   accentColor: string
@@ -30,6 +31,7 @@ const cfg = reactive<ChatBoxConfig>({
   fadeAfterMs: 0,
   showBadges: true,
   showEmotes: true,
+  showSevenTvPaints: true,
   hideCommands: true,
   hideBots: true,
   accentColor: '#9146ff',
@@ -181,6 +183,14 @@ function paintNameStyle(p: ChatPaint | null): Record<string, string> {
   return style
 }
 
+// The name's actual style for one line: a resolved paint wins only while showSevenTvPaints is on — the
+// paint itself always arrives from the server regardless of this setting (S-PL6), so turning it off falls
+// back to the plain chat-colour style rather than losing the paint at the source.
+function nameStyle(l: ChatLine): Record<string, string> {
+  if (cfg.showSevenTvPaints && l.paint) return paintNameStyle(l.paint)
+  return { color: l.color ? contrastColor(l.color, cfg.theme) : '' }
+}
+
 const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' }
 
 // Highest-priority role wins the line accent when a user carries more than one — broadcaster and
@@ -322,6 +332,7 @@ onMounted(() => {
     if (isFinite(Number(s.fadeAfterMs)) && Number(s.fadeAfterMs) >= 0) cfg.fadeAfterMs = Number(s.fadeAfterMs)
     if (typeof s.showBadges === 'boolean') cfg.showBadges = s.showBadges
     if (typeof s.showEmotes === 'boolean') cfg.showEmotes = s.showEmotes
+    if (typeof s.showSevenTvPaints === 'boolean') cfg.showSevenTvPaints = s.showSevenTvPaints
     if (typeof s.hideCommands === 'boolean') cfg.hideCommands = s.hideCommands
     if (typeof s.hideBots === 'boolean') cfg.hideBots = s.hideBots
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
@@ -372,8 +383,8 @@ onUnmounted(() => {
         <span v-if="l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
         <span
           class="name"
-          :class="{ 'name-painted': l.paint && (l.paint.backgroundImage || l.paint.color) }"
-          :style="l.paint ? paintNameStyle(l.paint) : { color: l.color ? contrastColor(l.color, cfg.theme) : '' }"
+          :class="{ 'name-painted': cfg.showSevenTvPaints && l.paint && (l.paint.backgroundImage || l.paint.color) }"
+          :style="nameStyle(l)"
         >{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
         <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
