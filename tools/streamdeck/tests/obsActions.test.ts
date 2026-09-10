@@ -137,6 +137,32 @@ describe("OBS Stream Deck actions — the exact invoke payload each action's onK
     ]);
   });
 
+  it("Toggle Replay Buffer: obs_replay_buffer with action:toggle (obsToggleReplayBuffer.ts resolveParams)", async () => {
+    const { automationClient } = await import("../src/connection/automationClient.js");
+
+    // Mirrors ToggleReplayBufferAction.resolveParams: { action: "toggle" }
+    await automationClient.invoke("obs_replay_buffer", { action: "toggle" });
+
+    expect(receivedInvokes).toHaveLength(1);
+    expect(receivedInvokes[0]!.body).toEqual({
+      pipelineName: "obs_replay_buffer",
+      variables: { action: "toggle" },
+    });
+  });
+
+  it("Toggle Virtual Camera: obs_virtual_cam with action:toggle (obsToggleVirtualCam.ts resolveParams)", async () => {
+    const { automationClient } = await import("../src/connection/automationClient.js");
+
+    // Mirrors ToggleVirtualCamAction.resolveParams: { action: "toggle" }
+    await automationClient.invoke("obs_virtual_cam", { action: "toggle" });
+
+    expect(receivedInvokes).toHaveLength(1);
+    expect(receivedInvokes[0]!.body).toEqual({
+      pipelineName: "obs_virtual_cam",
+      variables: { action: "toggle" },
+    });
+  });
+
   it("an unpaired plugin refuses to invoke and sends nothing to the backend", async () => {
     const { automationClient, AutomationApiError } = await import("../src/connection/automationClient.js");
     const { clearPairingState } = await import("../src/connection/tokenStore.js");

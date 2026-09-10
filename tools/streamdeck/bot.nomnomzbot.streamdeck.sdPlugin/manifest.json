@@ -279,6 +279,22 @@
       "Tooltip": "Starts or stops OBS recording depending on its current state.",
       "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/record-start" }]
+    },
+    {
+      "Name": "Toggle Replay Buffer",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-toggle-replay-buffer",
+      "Icon": "imgs/actions/record-start",
+      "Tooltip": "Starts or stops the OBS replay buffer depending on its current state.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/record-start" }]
+    },
+    {
+      "Name": "Toggle Virtual Camera",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-toggle-virtual-cam",
+      "Icon": "imgs/actions/device",
+      "Tooltip": "Starts or stops the OBS virtual camera depending on its current state.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/device" }]
     }
   ]
 }

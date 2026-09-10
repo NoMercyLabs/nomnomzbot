@@ -45,6 +45,8 @@ import { ToggleStreamingAction } from "./actions/obsToggleStreaming.js";
 import { StartRecordingAction } from "./actions/obsStartRecording.js";
 import { StopRecordingAction } from "./actions/obsStopRecording.js";
 import { ToggleRecordingAction } from "./actions/obsToggleRecording.js";
+import { ToggleReplayBufferAction } from "./actions/obsToggleReplayBuffer.js";
+import { ToggleVirtualCamAction } from "./actions/obsToggleVirtualCam.js";
 
 streamDeck.logger.setLevel("info");
 
@@ -81,6 +83,8 @@ for (const registration of [
   new StartRecordingAction(),
   new StopRecordingAction(),
   new ToggleRecordingAction(),
+  new ToggleReplayBufferAction(),
+  new ToggleVirtualCamAction(),
 ]) {
   streamDeck.actions.registerAction(registration);
 }
