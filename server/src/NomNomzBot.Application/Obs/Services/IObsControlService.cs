@@ -155,4 +155,12 @@ public interface IObsControlService
         Guid broadcasterId,
         CancellationToken ct = default
     );
+
+    /// <summary>The items placed in one scene (per-scene source visibility) — distinct from
+    /// <see cref="GetInputsAsync"/>, which only sees global audio/video inputs, not per-scene placement.</summary>
+    Task<Result<IReadOnlyList<ObsSceneItemDto>>> GetSceneItemListAsync(
+        Guid broadcasterId,
+        string sceneName,
+        CancellationToken ct = default
+    );
 }

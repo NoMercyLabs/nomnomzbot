@@ -289,6 +289,53 @@ public sealed class ObsControlServiceTests
         logo.VolumeDb.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Get_scene_item_list_parses_id_name_and_enabled_state_per_item()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetSceneItemList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["sceneItems"] =
+                            """[{"sceneItemId":1,"sourceName":"Webcam","sceneItemEnabled":true},{"sceneItemId":2,"sourceName":"Chat Overlay","sceneItemEnabled":false}]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<ObsSceneItemDto>> result = await h.Service.GetSceneItemListAsync(
+            Channel,
+            "Live"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        h.Requests.Single().RequestData!["sceneName"].Should().Be("Live");
+        result.Value.Should().HaveCount(2);
+        ObsSceneItemDto webcam = result.Value.Single(i => i.SourceName == "Webcam");
+        webcam.SceneItemId.Should().Be(1);
+        webcam.Enabled.Should().BeTrue();
+        ObsSceneItemDto overlay = result.Value.Single(i => i.SourceName == "Chat Overlay");
+        overlay.SceneItemId.Should().Be(2);
+        overlay.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Get_scene_item_list_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "scene not found"));
+
+        Result<IReadOnlyList<ObsSceneItemDto>> result = await h.Service.GetSceneItemListAsync(
+            Channel,
+            "Missing"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("scene not found");
+    }
+
     private static string? Name(ObsRequest request) =>
         request.RequestData?.GetValueOrDefault("inputName") as string;
 

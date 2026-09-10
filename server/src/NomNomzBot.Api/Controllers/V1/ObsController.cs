@@ -75,6 +75,19 @@ public class ObsController(
     public async Task<IActionResult> GetInputs(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetInputsAsync(channelId, ct), []);
 
+    /// <summary>The items placed in one scene, with their per-scene visibility — distinct from
+    /// <c>GET inputs</c>, which only sees global audio/video inputs, never per-scene placement.</summary>
+    [HttpGet("scene-items")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneItemDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetSceneItems(
+        Guid channelId,
+        [FromQuery] string sceneName,
+        CancellationToken ct
+    ) => ObsReadResponse(await control.GetSceneItemListAsync(channelId, sceneName, ct), []);
+
     /// <summary>
     /// Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which
     /// mask a "not connected yet" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there
@@ -163,6 +176,26 @@ public class ObsController(
                 request.InputName,
                 volumeDb: request.VolumeDb,
                 volumeMul: null,
+                ct
+            )
+        );
+
+    /// <summary>Per-source visibility — hide/show one item within one scene, without touching the
+    /// underlying input's mute state or its placement in any other scene.</summary>
+    [HttpPost("scene-items/visibility")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSourceVisibility(
+        Guid channelId,
+        [FromBody] ObsSourceVisibilityRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetSourceVisibleAsync(
+                channelId,
+                request.SceneName,
+                request.SourceName,
+                request.Visible,
                 ct
             )
         );

@@ -536,6 +536,56 @@ public class ObsControlService : IObsControlService
         return Result.Success<IReadOnlyList<ObsInputDto>>(inputs);
     }
 
+    public async Task<Result<IReadOnlyList<ObsSceneItemDto>>> GetSceneItemListAsync(
+        Guid broadcasterId,
+        string sceneName,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetSceneItemList", new Dictionary<string, object?> { ["sceneName"] = sceneName }),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsSceneItemDto>>(
+                status.ErrorMessage!,
+                status.ErrorCode!
+            );
+
+        List<ObsSceneItemDto> items = [];
+        if (response.Value.ResponseData?.GetValueOrDefault("sceneItems") is string itemsJson)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                itemsJson
+            );
+            foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+            {
+                int sceneItemId = item.TryGetProperty(
+                    "sceneItemId",
+                    out System.Text.Json.JsonElement idEl
+                )
+                    ? idEl.GetInt32()
+                    : 0;
+                string sourceName = item.TryGetProperty(
+                    "sourceName",
+                    out System.Text.Json.JsonElement nameEl
+                )
+                    ? nameEl.GetString() ?? ""
+                    : "";
+                bool enabled =
+                    item.TryGetProperty(
+                        "sceneItemEnabled",
+                        out System.Text.Json.JsonElement enabledEl
+                    ) && enabledEl.GetBoolean();
+                items.Add(new(sceneItemId, sourceName, enabled));
+            }
+        }
+        return Result.Success<IReadOnlyList<ObsSceneItemDto>>(items);
+    }
+
     // ── Plumbing ────────────────────────────────────────────────────────────
 
     private async Task<Result> SendStatusAsync(

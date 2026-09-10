@@ -82,6 +82,11 @@ public sealed record ObsSceneDto(string Name, bool IsCurrent);
 
 public sealed record ObsInputDto(string Name, string Kind, bool? Muted, double? VolumeDb);
 
+/// <summary>One item (source instance) placed in a scene — the per-scene visibility state
+/// <see cref="ObsInputDto"/> cannot express, since a global input can appear in several scenes with a
+/// different <c>sceneItemEnabled</c> in each.</summary>
+public sealed record ObsSceneItemDto(int SceneItemId, string SourceName, bool Enabled);
+
 /// <summary>REST body for the scene-switch route.</summary>
 public sealed record ObsSceneRequest(string Scene);
 
@@ -96,3 +101,6 @@ public sealed record ObsInputMuteRequest(string InputName, bool Muted);
 
 /// <summary>REST body for the audio-mixer volume route: set an input's volume in decibels (OBS's dB scale).</summary>
 public sealed record ObsInputVolumeRequest(string InputName, double VolumeDb);
+
+/// <summary>REST body for the per-source visibility route: hide/show one item within one scene.</summary>
+public sealed record ObsSourceVisibilityRequest(string SceneName, string SourceName, bool Visible);
