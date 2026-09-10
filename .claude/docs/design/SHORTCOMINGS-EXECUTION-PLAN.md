@@ -43,14 +43,24 @@ concurrent, disjoint files only).
     state on (re)connect, publishes `ObsConnectionEstablishedEvent`, pushed to the dashboard via
     `ObsConnectionEstablishedBroadcastHandler` → `ObsLiveStateChanged` hub event → `ObsController`
     reload. Verified.
-  - **S-PL5b** Full OBS feature set on the dashboard's live-control surface — today's surface is a
-    subset (scene switch + whatever else already exists in `ObsApi.kt`/`ObsControlService.cs`); needs
-    a real inventory of the obs-websocket surface this codebase already wraps vs. what's exposed in UI
-    (sources, mute state, transitions, replay buffer, virtual cam, studio mode, stats — audit before
-    building). Own slice, now unblocked.
+  - ~~**S-PL5b** Full OBS feature set~~ — CLOSED `1989c547`+`815bbb05`: real inventory done; wired the
+    server-ready-but-UI-missing controls (replay buffer start/stop/save, virtual cam toggle) through
+    controller + dashboard UI. Verified.
+    **S-PL5b follow-up gaps found by the audit, not built (own slices):**
+    - Server-ready, needs UI: `SetPreviewSceneAsync`, per-source mute (`ToggleInputMuteAsync`), filter
+      enable/disable, transition select, studio-mode transition trigger, media trigger, hotkey trigger,
+      browser-source refresh, screenshot, batch/vendor pass-through — each needs its own enumeration UI
+      (transition list, media input list, hotkey list) before it can be exposed, judged lower value than
+      the three built here for a streamer's live-control surface.
+    - Source-visibility toggle needs a `GetSceneItemList` wrapper first — `GetInputsAsync` only returns
+      global inputs, not per-scene items.
+    - Studio mode enable/disable, `GetStats` (CPU/FPS/render-lag), `GetVirtualCamStatus`,
+      `GetSceneItemList`, `GetSceneTransitionList`, `GetSourceFilterList` are genuinely NOT implemented
+      server-side at all — real obs-websocket protocol gaps in `ObsControlService`, not just wiring.
+    - `SetRecording` only sends Start/Stop/Toggle though `RecordAction` also supports Pause/Resume/Split.
   - **S-PL5c** New Stream Deck plugin for OBS control, parity with the existing Spotify plugin
-    (`tools/streamdeck/`) — "work the same way as the music controls." Needs S-PL5b's feature inventory
-    decided first (a Stream Deck action per exposed control), so it runs after, not parallel.
+    (`tools/streamdeck/`) — "work the same way as the music controls." S-PL5b's inventory is now
+    decided (a Stream Deck action per exposed control) — unblocked.
 - ~~[ ] **S-PL6**~~ CLOSED `0b1df4e8`: `showSevenTvPaints` sibling toggle to the emote toggle, gates
       `chat_box.vue`'s name-paint rendering; surfaced via the generic schema-driven settings form, no
       new Compose UI needed. Verified.
