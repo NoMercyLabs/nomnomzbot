@@ -128,13 +128,6 @@ private fun reconnectErrorText(error: ConnectError): String =
         // LoginFailed is the genuinely unexpected catch-all (malformed/authorized-without-tokens) — the
         // generic message is honest here, there is no more specific reason to surface.
         ConnectError.LoginFailed -> stringResource(Res.string.shell_reconnect_failed)
-        // The password-auth error kinds can never actually surface here: reconnect always re-runs the
-        // Twitch/social OAuth dance ([ConnectController.reconnect]), never [ConnectController.loginWithPassword]
-        // / [registerWithPassword]. The generic message covers the branch for exhaustiveness only.
-        ConnectError.EmailInvalid,
-        ConnectError.WeakPassword,
-        ConnectError.EmailTaken,
-        ConnectError.InvalidCredentials -> stringResource(Res.string.shell_reconnect_failed)
     }
 
 @Composable

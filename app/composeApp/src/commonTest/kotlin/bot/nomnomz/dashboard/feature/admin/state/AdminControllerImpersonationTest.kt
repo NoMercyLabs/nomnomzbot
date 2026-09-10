@@ -464,10 +464,6 @@ private class FakeAuthApi(
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun pollDeviceLogin(provider: String, deviceCode: String): ApiResult<DeviceLoginPoll> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
-    override suspend fun register(email: String, password: String): ApiResult<AuthPayload> =
-        ApiResult.Failure(ApiError(500, null, "not stubbed"))
-    override suspend fun login(email: String, password: String): ApiResult<AuthPayload> =
-        ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun logout(): ApiResult<Unit> = ApiResult.Ok(Unit)

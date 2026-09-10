@@ -563,6 +563,13 @@ private fun ShellContent(
                 chatPollsController = graph.chatPollsController,
                 heldActionKeys = heldActionKeys,
                 hubEvents = graph.dashboardHubClient.events,
+                // HomeScreen's own onNavigate contract is a raw ShellRoute name (attentionRouteFor / a
+                // FirstRunStep's deepLinkRoute / "View all"), not a ShellRoute — this was never wired to
+                // THIS composable's onNavigate at all, so every one of those buttons (rewards/dead-token/
+                // moderation Review, first-run checklist steps, analytics "View all") silently did nothing
+                // (owner report 2026-09-10, via the unmanaged-rewards Review button). Unknown name -> no
+                // navigation, same "honest, no navigation over wrong navigation" rule attentionRouteFor uses.
+                onNavigate = { name -> ShellRoute.entries.firstOrNull { it.name == name }?.let(onNavigate) },
             )
             ShellRoute.Chat -> ChatScreen(
                 controller = graph.chatController,
