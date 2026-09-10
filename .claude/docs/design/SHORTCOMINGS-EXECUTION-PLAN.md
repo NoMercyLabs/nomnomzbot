@@ -57,27 +57,18 @@ concurrent, disjoint files only).
       shared scroll/panel layout across every page (aaoa's convention). Needs a page-by-page sweep
       against whatever the design system's canonical scroll-container pattern already is
       (`frontend-design-system.md`) — systemic, not a one-file fix.
-- [ ] **S-PL8** `!skip N` currently skips the CURRENTLY PLAYING song; it should instead remove song N
-      from the requester's own queued entries, never touch what's playing now. Song-request queue
-      pipeline action / command.
-- [ ] **S-PL9 + S-PL11 (same underlying ask, build ONE generic action):** a pipeline action that
-      plays one specific track immediately without disturbing the current Spotify autoplay
-      queue/playlist — owner wants it in the go-live pipeline (an intro song on the "starting soon"
-      screen) AND wants the raid-start pipeline to optionally do the same (same or a different song),
-      as a customizable step available in any pipeline/script, not hardcoded to one trigger. Generic
-      primitive, not two bespoke ones ([[generic-primitives-not-bespoke-features]]).
-  - **Sanction-audit dependency, found 2026-09-10:** `MusicService`'s provider-write methods only
-    carry an `OutboundSanction` when reached from a real HTTP request (`OutboundSanctionFilter`);
-    `HandOverNextAsync` and `EnqueueResolvedAsync`'s own admission push were missing theirs — this
-    silently blocked the whole SR queue from ever dispatching a second request and is fixed
-    (`b12de689`, `136921c5`). `PlayTrackOnceAsync` (this S-PL9/S-PL11 action) was given the same
-    sanction pre-emptively, but `PauseAsync`/`PlayAsync`/`SkipAsync`/`PreviousAsync` and any other
-    provider-write method on `MusicService` were NOT audited and likely have the same gap — concretely,
-    `PlayOnceResumeHandler.HandleAsync`'s call to `PauseAsync` runs with no HTTP request behind it
-    (a `PlaybackStateChangedEvent` handler), same shape as the bugs just fixed. Audit every
-    provider-write method `MusicService` exposes for a background caller before or alongside this
-    slice's deploy — a missing sanction there fails the exact same silent way (refused write, no
-    exception surfaced to the user, feature looks "wired" but does nothing).
+- [ ] **S-MUSIC-SANCTION-AUDIT** (split off S-PL9+S-PL11, closed `fa484764`/`4749a9b9` — 2026-09-10):
+  `MusicService`'s provider-write methods only carry an `OutboundSanction` when reached from a real
+  HTTP request (`OutboundSanctionFilter`); `HandOverNextAsync` and `EnqueueResolvedAsync`'s own
+  admission push were missing theirs — this silently blocked the whole SR queue from ever dispatching
+  a second request and is fixed (`b12de689`, `136921c5`). `PlayTrackOnceAsync` was given the same
+  sanction pre-emptively, but `PauseAsync`/`PlayAsync`/`SkipAsync`/`PreviousAsync` and any other
+  provider-write method on `MusicService` were NOT audited and likely have the same gap — concretely,
+  `PlayOnceResumeHandler.HandleAsync`'s call to `PauseAsync` (now shipped, `4749a9b9`) runs with no
+  HTTP request behind it (a `PlaybackStateChangedEvent` handler), same shape as the bugs just fixed.
+  Audit every provider-write method `MusicService` exposes for a background caller — a missing
+  sanction there fails the exact same silent way (refused write, no exception surfaced to the user,
+  feature looks "wired" but does nothing).
 - [ ] **S-PL10** The go-live pipeline action that switches OBS to the "starting soon" scene should be
       idempotent/forgiving — if already on that scene, it must not error or fight the current state.
 
