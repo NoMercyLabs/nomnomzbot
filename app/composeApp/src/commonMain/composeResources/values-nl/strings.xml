@@ -2108,8 +2108,12 @@
     <string name="chattriggers_perm_broadcaster">Streamer</string>
     <string name="chattriggers_dialog_use_pipeline_label">Draai een pipeline in plaats van een tekstantwoord</string>
     <string name="chattriggers_dialog_response_label">Antwoord (gebruikt {user}, {args})</string>
-    <string name="chattriggers_dialog_pipeline_label">Pipeline</string>
+    <string name="chattriggers_dialog_pipeline_label">Gekoppelde pipeline</string>
     <string name="chattriggers_dialog_pipeline_none">Geen</string>
+    <string name="chattriggers_dialog_pipeline_choose">Kies een pipeline</string>
+    <string name="chattriggers_dialog_pipeline_create_new">Nieuwe pipeline maken</string>
+    <string name="chattriggers_dialog_pipeline_create_confirm">Maken</string>
+    <string name="chattriggers_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
     <string name="chattriggers_dialog_cooldown_label">Afkoeltijd (seconden)</string>
     <string name="chattriggers_dialog_enabled_label">Aan</string>
     <string name="chattriggers_dialog_create">Toevoegen</string>

@@ -18,7 +18,10 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatTrigger
 import bot.nomnomz.dashboard.core.network.ChatTriggersApi
 import bot.nomnomz.dashboard.core.network.CreateChatTriggerBody
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateChatTriggerBody
@@ -160,6 +163,30 @@ class ChatTriggersController(
     suspend fun toggleTrigger(triggerId: String, enabled: Boolean) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(chatTriggersApi.update(channel, triggerId, UpdateChatTriggerBody(isEnabled = enabled)))
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] — the create-and-bind flow [PipelineBindPicker] offers in
+     * the create/edit dialog, so binding a pipeline never requires leaving this dialog to make one first on the
+     * Pipelines page (S046, mirrored from [bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController]).
+     * Returns the created [PipelineSummary] (with its server-assigned id) so the caller can select it immediately,
+     * or null on failure (the failure is also surfaced on the frame here, matching every other write).
+     */
+    suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
+        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        return when (
+            val result: ApiResult<PipelineDetail> =
+                pipelinesApi.createReturning(
+                    channel,
+                    CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                )
+        ) {
+            is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
     }
 
     /** Delete a trigger, addressed by its [triggerId]. Reloads on success. Surfaces the error on failure. */

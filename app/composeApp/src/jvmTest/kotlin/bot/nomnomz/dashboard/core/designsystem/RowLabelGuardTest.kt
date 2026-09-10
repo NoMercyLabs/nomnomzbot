@@ -67,6 +67,7 @@ class RowLabelGuardTest {
     private val rawFormSeedAssignmentBaseline: Map<String, Int> =
         mapOf(
             "analytics/ui/AnalyticsScreen.kt" to 1,
+            "chattriggers/state/ChatTriggersController.kt" to 1,
             "commands/state/CommandsController.kt" to 1,
             "commands/ui/CommandsScreen.kt" to 1,
             "community/state/CommunityController.kt" to 1,

@@ -49,11 +49,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
-import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
@@ -92,7 +92,11 @@ import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_match_type_
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pattern_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pattern_regex_invalid
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_permission_label
+import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_create_confirm
+import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_create_new
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_new_name
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_response_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_save
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_use_pipeline_label
@@ -193,6 +197,7 @@ fun ChatTriggersScreen(
             pipelines = pipelines,
             templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
+            onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onSubmit = { form ->
                 editor = null
                 scope.launch {
@@ -402,6 +407,7 @@ private fun TriggerFormDialog(
     pipelines: List<PipelineSummary>,
     templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
+    onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onSubmit: (TriggerForm) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -535,15 +541,20 @@ private fun TriggerFormDialog(
                     )
                 }
                 if (usePipeline && pipelines.isNotEmpty()) {
-                    // A reference to another table (the channel's pipelines) → the shared search dropdown,
-                    // filtering as you type.
-                    EntityPickerField(
-                        items = pipelines,
+                    // A reference to another table (the channel's pipelines) → the shared bind picker: search an
+                    // existing pipeline by name OR create-and-bind a new one right here, no pasted ids (S046,
+                    // matching Commands / Giveaways / Rewards / EventResponses / Timers).
+                    PipelineBindPicker(
+                        pipelines = pipelines,
                         selectedId = selectedPipelineId,
                         onSelect = { selectedPipelineId = it },
-                        idOf = { it.id },
-                        labelOf = { it.name },
-                        label = stringResource(Res.string.chattriggers_dialog_pipeline_label),
+                        onCreate = { name -> onCreatePipeline(name) },
+                        pickLabel = stringResource(Res.string.chattriggers_dialog_pipeline_label),
+                        choosePlaceholder = stringResource(Res.string.chattriggers_dialog_pipeline_choose),
+                        createNewLabel = stringResource(Res.string.chattriggers_dialog_pipeline_create_new),
+                        newNameLabel = stringResource(Res.string.chattriggers_dialog_pipeline_new_name),
+                        createLabel = stringResource(Res.string.chattriggers_dialog_pipeline_create_confirm),
+                        cancelLabel = stringResource(Res.string.chattriggers_dialog_cancel),
                     )
                 } else {
                     AppTextField(

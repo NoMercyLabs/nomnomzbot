@@ -2111,8 +2111,12 @@
     <string name="chattriggers_perm_broadcaster">Broadcaster</string>
     <string name="chattriggers_dialog_use_pipeline_label">Run a pipeline instead of a text reply</string>
     <string name="chattriggers_dialog_response_label">Reply (uses {user}, {args})</string>
-    <string name="chattriggers_dialog_pipeline_label">Pipeline</string>
+    <string name="chattriggers_dialog_pipeline_label">Bound pipeline</string>
     <string name="chattriggers_dialog_pipeline_none">None</string>
+    <string name="chattriggers_dialog_pipeline_choose">Choose a pipeline</string>
+    <string name="chattriggers_dialog_pipeline_create_new">Create a new pipeline</string>
+    <string name="chattriggers_dialog_pipeline_create_confirm">Create</string>
+    <string name="chattriggers_dialog_pipeline_new_name">New pipeline name</string>
     <string name="chattriggers_dialog_cooldown_label">Cooldown (seconds)</string>
     <string name="chattriggers_dialog_enabled_label">Enabled</string>
     <string name="chattriggers_dialog_create">Add</string>
