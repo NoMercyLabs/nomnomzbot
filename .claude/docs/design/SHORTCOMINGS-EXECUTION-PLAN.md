@@ -48,9 +48,15 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       action types already auto-provisioning-eligible, just needs manifest entries); a scene/input
       dropdown picker (current property inspector is free-text); live icon state (mute/streaming/
       recording tile feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
-- [ ] **S-STREAMDECK-TEST-INFRA** `tools/streamdeck`'s vitest setup cannot import ANY
-      `@action(...)`-decorated file at all (reproduced on the already-shipped `play.ts`) — no
-      action-level test has ever been possible there, for music or OBS. Real test-infra gap.
+- [ ] **S-STREAMDECK-ACTION-TESTS** CLOSED the underlying gap (`617c2c81`): vitest transformed `.ts` via
+      oxc, which parsed but never down-leveled `@action(...)`'s TC39 stage-3 decorator syntax — Node has
+      no native runtime support for it at all. `vitest.config.ts` now runs the real `tsc` (matching the
+      production rollup build), and `playAction.test.ts` proves it by instantiating the real
+      `PlayAction` and asserting its exact `automation-invoke` payload. Remaining, own slice: every
+      OTHER action file (pause/playPause/next/previous/seek/setVolume/setRepeat/setShuffle/
+      toggleShuffle/toggleSaved/saveTrack/unsaveTrack/followArtist/unfollowArtist/transferDevice/
+      addToPlaylist/removeFromPlaylist/nowPlaying/cycleRepeat/volumeUp/Down/Mute, and all 9 `obs*.ts`
+      actions) can now get the same real test `play.ts` just got — none exist yet beyond the proof case.
 
 ---
 
