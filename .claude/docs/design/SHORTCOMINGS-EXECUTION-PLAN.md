@@ -61,18 +61,13 @@ concurrent, disjoint files only).
       requested full height regardless of the header above it and pushed its tail off-screen — fixed in
       `74f6ea79`. Live browser render check still not done (wasm dev server hit a memory-contention
       failure on this box every attempt) — worth a manual check next time the dashboard is run.
-- [ ] **S-MUSIC-SANCTION-AUDIT** (split off S-PL9+S-PL11, closed `fa484764`/`4749a9b9` — 2026-09-10):
-  `MusicService`'s provider-write methods only carry an `OutboundSanction` when reached from a real
-  HTTP request (`OutboundSanctionFilter`); `HandOverNextAsync` and `EnqueueResolvedAsync`'s own
-  admission push were missing theirs — this silently blocked the whole SR queue from ever dispatching
-  a second request and is fixed (`b12de689`, `136921c5`). `PlayTrackOnceAsync` was given the same
-  sanction pre-emptively, but `PauseAsync`/`PlayAsync`/`SkipAsync`/`PreviousAsync` and any other
-  provider-write method on `MusicService` were NOT audited and likely have the same gap — concretely,
-  `PlayOnceResumeHandler.HandleAsync`'s call to `PauseAsync` (now shipped, `4749a9b9`) runs with no
-  HTTP request behind it (a `PlaybackStateChangedEvent` handler), same shape as the bugs just fixed.
-  Audit every provider-write method `MusicService` exposes for a background caller — a missing
-  sanction there fails the exact same silent way (refused write, no exception surfaced to the user,
-  feature looks "wired" but does nothing).
+- ~~[ ] **S-MUSIC-SANCTION-AUDIT**~~ CLOSED `f96ecdcb`: all 9 background-reachable `MusicService`
+  provider-write methods (`PlayAsync`, `PauseAsync`, `SkipAsync`, `PreviousAsync`, `SetVolumeAsync`,
+  `SeekAsync`, `SetShuffleAsync`, `SetRepeatAsync`, `TransferPlaybackAsync`) now carry their own
+  `OutboundSanction` — each reachable from a pipeline action, `PlayOnceResumeHandler`, or a chat
+  builtin with no ambient sanction of its own. `PlayContextAsync` confirmed controller-only (already
+  covered). 9 new regression tests, each asserting the exact sanction basis/detail observed inside the
+  mocked provider call. Verified.
 - ~~[ ] **S-PL10**~~ CLOSED `5ede9fb9`: `ObsControlService.SwitchSceneAsync` already sent a plain
       `SetCurrentProgramScene` unconditionally and obs-websocket accepts a redundant switch as a normal
       set (no production fix needed) — a real test now proves both calls succeed and both requests
