@@ -49,15 +49,13 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       `record-start.svg`/`device.svg` pending real OBS-themed art). Still open: a scene/input dropdown
       picker (current property inspector is free-text); live icon state (mute/streaming/recording tile
       feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
-- [ ] **S-STREAMDECK-ACTION-TESTS** CLOSED the underlying gap (`617c2c81`): vitest transformed `.ts` via
-      oxc, which parsed but never down-leveled `@action(...)`'s TC39 stage-3 decorator syntax — Node has
-      no native runtime support for it at all. `vitest.config.ts` now runs the real `tsc` (matching the
-      production rollup build), and `playAction.test.ts` proves it by instantiating the real
-      `PlayAction` and asserting its exact `automation-invoke` payload. Remaining, own slice: every
-      OTHER action file (pause/playPause/next/previous/seek/setVolume/setRepeat/setShuffle/
-      toggleShuffle/toggleSaved/saveTrack/unsaveTrack/followArtist/unfollowArtist/transferDevice/
-      addToPlaylist/removeFromPlaylist/nowPlaying/cycleRepeat/volumeUp/Down/Mute, and all 9 `obs*.ts`
-      actions) can now get the same real test `play.ts` just got — none exist yet beyond the proof case.
+- [ ] **S-STREAMDECK-ACTION-TESTS** Underlying gap closed (`617c2c81`); OBS actions + the 10 simplest
+      no-arg music actions now have real instantiated-class tests (`64a902e7`, `8054c318` — pause/
+      playPause/next/previous/toggleShuffle/toggleSaved/followArtist/unfollowArtist/saveTrack/
+      unsaveTrack). Remaining, own slice: single-setting actions (volumeUp/volumeDown/volumeMute/
+      cycleRepeat) and multi-field/picker actions (setVolume/seek/setRepeat/setShuffle/
+      transferDevice/addToPlaylist/removeFromPlaylist/nowPlaying, and the 8 remaining `obs*.ts`
+      actions covered only by the lighter resolveParams-mapping style in `obsActions.test.ts`).
 
 ---
 
