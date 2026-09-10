@@ -11,9 +11,11 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
@@ -185,10 +187,12 @@ public class ObsController(
         CancellationToken ct
     ) => ResultResponse(await control.SetRecordingAsync(channelId, request.Action, ct));
 
-    /// <summary>Replay buffer start/stop/toggle — does not affect what viewers see, so it sits at the
-    /// control tier (same floor as scene switching), not the broadcast tier.</summary>
+    /// <summary>Replay buffer start/stop/toggle — cheap to invoke, but the action name matches this
+    /// project's "expensive work" naming convention (S118), so it carries its own write-expensive tier
+    /// rather than inheriting the controller default.</summary>
     [HttpPost("replay-buffer")]
     [RequireAction("obs:control")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SetReplayBuffer(
         Guid channelId,
@@ -199,6 +203,7 @@ public class ObsController(
     /// <summary>Save the last replay-buffer clip to disk.</summary>
     [HttpPost("replay-buffer/save")]
     [RequireAction("obs:control")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SaveReplayBuffer(Guid channelId, CancellationToken ct) =>
         ResultResponse(await control.SaveReplayBufferAsync(channelId, ct));
