@@ -49,17 +49,6 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       `record-start.svg`/`device.svg` pending real OBS-themed art). Still open: a scene/input dropdown
       picker (current property inspector is free-text); live icon state (mute/streaming/recording tile
       feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
-- [ ] **S-STREAMDECK-ACTION-TESTS** Underlying gap closed (`617c2c81`). Real instantiated-class tests
-      now exist for: OBS replay-buffer/virtual-cam, the 10 simplest no-arg music actions (`64a902e7`,
-      `8054c318`), volumeUp/volumeDown/volumeMute/cycleRepeat (`3df85608` — cycleRepeat turned out
-      to be no-arg too, driven by `nowPlayingState` not a stored setting; the plan's "single-setting"
-      grouping was wrong for it, test proves the real behavior instead), and the 8 multi-field/picker
-      music actions — setVolume/seek/setRepeat/setShuffle/transferDevice/addToPlaylist/
-      removeFromPlaylist/nowPlaying (batch 3, 83/83 green — seek/setRepeat/setShuffle's
-      isBlockedByProvider also proven against the real nowPlayingState singleton, not just
-      resolveParams). Remaining, own slice: the 8 remaining `obs*.ts` actions still only covered by
-      the lighter resolveParams-mapping style in `obsActions.test.ts`.
-
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
