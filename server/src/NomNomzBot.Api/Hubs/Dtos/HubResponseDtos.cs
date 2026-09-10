@@ -220,3 +220,18 @@ public record TtsSpeakPayload(
 
 /// <summary>Optional prosody overrides for a client-edge utterance (all null = provider defaults).</summary>
 public record TtsSpeakOptions(double? Rate, double? Pitch, double? Volume);
+
+// ─── Moderation retraction overlay (widgets-overlays.md §2a) ────────────────────
+
+/// <summary>
+/// Pushed to every overlay connection for the channel when moderation removes the content's source —
+/// a deleted message (<see cref="SourceMessageId"/>) or everything from one author (<see cref="AuthorUserId"/>,
+/// timeout/ban/nuke). <see cref="AuthorUserId"/> is the platform-native author id — the same id a widget
+/// already attached to what it rendered — not a resolved local user id.
+/// </summary>
+public record RetractPayload(
+    Guid BroadcasterId,
+    string? SourceMessageId,
+    string? AuthorUserId,
+    string Reason
+);

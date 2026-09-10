@@ -517,6 +517,12 @@ public static class DependencyInjection
             Application.Widgets.Services.IWidgetEventNotifier,
             Widgets.NullWidgetEventNotifier
         >();
+        // No-op fallback; the API host replaces this with the SignalR-backed OverlayRetractionNotifierAdapter
+        // (drives OverlayModerationRetractionHandler's overlay push — widgets-overlays.md §2a).
+        services.AddScoped<
+            Application.Widgets.Services.IOverlayRetractionNotifier,
+            Widgets.NullOverlayRetractionNotifier
+        >();
         // No-op fallback; the API host replaces this with the SignalR-backed EventResponseOverlayNotifierAdapter
         // (drives an EventResponse's `overlay` ResponseType — commands-pipelines.md §3.2.1).
         services.AddScoped<IEventResponseOverlayNotifier, NullEventResponseOverlayNotifier>();

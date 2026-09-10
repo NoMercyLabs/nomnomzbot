@@ -65,6 +65,9 @@ public interface IWidgetNotifier
         OverlayEventDto evt,
         CancellationToken ct = default
     );
+
+    /// <summary>Pushes a moderation retraction to every overlay client for the given broadcaster (widgets-overlays.md §2a).</summary>
+    Task RetractAsync(string broadcasterId, RetractPayload payload, CancellationToken ct = default);
 }
 
 public class WidgetNotifier : IWidgetNotifier
@@ -123,4 +126,10 @@ public class WidgetNotifier : IWidgetNotifier
         OverlayEventDto evt,
         CancellationToken ct = default
     ) => _hub.Clients.Group($"overlay-{broadcasterId}").Event(evt);
+
+    public Task RetractAsync(
+        string broadcasterId,
+        RetractPayload payload,
+        CancellationToken ct = default
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").Retract(payload);
 }

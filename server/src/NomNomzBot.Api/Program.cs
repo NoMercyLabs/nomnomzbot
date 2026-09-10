@@ -233,6 +233,10 @@ try
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
         WidgetEventNotifierAdapter
     >();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Widgets.Services.IOverlayRetractionNotifier,
+        OverlayRetractionNotifierAdapter
+    >();
     // The generic overlay event feed — the hub-backed impl the OverlayEventFeedHook fans every event through.
     builder.Services.AddScoped<
         NomNomzBot.Application.Overlays.Services.IOverlayEventFeed,

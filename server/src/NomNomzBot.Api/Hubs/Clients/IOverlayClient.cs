@@ -39,4 +39,11 @@ public interface IOverlayClient
 
     /// <summary>Instructs the overlay to stop a named clip handle, or all playback when <see cref="StopSoundPayload.All"/> is true.</summary>
     Task StopSound(StopSoundPayload payload);
+
+    /// <summary>
+    /// Moderation retraction (widgets-overlays.md §2a) — pushed on the SAME connection as the content it
+    /// cancels, so it can never overtake it. Every surface pulls matching content by
+    /// <see cref="RetractPayload.SourceMessageId"/> or <see cref="RetractPayload.AuthorUserId"/>.
+    /// </summary>
+    Task Retract(RetractPayload payload);
 }
