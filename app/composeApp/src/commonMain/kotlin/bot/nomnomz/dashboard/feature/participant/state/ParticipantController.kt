@@ -41,6 +41,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.participant_no_channel
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The PARTICIPANT rung's state-holder (Rung 0) — the single holder behind the six participant screens. Unlike the
 // management controllers it does NOT re-resolve the channel: the shell already resolved the caller's access
@@ -49,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 // backend route through the typed [ParticipantApi] / read-only economy + music + dashboard facades — no fabricated
 // data. The standing-driven unlocks (sub-only lanes, higher pending limits, sub leaderboards) are decided here from
 // [standing], surfaced in the page state for the screen to render.
+@OptIn(ExperimentalResourceApi::class)
 class ParticipantController(
     private val channelId: String,
     private val userId: String?,
@@ -112,7 +117,7 @@ class ParticipantController(
     suspend fun loadMyChannel() {
         _myChannel.value = MyChannelState.Loading
         if (!hasContext()) {
-            _myChannel.value = MyChannelState.Error(NoChannelError)
+            _myChannel.value = MyChannelState.Error(getString(Res.string.participant_no_channel))
             return
         }
 
@@ -153,7 +158,7 @@ class ParticipantController(
     suspend fun loadNowPlaying() {
         _nowPlaying.value = NowPlayingState.Loading
         if (!hasContext()) {
-            _nowPlaying.value = NowPlayingState.Error(NoChannelError)
+            _nowPlaying.value = NowPlayingState.Error(getString(Res.string.participant_no_channel))
             return
         }
         when (val result: ApiResult<MusicSnapshot> = musicApi.queue(channelId)) {
@@ -194,7 +199,7 @@ class ParticipantController(
     suspend fun loadLeaderboards() {
         _leaderboards.value = LeaderboardsState.Loading
         if (!hasContext()) {
-            _leaderboards.value = LeaderboardsState.Error(NoChannelError)
+            _leaderboards.value = LeaderboardsState.Error(getString(Res.string.participant_no_channel))
             return
         }
         when (
@@ -266,7 +271,7 @@ class ParticipantController(
     suspend fun loadStore() {
         _store.value = StoreState.Loading
         if (!hasContext()) {
-            _store.value = StoreState.Error(NoChannelError)
+            _store.value = StoreState.Error(getString(Res.string.participant_no_channel))
             return
         }
 
@@ -345,7 +350,7 @@ class ParticipantController(
     suspend fun loadGames() {
         _games.value = ParticipantGamesState.Loading
         if (!hasContext()) {
-            _games.value = ParticipantGamesState.Error(NoChannelError)
+            _games.value = ParticipantGamesState.Error(getString(Res.string.participant_no_channel))
             return
         }
 
@@ -399,7 +404,7 @@ class ParticipantController(
     suspend fun loadMe() {
         _me.value = MeState.Loading
         if (userId == null) {
-            _me.value = MeState.Error(NoChannelError)
+            _me.value = MeState.Error(getString(Res.string.participant_no_channel))
             return
         }
 
@@ -503,7 +508,6 @@ class ParticipantController(
     private fun hasContext(): Boolean = channelId.isNotBlank() && userId != null
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
         const val TransferCapability: String = "economy:transfer:write"
         const val LeaderboardTop: Int = 25
         const val BasePendingSongs: Int = 1

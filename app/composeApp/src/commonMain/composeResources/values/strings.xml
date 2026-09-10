@@ -16,6 +16,7 @@
     <string name="connect_subtitle">Sign in with your own Twitch account to get started.</string>
     <string name="connect_account_hint">Use your own streamer account — you can add a bot account later from the dashboard.</string>
     <string name="connect_account_hint_generic">This becomes your own account — you can add a bot account later from the dashboard.</string>
+    <string name="participant_no_channel">You're not connected to any channel yet — chat in a channel where this bot is installed to get started.</string>
     <string name="connect_action">Connect</string>
     <string name="connect_url_label">Backend URL</string>
     <string name="connect_url_placeholder">http://localhost:5080</string>
