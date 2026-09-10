@@ -112,6 +112,28 @@
         }
     </style>
     <!--
+      Font preload. Skia/Wasm has no system fonts (Typography.kt) — every character the app draws,
+      including the app's own English/Dutch UI chrome, comes from one of these bundled files, and
+      Compose does not paint real glyphs until the WHOLE font family has finished loading (JetBrains'
+      own guidance: "wait until the font is ready before showing any content"). Left unpreloaded, the
+      browser only discovers these files AFTER composeApp.js has downloaded, compiled and booted, so a
+      cold visit sits on tofu-box text for far longer than the font bytes themselves take to arrive
+      (owner report 2026-09-10: "the fonts don't load fast enough"). These hints start every fetch the
+      moment the HTML parses, in parallel with composeApp.js, instead of serially after it.
+      inter.ttf is the only face the app's OWN UI ever needs (en/nl) — fetchpriority="high" so its
+      ~900KB races ahead of the much larger script-fallback faces below (Arabic/Thai/Han/Hangul/emoji,
+      ~34MB combined), which exist only for arbitrary user-generated text (chat, display names) and
+      stay at default priority so they never compete with Inter or composeApp.js for bandwidth.
+    -->
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/inter.ttf" crossorigin fetchpriority="high">
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans.ttf" crossorigin>
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_arabic.ttf" crossorigin>
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_thai.ttf" crossorigin>
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_sc.ttf" crossorigin>
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_kr.ttf" crossorigin>
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/twemoji_color.ttf" crossorigin>
+    <link rel="preload" as="font" type="font/ttf" href="composeResources/nomnomzbot.composeapp.generated.resources/font/noto_emoji.ttf" crossorigin>
+    <!--
       Display-language override hook. The Compose/Wasm app publishes the operator's forced UI language
       to window.__customLocale; this makes navigator.languages return it so Compose resources resolve
       against the chosen language. When unset (System default) the browser's own locale is used.
