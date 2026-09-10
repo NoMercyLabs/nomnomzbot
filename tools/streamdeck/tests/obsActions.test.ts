@@ -14,19 +14,11 @@ import type { IncomingMessage } from "node:http";
 
 // NOTE on scope: this proves the WIRE contract each new OBS action's onKeyDown drives — the real
 // automationClient.invoke() hitting a real fake HTTP server, the same style automationClient.test.ts
-// already uses. It stops short of instantiating the @action(...)-decorated action classes themselves
-// (obsSwitchScene.ts etc.) — every action file in this plugin (all 22 existing music ones included)
-// uses @elgato/streamdeck's `@action(...)` class decorator, and this project's vitest pipeline (Vite 8,
-// oxc-by-default TS transform) cannot parse that syntax at all — confirmed by importing an EXISTING
-// shipped action file (play.ts) in isolation and hitting the identical "Invalid or unexpected token"
-// parse failure, with no decorator option discoverable on oxc's TransformOptions and esbuild's
-// `tsconfigRaw: { experimentalDecorators: true }` fallback (`oxc: false`) not resolving it either.
-// This is a PRE-EXISTING gap (explains why zero "*action*" test files existed before this slice, for
-// any action, music or OBS) — not something introduced here; flagged as follow-up, not fixed on this
-// slice. Each new action's `resolveParams`/`pipelineName` is a one-line, directly-readable mapping in
-// its own small source file (obsSwitchScene.ts, obsToggleMute.ts, obsStart/Stop/ToggleStreaming.ts,
-// obsStart/Stop/ToggleRecording.ts) — this test proves the values those mappings produce actually
-// reach the backend correctly, which is the part that can silently drift or be mistyped.
+// already uses. It stops short of instantiating the @action(...)-decorated action classes themselves —
+// vitest.config.ts (S-STREAMDECK-TEST-INFRA, 617c2c81) now CAN do that (see obsInstantiatedActions.test.ts
+// and tests/playAction.test.ts for the pattern); this file's lighter-weight tests are kept as-is since
+// they already cover every action's resolveParams mapping and duplicating all of them at the
+// instantiated-class level would be redundant, not because the old parse limitation still applies.
 let fakeGlobalSettings: Record<string, unknown> = {};
 vi.mock("@elgato/streamdeck", () => ({
   default: {
