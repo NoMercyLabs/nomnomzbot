@@ -185,6 +185,34 @@ public class ObsController(
         CancellationToken ct
     ) => ResultResponse(await control.SetRecordingAsync(channelId, request.Action, ct));
 
+    /// <summary>Replay buffer start/stop/toggle — does not affect what viewers see, so it sits at the
+    /// control tier (same floor as scene switching), not the broadcast tier.</summary>
+    [HttpPost("replay-buffer")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetReplayBuffer(
+        Guid channelId,
+        [FromBody] ObsToggleRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetReplayBufferAsync(channelId, request.Action, ct));
+
+    /// <summary>Save the last replay-buffer clip to disk.</summary>
+    [HttpPost("replay-buffer/save")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveReplayBuffer(Guid channelId, CancellationToken ct) =>
+        ResultResponse(await control.SaveReplayBufferAsync(channelId, ct));
+
+    /// <summary>Virtual camera start/stop/toggle — a local output, not broadcast-impacting.</summary>
+    [HttpPost("virtual-cam")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetVirtualCam(
+        Guid channelId,
+        [FromBody] ObsToggleRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetVirtualCamAsync(channelId, request.Action, ct));
+
     /// <summary>Raw OBS-WS pass-through (the full surface; broadcast-tier).</summary>
     [HttpPost("request")]
     [RequireAction("obs:control:broadcast")]
