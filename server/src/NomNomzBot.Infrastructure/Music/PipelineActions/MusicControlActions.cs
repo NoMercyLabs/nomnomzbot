@@ -633,7 +633,7 @@ public sealed class MusicSetShuffleAction : ICommandAction
     )
     {
         bool enabled = string.Equals(
-            action.GetString("enabled"),
+            MusicTransferDeviceAction.ResolveStringParam(action, "enabled", ctx.Variables),
             "true",
             StringComparison.OrdinalIgnoreCase
         );
@@ -709,7 +709,9 @@ public sealed class MusicSetRepeatAction : ICommandAction
         ActionDefinition action
     )
     {
-        string mode = action.GetString("mode") ?? "off";
+        string mode = MusicTransferDeviceAction.ResolveStringParam(action, "mode", ctx.Variables);
+        if (string.IsNullOrEmpty(mode))
+            mode = "off";
         Result result = await _music.SetRepeatAsync(
             ctx.BroadcasterId.ToString(),
             mode,

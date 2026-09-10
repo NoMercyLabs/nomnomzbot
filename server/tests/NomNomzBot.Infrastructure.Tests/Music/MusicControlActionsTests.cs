@@ -211,6 +211,90 @@ public sealed class MusicControlActionsTests
             .SetRepeatAsync(ChannelId.ToString(), expectedNext, Arg.Any<CancellationToken>());
     }
 
+    // ─── music_set_shuffle: resolves a literal or a {var} placeholder ─────────
+
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    public async Task Set_shuffle_resolves_a_literal_value(string raw, bool expected)
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SetShuffleAsync(ChannelId.ToString(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicSetShuffleAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_set_shuffle", ("enabled", raw)));
+
+        await music
+            .Received(1)
+            .SetShuffleAsync(ChannelId.ToString(), expected, Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Regression for the auto-provisioned Stream Deck pipeline placeholder fix (5eba6182):
+    /// the seeded step carries the literal string "{enabled}", not a real true/false — this must resolve
+    /// against the invoke's variables dict exactly like music_set_volume's "volume" field does. Before
+    /// this fix, music_set_shuffle compared the unresolved placeholder string straight against "true",
+    /// which is never equal to it — every Stream Deck "Set Shuffle" key silently forced shuffle OFF
+    /// regardless of the key's configured state.</summary>
+    [Fact]
+    public async Task Set_shuffle_resolves_the_stream_deck_placeholder_from_pipeline_variables()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SetShuffleAsync(ChannelId.ToString(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicSetShuffleAction action = new(music);
+        PipelineExecutionContext ctx = Ctx();
+        ctx.Variables["enabled"] = "true";
+
+        await action.ExecuteAsync(ctx, Def("music_set_shuffle", ("enabled", "{enabled}")));
+
+        await music
+            .Received(1)
+            .SetShuffleAsync(ChannelId.ToString(), true, Arg.Any<CancellationToken>());
+    }
+
+    // ─── music_set_repeat: resolves a literal or a {var} placeholder ──────────
+
+    [Fact]
+    public async Task Set_repeat_resolves_a_literal_mode()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SetRepeatAsync(ChannelId.ToString(), "track", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicSetRepeatAction action = new(music);
+
+        await action.ExecuteAsync(Ctx(), Def("music_set_repeat", ("mode", "track")));
+
+        await music
+            .Received(1)
+            .SetRepeatAsync(ChannelId.ToString(), "track", Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Regression for the auto-provisioned Stream Deck pipeline placeholder fix (5eba6182):
+    /// same defect as music_set_shuffle — the seeded step carries the literal string "{mode}" and must
+    /// resolve it against the invoke's variables dict, not pass the unresolved placeholder straight to
+    /// SetRepeatAsync (which would send the provider a literal "{mode}" as the repeat mode).</summary>
+    [Fact]
+    public async Task Set_repeat_resolves_the_stream_deck_placeholder_from_pipeline_variables()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SetRepeatAsync(ChannelId.ToString(), "context", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicSetRepeatAction action = new(music);
+        PipelineExecutionContext ctx = Ctx();
+        ctx.Variables["mode"] = "context";
+
+        await action.ExecuteAsync(ctx, Def("music_set_repeat", ("mode", "{mode}")));
+
+        await music
+            .Received(1)
+            .SetRepeatAsync(ChannelId.ToString(), "context", Arg.Any<CancellationToken>());
+    }
+
     // ─── music_toggle_saved: writes the OPPOSITE of the saved-check fixture ───
 
     [Fact]
