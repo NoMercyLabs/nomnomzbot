@@ -58,12 +58,16 @@ per-requester/pending-request path rather than the new resolve.
 
 Owner, verbatim: "i have 2 messages per twitch event! prevent this from happeneing next slice".
 
-Redelivery dedup already exists and is NOT the hole: `NotificationDispatcher` derives a deterministic
-event id from the EventSub message id (`EventSubMessageId.ForMessageId`), so Twitch re-sending the same
-message id resolves to the stored row. A duplicate therefore means TWO DIFFERENT message ids for one
-real event — duplicate subscriptions for a (topic, broadcaster) accumulating across the ~5-minute
-reconnect, two sessions for one broadcaster, two responders to one trigger, or two running instances.
-
+**CLOSED same day (`11034ea9`, `6efbace4`, subscription-layer follow-up `74300eb3`).** Redelivery
+dedup on the EventSub message id was never the hole — a duplicate meant TWO DIFFERENT message ids for
+one real occurrence, chiefly the zero-downtime blue/green deploy running two live processes
+simultaneously (`scripts/switchover.ps1`) and a single-process reconnect's ~1-minute stale-session
+grace window producing the same shape. `IDuplicateNotificationSuppressor` now holds a durable,
+cross-process `IdempotencyKey` claim (scope `eventsub-semantic`) that collapses both. Re-verified
+2026-09-10 by reverting the suppressor to always-claim-first and watching
+`Dispatch_SameRealEvent_TwoDifferentMessageIds_FansOutOnlyOnce` /
+`Dispatch_SameRealEvent_AcrossTwoSeparateDispatcherInstances_FansOutOnlyOnce` fail for the right
+reason, then confirming green again.
 
 ## OVERLAY RENDER PROOF — done for the chat overlay, owed for the dashboard
 
