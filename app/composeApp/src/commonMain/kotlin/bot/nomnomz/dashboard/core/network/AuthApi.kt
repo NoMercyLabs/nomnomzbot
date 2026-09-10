@@ -48,6 +48,19 @@ interface AuthApi {
     suspend fun pollDeviceLogin(provider: String = "twitch", deviceCode: String): ApiResult<DeviceLoginPoll>
 
     /**
+     * Create a new account from an email + password — the generic login screen's primary path. Fails with
+     * `EMAIL_TAKEN` / `EMAIL_INVALID` / `WEAK_PASSWORD` on [ApiError.code]. On success the caller has no
+     * channel yet, exactly like a first non-Twitch OAuth login.
+     */
+    suspend fun register(email: String, password: String): ApiResult<AuthPayload>
+
+    /**
+     * Sign in with an email + password. Fails `INVALID_CREDENTIALS` on [ApiError.code] for either an unknown
+     * email or a wrong password — the backend never distinguishes the two.
+     */
+    suspend fun login(email: String, password: String): ApiResult<AuthPayload>
+
+    /**
      * Renew the session — the "remembered" restore path on boot when the persisted access token has expired.
      * Native passes the refresh token it holds; web passes null and the backend reads its HttpOnly cookie
      * instead. The backend rotates the refresh token (returned in the body for native, kept in the cookie for
@@ -82,6 +95,18 @@ class RestAuthApi(private val client: ApiClient) : AuthApi {
         client.postEnvelope(
             "api/v1/auth/$provider/device/poll${clientQuery()}",
             DevicePollBody(deviceCode),
+        )
+
+    override suspend fun register(email: String, password: String): ApiResult<AuthPayload> =
+        client.postEnvelope(
+            "api/v1/auth/register${clientQuery()}",
+            PasswordAuthBody(email, password),
+        )
+
+    override suspend fun login(email: String, password: String): ApiResult<AuthPayload> =
+        client.postEnvelope(
+            "api/v1/auth/login${clientQuery()}",
+            PasswordAuthBody(email, password),
         )
 
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
@@ -135,3 +160,7 @@ private data class DevicePollBody(val deviceCode: String)
  */
 @Serializable
 private data class RefreshBody(val refreshToken: String?)
+
+/** The register/login request body — the backend's `PasswordAuthRequest`. */
+@Serializable
+private data class PasswordAuthBody(val email: String, val password: String)

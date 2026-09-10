@@ -943,6 +943,12 @@ private class FakeAuthApi(
         deviceCode: String,
     ): ApiResult<DeviceLoginPoll> = poll
 
+    override suspend fun register(email: String, password: String): ApiResult<AuthPayload> =
+        ApiResult.Failure(ApiError(500, null, "not stubbed"))
+
+    override suspend fun login(email: String, password: String): ApiResult<AuthPayload> =
+        ApiResult.Failure(ApiError(500, null, "not stubbed"))
+
     override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> {
         baseUrlAtRefresh = baseUrlProbe?.invoke()
         val results: List<ApiResult<AuthPayload>> = refreshResults ?: listOf(refreshResult)

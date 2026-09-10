@@ -102,20 +102,28 @@ fun ConnectModal(
     onCta: (() -> Unit)?,
     modifier: Modifier = Modifier,
     heading: StringResource = provider.heading,
+    subtitle: StringResource = provider.subtitle,
     onBack: (() -> Unit)? = null,
     showTerms: Boolean = false,
+    // False for a screen where NO single provider is the subject (the generic login card, primarily an
+    // email+password form with providers as equal-weight options below it) — the dual-logo "N × <brand>"
+    // pairing and the brand-tinted backdrop glow both imply "this card is about <brand>", which is exactly
+    // the impression a generic card must NOT give. True (default) preserves every other call site — the
+    // per-provider connect modals (Spotify/Discord/…) where that pairing is the correct, intended framing.
+    showProviderLogo: Boolean = true,
     content: @Composable () -> Unit = {},
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val glowColor: Color = if (showProviderLogo) provider.brand.brand else tokens.primary
 
     Box(
         modifier =
             modifier
                 .fillMaxSize()
                 .background(tokens.background)
-                .ambientBrandGlow(provider.brand.brand)
+                .ambientBrandGlow(glowColor)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .verticalScroll(rememberScrollState())
                 .padding(spacing.s6),
@@ -134,7 +142,7 @@ fun ConnectModal(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(spacing.s4),
         ) {
-            DualLogoHeader(provider = provider)
+            DualLogoHeader(provider = provider, showProviderLogo = showProviderLogo)
 
             Text(
                 text = stringResource(heading),
@@ -143,7 +151,7 @@ fun ConnectModal(
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = stringResource(provider.subtitle),
+                text = stringResource(subtitle),
                 style = typography.sm,
                 color = tokens.mutedForeground,
                 textAlign = TextAlign.Center,
@@ -176,10 +184,22 @@ fun ConnectModal(
 // The dual-logo header row: the NomNomz app mark tinted in the provider's brand colour, a muted separator
 // glyph, then the provider's own logo in its brand colour.
 @Composable
-private fun DualLogoHeader(provider: ConnectProvider) {
+private fun DualLogoHeader(provider: ConnectProvider, showProviderLogo: Boolean = true) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    if (!showProviderLogo) {
+        // The generic card: just the app's own mark, in its own identity colour — never a borrowed brand
+        // colour with no partner logo to justify it.
+        Icon(
+            imageVector = NomNomzMarkGlyph,
+            contentDescription = stringResource(Res.string.connect_logo_cd_app),
+            tint = tokens.primary,
+            modifier = Modifier.size(AppLogoSize),
+        )
+        return
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

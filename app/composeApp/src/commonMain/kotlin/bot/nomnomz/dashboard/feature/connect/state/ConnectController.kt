@@ -316,6 +316,67 @@ class ConnectController(
     }
 
     /**
+     * Create a new account from an email + password — the generic login screen's primary path. On success
+     * the caller has no channel yet (a brand-new account), so the gate advances straight to the Setup
+     * wizard's "connect a platform" step, exactly like a first non-Twitch OAuth login.
+     */
+    suspend fun registerWithPassword(email: String, password: String) =
+        runPasswordAuth { authApi.register(email, password) }
+
+    /**
+     * Sign in with an email + password. Resolves the caller's existing channel into the session when they
+     * have one, exactly like a returning Twitch login.
+     */
+    suspend fun loginWithPassword(email: String, password: String) =
+        runPasswordAuth { authApi.login(email, password) }
+
+    /**
+     * The register/login flow shared by [registerWithPassword] and [loginWithPassword] — identical up to
+     * which backend call [call] makes: pin a profile against the typed backend URL, run the call, and either
+     * establish the session or map the failure to a dedicated [ConnectError] (never the generic
+     * [ConnectError.Auth], so the login screen can show a field-specific message).
+     */
+    private suspend fun runPasswordAuth(call: suspend () -> ApiResult<AuthPayload>) {
+        if (loginInProgress()) return
+        val normalized: String? = normalizeBaseUrl(_baseUrl.value)
+        if (normalized == null) {
+            _status.value = ConnectStatus.Error(ConnectError.InvalidUrl)
+            return
+        }
+        val profile =
+            ConnectionProfile(
+                id = profileIdFactory(),
+                displayName = normalized,
+                baseUrl = normalized,
+                source = ProfileSource.Manual,
+            )
+        _status.value = ConnectStatus.Connecting
+        sessionStore.pin(profile)
+        when (val result: ApiResult<AuthPayload> = call()) {
+            is ApiResult.Ok ->
+                establishSession(
+                    profile,
+                    SessionTokens(result.value.accessToken, result.value.refreshToken),
+                )
+
+            is ApiResult.Failure -> {
+                sessionStore.disconnect()
+                _status.value = ConnectStatus.Error(mapPasswordAuthError(result.error))
+            }
+        }
+    }
+
+    /** Map a register/login failure's backend error code to a dedicated, specific [ConnectError]. */
+    private fun mapPasswordAuthError(error: ApiError): ConnectError =
+        when (error.code) {
+            "EMAIL_INVALID" -> ConnectError.EmailInvalid
+            "WEAK_PASSWORD" -> ConnectError.WeakPassword
+            "EMAIL_TAKEN" -> ConnectError.EmailTaken
+            "INVALID_CREDENTIALS" -> ConnectError.InvalidCredentials
+            else -> ConnectError.Auth(error.message)
+        }
+
+    /**
      * Onboard against a backend CLICKED from the mDNS-discovered list (frontend.md §6) — the zero-friction
      * LAN path. Runs the identical [beginOnboarding] as the typed flow: the discovered profile already
      * carries its base URL, so no URL validation is needed.
@@ -897,6 +958,18 @@ sealed interface ConnectError {
 
     /** A redirect (Authorization Code) login wasn't completed within [ConnectController]'s wait bound. */
     data object RedirectTimedOut : ConnectError
+
+    /** Register: the typed email doesn't parse as an email address. */
+    data object EmailInvalid : ConnectError
+
+    /** Register: the typed password is below the backend's minimum length. */
+    data object WeakPassword : ConnectError
+
+    /** Register: an account already exists for that email. */
+    data object EmailTaken : ConnectError
+
+    /** Login: the email/password pair didn't match — never distinguishes which half was wrong. */
+    data object InvalidCredentials : ConnectError
 }
 
 /** Accept a host with or without a scheme; reject blanks. Returns the normalized `scheme://host[:port]`. */

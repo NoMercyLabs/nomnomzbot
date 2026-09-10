@@ -15,6 +15,7 @@
     <string name="connect_title">Sign in to NomNomzBot</string>
     <string name="connect_subtitle">Sign in with your own Twitch account to get started.</string>
     <string name="connect_account_hint">Use your own streamer account — you can add a bot account later from the dashboard.</string>
+    <string name="connect_account_hint_generic">This becomes your own account — you can add a bot account later from the dashboard.</string>
     <string name="connect_action">Connect</string>
     <string name="connect_url_label">Backend URL</string>
     <string name="connect_url_placeholder">http://localhost:5080</string>
@@ -72,6 +73,18 @@
     <string name="connect_logo_cd_youtube">YouTube logo</string>
     <string name="connect_cta_kick">Continue with Kick</string>
     <string name="connect_cta_twitter">Continue with X</string>
+    <string name="connect_modal_subtitle_generic">Sign in with your email, or continue with a connected platform.</string>
+    <string name="connect_password_email_label">Email</string>
+    <string name="connect_password_password_label">Password</string>
+    <string name="connect_password_signin_cta">Sign in</string>
+    <string name="connect_password_signup_cta">Create account</string>
+    <string name="connect_password_toggle_to_signup">Don't have an account? Sign up</string>
+    <string name="connect_password_toggle_to_signin">Already have an account? Sign in</string>
+    <string name="connect_password_divider">or continue with</string>
+    <string name="connect_error_email_invalid">Enter a valid email address.</string>
+    <string name="connect_error_weak_password">Password must be at least 8 characters.</string>
+    <string name="connect_error_email_taken">An account with that email already exists.</string>
+    <string name="connect_error_invalid_credentials">Incorrect email or password.</string>
     <string name="language_label">Language</string>
     <string name="language_system_default">System default</string>
     <string name="setup_title">Set up your bot</string>

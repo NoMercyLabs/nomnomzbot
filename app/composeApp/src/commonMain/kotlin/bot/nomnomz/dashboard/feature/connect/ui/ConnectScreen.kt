@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -40,6 +42,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
@@ -56,6 +61,7 @@ import bot.nomnomz.dashboard.feature.connect.state.ConnectStatus
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.connect_account_hint
+import nomnomzbot.composeapp.generated.resources.connect_account_hint_generic
 import nomnomzbot.composeapp.generated.resources.connect_connecting
 import nomnomzbot.composeapp.generated.resources.connect_device_copied
 import nomnomzbot.composeapp.generated.resources.connect_device_copy_link
@@ -75,6 +81,18 @@ import nomnomzbot.composeapp.generated.resources.connect_error_login_expired
 import nomnomzbot.composeapp.generated.resources.connect_error_login_failed
 import nomnomzbot.composeapp.generated.resources.connect_error_redirect_timeout
 import nomnomzbot.composeapp.generated.resources.connect_modal_heading_first_login
+import nomnomzbot.composeapp.generated.resources.connect_modal_subtitle_generic
+import nomnomzbot.composeapp.generated.resources.connect_password_divider
+import nomnomzbot.composeapp.generated.resources.connect_password_email_label
+import nomnomzbot.composeapp.generated.resources.connect_password_password_label
+import nomnomzbot.composeapp.generated.resources.connect_password_signin_cta
+import nomnomzbot.composeapp.generated.resources.connect_password_signup_cta
+import nomnomzbot.composeapp.generated.resources.connect_password_toggle_to_signin
+import nomnomzbot.composeapp.generated.resources.connect_password_toggle_to_signup
+import nomnomzbot.composeapp.generated.resources.connect_error_email_invalid
+import nomnomzbot.composeapp.generated.resources.connect_error_weak_password
+import nomnomzbot.composeapp.generated.resources.connect_error_email_taken
+import nomnomzbot.composeapp.generated.resources.connect_error_invalid_credentials
 import nomnomzbot.composeapp.generated.resources.connect_redirect_cancel
 import nomnomzbot.composeapp.generated.resources.connect_discovered_row_type
 import nomnomzbot.composeapp.generated.resources.connect_saved_active_label
@@ -90,6 +108,7 @@ import nomnomzbot.composeapp.generated.resources.connect_saved_title
 import nomnomzbot.composeapp.generated.resources.connect_url_label
 import nomnomzbot.composeapp.generated.resources.connect_url_placeholder
 import nomnomzbot.composeapp.generated.resources.connect_use_device_code
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 // The real direct-connect gate (frontend.md §5/§6), restyled as the branded Twitch [ConnectModal] (the
@@ -145,13 +164,26 @@ fun ConnectScreen(controller: ConnectController) {
 
     val awaiting: ConnectStatus.AwaitingApproval? = status as? ConnectStatus.AwaitingApproval
 
+    // Sign-in is the default landing state (a returning operator is the common case day to day); one link
+    // beneath the form toggles to Create account. Reset whenever an error clears the field values? — no: kept
+    // across a failed attempt so the operator doesn't have to retype it after a typo.
+    var passwordMode: PasswordAuthMode by remember { mutableStateOf(PasswordAuthMode.SignIn) }
+    var email: String by remember { mutableStateOf("") }
+    var password: String by remember { mutableStateOf("") }
+
     ConnectModal(
-        // The card keeps its Twitch-first branding (backdrop glow + NomNomz × Twitch header) — Twitch is the
-        // primary login. The per-provider CTAs are rendered in the content slot below (one per ENABLED
-        // provider), so the modal's own built-in CTA is suppressed here.
+        // [provider] only supplies the card's structural defaults (Twitch's copy resources are unused —
+        // heading/subtitle are overridden below); no provider brand shows anywhere on this card.
+        // showProviderLogo = false strips BOTH the "N x Twitch" dual-logo pairing AND the Twitch-purple
+        // backdrop glow, so a generic account card never visually reads as "this is about Twitch" — email +
+        // password is the primary CTA (rendered first in the content slot below), and the per-provider social
+        // CTAs (Twitch included) are equal-weight options underneath an "or continue with" divider.
         provider = ConnectProviders.Twitch,
-        // First Twitch login → the welcome heading rather than the generic "Link your Twitch account".
+        showProviderLogo = false,
+        // First login → the welcome heading rather than the generic "Link your Twitch account".
         heading = Res.string.connect_modal_heading_first_login,
+        // Generic subtitle — this card is no longer Twitch-specific copy, since password is the primary path.
+        subtitle = Res.string.connect_modal_subtitle_generic,
         onCta = null,
         // First login: no Back (this is the entry point), and the Terms/Privacy footer is shown.
         onBack = null,
@@ -171,6 +203,45 @@ fun ConnectScreen(controller: ConnectController) {
                     verificationUri = awaiting.verificationUri,
                 )
             } else {
+                // The primary path: a real email + password account. One Button per mode (Sign in / Create
+                // account) — the single full-accent primary action on this card (Sleak: one primary per
+                // group); the provider CTAs below are brand-colored for recognition but visually secondary —
+                // smaller, and introduced by an explicit "or continue with" divider rather than competing
+                // head-on for the same weight.
+                PasswordAuthForm(
+                    mode = passwordMode,
+                    email = email,
+                    password = password,
+                    enabled = !busy,
+                    busy = busy,
+                    onEmailChange = { email = it },
+                    onPasswordChange = { password = it },
+                    onSubmit = {
+                        scope.launch {
+                            when (passwordMode) {
+                                PasswordAuthMode.SignIn -> controller.loginWithPassword(email, password)
+                                PasswordAuthMode.SignUp -> controller.registerWithPassword(email, password)
+                            }
+                        }
+                    },
+                    onToggleMode = {
+                        passwordMode =
+                            when (passwordMode) {
+                                PasswordAuthMode.SignIn -> PasswordAuthMode.SignUp
+                                PasswordAuthMode.SignUp -> PasswordAuthMode.SignIn
+                            }
+                    },
+                )
+
+                if (providers.isNotEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.connect_password_divider),
+                        style = LocalTypography.current.xs,
+                        color = LocalTokens.current.mutedForeground,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+
                 // One brand CTA per ENABLED provider the backend advertises (Twitch first). The controller
                 // fail-opens to Twitch, so there is always at least the Twitch button — never a blank card.
                 ProviderCtas(
@@ -219,7 +290,9 @@ fun ConnectScreen(controller: ConnectController) {
 
                 // Make the account unambiguous: this is the streamer's OWN account, and the bot is a
                 // separate, optional account added later — never forced here.
-                AccountHint()
+                // Generic wording here — a password account has no "streamer account" to speak of; the
+                // Twitch-specific phrasing is kept for [DeviceCodePanel] below, where it's actually accurate.
+                AccountHint(text = Res.string.connect_account_hint_generic)
 
                 // Secondary path: force the device-code login even when the redirect flow is available. It needs
                 // no registered redirect URL on the Twitch app, so it's the resilient way in when the redirect
@@ -242,6 +315,80 @@ fun ConnectScreen(controller: ConnectController) {
             }
 
             ConnectStatusRow(status = status)
+        }
+    }
+}
+
+/** Which of the two email+password forms the card renders — mirrors the backend's register/login split. */
+private enum class PasswordAuthMode {
+    SignIn,
+    SignUp,
+}
+
+// The generic account form — the login screen's primary path (CLAUDE.md: "the home page should link to a
+// general login button with the social media login buttons"). Email + password fields, a single full-accent
+// submit Button (the one primary action Sleak calls for), and a text-link toggle between sign-in and sign-up
+// so the same two fields serve both without a second screen.
+@Composable
+private fun PasswordAuthForm(
+    mode: PasswordAuthMode,
+    email: String,
+    password: String,
+    enabled: Boolean,
+    busy: Boolean,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onToggleMode: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        AppTextField(
+            value = email,
+            onValueChange = onEmailChange,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.connect_password_email_label),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+        )
+        AppTextField(
+            value = password,
+            onValueChange = onPasswordChange,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(Res.string.connect_password_password_label),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (enabled) onSubmit() }),
+        )
+
+        Button(
+            onClick = onSubmit,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled && email.isNotBlank() && password.isNotBlank(),
+            loading = busy,
+        ) {
+            Text(
+                text =
+                    stringResource(
+                        if (mode == PasswordAuthMode.SignIn) Res.string.connect_password_signin_cta
+                        else Res.string.connect_password_signup_cta
+                    )
+            )
+        }
+
+        TextButton(onClick = onToggleMode, enabled = enabled) {
+            Text(
+                text =
+                    stringResource(
+                        if (mode == PasswordAuthMode.SignIn) Res.string.connect_password_toggle_to_signup
+                        else Res.string.connect_password_toggle_to_signin
+                    )
+            )
         }
     }
 }
@@ -278,11 +425,11 @@ private fun ProviderCtas(
 
 // The streamer-account clarification line, shown under the URL field and in the device panel.
 @Composable
-private fun AccountHint() {
+private fun AccountHint(text: StringResource = Res.string.connect_account_hint) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     Text(
-        text = stringResource(Res.string.connect_account_hint),
+        text = stringResource(text),
         style = typography.xs,
         color = tokens.mutedForeground,
         textAlign = TextAlign.Center,
@@ -614,6 +761,14 @@ private fun ConnectStatusRow(status: ConnectStatus) {
                         stringResource(Res.string.connect_error_login_failed)
                     is ConnectError.RedirectTimedOut ->
                         stringResource(Res.string.connect_error_redirect_timeout)
+                    is ConnectError.EmailInvalid ->
+                        stringResource(Res.string.connect_error_email_invalid)
+                    is ConnectError.WeakPassword ->
+                        stringResource(Res.string.connect_error_weak_password)
+                    is ConnectError.EmailTaken ->
+                        stringResource(Res.string.connect_error_email_taken)
+                    is ConnectError.InvalidCredentials ->
+                        stringResource(Res.string.connect_error_invalid_credentials)
                 }
             Text(
                 text = message,
