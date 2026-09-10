@@ -148,7 +148,8 @@ public sealed class MusicServiceQueueSnapshotTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, bus);
     }

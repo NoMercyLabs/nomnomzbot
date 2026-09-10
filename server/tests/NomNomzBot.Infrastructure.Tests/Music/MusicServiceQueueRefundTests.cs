@@ -242,7 +242,8 @@ public sealed class MusicServiceQueueRefundTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             accounts,
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, accounts, store);
     }

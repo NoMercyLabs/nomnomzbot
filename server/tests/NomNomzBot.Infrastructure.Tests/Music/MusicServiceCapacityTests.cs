@@ -166,7 +166,8 @@ public sealed class MusicServiceCapacityTests
             new InMemoryIntegrationCapabilityStore(),
             configService,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, handler);
     }

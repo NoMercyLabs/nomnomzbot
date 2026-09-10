@@ -158,7 +158,8 @@ public sealed class MusicServiceRequestHistoryTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, db);
     }

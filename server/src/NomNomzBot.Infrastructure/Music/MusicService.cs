@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Integrations.Services;
@@ -51,6 +52,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly IMusicConfigService _config;
     private readonly ICurrencyAccountService _accounts;
     private readonly INowPlayingCache _nowPlayingCache;
+    private readonly IOutboundSanctionAccessor _sanctions;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -63,7 +65,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         IIntegrationCapabilityStore capabilities,
         IMusicConfigService config,
         ICurrencyAccountService accounts,
-        INowPlayingCache nowPlayingCache
+        INowPlayingCache nowPlayingCache,
+        IOutboundSanctionAccessor sanctions
     )
     {
         _providers = providers;
@@ -77,6 +80,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         _capabilities = capabilities;
         _accounts = accounts;
         _nowPlayingCache = nowPlayingCache;
+        _sanctions = sanctions;
     }
 
     /// <summary>
@@ -208,6 +212,72 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             cancellationToken,
             assumeIsPlaying: true
         );
+        return Result.Success();
+    }
+
+    /// <inheritdoc cref="IMusicService.PlayTrackOnceAsync"/>
+    public async Task<Result> PlayTrackOnceAsync(
+        string broadcasterId,
+        string trackUri,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return InvalidChannelId();
+        if (string.IsNullOrWhiteSpace(trackUri))
+            return Result.Failure("A track is required.", "VALIDATION_FAILED");
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return NoProvider();
+        if (
+            !HasCapability(provider, MusicProviderCapabilities.Queue)
+            || !HasCapability(provider, MusicProviderCapabilities.Skip)
+        )
+            return Unsupported("playing a specific track");
+
+        try
+        {
+            // Push onto the provider's OWN live queue (never our fair queue / SongRequestQueueStore —
+            // this is a playback-context primitive, not a song request) then skip straight to it. The
+            // provider's context (playlist/album) is never replaced, so whatever plays after this track
+            // finishes is exactly what the context would have played next on its own.
+            bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+            if (!pushed)
+                return Result.Failure(
+                    "Couldn't queue the track on the music provider.",
+                    "PROVIDER_ERROR"
+                );
+
+            await provider.SkipAsync(tenantId, cancellationToken);
+        }
+        catch (PremiumRequiredException ex)
+        {
+            return PremiumRequired(ex);
+        }
+        catch (NoActiveDeviceException)
+        {
+            return Result.Failure(
+                "Nothing is playing on any device right now.",
+                "NO_ACTIVE_DEVICE"
+            );
+        }
+        catch (MusicAuthenticationFailedException)
+        {
+            return Result.Failure(
+                "The music connection needs to be reconnected.",
+                "MUSIC_AUTH_FAILED"
+            );
+        }
+        catch (MusicForbiddenException)
+        {
+            return Result.Failure(
+                "The music connection doesn't have permission for that.",
+                "MUSIC_FORBIDDEN"
+            );
+        }
+
+        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return Result.Success();
     }
 
@@ -1142,6 +1212,18 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         if (removed)
         {
+            // Removing the entry the provider already has (queue's own head) must free the "exactly one
+            // at the provider" slot too — otherwise a moderator clearing a stuck request leaves in-flight
+            // pointed at an entry that no longer exists anywhere, and HandOverNextAsync's own guard
+            // (never hand over a second one while something is in flight) blocks the whole queue forever,
+            // with nothing left to ever clear it (SongRequestQueueReconciler only clears it by matching
+            // this exact track against a real playback change, which never arrives for one removed here).
+            if (
+                removedEntry is not null
+                && ReferenceEquals(_queueStore.GetInFlight(broadcasterId), removedEntry)
+            )
+                _queueStore.SetInFlight(broadcasterId, null);
+
             await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
             if (Guid.TryParse(broadcasterId, out Guid tenantId))
             {
@@ -1637,6 +1719,18 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
             return;
+
+        // This runs with no person present — off the reconciler's playback-changed reaction or the
+        // poller's recovery tick, never inside an HTTP request — so it carries no ambient sanction of
+        // its own. The broadcaster already opted in by enabling song requests; handing the next accepted
+        // request to their own provider is that configuration acting, the same basis
+        // SpotifyMusicProvider's own token-refresh sweep already claims. Without this,
+        // OutboundSanctionHandler refuses the queue POST every time — the request never leaves the head
+        // of the queue, and the SR queue stops dispatching entirely to whatever the provider is already
+        // playing on its own.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+        );
 
         try
         {

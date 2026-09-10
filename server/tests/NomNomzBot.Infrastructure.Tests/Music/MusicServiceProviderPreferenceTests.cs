@@ -17,6 +17,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -170,7 +171,8 @@ public sealed class MusicServiceProviderPreferenceTests
             new InMemoryIntegrationCapabilityStore(),
             configService,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
     }
 

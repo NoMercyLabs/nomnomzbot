@@ -19,6 +19,7 @@ using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -226,7 +227,8 @@ public sealed class SongRequestQueueCodeDurabilityTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
     }
 

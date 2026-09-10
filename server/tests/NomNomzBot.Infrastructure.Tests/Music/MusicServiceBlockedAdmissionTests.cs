@@ -174,7 +174,8 @@ public sealed class MusicServiceBlockedAdmissionTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, bus, blocks);
     }

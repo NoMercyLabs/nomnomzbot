@@ -249,7 +249,8 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             capabilityStore,
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
 
         return (sut, handler, capabilityStore, vault);

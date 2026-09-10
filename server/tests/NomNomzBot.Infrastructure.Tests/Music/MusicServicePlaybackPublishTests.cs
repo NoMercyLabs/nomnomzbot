@@ -272,6 +272,36 @@ public sealed class MusicServicePlaybackPublishTests
             .Be("Playlist Track");
     }
 
+    /// <summary>
+    /// S-PL9/S-PL11's provider-level proof: <c>PlayTrackOnceAsync</c> pushes the configured track onto
+    /// Spotify's OWN live queue then skips straight to it — the real two-call sequence
+    /// <c>music-sr.md</c>'s "play one track now without disturbing the context" primitive relies on —
+    /// through the actual <see cref="SpotifyMusicProvider"/>, not a substitute.
+    /// </summary>
+    [Fact]
+    public async Task PlayTrackOnceAsync_pushes_the_track_to_the_providers_queue_then_skips_to_it()
+    {
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
+            TrackJson("Intro Song", isPlaying: true)
+        );
+
+        Result ok = await sut.PlayTrackOnceAsync(ChannelId.ToString(), "spotify:track:intro-song");
+
+        ok.IsSuccess.Should().BeTrue();
+        handler
+            .RequestSequence.Should()
+            .ContainInOrder(
+                "POST /v1/me/player/queue?uri=spotify%3Atrack%3Aintro-song",
+                "POST /v1/me/player/next"
+            );
+        // The state-changed publish still fires, exactly like every other mutation — the dashboard/
+        // overlay sees the interruption immediately.
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Single()
+            .TrackName.Should()
+            .Be("Intro Song");
+    }
+
     [Fact]
     public async Task PlayAsync_publishes_nothing_when_no_channel_has_a_connected_provider()
     {
@@ -288,7 +318,8 @@ public sealed class MusicServicePlaybackPublishTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -355,7 +386,8 @@ public sealed class MusicServicePlaybackPublishTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            nowPlayingCache
+            nowPlayingCache,
+            new OutboundSanctionAccessor()
         );
         return (sut, bus, handler);
     }
@@ -398,11 +430,20 @@ public sealed class MusicServicePlaybackPublishTests
         /// fast path exists to eliminate from Pause/Play's critical path when a fresh cache entry exists.</summary>
         public int NowPlayingReadCount { get; private set; }
 
+        /// <summary>Every request this handler answered, in call order (method + absolute URL) — lets a
+        /// test prove the exact SEQUENCE of provider calls a multi-step mutation issues (e.g.
+        /// <c>PlayTrackOnceAsync</c>'s queue-push-then-skip), not just that "a call happened".</summary>
+        public List<string> RequestSequence { get; } = [];
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
+            RequestSequence.Add(
+                $"{request.Method} {request.RequestUri!.AbsolutePath}{request.RequestUri!.Query}"
+            );
+
             // The now-playing read is GET /me/player (full playback state). The transport writes go to
             // /me/player/play|pause|next, so a GET ending exactly in "/me/player" matches only the read.
             bool isNowPlayingRead =

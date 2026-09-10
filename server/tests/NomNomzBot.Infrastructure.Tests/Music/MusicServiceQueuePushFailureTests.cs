@@ -295,7 +295,8 @@ public sealed class MusicServiceQueuePushFailureTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, handler, db, vault, connectionId);
     }

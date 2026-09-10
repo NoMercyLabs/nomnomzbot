@@ -158,7 +158,8 @@ public sealed class SongRequestQueueCrossScopeTests
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
 
     private static MusicTestDbContext SeedChannel(Guid channelId, MusicTestDbContext? into = null)

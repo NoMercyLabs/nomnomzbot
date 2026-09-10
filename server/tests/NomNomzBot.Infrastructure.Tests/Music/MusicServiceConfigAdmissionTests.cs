@@ -172,7 +172,8 @@ public sealed class MusicServiceConfigAdmissionTests
             new InMemoryIntegrationCapabilityStore(),
             configService,
             Substitute.For<ICurrencyAccountService>(),
-            new NowPlayingCache()
+            new NowPlayingCache(),
+            new OutboundSanctionAccessor()
         );
         return (sut, handler);
     }
