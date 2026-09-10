@@ -31,20 +31,18 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
 - [ ] **S-PL7-VISUAL** A live browser render check of the 7 screens the scroll-container sweep
       touched (Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/Widgets) is still owed — the wasm
       dev server hit a memory-contention failure on this box every attempt this session.
-- [ ] **S-OBS-SOURCE-VIS** Source-visibility toggle for the OBS live-control surface needs a
-      `GetSceneItemList` wrapper first — `ObsControlService.GetInputsAsync` only returns global
-      inputs, not per-scene items.
 - [ ] **S-OBS-PROTOCOL-GAPS** Genuinely not implemented server-side in `ObsControlService` at all:
       studio mode enable/disable (only `TriggerStudioTransitionAsync` exists, needs studio mode
-      already on), `GetStats` (CPU/FPS/render-lag), `GetVirtualCamStatus`, `GetSceneItemList`,
-      `GetSceneTransitionList`, `GetSourceFilterList`. Real obs-websocket protocol additions, not UI
-      wiring.
+      already on), `GetStats` (CPU/FPS/render-lag), `GetVirtualCamStatus`, `GetSceneTransitionList`,
+      `GetSourceFilterList`. Real obs-websocket protocol additions, not UI wiring.
 - [ ] **S-OBS-UI-REMAINDER** Server-ready but no dashboard UI: `SetPreviewSceneAsync`, per-source mute
       (`ToggleInputMuteAsync`), filter enable/disable, transition select, studio-mode transition
       trigger, media trigger, hotkey trigger, browser-source refresh, screenshot, batch/vendor
-      pass-through. Each needs its own enumeration UI (transition list, media input list, hotkey
-      list) — judged lower value than replay buffer/virtual cam for a streamer's live-control
-      surface, so deferred rather than built in S-PL5b. `SetRecording` also only sends
+      pass-through, and the just-shipped per-scene source-visibility surface (`7c3f0c09` —
+      `GetSceneItemListAsync`/`SetSourceVisibleAsync` have controller endpoints now, but no scene
+      picker + per-item toggle UI yet). Each needs its own enumeration UI (transition list, media
+      input list, hotkey list) — judged lower value than replay buffer/virtual cam for a streamer's
+      live-control surface, so deferred rather than built in S-PL5b. `SetRecording` also only sends
       Start/Stop/Toggle though `RecordAction` supports Pause/Resume/Split.
 - [ ] **S-STREAMDECK-OBS-REMAINDER** `obs_replay_buffer`/`obs_virtual_cam` Stream Deck keys (backend
       action types already auto-provisioning-eligible, just needs manifest entries); a scene/input
