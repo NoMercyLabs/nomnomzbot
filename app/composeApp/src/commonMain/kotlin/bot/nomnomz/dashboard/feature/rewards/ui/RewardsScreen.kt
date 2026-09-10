@@ -411,6 +411,7 @@ private fun ManagedContent(
                 onFulfill = onFulfill,
                 onRefund = onRefund,
                 onTimerAction = onTimerAction,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -484,8 +485,9 @@ private fun RewardList(
     onFulfill: (RedemptionSummary) -> Unit,
     onRefund: (RedemptionSummary) -> Unit,
     onTimerAction: (timerId: String, action: TimerAction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             itemsIndexed(items = rewards, key = { _, reward -> reward.id }) { index, reward ->
                 if (index > 0) {

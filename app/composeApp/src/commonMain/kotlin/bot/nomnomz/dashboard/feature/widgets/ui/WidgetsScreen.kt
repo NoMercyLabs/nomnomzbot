@@ -498,6 +498,7 @@ private fun ReadyContent(
             onSettings = onSettings,
             onUpdateFromGallery = onUpdateFromGallery,
             onTest = onTest,
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -515,10 +516,11 @@ private fun WidgetList(
     onSettings: (WidgetSummary) -> Unit,
     onUpdateFromGallery: (WidgetSummary) -> Unit,
     onTest: suspend (WidgetSummary) -> ApiResult<String>,
+    modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
 
-    Card(modifier = Modifier.fillMaxSize()) {
+    Card(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(vertical = spacing.s1),
