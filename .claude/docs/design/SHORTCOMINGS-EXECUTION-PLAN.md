@@ -148,9 +148,9 @@ width — semantics text alone cannot tell a wrap from an ellipsis.
 **CLOSED (`b6c9b959`).** `OutboundRow`/`InboundRow` stack their actions below the details at Compact
 with no horizontal overflow, and stay a single line at Wide — both asserted.
 
-- [ ] **Webhooks `OutboundRow` spends accent on three actions at once.** Edit / Test / Reenable all
-      tint `tokens.primary`, so one row carries three equal-weight "primary" actions — the same
-      scarce-accent defect `PipelineAccentScarcityGuardTest` now blocks in the pipeline tree.
+**CLOSED (`0545cb9b`).** `OutboundRow` now spends accent on exactly one action (Edit); Test/Reenable
+are ghost — `WebhooksRowAccentScarcityGuardTest` proves it, mutation-checked against
+`PipelineAccentScarcityGuardTest`'s own pattern.
 
 ## SQLITE GUID CASING — a defect that bit three times, closed at the root (2026-09-06)
 
