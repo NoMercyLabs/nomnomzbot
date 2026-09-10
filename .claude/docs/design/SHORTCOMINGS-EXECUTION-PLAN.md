@@ -669,7 +669,7 @@ Cloudflare account access. Verify deploys over the LAN address until then.
 |---|---|---|
 | pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | editor SHIPPED `d4a7b397`, save-path bug fixed `934355cb`, proven round-tripping in a browser; visual hierarchy slice S-PIPE-TREE-VIS open |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
-| item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building - dashboard half after |
+| item pickers show a rich list, not opaque ids | S-RICH-PICKERS | **CLOSED.** ChatTriggers now uses `PipelineBindPicker` (`28621f9a`, verified — `ChatTriggersScreenTest` proves the name renders while the real id is what saves). Automation has no compatible field: its only pipeline UI is a multi-select "restrict token to pipelines" chip list already rendering names via `resolveRowLabel`, structurally incompatible with the single-select picker — nothing to wire there. |
 | budget system for payment tiers by resource usage | S-BUDGETS | queued - intent recorded: recover real cost, not upsell |
 | old-bot behaviour only from generic blocks | (standing rule) | verified against the spec |
 | stream-facing first (commands + overlays) | (ordering) | in force |
