@@ -39,11 +39,18 @@ concurrent, disjoint files only).
       area before (handoff history 2026-07-13/07-18, same "Discord request failed (401)" symptom) —
       check whether reauth is writing a NEW row while lookups still resolve the OLD one, before
       assuming a scope/token problem.
-- [ ] **S-PL5** OBS live control: not aware the streamer is already live/recording (state desync);
-      owner wants the FULL OBS feature set exposed, both on the dashboard's live-control surface and
-      as a Stream Deck plugin (parity with the existing Spotify Stream Deck plugin —
-      `tools/streamdeck/`). Large — split into dashboard-state-sync, dashboard-full-feature-set, and
-      Stream Deck plugin sub-slices before dispatch.
+- [ ] **S-PL5 split (2026-09-10):**
+  - **S-PL5a** (dispatched) State desync: dashboard live-control doesn't know the streamer is already
+    streaming/recording. Anchors: `ObsUiState`/`ObsController.kt` (app), `ObsBridgeStateBroadcastHandler.cs`
+    + `ObsControlService.cs` (server).
+  - **S-PL5b** Full OBS feature set on the dashboard's live-control surface — today's surface is a
+    subset (scene switch + whatever else already exists in `ObsApi.kt`/`ObsControlService.cs`); needs
+    a real inventory of the obs-websocket surface this codebase already wraps vs. what's exposed in UI
+    (sources, mute state, transitions, replay buffer, virtual cam, studio mode, stats — audit before
+    building). Own slice, after S-PL5a.
+  - **S-PL5c** New Stream Deck plugin for OBS control, parity with the existing Spotify plugin
+    (`tools/streamdeck/`) — "work the same way as the music controls." Needs S-PL5b's feature inventory
+    decided first (a Stream Deck action per exposed control), so it runs after, not parallel.
 - [ ] **S-PL6** 7TV name-paint (color) needs its own global on/off toggle next to the existing 7TV
       emote toggle (same settings surface, chat-decoration config).
 - [ ] **S-PL7** Some dashboard pages still have broken overflow/squashed content — owner wants ONE
