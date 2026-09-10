@@ -13,10 +13,9 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Discord.Gateway;
 using NomNomzBot.Infrastructure.Platform.Resilience;
 using NSubstitute;
@@ -26,23 +25,30 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// <summary>
 /// Proves the gateway really talks to Discord (discord.md §3.5): a <c>PostMessageAsync</c> issues the exact
 /// Discord REST request — <c>POST https://discord.com/api/v10/channels/{id}/messages</c> with
-/// <c>Authorization: Bot &lt;decrypted-token&gt;</c> and the right JSON body (content + role ping + restricted
-/// allowed_mentions) — that the vaulted token decrypts to; a 429 with <c>Retry-After</c> is honored by the
-/// resilience handler before succeeding; a non-2xx maps to <see cref="Result"/> failure. The token is read from
-/// <see cref="IIntegrationTokenVault"/>, never a plaintext column — this is the proof the bot communicates with
-/// Discord for real.
+/// <c>Authorization: Bot &lt;the platform's configured Discord Application bot token&gt;</c> and the right JSON
+/// body (content + role ping + restricted allowed_mentions) — a 429 with <c>Retry-After</c> is honored by the
+/// resilience handler before succeeding; a non-2xx maps to <see cref="Result"/> failure.
+///
+/// <para><b>S-PL4 regression:</b> Discord's "bot guilds" OAuth authorization-code exchange returns an
+/// <c>access_token</c> scoped to the authorizing USER (7-day expiry, per Discord's own OAuth2 docs default) —
+/// it is never valid as <c>Authorization: Bot &lt;token&gt;</c> against guild REST endpoints
+/// (<c>guilds/{id}/roles</c>, <c>guilds/{id}/channels</c>, …), no matter how freshly it was reauthorized. Only
+/// the ONE static token issued to the Discord Application in the Developer Portal authenticates bot calls. The
+/// gateway therefore never reads a per-channel vaulted OAuth token for these calls — it resolves the platform's
+/// configured bot token (<see cref="ISystemCredentialsProvider.GetValueAsync"/>, key <c>discord.bot_token</c>)
+/// once a live guild connection is confirmed to exist.</para>
 /// </summary>
 public sealed class DiscordRestBotGatewayTests
 {
-    private const string DecryptedToken = "decrypted-bot-token-xyz";
+    private const string PlatformBotToken = "platform-bot-token-xyz";
     private static readonly Guid Channel = Guid.CreateVersion7();
 
     [Fact]
     public async Task PostMessageAsync_IssuesDiscordPost_WithBotAuthHeader_AndJsonBody()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.OK)
@@ -56,7 +62,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
@@ -74,13 +80,14 @@ public sealed class DiscordRestBotGatewayTests
             .Should()
             .Be("https://discord.com/api/v10/channels/999000111/messages");
 
-        // The Authorization header is the bot token decrypted from the vault — "Bot <token>".
+        // The Authorization header is the platform's configured bot token — "Bot <token>" — never a
+        // per-channel OAuth artifact.
         handler.Request!.Headers.GetValues("Authorization").Should().ContainSingle();
         handler
             .Request!.Headers.GetValues("Authorization")
             .Single()
             .Should()
-            .Be($"Bot {DecryptedToken}");
+            .Be($"Bot {PlatformBotToken}");
 
         // The JSON body carries the content with the role ping prefixed and mentions restricted to that role.
         // (System.Text.Json HTML-escapes <, >, & — the standard, Discord-decodable form — so decode before
@@ -95,8 +102,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task PostMessageAsync_Honors429RetryAfter_ThenSucceeds()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         HttpResponseMessage rateLimited = new(HttpStatusCode.TooManyRequests)
         {
@@ -115,7 +122,7 @@ public sealed class DiscordRestBotGatewayTests
         SequencedHandler handler = new(rateLimited, ok);
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
@@ -132,8 +139,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task PostMessageAsync_NonSuccess_MapsToFailure()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.Forbidden)
@@ -147,7 +154,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
@@ -163,12 +170,12 @@ public sealed class DiscordRestBotGatewayTests
     public async Task PostMessageAsync_NoDiscordConnection_FailsClosed()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        // No connection seeded → no vaulted token → must fail closed, never reaching the wire.
-        IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
+        // No connection seeded → never reaches the wire, regardless of the platform bot token being configured.
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
         CapturingHandler handler = new(new(HttpStatusCode.OK));
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<string> result = await gateway.PostMessageAsync(
             Channel,
@@ -182,11 +189,90 @@ public sealed class DiscordRestBotGatewayTests
     }
 
     [Fact]
+    public async Task GetGuildRolesAsync_NoPlatformBotTokenConfigured_FailsClosed_DistinctFromNotConnected()
+    {
+        // Regression for S-PL4 ("discord 401s everywhere, even right after a fresh reauth"). The channel can be
+        // genuinely "connected" (a live guild-link row exists — the owner DID complete the OAuth dance) while the
+        // platform's real Discord Application bot token is simply not configured. That must fail closed with a
+        // distinct, actionable error — never by silently sending a per-channel OAuth artifact to Discord and
+        // letting Discord's own opaque 401 be the only signal, which is exactly what happened in production:
+        // reauthenticating produced a fresh, valid OAuth access_token (confirmed live: 7-day expiry, updated at
+        // the same second the "Discord OAuth completed" log line fired) that STILL 401'd 8 seconds later, because
+        // an OAuth user access_token is never a valid Bot token no matter how fresh.
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithNoBotToken();
+
+        CapturingHandler handler = new(new(HttpStatusCode.OK));
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
+
+        Result<IReadOnlyList<DiscordGuildRoleDto>> result = await gateway.GetGuildRolesAsync(
+            Channel,
+            "guild1"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_BOT_TOKEN_NOT_CONFIGURED");
+        result.ErrorCode.Should().NotBe("DISCORD_NOT_CONNECTED"); // the connection IS live — a different fault
+        handler.Request.Should().BeNull(); // never sends a credential that isn't the bot's own to Discord
+    }
+
+    [Fact]
+    public async Task GetGuildRolesAsync_And_GetGuildChannelsAsync_AuthenticateWithThePlatformBotToken_NotAConnectionArtifact()
+    {
+        // The two exact endpoints that 401'd in production (guild/roles, guild/channels), proven to authenticate
+        // with the platform's configured bot token even though the connection row looks freshly reauthorized —
+        // there is no per-connection credential in play at all for these calls.
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
+
+        CapturingHandler rolesHandler = new(
+            JsonResponse(
+                """[{"id":"role-1","name":"Live","color":0,"position":1,"managed":false}]"""
+            )
+        );
+        await using (DiscordTestDbContext rolesDb = database.NewContext())
+        {
+            DiscordRestBotGateway rolesGateway = NewGateway(rolesHandler, rolesDb, credentials);
+            Result<IReadOnlyList<DiscordGuildRoleDto>> roles =
+                await rolesGateway.GetGuildRolesAsync(Channel, "guild1");
+            roles.IsSuccess.Should().BeTrue(roles.ErrorMessage);
+        }
+        rolesHandler
+            .Request!.Headers.GetValues("Authorization")
+            .Single()
+            .Should()
+            .Be($"Bot {PlatformBotToken}");
+
+        CapturingHandler channelsHandler = new(
+            JsonResponse("""[{"id":"chan-1","name":"general","type":0,"position":0}]""")
+        );
+        await using (DiscordTestDbContext channelsDb = database.NewContext())
+        {
+            DiscordRestBotGateway channelsGateway = NewGateway(
+                channelsHandler,
+                channelsDb,
+                credentials
+            );
+            Result<IReadOnlyList<DiscordGuildChannelDto>> channels =
+                await channelsGateway.GetGuildChannelsAsync(Channel, "guild1");
+            channels.IsSuccess.Should().BeTrue(channels.ErrorMessage);
+        }
+        channelsHandler
+            .Request!.Headers.GetValues("Authorization")
+            .Single()
+            .Should()
+            .Be($"Bot {PlatformBotToken}");
+    }
+
+    [Fact]
     public async Task OpenDmChannelAsync_PostsRecipientIdToUsersMeChannels_AndReturnsChannelId()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.OK)
@@ -200,7 +286,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<string> result = await gateway.OpenDmChannelAsync(Channel, "member-777");
 
@@ -216,7 +302,7 @@ public sealed class DiscordRestBotGatewayTests
             .Request!.Headers.GetValues("Authorization")
             .Single()
             .Should()
-            .Be($"Bot {DecryptedToken}");
+            .Be($"Bot {PlatformBotToken}");
         handler.Body.Should().Contain("\"recipient_id\":\"member-777\"");
     }
 
@@ -224,12 +310,12 @@ public sealed class DiscordRestBotGatewayTests
     public async Task AddMemberRoleAsync_IssuesPutToGuildMemberRolesEndpoint()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(new(HttpStatusCode.NoContent));
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result result = await gateway.AddMemberRoleAsync(Channel, "guild1", "member2", "role3");
 
@@ -243,15 +329,15 @@ public sealed class DiscordRestBotGatewayTests
             .Request!.Headers.GetValues("Authorization")
             .Single()
             .Should()
-            .Be($"Bot {DecryptedToken}");
+            .Be($"Bot {PlatformBotToken}");
     }
 
     [Fact]
     public async Task ValidateRoleAssignableAsync_Succeeds_WhenBotHasManageRolesAboveTarget()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         SequencedHandler handler = new(
             JsonResponse("""{"id":"bot-id-1"}"""),
@@ -261,7 +347,7 @@ public sealed class DiscordRestBotGatewayTests
             )
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result result = await gateway.ValidateRoleAssignableAsync(Channel, "guild1", "live-role");
 
@@ -272,8 +358,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task ValidateRoleAssignableAsync_Fails_WithActionableMessage_WhenManageRolesMissing()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         SequencedHandler handler = new(
             JsonResponse("""{"id":"bot-id-1"}"""),
@@ -283,7 +369,7 @@ public sealed class DiscordRestBotGatewayTests
             )
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result result = await gateway.ValidateRoleAssignableAsync(Channel, "guild1", "live-role");
 
@@ -301,8 +387,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task ValidateRoleAssignableAsync_Fails_WithActionableMessage_WhenBotRoleBelowTarget()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         SequencedHandler handler = new(
             JsonResponse("""{"id":"bot-id-1"}"""),
@@ -312,7 +398,7 @@ public sealed class DiscordRestBotGatewayTests
             )
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result result = await gateway.ValidateRoleAssignableAsync(Channel, "guild1", "live-role");
 
@@ -330,8 +416,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task GetAssignableGuildRolesAsync_FlagsRoleAboveBot_Assignable_AndRoleBelow_NotAssignable_WithHierarchyReason()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         // Bot role at position 3 with Manage Roles (268435456). "below-role" sits under the bot (position 1) —
         // assignable. "above-role" sits over the bot (position 5) — not assignable, hierarchy reason.
@@ -343,7 +429,7 @@ public sealed class DiscordRestBotGatewayTests
             )
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
             await gateway.GetAssignableGuildRolesAsync(Channel, "guild1");
@@ -370,8 +456,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task GetAssignableGuildRolesAsync_MissingManageRoles_FlagsEveryRole_WithThatReason()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         SequencedHandler handler = new(
             JsonResponse("""{"id":"bot-id-1"}"""),
@@ -381,7 +467,7 @@ public sealed class DiscordRestBotGatewayTests
             )
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
             await gateway.GetAssignableGuildRolesAsync(Channel, "guild1");
@@ -399,8 +485,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task GetPostableGuildChannelsAsync_ChannelOverwriteDenyingSendMessages_WinsOverGuildLevelAllow()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         // Bot's role grants View Channel + Send Messages at guild level (0xc00 = 3072). The "locked" channel
         // carries a role-overwrite denying Send Messages (0x800) for that same role — the overwrite must win
@@ -417,7 +503,7 @@ public sealed class DiscordRestBotGatewayTests
             )
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<IReadOnlyList<DiscordPostableChannelDto>> result =
             await gateway.GetPostableGuildChannelsAsync(Channel, "guild1");
@@ -441,8 +527,8 @@ public sealed class DiscordRestBotGatewayTests
         // non-2xx from Discord's own API maps to Result.Failure, never Result.Success([]) — the client can tell
         // "unavailable" apart from "empty" by checking IsSuccess before ever looking at the list.
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.Forbidden)
@@ -455,7 +541,7 @@ public sealed class DiscordRestBotGatewayTests
             }
         );
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
             await gateway.GetAssignableGuildRolesAsync(Channel, "guild1");
@@ -474,8 +560,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task GetGuildAsync_IssuesGetToGuildEndpoint_AndMapsEveryField()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.OK)
@@ -489,7 +575,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<DiscordGuildInfoDto> result = await gateway.GetGuildAsync(Channel, "guild1");
 
@@ -507,15 +593,15 @@ public sealed class DiscordRestBotGatewayTests
             .Request!.Headers.GetValues("Authorization")
             .Single()
             .Should()
-            .Be($"Bot {DecryptedToken}");
+            .Be($"Bot {PlatformBotToken}");
     }
 
     [Fact]
     public async Task GetGuildRolesAsync_IssuesGetToRolesEndpoint_AndMapsEveryField()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.OK)
@@ -529,7 +615,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<IReadOnlyList<DiscordGuildRoleDto>> result = await gateway.GetGuildRolesAsync(
             Channel,
@@ -553,15 +639,15 @@ public sealed class DiscordRestBotGatewayTests
             .Request!.Headers.GetValues("Authorization")
             .Single()
             .Should()
-            .Be($"Bot {DecryptedToken}");
+            .Be($"Bot {PlatformBotToken}");
     }
 
     [Fact]
     public async Task GetGuildChannelsAsync_IssuesGetToChannelsEndpoint_AndMapsEveryField()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.OK)
@@ -575,7 +661,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<IReadOnlyList<DiscordGuildChannelDto>> result = await gateway.GetGuildChannelsAsync(
             Channel,
@@ -598,8 +684,8 @@ public sealed class DiscordRestBotGatewayTests
     public async Task GetGuildAsync_NonSuccess_MapsToFailure_NotThrow()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid connectionId = await SeedDiscordConnectionAsync(database);
-        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+        await SeedDiscordConnectionAsync(database);
+        ISystemCredentialsProvider credentials = CredentialsWithBotToken(PlatformBotToken);
 
         CapturingHandler handler = new(
             new(HttpStatusCode.NotFound)
@@ -613,7 +699,7 @@ public sealed class DiscordRestBotGatewayTests
         );
 
         await using DiscordTestDbContext db = database.NewContext();
-        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+        DiscordRestBotGateway gateway = NewGateway(handler, db, credentials);
 
         Result<DiscordGuildInfoDto> result = await gateway.GetGuildAsync(Channel, "gone");
 
@@ -626,7 +712,7 @@ public sealed class DiscordRestBotGatewayTests
     private static DiscordRestBotGateway NewGateway(
         HttpMessageHandler handler,
         DiscordTestDbContext db,
-        IIntegrationTokenVault vault
+        ISystemCredentialsProvider credentials
     )
     {
         // Build the REAL named "discord" client with the production resilience handler (the same one wired in
@@ -639,26 +725,39 @@ public sealed class DiscordRestBotGatewayTests
         ServiceProvider provider = services.BuildServiceProvider();
         IHttpClientFactory factory = provider.GetRequiredService<IHttpClientFactory>();
 
-        return new(factory, db, vault, NullLogger<DiscordRestBotGateway>.Instance);
+        return new(factory, db, credentials, NullLogger<DiscordRestBotGateway>.Instance);
     }
 
-    private static IIntegrationTokenVault VaultReturning(Guid connectionId, string token)
+    /// <summary>A platform bot token IS configured (the healthy state) — resolves for the <c>discord</c>
+    /// provider's <c>bot_token</c> field, exactly as <see cref="ISystemCredentialsProvider.GetValueAsync"/>
+    /// resolves any other system-scoped value.</summary>
+    private static ISystemCredentialsProvider CredentialsWithBotToken(string token)
     {
-        IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
-        vault
-            .GetAccessTokenAsync(connectionId, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new DecryptedTokenDto(token, "access", null, false)));
-        return vault;
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetValueAsync("discord", "bot_token", Arg.Any<CancellationToken>())
+            .Returns(token);
+        return credentials;
     }
 
-    private static async Task<Guid> SeedDiscordConnectionAsync(DiscordSqliteTestDatabase database)
+    /// <summary>No platform bot token configured (DB row absent, no env/appsettings fallback) — the state a
+    /// fresh install or a mis-set <c>.env</c> leaves the operator in.</summary>
+    private static ISystemCredentialsProvider CredentialsWithNoBotToken()
     {
-        Guid connectionId = Guid.CreateVersion7();
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetValueAsync("discord", "bot_token", Arg.Any<CancellationToken>())
+            .Returns((string?)null);
+        return credentials;
+    }
+
+    private static async Task SeedDiscordConnectionAsync(DiscordSqliteTestDatabase database)
+    {
         await using DiscordTestDbContext db = database.NewContext();
         db.IntegrationConnections.Add(
             new()
             {
-                Id = connectionId,
+                Id = Guid.CreateVersion7(),
                 BroadcasterId = Channel,
                 Provider = "discord",
                 ProviderAccountId = "guild1",
@@ -666,7 +765,6 @@ public sealed class DiscordRestBotGatewayTests
             }
         );
         await db.SaveChangesAsync();
-        return connectionId;
     }
 
     /// <summary>Captures the single outbound request (method, URI, headers, body) and returns a fixed response.</summary>

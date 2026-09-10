@@ -15,11 +15,9 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
-using NomNomzBot.Application.Identity.Dtos;
-using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Integrations.Entities;
 
 namespace NomNomzBot.Infrastructure.Discord.Gateway;
 
@@ -31,9 +29,18 @@ namespace NomNomzBot.Infrastructure.Discord.Gateway;
 ///   <item><c>POST /channels/{id}/messages</c> for a message + optional embed + role ping;</item>
 ///   <item><c>PUT/DELETE /guilds/{g}/members/{u}/roles/{r}</c> for opt-in/out role enforcement.</item>
 /// </list>
-/// Every call resolves the tenant's decrypted bot token from <see cref="IIntegrationTokenVault"/> per call
-/// (the discord <c>IntegrationConnection</c> → vault) and sends it as <c>Authorization: Bot {token}</c>; a
-/// crypto-shredded DEK or a missing connection surfaces as <see cref="Result.Failure(string, string?, string?)"/>.
+/// <para>
+/// <b>S-PL4:</b> every call authenticates with the PLATFORM's static Discord Application bot token
+/// (<see cref="ISystemCredentialsProvider"/>, key <c>discord.bot_token</c> — DB-vaulted first, then
+/// <c>Discord:BotToken</c> / <c>DISCORD_BOT_TOKEN</c>), sent as <c>Authorization: Bot {token}</c>. It is NEVER
+/// the per-channel token vaulted from the Discord OAuth "bot guilds" authorization-code exchange: that exchange
+/// returns an <c>access_token</c> scoped to the authorizing USER (Discord's own default 7-day expiry), which
+/// Discord's guild REST endpoints reject outright when sent as a Bot token — no amount of reauthorizing that
+/// per-channel connection can ever fix it, because it is structurally the wrong credential. A Discord bot has
+/// exactly one token, issued once in the Developer Portal, shared across every guild it is installed in. The
+/// gateway still confirms a live <c>IntegrationConnection</c> row exists per channel (the guild-link guard) before
+/// spending a platform-token call; a missing platform token fails closed distinctly from a missing connection.
+/// </para>
 /// Nothing here is stubbed — this is a live HTTP client against the Discord REST API.
 /// </summary>
 public sealed class DiscordRestBotGateway : IDiscordBotGateway
@@ -48,19 +55,19 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
 
     private readonly HttpClient _http;
     private readonly IApplicationDbContext _db;
-    private readonly IIntegrationTokenVault _vault;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly ILogger<DiscordRestBotGateway> _logger;
 
     public DiscordRestBotGateway(
         IHttpClientFactory httpClientFactory,
         IApplicationDbContext db,
-        IIntegrationTokenVault vault,
+        ISystemCredentialsProvider credentials,
         ILogger<DiscordRestBotGateway> logger
     )
     {
         _http = httpClientFactory.CreateClient("discord");
         _db = db;
-        _vault = vault;
+        _credentials = credentials;
         _logger = logger;
     }
 
@@ -799,35 +806,42 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
     }
 
     /// <summary>
-    /// Resolves the tenant's decrypted Discord bot token: finds the <c>(BroadcasterId, Provider="discord")</c>
-    /// connection, then decrypts its access token through the vault. Never a cached/plaintext token; a
-    /// shredded DEK or a missing connection fails closed.
+    /// Resolves the PLATFORM's static Discord Application bot token — never a per-channel OAuth artifact (see
+    /// the class remarks: S-PL4). First confirms a live <c>(BroadcasterId, Provider="discord")</c> guild-link
+    /// connection exists (fails closed as <c>DISCORD_NOT_CONNECTED</c> otherwise), then resolves
+    /// <c>discord.bot_token</c> (DB-vaulted first, then <c>Discord:BotToken</c> / <c>DISCORD_BOT_TOKEN</c>). A
+    /// connected channel with no platform token configured fails closed as a DISTINCT, actionable error — never
+    /// by sending a credential that is not the bot's own to Discord.
     /// </summary>
     private async Task<Result<string>> ResolveBotTokenAsync(
         Guid broadcasterId,
         CancellationToken ct
     )
     {
-        IntegrationConnection? connection = await _db
+        bool connected = await _db
             .IntegrationConnections.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(
+            .AnyAsync(
                 c =>
                     c.BroadcasterId == broadcasterId
                     && c.Provider == Provider
                     && c.DeletedAt == null,
                 ct
             );
-        if (connection is null)
+        if (!connected)
             return Result.Failure<string>(
                 "No connected Discord bot for this channel.",
                 "DISCORD_NOT_CONNECTED"
             );
 
-        Result<DecryptedTokenDto> token = await _vault.GetAccessTokenAsync(connection.Id, ct);
-        if (token.IsFailure)
-            return Result.Failure<string>(token.ErrorMessage, token.ErrorCode);
+        string? botToken = await _credentials.GetValueAsync(Provider, "bot_token", ct);
+        if (string.IsNullOrWhiteSpace(botToken))
+            return Result.Failure<string>(
+                "The Discord bot token is not configured on this server. Set Discord:BotToken "
+                    + "(or DISCORD_BOT_TOKEN) to the bot's token from the Discord Developer Portal.",
+                "DISCORD_BOT_TOKEN_NOT_CONFIGURED"
+            );
 
-        return Result.Success(token.Value.Value);
+        return Result.Success(botToken);
     }
 
     // ─── Payload shaping ─────────────────────────────────────────────────────
