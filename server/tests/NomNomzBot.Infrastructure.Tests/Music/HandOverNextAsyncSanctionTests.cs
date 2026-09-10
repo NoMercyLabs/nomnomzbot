@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -111,6 +112,68 @@ public sealed class HandOverNextAsyncSanctionTests
             .GetInFlight(ChannelId.ToString())
             .Should()
             .NotBeNull("a successful push puts exactly one entry in flight");
+    }
+
+    /// <summary>
+    /// The gap this pins was live 2026-09-10 even after the HandOverNextAsync fix above shipped:
+    /// admission's own immediate push (the first request in an otherwise-empty queue, reached from a
+    /// chat-triggered `!sr` with no live HTTP request of its own) has exactly the same "no person
+    /// present" shape and was refused by the same guard, independent of HandOverNextAsync entirely.
+    /// </summary>
+    [Fact]
+    public async Task AddToQueueAsync_admission_push_establishes_a_channel_configuration_sanction()
+    {
+        MusicTestDbContext db = MusicTestDbContext.New();
+        SeedConnectedSpotify(db);
+        db.SaveChanges();
+
+        OutboundSanctionAccessor sanctions = new();
+        OutboundSanction? observedDuringPush = null;
+        IMusicProvider provider = Substitute.For<IMusicProvider>();
+        provider.Provider.Returns("spotify");
+        // AddToQueueAsync degrades a metadata-resolve miss to a synthetic placeholder entry rather than
+        // refusing admission (its caller already trusts trackUri as real) — these two calls must still
+        // answer something non-null for that degrade path to run instead of throwing.
+        provider
+            .ResolveTrackAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(((TrackInfo?)null, MusicProviderFailureReason.None));
+        provider
+            .SearchAsync(ChannelId, Arg.Any<string>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns((Array.Empty<TrackInfo>(), MusicProviderFailureReason.None));
+        provider
+            .AddToQueueAsync(ChannelId, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                observedDuringPush = sanctions.Current;
+                return Task.FromResult(true);
+            });
+
+        MusicService sut = new(
+            [provider],
+            db,
+            new RecordingEventBus(),
+            new BlockedTrackService(db),
+            new SongRequestQueueStore(),
+            new NoOpSongRequestQueuePersistence(),
+            NullLogger<MusicService>.Instance,
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance,
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache(),
+            sanctions
+        );
+
+        sanctions.Current.Should().BeNull();
+
+        Result admitted = await sut.AddToQueueAsync(ChannelId.ToString(), "uri:1", "viewer1");
+
+        admitted.IsSuccess.Should().BeTrue();
+        observedDuringPush
+            .Should()
+            .NotBeNull("the push must carry a sanction the write can be traced to");
+        observedDuringPush!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        observedDuringPush.Detail.Should().Be("music:song_request_dispatch");
+        sanctions.Current.Should().BeNull();
     }
 
     [Fact]

@@ -236,6 +236,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         )
             return Unsupported("playing a specific track");
 
+        // Called from a pipeline action (go-live, raid-start) with no person present — the same
+        // already-opted-in, no-live-request basis as HandOverNextAsync's own push.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+        );
+
         try
         {
             // Push onto the provider's OWN live queue (never our fair queue / SongRequestQueueStore —
@@ -736,6 +742,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             );
             return Result.Success();
         }
+
+        // Same basis as HandOverNextAsync's own push, and needed just as unconditionally here: a chat
+        // command (`!sr`, run off an EventSub notification) reaches this exact code with no HTTP request
+        // of its own to inherit a sanction from, same as the dashboard/public song-request page submit
+        // does carry one via OutboundSanctionFilter — this must not depend on which caller reached it.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
+        );
 
         try
         {
