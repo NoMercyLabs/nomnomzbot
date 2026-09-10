@@ -18,11 +18,14 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -51,8 +54,10 @@ import bot.nomnomz.dashboard.core.network.UserTtsVoice
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.tts.state.TtsController
 import bot.nomnomz.dashboard.feature.tts.state.TtsQueueController
+import bot.nomnomz.dashboard.feature.tts.state.ViewerVoiceState
 import bot.nomnomz.dashboard.feature.tts.state.VoiceBrowserState
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 
@@ -197,6 +202,7 @@ class TtsScreenTest {
                     viewerVoice = null,
                     manage = ManageDecision.Allowed,
                     searchViewers = { emptyList() },
+                    searchAssignableVoices = { emptyList() },
                     onLookup = {},
                     onAssign = { _, _ -> },
                     onClear = {},
@@ -207,6 +213,100 @@ class TtsScreenTest {
         assertTrue(
             onAllNodesWithText("Per-viewer voice").fetchSemanticsNodes().isNotEmpty(),
             "Per-viewer must render the viewer-voice override panel",
+        )
+    }
+
+    // S-PL2 (owner: "its impossible to set a user voice in tts or search for something that does exist on
+    // another page"): the per-viewer voice picker used to filter ONLY the small, unfiltered first-page cache
+    // ([TtsController.load]'s `voices`, capped at 50) client-side — the live Edge/Azure/ElevenLabs catalogue
+    // runs into the hundreds (see VoiceBuiltin.kt's SearchVoicesAsync note), so a voice outside that first page
+    // was findable on the Voices tab's real backend search but never found here. This proves the picker now
+    // hits the live search ([searchAssignableVoices], wired to the same `GET /tts/voices?q=` the Voices tab
+    // uses) rather than filtering the cache — the cache passed in is deliberately empty/irrelevant, so the
+    // result can ONLY have come from the live search.
+    @Test
+    fun per_viewer_voice_picker_search_hits_the_live_catalogue_not_the_cached_first_page() = runComposeUiTest {
+        val catalogueOnlyVoice =
+            TtsVoice(id = "en-GB-Zara", displayName = "Zara", name = "en-GB-Zara", locale = "en-GB", provider = "edge")
+        val searchedQueries: MutableList<String> = mutableListOf()
+
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    PerViewerTab(
+                        voices = emptyList(),
+                        viewerVoice = ViewerVoiceState(userId = "viewer-1"),
+                        manage = ManageDecision.Allowed,
+                        searchViewers = { emptyList() },
+                        searchAssignableVoices = { query ->
+                            searchedQueries.add(query)
+                            if (query.contains("Zara", ignoreCase = true)) listOf(catalogueOnlyVoice) else emptyList()
+                        },
+                        onLookup = {},
+                        onAssign = { _, _ -> },
+                        onClear = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+
+        // Two search fields render: the viewer lookup (SearchPickerField) then the voice picker's own field —
+        // the voice picker's is the second SetText node in the tree.
+        onAllNodes(hasSetTextAction())[1].performTextInput("Zara")
+        // The picker debounces via a real `delay(300)` before firing the search.
+        mainClock.advanceTimeBy(500)
+        waitForIdle()
+
+        assertTrue(
+            searchedQueries.any { it.contains("Zara", ignoreCase = true) },
+            "typing in the picker must call the live search, not filter a static list",
+        )
+        onNodeWithText("Zara", substring = true).assertExists()
+    }
+
+    // Proves the Assign button, driven purely through the rendered UI (pick a catalogue-only voice via the
+    // fixed search above, then click Assign), actually calls back with the real voice id — the UI wiring the
+    // controller-level test (TtsControllerTest.assign_viewer_voice_persists_and_the_panel_reflects_it) doesn't
+    // exercise. Together with that test, this closes the gap end to end: picker finds the voice → Assign sends
+    // the right id → the controller persists it via the real API call.
+    @Test
+    fun per_viewer_voice_assign_button_sends_the_voice_picked_from_the_live_search() = runComposeUiTest {
+        val catalogueOnlyVoice =
+            TtsVoice(id = "en-GB-Zara", displayName = "Zara", name = "en-GB-Zara", locale = "en-GB", provider = "edge")
+        val assignCalls: MutableList<Pair<String, String>> = mutableListOf()
+
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    PerViewerTab(
+                        voices = emptyList(),
+                        viewerVoice = ViewerVoiceState(userId = "viewer-1"),
+                        manage = ManageDecision.Allowed,
+                        searchViewers = { emptyList() },
+                        searchAssignableVoices = { listOf(catalogueOnlyVoice) },
+                        onLookup = {},
+                        onAssign = { userId, voiceId -> assignCalls.add(userId to voiceId) },
+                        onClear = {},
+                    )
+                }
+            }
+        }
+        waitForIdle()
+
+        onAllNodes(hasSetTextAction())[1].performTextInput("Zara")
+        mainClock.advanceTimeBy(500)
+        waitForIdle()
+
+        onNodeWithContentDescription("Use Zara").performClick()
+        waitForIdle()
+        onNodeWithText("Assign voice").performClick()
+        waitForIdle()
+
+        assertEquals(
+            listOf("viewer-1" to "en-GB-Zara"),
+            assignCalls,
+            "clicking Assign must send the exact voice picked in the UI to the real assign call",
         )
     }
 

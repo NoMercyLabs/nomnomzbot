@@ -22,10 +22,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -36,6 +34,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -273,6 +272,7 @@ fun TtsScreen(
                     onPausePlayback = { scope.launch { controller.pausePlayback() } },
                     onResumePlayback = { scope.launch { controller.resumePlayback() } },
                     searchViewers = { query -> controller.searchViewers(query) },
+                    searchAssignableVoices = { query -> controller.searchAssignableVoices(query) },
                     onLookupViewerVoice = { userId -> scope.launch { controller.loadUserVoice(userId) } },
                     onAssignViewerVoice = { userId, voiceId ->
                         scope.launch { controller.setUserVoice(userId, voiceId) }
@@ -362,6 +362,7 @@ private fun ReadyContent(
     onPausePlayback: () -> Unit,
     onResumePlayback: () -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchAssignableVoices: suspend (query: String) -> List<TtsVoice>,
     onLookupViewerVoice: (userId: String) -> Unit,
     onAssignViewerVoice: (userId: String, voiceId: String) -> Unit,
     onClearViewerVoice: (userId: String) -> Unit,
@@ -500,6 +501,7 @@ private fun ReadyContent(
                     viewerVoice = state.viewerVoice,
                     manage = manage,
                     searchViewers = searchViewers,
+                    searchAssignableVoices = searchAssignableVoices,
                     onLookup = onLookupViewerVoice,
                     onAssign = onAssignViewerVoice,
                     onClear = onClearViewerVoice,
@@ -584,49 +586,51 @@ internal fun GeneralTab(
     onSave: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        StatusBanner(isEnabled = isEnabled)
-        EditCard(
-            isEnabled = isEnabled,
-            onEnabledChange = onEnabledChange,
-            mode = mode,
-            onModeChange = onModeChange,
-            defaultProvider = defaultProvider,
-            onProviderChange = onProviderChange,
-            defaultVoiceId = defaultVoiceId,
-            onVoiceChange = onVoiceChange,
-            maxLengthText = maxLengthText,
-            onMaxLengthChange = onMaxLengthChange,
-            maxLengthValid = maxLengthValid,
-            minPermission = minPermission,
-            onPermissionChange = onPermissionChange,
-            skipBotMessages = skipBotMessages,
-            onSkipBotMessagesChange = onSkipBotMessagesChange,
-            readUsernames = readUsernames,
-            onReadUsernamesChange = onReadUsernamesChange,
-            profanityCensorEnabled = profanityCensorEnabled,
-            onProfanityCensorChange = onProfanityCensorChange,
-            modApprovalRequired = modApprovalRequired,
-            onModApprovalChange = onModApprovalChange,
-            minBitsText = minBitsText,
-            onMinBitsChange = onMinBitsChange,
-            minBitsValid = minBitsValid,
-            viewerVoiceSelfService = viewerVoiceSelfService,
-            onViewerVoiceSelfServiceChange = onViewerVoiceSelfServiceChange,
-            manage = manage,
-            enabled = formEnabled,
-        )
-        SaveBar(
-            saving = saving,
-            justSaved = justSaved,
-            saveError = saveError,
-            canSave = canSave,
-            manage = manage,
-            onSave = onSave,
-        )
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            StatusBanner(isEnabled = isEnabled)
+            EditCard(
+                isEnabled = isEnabled,
+                onEnabledChange = onEnabledChange,
+                mode = mode,
+                onModeChange = onModeChange,
+                defaultProvider = defaultProvider,
+                onProviderChange = onProviderChange,
+                defaultVoiceId = defaultVoiceId,
+                onVoiceChange = onVoiceChange,
+                maxLengthText = maxLengthText,
+                onMaxLengthChange = onMaxLengthChange,
+                maxLengthValid = maxLengthValid,
+                minPermission = minPermission,
+                onPermissionChange = onPermissionChange,
+                skipBotMessages = skipBotMessages,
+                onSkipBotMessagesChange = onSkipBotMessagesChange,
+                readUsernames = readUsernames,
+                onReadUsernamesChange = onReadUsernamesChange,
+                profanityCensorEnabled = profanityCensorEnabled,
+                onProfanityCensorChange = onProfanityCensorChange,
+                modApprovalRequired = modApprovalRequired,
+                onModApprovalChange = onModApprovalChange,
+                minBitsText = minBitsText,
+                onMinBitsChange = onMinBitsChange,
+                minBitsValid = minBitsValid,
+                viewerVoiceSelfService = viewerVoiceSelfService,
+                onViewerVoiceSelfServiceChange = onViewerVoiceSelfServiceChange,
+                manage = manage,
+                enabled = formEnabled,
+            )
+            SaveBar(
+                saving = saving,
+                justSaved = justSaved,
+                saveError = saveError,
+                canSave = canSave,
+                manage = manage,
+                onSave = onSave,
+            )
+        }
     }
 }
 
@@ -647,25 +651,27 @@ internal fun VoicesTab(
     onRemoveByok: (provider: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        VoiceBrowser(
-            browser = browser,
-            currentVoiceId = currentVoiceId,
-            manage = manage,
-            onSearch = onSearch,
-            onSelect = onSelect,
-            onPreviewFallback = onPreviewFallback,
-        )
-        ByokSection(
-            config = byokConfig,
-            saving = saving,
-            manage = manage,
-            onSetByok = onSetByok,
-            onRemoveByok = onRemoveByok,
-        )
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            VoiceBrowser(
+                browser = browser,
+                currentVoiceId = currentVoiceId,
+                manage = manage,
+                onSearch = onSearch,
+                onSelect = onSelect,
+                onPreviewFallback = onPreviewFallback,
+            )
+            ByokSection(
+                config = byokConfig,
+                saving = saving,
+                manage = manage,
+                onSetByok = onSetByok,
+                onRemoveByok = onRemoveByok,
+            )
+        }
     }
 }
 
@@ -678,24 +684,28 @@ internal fun PerViewerTab(
     viewerVoice: ViewerVoiceState?,
     manage: ManageDecision,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchAssignableVoices: suspend (query: String) -> List<TtsVoice>,
     onLookup: (userId: String) -> Unit,
     onAssign: (userId: String, voiceId: String) -> Unit,
     onClear: (userId: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        ViewerVoiceSection(
-            voices = voices,
-            viewerVoice = viewerVoice,
-            manage = manage,
-            searchViewers = searchViewers,
-            onLookup = onLookup,
-            onAssign = onAssign,
-            onClear = onClear,
-        )
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            ViewerVoiceSection(
+                voices = voices,
+                viewerVoice = viewerVoice,
+                manage = manage,
+                searchViewers = searchViewers,
+                searchAssignableVoices = searchAssignableVoices,
+                onLookup = onLookup,
+                onAssign = onAssign,
+                onClear = onClear,
+            )
+        }
     }
 }
 
@@ -712,19 +722,21 @@ internal fun PronunciationTab(
     onDelete: (id: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        PronunciationSection(
-            lexicon = lexicon,
-            busy = busy,
-            error = error,
-            manage = manage,
-            onAdd = onAdd,
-            onUpdate = onUpdate,
-            onDelete = onDelete,
-        )
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            PronunciationSection(
+                lexicon = lexicon,
+                busy = busy,
+                error = error,
+                manage = manage,
+                onAdd = onAdd,
+                onUpdate = onUpdate,
+                onDelete = onDelete,
+            )
+        }
     }
 }
 
@@ -756,34 +768,36 @@ internal fun QueueAndTestTab(
     queueManage: ManageDecision,
 ) {
     val spacing = LocalSpacing.current
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        OverlayCard(
-            overlay = overlay,
-            manage = manage,
-            sending = sending,
-            sent = sent,
-            error = overlayError,
-            onTest = onTestOverlay,
-            playbackBusy = playbackBusy,
-            playbackPaused = playbackPaused,
-            playbackError = playbackError,
-            onSkip = onSkip,
-            onClear = onClear,
-            onPause = onPause,
-            onResume = onResume,
-        )
-        TestSpeakSection(
-            currentVoiceId = currentVoiceId,
-            testing = testing,
-            testResult = testResult,
-            testError = testError,
-            manage = manage,
-            onTest = onTestSpeak,
-        )
-        TtsQueueSection(controller = queueController, manage = queueManage)
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            OverlayCard(
+                overlay = overlay,
+                manage = manage,
+                sending = sending,
+                sent = sent,
+                error = overlayError,
+                onTest = onTestOverlay,
+                playbackBusy = playbackBusy,
+                playbackPaused = playbackPaused,
+                playbackError = playbackError,
+                onSkip = onSkip,
+                onClear = onClear,
+                onPause = onPause,
+                onResume = onResume,
+            )
+            TestSpeakSection(
+                currentVoiceId = currentVoiceId,
+                testing = testing,
+                testResult = testResult,
+                testError = testError,
+                manage = manage,
+                onTest = onTestSpeak,
+            )
+            TtsQueueSection(controller = queueController, manage = queueManage)
+        }
     }
 }
 
@@ -1197,31 +1211,39 @@ private fun VoiceBrowserPager(page: Int, hasMore: Boolean, loading: Boolean, onP
 // Sample text spoken when previewing a voice that ships no ready-made clip — routed through POST /tts/test.
 private const val VOICE_PREVIEW_SAMPLE: String = "Hey there, this is how I sound."
 
-// A compact local voice picker over the first-page voices — used by the viewer-voice panel to pick the voice to
-// ASSIGN to a looked-up viewer (a small, closed set is enough there; the full catalogue browser is above).
+// The voice picker used by the viewer-voice panel to pick the voice to ASSIGN to a looked-up viewer. Searches
+// the full server-side voice catalogue via [search] (the same paginated `GET /tts/voices?q=` the Voices tab's
+// browser uses) rather than filtering the small unfiltered first page cached in [voices] — that page is only
+// ~50 of a catalogue that runs into the hundreds, so a client-side filter over it routinely missed voices that
+// genuinely exist and are findable through the Voices tab. [voices] is kept only to resolve the label for the
+// already-selected [currentVoiceId] without a network round trip.
 @Composable
 private fun VoicePicker(
     voices: List<TtsVoice>,
     currentVoiceId: String,
     manage: ManageDecision,
+    search: suspend (query: String) -> List<TtsVoice>,
     onSelect: (String) -> Unit,
 ) {
-    if (voices.isEmpty()) return
-
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     var query: String by remember { mutableStateOf("") }
+    var matches: List<TtsVoice> by remember { mutableStateOf(emptyList()) }
     val trimmed: String = query.trim()
-    val matches: List<TtsVoice> =
-        if (trimmed.isBlank()) emptyList()
-        else
-            voices.filter {
-                it.displayName.contains(trimmed, ignoreCase = true) ||
-                    it.locale.contains(trimmed, ignoreCase = true) ||
-                    it.id.contains(trimmed, ignoreCase = true)
-            }
+
+    // Debounce the query and re-run the live search whenever it settles. A blank query clears the results —
+    // this picker is meant to be searched, not browsed (the full catalogue browser is on the Voices tab).
+    LaunchedEffect(trimmed) {
+        if (trimmed.isBlank()) {
+            matches = emptyList()
+            return@LaunchedEffect
+        }
+        delay(300)
+        matches = search(trimmed)
+    }
+
     val shown: List<TtsVoice> = matches.take(8)
     val current: TtsVoice? = voices.firstOrNull { it.id == currentVoiceId }
     val selectedLabel: String? = current?.let { "${it.displayName} (${it.locale})" }
@@ -1412,6 +1434,7 @@ private fun ViewerVoiceSection(
     viewerVoice: ViewerVoiceState?,
     manage: ManageDecision,
     searchViewers: suspend (query: String) -> List<PickerOption>,
+    searchAssignableVoices: suspend (query: String) -> List<TtsVoice>,
     onLookup: (userId: String) -> Unit,
     onAssign: (userId: String, voiceId: String) -> Unit,
     onClear: (userId: String) -> Unit,
@@ -1504,6 +1527,7 @@ private fun ViewerVoiceSection(
             voices = voices,
             currentVoiceId = pickedVoiceId,
             manage = manage,
+            search = searchAssignableVoices,
             onSelect = { pickedVoiceId = it },
         )
     }

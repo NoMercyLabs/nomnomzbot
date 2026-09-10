@@ -66,6 +66,22 @@ class TtsController(
         }
     }
 
+    /**
+     * Search the full TTS voice catalogue by [query] for the per-viewer voice picker — hits the same paginated
+     * backend search the Voices tab's browser uses (`GET /tts/voices?q=`), unlike [TtsState.Ready.voices], which
+     * is only the unfiltered first page cached at [load]. That cache is why the per-viewer picker used to miss
+     * voices the Voices tab could find: the live catalogue runs past a single page, so a client-side filter over
+     * the cached page alone routinely misses real voices. A blank [query] returns the first page (same as the
+     * cache); a failure resolves to an empty list so the picker just shows nothing rather than erroring.
+     */
+    suspend fun searchAssignableVoices(query: String): List<TtsVoice> {
+        val channel: String = channelId ?: return emptyList()
+        return when (val result: ApiResult<TtsVoicePage> = ttsApi.voicesPage(channel, query = query, pageSize = 50)) {
+            is ApiResult.Ok -> result.value.data
+            is ApiResult.Failure -> emptyList()
+        }
+    }
+
     /** Resolve the active channel, then load its TTS configuration. */
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
