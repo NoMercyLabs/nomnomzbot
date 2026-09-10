@@ -4848,6 +4848,7 @@
     <string name="pipeline_play_sound_handle_help">A name for this playback, so a later stop_sound step can stop this specific clip instead of all clips.</string>
     <string name="pipeline_play_sound_volume_help">The playback volume for this clip, from 0 (silent) to 100 (full volume). Leave blank to use the clip's own default.</string>
     <string name="pipeline_play_sound_wait_for_finish_help">Pauses the rest of the pipeline until this clip finishes playing, instead of continuing immediately.</string>
+    <string name="pipeline_play_track_once_track_uri_help">The track to play right now. Whatever was already playing resumes automatically once this one ends.</string>
     <string name="pipeline_playlist_add_message_help">The chat message sent after the track is added. Blank uses the default.</string>
     <string name="pipeline_playlist_add_playlist_id_help">Which playlist the track is added to.</string>
     <string name="pipeline_playlist_add_track_uri_help">The track to add. Blank adds the currently playing track.</string>
@@ -5005,6 +5006,7 @@
     <string name="pipeline_pick_from_list_description">Pick a random entry from a saved list</string>
     <string name="pipeline_play_game_description">Play a configured currency game</string>
     <string name="pipeline_play_sound_description">Play a sound clip</string>
+    <string name="pipeline_play_track_once_description">Play one track right now, then resume whatever was already playing</string>
     <string name="pipeline_play_tts_description">Speak text through text-to-speech</string>
     <string name="pipeline_playlist_add_description">Add the current (or a given) track to a playlist</string>
     <string name="pipeline_post_quote_description">Post a saved quote to chat</string>

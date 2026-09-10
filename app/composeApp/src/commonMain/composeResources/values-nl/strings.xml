@@ -4834,6 +4834,7 @@
     <string name="pipeline_play_sound_handle_help">Een naam voor deze afspeelactie, zodat een latere stop_sound-stap dit specifieke fragment kan stoppen in plaats van alle fragmenten.</string>
     <string name="pipeline_play_sound_volume_help">Het afspeelvolume voor dit fragment, van 0 (stil) tot 100 (volledig volume). Leeg laten om de eigen standaardwaarde van het fragment te gebruiken.</string>
     <string name="pipeline_play_sound_wait_for_finish_help">Pauzeert de rest van de pipeline totdat dit fragment klaar is met afspelen, in plaats van direct door te gaan.</string>
+    <string name="pipeline_play_track_once_track_uri_help">Het nummer dat nu wordt afgespeeld. Wat er al speelde, wordt automatisch hervat zodra dit nummer afgelopen is.</string>
     <string name="pipeline_playlist_add_message_help">Het chatbericht dat wordt verstuurd nadat het nummer is toegevoegd. Leeg gebruikt de standaardtekst.</string>
     <string name="pipeline_playlist_add_playlist_id_help">Aan welke afspeellijst het nummer wordt toegevoegd.</string>
     <string name="pipeline_playlist_add_track_uri_help">Het nummer dat wordt toegevoegd. Leeg voegt het nummer toe dat nu speelt.</string>
@@ -4991,6 +4992,7 @@
     <string name="pipeline_pick_from_list_description">Kies een willekeurig item uit een opgeslagen lijst</string>
     <string name="pipeline_play_game_description">Speel een geconfigureerd valuta-spel</string>
     <string name="pipeline_play_sound_description">Speel een geluidsclip af</string>
+    <string name="pipeline_play_track_once_description">Speel meteen één nummer af en hervat daarna wat er al speelde</string>
     <string name="pipeline_play_tts_description">Spreek tekst uit via tekst-naar-spraak</string>
     <string name="pipeline_playlist_add_description">Voeg het huidige (of een opgegeven) nummer toe aan een afspeellijst</string>
     <string name="pipeline_post_quote_description">Plaats een opgeslagen quote in de chat</string>
