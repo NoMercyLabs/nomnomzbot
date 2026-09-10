@@ -197,6 +197,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
             return Unsupported("playback control");
 
+        // Reachable off a pipeline action (go-live/raid-start auto-resume) or PlayOnceResumeHandler's
+        // own react-to-playback-change path — neither carries an HTTP-request sanction of its own.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:playback_control")
+        );
+
         try
         {
             await provider.PlayAsync(tenantId, cancellationToken);
@@ -301,6 +307,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!HasCapability(provider, MusicProviderCapabilities.PlaybackControl))
             return Unsupported("playback control");
 
+        // PlayOnceResumeHandler calls this off a PlaybackStateChangedEvent the poller published on its
+        // own schedule — no person present, no HTTP request behind it — so it carries no ambient
+        // sanction of its own to inherit; same shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:playback_control")
+        );
+
         try
         {
             await provider.PauseAsync(tenantId, cancellationToken);
@@ -340,6 +353,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         FairQueue<SongRequestEntry>? fairQueue = _queueStore.TryGet(broadcasterId);
         bool hadPending = fairQueue is not null && !fairQueue.IsEmpty;
 
+        // Reachable off a pipeline action (!songskip / !songwrong / !bansong automation) with no HTTP
+        // request of its own — same no-person-present shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:playback_control")
+        );
+
         try
         {
             await provider.SkipAsync(tenantId, cancellationToken);
@@ -371,6 +390,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return NoProvider();
         if (!HasCapability(provider, MusicProviderCapabilities.Previous))
             return Unsupported("previous-track");
+
+        // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
+        // shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:playback_control")
+        );
 
         try
         {
@@ -879,6 +904,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!HasCapability(provider, MusicProviderCapabilities.Volume))
             return Unsupported("volume control");
 
+        // Reachable off a pipeline action or the !songvolume builtin with no HTTP request of its own —
+        // same no-person-present shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:volume_control")
+        );
+
         try
         {
             await provider.SetVolumeAsync(tenantId, volume, cancellationToken);
@@ -1340,6 +1371,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!HasCapability(provider, MusicProviderCapabilities.Seek))
             return Unsupported("seeking");
 
+        // PlayOnceResumeHandler calls this off a PlaybackStateChangedEvent the poller published on its
+        // own schedule — no person present, no HTTP request behind it — so it carries no ambient
+        // sanction of its own to inherit; same shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:seek_control")
+        );
+
         try
         {
             // The §3.5 seam speaks whole seconds; the legacy wire contract still carries milliseconds.
@@ -1367,6 +1405,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return NoProvider();
         if (!HasCapability(provider, MusicProviderCapabilities.Shuffle))
             return Unsupported("shuffle");
+
+        // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
+        // shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:shuffle_control")
+        );
 
         try
         {
@@ -1401,6 +1445,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!HasCapability(provider, MusicProviderCapabilities.Repeat))
             return Unsupported("repeat mode");
 
+        // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
+        // shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:repeat_control")
+        );
+
         try
         {
             await provider.SetRepeatAsync(tenantId, repeatMode, cancellationToken);
@@ -1428,6 +1478,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return NoProvider();
         if (!HasCapability(provider, MusicProviderCapabilities.TransferDevice))
             return Unsupported("device transfer");
+
+        // Reachable off a pipeline action with no HTTP request of its own — same no-person-present
+        // shape as HandOverNextAsync's already-fixed gap.
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("music:device_transfer_control")
+        );
 
         try
         {
