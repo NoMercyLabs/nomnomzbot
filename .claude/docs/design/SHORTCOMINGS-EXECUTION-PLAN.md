@@ -19,83 +19,40 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
-## OWNER PUNCH LIST 2026-09-10 (jump the queue, dispatched immediately)
+## OWNER PUNCH LIST 2026-09-10 — remaining follow-ups
 
-Owner's own words, verbatim, each triaged below. Dispatch top to bottom as slots free up (cap ~3
-concurrent, disjoint files only).
+The 11 original items (S-PL1–S-PL10, S-PL5a/b/c) are done and verified; commits: `358a27f4`
+(overlay error clear), `4e148a52` (TTS per-viewer voice), `d5e85cea` (reward take-control),
+`c534b773` (Discord bot token), `b5a8c449` (OBS state desync), `1989c547`+`815bbb05` (OBS replay
+buffer/virtual cam), `b72c491c`+`5eba6182`+`5f8ad377` (Stream Deck OBS plugin + auto-provision param
+fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container sweep), `f96ecdcb`
+(music sanction audit), `5ede9fb9` (OBS scene idempotency). What's left, filed as its own slices:
 
-- ~~[ ] **S-PL1**~~ CLOSED `358a27f4`: `ClearRuntimeErrorAsync` on `IWidgetService`/`WidgetService`,
-      called from `OverlayHub` on a browser source's (re)connect, clears a stale recorded runtime
-      error so a working overlay stops showing a permanent error badge on the dashboard. Verified.
-- ~~[ ] **S-PL2**~~ CLOSED `4e148a52`: per-viewer voice picker now searches the live catalogue (not a
-      cached first page) and an Assign action persists the pick; verified full-tree `jvmTest` green
-      after `92e2fc34` fixed an unrelated duplicate-JVM-class break from the S-PL5a commit.
-- ~~[ ] **S-PL3**~~ CLOSED `d5e85cea`: a reward Twitch rejects because it wasn't created via the bot's
-      own client id (so it can't be API-managed) now parks as a distinct `MIGRATION_PENDING_EXTERNAL_REMOVAL`
-      state instead of forwarding Twitch's raw 400; the external reward's own fields are left untouched
-      and no stray local row is inserted. Verified.
-- ~~[ ] **S-PL4**~~ CLOSED `c534b773`: guild REST calls (notification channels, live role) now
-      authenticate with the platform's static bot token (`DISCORD_BOT_TOKEN`) instead of the per-user
-      OAuth access_token Discord's guild endpoints reject regardless of reauth; a missing bot token now
-      fails closed with a distinct code instead of a raw 401. Verified.
-- [ ] **S-PL5 split (2026-09-10):**
-  - ~~**S-PL5a** State desync~~ — CLOSED `b5a8c449`: `DirectObsTransport` probes real stream/record
-    state on (re)connect, publishes `ObsConnectionEstablishedEvent`, pushed to the dashboard via
-    `ObsConnectionEstablishedBroadcastHandler` → `ObsLiveStateChanged` hub event → `ObsController`
-    reload. Verified.
-  - ~~**S-PL5b** Full OBS feature set~~ — CLOSED `1989c547`+`815bbb05`: real inventory done; wired the
-    server-ready-but-UI-missing controls (replay buffer start/stop/save, virtual cam toggle) through
-    controller + dashboard UI. Verified.
-    **S-PL5b follow-up gaps found by the audit, not built (own slices):**
-    - Server-ready, needs UI: `SetPreviewSceneAsync`, per-source mute (`ToggleInputMuteAsync`), filter
-      enable/disable, transition select, studio-mode transition trigger, media trigger, hotkey trigger,
-      browser-source refresh, screenshot, batch/vendor pass-through — each needs its own enumeration UI
-      (transition list, media input list, hotkey list) before it can be exposed, judged lower value than
-      the three built here for a streamer's live-control surface.
-    - Source-visibility toggle needs a `GetSceneItemList` wrapper first — `GetInputsAsync` only returns
-      global inputs, not per-scene items.
-    - Studio mode enable/disable, `GetStats` (CPU/FPS/render-lag), `GetVirtualCamStatus`,
-      `GetSceneItemList`, `GetSceneTransitionList`, `GetSourceFilterList` are genuinely NOT implemented
-      server-side at all — real obs-websocket protocol gaps in `ObsControlService`, not just wiring.
-    - `SetRecording` only sends Start/Stop/Toggle though `RecordAction` also supports Pause/Resume/Split.
-  - ~~**S-PL5c** Stream Deck OBS plugin~~ — CLOSED `b72c491c`: 8 new keys (Switch Scene, Toggle Mute,
-    Start/Stop/Toggle Streaming, Start/Stop/Toggle Recording), built via the automation-invoke pipeline
-    mechanism (the real integration point — not the REST controller directly, the original brief's
-    premise was wrong here and self-corrected). Found and fixed a real cross-cutting bug along the way
-    (`5eba6182`): an auto-provisioned Stream Deck pipeline carried no `Parameters`, so pressing an
-    EXISTING key silently defaulted several music actions to 0/empty/false — fixed for every
-    placeholder-seeded action; the two stragglers (`music_set_shuffle`/`music_set_repeat`, a different
-    code path) fixed separately in `5f8ad377`. Verified.
-    **S-PL5c follow-up, not built:** `obs_replay_buffer`/`obs_virtual_cam` Stream Deck keys (backend
-    action types already auto-provisioning-eligible, just needs manifest entries); a scene/input
-    dropdown picker (current property inspector is free-text); live icon state (mute/streaming/recording
-    tile feedback — no OBS equivalent of music's `song.changed` WS push exists yet). Also noted:
-    `tools/streamdeck`'s vitest setup cannot import ANY `@action(...)`-decorated file at all (reproduced
-    on the already-shipped `play.ts`) — no action-level test has ever been possible here, for music or
-    OBS; a real gap in this project's own test infra, not scoped to this slice.
-- ~~[ ] **S-PL6**~~ CLOSED `0b1df4e8`: `showSevenTvPaints` sibling toggle to the emote toggle, gates
-      `chat_box.vue`'s name-paint rendering; surfaced via the generic schema-driven settings form, no
-      new Compose UI needed. Verified.
-- ~~[ ] **S-PL7**~~ CLOSED `4dd944f0` + `74f6ea79`: Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/
-      Widgets screens unified onto the established scroll-container pattern. Structural diff against a
-      known-good reference (`TtsScreen`/`QuotesScreen`) caught a real remaining bug the compile+test
-      pass missed: Rewards/Widgets' list `Card` had no `weight(1f)` in its parent `Column`, so the list
-      requested full height regardless of the header above it and pushed its tail off-screen — fixed in
-      `74f6ea79`. Live browser render check still not done (wasm dev server hit a memory-contention
-      failure on this box every attempt) — worth a manual check next time the dashboard is run.
-- ~~[ ] **S-MUSIC-SANCTION-AUDIT**~~ CLOSED `f96ecdcb`: all 9 background-reachable `MusicService`
-  provider-write methods (`PlayAsync`, `PauseAsync`, `SkipAsync`, `PreviousAsync`, `SetVolumeAsync`,
-  `SeekAsync`, `SetShuffleAsync`, `SetRepeatAsync`, `TransferPlaybackAsync`) now carry their own
-  `OutboundSanction` — each reachable from a pipeline action, `PlayOnceResumeHandler`, or a chat
-  builtin with no ambient sanction of its own. `PlayContextAsync` confirmed controller-only (already
-  covered). 9 new regression tests, each asserting the exact sanction basis/detail observed inside the
-  mocked provider call. Verified.
-- ~~[ ] **S-PL10**~~ CLOSED `5ede9fb9`: `ObsControlService.SwitchSceneAsync` already sent a plain
-      `SetCurrentProgramScene` unconditionally and obs-websocket accepts a redundant switch as a normal
-      set (no production fix needed) — a real test now proves both calls succeed and both requests
-      genuinely reach OBS. Verified.
-
-**Not yet dispatched** — this list was just triaged; see ledger for what has actually been picked up.
+- [ ] **S-PL7-VISUAL** A live browser render check of the 7 screens the scroll-container sweep
+      touched (Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/Widgets) is still owed — the wasm
+      dev server hit a memory-contention failure on this box every attempt this session.
+- [ ] **S-OBS-SOURCE-VIS** Source-visibility toggle for the OBS live-control surface needs a
+      `GetSceneItemList` wrapper first — `ObsControlService.GetInputsAsync` only returns global
+      inputs, not per-scene items.
+- [ ] **S-OBS-PROTOCOL-GAPS** Genuinely not implemented server-side in `ObsControlService` at all:
+      studio mode enable/disable (only `TriggerStudioTransitionAsync` exists, needs studio mode
+      already on), `GetStats` (CPU/FPS/render-lag), `GetVirtualCamStatus`, `GetSceneItemList`,
+      `GetSceneTransitionList`, `GetSourceFilterList`. Real obs-websocket protocol additions, not UI
+      wiring.
+- [ ] **S-OBS-UI-REMAINDER** Server-ready but no dashboard UI: `SetPreviewSceneAsync`, per-source mute
+      (`ToggleInputMuteAsync`), filter enable/disable, transition select, studio-mode transition
+      trigger, media trigger, hotkey trigger, browser-source refresh, screenshot, batch/vendor
+      pass-through. Each needs its own enumeration UI (transition list, media input list, hotkey
+      list) — judged lower value than replay buffer/virtual cam for a streamer's live-control
+      surface, so deferred rather than built in S-PL5b. `SetRecording` also only sends
+      Start/Stop/Toggle though `RecordAction` supports Pause/Resume/Split.
+- [ ] **S-STREAMDECK-OBS-REMAINDER** `obs_replay_buffer`/`obs_virtual_cam` Stream Deck keys (backend
+      action types already auto-provisioning-eligible, just needs manifest entries); a scene/input
+      dropdown picker (current property inspector is free-text); live icon state (mute/streaming/
+      recording tile feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
+- [ ] **S-STREAMDECK-TEST-INFRA** `tools/streamdeck`'s vitest setup cannot import ANY
+      `@action(...)`-decorated file at all (reproduced on the already-shipped `play.ts`) — no
+      action-level test has ever been possible there, for music or OBS. Real test-infra gap.
 
 ---
 
