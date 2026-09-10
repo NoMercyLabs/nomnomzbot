@@ -54,10 +54,13 @@ concurrent, disjoint files only).
 - ~~[ ] **S-PL6**~~ CLOSED `0b1df4e8`: `showSevenTvPaints` sibling toggle to the emote toggle, gates
       `chat_box.vue`'s name-paint rendering; surfaced via the generic schema-driven settings form, no
       new Compose UI needed. Verified.
-- [ ] **S-PL7** Some dashboard pages still have broken overflow/squashed content — owner wants ONE
-      shared scroll/panel layout across every page (aaoa's convention). Needs a page-by-page sweep
-      against whatever the design system's canonical scroll-container pattern already is
-      (`frontend-design-system.md`) — systemic, not a one-file fix.
+- ~~[ ] **S-PL7**~~ CLOSED `4dd944f0` + `74f6ea79`: Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/
+      Widgets screens unified onto the established scroll-container pattern. Structural diff against a
+      known-good reference (`TtsScreen`/`QuotesScreen`) caught a real remaining bug the compile+test
+      pass missed: Rewards/Widgets' list `Card` had no `weight(1f)` in its parent `Column`, so the list
+      requested full height regardless of the header above it and pushed its tail off-screen — fixed in
+      `74f6ea79`. Live browser render check still not done (wasm dev server hit a memory-contention
+      failure on this box every attempt) — worth a manual check next time the dashboard is run.
 - [ ] **S-MUSIC-SANCTION-AUDIT** (split off S-PL9+S-PL11, closed `fa484764`/`4749a9b9` — 2026-09-10):
   `MusicService`'s provider-write methods only carry an `OutboundSanction` when reached from a real
   HTTP request (`OutboundSanctionFilter`); `HandOverNextAsync` and `EnqueueResolvedAsync`'s own
@@ -70,8 +73,10 @@ concurrent, disjoint files only).
   Audit every provider-write method `MusicService` exposes for a background caller — a missing
   sanction there fails the exact same silent way (refused write, no exception surfaced to the user,
   feature looks "wired" but does nothing).
-- [ ] **S-PL10** The go-live pipeline action that switches OBS to the "starting soon" scene should be
-      idempotent/forgiving — if already on that scene, it must not error or fight the current state.
+- ~~[ ] **S-PL10**~~ CLOSED `5ede9fb9`: `ObsControlService.SwitchSceneAsync` already sent a plain
+      `SetCurrentProgramScene` unconditionally and obs-websocket accepts a redundant switch as a normal
+      set (no production fix needed) — a real test now proves both calls succeed and both requests
+      genuinely reach OBS. Verified.
 
 **Not yet dispatched** — this list was just triaged; see ledger for what has actually been picked up.
 
