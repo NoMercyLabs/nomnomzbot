@@ -46,7 +46,6 @@ public class AuthController : BaseController
     private readonly IExternalLoginService _externalLogin;
     private readonly ISessionService _sessions;
     private readonly ISystemCredentialsProvider _credentials;
-    private readonly IPasswordAuthService _passwordAuth;
 
     public AuthController(
         IUserService userService,
@@ -61,8 +60,7 @@ public class AuthController : BaseController
         IEnumerable<IAuthCodeLoginProvider> authCodeImpls,
         IExternalLoginService externalLogin,
         ISessionService sessions,
-        ISystemCredentialsProvider credentials,
-        IPasswordAuthService passwordAuth
+        ISystemCredentialsProvider credentials
     )
     {
         _userService = userService;
@@ -78,7 +76,6 @@ public class AuthController : BaseController
         _externalLogin = externalLogin;
         _sessions = sessions;
         _credentials = credentials;
-        _passwordAuth = passwordAuth;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
@@ -560,7 +557,13 @@ public class AuthController : BaseController
             string fragment =
                 $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}"
                 + (returnRoute is not null ? $"&return_route={returnRoute}" : string.Empty);
-            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/"}{fragment}");
+            // Default to /app, never "/": the refresh-token cookie is scoped Path=/api/v1/auth (deliberately
+            // narrow), so it is NEVER sent on a request to "/" — landing there right after this redirect always
+            // looks logged-out to the root handler, which then serves the marketing landing page instead of the
+            // dashboard (the access_token sitting in the fragment is never read because that page boots no SPA
+            // code at all). /app has no such cookie dependency: it always serves the SPA shell directly, which
+            // reads the fragment token itself.
+            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/app"}{fragment}");
         }
 
         return Ok(
@@ -581,8 +584,10 @@ public class AuthController : BaseController
     /// Stores the refresh token in a hardened cookie for the served-web flow: <c>HttpOnly</c> (JS can't read it,
     /// so XSS can't exfiltrate it), <c>Secure</c> (HTTPS only), <c>SameSite=Lax</c> (sent on the top-level
     /// OAuth-return navigation but not on cross-site sub-requests), scoped to the refresh endpoint path.
+    /// Alongside it, sets <see cref="SetSessionMarkerCookie"/> — see that method for why a second cookie exists.
     /// </summary>
-    private void SetRefreshTokenCookie(string refreshToken) =>
+    private void SetRefreshTokenCookie(string refreshToken)
+    {
         Response.Cookies.Append(
             "nnz_refresh_token",
             refreshToken,
@@ -597,14 +602,42 @@ public class AuthController : BaseController
                 Expires = _timeProvider.GetUtcNow().AddDays(30),
             }
         );
+        SetSessionMarkerCookie();
+    }
 
     /// <summary>
-    /// Clears the served-web refresh cookie on logout. Revoking the session server-side is not enough on its
-    /// own: the browser still holds the <c>nnz_refresh_token</c> cookie and would silently re-mint an access
-    /// token via <c>/refresh</c> on the next load, so a "logout" that leaves the cookie in place isn't one. The
-    /// delete must carry the same <c>Path</c> the cookie was set with, or the browser keeps the original.
+    /// A second, valueless cookie mirroring <c>nnz_refresh_token</c>'s lifetime but scoped <c>Path=/</c> instead
+    /// of <c>/api/v1/auth</c>. The refresh cookie is deliberately narrow-scoped (it's a bearer credential — no
+    /// reason to hand it to every request on the origin), but that means the browser never attaches it to a
+    /// request for <c>/</c>, so the root route's "is this visitor already signed in" check (<c>Program.cs</c>,
+    /// landing-vs-dashboard) can never see it either — every returning signed-in visitor hitting <c>/</c> looked
+    /// logged-out and got bounced to the marketing page instead of the dashboard (owner report 2026-09-10:
+    /// "session lost persistence"). This cookie carries no secret, only presence; the root route reads it purely
+    /// for routing, real authentication still runs on the HttpOnly refresh token via <c>/refresh</c>.
     /// </summary>
-    private void ClearRefreshTokenCookie() =>
+    private void SetSessionMarkerCookie() =>
+        Response.Cookies.Append(
+            "nnz_session",
+            "1",
+            new()
+            {
+                HttpOnly = true,
+                Secure = Request.IsPublicOriginHttps(_config),
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+                Expires = _timeProvider.GetUtcNow().AddDays(30),
+            }
+        );
+
+    /// <summary>
+    /// Clears the served-web refresh cookie (and its <see cref="SetSessionMarkerCookie"/> companion) on logout.
+    /// Revoking the session server-side is not enough on its own: the browser still holds the cookies and would
+    /// silently re-mint an access token via <c>/refresh</c> on the next load (or keep routing <c>/</c> to the
+    /// dashboard), so a "logout" that leaves them in place isn't one. Each delete must carry the same
+    /// <c>Path</c> the cookie was set with, or the browser keeps the original.
+    /// </summary>
+    private void ClearRefreshTokenCookie()
+    {
         Response.Cookies.Delete(
             "nnz_refresh_token",
             new()
@@ -615,6 +648,17 @@ public class AuthController : BaseController
                 Path = "/api/v1/auth",
             }
         );
+        Response.Cookies.Delete(
+            "nnz_session",
+            new()
+            {
+                HttpOnly = true,
+                Secure = Request.IsPublicOriginHttps(_config),
+                SameSite = SameSiteMode.Lax,
+                Path = "/",
+            }
+        );
+    }
 
     /// <summary>
     /// Exchange an OAuth authorization code for platform tokens (mobile / SPA flow).
@@ -744,80 +788,6 @@ public class AuthController : BaseController
         ];
 
         return Ok(new StatusResponseDto<IReadOnlyList<LoginProviderDto>> { Data = providers });
-    }
-
-    /// <summary>
-    /// Create a new account from an email + password — the generic login screen's primary path, a peer to the
-    /// social buttons below it rather than a replacement. On success opens the same tenant-less session a
-    /// first non-Twitch OAuth login does; the client's next stop is the setup wizard's "connect a platform"
-    /// step. 409 <c>EMAIL_TAKEN</c>, 400 <c>EMAIL_INVALID</c> / <c>WEAK_PASSWORD</c>.
-    /// </summary>
-    [HttpPost("register")]
-    [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    [ProducesResponseType<StatusResponseDto<AuthResultDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Register(
-        [FromBody] PasswordAuthRequest body,
-        [FromQuery] string? client,
-        CancellationToken ct
-    )
-    {
-        Result<AuthResultDto> result = await _passwordAuth.RegisterAsync(
-            body.Email,
-            body.Password,
-            BuildAuthContext(),
-            ct
-        );
-        return RespondWithAuth(result, client);
-    }
-
-    /// <summary>
-    /// Sign in with an email + password. 401 <c>INVALID_CREDENTIALS</c> for either an unknown email or a wrong
-    /// password (never distinguishes). Resolves the caller's existing channel into the session when they have
-    /// one, exactly like a returning Twitch login.
-    /// </summary>
-    [HttpPost("login")]
-    [AllowAnonymous]
-    [EnableRateLimiting("auth")]
-    [ProducesResponseType<StatusResponseDto<AuthResultDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Login(
-        [FromBody] PasswordAuthRequest body,
-        [FromQuery] string? client,
-        CancellationToken ct
-    )
-    {
-        Result<AuthResultDto> result = await _passwordAuth.LoginAsync(
-            body.Email,
-            body.Password,
-            BuildAuthContext(),
-            ct
-        );
-        return RespondWithAuth(result, client);
-    }
-
-    /// <summary>
-    /// Shared register/login response shaping: web keeps the refresh token in the HttpOnly cookie (never the
-    /// JSON body — same custody rule as every other login path); native keeps it in the body for its
-    /// file/keychain vault.
-    /// </summary>
-    private IActionResult RespondWithAuth(Result<AuthResultDto> result, string? client)
-    {
-        if (result.IsFailure)
-            return ResultResponse(result);
-
-        AuthResultDto auth = result.Value;
-        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
-        {
-            SetRefreshTokenCookie(auth.RefreshToken);
-            return Ok(
-                new StatusResponseDto<AuthResultDto>
-                {
-                    Data = auth with { RefreshToken = string.Empty },
-                }
-            );
-        }
-
-        return ResultResponse(result);
     }
 
     /// <summary>
@@ -1077,7 +1047,11 @@ public class AuthController : BaseController
                 ? $"#linked={Uri.EscapeDataString(provider)}"
                 : $"#link_error={Uri.EscapeDataString(link.ErrorCode ?? "link_failed")}";
             // A link started from the settings page returns to the settings page (validated at issue).
-            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/"}{fragment}");
+            // Default to /app, never "/" — see BuildLoginResponse's identical fallback for why: the
+            // refresh-token cookie's Path=/api/v1/auth scope means "/" always looks logged-out right after a
+            // redirect here, serving the marketing landing page instead of the dashboard. /app has no such
+            // dependency; it always serves the SPA shell directly.
+            return Redirect($"{GetPublicBaseUrl()}{returnTo ?? "/app"}{fragment}");
         }
 
         return IdentityWriteResponse(link);

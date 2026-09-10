@@ -23,7 +23,6 @@
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <!-- PasswordHasher<TUser> for native email+password login (identity-auth — never hand-rolled hashing).
          The lightweight core package only — no EF stores, no UI, no cookie auth. -->
-    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.8" />
   </ItemGroup>
   <ItemGroup Label="Validation">
     <PackageVersion Include="FluentValidation" Version="12.1.1" />

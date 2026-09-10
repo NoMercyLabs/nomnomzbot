@@ -50,9 +50,11 @@ public sealed class AuthControllerWebFlowTests
 
         IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
 
-        // Full-page redirect back to the served origin with the access token in the fragment.
+        // Full-page redirect back to the served origin with the access token in the fragment. Defaults to
+        // /app, never "/": the refresh cookie's Path scoping means "/" always looks logged-out right after
+        // this redirect (see SetSessionMarkerCookie's doc comment for the full mechanism).
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
-        redirect.Url.Should().StartWith("https://dash.example.test/#access_token=");
+        redirect.Url.Should().StartWith("https://dash.example.test/app#access_token=");
         redirect.Url.Should().Contain("access_token=acc-tok");
         redirect.Url.Should().Contain("expires_in=");
         // The refresh token never rides in the URL.
@@ -64,6 +66,10 @@ public sealed class AuthControllerWebFlowTests
         setCookie.Should().Contain("httponly");
         setCookie.Should().Contain("secure");
         setCookie.Should().Contain("samesite=lax");
+        // A second, valueless marker cookie scoped Path=/ rides alongside it (S098c follow-up, 2026-09-10):
+        // the refresh cookie's own Path=/api/v1/auth means the root route can never see IT to tell a returning
+        // signed-in visitor apart from an anonymous one — this one exists purely so that check can work.
+        setCookie.Should().Contain("nnz_session=1");
     }
 
     [Fact]
@@ -183,6 +189,9 @@ public sealed class AuthControllerWebFlowTests
         setCookie.Should().Contain("nnz_refresh_token=;");
         setCookie.Should().Contain("path=/api/v1/auth");
         setCookie.Should().Contain("expires=");
+        // Its Path=/ marker companion is cleared too, or a logged-out visitor would still route into the
+        // dashboard shell at "/" on their next visit despite having no working session.
+        setCookie.Should().Contain("nnz_session=;");
     }
 
     // ─── scaffolding ───────────────────────────────────────────────────────────
@@ -238,8 +247,7 @@ public sealed class AuthControllerWebFlowTests
             [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>(),
-            Substitute.For<IPasswordAuthService>()
+            Substitute.For<ISystemCredentialsProvider>()
         )
         {
             ControllerContext = new() { HttpContext = http },

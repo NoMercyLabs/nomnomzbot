@@ -941,8 +941,13 @@ try
     // excuses"). A genuinely separate, instant-loading static page — no Wasm, committed source (not the
     // gitignored wwwroot build output), same pattern as the /editor assets below. Only the EXACT root path is
     // intercepted; every deep dashboard link (and this page's own "Get started", which points at /app) still
-    // falls through to MapFallbackToFile untouched. A session already signed in (the nnz_refresh_token cookie)
-    // skips straight past the landing page into the real app, exactly as hitting / always has.
+    // falls through to MapFallbackToFile untouched. A session already signed in skips straight past the landing
+    // page into the real app, exactly as hitting / always has — checked via the "nnz_session" marker cookie,
+    // NOT "nnz_refresh_token": that cookie is deliberately scoped Path=/api/v1/auth (it's a bearer credential),
+    // so the browser never attaches it to a request for "/" at all — checking for it here always came back
+    // false for a genuinely signed-in visitor, bouncing them to the marketing page and reading as a lost
+    // session (owner report 2026-09-10). "nnz_session" mirrors its lifetime but is scoped Path=/ and carries no
+    // secret, only presence, purely so this routing check can see it (AuthController.SetSessionMarkerCookie).
     string landingFile = Path.Combine(
         app.Environment.ContentRootPath,
         "Assets",
@@ -955,16 +960,13 @@ try
                 "/",
                 (HttpContext context) =>
                 {
-                    if (!context.Request.Cookies.ContainsKey("nnz_refresh_token"))
+                    if (!context.Request.Cookies.ContainsKey("nnz_session"))
                     {
                         context.Response.Headers.CacheControl = "no-cache, must-revalidate";
                         return Results.File(landingFile, "text/html; charset=utf-8");
                     }
 
-                    string shell = Path.Combine(
-                        app.Environment.WebRootPath ?? string.Empty,
-                        "index.html"
-                    );
+                    string shell = Path.Combine(app.Environment.WebRootPath, "index.html");
                     if (!File.Exists(shell))
                         return Results.NotFound();
                     context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";

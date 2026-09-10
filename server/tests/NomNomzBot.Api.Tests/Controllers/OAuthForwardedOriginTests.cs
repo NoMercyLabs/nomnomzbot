@@ -67,8 +67,7 @@ public sealed class OAuthForwardedOriginTests
             [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>(),
-            Substitute.For<IPasswordAuthService>()
+            Substitute.For<ISystemCredentialsProvider>()
         )
         {
             ControllerContext = ForwardedContext(),
@@ -128,8 +127,7 @@ public sealed class OAuthForwardedOriginTests
             [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>(),
-            Substitute.For<IPasswordAuthService>()
+            Substitute.For<ISystemCredentialsProvider>()
         )
         {
             ControllerContext = ForwardedContext(),

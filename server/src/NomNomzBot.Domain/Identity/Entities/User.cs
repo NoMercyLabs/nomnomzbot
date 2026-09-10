@@ -50,24 +50,6 @@ public class User : BaseEntity
     // The per-subject DEK that opens this user's [PII-shred] fields (FK→CryptoKey). Null until minted.
     public Guid? SubjectKeyId { get; set; }
 
-    // The native email+password credential (generic account login, distinct from EmailCipher above). Plaintext
-    // + normalized, unlike EmailCipher's sealed ciphertext — a login handle must be queryable/unique, which
-    // ciphertext can't support without a separate blind index. Null for every platform-only account; GDPR
-    // erasure nulls it the same way ErasureService already nulls EmailCipher.
-    [MaxLength(255)]
-    public string? LoginEmail { get; set; }
-
-    // Lower-cased LoginEmail for case-insensitive unique lookups — same pattern as UsernameNormalized.
-    [MaxLength(255)]
-    public string? LoginEmailNormalized { get; set; }
-
-    // PasswordHasher<User> output (Microsoft.Extensions.Identity.Core — never hand-rolled). Null until a
-    // password is set. A user can hold this AND linked OAuth identities at once; either signs them in.
-    [MaxLength(255)]
-    public string? PasswordHash { get; set; }
-
-    public DateTime? PasswordUpdatedAt { get; set; }
-
     [MaxLength(50)]
     public string? Timezone { get; set; }
 

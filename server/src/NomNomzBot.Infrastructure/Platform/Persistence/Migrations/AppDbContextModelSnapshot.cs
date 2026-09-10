@@ -6372,14 +6372,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("LoginEmail")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("LoginEmailNormalized")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
                     b.Property<string>("NickName")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
@@ -6387,13 +6379,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<string>("OfflineImageUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
-
-                    b.Property<string>("PasswordHash")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime?>("PasswordUpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Platform")
                         .IsRequired()
@@ -6445,10 +6430,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AltPronounId");
-
-                    b.HasIndex("LoginEmailNormalized")
-                        .IsUnique()
-                        .HasDatabaseName("IX_User_LoginEmailNormalized");
 
                     b.HasIndex("PronounId");
 

@@ -39,14 +39,6 @@ public static class AuthEnums
 
         /// <summary>Login-only — a Twitter identity never owns a <c>Channel</c> (platform-identity §10.1).</summary>
         public const string Twitter = "twitter";
-
-        /// <summary>
-        /// The native email+password credential — login-only, same as <see cref="Twitter"/>: a password-only
-        /// account never owns a <c>Channel</c> until the holder connects a streaming platform. Never stored on
-        /// <c>UserIdentity</c> (that models a PROVEN EXTERNAL account); it is the <c>User.PasswordHash</c>
-        /// credential itself, so this constant only ever appears as <c>User.Platform</c>.
-        /// </summary>
-        public const string Password = "password";
     }
 
     /// <summary><c>Channel.Status</c> lifecycle.</summary>
