@@ -19,11 +19,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
@@ -106,31 +105,33 @@ private fun Ready(
 ) {
     val spacing = LocalSpacing.current
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        ProfileCard(
-            profile = state.profile,
-            standing = state.standing,
-            pronouns = state.pronouns,
-            saving = state.profileSaving,
-            onPronounSelected = onPronounSelected,
-        )
-        state.profileError?.let { err ->
-            val tokens = LocalTokens.current
-            val typography = LocalTypography.current
-            Text(text = err, style = typography.xs, color = tokens.destructive)
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            ProfileCard(
+                profile = state.profile,
+                standing = state.standing,
+                pronouns = state.pronouns,
+                saving = state.profileSaving,
+                onPronounSelected = onPronounSelected,
+            )
+            state.profileError?.let { err ->
+                val tokens = LocalTokens.current
+                val typography = LocalTypography.current
+                Text(text = err, style = typography.xs, color = tokens.destructive)
+            }
+            ActivityTiles(activity = state.activity)
+            state.watchStreak?.let { streak -> WatchStreakCard(streak = streak) }
+            ChannelsCard(channels = state.channels)
+            AnalyticsPrivacyCard(
+                profile = state.analyticsProfile,
+                saving = state.analyticsOptOutSaving,
+                error = state.analyticsOptOutError,
+                onToggle = onSetAnalyticsOptOut,
+            )
         }
-        ActivityTiles(activity = state.activity)
-        state.watchStreak?.let { streak -> WatchStreakCard(streak = streak) }
-        ChannelsCard(channels = state.channels)
-        AnalyticsPrivacyCard(
-            profile = state.analyticsProfile,
-            saving = state.analyticsOptOutSaving,
-            error = state.analyticsOptOutError,
-            onToggle = onSetAnalyticsOptOut,
-        )
     }
 }
 

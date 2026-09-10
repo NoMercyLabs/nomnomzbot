@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -36,6 +35,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -367,11 +367,12 @@ private fun ReadyContent(
     val markFailMsg: String = stringResource(Res.string.home_live_ops_mark_moment_failed)
     val clipDonePrefix: String = stringResource(Res.string.home_live_ops_clip_done)
 
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+    // Padding sits INSIDE the scroll (content padding), not on an outer Box — otherwise the scroll
+    // viewport clips flush against the first line and the page title's ascenders get shaved off. With
+    // it here the clip is at the true container edge and the s6 inset scrolls with the content.
     Column(
-        // Padding sits INSIDE the scroll (content padding), not on an outer Box — otherwise the scroll
-        // viewport clips flush against the first line and the page title's ascenders get shaved off. With
-        // it here the clip is at the true container edge and the s6 inset scrolls with the content.
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
+        modifier = Modifier.fillMaxWidth().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(
@@ -505,6 +506,7 @@ private fun ReadyContent(
                 }
             }
         }
+    }
     }
 
     // ─── Dialogs ──────────────────────────────────────────────────────────────

@@ -17,11 +17,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.runtime.Composable
@@ -104,15 +103,17 @@ private fun Ready(
 ) {
     val spacing = LocalSpacing.current
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        state.actionError?.let { ActionErrorBanner(detail = it) }
-        BalanceCard(state = state)
-        if (state.canTransfer) TransferCard(frozen = state.account.isFrozen, onTransfer = onTransfer)
-        CatalogCard(items = state.catalog, frozen = state.account.isFrozen, onPurchase = onPurchase)
-        JarsCard(jars = state.jars, frozen = state.account.isFrozen, onContribute = onContribute)
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            state.actionError?.let { ActionErrorBanner(detail = it) }
+            BalanceCard(state = state)
+            if (state.canTransfer) TransferCard(frozen = state.account.isFrozen, onTransfer = onTransfer)
+            CatalogCard(items = state.catalog, frozen = state.account.isFrozen, onPurchase = onPurchase)
+            JarsCard(jars = state.jars, frozen = state.account.isFrozen, onContribute = onContribute)
+        }
     }
 }
 

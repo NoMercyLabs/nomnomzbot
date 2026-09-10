@@ -17,13 +17,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -92,15 +91,20 @@ fun NowPlayingScreen(controller: ParticipantController) {
 private fun Ready(state: NowPlayingState.Ready, onSubmit: (String) -> Unit) {
     val spacing = LocalSpacing.current
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6)) {
-        state.actionError?.let { ActionErrorBanner(detail = it) }
-        NowPlayingCard(track = state.snapshot.nowPlaying)
-        SubmitCard(
-            pendingLimit = state.pendingLimit,
-            subLaneUnlocked = state.subscriberLaneUnlocked,
-            onSubmit = onSubmit,
-        )
-        QueueCard(queue = state.snapshot.queue)
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            state.actionError?.let { ActionErrorBanner(detail = it) }
+            NowPlayingCard(track = state.snapshot.nowPlaying)
+            SubmitCard(
+                pendingLimit = state.pendingLimit,
+                subLaneUnlocked = state.subscriberLaneUnlocked,
+                onSubmit = onSubmit,
+            )
+            QueueCard(queue = state.snapshot.queue)
+        }
     }
 }
 

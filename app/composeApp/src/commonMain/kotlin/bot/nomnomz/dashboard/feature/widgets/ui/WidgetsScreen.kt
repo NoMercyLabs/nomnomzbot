@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.material3.Text
@@ -61,6 +59,7 @@ import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -1102,41 +1101,43 @@ private fun WidgetVersionsDialog(
             )
         },
         text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s2),
-            ) {
-                when (val current = result) {
-                    null ->
-                        Text(
-                            text = stringResource(Res.string.widgets_versions_loading),
-                            style = typography.sm,
-                            color = tokens.mutedForeground,
-                        )
-                    is ApiResult.Failure ->
-                        Text(
-                            text = stringResource(Res.string.widgets_versions_error, current.error.message),
-                            style = typography.sm,
-                            color = tokens.destructive,
-                        )
-                    is ApiResult.Ok ->
-                        if (current.value.isEmpty()) {
+            ScrollArea(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    when (val current = result) {
+                        null ->
                             Text(
-                                text = stringResource(Res.string.widgets_versions_empty),
+                                text = stringResource(Res.string.widgets_versions_loading),
                                 style = typography.sm,
                                 color = tokens.mutedForeground,
                             )
-                        } else {
-                            current.value.forEachIndexed { index, version ->
-                                if (index > 0) Separator()
-                                WidgetVersionRow(
-                                    version = version,
-                                    isActive = version.id == widget.activeVersionId,
-                                    manage = manage,
-                                    onRollback = { onRollback(version) },
+                        is ApiResult.Failure ->
+                            Text(
+                                text = stringResource(Res.string.widgets_versions_error, current.error.message),
+                                style = typography.sm,
+                                color = tokens.destructive,
+                            )
+                        is ApiResult.Ok ->
+                            if (current.value.isEmpty()) {
+                                Text(
+                                    text = stringResource(Res.string.widgets_versions_empty),
+                                    style = typography.sm,
+                                    color = tokens.mutedForeground,
                                 )
+                            } else {
+                                current.value.forEachIndexed { index, version ->
+                                    if (index > 0) Separator()
+                                    WidgetVersionRow(
+                                        version = version,
+                                        isActive = version.id == widget.activeVersionId,
+                                        manage = manage,
+                                        onRollback = { onRollback(version) },
+                                    )
+                                }
                             }
-                        }
+                    }
                 }
             }
         },
@@ -1248,86 +1249,88 @@ private fun GalleryBrowseDialog(
             )
         },
         text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                AppTextField(
-                    value = searchText,
-                    onValueChange = { searchText = it },
-                    label = stringResource(Res.string.widgets_gallery_search),
+            ScrollArea(modifier = Modifier.fillMaxWidth()) {
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                )
+                    verticalArrangement = Arrangement.spacedBy(spacing.s3),
+                ) {
+                    AppTextField(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        label = stringResource(Res.string.widgets_gallery_search),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
 
-                // The framework filter — "All" plus each supported framework; picking one re-lists the catalogue.
-                BadgeRow(
-                    options = listOf<String?>(null) + WIDGET_FRAMEWORKS,
-                    label = { it ?: allLabel },
-                    isSelected = { it == selectedFramework },
-                    onSelect = { selectedFramework = it },
-                )
+                    // The framework filter — "All" plus each supported framework; picking one re-lists the catalogue.
+                    BadgeRow(
+                        options = listOf<String?>(null) + WIDGET_FRAMEWORKS,
+                        label = { it ?: allLabel },
+                        isSelected = { it == selectedFramework },
+                        onSelect = { selectedFramework = it },
+                    )
 
-                when (val current: ApiResult<GalleryPage>? = page) {
-                    null ->
-                        Text(
-                            text = stringResource(Res.string.widgets_gallery_loading),
-                            style = typography.sm,
-                            color = tokens.mutedForeground,
-                        )
-                    is ApiResult.Failure ->
-                        Text(
-                            text = stringResource(Res.string.widgets_gallery_error, current.error.message),
-                            style = typography.sm,
-                            color = tokens.destructive,
-                        )
-                    is ApiResult.Ok ->
-                        if (items.isEmpty()) {
+                    when (val current: ApiResult<GalleryPage>? = page) {
+                        null ->
                             Text(
-                                text = stringResource(Res.string.widgets_gallery_empty),
+                                text = stringResource(Res.string.widgets_gallery_loading),
                                 style = typography.sm,
                                 color = tokens.mutedForeground,
                             )
-                        } else {
-                            items.forEach { item ->
-                                GalleryItemCard(
-                                    item = item,
-                                    manage = manage,
-                                    onInstall = { onInstall(item) },
-                                    onClone = { onClone(item) },
+                        is ApiResult.Failure ->
+                            Text(
+                                text = stringResource(Res.string.widgets_gallery_error, current.error.message),
+                                style = typography.sm,
+                                color = tokens.destructive,
+                            )
+                        is ApiResult.Ok ->
+                            if (items.isEmpty()) {
+                                Text(
+                                    text = stringResource(Res.string.widgets_gallery_empty),
+                                    style = typography.sm,
+                                    color = tokens.mutedForeground,
                                 )
-                            }
-                            val nextPage: Int? = current.value.nextPage.takeIf { current.value.hasMore }
-                            if (nextPage != null) {
-                                TextButton(
-                                    onClick = {
-                                        loadingMore = true
-                                    },
-                                ) {
-                                    Text(
-                                        text =
-                                            if (loadingMore) stringResource(Res.string.widgets_gallery_loading)
-                                            else stringResource(Res.string.widgets_gallery_load_more),
-                                        color = tokens.primary,
+                            } else {
+                                items.forEach { item ->
+                                    GalleryItemCard(
+                                        item = item,
+                                        manage = manage,
+                                        onInstall = { onInstall(item) },
+                                        onClone = { onClone(item) },
                                     )
                                 }
-                                LaunchedEffect(loadingMore) {
-                                    if (!loadingMore) return@LaunchedEffect
-                                    val more: ApiResult<GalleryPage> =
-                                        loadGallery(
-                                            GalleryListRequest(
-                                                framework = selectedFramework,
-                                                search = searchText.trim().ifBlank { null },
-                                                page = nextPage,
-                                            )
+                                val nextPage: Int? = current.value.nextPage.takeIf { current.value.hasMore }
+                                if (nextPage != null) {
+                                    TextButton(
+                                        onClick = {
+                                            loadingMore = true
+                                        },
+                                    ) {
+                                        Text(
+                                            text =
+                                                if (loadingMore) stringResource(Res.string.widgets_gallery_loading)
+                                                else stringResource(Res.string.widgets_gallery_load_more),
+                                            color = tokens.primary,
                                         )
-                                    if (more is ApiResult.Ok) {
-                                        items = items + more.value.items
-                                        page = more
                                     }
-                                    loadingMore = false
+                                    LaunchedEffect(loadingMore) {
+                                        if (!loadingMore) return@LaunchedEffect
+                                        val more: ApiResult<GalleryPage> =
+                                            loadGallery(
+                                                GalleryListRequest(
+                                                    framework = selectedFramework,
+                                                    search = searchText.trim().ifBlank { null },
+                                                    page = nextPage,
+                                                )
+                                            )
+                                        if (more is ApiResult.Ok) {
+                                            items = items + more.value.items
+                                            page = more
+                                        }
+                                        loadingMore = false
+                                    }
                                 }
                             }
-                        }
+                    }
                 }
             }
         },

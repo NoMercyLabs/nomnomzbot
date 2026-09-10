@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -78,13 +77,15 @@ fun MyChannelScreen(controller: ParticipantController) {
 private fun Ready(state: MyChannelState.Ready) {
     val spacing = LocalSpacing.current
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
-        verticalArrangement = Arrangement.spacedBy(spacing.s4),
-    ) {
-        IdentityCard(profile = state.profile, standing = state.standing)
-        ChannelSummaryCard(channel = state.channel)
-        ActivityTiles(activity = state.activity)
+    ScrollArea(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+            verticalArrangement = Arrangement.spacedBy(spacing.s4),
+        ) {
+            IdentityCard(profile = state.profile, standing = state.standing)
+            ChannelSummaryCard(channel = state.channel)
+            ActivityTiles(activity = state.activity)
+        }
     }
 }
 
