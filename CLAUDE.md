@@ -503,6 +503,7 @@ The owner's local-dev tunnel `bot-dev-api.nomercy.tv` is pre-configured in `apps
 | `DISCORD_CLIENT_ID` | no | — | Enables Discord integration |
 | `DISCORD_CLIENT_SECRET` | no | — | Enables Discord integration |
 | `DISCORD_PUBLIC_KEY` | no | — | Ed25519 public key for the Discord interactions webhook (opt-in buttons); without it the endpoint answers 503 |
+| `DISCORD_BOT_TOKEN` | required once Discord is connected | — | The bot's own static token (Developer Portal → Bot tab), sent as `Authorization: Bot <token>` for every guild REST call (notification channels, live role). NOT produced by the guild-connect OAuth flow — that exchange returns a per-user, 7-day-expiring `access_token` that Discord's guild endpoints reject as a Bot token no matter how often it's reauthorized (S-PL4) |
 | `YOUTUBE_CLIENT_ID` | no | — | Enables YouTube music provider + YouTube sign-in (device-code) |
 | `YOUTUBE_CLIENT_SECRET` | no | — | Enables YouTube music provider + YouTube sign-in |
 | `YOUTUBE_API_KEY` | no | — | Enables YouTube search for song requests (app-level, separate from OAuth) |

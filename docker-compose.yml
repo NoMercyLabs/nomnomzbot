@@ -88,6 +88,7 @@ x-api-service: &api-service
     - Discord__ClientId=${DISCORD_CLIENT_ID:-}
     - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
     - Discord__PublicKey=${DISCORD_PUBLIC_KEY:-}
+    - Discord__BotToken=${DISCORD_BOT_TOKEN:-}
     - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
     - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
     - YouTube__ApiKey=${YOUTUBE_API_KEY:-}
