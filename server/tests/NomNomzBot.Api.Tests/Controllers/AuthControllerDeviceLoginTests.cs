@@ -56,7 +56,8 @@ public sealed class AuthControllerDeviceLoginTests
             [],
             ext,
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>()
+            Substitute.For<ISystemCredentialsProvider>(),
+            Substitute.For<IPasswordAuthService>()
         )
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext() },

@@ -46,6 +46,7 @@ public class AuthController : BaseController
     private readonly IExternalLoginService _externalLogin;
     private readonly ISessionService _sessions;
     private readonly ISystemCredentialsProvider _credentials;
+    private readonly IPasswordAuthService _passwordAuth;
 
     public AuthController(
         IUserService userService,
@@ -60,7 +61,8 @@ public class AuthController : BaseController
         IEnumerable<IAuthCodeLoginProvider> authCodeImpls,
         IExternalLoginService externalLogin,
         ISessionService sessions,
-        ISystemCredentialsProvider credentials
+        ISystemCredentialsProvider credentials,
+        IPasswordAuthService passwordAuth
     )
     {
         _userService = userService;
@@ -76,6 +78,7 @@ public class AuthController : BaseController
         _externalLogin = externalLogin;
         _sessions = sessions;
         _credentials = credentials;
+        _passwordAuth = passwordAuth;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
@@ -741,6 +744,80 @@ public class AuthController : BaseController
         ];
 
         return Ok(new StatusResponseDto<IReadOnlyList<LoginProviderDto>> { Data = providers });
+    }
+
+    /// <summary>
+    /// Create a new account from an email + password — the generic login screen's primary path, a peer to the
+    /// social buttons below it rather than a replacement. On success opens the same tenant-less session a
+    /// first non-Twitch OAuth login does; the client's next stop is the setup wizard's "connect a platform"
+    /// step. 409 <c>EMAIL_TAKEN</c>, 400 <c>EMAIL_INVALID</c> / <c>WEAK_PASSWORD</c>.
+    /// </summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<AuthResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Register(
+        [FromBody] PasswordAuthRequest body,
+        [FromQuery] string? client,
+        CancellationToken ct
+    )
+    {
+        Result<AuthResultDto> result = await _passwordAuth.RegisterAsync(
+            body.Email,
+            body.Password,
+            BuildAuthContext(),
+            ct
+        );
+        return RespondWithAuth(result, client);
+    }
+
+    /// <summary>
+    /// Sign in with an email + password. 401 <c>INVALID_CREDENTIALS</c> for either an unknown email or a wrong
+    /// password (never distinguishes). Resolves the caller's existing channel into the session when they have
+    /// one, exactly like a returning Twitch login.
+    /// </summary>
+    [HttpPost("login")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<AuthResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Login(
+        [FromBody] PasswordAuthRequest body,
+        [FromQuery] string? client,
+        CancellationToken ct
+    )
+    {
+        Result<AuthResultDto> result = await _passwordAuth.LoginAsync(
+            body.Email,
+            body.Password,
+            BuildAuthContext(),
+            ct
+        );
+        return RespondWithAuth(result, client);
+    }
+
+    /// <summary>
+    /// Shared register/login response shaping: web keeps the refresh token in the HttpOnly cookie (never the
+    /// JSON body — same custody rule as every other login path); native keeps it in the body for its
+    /// file/keychain vault.
+    /// </summary>
+    private IActionResult RespondWithAuth(Result<AuthResultDto> result, string? client)
+    {
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        AuthResultDto auth = result.Value;
+        if (string.Equals(client, "web", StringComparison.OrdinalIgnoreCase))
+        {
+            SetRefreshTokenCookie(auth.RefreshToken);
+            return Ok(
+                new StatusResponseDto<AuthResultDto>
+                {
+                    Data = auth with { RefreshToken = string.Empty },
+                }
+            );
+        }
+
+        return ResultResponse(result);
     }
 
     /// <summary>

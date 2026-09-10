@@ -6687,12 +6687,27 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("LoginEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LoginEmailNormalized")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("NickName")
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("OfflineImageUrl")
                         .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PasswordUpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Platform")
@@ -6746,6 +6761,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AltPronounId");
+
+                    b.HasIndex("LoginEmailNormalized")
+                        .IsUnique()
+                        .HasDatabaseName("IX_User_LoginEmailNormalized");
 
                     b.HasIndex("PronounId");
 

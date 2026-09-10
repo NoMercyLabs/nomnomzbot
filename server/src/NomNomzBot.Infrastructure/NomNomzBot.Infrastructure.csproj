@@ -64,6 +64,9 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection" />
+    <!-- IPasswordHasher<User> for native email+password login (PasswordAuthService) — referenced explicitly
+         since this is a plain class library, not Sdk.Web, so it never rides in transitively. -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
     <PackageReference Include="Stripe.net" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />

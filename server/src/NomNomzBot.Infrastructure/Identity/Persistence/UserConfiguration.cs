@@ -36,6 +36,20 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(e => e.EmailCipher).HasMaxLength(512);
 
+        builder.Property(e => e.LoginEmail).HasMaxLength(255);
+
+        builder.Property(e => e.LoginEmailNormalized).HasMaxLength(255);
+
+        // Nullable-safe unique: Postgres and SQLite both allow any number of NULL rows through a unique index,
+        // so every platform-only account (no password credential) is unaffected — only two REAL login emails
+        // colliding is rejected.
+        builder
+            .HasIndex(e => e.LoginEmailNormalized)
+            .IsUnique()
+            .HasDatabaseName("IX_User_LoginEmailNormalized");
+
+        builder.Property(e => e.PasswordHash).HasMaxLength(255);
+
         builder.Property(e => e.DisplayName).IsRequired().HasMaxLength(255);
 
         builder.Property(e => e.NickName).HasMaxLength(255);

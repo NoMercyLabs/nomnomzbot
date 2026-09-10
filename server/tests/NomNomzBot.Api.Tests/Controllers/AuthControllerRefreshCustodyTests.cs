@@ -338,7 +338,8 @@ public sealed class AuthControllerRefreshCustodyTests
             [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>()
+            Substitute.For<ISystemCredentialsProvider>(),
+            Substitute.For<IPasswordAuthService>()
         )
         {
             ControllerContext = new() { HttpContext = http },

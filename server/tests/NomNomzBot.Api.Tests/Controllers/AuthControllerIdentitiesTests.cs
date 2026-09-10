@@ -42,7 +42,8 @@ public sealed class AuthControllerIdentitiesTests
             [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>()
+            Substitute.For<ISystemCredentialsProvider>(),
+            Substitute.For<IPasswordAuthService>()
         )
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext { User = user } },
