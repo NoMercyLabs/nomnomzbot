@@ -43,7 +43,7 @@ class ObsControllerTest {
     @Test
     fun obs_live_state_changed_hub_event_reloads_so_an_already_live_session_shows_up() = runTest {
         val obsApi = RecordingObsApi(initial = ObsState(streaming = false, recording = false))
-        val controller = ObsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
         controller.load()
 
         // Before the push: the page still reflects the stale "not live" read from before OBS's connection
@@ -74,7 +74,7 @@ class ObsControllerTest {
     @Test
     fun obs_live_state_changed_for_a_different_channel_is_ignored() = runTest {
         val obsApi = RecordingObsApi(initial = ObsState(streaming = false, recording = false))
-        val controller = ObsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
         controller.load()
 
         // Flip the fake's backing state so a spurious reload would be observable, then push the event for
@@ -96,7 +96,7 @@ class ObsControllerTest {
     }
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
+private class FixedChannelChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
