@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.features.state
 
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -21,13 +23,17 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.features_action_error
 
 // The Features page's state-holder — resolves the active channel, loads its feature flags from the backend,
 // and drives the toggle write. Screens render [state]; retries call [load]; [toggle] flips one flag
-// and reloads on success so the list always reflects the backend's truth.
+// and reloads on success so the list always reflects the backend's truth. Write failures announce on the
+// shell-level [feedback] toast (S-migration off the old inline ActionErrorBanner), not a local state field.
 class FeaturesController(
     private val channelsApi: ChannelsApi,
     private val featuresApi: FeaturesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<FeaturesState> = MutableStateFlow(FeaturesState.Loading)
 
@@ -70,23 +76,15 @@ class FeaturesController(
         }
     }
 
-    /** Toggle the [featureKey] flag. Reloads on success; surfaces the error on failure. */
+    /** Toggle the [featureKey] flag. Reloads on success; announces the error on failure. */
     suspend fun toggle(featureKey: String) {
         val channel: String = channelId ?: run {
-            val current: FeaturesState = _state.value
-            if (current is FeaturesState.Ready) {
-                _state.value = current.copy(actionError = "No active channel — reconnect and try again.")
-            }
+            feedback.error(Res.string.features_action_error, "No active channel — reconnect and try again.")
             return
         }
         when (val result: ApiResult<Unit> = featuresApi.toggle(channel, featureKey)) {
             is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: FeaturesState = _state.value
-                if (current is FeaturesState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.features_action_error, result.error.message)
         }
     }
 }
@@ -95,11 +93,8 @@ class FeaturesController(
 sealed interface FeaturesState {
     data object Loading : FeaturesState
 
-    /**
-     * The channel's feature flags. [actionError] is non-null only when the last toggle failed — the list stays
-     * rendered so the operator can see which flags are set while the error is surfaced.
-     */
-    data class Ready(val features: List<FeatureStatus>, val actionError: String? = null) : FeaturesState
+    /** The channel's feature flags. */
+    data class Ready(val features: List<FeatureStatus>) : FeaturesState
 
     data object Empty : FeaturesState
 

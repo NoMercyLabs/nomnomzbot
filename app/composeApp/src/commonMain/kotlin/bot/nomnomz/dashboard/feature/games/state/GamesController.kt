@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.games.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -26,15 +28,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.games_action_error
 
 // The Games page's state-holder (economy.md §3.5 — the channel's configured mini-games). Resolves the active
 // channel, then loads its real game config from the backend (no fabricated games). It also drives the page's
 // writes — toggle enabled / edit config — for the fixed catalog of built-in games (the backend has no create or
 // delete route). Every write re-lists on success so the screen always reflects the backend's truth. The screen
-// renders [state]; a retry / reconnect calls [load] again.
+// renders [state]; a retry / reconnect calls [load] again. Write failures announce on the shell-level
+// [feedback] toast, not a local state field.
 class GamesController(
     private val channelsApi: ChannelsApi,
     private val gamesApi: GamesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<GamesState> = MutableStateFlow(GamesState.Loading)
 
@@ -197,10 +203,7 @@ class GamesController(
     }
 
     private fun failWrite(detail: String) {
-        val current: GamesState = _state.value
-        _state.value =
-            if (current is GamesState.Ready) current.copy(actionError = detail)
-            else GamesState.Error(detail)
+        feedback.error(Res.string.games_action_error, detail)
     }
 
     private companion object {
@@ -245,9 +248,8 @@ sealed interface GamesState {
     data object Loading : GamesState
 
     /**
-     * The channel's games are listed. [actionError] is non-null only when the last toggle/edit failed — the
-     * screen surfaces it as a transient banner while keeping the list rendered. [history] carries the first page
-     * of recent plays (empty when the feature is unused or the caller lacks `economy:games:history:read`).
+     * The channel's games are listed. [history] carries the first page of recent plays (empty when the feature
+     * is unused or the caller lacks `economy:games:history:read`).
      */
     data class Ready(
         val games: List<GameSummary>,
@@ -256,7 +258,6 @@ sealed interface GamesState {
         // — the "Interactive overlay games" section.
         val liveCatalog: List<LiveGameCatalogEntry> = emptyList(),
         val activeSession: GameSession? = null,
-        val actionError: String? = null,
     ) : GamesState
 
     data object Empty : GamesState

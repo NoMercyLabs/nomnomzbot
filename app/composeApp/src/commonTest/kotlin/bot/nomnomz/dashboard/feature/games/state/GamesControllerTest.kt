@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.games.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -71,7 +73,6 @@ class GamesControllerTest {
         assertTrue(games[0].requires18Plus)
         assertEquals(30, games[0].cooldownSeconds)
         assertEquals("g2", games[1].id)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -164,7 +165,6 @@ class GamesControllerTest {
         val state: GamesState = controller.state.value
         assertTrue(state is GamesState.Ready)
         assertEquals(false, (state as GamesState.Ready).games.first().isEnabled)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -271,18 +271,20 @@ class GamesControllerTest {
                 ApiResult.Ok(listOf(game)),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            GamesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), gamesApi)
+            GamesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), gamesApi, feedback)
         controller.load()
 
         controller.toggleGame(game, enabled = false)
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: GamesState = controller.state.value
         assertTrue(state is GamesState.Ready)
         assertEquals(1, (state as GamesState.Ready).games.size)
         assertEquals(true, state.games.first().isEnabled) // unchanged — the write failed
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 }
 

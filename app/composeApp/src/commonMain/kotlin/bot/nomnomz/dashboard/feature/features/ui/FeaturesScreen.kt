@@ -37,7 +37,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -55,7 +54,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.features_action_error
 import nomnomzbot.composeapp.generated.resources.features_empty
 import nomnomzbot.composeapp.generated.resources.features_error
 import nomnomzbot.composeapp.generated.resources.features_loading
@@ -116,9 +114,6 @@ fun FeaturesScreen(
             is FeaturesState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is FeaturesState.Ready -> {
-                current.actionError?.let { detail ->
-                    ActionErrorBanner(message = stringResource(Res.string.features_action_error, detail))
-                }
                 Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         itemsIndexed(

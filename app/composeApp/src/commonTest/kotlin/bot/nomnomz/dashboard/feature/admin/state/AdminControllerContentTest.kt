@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.admin.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
 import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
@@ -126,7 +128,8 @@ class AdminControllerContentTest {
                 status = "completed",
             ),
         )
-        val controller = contentController(api)
+        val feedback = RecordingFeedback()
+        val controller = contentController(api, feedback)
 
         controller.publishContentVersion(
             definitionId = "def-1",
@@ -137,7 +140,13 @@ class AdminControllerContentTest {
         )
 
         assertEquals(0, api.publishCallCount)
-        assertNotNull(controller.state.value.publishError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(
+            listOf<Any>(
+                "Force publish requires a justification — describe why every tenant's copy must be overwritten.",
+            ),
+            feedback.only.formatArgs,
+        )
         assertNull(controller.state.value.lastPublishJob)
     }
 
@@ -169,7 +178,8 @@ class AdminControllerContentTest {
             preview = PublishPreview(affectedCount = 10, skippedCount = 0),
             publishJob = job,
         )
-        val controller = contentController(api)
+        val feedback = RecordingFeedback()
+        val controller = contentController(api, feedback)
 
         controller.publishContentVersion(
             definitionId = "def-1",
@@ -181,15 +191,19 @@ class AdminControllerContentTest {
 
         assertEquals(1, api.publishCallCount)
         assertEquals(job, controller.state.value.lastPublishJob)
-        assertNull(controller.state.value.publishError)
+        assertTrue(feedback.messages.isEmpty(), "a successful publish must not announce an error")
     }
 
-    private fun contentController(contentApi: PlatformContentApi): AdminController =
+    private fun contentController(
+        contentApi: PlatformContentApi,
+        feedback: RecordingFeedback = RecordingFeedback(),
+    ): AdminController =
         AdminController(
             api = StubAdminApi(),
             iamApi = StubPlatformIamApi(),
             platformAdminApi = StubPlatformAdminApi(),
             contentApi = contentApi,
+            feedback = feedback,
         )
 }
 

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.bundles.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.io.PickedFile
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -38,6 +40,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.bundles_action_error
 
 // The Bundles page state-holder (bundles.md §5–§6): the channel's portable content packs. It resolves the active
 // channel, then drives three surfaces off the same holder:
@@ -59,6 +63,7 @@ class BundlesController(
     private val widgetsApi: WidgetsApi,
     private val soundApi: SoundApi,
     private val fileBridge: JournalFileIO,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<BundlesUiState> = MutableStateFlow(BundlesUiState.Loading)
 
@@ -149,7 +154,7 @@ class BundlesController(
         val picked: PickedFile = fileBridge.pickFile() ?: return
         pendingImport = picked
         when (val result: ApiResult<BundleInspection> = bundlesApi.inspect(id, picked.name, picked.bytes)) {
-            is ApiResult.Ok -> setReady { it.copy(inspection = result.value, actionError = null, notice = null) }
+            is ApiResult.Ok -> setReady { it.copy(inspection = result.value, notice = null) }
             is ApiResult.Failure -> {
                 pendingImport = null
                 failWrite(result.error.message)
@@ -172,7 +177,7 @@ class BundlesController(
             is ApiResult.Ok -> {
                 pendingImport = null
                 reloadInstalled()
-                setReady { it.copy(inspection = null, notice = ImportedNotice, actionError = null) }
+                setReady { it.copy(inspection = null, notice = ImportedNotice) }
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -217,12 +222,12 @@ class BundlesController(
         when (val result: ApiResult<List<MarketplaceItem>> = marketplaceApi.items(id, q, type, null, 1, 50)) {
             is ApiResult.Ok ->
                 setReady {
-                    it.copy(marketplace = result.value, marketplaceAvailable = true, actionError = null, notice = null)
+                    it.copy(marketplace = result.value, marketplaceAvailable = true, notice = null)
                 }
             is ApiResult.Failure ->
                 if (isUnavailable(result.error)) {
                     setReady {
-                        it.copy(marketplace = emptyList(), marketplaceAvailable = false, actionError = null, notice = null)
+                        it.copy(marketplace = emptyList(), marketplaceAvailable = false, notice = null)
                     }
                 } else {
                     failWrite(result.error.message)
@@ -239,10 +244,10 @@ class BundlesController(
         when (val result: ApiResult<InstalledBundle> = marketplaceApi.install(id, itemId, policy)) {
             is ApiResult.Ok -> {
                 reloadInstalled()
-                setReady { it.copy(notice = InstalledNotice, actionError = null) }
+                setReady { it.copy(notice = InstalledNotice) }
             }
             is ApiResult.Failure ->
-                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false, actionError = null) }
+                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false) }
                 else failWrite(result.error.message)
         }
     }
@@ -258,9 +263,9 @@ class BundlesController(
             val result: ApiResult<PublishSubmission> =
                 marketplaceApi.publish(id, picked.name, picked.bytes, name, version, summary, tagsCsv)
         ) {
-            is ApiResult.Ok -> setReady { it.copy(notice = "$SubmittedNotice ${result.value.submissionId}", actionError = null) }
+            is ApiResult.Ok -> setReady { it.copy(notice = "$SubmittedNotice ${result.value.submissionId}") }
             is ApiResult.Failure ->
-                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false, actionError = null) }
+                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false) }
                 else failWrite(result.error.message)
         }
     }
@@ -271,7 +276,7 @@ class BundlesController(
         when (val result: ApiResult<Unit> = marketplaceApi.setPublisherToken(id, token)) {
             is ApiResult.Ok -> refreshPublisherToken(id)
             is ApiResult.Failure ->
-                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false, actionError = null) }
+                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false) }
                 else failWrite(result.error.message)
         }
     }
@@ -282,7 +287,7 @@ class BundlesController(
         when (val result: ApiResult<Unit> = marketplaceApi.clearPublisherToken(id)) {
             is ApiResult.Ok -> refreshPublisherToken(id)
             is ApiResult.Failure ->
-                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false, actionError = null) }
+                if (isUnavailable(result.error)) setReady { it.copy(marketplaceAvailable = false) }
                 else failWrite(result.error.message)
         }
     }
@@ -328,7 +333,7 @@ class BundlesController(
 
     private suspend fun refreshPublisherToken(id: String) {
         when (val result: ApiResult<PublisherTokenStatus> = marketplaceApi.publisherToken(id)) {
-            is ApiResult.Ok -> setReady { it.copy(hasPublisherToken = result.value.hasToken, actionError = null) }
+            is ApiResult.Ok -> setReady { it.copy(hasPublisherToken = result.value.hasToken) }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
@@ -342,18 +347,16 @@ class BundlesController(
     }
 
     private fun setNotice(message: String) {
-        setReady { it.copy(notice = message, actionError = null) }
+        setReady { it.copy(notice = message) }
     }
 
     private fun clearTransient() {
-        setReady { it.copy(notice = null, actionError = null) }
+        setReady { it.copy(notice = null) }
     }
 
     private fun failWrite(detail: String) {
-        val current: BundlesUiState = _state.value
-        _state.value =
-            if (current is BundlesUiState.Ready) current.copy(actionError = detail, notice = null)
-            else BundlesUiState.Error(detail)
+        setReady { it.copy(notice = null) }
+        feedback.error(Res.string.bundles_action_error, detail)
     }
 
     private companion object {
@@ -388,7 +391,7 @@ sealed interface BundlesUiState {
      * channel's own content offered to export; [inspection] is the staged import preview (non-null only while the
      * import wizard is showing a picked ZIP). [marketplace] fills only after the user browses; [marketplaceAvailable]
      * is false when the hosted catalogue returned unavailable. [hasPublisherToken] drives the publish card's stored
-     * state. [actionError] / [notice] are transient banners — at most one set at a time.
+     * state. [notice] is a transient success banner.
      */
     data class Ready(
         val installed: List<InstalledBundle>,
@@ -397,7 +400,6 @@ sealed interface BundlesUiState {
         val marketplace: List<MarketplaceItem> = emptyList(),
         val marketplaceAvailable: Boolean = true,
         val hasPublisherToken: Boolean = false,
-        val actionError: String? = null,
         val notice: String? = null,
     ) : BundlesUiState
 

@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.admin.state
 
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.SpamDefenseApi
 import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
 import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
@@ -105,6 +107,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.Instant
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.admin_action_error
 
 /**
  * The ordering keys the admin lists send. The server parses exactly these and falls back to its default
@@ -218,8 +222,6 @@ data class AdminState(
     val auditPermissionFilter: String = "",
     val auditLoading: Boolean = false,
     val auditError: String? = null,
-    /** A surfaced write-action error (e.g. self-deactivation VALIDATION_FAILED). Cleared on next action. */
-    val actionError: String? = null,
     // ── EventSub subscription health (S-ADMIN-6a) ──
     val eventSubHealth: List<AdminEventSubTenantHealth> = emptyList(),
     val eventSubHealthLoading: Boolean = false,
@@ -231,7 +233,6 @@ data class AdminState(
     /** The delivery a replay confirmation is currently open for, or null when no confirm dialog is showing —
      * what it will re-send (event type + target endpoint) comes straight off this row. */
     val replayPendingDeliveryId: Long? = null,
-    val replayError: String? = null,
     // ── Background job queue + retry (S-ADMIN-6b) ──
     val scheduledJobs: List<AdminScheduledJob> = emptyList(),
     val scheduledJobsLoading: Boolean = false,
@@ -239,7 +240,6 @@ data class AdminState(
     /** The job a retry confirmation is currently open for, or null when no confirm dialog is showing — the
      * pipeline it will re-run comes straight off this row (consequences must be visible before it commits). */
     val retryPendingJobId: String? = null,
-    val retryError: String? = null,
     // ── Per-tenant usage (S-ADMIN-6b) ──
     val tenantUsage: List<AdminTenantUsage> = emptyList(),
     val tenantUsageLoading: Boolean = false,
@@ -266,12 +266,11 @@ data class AdminState(
     /** True only while the replay confirm dialog is open — reachable only once [replayPreview] is real. */
     val replayConfirmOpen: Boolean = false,
     val replayExecuting: Boolean = false,
-    val replayExecuteError: String? = null,
     val replayResult: AdminEventReplayResult? = null,
     // ── Impersonation (admin act-as) ──
-    /** Set alongside [actionError] when a mint attempt fails for one of these two RECOGNIZED reasons, so the
-     * confirm dialog can render a calm, specific explanation instead of the raw server message. Null for any
-     * other failure (network error, unexpected 5xx, …) — those still surface via [actionError] alone. */
+    /** Set alongside the feedback toast when a mint attempt fails for one of these two RECOGNIZED reasons, so
+     * the confirm dialog can render a calm, specific explanation instead of the raw server message. Null for
+     * any other failure (network error, unexpected 5xx, …) — those still surface via the feedback toast alone. */
     val impersonationRefusal: ImpersonationRefusal? = null,
     // ── Platform content authoring (S-ADMIN-2b) ──
     val contentDefinitions: List<PlatformContentDefinition> = emptyList(),
@@ -289,10 +288,8 @@ data class AdminState(
     val publishPreviewLoading: Boolean = false,
     val publishPreviewError: String? = null,
     val publishSubmitting: Boolean = false,
-    val publishError: String? = null,
     /** The completed publish job, shown as confirmation once a publish commits. */
     val lastPublishJob: PlatformContentPublishJob? = null,
-    val contentActionError: String? = null,
     // ── Cross-tenant support desk (S-ADMIN-7a) ──
     /** The name/platform-id the operator last searched for across every tenant. */
     val supportSearch: String = "",
@@ -331,7 +328,6 @@ data class AdminState(
      * message the dialog shows, so the operator sees the blast radius before it commits. */
     val reviewItemPendingOverturn: TrustSafetyReviewItem? = null,
     val reviewActionInFlight: String? = null,
-    val reviewActionError: String? = null,
     // ── Network-wide block (S-ADMIN-8b) ──
     /** The Twitch user id the operator is about to preview/block — free text, not resolved until preview. */
     val networkBlockTargetTwitchUserId: String = "",
@@ -345,13 +341,11 @@ data class AdminState(
     /** True while the destructive confirm dialog (showing the counted blast radius) is open. */
     val networkBlockApplyConfirmOpen: Boolean = false,
     val networkBlockApplyInFlight: Boolean = false,
-    val networkBlockApplyError: String? = null,
     val networkBlocks: List<NetworkBlock> = emptyList(),
     val networkBlocksLoaded: Boolean = false,
     val networkBlocksLoading: Boolean = false,
     val networkBlocksError: String? = null,
     val networkBlockLiftInFlight: String? = null,
-    val networkBlockLiftError: String? = null,
 
     // ── Shared platform bot (S-BOT-PLATFORM-UI, Setup) ──
     val platformBotStatus: PlatformBotAdminStatus? = null,
@@ -368,7 +362,6 @@ data class AdminState(
     val platformBotReconnectConfirmOpen: Boolean = false,
     /** The device code the operator is approving at twitch.tv/activate, once the reconnect has started. */
     val platformBotReconnectDevice: PlatformBotReconnectDeviceState? = null,
-    val platformBotReconnectError: String? = null,
 )
 
 /** The device-code panel shown while a platform-bot reconnect awaits the operator's twitch.tv approval. */
@@ -428,6 +421,7 @@ class AdminController(
     private val shellAccessController: ShellAccessController? = null,
     private val channelSwitcherController: ChannelSwitcherController? = null,
     private val reconnectAll: (suspend () -> Unit)? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     /** The signed-in operator's own user id (for gating the Users tab so it never offers "act as yourself"). */
     val currentUserId: String?
@@ -600,15 +594,14 @@ class AdminController(
     // ── Feature flags & billing (write, then reload) ──────────────────────────
 
     /**
-     * Runs one admin write and reloads on success, surfacing a failure as [AdminState.actionError] the way
-     * the IAM actions below already do. Every write in this block used to discard its [ApiResult] outright,
+     * Runs one admin write and reloads on success, surfacing a failure on the shell-level feedback toast the
+     * way the IAM actions below already do. Every write in this block used to discard its [ApiResult] outright,
      * so a rejected flag toggle or tier grant reloaded unchanged with nothing on screen to say it had failed.
      */
     private suspend fun <T> writeThenReload(call: suspend () -> ApiResult<T>) {
-        _state.value = _state.value.copy(actionError = null)
         when (val result: ApiResult<T> = call()) {
             is ApiResult.Ok -> load()
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -631,14 +624,13 @@ class AdminController(
         _state.value = _state.value.copy(
             flagKillSwitchKey = flagKey,
             flagKillSwitchPreview = null,
-            actionError = null,
         )
         when (val result = api.previewFeatureFlagBlastRadius(flagKey)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(flagKillSwitchPreview = result.value)
-            is ApiResult.Failure -> _state.value = _state.value.copy(
-                flagKillSwitchKey = null,
-                actionError = result.error.message,
-            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(flagKillSwitchKey = null)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -668,14 +660,13 @@ class AdminController(
         _state.value = _state.value.copy(
             tierEditId = tierId,
             tierEditPreview = null,
-            actionError = null,
         )
         when (val result = api.previewTierChange(tierId)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(tierEditPreview = result.value)
-            is ApiResult.Failure -> _state.value = _state.value.copy(
-                tierEditId = null,
-                actionError = result.error.message,
-            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(tierEditId = null)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -700,11 +691,10 @@ class AdminController(
             grantBroadcasterId = broadcasterId,
             entitlementGrants = emptyList(),
             entitlementGrantPreview = null,
-            actionError = null,
         )
         when (val result = api.getEntitlementGrants(broadcasterId)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(entitlementGrants = result.value)
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -715,10 +705,10 @@ class AdminController(
      */
     suspend fun previewEntitlementGrant(tierId: String) {
         val broadcasterId: String = _state.value.grantBroadcasterId ?: return
-        _state.value = _state.value.copy(entitlementGrantPreview = null, actionError = null)
+        _state.value = _state.value.copy(entitlementGrantPreview = null)
         when (val result = api.previewEntitlementGrant(broadcasterId, tierId)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(entitlementGrantPreview = result.value)
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -732,10 +722,10 @@ class AdminController(
      * comping against a blast radius the operator never actually saw. Reloads the grant list either way. */
     suspend fun issueEntitlementGrant(body: AdminIssueEntitlementGrantRequest) {
         val broadcasterId: String = _state.value.grantBroadcasterId ?: return
-        _state.value = _state.value.copy(entitlementGrantPreview = null, actionError = null)
+        _state.value = _state.value.copy(entitlementGrantPreview = null)
         when (val result = api.issueEntitlementGrant(broadcasterId, body)) {
             is ApiResult.Ok -> selectGrantBroadcaster(broadcasterId)
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -751,7 +741,6 @@ class AdminController(
         _state.value = _state.value.copy(
             pricedUnitFormOpen = true,
             pricedUnitFormEditingKey = editingUnitKey,
-            actionError = null,
         )
     }
 
@@ -781,11 +770,10 @@ class AdminController(
             invoiceBroadcasterId = broadcasterId,
             invoices = emptyList(),
             refundPendingInvoiceId = null,
-            actionError = null,
         )
         when (val result = api.getInvoices(broadcasterId)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(invoices = result.value)
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -806,10 +794,10 @@ class AdminController(
      * the invoice list either way so the new `refunded` status and amount are visible immediately. */
     suspend fun confirmRefund(invoiceId: String) {
         val broadcasterId: String = _state.value.invoiceBroadcasterId ?: return
-        _state.value = _state.value.copy(refundPendingInvoiceId = null, actionError = null)
+        _state.value = _state.value.copy(refundPendingInvoiceId = null)
         when (val result = api.refundInvoice(invoiceId)) {
             is ApiResult.Ok -> selectInvoiceBroadcaster(broadcasterId)
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -844,24 +832,22 @@ class AdminController(
 
     /** Promote a user (employee) — [userId] set, [principalType] 0. The panel shows no key. */
     suspend fun promoteUser(userId: String, displayName: String, roleIds: List<String>) {
-        _state.value = _state.value.copy(actionError = null)
         val body = CreatePrincipalBody(principalType = 0, userId = userId, displayName = displayName, roleIds = roleIds)
         when (val result: ApiResult<IamPrincipal> = iamApi.createPrincipal(body)) {
             is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
     /** Create a service account — [principalType] 1. Its key is returned ONCE; stash it for the show-once dialog. */
     suspend fun createServiceAccount(serviceAccountName: String, roleIds: List<String>) {
-        _state.value = _state.value.copy(actionError = null)
         val body = CreatePrincipalBody(principalType = 1, displayName = serviceAccountName, roleIds = roleIds, serviceAccountName = serviceAccountName)
         when (val result: ApiResult<IamPrincipal> = iamApi.createPrincipal(body)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(issuedServiceAccountKey = result.value.serviceAccountKey)
                 loadIam()
             }
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -870,41 +856,33 @@ class AdminController(
         _state.value = _state.value.copy(issuedServiceAccountKey = null)
     }
 
-    fun clearActionError() {
-        _state.value = _state.value.copy(actionError = null)
-    }
-
     suspend fun deactivatePrincipal(principalId: String, reason: String?) {
-        _state.value = _state.value.copy(actionError = null)
         when (val result: ApiResult<Unit> = iamApi.deactivatePrincipal(principalId, reason)) {
             is ApiResult.Ok -> loadIam()
             // Self-deactivation returns VALIDATION_FAILED — surface the message, don't swallow it.
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
     suspend fun reactivatePrincipal(principalId: String) {
-        _state.value = _state.value.copy(actionError = null)
         when (val result: ApiResult<Unit> = iamApi.reactivatePrincipal(principalId)) {
             is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
     suspend fun assignRole(principalId: String, roleId: String, reason: String?) {
-        _state.value = _state.value.copy(actionError = null)
         val body = AssignRoleBody(principalId = principalId, roleId = roleId, reason = reason)
         when (val result = iamApi.assignRole(body)) {
             is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
     suspend fun revokeAssignment(assignmentId: String, reason: String?) {
-        _state.value = _state.value.copy(actionError = null)
         when (val result: ApiResult<Unit> = iamApi.revokeAssignment(assignmentId, reason)) {
             is ApiResult.Ok -> loadIam()
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -929,34 +907,30 @@ class AdminController(
     }
 
     /** Stores a client id and/or secret. Blank fields are dropped, so the server is never asked to
-     * overwrite a value the operator left alone. Returns null on success, the error otherwise. */
+     * overwrite a value the operator left alone. A failure announces on the shell-level feedback toast. */
     suspend fun saveProviderCredential(
         provider: String,
         clientId: String,
         clientSecret: String,
-    ): String? {
+    ) {
         val body = SaveProviderCredentialBody(
             clientId = clientId.takeIf { it.isNotBlank() },
             clientSecret = clientSecret.takeIf { it.isNotBlank() },
         )
-        return when (val result = api.saveProviderCredential(provider, body)) {
-            is ApiResult.Ok -> {
-                loadProviders()
-                null
-            }
-            is ApiResult.Failure -> result.error.message
+        when (val result = api.saveProviderCredential(provider, body)) {
+            is ApiResult.Ok -> loadProviders()
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
-    /** Clears the stored rows so the environment resolves again. */
-    suspend fun clearProviderCredential(provider: String): String? =
+    /** Clears the stored rows so the environment resolves again. A failure announces on the shell-level
+     * feedback toast. */
+    suspend fun clearProviderCredential(provider: String) {
         when (val result = api.clearProviderCredential(provider)) {
-            is ApiResult.Ok -> {
-                loadProviders()
-                null
-            }
-            is ApiResult.Failure -> result.error.message
+            is ApiResult.Ok -> loadProviders()
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
+    }
 
     // ── Tenants ─────────────────────────────────────────────────────────────
 
@@ -989,33 +963,30 @@ class AdminController(
     }
 
     suspend fun suspendTenant(broadcasterId: String, newStatus: String, reason: String) {
-        _state.value = _state.value.copy(actionError = null)
         when (val result: ApiResult<Unit> = platformAdminApi.suspendTenant(broadcasterId, SuspendTenantBody(newStatus, reason))) {
             is ApiResult.Ok -> {
                 loadTenants()
                 if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
             }
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
     suspend fun reinstateTenant(broadcasterId: String, justification: String) {
-        _state.value = _state.value.copy(actionError = null)
         when (val result: ApiResult<Unit> = platformAdminApi.reinstateTenant(broadcasterId, ReinstateTenantBody(justification))) {
             is ApiResult.Ok -> {
                 loadTenants()
                 if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
             }
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
     suspend fun beginTenantAccess(broadcasterId: String, justification: String, breakGlass: Boolean) {
-        _state.value = _state.value.copy(actionError = null)
         val body = BeginTenantAccessBody(justification = justification, breakGlass = breakGlass)
         when (val result = platformAdminApi.beginAccess(broadcasterId, body)) {
             is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -1189,7 +1160,7 @@ class AdminController(
     /** Opens the destructive confirm dialog for [item] — its [TrustSafetyReviewItem.reversalPreview] is
      * shown as the dialog's message, so the operator sees the blast radius before committing to it. */
     fun requestOverturn(item: TrustSafetyReviewItem) {
-        _state.value = _state.value.copy(reviewItemPendingOverturn = item, reviewActionError = null)
+        _state.value = _state.value.copy(reviewItemPendingOverturn = item)
     }
 
     fun dismissOverturnRequest() {
@@ -1202,17 +1173,16 @@ class AdminController(
         val justification: String = _state.value.trustSafetyJustification.trim()
         if (justification.isBlank()) return
 
-        _state.value = _state.value.copy(reviewActionInFlight = detectionId, reviewActionError = null)
+        _state.value = _state.value.copy(reviewActionInFlight = detectionId)
         when (val result = api.confirm(detectionId = detectionId, justification = justification)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(reviewActionInFlight = null)
                 loadReviewQueue()
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(
-                    reviewActionInFlight = null,
-                    reviewActionError = result.error.message,
-                )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(reviewActionInFlight = null)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -1225,7 +1195,6 @@ class AdminController(
 
         _state.value = _state.value.copy(
             reviewActionInFlight = detectionId,
-            reviewActionError = null,
             reviewItemPendingOverturn = null,
         )
         when (val result = api.overturn(detectionId = detectionId, justification = justification)) {
@@ -1233,11 +1202,10 @@ class AdminController(
                 _state.value = _state.value.copy(reviewActionInFlight = null)
                 loadReviewQueue()
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(
-                    reviewActionInFlight = null,
-                    reviewActionError = result.error.message,
-                )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(reviewActionInFlight = null)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -1289,7 +1257,7 @@ class AdminController(
     /** Opens the destructive confirm dialog — only reachable once a real preview is on screen. */
     fun requestApplyNetworkBlock() {
         if (_state.value.networkBlockPreview == null) return
-        _state.value = _state.value.copy(networkBlockApplyConfirmOpen = true, networkBlockApplyError = null)
+        _state.value = _state.value.copy(networkBlockApplyConfirmOpen = true)
     }
 
     fun dismissApplyNetworkBlockRequest() {
@@ -1304,7 +1272,7 @@ class AdminController(
         val justification: String = _state.value.trustSafetyJustification.trim()
         if (justification.isBlank()) return
 
-        _state.value = _state.value.copy(networkBlockApplyInFlight = true, networkBlockApplyError = null)
+        _state.value = _state.value.copy(networkBlockApplyInFlight = true)
         val result = api.applyNetworkBlock(
             targetTwitchUserId = preview.targetTwitchUserId,
             reason = _state.value.networkBlockReason.trim().ifBlank { null },
@@ -1322,11 +1290,10 @@ class AdminController(
                 )
                 loadNetworkBlocks()
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(
-                    networkBlockApplyInFlight = false,
-                    networkBlockApplyError = result.error.message,
-                )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(networkBlockApplyInFlight = false)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -1359,17 +1326,16 @@ class AdminController(
         val justification: String = _state.value.trustSafetyJustification.trim()
         if (justification.isBlank()) return
 
-        _state.value = _state.value.copy(networkBlockLiftInFlight = blockId, networkBlockLiftError = null)
+        _state.value = _state.value.copy(networkBlockLiftInFlight = blockId)
         when (val result = api.liftNetworkBlock(blockId = blockId, justification = justification)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(networkBlockLiftInFlight = null)
                 loadNetworkBlocks()
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(
-                    networkBlockLiftInFlight = null,
-                    networkBlockLiftError = result.error.message,
-                )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(networkBlockLiftInFlight = null)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -1437,10 +1403,7 @@ class AdminController(
     /** Opens the destructive confirm dialog — only reachable once a real preview is on screen. */
     fun requestPlatformBotReconnect() {
         if (_state.value.platformBotReconnectPreview == null) return
-        _state.value = _state.value.copy(
-            platformBotReconnectConfirmOpen = true,
-            platformBotReconnectError = null,
-        )
+        _state.value = _state.value.copy(platformBotReconnectConfirmOpen = true)
     }
 
     fun dismissPlatformBotReconnectRequest() {
@@ -1460,15 +1423,14 @@ class AdminController(
         val justification: String = _state.value.platformBotJustification.trim()
         if (justification.isBlank()) return
 
-        _state.value = _state.value.copy(platformBotReconnectConfirmOpen = false, platformBotReconnectError = null)
+        _state.value = _state.value.copy(platformBotReconnectConfirmOpen = false)
         when (
             val start = api.startReconnect(
                 justification = justification,
                 confirmedAffectedChannelCount = preview.affectedChannelCount,
             )
         ) {
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(platformBotReconnectError = start.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, start.error.message)
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(
                     platformBotReconnectDevice = PlatformBotReconnectDeviceState(
@@ -1520,10 +1482,8 @@ class AdminController(
                             return
                         }
                         "expired", "denied", "error" -> {
-                            _state.value = _state.value.copy(
-                                platformBotReconnectDevice = null,
-                                platformBotReconnectError = poll.value.status,
-                            )
+                            _state.value = _state.value.copy(platformBotReconnectDevice = null)
+                            feedback.error(Res.string.admin_action_error, poll.value.status)
                             return
                         }
                         else -> Unit // pending / slow_down — keep polling.
@@ -1531,10 +1491,8 @@ class AdminController(
             }
         }
         if (_state.value.platformBotReconnectDevice != null) {
-            _state.value = _state.value.copy(
-                platformBotReconnectDevice = null,
-                platformBotReconnectError = "expired",
-            )
+            _state.value = _state.value.copy(platformBotReconnectDevice = null)
+            feedback.error(Res.string.admin_action_error, "expired")
         }
     }
 
@@ -1565,7 +1523,7 @@ class AdminController(
 
     /** Opens the replay confirmation for [deliveryId] — nothing is sent until [confirmWebhookReplay]. */
     fun stageWebhookReplay(deliveryId: Long) {
-        _state.value = _state.value.copy(replayPendingDeliveryId = deliveryId, replayError = null)
+        _state.value = _state.value.copy(replayPendingDeliveryId = deliveryId)
     }
 
     fun dismissWebhookReplay() {
@@ -1578,11 +1536,10 @@ class AdminController(
         val deliveryId: Long = _state.value.replayPendingDeliveryId ?: return
         when (val result = api.replayWebhookDelivery(deliveryId)) {
             is ApiResult.Ok -> {
-                _state.value = _state.value.copy(replayPendingDeliveryId = null, replayError = null)
+                _state.value = _state.value.copy(replayPendingDeliveryId = null)
                 loadWebhookDeliveries()
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(replayError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -1601,7 +1558,7 @@ class AdminController(
 
     /** Opens the retry confirmation for [taskId] — nothing is sent until [confirmScheduledJobRetry]. */
     fun stageScheduledJobRetry(taskId: String) {
-        _state.value = _state.value.copy(retryPendingJobId = taskId, retryError = null)
+        _state.value = _state.value.copy(retryPendingJobId = taskId)
     }
 
     fun dismissScheduledJobRetry() {
@@ -1614,11 +1571,10 @@ class AdminController(
         val taskId: String = _state.value.retryPendingJobId ?: return
         when (val result = api.retryScheduledJob(taskId)) {
             is ApiResult.Ok -> {
-                _state.value = _state.value.copy(retryPendingJobId = null, retryError = null)
+                _state.value = _state.value.copy(retryPendingJobId = null)
                 loadScheduledJobs()
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(retryError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -1713,7 +1669,7 @@ class AdminController(
     /** Opens the replay confirmation — reachable only once a REAL counted preview exists for this scope. */
     fun stageEventReplay() {
         if (_state.value.replayPreview != null) {
-            _state.value = _state.value.copy(replayConfirmOpen = true, replayExecuteError = null)
+            _state.value = _state.value.copy(replayConfirmOpen = true)
         }
     }
 
@@ -1727,7 +1683,7 @@ class AdminController(
     suspend fun confirmEventReplay() {
         val scope = _state.value
         val preview: AdminEventReplayPreview = scope.replayPreview ?: return
-        _state.value = scope.copy(replayExecuting = true, replayExecuteError = null)
+        _state.value = scope.copy(replayExecuting = true)
         when (
             val result = api.executeEventReplay(
                 broadcasterId = scope.replayBroadcasterId,
@@ -1745,12 +1701,13 @@ class AdminController(
                     replayPreview = null,
                     replayResult = result.value,
                 )
-            is ApiResult.Failure ->
+            is ApiResult.Failure -> {
                 _state.value = _state.value.copy(
                     replayExecuting = false,
                     replayConfirmOpen = false,
-                    replayExecuteError = result.error.message,
                 )
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -1765,22 +1722,23 @@ class AdminController(
      * restore. A blank justification never reaches the network — the dialog's own submit gate should already
      * prevent it, but this is the second, authoritative gate. Recognized refusals (no open session for this
      * tenant, not permitted) land on [AdminState.impersonationRefusal] with a calm, specific message; anything
-     * else still surfaces via [AdminState.actionError].
+     * else still surfaces via the shell-level feedback toast. Returns whether the mint succeeded, so the confirm
+     * dialog knows to close itself on success and stay open (showing the refusal/toast) on failure.
      */
-    suspend fun impersonateTenantOwner(broadcasterId: String, subjectUserId: String, subjectDisplayName: String, justification: String) {
-        _state.value = _state.value.copy(actionError = null, impersonationRefusal = null)
+    suspend fun impersonateTenantOwner(broadcasterId: String, subjectUserId: String, subjectDisplayName: String, justification: String): Boolean {
+        _state.value = _state.value.copy(impersonationRefusal = null)
         val trimmedJustification: String = justification.trim()
-        if (trimmedJustification.isEmpty()) return
+        if (trimmedJustification.isEmpty()) return false
 
         val grant: TenantAccessGrant =
             when (val result = platformAdminApi.beginAccess(broadcasterId, BeginTenantAccessBody(justification = trimmedJustification))) {
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> {
                     _state.value = _state.value.copy(
-                        actionError = result.error.message,
                         impersonationRefusal = classifyImpersonationRefusal(result.error),
                     )
-                    return
+                    feedback.error(Res.string.admin_action_error, result.error.message)
+                    return false
                 }
             }
 
@@ -1789,10 +1747,10 @@ class AdminController(
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> {
                     _state.value = _state.value.copy(
-                        actionError = result.error.message,
                         impersonationRefusal = classifyImpersonationRefusal(result.error),
                     )
-                    return
+                    feedback.error(Res.string.admin_action_error, result.error.message)
+                    return false
                 }
             }
 
@@ -1806,6 +1764,7 @@ class AdminController(
             accessGrantId = token.sessionId,
         )
         reResolveIdentity()
+        return true
     }
 
     /**
@@ -1838,7 +1797,7 @@ class AdminController(
     private suspend fun reResolveIdentity() {
         when (val me: ApiResult<CurrentUser>? = authApi?.me()) {
             is ApiResult.Ok -> sessionStore?.setUser(me.value.toSessionUser())
-            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = me.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, me.error.message)
             null -> Unit
         }
         shellAccessController?.load()
@@ -1937,7 +1896,6 @@ class AdminController(
             selectedContentDefinition = null,
             publishPreview = null,
             lastPublishJob = null,
-            contentActionError = null,
         )
     }
 
@@ -1952,7 +1910,6 @@ class AdminController(
         payloadJson: String,
     ) {
         val content: PlatformContentApi = contentApi ?: return
-        _state.value = _state.value.copy(contentActionError = null)
         val body = CreateContentDefinitionBody(
             kind = kind,
             key = key,
@@ -1965,7 +1922,7 @@ class AdminController(
                 loadContentDefinitions()
                 openContentDefinition(result.value.id)
             }
-            is ApiResult.Failure -> _state.value = _state.value.copy(contentActionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -1974,10 +1931,9 @@ class AdminController(
     suspend fun draftContentVersion(payloadJson: String) {
         val content: PlatformContentApi = contentApi ?: return
         val definitionId: String = _state.value.selectedContentDefinition?.definition?.id ?: return
-        _state.value = _state.value.copy(contentActionError = null)
         when (val result = content.draftVersion(definitionId, DraftContentVersionBody(payloadJson = payloadJson))) {
             is ApiResult.Ok -> openContentDefinition(definitionId)
-            is ApiResult.Failure -> _state.value = _state.value.copy(contentActionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 
@@ -2021,10 +1977,10 @@ class AdminController(
         val content: PlatformContentApi = contentApi ?: return
         val trimmedNote: String? = publishNote?.trim()?.takeIf { it.isNotEmpty() }
         if (mode == PlatformContentPublishModes.Force && trimmedNote == null) {
-            _state.value = _state.value.copy(publishError = FORCE_REQUIRES_JUSTIFICATION_MESSAGE)
+            feedback.error(Res.string.admin_action_error, FORCE_REQUIRES_JUSTIFICATION_MESSAGE)
             return
         }
-        _state.value = _state.value.copy(publishSubmitting = true, publishError = null)
+        _state.value = _state.value.copy(publishSubmitting = true)
         val body = PublishContentBody(
             mode = mode,
             publishNote = trimmedNote,
@@ -2040,8 +1996,10 @@ class AdminController(
                 openContentDefinition(definitionId)
                 _state.value = _state.value.copy(lastPublishJob = result.value)
             }
-            is ApiResult.Failure ->
-                _state.value = _state.value.copy(publishSubmitting = false, publishError = result.error.message)
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(publishSubmitting = false)
+                feedback.error(Res.string.admin_action_error, result.error.message)
+            }
         }
     }
 
@@ -2049,13 +2007,12 @@ class AdminController(
      * tenant copies (§3.1) — a truthful, non-destructive "remove from the catalogue". */
     suspend fun retireContentDefinition(definitionId: String) {
         val content: PlatformContentApi = contentApi ?: return
-        _state.value = _state.value.copy(contentActionError = null)
         when (val result = content.retireDefinition(definitionId)) {
             is ApiResult.Ok -> {
                 closeContentDefinition()
                 loadContentDefinitions()
             }
-            is ApiResult.Failure -> _state.value = _state.value.copy(contentActionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
 }

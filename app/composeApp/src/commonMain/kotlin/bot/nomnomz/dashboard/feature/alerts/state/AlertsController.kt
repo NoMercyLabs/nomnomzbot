@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.alerts.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.AlertDetail
 import bot.nomnomz.dashboard.core.network.AlertQueueDto
 import bot.nomnomz.dashboard.core.network.AlertQueueEntryDto
@@ -24,16 +26,20 @@ import bot.nomnomz.dashboard.core.network.UpdateAlertBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.alerts_action_error
 
 // The Alerts page's state-holder (frontend-ia.md — the Community group): what the bot says/does when a channel
 // event fires (a follow, sub, raid, cheer, …). Resolves the active channel, then lists its real configured
 // event responses from the backend (no fabricated rows). It also drives the page's writes — create / edit /
 // toggle / delete — each of which re-lists on success so the screen always reflects the backend's truth. The
-// screen renders [state]; a retry / reconnect calls [load] again.
+// screen renders [state]; a retry / reconnect calls [load] again. Write failures announce on the shell-level
+// [feedback] toast, not a local state field.
 class AlertsController(
     private val channelsApi: ChannelsApi,
     private val alertsApi: AlertsApi,
     private val pipelinesApi: PipelinesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<AlertsState> = MutableStateFlow(AlertsState.Loading)
 
@@ -182,10 +188,7 @@ class AlertsController(
     }
 
     private fun failWrite(detail: String) {
-        val current: AlertsState = _state.value
-        _state.value =
-            if (current is AlertsState.Ready) current.copy(actionError = detail)
-            else AlertsState.Error(detail)
+        feedback.error(Res.string.alerts_action_error, detail)
     }
 
     private companion object {
@@ -201,12 +204,8 @@ class AlertsController(
 sealed interface AlertsState {
     data object Loading : AlertsState
 
-    /**
-     * The channel's event responses are listed. [actionError] is non-null only when the last create/edit/
-     * toggle/delete (or a detail fetch) failed — the screen surfaces it as a transient banner while keeping
-     * the list rendered.
-     */
-    data class Ready(val alerts: List<AlertSummary>, val actionError: String? = null) : AlertsState
+    /** The channel's event responses are listed. */
+    data class Ready(val alerts: List<AlertSummary>) : AlertsState
 
     data object Empty : AlertsState
 

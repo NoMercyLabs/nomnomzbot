@@ -29,7 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -113,8 +113,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.actionError?.let { ActionErrorBanner(message = it) }
-        state.iamError?.let { ActionErrorBanner(message = it) }
+        state.iamError?.let { InlineError(message = it) }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -127,10 +126,10 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
                 color = tokens.foreground,
                 modifier = Modifier.weight(1f),
             )
-            OutlinedButton(onClick = { controller.clearActionError(); promoteOpen = true }) {
+            OutlinedButton(onClick = { promoteOpen = true }) {
                 Text(text = stringResource(Res.string.admin_iam_promote))
             }
-            Button(onClick = { controller.clearActionError(); serviceOpen = true }) {
+            Button(onClick = { serviceOpen = true }) {
                 Text(text = stringResource(Res.string.admin_iam_create_service))
             }
         }
@@ -146,8 +145,8 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
                         PrincipalRow(
                             principal = principal,
                             permissionKeys = state.effectivePermissions[principal.id],
-                            onAssign = { controller.clearActionError(); assignFor = principal },
-                            onDeactivate = { controller.clearActionError(); deactivateFor = principal },
+                            onAssign = { assignFor = principal },
+                            onDeactivate = { deactivateFor = principal },
                             onReactivate = { scope.launch { controller.reactivatePrincipal(principal.id) } },
                             onRevoke = { assignmentId -> scope.launch { controller.revokeAssignment(assignmentId, null) } },
                             onEffective = { scope.launch { controller.loadEffectivePermissions(principal.id) } },

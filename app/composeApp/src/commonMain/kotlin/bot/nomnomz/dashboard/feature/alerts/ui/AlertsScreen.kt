@@ -38,7 +38,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -67,7 +66,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.alerts_action_error
 import nomnomzbot.composeapp.generated.resources.alerts_badge_disabled
 import nomnomzbot.composeapp.generated.resources.alerts_badge_enabled
 import nomnomzbot.composeapp.generated.resources.alerts_delete_action
@@ -140,7 +138,6 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
                 is AlertsState.Empty ->
                     ManagedContent(
                         alerts = emptyList(),
-                        actionError = null,
                         manage = manage,
                         onNew = { editor = AlertEditor.create() },
                         onEdit = { alert ->
@@ -168,7 +165,6 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
                 is AlertsState.Ready ->
                     ManagedContent(
                         alerts = current.alerts,
-                        actionError = current.actionError,
                         manage = manage,
                         onNew = { editor = AlertEditor.create() },
                         onEdit = { alert ->
@@ -230,7 +226,6 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
 @Composable
 private fun ManagedContent(
     alerts: List<AlertSummary>,
-    actionError: String?,
     manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (AlertSummary) -> Unit,
@@ -244,7 +239,6 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         Header(manage = manage, onNew = onNew)
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.alerts_action_error, it)) }
 
         if (alerts.isEmpty()) {
             CenteredMessage(stringResource(Res.string.alerts_empty))

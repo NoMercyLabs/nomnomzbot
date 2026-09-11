@@ -555,7 +555,7 @@ class AppGraph {
         TtsQueueController(channelsApi = channelsApi, ttsApi = ttsApi)
 
     val gamesController: GamesController =
-        GamesController(channelsApi = channelsApi, gamesApi = gamesApi)
+        GamesController(channelsApi = channelsApi, gamesApi = gamesApi, feedback = feedbackController)
 
     val eventResponsesController: EventResponsesController =
         EventResponsesController(
@@ -610,7 +610,12 @@ class AppGraph {
         )
 
     val alertsController: AlertsController =
-        AlertsController(channelsApi = channelsApi, alertsApi = alertsApi, pipelinesApi = pipelinesApi)
+        AlertsController(
+            channelsApi = channelsApi,
+            alertsApi = alertsApi,
+            pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
+        )
 
     val widgetsController: WidgetsController =
         WidgetsController(
@@ -676,7 +681,8 @@ class AppGraph {
 
     val obsController: ObsController = ObsController(channelsApi = channelsApi, obsApi = obsApi)
 
-    val vtsController: VtsController = VtsController(channelsApi = channelsApi, vtsApi = vtsApi)
+    val vtsController: VtsController =
+        VtsController(channelsApi = channelsApi, vtsApi = vtsApi, feedback = feedbackController)
 
     val automationController: AutomationController =
         AutomationController(
@@ -708,10 +714,11 @@ class AppGraph {
             widgetsApi = widgetsApi,
             soundApi = soundApi,
             fileBridge = journalFileBridge,
+            feedback = feedbackController,
         )
 
     val rolesController: RolesController =
-        RolesController(channelsApi = channelsApi, rolesApi = rolesApi)
+        RolesController(channelsApi = channelsApi, rolesApi = rolesApi, feedback = feedbackController)
 
     // The shell's role resolver — fetches the caller's own /effective/me on session establish so the sidebar and
     // every write affordance gate by the REAL Plane-B ManagementRole, replacing the old broadcaster hardcode.
@@ -740,6 +747,7 @@ class AppGraph {
             shellAccessController = shellAccessController,
             channelSwitcherController = channelSwitcherController,
             reconnectAll = ::reconnectAll,
+            feedback = feedbackController,
         )
 
     val musicController: MusicController =
@@ -774,16 +782,21 @@ class AppGraph {
         )
 
     val featuresController: FeaturesController =
-        FeaturesController(channelsApi = channelsApi, featuresApi = featuresApi)
+        FeaturesController(channelsApi = channelsApi, featuresApi = featuresApi, feedback = feedbackController)
 
     val webhooksController: WebhooksController =
-        WebhooksController(channelsApi = channelsApi, webhooksApi = webhooksApi, pipelinesApi = pipelinesApi)
+        WebhooksController(
+            channelsApi = channelsApi,
+            webhooksApi = webhooksApi,
+            pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
+        )
 
     val customEventsController: CustomEventsController =
-        CustomEventsController(api = customEventsApi)
+        CustomEventsController(api = customEventsApi, feedback = feedbackController)
 
     val federationController: FederationController =
-        FederationController(channelsApi = channelsApi, federationApi = federationApi)
+        FederationController(channelsApi = channelsApi, federationApi = federationApi, feedback = feedbackController)
 
     val codeScriptsController: CodeScriptsController =
         CodeScriptsController(api = codeScriptsApi, projectEditor = projectEditor, sdkTypesApi = sdkTypesApi)

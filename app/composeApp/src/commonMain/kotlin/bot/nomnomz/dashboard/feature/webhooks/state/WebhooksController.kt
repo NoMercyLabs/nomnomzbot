@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.webhooks.state
 
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -35,14 +37,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.webhooks_action_error
 
 // The Webhooks page's state-holder: loads inbound + outbound webhook endpoints in parallel and drives all
 // mutations — create, toggle, delete, rotate token/secret, test, re-enable. Reloads on every successful
-// write so the page always reflects the backend's truth.
+// write so the page always reflects the backend's truth. Write failures announce on the shell-level
+// [feedback] toast, not a local state field.
 class WebhooksController(
     private val channelsApi: ChannelsApi,
     private val webhooksApi: WebhooksApi,
     private val pipelinesApi: PipelinesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<WebhooksState> = MutableStateFlow(WebhooksState.Loading)
 
@@ -333,10 +339,7 @@ class WebhooksController(
     }
 
     private fun failWrite(detail: String) {
-        val current: WebhooksState = _state.value
-        _state.value =
-            if (current is WebhooksState.Ready) current.copy(actionError = detail)
-            else WebhooksState.Error(detail)
+        feedback.error(Res.string.webhooks_action_error, detail)
     }
 }
 
@@ -349,7 +352,6 @@ sealed interface WebhooksState {
         val outbound: List<OutboundWebhook>,
         val pipelines: List<PipelineSummary> = emptyList(),
         val catalogue: List<OutboundEventCatalogueEntry> = emptyList(),
-        val actionError: String? = null,
     ) : WebhooksState
 
     data class Error(val detail: String) : WebhooksState

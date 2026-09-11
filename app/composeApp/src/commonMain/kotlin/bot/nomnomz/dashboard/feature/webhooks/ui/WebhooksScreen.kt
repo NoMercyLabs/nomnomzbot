@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -89,7 +88,6 @@ import nomnomzbot.composeapp.generated.resources.pipelines_empty
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
 import nomnomzbot.composeapp.generated.resources.shell_nav_webhooks
-import nomnomzbot.composeapp.generated.resources.webhooks_action_error
 import nomnomzbot.composeapp.generated.resources.webhooks_adapter_buymeacoffee
 import nomnomzbot.composeapp.generated.resources.webhooks_adapter_fourthwall
 import nomnomzbot.composeapp.generated.resources.webhooks_adapter_generic
@@ -252,9 +250,6 @@ fun WebhooksScreen(
             is WebhooksState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is WebhooksState.Ready -> {
-                current.actionError?.let { detail ->
-                    ActionErrorBanner(message = stringResource(Res.string.webhooks_action_error, detail))
-                }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(spacing.s4),

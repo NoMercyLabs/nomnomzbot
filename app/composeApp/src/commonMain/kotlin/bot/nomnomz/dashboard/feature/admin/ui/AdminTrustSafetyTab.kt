@@ -22,7 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -128,9 +128,8 @@ internal fun TrustSafetyTab(state: AdminState, controller: AdminController) {
             Text(text = stringResource(Res.string.admin_trust_safety_look))
         }
 
-        state.crossTenantSignalsError?.let { ActionErrorBanner(message = it) }
-        state.reviewQueueError?.let { ActionErrorBanner(message = it) }
-        state.reviewActionError?.let { ActionErrorBanner(message = it) }
+        state.crossTenantSignalsError?.let { InlineError(message = it) }
+        state.reviewQueueError?.let { InlineError(message = it) }
 
         Text(
             text = stringResource(Res.string.admin_trust_safety_section_signals),
@@ -347,8 +346,7 @@ private fun NetworkBlockSection(state: AdminState, controller: AdminController, 
         }
 
         if (state.networkBlockPreviewLoading) Spinner(color = tokens.primary)
-        state.networkBlockPreviewError?.let { ActionErrorBanner(message = it) }
-        state.networkBlockApplyError?.let { ActionErrorBanner(message = it) }
+        state.networkBlockPreviewError?.let { InlineError(message = it) }
 
         preview?.let {
             Text(
@@ -368,7 +366,6 @@ private fun NetworkBlockSection(state: AdminState, controller: AdminController, 
                 controller.loadNetworkBlocks()
             }
         }
-        state.networkBlockLiftError?.let { ActionErrorBanner(message = it) }
         when {
             state.networkBlocksLoading -> Spinner(color = tokens.primary)
             state.networkBlocks.isNotEmpty() -> Card(modifier = Modifier.fillMaxWidth()) {

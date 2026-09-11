@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.alerts.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.AlertDetail
 import bot.nomnomz.dashboard.core.network.AlertQueueDto
 import bot.nomnomz.dashboard.core.network.AlertSummary
@@ -144,7 +146,6 @@ class AlertsControllerTest {
         val alerts: List<AlertSummary> = (state as AlertsState.Ready).alerts
         assertEquals(1, alerts.size)
         assertEquals("channel.subscribe", alerts.first().eventType)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -228,17 +229,24 @@ class AlertsControllerTest {
                 ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow", isEnabled = true))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
+            AlertsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                alertsApi,
+                FakePipelinesApi(),
+                feedback,
+            )
         controller.load()
 
         controller.deleteAlert(eventType = "channel.follow")
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: AlertsState = controller.state.value
         assertTrue(state is AlertsState.Ready)
         assertEquals(1, (state as AlertsState.Ready).alerts.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 
     @Test
@@ -322,8 +330,14 @@ class AlertsControllerTest {
                 ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow"))),
                 detailResult = ApiResult.Failure(ApiError(500, "ERR", "detail boom")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
+            AlertsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                alertsApi,
+                FakePipelinesApi(),
+                feedback,
+            )
         controller.load()
 
         val detail: AlertDetail? = controller.detail("channel.follow")
@@ -331,7 +345,8 @@ class AlertsControllerTest {
         assertNull(detail)
         val state: AlertsState = controller.state.value
         assertTrue(state is AlertsState.Ready)
-        assertEquals("detail boom", (state as AlertsState.Ready).actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("detail boom"), feedback.only.formatArgs)
     }
 }
 

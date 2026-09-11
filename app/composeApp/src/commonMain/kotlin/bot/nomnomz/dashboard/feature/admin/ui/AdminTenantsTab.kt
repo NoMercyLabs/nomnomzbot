@@ -32,7 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -117,8 +117,7 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.actionError?.let { ActionErrorBanner(message = it) }
-        state.tenantsError?.let { ActionErrorBanner(message = it) }
+        state.tenantsError?.let { InlineError(message = it) }
 
         AppTextField(
             value = searchText,
@@ -155,8 +154,8 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
                         TenantRow(
                             tenant = tenant,
                             onView = { scope.launch { controller.openTenant(tenant.id) } },
-                            onSuspend = { controller.clearActionError(); suspendFor = tenant },
-                            onReinstate = { controller.clearActionError(); reinstateFor = tenant },
+                            onSuspend = { suspendFor = tenant },
+                            onReinstate = { reinstateFor = tenant },
                         )
                         if (index < state.tenants.lastIndex) Separator()
                     }
@@ -170,12 +169,9 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
         TenantDetailDrawer(
             detail = detail,
             onDismiss = { controller.closeTenant() },
-            onImpersonate = {
-                controller.clearActionError()
-                impersonateFor = detail
-            },
-            onSuspend = { controller.clearActionError(); suspendFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
-            onReinstate = { controller.clearActionError(); reinstateFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
+            onImpersonate = { impersonateFor = detail },
+            onSuspend = { suspendFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
+            onReinstate = { reinstateFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
         )
     }
 
@@ -203,18 +199,17 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
         ImpersonateDialog(
             subjectDisplayName = detail.ownerDisplayName,
             refusal = state.impersonationRefusal,
-            onDismiss = { controller.clearActionError(); impersonateFor = null },
+            onDismiss = { impersonateFor = null },
             onConfirm = { justification ->
                 scope.launch {
-                    controller.impersonateTenantOwner(
+                    val succeeded: Boolean = controller.impersonateTenantOwner(
                         broadcasterId = detail.id,
                         subjectUserId = detail.ownerUserId,
                         subjectDisplayName = detail.ownerDisplayName,
                         justification = justification,
                     )
-                    // A refusal keeps the dialog open (with its specific message); success has already swapped
-                    // the session by the time this resumes, so closing here is safe either way.
-                    if (state.impersonationRefusal == null && state.actionError == null) impersonateFor = null
+                    // A refusal keeps the dialog open (with its specific message); only a successful mint closes it.
+                    if (succeeded) impersonateFor = null
                 }
             },
         )
@@ -237,9 +232,9 @@ private fun ImpersonateDialog(
         DialogDescription(text = stringResource(Res.string.admin_impersonate_desc))
         when (refusal) {
             ImpersonationRefusal.NoOpenSupportSession ->
-                ActionErrorBanner(message = stringResource(Res.string.admin_impersonate_error_no_session))
+                InlineError(message = stringResource(Res.string.admin_impersonate_error_no_session))
             ImpersonationRefusal.NotPermitted ->
-                ActionErrorBanner(message = stringResource(Res.string.admin_impersonate_error_not_permitted))
+                InlineError(message = stringResource(Res.string.admin_impersonate_error_not_permitted))
             null -> Unit
         }
         AppTextField(
@@ -338,7 +333,7 @@ private fun TenantDetailDrawer(
             Text(text = detailDisplayName, style = typography.base, color = tokens.foreground)
 
             if (isSuspended) {
-                ActionErrorBanner(message = stringResource(Res.string.admin_tenant_suspended_banner) + (detail.suspendedReason?.let { ": $it" } ?: ""))
+                InlineError(message = stringResource(Res.string.admin_tenant_suspended_banner) + (detail.suspendedReason?.let { ": $it" } ?: ""))
             }
 
             DetailLine(stringResource(Res.string.admin_tenant_status, detail.status))

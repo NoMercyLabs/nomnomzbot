@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.vts.state
 
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -25,15 +26,15 @@ import java.util.Locale
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 // S105-I18N-HARDCODED-ERRORS: the VTS page used to build its "no active channel" error from a plain Kotlin
 // string literal (`VtsController.NoChannelError`) instead of a translation resource — an English-only message
-// baked straight into `VtsUiState.Error`/`actionError` regardless of the dashboard's chosen language. The
-// controller now resolves it through `Res.string.vts_no_channel_error` (the same real Compose Resources
-// pipeline `stringResource` uses). This proves the fix the way SchemaLocalizationManifestTest proves schema
-// strings: force the JVM default locale to Dutch and assert the controller's error state carries the ACTUAL
-// Dutch translation — not the hardcoded English sentence, which would fail this assertion if it ever came back.
+// baked straight into the feedback toast regardless of the dashboard's chosen language. The controller now
+// resolves it through `Res.string.vts_no_channel_error` (the same real Compose Resources pipeline
+// `stringResource` uses). This proves the fix the way SchemaLocalizationManifestTest proves schema strings:
+// force the JVM default locale to Dutch and assert the announced feedback message's format arg carries the
+// ACTUAL Dutch translation — not the hardcoded English sentence, which would fail this assertion if it ever
+// came back.
 class VtsControllerLocalizationTest {
 
     @Test
@@ -44,19 +45,19 @@ class VtsControllerLocalizationTest {
 
             // primaryChannel() fails, so load() never resolves a channelId — every write below hits the
             // "no active channel" branch without needing a working VtsApi.
+            val feedback = RecordingFeedback()
             val controller =
                 VtsController(
                     FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                     UnreachableVtsApi(),
+                    feedback,
                 )
 
             controller.saveConnection(mode = "direct", endpoint = null, isEnabled = true)
 
-            val state: VtsUiState = controller.state.value
-            assertTrue(state is VtsUiState.Error)
             assertEquals(
-                "Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.",
-                (state as VtsUiState.Error).detail,
+                listOf<Any>("Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals."),
+                feedback.only.formatArgs,
             )
         } finally {
             Locale.setDefault(original)
@@ -69,20 +70,20 @@ class VtsControllerLocalizationTest {
         try {
             Locale.setDefault(Locale.forLanguageTag("nl"))
 
+            val feedback = RecordingFeedback()
             val controller =
                 VtsController(
                     FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                     UnreachableVtsApi(),
+                    feedback,
                 )
 
             val result: VtsRequestResult? = controller.control("HotkeyTriggerRequest", payloadJson = null)
 
             assertEquals(null, result)
-            val state: VtsUiState = controller.state.value
-            assertTrue(state is VtsUiState.Error)
             assertEquals(
-                "Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.",
-                (state as VtsUiState.Error).detail,
+                listOf<Any>("Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals."),
+                feedback.only.formatArgs,
             )
         } finally {
             Locale.setDefault(original)

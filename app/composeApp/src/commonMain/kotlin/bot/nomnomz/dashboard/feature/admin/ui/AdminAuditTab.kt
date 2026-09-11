@@ -32,7 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -75,7 +75,7 @@ internal fun AuditTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.auditError?.let { ActionErrorBanner(message = it) }
+        state.auditError?.let { InlineError(message = it) }
 
         AppTextField(
             value = permissionText,

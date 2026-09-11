@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.vts.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.vts_action_error
 import nomnomzbot.composeapp.generated.resources.vts_no_channel_error
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
@@ -31,11 +34,13 @@ import org.jetbrains.compose.resources.getString
 // authorization, and — when authorized — the live model/hotkey/expression inventory for the control pickers. It
 // resolves the active channel, reads the connection row (fatal when it can't), then best-effort reads the
 // inventory. The blocking authorize call (up to ~60s while the streamer clicks Allow in VTS) is a distinct
-// suspend fun returning a typed outcome so the screen surfaces grant / deny / timeout in its own words.
+// suspend fun returning a typed outcome so the screen surfaces grant / deny / timeout in its own words. Write
+// failures announce on the shell-level [feedback] toast, not a local state field.
 @OptIn(ExperimentalResourceApi::class)
 class VtsController(
     private val channelsApi: ChannelsApi,
     private val vtsApi: VtsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<VtsUiState> = MutableStateFlow(VtsUiState.Loading)
 
@@ -60,7 +65,7 @@ class VtsController(
         refresh()
     }
 
-    /** Re-read the connection + inventory and rebuild the ready state (preserving any transient action error). */
+    /** Re-read the connection + inventory and rebuild the ready state. */
     suspend fun refresh() {
         val id: String = channelId ?: return
 
@@ -80,9 +85,7 @@ class VtsController(
                 is ApiResult.Failure -> null
             }
 
-        val previous: VtsUiState.Ready? = _state.value as? VtsUiState.Ready
-        _state.value =
-            VtsUiState.Ready(connection = connection, inventory = inventory, actionError = previous?.actionError)
+        _state.value = VtsUiState.Ready(connection = connection, inventory = inventory)
     }
 
     /**
@@ -172,10 +175,7 @@ class VtsController(
     }
 
     private fun failWrite(detail: String) {
-        val current: VtsUiState = _state.value
-        _state.value =
-            if (current is VtsUiState.Ready) current.copy(actionError = detail)
-            else VtsUiState.Error(detail)
+        feedback.error(Res.string.vts_action_error, detail)
     }
 
 }
@@ -196,14 +196,10 @@ enum class VtsAuthorizeOutcome {
 sealed interface VtsUiState {
     data object Loading : VtsUiState
 
-    /**
-     * The channel's VTS config and (when authorized) the live inventory for the control pickers. [actionError]
-     * is non-null only when the last write/control failed — surfaced as a transient banner over the content.
-     */
+    /** The channel's VTS config and (when authorized) the live inventory for the control pickers. */
     data class Ready(
         val connection: VtsConnection,
         val inventory: VtsModelInventory?,
-        val actionError: String? = null,
     ) : VtsUiState
 
     data class Error(val detail: String) : VtsUiState

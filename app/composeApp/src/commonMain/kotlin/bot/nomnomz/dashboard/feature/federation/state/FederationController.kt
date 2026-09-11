@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.federation.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.AddPeerKeyBody
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -22,12 +24,16 @@ import bot.nomnomz.dashboard.core.network.UpsertOptInBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.federation_action_error
 
 // The Federation page's state-holder. Loads the global peer list and the channel's opt-in list, then
-// drives all mutations: register/trust/revoke peers, manage signing keys, upsert/remove opt-ins.
+// drives all mutations: register/trust/revoke peers, manage signing keys, upsert/remove opt-ins. Write
+// failures announce on the shell-level [feedback] toast, not a local state field.
 class FederationController(
     private val channelsApi: ChannelsApi,
     private val federationApi: FederationApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<FederationState> = MutableStateFlow(FederationState.Loading)
 
@@ -131,10 +137,7 @@ class FederationController(
     }
 
     private fun failWrite(detail: String) {
-        val current: FederationState = _state.value
-        _state.value =
-            if (current is FederationState.Ready) current.copy(actionError = detail)
-            else FederationState.Error(detail)
+        feedback.error(Res.string.federation_action_error, detail)
     }
 }
 
@@ -145,7 +148,6 @@ sealed interface FederationState {
     data class Ready(
         val peers: List<FederatedPeer>,
         val optIns: List<FederatedOptIn>,
-        val actionError: String? = null,
     ) : FederationState
 
     data class Error(val detail: String) : FederationState

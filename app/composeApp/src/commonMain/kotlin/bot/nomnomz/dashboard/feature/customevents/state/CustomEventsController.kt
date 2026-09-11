@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.customevents.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CustomDataSource
 import bot.nomnomz.dashboard.core.network.CustomDataSourceOption
@@ -21,12 +23,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.custom_events_action_error
 
 // The Custom Events page's state-holder: loads the channel's custom data sources and the available quick-start
 // presets. All mutations — create, update, delete, test — reload the source list on success so the page always
 // reflects the backend's truth. The controller knows nothing about the UI; it exposes only typed state + suspend
-// functions for the screen to call from a coroutineScope.
-class CustomEventsController(private val api: CustomEventsApi) {
+// functions for the screen to call from a coroutineScope. Write failures announce on the shell-level
+// [feedback] toast, not a local state field.
+class CustomEventsController(
+    private val api: CustomEventsApi,
+    private val feedback: Feedback = NoOpFeedback,
+) {
 
     private val _state: MutableStateFlow<CustomEventsState> = MutableStateFlow(CustomEventsState.Loading)
 
@@ -149,10 +157,7 @@ class CustomEventsController(private val api: CustomEventsApi) {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun failWrite(detail: String) {
-        val current: CustomEventsState = _state.value
-        _state.value =
-            if (current is CustomEventsState.Ready) current.copy(actionError = detail)
-            else CustomEventsState.Error(detail)
+        feedback.error(Res.string.custom_events_action_error, detail)
     }
 }
 
@@ -163,7 +168,6 @@ sealed interface CustomEventsState {
     data class Ready(
         val sources: List<CustomDataSource>,
         val presets: List<CustomDataSourcePreset>,
-        val actionError: String? = null,
     ) : CustomEventsState
 
     data class Error(val detail: String) : CustomEventsState

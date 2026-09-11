@@ -3818,6 +3818,8 @@
     <string name="admin_tenant_close">Sluiten</string>
     <string name="admin_tenant_impersonate">Handel als eigenaar</string>
     <string name="admin_tenant_empty">Geen tenants gevonden.</string>
+    <!-- General write-action outcome (billing, IAM, grants, invoices, content, ops, trust &amp; safety, platform bot) -->
+    <string name="admin_action_error">Actie mislukt: %1$s</string>
     <!-- Audit -->
     <string name="admin_audit_title">Auditlog</string>
     <string name="admin_audit_permission">Recht</string>

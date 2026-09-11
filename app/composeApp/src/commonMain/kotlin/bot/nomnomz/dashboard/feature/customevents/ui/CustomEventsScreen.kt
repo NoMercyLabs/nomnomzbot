@@ -48,7 +48,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -85,7 +84,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.custom_events_action_error
 import nomnomzbot.composeapp.generated.resources.custom_events_cancel
 import nomnomzbot.composeapp.generated.resources.custom_events_create_title
 import nomnomzbot.composeapp.generated.resources.custom_events_delete_cancel
@@ -204,10 +202,6 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
 
             is CustomEventsState.Ready -> {
-                current.actionError?.let { detail ->
-                    ActionErrorBanner(message = stringResource(Res.string.custom_events_action_error, detail))
-                }
-
                 // What a data source IS + a concrete example — the page was a bare CRUD shell before.
                 PurposeCard()
 

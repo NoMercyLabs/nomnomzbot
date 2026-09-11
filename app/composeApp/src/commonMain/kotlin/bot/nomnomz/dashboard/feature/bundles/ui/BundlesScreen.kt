@@ -35,7 +35,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -76,7 +75,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.bundles_action_error
 import nomnomzbot.composeapp.generated.resources.bundles_cancel
 import nomnomzbot.composeapp.generated.resources.bundles_description_label
 import nomnomzbot.composeapp.generated.resources.bundles_error
@@ -186,9 +184,6 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
                         title = stringResource(Res.string.bundles_title),
                         subtitle = stringResource(Res.string.bundles_subtitle),
                     )
-                    current.actionError?.let {
-                        ActionErrorBanner(message = stringResource(Res.string.bundles_action_error, it))
-                    }
                     current.notice?.let { NoticeText(it) }
 
                     TabsList {

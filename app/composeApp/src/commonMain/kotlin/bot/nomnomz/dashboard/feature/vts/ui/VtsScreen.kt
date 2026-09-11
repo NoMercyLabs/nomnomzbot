@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -67,7 +66,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.vts_action_error
 import nomnomzbot.composeapp.generated.resources.vts_activate_expression
 import nomnomzbot.composeapp.generated.resources.vts_authorize
 import nomnomzbot.composeapp.generated.resources.vts_authorize_denied
@@ -141,9 +139,6 @@ fun VtsScreen(controller: VtsController, role: ManagementRole?) {
                         title = stringResource(Res.string.shell_nav_vts),
                         subtitle = stringResource(Res.string.vts_subtitle),
                     )
-                    current.actionError?.let {
-                        ActionErrorBanner(message = stringResource(Res.string.vts_action_error, it))
-                    }
                     ConnectionCard(
                         connection = current.connection,
                         manage = configManage,

@@ -28,7 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.input.ImeAction
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
@@ -466,7 +466,7 @@ private fun TabContentOrSpinner(isLoading: Boolean, tokens: Tokens, content: @Co
 internal fun AdminLoadErrorBanner(error: String?) {
     val spacing = LocalSpacing.current
     error?.let {
-        ActionErrorBanner(message = it, modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s2))
+        InlineError(message = it, modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s2))
     }
 }
 
@@ -1086,7 +1086,6 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
     val scope = rememberCoroutineScope()
 
     var editing: ProviderCredential? by remember { mutableStateOf(null) }
-    var actionError: String? by remember { mutableStateOf(null) }
     var confirmClear: ProviderCredential? by remember { mutableStateOf(null) }
 
     Column(
@@ -1099,8 +1098,7 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
             color = tokens.mutedForeground,
         )
 
-        state.providersError?.let { ActionErrorBanner(message = it) }
-        actionError?.let { ActionErrorBanner(message = it) }
+        state.providersError?.let { InlineError(message = it) }
 
         if (state.providerCredentials.isEmpty()) {
             EmptyLine(stringResource(Res.string.admin_providers_empty))
@@ -1126,10 +1124,7 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
             onDismiss = { editing = null },
             onSave = { clientId, clientSecret ->
                 editing = null
-                scope.launch {
-                    actionError =
-                        controller.saveProviderCredential(provider.provider, clientId, clientSecret)
-                }
+                scope.launch { controller.saveProviderCredential(provider.provider, clientId, clientSecret) }
             },
         )
     }
@@ -1150,7 +1145,7 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
             destructive = true,
             onConfirm = {
                 confirmClear = null
-                scope.launch { actionError = controller.clearProviderCredential(provider.provider) }
+                scope.launch { controller.clearProviderCredential(provider.provider) }
             },
             onDismiss = { confirmClear = null },
         )
@@ -1424,8 +1419,6 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.actionError?.let { ActionErrorBanner(message = it) }
-
         Card(modifier = Modifier.fillMaxWidth()) {
             Column {
                 state.featureFlags.forEachIndexed { index, flag ->

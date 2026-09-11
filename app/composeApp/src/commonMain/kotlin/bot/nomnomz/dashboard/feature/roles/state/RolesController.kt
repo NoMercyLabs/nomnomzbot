@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.roles.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionPermission
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelMembership
@@ -22,6 +24,8 @@ import bot.nomnomz.dashboard.core.network.UserSearchResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.roles_action_error
 
 // The Roles & Permits page's state-holder (the bot's IAM management, roles-permissions §5). Resolves the active
 // channel, then loads its real management membership, its active per-user permit grants, and the per-action
@@ -29,10 +33,11 @@ import kotlinx.coroutines.flow.asStateFlow
 // grant may target. It also drives the page's writes — assign a management role, grant a user a single
 // capability, revoke either — each of which re-loads on success so the screen always reflects the backend's
 // truth (which re-checks no-escalation on every write). The screen renders [state]; a retry / reconnect calls
-// [load] again.
+// [load] again. Write failures announce on the shell-level [feedback] toast, not a local state field.
 class RolesController(
     private val channelsApi: ChannelsApi,
     private val rolesApi: RolesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<RolesState> = MutableStateFlow(RolesState.Loading)
 
@@ -172,10 +177,7 @@ class RolesController(
     }
 
     private fun failWrite(detail: String) {
-        val current: RolesState = _state.value
-        _state.value =
-            if (current is RolesState.Ready) current.copy(actionError = detail)
-            else RolesState.Error(detail)
+        feedback.error(Res.string.roles_action_error, detail)
     }
 
     private companion object {
@@ -190,15 +192,13 @@ sealed interface RolesState {
     /**
      * The channel's IAM is listed: its management [members], its active per-user [permits], the
      * [grantableActions] a capability grant may target (permit-grantable action keys), and the full [allActions]
-     * matrix used to display and manage per-action level overrides. [actionError] is non-null only when the last
-     * assign/grant/revoke/override failed — surfaces as a banner while keeping the lists rendered.
+     * matrix used to display and manage per-action level overrides.
      */
     data class Ready(
         val members: List<ChannelMembership>,
         val permits: List<PermitGrant>,
         val grantableActions: List<ActionPermission>,
         val allActions: List<ActionPermission> = emptyList(),
-        val actionError: String? = null,
     ) : RolesState
 
     data object Empty : RolesState

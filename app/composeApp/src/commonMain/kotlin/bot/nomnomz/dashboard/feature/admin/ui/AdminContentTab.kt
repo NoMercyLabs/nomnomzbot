@@ -49,7 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -237,8 +237,7 @@ private fun ContentDefinitionList(state: AdminState, controller: AdminController
             color = tokens.mutedForeground,
         )
 
-        state.contentError?.let { ActionErrorBanner(message = it) }
-        state.contentActionError?.let { ActionErrorBanner(message = it) }
+        state.contentError?.let { InlineError(message = it) }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -489,8 +488,7 @@ private fun ContentDefinitionDetail(
             Text(text = stringResource(Res.string.admin_content_back_to_list))
         }
 
-        state.contentDetailError?.let { ActionErrorBanner(message = it) }
-        state.contentActionError?.let { ActionErrorBanner(message = it) }
+        state.contentDetailError?.let { InlineError(message = it) }
         state.lastPublishJob?.let { job ->
             Text(
                 text = stringResource(Res.string.admin_content_publish_success, job.confirmedAffectedCount ?: job.previewAffectedCount),
@@ -835,7 +833,7 @@ private fun PublishDialog(
                     )
                 }
             }
-            state.publishPreviewError != null -> ActionErrorBanner(message = state.publishPreviewError)
+            state.publishPreviewError != null -> InlineError(message = state.publishPreviewError)
             else -> Text(text = stringResource(Res.string.admin_content_preview_none), style = typography.sm, color = tokens.mutedForeground)
         }
 
@@ -852,8 +850,6 @@ private fun PublishDialog(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-
-        state.publishError?.let { ActionErrorBanner(message = it) }
 
         DialogFooter {
             Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {

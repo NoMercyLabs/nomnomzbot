@@ -31,7 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -140,7 +140,7 @@ internal fun EventSubHealthTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.eventSubHealthError?.let { ActionErrorBanner(message = it) }
+        state.eventSubHealthError?.let { InlineError(message = it) }
 
         if (state.eventSubHealthLoading) {
             Spinner(color = tokens.primary)
@@ -227,8 +227,7 @@ internal fun WebhookDeliveriesTab(state: AdminState, controller: AdminController
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.webhookDeliveriesError?.let { ActionErrorBanner(message = it) }
-        state.replayError?.let { ActionErrorBanner(message = it) }
+        state.webhookDeliveriesError?.let { InlineError(message = it) }
 
         if (state.webhookDeliveriesLoading) {
             Spinner(color = tokens.primary)
@@ -373,8 +372,7 @@ internal fun ScheduledJobsTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.scheduledJobsError?.let { ActionErrorBanner(message = it) }
-        state.retryError?.let { ActionErrorBanner(message = it) }
+        state.scheduledJobsError?.let { InlineError(message = it) }
 
         if (state.scheduledJobsLoading) {
             Spinner(color = tokens.primary)
@@ -507,7 +505,7 @@ internal fun TenantUsageTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.tenantUsageError?.let { ActionErrorBanner(message = it) }
+        state.tenantUsageError?.let { InlineError(message = it) }
 
         if (state.tenantUsageLoading) {
             Spinner(color = tokens.primary)
@@ -625,7 +623,7 @@ internal fun ErrorBudgetTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.errorBudgetError?.let { ActionErrorBanner(message = it) }
+        state.errorBudgetError?.let { InlineError(message = it) }
 
         if (state.errorBudgetLoading) {
             Spinner(color = tokens.primary)
@@ -717,9 +715,8 @@ internal fun EventReplayTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        state.replayProjectionsError?.let { ActionErrorBanner(message = it) }
-        state.replayPreviewError?.let { ActionErrorBanner(message = it) }
-        state.replayExecuteError?.let { ActionErrorBanner(message = it) }
+        state.replayProjectionsError?.let { InlineError(message = it) }
+        state.replayPreviewError?.let { InlineError(message = it) }
 
         if (state.replayProjectionsLoading) {
             Spinner(color = tokens.primary)

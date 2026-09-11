@@ -37,7 +37,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -76,7 +75,6 @@ import kotlin.time.Duration.Companion.hours
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.roles_action_error
 import nomnomzbot.composeapp.generated.resources.roles_action_overrides_section
 import nomnomzbot.composeapp.generated.resources.roles_assign_confirm
 import nomnomzbot.composeapp.generated.resources.roles_assign_pick_role
@@ -227,12 +225,6 @@ private fun RolesContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        state.actionError?.let { detail ->
-            item(key = "action-error") {
-                ActionErrorBanner(message = stringResource(Res.string.roles_action_error, detail))
-            }
-        }
-
         item(key = "members-section") {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 // The section header carries the reach-a-viewer action: assign a management role to any viewer the

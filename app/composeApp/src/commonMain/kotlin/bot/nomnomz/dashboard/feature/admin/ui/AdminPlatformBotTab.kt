@@ -19,7 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -126,7 +126,7 @@ internal fun PlatformBotTab(state: AdminState, controller: AdminController) {
                     )
                 }
         }
-        state.platformBotStatusError?.let { ActionErrorBanner(message = it) }
+        state.platformBotStatusError?.let { InlineError(message = it) }
 
         AppTextField(
             value = state.platformBotJustification,
@@ -155,8 +155,7 @@ internal fun PlatformBotTab(state: AdminState, controller: AdminController) {
         }
 
         if (state.platformBotReconnectPreviewLoading) Spinner(color = tokens.primary)
-        state.platformBotReconnectPreviewError?.let { ActionErrorBanner(message = it) }
-        state.platformBotReconnectError?.let { ActionErrorBanner(message = it) }
+        state.platformBotReconnectPreviewError?.let { InlineError(message = it) }
 
         preview?.let {
             Text(

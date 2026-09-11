@@ -20,6 +20,8 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
@@ -135,7 +137,8 @@ class AdminScreenTest {
 
     // Every write in AdminController's "feature flags & billing" block discarded its ApiResult and reloaded
     // regardless, so a 403 on a flag toggle or a tier grant left the panel looking like nothing had happened.
-    // They now share writeThenReload, which sets actionError the way the IAM writes always have.
+    // They now share writeThenReload, which announces the failure on the shell-level feedback toast the way
+    // the IAM writes always have.
     @Test
     fun a_rejected_flag_write_surfaces_the_error_instead_of_reloading_silently() = runTest {
         val api = RecordingFeatureFlagAdminApi(
@@ -144,17 +147,25 @@ class AdminScreenTest {
             ),
             setFeatureFlagFailure = ApiError(status = 403, code = null, message = "Not permitted on this deployment"),
         )
-        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+        val feedback = RecordingFeedback()
+        val controller =
+            AdminController(
+                api = api,
+                iamApi = NoopPlatformIamApi(),
+                platformAdminApi = NoopPlatformAdminApi(),
+                feedback = feedback,
+            )
 
         controller.setFeatureFlag(
             AdminSetFeatureFlagRequest(key = "new-dashboard", isEnabledGlobally = true, rolloutPercentage = 50),
         )
 
         assertEquals(
-            "Not permitted on this deployment",
-            controller.state.value.actionError,
+            FeedbackKind.Error,
+            feedback.only.kind,
             "a rejected admin write must surface its error, not be swallowed",
         )
+        assertEquals(listOf<Any>("Not permitted on this deployment"), feedback.only.formatArgs)
     }
 
     // S-OWN08b: the admin Channels/Users lists had no search — unbounded, unsearchable on any real deployment.

@@ -22,7 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -116,8 +116,8 @@ internal fun SupportTab(state: AdminState, controller: AdminController) {
             Text(text = stringResource(Res.string.admin_support_find))
         }
 
-        state.supportError?.let { ActionErrorBanner(message = it) }
-        state.supportPersonError?.let { ActionErrorBanner(message = it) }
+        state.supportError?.let { InlineError(message = it) }
+        state.supportPersonError?.let { InlineError(message = it) }
 
         when {
             state.supportLoading || state.supportPersonLoading -> Spinner(color = tokens.primary)
@@ -371,7 +371,7 @@ private fun ActivitySection(
         when {
             loading -> Spinner(color = tokens.primary)
             error != null ->
-                ActionErrorBanner(
+                InlineError(
                     message = stringResource(Res.string.admin_support_activity_error, error),
                 )
             history.isNotEmpty() -> Card(modifier = Modifier.fillMaxWidth()) {

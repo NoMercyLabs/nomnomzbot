@@ -3832,6 +3832,8 @@
     <string name="admin_tenant_close">Close</string>
     <string name="admin_tenant_impersonate">Impersonate owner</string>
     <string name="admin_tenant_empty">No tenants match.</string>
+    <!-- General write-action outcome (billing, IAM, grants, invoices, content, ops, trust &amp; safety, platform bot) -->
+    <string name="admin_action_error">Action failed: %1$s</string>
     <!-- Audit -->
     <string name="admin_audit_title">Audit log</string>
     <string name="admin_audit_permission">Permission</string>

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.roles.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ActionPermission
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -25,7 +27,6 @@ import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.core.network.UserSearchResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -80,7 +81,6 @@ class RolesControllerTest {
         assertEquals("stream:title:set", ready.permits.first().capabilityActionKey)
         // Only the permit-grantable action key is offered (the default-deny one is filtered out).
         assertEquals(listOf("stream:title:set"), ready.grantableActions.map { it.actionKey })
-        assertNull(ready.actionError)
     }
 
     @Test
@@ -192,7 +192,6 @@ class RolesControllerTest {
         val state: RolesState = controller.state.value
         assertTrue(state is RolesState.Ready)
         assertEquals(ManagementRole.Editor, (state as RolesState.Ready).members.first().managementRole)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -203,7 +202,9 @@ class RolesControllerTest {
                 membersResults = listOf(ApiResult.Ok(listOf(member))),
                 assignResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "No escalation.")),
             )
-        val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi, feedback)
 
         controller.load()
         controller.assignRole("u1", ManagementRole.Broadcaster)
@@ -211,9 +212,10 @@ class RolesControllerTest {
         assertEquals(listOf(Triple("ch1", "u1", ManagementRole.Broadcaster)), rolesApi.assignCalls)
         val state: RolesState = controller.state.value
         assertTrue(state is RolesState.Ready)
-        // The list is intact (still a Moderator) and the failure is surfaced.
+        // The list is intact (still a Moderator) and the failure announces on the shell-level feedback toast.
         assertEquals(ManagementRole.Moderator, (state as RolesState.Ready).members.first().managementRole)
-        assertEquals("No escalation.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("No escalation."), feedback.only.formatArgs)
         // Only the initial load fetched members; the failed write did not trigger a reload.
         assertEquals(1, rolesApi.membersCalls)
     }
@@ -240,7 +242,6 @@ class RolesControllerTest {
         assertTrue(state is RolesState.Ready)
         // The removed member dropped off; the other stays.
         assertEquals(listOf("u2"), (state as RolesState.Ready).members.map { it.userId })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -271,7 +272,6 @@ class RolesControllerTest {
         assertEquals(1, permits.size)
         assertEquals(PermitGrantType.Capability, permits.first().type)
         assertEquals("stream:title:set", permits.first().capabilityActionKey)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -284,7 +284,9 @@ class RolesControllerTest {
                 matrixResult = ApiResult.Ok(listOf(action(key = "ban:user", grantable = true))),
                 grantResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Above your level.")),
             )
-        val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi, feedback)
 
         controller.load()
         controller.grantCapability("u1", "ban:user", null, null)
@@ -292,9 +294,10 @@ class RolesControllerTest {
         assertEquals(listOf(GrantCall("ch1", "u1", "ban:user", null, null)), rolesApi.grantCalls)
         val state: RolesState = controller.state.value
         assertTrue(state is RolesState.Ready)
-        // The lists are intact (no permit was added) and the failure is surfaced.
+        // The lists are intact (no permit was added) and the failure announces on the shell-level feedback toast.
         assertTrue((state as RolesState.Ready).permits.isEmpty())
-        assertEquals("Above your level.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("Above your level."), feedback.only.formatArgs)
         assertEquals(1, rolesApi.membersCalls)
     }
 
@@ -321,7 +324,6 @@ class RolesControllerTest {
         val state: RolesState = controller.state.value
         assertTrue(state is RolesState.Ready)
         assertTrue((state as RolesState.Ready).permits.isEmpty())
-        assertNull(state.actionError)
     }
 
     @Test
@@ -334,7 +336,9 @@ class RolesControllerTest {
                 permitsResults = listOf(ApiResult.Ok(listOf(grant))),
                 revokeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed.")),
             )
-        val controller = RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            RolesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rolesApi, feedback)
 
         controller.load()
         controller.revokePermit("u1", "stream:title:set")
@@ -345,9 +349,10 @@ class RolesControllerTest {
         )
         val state: RolesState = controller.state.value
         assertTrue(state is RolesState.Ready)
-        // The grant is still present and the failure is surfaced.
+        // The grant is still present and the failure announces on the shell-level feedback toast.
         assertEquals(listOf("p1"), (state as RolesState.Ready).permits.map { it.id })
-        assertEquals("Not allowed.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("Not allowed."), feedback.only.formatArgs)
         assertEquals(1, rolesApi.membersCalls)
     }
 
@@ -395,7 +400,6 @@ class RolesControllerTest {
         assertEquals(PermitGrantType.Role, permits.first().type)
         assertEquals(ManagementRole.Moderator, permits.first().role)
         assertEquals("u9", permits.first().userId)
-        assertNull(state.actionError)
     }
 
     @Test

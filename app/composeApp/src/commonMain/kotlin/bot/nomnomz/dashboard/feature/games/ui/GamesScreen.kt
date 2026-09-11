@@ -49,7 +49,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -80,7 +79,6 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_games
 import nomnomzbot.composeapp.generated.resources.games_18plus
-import nomnomzbot.composeapp.generated.resources.games_action_error
 import nomnomzbot.composeapp.generated.resources.games_cooldown
 import nomnomzbot.composeapp.generated.resources.games_dialog_18plus_label
 import nomnomzbot.composeapp.generated.resources.games_dialog_advanced_section
@@ -190,7 +188,6 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
                     history = current.history,
                     liveCatalog = current.liveCatalog,
                     activeSession = current.activeSession,
-                    actionError = current.actionError,
                     manage = manage,
                     liveManage = liveManage,
                     onToggle = { game, enabled ->
@@ -237,7 +234,6 @@ private fun ManagedContent(
     history: List<GamePlayEntry>,
     liveCatalog: List<LiveGameCatalogEntry>,
     activeSession: GameSession?,
-    actionError: String?,
     manage: ManageDecision,
     liveManage: ManageDecision,
     onToggle: (GameSummary, Boolean) -> Unit,
@@ -255,9 +251,6 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_games)) }
-        actionError?.let { detail ->
-            item(key = "action-error") { ActionErrorBanner(message = stringResource(Res.string.games_action_error, detail)) }
-        }
 
         // ── Interactive overlay games (live, join-by-keyword) ────────────────────────────────────────────────
         // The flashy half: catalog rounds a streamer/mod starts and viewers join with a keyword. Rendered first so

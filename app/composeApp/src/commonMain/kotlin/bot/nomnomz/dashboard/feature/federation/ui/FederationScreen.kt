@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -62,7 +61,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.federation_action_error
 import nomnomzbot.composeapp.generated.resources.federation_error
 import nomnomzbot.composeapp.generated.resources.federation_loading
 import nomnomzbot.composeapp.generated.resources.federation_optin_add
@@ -132,9 +130,6 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
             is FederationState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is FederationState.Ready -> {
-                current.actionError?.let { detail ->
-                    ActionErrorBanner(message = stringResource(Res.string.federation_action_error, detail))
-                }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(spacing.s3),
