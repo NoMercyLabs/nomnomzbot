@@ -36,12 +36,20 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       a picker (needs a new `IObsControlService` method wrapping OBS-WS `GetHotkeyList` first);
       **screenshot** (`ScreenshotAsync`) and **batch/vendor pass-through** (`RequestBatchAsync`,
       `CallVendorAsync`) have no controller route or UI.
-- [ ] **S-STREAMDECK-OBS-REMAINDER** Replay-buffer/virtual-cam keys and the scene/input dropdown
-      pickers (`8957ed53`, new `automation/v1/obs/scenes`+`obs/inputs` endpoints) are shipped — icons
-      are still placeholders, reusing `record-start.svg`/`device.svg` pending real OBS-themed art.
-      Still open: **live icon state** (mute/streaming/recording tile feedback) — no OBS equivalent of
-      music's `song.changed` WS push exists yet; needs a new `IObsControlService`-side push, event
-      descriptor, WS wiring, and plugin-side rendering — a materially separate feature.
+- [ ] **S-STREAMDECK-OBS-REMAINDER** (`0d804e82`) Full parity with the backend's 19 OBS pipeline
+      action types minus one: all scene/source/filter/transition/input/media/hotkey/screenshot/replay/
+      raw-request/vendor-call actions now have Stream Deck keys, picker-backed where a list endpoint
+      exists. Icons are still placeholders, reusing `record-start.svg`/`device.svg` pending real
+      OBS-themed art. Still open:
+      - **`obs_request_batch`** — genuinely blocked, not deferred for UI-shaping reasons:
+        `PipelineEngine.ResolveTemplatedFieldsAsync` always re-wraps a templated field as a JSON
+        string, never an array, so its required `requests` array can never survive the
+        automation-invoke path. Needs an engine-level fix before any UI is worth building (also
+        affects `obs_request`/`obs_call_vendor`'s `request_data` object field the same way — those
+        got Stream Deck fields anyway since they'll start working once the engine gap closes).
+      - **Live icon state** (mute/streaming/recording tile feedback) — no OBS equivalent of music's
+        `song.changed` WS push exists yet; needs a new `IObsControlService`-side push, event
+        descriptor, WS wiring, and plugin-side rendering — a materially separate feature.
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
