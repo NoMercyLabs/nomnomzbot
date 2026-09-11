@@ -28,9 +28,6 @@ buffer/virtual cam), `b72c491c`+`5eba6182`+`5f8ad377` (Stream Deck OBS plugin + 
 fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container sweep), `f96ecdcb`
 (music sanction audit), `5ede9fb9` (OBS scene idempotency). What's left, filed as its own slices:
 
-- [ ] **S-PL7-VISUAL** A live browser render check of the 7 screens the scroll-container sweep
-      touched (Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/Widgets) is still owed — the wasm
-      dev server hit a memory-contention failure on this box every attempt this session.
 - [ ] **S-OBS-UI-REMAINDER** (`57a34672`) Studio mode, scene transitions, source visibility, source
       filters, stats, virtual-cam status, media transport, and browser-source refresh are now wired
       end to end (6 new controller routes + 5 new Compose cards); recording gained Pause/Resume/Split.
