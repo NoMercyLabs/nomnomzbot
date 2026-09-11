@@ -41,13 +41,18 @@ public sealed class TtsService : ITtsService
     public async Task<TtsResult> SynthesizeAsync(
         string text,
         string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null,
         CancellationToken ct = default
     )
     {
         if (string.IsNullOrWhiteSpace(text))
             return new([], 0, voiceId, "none");
 
-        string cacheKey = BuildCacheKey(text, voiceId);
+        // Prosody overrides are a per-call flourish, never a cached property of the (text, voiceId) pair —
+        // folding them into the cache key keeps a rate/pitch-tweaked utterance from being served back for a
+        // later plain-default request (or vice versa) that happens to share the same text and voice.
+        string cacheKey = BuildCacheKey(text, voiceId, ratePercent, pitchPercent);
 
         // Check cache
         lock (_cacheLock)
@@ -66,7 +71,7 @@ public sealed class TtsService : ITtsService
         TtsSynthesisResult result;
         try
         {
-            result = await provider.SynthesizeAsync(text, voiceId, ct);
+            result = await provider.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
@@ -83,7 +88,14 @@ public sealed class TtsService : ITtsService
             if (edgeProvider is null)
                 return new([], 0, voiceId, "error");
 
-            result = await RetryThenFirstAvailableAsync(edgeProvider, text, voiceId, ct);
+            result = await RetryThenFirstAvailableAsync(
+                edgeProvider,
+                text,
+                voiceId,
+                ratePercent,
+                pitchPercent,
+                ct
+            );
         }
 
         if (result.AudioData.Length > 0)
@@ -180,20 +192,36 @@ public sealed class TtsService : ITtsService
         ITtsProvider provider,
         string text,
         string voiceId,
+        double? ratePercent,
+        double? pitchPercent,
         CancellationToken ct
     )
     {
-        TtsSynthesisResult result = await provider.SynthesizeAsync(text, voiceId, ct);
+        TtsSynthesisResult result = await provider.SynthesizeAsync(
+            text,
+            voiceId,
+            ratePercent,
+            pitchPercent,
+            ct
+        );
         if (result.AudioData.Length > 0)
             return result;
 
         IReadOnlyList<TtsVoiceInfo> voices = await provider.GetVoicesAsync(ct);
-        return voices.Count > 0 ? await provider.SynthesizeAsync(text, voices[0].Id, ct) : result;
+        return voices.Count > 0
+            ? await provider.SynthesizeAsync(text, voices[0].Id, ratePercent, pitchPercent, ct)
+            : result;
     }
 
-    private static string BuildCacheKey(string text, string voiceId)
+    private static string BuildCacheKey(
+        string text,
+        string voiceId,
+        double? ratePercent,
+        double? pitchPercent
+    )
     {
-        byte[] bytes = Encoding.UTF8.GetBytes(text + "|" + voiceId);
+        string key = $"{text}|{voiceId}|{ratePercent}|{pitchPercent}";
+        byte[] bytes = Encoding.UTF8.GetBytes(key);
         return Convert.ToHexString(SHA256.HashData(bytes))[..24];
     }
 }

@@ -35,6 +35,8 @@ public sealed class TtsVoiceCatalogSyncTests
         public Task<TtsSynthesisResult> SynthesizeAsync(
             string text,
             string voiceId,
+            double? ratePercent = null,
+            double? pitchPercent = null,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException("The catalogue sync never synthesizes.");
 

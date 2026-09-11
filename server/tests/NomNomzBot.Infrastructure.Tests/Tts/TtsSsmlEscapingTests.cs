@@ -82,4 +82,76 @@ public sealed class TtsSsmlEscapingTests
             .Value.Should()
             .Be(AmpersandAndAngleBrackets);
     }
+
+    // ── prosody (rate/pitch overrides) ──
+
+    [Fact]
+    public void Edge_BuildSsml_defaults_rate_and_pitch_to_plus_zero_percent_when_null()
+    {
+        string ssml = EdgeTtsProvider.BuildSsml("hello", "en-US-AriaNeural");
+
+        ssml.Should().Contain("rate='+0%'").And.Contain("pitch='+0%'");
+    }
+
+    [Fact]
+    public void Edge_BuildSsml_applies_a_within_range_rate_and_pitch_override()
+    {
+        string ssml = EdgeTtsProvider.BuildSsml(
+            "hello",
+            "en-US-ChristopherNeural",
+            ratePercent: -20,
+            pitchPercent: -15
+        );
+
+        ssml.Should().Contain("rate='-20%'").And.Contain("pitch='-15%'");
+    }
+
+    [Fact]
+    public void Edge_BuildSsml_clamps_an_out_of_range_rate_and_pitch_to_the_safe_bounds()
+    {
+        string ssml = EdgeTtsProvider.BuildSsml(
+            "hello",
+            "en-US-AriaNeural",
+            ratePercent: 99999,
+            pitchPercent: -99999
+        );
+
+        ssml.Should().Contain("rate='+50%'").And.Contain("pitch='-50%'");
+        ssml.Should().NotContain("99999");
+    }
+
+    [Fact]
+    public void Azure_BuildSsml_defaults_rate_and_pitch_to_plus_zero_percent_when_null()
+    {
+        string ssml = AzureTtsProvider.BuildSsml("hello", "en-US-AriaNeural");
+
+        ssml.Should().Contain("rate='+0%'").And.Contain("pitch='+0%'");
+    }
+
+    [Fact]
+    public void Azure_BuildSsml_applies_a_within_range_rate_and_pitch_override()
+    {
+        string ssml = AzureTtsProvider.BuildSsml(
+            "hello",
+            "en-US-ChristopherNeural",
+            ratePercent: -20,
+            pitchPercent: -15
+        );
+
+        ssml.Should().Contain("rate='-20%'").And.Contain("pitch='-15%'");
+    }
+
+    [Fact]
+    public void Azure_BuildSsml_clamps_an_out_of_range_rate_and_pitch_to_the_safe_bounds()
+    {
+        string ssml = AzureTtsProvider.BuildSsml(
+            "hello",
+            "en-US-AriaNeural",
+            ratePercent: 99999,
+            pitchPercent: -99999
+        );
+
+        ssml.Should().Contain("rate='+50%'").And.Contain("pitch='-50%'");
+        ssml.Should().NotContain("99999");
+    }
 }

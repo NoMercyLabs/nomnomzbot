@@ -157,7 +157,19 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     list: function (prefix) { var r = prefix === undefined ? bot.call('storage.list') : bot.call('storage.list', String(prefix)); return r ? JSON.parse(r) : []; }
                 },
                 tts: {
-                    speak: function (text, voiceId) { var r = voiceId === undefined ? bot.call('tts.speak', String(text)) : bot.call('tts.speak', String(text), String(voiceId)); return r ? JSON.parse(r) : null; },
+                    // ratePercent/pitchPercent are optional per-call SSML prosody overrides (e.g. an "evil
+                    // wizard" voice for one line) -- never persisted against the channel's TTS config.
+                    // arguments.length (not an undefined check) drives which shape is sent, so a 1- or 2-arg
+                    // call from an existing script still omits the trailing params entirely rather than
+                    // passing the literal string "undefined".
+                    speak: function (text, voiceId, ratePercent, pitchPercent) {
+                        var n = arguments.length;
+                        var r = n <= 1 ? bot.call('tts.speak', String(text))
+                            : n === 2 ? bot.call('tts.speak', String(text), String(voiceId))
+                            : n === 3 ? bot.call('tts.speak', String(text), String(voiceId), String(ratePercent))
+                            : bot.call('tts.speak', String(text), String(voiceId), String(ratePercent), String(pitchPercent));
+                        return r ? JSON.parse(r) : null;
+                    },
                     getVoice: function (userIdOrLogin) { var r = bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
                     setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', String(userIdOrLogin), voiceId === undefined ? '' : String(voiceId)) === 'ok'; }
                 },

@@ -99,7 +99,11 @@ public sealed class TtsServiceTests
     {
         ITtsProvider fallback = Substitute.For<ITtsProvider>();
         fallback
-            .SynthesizeAsync("hello", "en-GB-SoniaNeural", Arg.Any<CancellationToken>())
+            .SynthesizeAsync(
+                "hello",
+                "en-GB-SoniaNeural",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Task.FromResult(
                     new TtsSynthesisResult
@@ -117,6 +121,8 @@ public sealed class TtsServiceTests
             fallback,
             "hello",
             "en-GB-SoniaNeural",
+            ratePercent: null,
+            pitchPercent: null,
             CancellationToken.None
         );
 
@@ -137,7 +143,11 @@ public sealed class TtsServiceTests
     {
         ITtsProvider fallback = Substitute.For<ITtsProvider>();
         fallback
-            .SynthesizeAsync("hello", "missing-voice", Arg.Any<CancellationToken>())
+            .SynthesizeAsync(
+                "hello",
+                "missing-voice",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
             .Returns(
                 Task.FromResult(
                     new TtsSynthesisResult
@@ -166,7 +176,7 @@ public sealed class TtsServiceTests
                 ])
             );
         fallback
-            .SynthesizeAsync("hello", "zz-Zephyr", Arg.Any<CancellationToken>())
+            .SynthesizeAsync("hello", "zz-Zephyr", cancellationToken: Arg.Any<CancellationToken>())
             .Returns(
                 Task.FromResult(
                     new TtsSynthesisResult
@@ -184,6 +194,8 @@ public sealed class TtsServiceTests
             fallback,
             "hello",
             "missing-voice",
+            ratePercent: null,
+            pitchPercent: null,
             CancellationToken.None
         );
 

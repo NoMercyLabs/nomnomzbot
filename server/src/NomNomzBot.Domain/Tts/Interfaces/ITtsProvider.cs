@@ -15,9 +15,17 @@ namespace NomNomzBot.Domain.Tts.Interfaces;
 /// </summary>
 public interface ITtsProvider
 {
+    /// <summary>
+    /// Synthesizes <paramref name="text"/> as <paramref name="voiceId"/>. <paramref name="ratePercent"/> and
+    /// <paramref name="pitchPercent"/> are optional per-call SSML prosody overrides (percent, matching
+    /// <c>rate='+N%'</c>/<c>pitch='+N%'</c>) — <c>null</c> means the provider's default. Not every provider
+    /// supports prosody (ElevenLabs does not); providers that don't honor these simply ignore them.
+    /// </summary>
     Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null,
         CancellationToken cancellationToken = default
     );
 

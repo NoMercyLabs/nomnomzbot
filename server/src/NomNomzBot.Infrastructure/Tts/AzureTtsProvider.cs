@@ -50,6 +50,8 @@ public sealed class AzureTtsProvider : ITtsProvider
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -59,7 +61,7 @@ public sealed class AzureTtsProvider : ITtsProvider
             return EmptyResult(voiceId);
         }
 
-        string ssml = BuildSsml(text, voiceId);
+        string ssml = BuildSsml(text, voiceId, ratePercent, pitchPercent);
 
         string url = $"https://{_region}.tts.speech.microsoft.com/cognitiveservices/v1";
 
@@ -150,14 +152,25 @@ public sealed class AzureTtsProvider : ITtsProvider
     /// Builds the SSML document sent to Azure. Both <paramref name="text"/> and <paramref name="voiceId"/> are
     /// caller-supplied and must be XML-escaped before interpolation — an unescaped <paramref name="voiceId"/>
     /// (e.g. containing <c>'&gt;&lt;speak&gt;</c>) would otherwise break out of the attribute and let a caller
-    /// inject arbitrary SSML/prosody markup into the outbound synthesis request.
+    /// inject arbitrary SSML/prosody markup into the outbound synthesis request. <paramref name="ratePercent"/>/
+    /// <paramref name="pitchPercent"/> are optional per-call prosody overrides, same clamping and <c>+0%</c>
+    /// default as <see cref="EdgeTtsProvider.BuildSsml"/>.
     /// </summary>
-    internal static string BuildSsml(string text, string voiceId) =>
+    internal static string BuildSsml(
+        string text,
+        string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null
+    ) =>
         $"""
             <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-              <voice name='{System.Security.SecurityElement.Escape(
-                voiceId
-            )}'>{System.Security.SecurityElement.Escape(text)}</voice>
+              <voice name='{System.Security.SecurityElement.Escape(voiceId)}'>
+                <prosody rate='{TtsProsody.FormatPercent(
+                ratePercent
+            )}' pitch='{TtsProsody.FormatPercent(
+                pitchPercent
+            )}'>{System.Security.SecurityElement.Escape(text)}</prosody>
+              </voice>
             </speak>
             """;
 

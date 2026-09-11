@@ -55,14 +55,19 @@ public sealed class CaptureScriptHostBridge(IScriptHostBridge inner, CaptureSink
             sink.Record(key, args);
             if (key is "chat.send" or "chat.reply")
                 sink.AddChatOutput(args.Count > 0 ? args[0] : string.Empty);
-            // tts.speak's guest wrapper JSON.parses a { voiceId, characterCount } object; hand it a benign one.
+            // tts.speak's guest wrapper JSON.parses a { voiceId, characterCount } object; hand it a benign one
+            // that also echoes back any rate/pitch override the script passed, so a test-run preview shows the
+            // prosody it would have applied — same shape ScriptHostBridge.Speak's real dispatch would report.
             if (key == "tts.speak")
             {
                 int characterCount = args.Count > 0 ? args[0].Length : 0;
                 string? voiceId = args.Count > 1 ? args[1] : null;
-                return voiceId is null
-                    ? $"{{\"voiceId\":null,\"characterCount\":{characterCount}}}"
-                    : $"{{\"voiceId\":\"{voiceId}\",\"characterCount\":{characterCount}}}";
+                string? ratePercent = args.Count > 2 ? args[2] : null;
+                string? pitchPercent = args.Count > 3 ? args[3] : null;
+                string voiceIdJson = voiceId is null ? "null" : $"\"{voiceId}\"";
+                string ratePercentJson = ratePercent is null ? "null" : ratePercent;
+                string pitchPercentJson = pitchPercent is null ? "null" : pitchPercent;
+                return $"{{\"voiceId\":{voiceIdJson},\"characterCount\":{characterCount},\"ratePercent\":{ratePercentJson},\"pitchPercent\":{pitchPercentJson}}}";
             }
             return cannedReturn;
         };

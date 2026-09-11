@@ -567,6 +567,70 @@ public sealed class ScriptHostBridgeTests
             .BeNull();
     }
 
+    // A script casting a joke curse (e.g. !curse -> an "evil wizard" voice) needs a per-utterance prosody
+    // override that never touches the channel's persisted TTS config — proves the 3rd/4th args actually reach
+    // TtsSpeakRequest.RatePercent/PitchPercent, not just that the call didn't throw.
+    [Fact]
+    public void Tts_speak_carries_a_rate_and_pitch_override_through_to_the_dispatch_request()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        TtsSpeakRequest? seen = null;
+        tts.RequestSpeakAsync(Arg.Do<TtsSpeakRequest>(r => seen = r), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        VoiceId: "en-US-ChristopherNeural",
+                        Provider: "edge",
+                        CharacterCount: 20,
+                        DurationMs: 1500,
+                        PlaybackUrl: null
+                    )
+                )
+            );
+
+        Build(tts: tts)
+            .Resolve("tts.speak")(
+                "tts.speak",
+                ["Beware, mortal!", "en-US-ChristopherNeural", "-20", "-15"],
+                CancellationToken.None
+            );
+
+        seen.Should().NotBeNull();
+        seen!.VoiceIdOverride.Should().Be("en-US-ChristopherNeural");
+        seen.RatePercent.Should().Be(-20);
+        seen.PitchPercent.Should().Be(-15);
+    }
+
+    // Absent/blank rate+pitch args (the pre-existing 1-arg/2-arg call shapes) must resolve to null, i.e. the
+    // provider's own default — not zero, and not an exception.
+    [Fact]
+    public void Tts_speak_leaves_rate_and_pitch_null_when_the_args_are_absent()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        TtsSpeakRequest? seen = null;
+        tts.RequestSpeakAsync(Arg.Do<TtsSpeakRequest>(r => seen = r), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        VoiceId: "en-US-Aria",
+                        Provider: "edge",
+                        CharacterCount: 5,
+                        DurationMs: 400,
+                        PlaybackUrl: null
+                    )
+                )
+            );
+
+        Build(tts: tts)
+            .Resolve("tts.speak")("tts.speak", ["hello", "en-US-Aria"], CancellationToken.None);
+
+        seen.Should().NotBeNull();
+        seen!.RatePercent.Should().BeNull();
+        seen.PitchPercent.Should().BeNull();
+    }
+
     // ── widget.emit ──
 
     private static readonly Guid WidgetId = Guid.Parse("0192a000-0000-7000-8000-00000000e0c1");

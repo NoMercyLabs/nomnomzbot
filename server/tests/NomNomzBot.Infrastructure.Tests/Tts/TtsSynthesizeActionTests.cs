@@ -140,7 +140,11 @@ public sealed class TtsSynthesizeActionTests
         ) = Build("BSOD detected, rebooting.");
 
         MockVoiceExists(config, "en-US-Guy");
-        tts.SynthesizeAsync("BSOD detected, rebooting.", "en-US-Guy", Arg.Any<CancellationToken>())
+        tts.SynthesizeAsync(
+                "BSOD detected, rebooting.",
+                "en-US-Guy",
+                ct: Arg.Any<CancellationToken>()
+            )
             .Returns(new TtsResult([1, 2, 3], 4200, "en-US-Guy", "azure"));
 
         store
@@ -182,7 +186,7 @@ public sealed class TtsSynthesizeActionTests
         config
             .GetConfigAsync(Channel, Arg.Any<CancellationToken>())
             .Returns(Result.Success(DefaultConfig("nl-NL-Colette")));
-        tts.SynthesizeAsync("hi there", "nl-NL-Colette", Arg.Any<CancellationToken>())
+        tts.SynthesizeAsync("hi there", "nl-NL-Colette", ct: Arg.Any<CancellationToken>())
             .Returns(new TtsResult([9], 900, "nl-NL-Colette", "azure"));
         store
             .PutAsync(
@@ -201,7 +205,7 @@ public sealed class TtsSynthesizeActionTests
 
         result.Succeeded.Should().BeTrue();
         await tts.Received(1)
-            .SynthesizeAsync("hi there", "nl-NL-Colette", Arg.Any<CancellationToken>());
+            .SynthesizeAsync("hi there", "nl-NL-Colette", ct: Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -213,7 +217,11 @@ public sealed class TtsSynthesizeActionTests
 
         result.Succeeded.Should().BeFalse();
         await tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                ct: Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -231,7 +239,11 @@ public sealed class TtsSynthesizeActionTests
 
         result.Succeeded.Should().BeFalse();
         await tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                ct: Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -245,7 +257,7 @@ public sealed class TtsSynthesizeActionTests
         ) = Build("hi there");
 
         MockVoiceExists(config, "en-US-Guy");
-        tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
+        tts.SynthesizeAsync("hi there", "en-US-Guy", ct: Arg.Any<CancellationToken>())
             .Returns(new TtsResult([], 0, "en-US-Guy", "azure"));
 
         ActionResult result = await action.ExecuteAsync(
@@ -276,7 +288,7 @@ public sealed class TtsSynthesizeActionTests
         ) = Build("hi there");
 
         MockVoiceExists(config, "en-US-Guy");
-        tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
+        tts.SynthesizeAsync("hi there", "en-US-Guy", ct: Arg.Any<CancellationToken>())
             .Returns(new TtsResult([1], 500, "en-US-Guy", "azure"));
         store
             .PutAsync(
@@ -308,7 +320,7 @@ public sealed class TtsSynthesizeActionTests
         ) = Build("hi there");
 
         MockVoiceExists(config, "en-US-Guy");
-        tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
+        tts.SynthesizeAsync("hi there", "en-US-Guy", ct: Arg.Any<CancellationToken>())
             .Returns(new TtsResult([1], 500, "en-US-Guy", "azure"));
         store
             .PutAsync(

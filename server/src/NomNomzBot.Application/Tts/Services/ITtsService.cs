@@ -14,7 +14,19 @@ namespace NomNomzBot.Application.Tts.Services;
 
 public interface ITtsService
 {
-    Task<TtsResult> SynthesizeAsync(string text, string voiceId, CancellationToken ct = default);
+    /// <summary>
+    /// Synthesizes <paramref name="text"/> as <paramref name="voiceId"/>. <paramref name="ratePercent"/> and
+    /// <paramref name="pitchPercent"/> are optional per-call SSML prosody overrides (percent, matching
+    /// <c>rate='+N%'</c>/<c>pitch='+N%'</c>) — <c>null</c> means the provider's default, i.e. today's
+    /// unchanged behavior. Never persisted; a one-off override for a single call.
+    /// </summary>
+    Task<TtsResult> SynthesizeAsync(
+        string text,
+        string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null,
+        CancellationToken ct = default
+    );
     Task<IReadOnlyList<TtsVoiceInfo>> GetAvailableVoicesAsync(CancellationToken ct = default);
 }
 

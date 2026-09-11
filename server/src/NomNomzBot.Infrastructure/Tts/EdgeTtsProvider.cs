@@ -70,6 +70,8 @@ public sealed class EdgeTtsProvider : ITtsProvider
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -118,7 +120,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
         // Send synthesis request
         string requestId = Guid.NewGuid().ToString("N");
-        string ssml = BuildSsml(text, voiceId);
+        string ssml = BuildSsml(text, voiceId, ratePercent, pitchPercent);
         string synthesisMsg = BuildSynthesisMessage(requestId, ssml);
         await SendTextAsync(ws, synthesisMsg, cancellationToken);
 
@@ -522,16 +524,25 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// Builds the SSML document sent over the Edge TTS WebSocket. Both <paramref name="text"/> and
     /// <paramref name="voiceId"/> are caller-supplied and must be XML-escaped before interpolation — an
     /// unescaped <paramref name="voiceId"/> would otherwise let a caller break out of the attribute and
-    /// inject arbitrary SSML markup.
+    /// inject arbitrary SSML markup. <paramref name="ratePercent"/>/<paramref name="pitchPercent"/> are
+    /// optional per-call prosody overrides, clamped to <see cref="TtsProsody.MinPercent"/>..<see
+    /// cref="TtsProsody.MaxPercent"/> (never trusted verbatim into SSML) and defaulting to <c>+0%</c>.
     /// </summary>
-    internal static string BuildSsml(string text, string voiceId)
+    internal static string BuildSsml(
+        string text,
+        string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null
+    )
     {
-        string escaped = System.Security.SecurityElement.Escape(text) ?? text;
-        string escapedVoiceId = System.Security.SecurityElement.Escape(voiceId) ?? voiceId;
+        string escaped = System.Security.SecurityElement.Escape(text);
+        string escapedVoiceId = System.Security.SecurityElement.Escape(voiceId);
+        string rate = TtsProsody.FormatPercent(ratePercent);
+        string pitch = TtsProsody.FormatPercent(pitchPercent);
         return $"""
             <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
               <voice name='{escapedVoiceId}'>
-                <prosody rate='+0%' pitch='+0Hz'>{escaped}</prosody>
+                <prosody rate='{rate}' pitch='{pitch}'>{escaped}</prosody>
               </voice>
             </speak>
             """;

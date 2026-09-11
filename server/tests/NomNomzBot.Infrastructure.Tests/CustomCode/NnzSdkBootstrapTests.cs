@@ -290,6 +290,60 @@ public sealed class NnzSdkBootstrapTests
         r.VariablesOut["chars"].Should().Be("5");
     }
 
+    // The `!curse` use case (an "evil wizard" voice for one line): a script passing rate/pitch as the 3rd/4th
+    // args must have those reach the host call as the literal numeric strings, in order.
+    [Fact]
+    public async Task Api_tts_speak_passes_rate_and_pitch_overrides_to_the_host_call()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "tts.speak"
+                    ? "{\"voiceId\":\"en-US-ChristopherNeural\",\"characterCount\":10}"
+                    : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "nnz.api.tts.speak('Beware, mortal!', 'en-US-ChristopherNeural', -20, -15);",
+            Grant("tts.speak"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        bridge
+            .Calls[0]
+            .Args.Should()
+            .Equal("Beware, mortal!", "en-US-ChristopherNeural", "-20", "-15");
+    }
+
+    // The pre-existing 1-arg and 2-arg call shapes (live scripts use both today) must keep working: the omitted
+    // trailing params must not reach the host as the literal string "undefined".
+    [Fact]
+    public async Task Api_tts_speak_omits_trailing_args_instead_of_sending_the_literal_undefined()
+    {
+        RecordingBridge oneArgBridge = new(
+            (key, _) => key == "tts.speak" ? "{\"voiceId\":null,\"characterCount\":5}" : null
+        );
+        ScriptExecutionOutcomeResult oneArgResult = await Run(
+            "nnz.api.tts.speak('hello');",
+            Grant("tts.speak"),
+            oneArgBridge
+        );
+        oneArgResult.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        oneArgBridge.Calls[0].Args.Should().Equal("hello");
+
+        RecordingBridge twoArgBridge = new(
+            (key, _) =>
+                key == "tts.speak" ? "{\"voiceId\":\"en-US-Aria\",\"characterCount\":5}" : null
+        );
+        ScriptExecutionOutcomeResult twoArgResult = await Run(
+            "nnz.api.tts.speak('hello', 'en-US-Aria');",
+            Grant("tts.speak"),
+            twoArgBridge
+        );
+        twoArgResult.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        twoArgBridge.Calls[0].Args.Should().Equal("hello", "en-US-Aria");
+    }
+
     [Fact]
     public async Task Compile_declares_capabilities_from_the_new_nnz_api_groups()
     {

@@ -127,7 +127,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
-        string text = request.Text?.Trim() ?? string.Empty;
+        string text = request.Text.Trim();
         if (text.Length == 0)
             return await RejectRequestAsync(
                 request,
@@ -229,6 +229,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             wasModApproved: null,
             request.StreamId,
             request.ChannelEventId,
+            request.RatePercent,
+            request.PitchPercent,
             ct
         );
     }
@@ -259,7 +261,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
         await using IAsyncDisposable gate = await _serializer.AcquireAsync(broadcasterId, ct);
         // Approval-queue entries have no ChannelEventId of their own — a ModApprovalRequired channel only
         // ever queues chat-triggered utterances (a reward-pipeline play_tts speaks directly), so there is
-        // nothing to correlate here.
+        // nothing to correlate here. Likewise, the queue entry carries no rate/pitch override — those are a
+        // per-call script flourish, never persisted onto the queued entry — so an approved utterance always
+        // speaks at the provider's default prosody.
         Result<TtsDispatchOutcome> played = await DispatchAsync(
             broadcasterId,
             configResult.Value,
@@ -270,6 +274,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             wasModApproved: true,
             entry.StreamId,
             channelEventId: null,
+            ratePercent: null,
+            pitchPercent: null,
             ct
         );
         if (played.IsFailure)
@@ -438,6 +444,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
         bool? wasModApproved,
         Guid? streamId,
         string? channelEventId,
+        double? ratePercent,
+        double? pitchPercent,
         CancellationToken ct
     )
     {
@@ -466,6 +474,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     wasModApproved,
                     streamId,
                     channelEventId,
+                    ratePercent,
+                    pitchPercent,
                     ct
                 )
         );
@@ -559,6 +569,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
         bool? wasModApproved,
         Guid? streamId,
         string? channelEventId,
+        double? ratePercent,
+        double? pitchPercent,
         CancellationToken ct
     )
     {
@@ -586,6 +598,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 TtsSynthesisResult byokSynth = await provider.Value.SynthesizeAsync(
                     text,
                     voiceId,
+                    ratePercent,
+                    pitchPercent,
                     ct
                 );
                 synth = new(
@@ -597,7 +611,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             }
             else
             {
-                synth = await _tts.SynthesizeAsync(text, voiceId, ct);
+                synth = await _tts.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct);
             }
         }
         catch (Exception ex)

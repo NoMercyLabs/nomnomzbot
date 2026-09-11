@@ -461,7 +461,7 @@ public class TtsConfigService : ITtsConfigService
             TtsResult result = await _ttsService.SynthesizeAsync(
                 request.Text,
                 request.VoiceId,
-                cancellationToken
+                ct: cancellationToken
             );
             string base64 = Convert.ToBase64String(result.AudioData);
             return Result.Success(
@@ -709,7 +709,7 @@ public class TtsConfigService : ITtsConfigService
             v => v.BroadcasterId == broadcasterId && v.UserId == viewerUserId,
             cancellationToken
         );
-        return Result.Success<UserTtsVoiceDto?>(
+        return Result.Success(
             assignment is null ? null : new UserTtsVoiceDto(assignment.UserId, assignment.VoiceId)
         );
     }

@@ -136,7 +136,7 @@ public sealed class TtsSynthesizeAction : ICommandAction
                 );
         }
 
-        TtsResult synth = await _tts.SynthesizeAsync(text, voiceId, ctx.CancellationToken);
+        TtsResult synth = await _tts.SynthesizeAsync(text, voiceId, ct: ctx.CancellationToken);
         if (synth.AudioData.Length == 0)
             return ActionResult.Failure("tts_synthesize: the TTS provider returned no audio.");
 

@@ -92,7 +92,13 @@ public sealed class TtsDispatchServiceTests
             );
 
         ITtsService tts = Substitute.For<ITtsService>();
-        tts.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(ci =>
                 Task.FromResult(new TtsResult([1, 2, 3, 4], 1200, ci.ArgAt<string>(1), "edge"))
             );
@@ -183,7 +189,13 @@ public sealed class TtsDispatchServiceTests
         result.ErrorCode.Should().Be("FEATURE_DISABLED");
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
         await h
             .Bus.Received(1)
@@ -206,7 +218,13 @@ public sealed class TtsDispatchServiceTests
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         await h
             .Bus.Received(1)
             .PublishAsync(
@@ -233,7 +251,13 @@ public sealed class TtsDispatchServiceTests
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         await h
             .Bus.Received(1)
             .PublishAsync(
@@ -258,7 +282,13 @@ public sealed class TtsDispatchServiceTests
         below.ErrorCode.Should().Be("VALIDATION_FAILED");
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         await h
             .Bus.Received(1)
             .PublishAsync(
@@ -295,7 +325,13 @@ public sealed class TtsDispatchServiceTests
         // Synthesized with the channel default voice.
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("hello world", "default-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "hello world",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
 
         // A truthful usage-ledger row, stamped with when/during-what it played.
         TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
@@ -346,7 +382,13 @@ public sealed class TtsDispatchServiceTests
         result.Value.VoiceId.Should().Be("viewer-chosen-voice");
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("hi", "viewer-chosen-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "hi",
+                "viewer-chosen-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -362,7 +404,13 @@ public sealed class TtsDispatchServiceTests
         // The mild swear is masked BEFORE synthesis — the provider (and thus the overlay) never gets the raw word.
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("you piece of s***", "default-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "you piece of s***",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         await h
             .Bus.Received(1)
             .PublishAsync(
@@ -386,7 +434,13 @@ public sealed class TtsDispatchServiceTests
         result.IsSuccess.Should().BeTrue();
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("this is crap", "default-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "this is crap",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -402,7 +456,13 @@ public sealed class TtsDispatchServiceTests
         // Nothing is spoken, played, or ledgered while it waits for a moderator.
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
 
         TtsApprovalQueueEntry entry = await h.Db.TtsApprovalQueueEntries.SingleAsync();
@@ -455,7 +515,13 @@ public sealed class TtsDispatchServiceTests
         // The censored text (what the moderator reviewed) is what gets synthesized + played.
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("raw m*****e", "queued-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "raw m*****e",
+                "queued-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
 
         // The ledger row carries the approval provenance from the queue entry.
         TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
@@ -502,7 +568,13 @@ public sealed class TtsDispatchServiceTests
         result.IsSuccess.Should().BeTrue();
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
 
         TtsApprovalQueueEntry updated = await h.Db.TtsApprovalQueueEntries.SingleAsync();
         updated.Status.Should().Be("rejected");
@@ -582,7 +654,13 @@ public sealed class TtsDispatchServiceTests
     {
         Harness h = Build(mode: "byok", defaultProvider: "azure");
         ITtsProvider byok = Substitute.For<ITtsProvider>();
-        byok.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        byok.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(ci =>
                 Task.FromResult(
                     new TtsSynthesisResult
@@ -603,10 +681,22 @@ public sealed class TtsDispatchServiceTests
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         // The BYOK provider did the work; the shared service was never touched.
         await byok.Received(1)
-            .SynthesizeAsync("hello", "default-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "hello",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         // The ledger records the provider that actually spoke.
         (await h.Db.TtsUsageRecords.SingleAsync())
             .Provider.Should()
@@ -637,7 +727,13 @@ public sealed class TtsDispatchServiceTests
     public async Task RequestSpeakAsync_SynthesisThrows_RejectsWithoutPlayOrLedger()
     {
         Harness h = Build();
-        h.Tts.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        h.Tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns<Task<TtsResult>>(_ => throw new InvalidOperationException("provider down"));
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
@@ -683,7 +779,13 @@ public sealed class TtsDispatchServiceTests
         // The server synthesizes / stores / plays NOTHING on the edge plane.
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         await h
             .Store.DidNotReceive()
             .PutAsync(
@@ -846,6 +948,8 @@ public sealed class TtsDispatchServiceTests
             .SynthesizeAsync(
                 "Jaydee says hi to JDx",
                 "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
                 Arg.Any<CancellationToken>()
             );
         TtsUsageRecord ledger = await h.Db.TtsUsageRecords.SingleAsync();
@@ -890,7 +994,13 @@ public sealed class TtsDispatchServiceTests
             .BeTrue();
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("gg chat", "default-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "gg chat",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
 
         // Writing a rule through the service must evict the cache — the very next dispatch speaks the new form.
         (await h.Lexicon.CreateAsync(Tenant, new() { Phrase = "gg", Replacement = "good game" }))
@@ -900,7 +1010,13 @@ public sealed class TtsDispatchServiceTests
         (await h.Service.RequestSpeakAsync(Speak("gg chat"))).IsSuccess.Should().BeTrue();
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("good game chat", "default-voice", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "good game chat",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // S-TTS-TEMPLATED-VOICE: a pipeline step's templated `voice` field (play_tts) can resolve to anything at
@@ -934,7 +1050,13 @@ public sealed class TtsDispatchServiceTests
         result.ErrorMessage.Should().Contain("not-a-real-voice");
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
         await h
             .Bus.DidNotReceive()
@@ -971,7 +1093,13 @@ public sealed class TtsDispatchServiceTests
         result.Value.VoiceId.Should().Be("en-us-arianeural");
         await h
             .Tts.Received(1)
-            .SynthesizeAsync("hello", "en-us-arianeural", Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                "hello",
+                "en-us-arianeural",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ── MinPermission floor + per-viewer voice ────────────────────────────────────────────────────
@@ -1004,7 +1132,13 @@ public sealed class TtsDispatchServiceTests
         result.ErrorCode.Should().Be("FORBIDDEN");
         await h
             .Tts.DidNotReceive()
-            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -1024,7 +1158,7 @@ public sealed class TtsDispatchServiceTests
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value!.VoiceId.Should().Be("her-own-voice");
+        result.Value.VoiceId.Should().Be("her-own-voice");
     }
 
     [Fact]
@@ -1035,7 +1169,7 @@ public sealed class TtsDispatchServiceTests
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value!.VoiceId.Should().Be("channel-voice");
+        result.Value.VoiceId.Should().Be("channel-voice");
     }
 
     // Reproduces the live bug: a viewer's utterance requested SECOND can have its provider round-trip
@@ -1054,7 +1188,13 @@ public sealed class TtsDispatchServiceTests
         TaskCompletionSource firstSynthesisGate = new();
         TaskCompletionSource secondSynthesisGate = new();
 
-        h.Tts.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        h.Tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(async ci =>
             {
                 string synthesizedText = ci.ArgAt<string>(0);

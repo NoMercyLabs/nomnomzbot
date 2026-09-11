@@ -46,9 +46,15 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
         _apiKey = apiKey;
     }
 
+    // ratePercent/pitchPercent are accepted for ITtsProvider conformance but intentionally ignored: ElevenLabs
+    // has no SSML prosody surface — its expressiveness knobs are stability/similarity_boost/style, a genuinely
+    // different capability, not a substitute for rate/pitch. Faking a mapping would misrepresent what the
+    // provider actually does with the utterance.
     public async Task<TtsSynthesisResult> SynthesizeAsync(
         string text,
         string voiceId,
+        double? ratePercent = null,
+        double? pitchPercent = null,
         CancellationToken cancellationToken = default
     )
     {

@@ -92,6 +92,16 @@ public sealed record TtsQueueEntryDto(
 /// that event. <c>null</c> for a standalone chat-triggered utterance (a free <c>!tts</c> command never logs
 /// a ChannelEvent, so there is genuinely nothing to correlate).
 /// </param>
+/// <param name="RatePercent">
+/// Per-utterance SSML speaking-rate override (e.g. <c>-25</c> for 25% slower), matching SSML's
+/// <c>rate='+N%'</c> convention. <c>null</c> means the provider's default rate — today's unchanged behavior.
+/// Never persisted against the channel's TTS config; a one-off flourish for a single call (e.g. a script's
+/// "evil wizard" voice), clamped server-side by the provider before reaching SSML.
+/// </param>
+/// <param name="PitchPercent">
+/// Per-utterance SSML pitch override (e.g. <c>-20</c> for a lower pitch), matching SSML's
+/// <c>pitch='+N%'</c> convention. <c>null</c> means the provider's default pitch. See <see cref="RatePercent"/>.
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -103,7 +113,9 @@ public sealed record TtsSpeakRequest(
     string CommunityStanding,
     string? SourceMessageId,
     Guid? StreamId,
-    string? ChannelEventId = null
+    string? ChannelEventId = null,
+    double? RatePercent = null,
+    double? PitchPercent = null
 );
 
 public enum TtsDispatchDisposition

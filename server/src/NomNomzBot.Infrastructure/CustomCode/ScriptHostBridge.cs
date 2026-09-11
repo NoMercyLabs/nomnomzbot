@@ -342,6 +342,11 @@ public sealed class ScriptHostBridge(
             return null;
         string? voiceOverride =
             args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1] : null;
+        // Per-utterance SSML prosody overrides (e.g. a script's "evil wizard" voice) — a one-off flourish for
+        // THIS call only, never written to the channel's persisted TTS config. Absent/blank/unparseable is
+        // null, i.e. the provider's default rate/pitch.
+        double? ratePercent = ParseOptionalDouble(args, 2);
+        double? pitchPercent = ParseOptionalDouble(args, 3);
 
         // The same shape PlayTtsAction hands the dispatcher: the gate (enabled + caps + censor + voice
         // resolution) runs host-side; a refusal is a typed failure the guest only ever sees as null.
@@ -355,7 +360,9 @@ public sealed class ScriptHostBridge(
             BitsAmount: 0,
             CommunityStanding: "everyone",
             SourceMessageId: null,
-            StreamId: null
+            StreamId: null,
+            RatePercent: ratePercent,
+            PitchPercent: pitchPercent
         );
         Result<TtsDispatchOutcome> outcome = ttsDispatch
             .RequestSpeakAsync(request, ct)
@@ -719,6 +726,23 @@ public sealed class ScriptHostBridge(
                 return null;
         }
         return null;
+    }
+
+    // An optional trailing numeric arg (e.g. tts.speak's rate/pitch overrides): absent, blank, or
+    // unparseable is null rather than a thrown/guest-visible error — a script that omits or fat-fingers
+    // the override just gets the provider's default rate/pitch, never a failed call.
+    private static double? ParseOptionalDouble(IReadOnlyList<string> args, int index)
+    {
+        if (args.Count <= index || string.IsNullOrWhiteSpace(args[index]))
+            return null;
+        return double.TryParse(
+            args[index],
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out double parsed
+        )
+            ? parsed
+            : null;
     }
 
     // The guest's optional data payload, materialized to a plain CLR graph (dictionaries / lists /
