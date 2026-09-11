@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- obs_set_source (S-STREAMDECK-OBS-REMAINDER): scene first, then the source placed in that
+         scene — the source list is re-fetched every time the scene selection changes. -->
+    <sdpi-item label="Scene">
+      <sdpi-select id="scene" placeholder="Loading scenes…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Source">
+      <sdpi-select id="source" placeholder="Choose a scene first…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Visible">
+      <sdpi-select id="visible">
+        <option value="true">Shown</option>
+        <option value="false">Hidden</option>
+      </sdpi-select>
+    </sdpi-item>
+    <div id="appearance"></div>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+        requestFromPlugin({ type: "listScenes" });
+        if (ev.detail.scene) document.getElementById("scene").value = ev.detail.scene;
+        document.getElementById("visible").value = ev.detail.visible === false ? "false" : "true";
+        if (ev.detail.scene) requestFromPlugin({ type: "listSceneItems", sceneName: ev.detail.scene });
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type === "scenes") {
+          const select = document.getElementById("scene");
+          select.innerHTML = "";
+          for (const scene of ev.detail.scenes) {
+            const option = document.createElement("option");
+            option.value = scene.name;
+            option.textContent = scene.isCurrent ? `${scene.name} (current)` : scene.name;
+            select.appendChild(option);
+          }
+        } else if (ev.detail?.type === "sceneItems") {
+          const select = document.getElementById("source");
+          select.innerHTML = "";
+          for (const item of ev.detail.sceneItems) {
+            const option = document.createElement("option");
+            option.value = item.sourceName;
+            option.textContent = item.enabled ? item.sourceName : `${item.sourceName} (hidden)`;
+            select.appendChild(option);
+          }
+        }
+      });
+      document.getElementById("scene").addEventListener("change", (ev) => {
+        setSettings({ scene: ev.target.value });
+        requestFromPlugin({ type: "listSceneItems", sceneName: ev.target.value });
+      });
+      document.getElementById("source").addEventListener("change", (ev) => {
+        setSettings({ source: ev.target.value });
+      });
+      document.getElementById("visible").addEventListener("change", (ev) => {
+        setSettings({ visible: ev.target.value === "true" });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- obs_filter (S-STREAMDECK-OBS-REMAINDER): source first (from the OBS input list), then the
+         filters attached to that source — re-fetched every time the source selection changes. -->
+    <sdpi-item label="Source">
+      <sdpi-select id="source" placeholder="Loading sources…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Filter">
+      <sdpi-select id="filter" placeholder="Choose a source first…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Enabled">
+      <sdpi-select id="enabled">
+        <option value="true">On</option>
+        <option value="false">Off</option>
+      </sdpi-select>
+    </sdpi-item>
+    <div id="appearance"></div>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+        requestFromPlugin({ type: "listInputs" });
+        if (ev.detail.source) document.getElementById("source").value = ev.detail.source;
+        document.getElementById("enabled").value = ev.detail.enabled === false ? "false" : "true";
+        if (ev.detail.source) requestFromPlugin({ type: "listSourceFilters", sourceName: ev.detail.source });
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type === "inputs") {
+          const select = document.getElementById("source");
+          select.innerHTML = "";
+          for (const input of ev.detail.inputs) {
+            const option = document.createElement("option");
+            option.value = input.name;
+            option.textContent = input.name;
+            select.appendChild(option);
+          }
+        } else if (ev.detail?.type === "sourceFilters") {
+          const select = document.getElementById("filter");
+          select.innerHTML = "";
+          for (const filter of ev.detail.sourceFilters) {
+            const option = document.createElement("option");
+            option.value = filter.name;
+            option.textContent = filter.enabled ? filter.name : `${filter.name} (disabled)`;
+            select.appendChild(option);
+          }
+        }
+      });
+      document.getElementById("source").addEventListener("change", (ev) => {
+        setSettings({ source: ev.target.value });
+        requestFromPlugin({ type: "listSourceFilters", sourceName: ev.target.value });
+      });
+      document.getElementById("filter").addEventListener("change", (ev) => {
+        setSettings({ filter: ev.target.value });
+      });
+      document.getElementById("enabled").addEventListener("change", (ev) => {
+        setSettings({ enabled: ev.target.value === "true" });
+      });
+    </script>
+  </body>
+</html>

@@ -47,6 +47,18 @@ import { StopRecordingAction } from "./actions/obsStopRecording.js";
 import { ToggleRecordingAction } from "./actions/obsToggleRecording.js";
 import { ToggleReplayBufferAction } from "./actions/obsToggleReplayBuffer.js";
 import { ToggleVirtualCamAction } from "./actions/obsToggleVirtualCam.js";
+import { SetPreviewSceneAction } from "./actions/obsSetPreviewScene.js";
+import { SetSourceAction } from "./actions/obsSetSource.js";
+import { FilterAction } from "./actions/obsFilter.js";
+import { TransitionAction } from "./actions/obsTransition.js";
+import { InputVolumeAction } from "./actions/obsInputVolume.js";
+import { MediaAction } from "./actions/obsMedia.js";
+import { HotkeyAction } from "./actions/obsHotkey.js";
+import { RefreshBrowserAction } from "./actions/obsRefreshBrowser.js";
+import { ScreenshotAction } from "./actions/obsScreenshot.js";
+import { SaveReplayAction } from "./actions/obsSaveReplay.js";
+import { RequestAction } from "./actions/obsRequest.js";
+import { CallVendorAction } from "./actions/obsCallVendor.js";
 
 streamDeck.logger.setLevel("info");
 
@@ -85,6 +97,18 @@ for (const registration of [
   new ToggleRecordingAction(),
   new ToggleReplayBufferAction(),
   new ToggleVirtualCamAction(),
+  new SetPreviewSceneAction(),
+  new SetSourceAction(),
+  new FilterAction(),
+  new TransitionAction(),
+  new InputVolumeAction(),
+  new MediaAction(),
+  new HotkeyAction(),
+  new RefreshBrowserAction(),
+  new ScreenshotAction(),
+  new SaveReplayAction(),
+  new RequestAction(),
+  new CallVendorAction(),
 ]) {
   streamDeck.actions.registerAction(registration);
 }

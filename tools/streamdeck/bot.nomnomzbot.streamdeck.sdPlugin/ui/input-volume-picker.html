@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- obs_input_volume (S-STREAMDECK-OBS-REMAINDER): sets a fixed volume level in dB. -->
+    <sdpi-item label="Input">
+      <sdpi-select id="inputName" placeholder="Loading inputs…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Volume (dB)">
+      <sdpi-textfield id="volumeDb" type="number"></sdpi-textfield>
+    </sdpi-item>
+    <div id="appearance"></div>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+        requestFromPlugin({ type: "listInputs" });
+        if (ev.detail.inputName) document.getElementById("inputName").value = ev.detail.inputName;
+        document.getElementById("volumeDb").value = ev.detail.volumeDb ?? 0;
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type !== "inputs") return;
+        const select = document.getElementById("inputName");
+        select.innerHTML = "";
+        for (const input of ev.detail.inputs) {
+          const option = document.createElement("option");
+          option.value = input.name;
+          option.textContent = input.name;
+          select.appendChild(option);
+        }
+      });
+      document.getElementById("inputName").addEventListener("change", (ev) => {
+        setSettings({ inputName: ev.target.value });
+      });
+      document.getElementById("volumeDb").addEventListener("change", (ev) => {
+        setSettings({ volumeDb: Number(ev.target.value) });
+      });
+    </script>
+  </body>
+</html>

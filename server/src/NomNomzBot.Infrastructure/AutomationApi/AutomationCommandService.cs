@@ -475,6 +475,112 @@ public class AutomationCommandService : IAutomationCommandService
         return Result.Success(mapped);
     }
 
+    public async Task<Result<IReadOnlyList<AutomationObsSceneItemDto>>> GetObsSceneItemsAsync(
+        AutomationPrincipal principal,
+        string sceneName,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationObsSceneItemDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsSceneItemDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Result<IReadOnlyList<ObsSceneItemDto>> items = await _obs.GetSceneItemListAsync(
+            principal.BroadcasterId,
+            sceneName,
+            ct
+        );
+        if (items.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsSceneItemDto>>(
+                items.ErrorMessage!,
+                items.ErrorCode!
+            );
+
+        IReadOnlyList<AutomationObsSceneItemDto> mapped =
+        [
+            .. items.Value.Select(i => new AutomationObsSceneItemDto(
+                i.SceneItemId,
+                i.SourceName,
+                i.Enabled
+            )),
+        ];
+        return Result.Success(mapped);
+    }
+
+    public async Task<
+        Result<IReadOnlyList<AutomationObsTransitionDto>>
+    > GetObsSceneTransitionsAsync(AutomationPrincipal principal, CancellationToken ct = default)
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationObsTransitionDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsTransitionDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Result<IReadOnlyList<ObsTransitionDto>> transitions =
+            await _obs.GetSceneTransitionListAsync(principal.BroadcasterId, ct);
+        if (transitions.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsTransitionDto>>(
+                transitions.ErrorMessage!,
+                transitions.ErrorCode!
+            );
+
+        IReadOnlyList<AutomationObsTransitionDto> mapped =
+        [
+            .. transitions.Value.Select(t => new AutomationObsTransitionDto(t.Name, t.IsCurrent)),
+        ];
+        return Result.Success(mapped);
+    }
+
+    public async Task<Result<IReadOnlyList<AutomationObsFilterDto>>> GetObsSourceFiltersAsync(
+        AutomationPrincipal principal,
+        string sourceName,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationObsFilterDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsFilterDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Result<IReadOnlyList<ObsFilterDto>> filters = await _obs.GetSourceFilterListAsync(
+            principal.BroadcasterId,
+            sourceName,
+            ct
+        );
+        if (filters.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsFilterDto>>(
+                filters.ErrorMessage!,
+                filters.ErrorCode!
+            );
+
+        IReadOnlyList<AutomationObsFilterDto> mapped =
+        [
+            .. filters.Value.Select(f => new AutomationObsFilterDto(
+                f.Name,
+                f.Kind,
+                f.Enabled,
+                f.Index
+            )),
+        ];
+        return Result.Success(mapped);
+    }
+
     /// <summary>music-automation-controls.md D5 — a pipeline with any <c>music_*</c> step needs the
     /// token's CREATOR to still hold <c>music:control:write</c>, checked at invoke time (not mint time)
     /// so a later demotion takes effect without having to revoke the token.</summary>

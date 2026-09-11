@@ -612,4 +612,185 @@ public sealed class AutomationCommandServiceTests
         result.ErrorDetail.Should().Be("17", "the Retry-After seconds ride the error detail");
         await h.Obs.DidNotReceive().GetScenesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task GetObsSceneItems_maps_the_obs_control_services_scene_item_list()
+    {
+        Harness h = Build();
+        h.Obs.GetSceneItemListAsync(Channel, "Game Scene", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ObsSceneItemDto>>([
+                    new(1, "Webcam", true),
+                    new(2, "Overlay", false),
+                ])
+            );
+
+        Result<IReadOnlyList<AutomationObsSceneItemDto>> result =
+            await h.Service.GetObsSceneItemsAsync(Principal(), "Game Scene");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+        result
+            .Value.Should()
+            .ContainSingle(i => i.SourceName == "Webcam" && i.SceneItemId == 1 && i.Enabled);
+        result
+            .Value.Should()
+            .ContainSingle(i => i.SourceName == "Overlay" && i.SceneItemId == 2 && !i.Enabled);
+    }
+
+    [Fact]
+    public async Task GetObsSceneItems_rejects_a_token_without_the_read_scope_and_never_calls_obs()
+    {
+        Harness h = Build();
+
+        Result<IReadOnlyList<AutomationObsSceneItemDto>> result =
+            await h.Service.GetObsSceneItemsAsync(Principal(scopes: ["invoke"]), "Game Scene");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h
+            .Obs.DidNotReceive()
+            .GetSceneItemListAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task GetObsSceneItems_propagates_an_OBS_not_connected_failure_as_is()
+    {
+        Harness h = Build();
+        h.Obs.GetSceneItemListAsync(Channel, "Game Scene", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<ObsSceneItemDto>>(
+                    "OBS is not connected.",
+                    "OBS_NOT_CONNECTED"
+                )
+            );
+
+        Result<IReadOnlyList<AutomationObsSceneItemDto>> result =
+            await h.Service.GetObsSceneItemsAsync(Principal(), "Game Scene");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("OBS_NOT_CONNECTED");
+    }
+
+    [Fact]
+    public async Task GetObsSceneTransitions_maps_the_obs_control_services_transition_list()
+    {
+        Harness h = Build();
+        h.Obs.GetSceneTransitionListAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ObsTransitionDto>>([
+                    new("Fade", true),
+                    new("Cut", false),
+                ])
+            );
+
+        Result<IReadOnlyList<AutomationObsTransitionDto>> result =
+            await h.Service.GetObsSceneTransitionsAsync(Principal());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+        result.Value.Should().ContainSingle(t => t.Name == "Fade" && t.IsCurrent);
+        result.Value.Should().ContainSingle(t => t.Name == "Cut" && !t.IsCurrent);
+    }
+
+    [Fact]
+    public async Task GetObsSceneTransitions_rejects_a_token_without_the_read_scope_and_never_calls_obs()
+    {
+        Harness h = Build();
+
+        Result<IReadOnlyList<AutomationObsTransitionDto>> result =
+            await h.Service.GetObsSceneTransitionsAsync(Principal(scopes: ["invoke"]));
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h
+            .Obs.DidNotReceive()
+            .GetSceneTransitionListAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetObsSceneTransitions_propagates_an_OBS_not_connected_failure_as_is()
+    {
+        Harness h = Build();
+        h.Obs.GetSceneTransitionListAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<ObsTransitionDto>>(
+                    "OBS is not connected.",
+                    "OBS_NOT_CONNECTED"
+                )
+            );
+
+        Result<IReadOnlyList<AutomationObsTransitionDto>> result =
+            await h.Service.GetObsSceneTransitionsAsync(Principal());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("OBS_NOT_CONNECTED");
+    }
+
+    [Fact]
+    public async Task GetObsSourceFilters_maps_the_obs_control_services_filter_list()
+    {
+        Harness h = Build();
+        h.Obs.GetSourceFilterListAsync(Channel, "Webcam", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ObsFilterDto>>([
+                    new("Color Correction", "color_filter", true, 0),
+                ])
+            );
+
+        Result<IReadOnlyList<AutomationObsFilterDto>> result =
+            await h.Service.GetObsSourceFiltersAsync(Principal(), "Webcam");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Should()
+            .ContainSingle(f =>
+                f.Name == "Color Correction"
+                && f.Kind == "color_filter"
+                && f.Enabled
+                && f.Index == 0
+            );
+    }
+
+    [Fact]
+    public async Task GetObsSourceFilters_rejects_a_token_without_the_read_scope_and_never_calls_obs()
+    {
+        Harness h = Build();
+
+        Result<IReadOnlyList<AutomationObsFilterDto>> result =
+            await h.Service.GetObsSourceFiltersAsync(Principal(scopes: ["invoke"]), "Webcam");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h
+            .Obs.DidNotReceive()
+            .GetSourceFilterListAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task GetObsSourceFilters_propagates_an_OBS_not_connected_failure_as_is()
+    {
+        Harness h = Build();
+        h.Obs.GetSourceFilterListAsync(Channel, "Webcam", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<ObsFilterDto>>(
+                    "OBS is not connected.",
+                    "OBS_NOT_CONNECTED"
+                )
+            );
+
+        Result<IReadOnlyList<AutomationObsFilterDto>> result =
+            await h.Service.GetObsSourceFiltersAsync(Principal(), "Webcam");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("OBS_NOT_CONNECTED");
+    }
 }

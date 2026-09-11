@@ -22,8 +22,18 @@ import { getDeviceFlowStatus, onDeviceFlowStatusChange } from "../connection/dev
 import { renderIconKey, DEFAULT_BACKGROUND } from "../nowPlaying/keyRenderer.js";
 
 interface PiRequest extends JsonObject {
-  type: "getPairingStatus" | "getHost" | "setHost" | "listScenes" | "listInputs";
+  type:
+    | "getPairingStatus"
+    | "getHost"
+    | "setHost"
+    | "listScenes"
+    | "listInputs"
+    | "listSceneItems"
+    | "listSceneTransitions"
+    | "listSourceFilters";
   host?: string;
+  sceneName?: string;
+  sourceName?: string;
 }
 
 /** Every action's Settings may carry a per-key background color, picked in its property inspector —
@@ -117,6 +127,17 @@ export abstract class ObsAction<TSettings extends JsonObject = JsonObject> exten
     } else if (request.type === "listInputs") {
       const inputs = await automationClient.getObsInputs().catch(() => []);
       await streamDeck.ui.sendToPropertyInspector({ type: "inputs", inputs });
+    } else if (request.type === "listSceneItems") {
+      const sceneItems = await automationClient.getObsSceneItems(request.sceneName ?? "").catch(() => []);
+      await streamDeck.ui.sendToPropertyInspector({ type: "sceneItems", sceneItems });
+    } else if (request.type === "listSceneTransitions") {
+      const transitions = await automationClient.getObsSceneTransitions().catch(() => []);
+      await streamDeck.ui.sendToPropertyInspector({ type: "transitions", transitions });
+    } else if (request.type === "listSourceFilters") {
+      const sourceFilters = await automationClient
+        .getObsSourceFilters(request.sourceName ?? "")
+        .catch(() => []);
+      await streamDeck.ui.sendToPropertyInspector({ type: "sourceFilters", sourceFilters });
     }
   }
 }

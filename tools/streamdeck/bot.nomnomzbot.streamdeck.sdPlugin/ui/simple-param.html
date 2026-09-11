@@ -53,6 +53,20 @@
             default: "off",
           },
         ],
+        // S-STREAMDECK-OBS-REMAINDER: no backend list exists for hotkey names, OBS-WS request
+        // types, or vendor names — free text is the only option for these three.
+        "bot.nomnomzbot.streamdeck.obs-hotkey": [
+          { key: "hotkeyName", label: "Hotkey name", type: "text", default: "" },
+        ],
+        "bot.nomnomzbot.streamdeck.obs-request": [
+          { key: "requestType", label: "Request type", type: "text", default: "" },
+          { key: "requestData", label: "Request data (JSON object, optional)", type: "text", default: "" },
+        ],
+        "bot.nomnomzbot.streamdeck.obs-call-vendor": [
+          { key: "vendor", label: "Vendor", type: "text", default: "" },
+          { key: "requestType", label: "Request type", type: "text", default: "" },
+          { key: "requestData", label: "Request data (JSON object, optional)", type: "text", default: "" },
+        ],
       };
 
       document.addEventListener("pi:ready", (ev) => {

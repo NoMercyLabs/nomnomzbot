@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- obs_screenshot (S-STREAMDECK-OBS-REMAINDER): captures a source; the result lands in a
+         pipeline variable, not on the key — this is a fire-and-forget trigger with a source +
+         format picker, no preview. -->
+    <sdpi-item label="Source">
+      <sdpi-select id="inputName" placeholder="Loading sources…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Format">
+      <sdpi-select id="format">
+        <option value="png">PNG</option>
+        <option value="jpg">JPG</option>
+        <option value="jpeg">JPEG</option>
+      </sdpi-select>
+    </sdpi-item>
+    <div id="appearance"></div>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+        requestFromPlugin({ type: "listInputs" });
+        if (ev.detail.inputName) document.getElementById("inputName").value = ev.detail.inputName;
+        document.getElementById("format").value = ev.detail.format ?? "png";
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type !== "inputs") return;
+        const select = document.getElementById("inputName");
+        select.innerHTML = "";
+        for (const input of ev.detail.inputs) {
+          const option = document.createElement("option");
+          option.value = input.name;
+          option.textContent = input.name;
+          select.appendChild(option);
+        }
+      });
+      document.getElementById("inputName").addEventListener("change", (ev) => {
+        setSettings({ inputName: ev.target.value });
+      });
+      document.getElementById("format").addEventListener("change", (ev) => {
+        setSettings({ format: ev.target.value });
+      });
+    </script>
+  </body>
+</html>

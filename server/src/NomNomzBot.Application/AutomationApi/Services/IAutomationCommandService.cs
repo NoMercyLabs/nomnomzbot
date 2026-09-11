@@ -87,4 +87,27 @@ public interface IAutomationCommandService
         AutomationPrincipal principal,
         CancellationToken ct = default
     );
+
+    /// <summary>The items placed in one OBS scene (scope <c>read</c>), for the <c>obs_set_source</c>
+    /// Stream Deck picker (S-STREAMDECK-OBS-REMAINDER) — mirrors <c>GET .../obs/scene-items</c>.</summary>
+    Task<Result<IReadOnlyList<AutomationObsSceneItemDto>>> GetObsSceneItemsAsync(
+        AutomationPrincipal principal,
+        string sceneName,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The OBS scene transitions (scope <c>read</c>), for the <c>obs_transition</c> Stream
+    /// Deck picker (S-STREAMDECK-OBS-REMAINDER) — mirrors <c>GET .../obs/scene-transitions</c>.</summary>
+    Task<Result<IReadOnlyList<AutomationObsTransitionDto>>> GetObsSceneTransitionsAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The filters attached to one OBS source (scope <c>read</c>), for the <c>obs_filter</c>
+    /// Stream Deck picker (S-STREAMDECK-OBS-REMAINDER) — mirrors <c>GET .../obs/source-filters</c>.</summary>
+    Task<Result<IReadOnlyList<AutomationObsFilterDto>>> GetObsSourceFiltersAsync(
+        AutomationPrincipal principal,
+        string sourceName,
+        CancellationToken ct = default
+    );
 }

@@ -130,3 +130,16 @@ public sealed record AutomationObsSceneDto(string Name, bool IsCurrent);
 /// <summary>One OBS input (audio/video source), as the data plane lists it for a property-inspector
 /// picker — mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsInputDto"/>.</summary>
 public sealed record AutomationObsInputDto(string Name, string Kind, bool? Muted, double? VolumeDb);
+
+/// <summary>One item placed in an OBS scene, as the data plane lists it for a property-inspector
+/// picker (S-STREAMDECK-OBS-REMAINDER) — mirrors
+/// <see cref="NomNomzBot.Application.Obs.Dtos.ObsSceneItemDto"/>.</summary>
+public sealed record AutomationObsSceneItemDto(int SceneItemId, string SourceName, bool Enabled);
+
+/// <summary>One OBS scene transition, as the data plane lists it for a property-inspector picker —
+/// mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsTransitionDto"/>.</summary>
+public sealed record AutomationObsTransitionDto(string Name, bool IsCurrent);
+
+/// <summary>One filter attached to an OBS source, as the data plane lists it for a property-inspector
+/// picker — mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsFilterDto"/>.</summary>
+public sealed record AutomationObsFilterDto(string Name, string Kind, bool Enabled, int Index);

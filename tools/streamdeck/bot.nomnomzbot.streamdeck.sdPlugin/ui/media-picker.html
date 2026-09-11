@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- obs_media (S-STREAMDECK-OBS-REMAINDER): drives a media source. The verb set is fixed and
+         small, so it's a hardcoded dropdown rather than a fetched list. -->
+    <sdpi-item label="Media source">
+      <sdpi-select id="inputName" placeholder="Loading inputs…"></sdpi-select>
+    </sdpi-item>
+    <sdpi-item label="Action">
+      <sdpi-select id="mediaAction">
+        <option value="play">Play</option>
+        <option value="pause">Pause</option>
+        <option value="stop">Stop</option>
+        <option value="restart">Restart</option>
+        <option value="next">Next</option>
+        <option value="previous">Previous</option>
+      </sdpi-select>
+    </sdpi-item>
+    <div id="appearance"></div>
+    <script>
+      document.addEventListener("pi:ready", (ev) => {
+        initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
+        requestFromPlugin({ type: "listInputs" });
+        if (ev.detail.inputName) document.getElementById("inputName").value = ev.detail.inputName;
+        document.getElementById("mediaAction").value = ev.detail.mediaAction ?? "play";
+      });
+      document.addEventListener("pi:message", (ev) => {
+        if (ev.detail?.type !== "inputs") return;
+        const select = document.getElementById("inputName");
+        select.innerHTML = "";
+        for (const input of ev.detail.inputs) {
+          const option = document.createElement("option");
+          option.value = input.name;
+          option.textContent = input.name;
+          select.appendChild(option);
+        }
+      });
+      document.getElementById("inputName").addEventListener("change", (ev) => {
+        setSettings({ inputName: ev.target.value });
+      });
+      document.getElementById("mediaAction").addEventListener("change", (ev) => {
+        setSettings({ mediaAction: ev.target.value });
+      });
+    </script>
+  </body>
+</html>

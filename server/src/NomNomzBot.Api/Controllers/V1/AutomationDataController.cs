@@ -247,6 +247,52 @@ public class AutomationDataController(
         return WithRetryAfter(await commands.GetObsInputsAsync(principal, ct));
     }
 
+    /// <summary>The items placed in one OBS scene (scope <c>read</c>) — Stream Deck property-inspector
+    /// picker (S-STREAMDECK-OBS-REMAINDER), mirroring <see cref="ObsController.GetSceneItems"/>.</summary>
+    [HttpGet("obs/scene-items")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationObsSceneItemDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetObsSceneItems(
+        [FromQuery] string sceneName,
+        CancellationToken ct
+    )
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetObsSceneItemsAsync(principal, sceneName, ct));
+    }
+
+    /// <summary>The OBS scene transitions (scope <c>read</c>) — Stream Deck property-inspector picker
+    /// (S-STREAMDECK-OBS-REMAINDER), mirroring <see cref="ObsController.GetSceneTransitions"/>.</summary>
+    [HttpGet("obs/scene-transitions")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationObsTransitionDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetObsSceneTransitions(CancellationToken ct)
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetObsSceneTransitionsAsync(principal, ct));
+    }
+
+    /// <summary>The filters attached to one OBS source (scope <c>read</c>) — Stream Deck
+    /// property-inspector picker (S-STREAMDECK-OBS-REMAINDER), mirroring
+    /// <see cref="ObsController.GetSourceFilters"/>.</summary>
+    [HttpGet("obs/source-filters")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationObsFilterDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetObsSourceFilters(
+        [FromQuery] string sourceName,
+        CancellationToken ct
+    )
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetObsSourceFiltersAsync(principal, sourceName, ct));
+    }
+
     /// <summary>The principal the authentication handler parked for this request.</summary>
     private AutomationPrincipal? Principal =>
         HttpContext.Items[typeof(AutomationPrincipal)] as AutomationPrincipal;

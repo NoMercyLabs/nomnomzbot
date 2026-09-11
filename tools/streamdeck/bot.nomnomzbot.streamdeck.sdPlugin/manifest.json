@@ -295,6 +295,102 @@
       "Tooltip": "Starts or stops the OBS virtual camera depending on its current state.",
       "PropertyInspectorPath": "ui/appearance-only.html",
       "States": [{ "Image": "imgs/actions/device" }]
+    },
+    {
+      "Name": "Set Preview Scene",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-set-preview-scene",
+      "Icon": "imgs/actions/scene",
+      "Tooltip": "Sets the studio-mode preview scene configured on this key.",
+      "PropertyInspectorPath": "ui/scene-picker.html",
+      "States": [{ "Image": "imgs/actions/scene" }]
+    },
+    {
+      "Name": "Set Source Visibility",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-set-source",
+      "Icon": "imgs/actions/device",
+      "Tooltip": "Shows or hides a source within a scene.",
+      "PropertyInspectorPath": "ui/scene-source-picker.html",
+      "States": [{ "Image": "imgs/actions/device" }]
+    },
+    {
+      "Name": "Toggle Filter",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-filter",
+      "Icon": "imgs/actions/repeat",
+      "Tooltip": "Enables or disables a filter on a source.",
+      "PropertyInspectorPath": "ui/source-filter-picker.html",
+      "States": [{ "Image": "imgs/actions/repeat" }]
+    },
+    {
+      "Name": "Transition",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-transition",
+      "Icon": "imgs/actions/shuffle",
+      "Tooltip": "Sets the current transition and/or fires a studio-mode transition.",
+      "PropertyInspectorPath": "ui/transition-picker.html",
+      "States": [{ "Image": "imgs/actions/shuffle" }]
+    },
+    {
+      "Name": "Set Input Volume",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-input-volume",
+      "Icon": "imgs/actions/volume",
+      "Tooltip": "Sets an input's volume to a fixed level in dB.",
+      "PropertyInspectorPath": "ui/input-volume-picker.html",
+      "States": [{ "Image": "imgs/actions/volume" }]
+    },
+    {
+      "Name": "Media Control",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-media",
+      "Icon": "imgs/actions/play-pause",
+      "Tooltip": "Plays, pauses, stops, restarts, or skips a media source.",
+      "PropertyInspectorPath": "ui/media-picker.html",
+      "States": [{ "Image": "imgs/actions/play-pause" }]
+    },
+    {
+      "Name": "Fire Hotkey",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-hotkey",
+      "Icon": "imgs/actions/seek",
+      "Tooltip": "Fires an OBS hotkey by its registered name.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/seek" }]
+    },
+    {
+      "Name": "Refresh Browser Source",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-refresh-browser",
+      "Icon": "imgs/actions/previous",
+      "Tooltip": "Reloads a browser source with no cache.",
+      "PropertyInspectorPath": "ui/input-picker.html",
+      "States": [{ "Image": "imgs/actions/previous" }]
+    },
+    {
+      "Name": "Screenshot Source",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-screenshot",
+      "Icon": "imgs/actions/record-stop",
+      "Tooltip": "Captures a source into the pipeline's obs.screenshot variable.",
+      "PropertyInspectorPath": "ui/screenshot-picker.html",
+      "States": [{ "Image": "imgs/actions/record-stop" }]
+    },
+    {
+      "Name": "Save Replay Clip",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-save-replay",
+      "Icon": "imgs/actions/record-start",
+      "Tooltip": "Saves the replay buffer as a clip.",
+      "PropertyInspectorPath": "ui/appearance-only.html",
+      "States": [{ "Image": "imgs/actions/record-start" }]
+    },
+    {
+      "Name": "Raw OBS Request",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-request",
+      "Icon": "imgs/actions/device",
+      "Tooltip": "Sends a raw obs-websocket request.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/device" }]
+    },
+    {
+      "Name": "Call Vendor Request",
+      "UUID": "bot.nomnomzbot.streamdeck.obs-call-vendor",
+      "Icon": "imgs/actions/device",
+      "Tooltip": "Calls a third-party OBS-WS vendor plugin request.",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/device" }]
     }
   ]
 }

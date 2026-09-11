@@ -64,6 +64,24 @@ export interface ObsInputPayload extends JsonObject {
   volumeDb: number | null;
 }
 
+export interface ObsSceneItemPayload extends JsonObject {
+  sceneItemId: number;
+  sourceName: string;
+  enabled: boolean;
+}
+
+export interface ObsTransitionPayload extends JsonObject {
+  name: string;
+  isCurrent: boolean;
+}
+
+export interface ObsFilterPayload extends JsonObject {
+  name: string;
+  kind: string;
+  enabled: boolean;
+  index: number;
+}
+
 /** The project-wide response envelope (StatusResponseDto&lt;T&gt;): {@code status: "ok"|"error"} +
  * {@code message} on failure. There is no {@code success} boolean or {@code errorCode} on the wire —
  * error KIND (expired token vs. forbidden vs. not found, …) is conveyed purely via HTTP status. */
@@ -193,6 +211,29 @@ export class AutomationClient {
    * name field). */
   async getObsInputs(): Promise<ObsInputPayload[]> {
     return this.request<ObsInputPayload[]>("GET", "/automation/v1/obs/inputs");
+  }
+
+  /** S-STREAMDECK-OBS-REMAINDER: the items placed in one scene, for the Set Source Visibility
+   * property inspector's dependent source dropdown (fetched after a scene is chosen). */
+  async getObsSceneItems(sceneName: string): Promise<ObsSceneItemPayload[]> {
+    return this.request<ObsSceneItemPayload[]>(
+      "GET",
+      `/automation/v1/obs/scene-items?sceneName=${encodeURIComponent(sceneName)}`,
+    );
+  }
+
+  /** The scene transition list for the Transition property inspector's dropdown. */
+  async getObsSceneTransitions(): Promise<ObsTransitionPayload[]> {
+    return this.request<ObsTransitionPayload[]>("GET", "/automation/v1/obs/scene-transitions");
+  }
+
+  /** The filters on one source, for the Filter property inspector's dependent filter dropdown
+   * (fetched after a source is chosen). */
+  async getObsSourceFilters(sourceName: string): Promise<ObsFilterPayload[]> {
+    return this.request<ObsFilterPayload[]>(
+      "GET",
+      `/automation/v1/obs/source-filters?sourceName=${encodeURIComponent(sourceName)}`,
+    );
   }
 
   /** Connects (or reconnects) the WS subscription for `song.changed`. Idempotent.
