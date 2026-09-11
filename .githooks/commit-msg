@@ -1,0 +1,23 @@
+#!/bin/sh
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# CLAUDE.md Critical Rule: "No Co-Authored-By in git commits — ever." AI assistant sessions have
+# repeatedly added this trailer anyway, following a generic system-level convention that overrides
+# the project's explicit instruction. This hook is the mechanical backstop: it rejects the commit
+# outright instead of relying on every session remembering the rule.
+#
+# One-time setup per clone: git config core.hooksPath .githooks
+
+if grep -qiE '^(Co-Authored-By|Claude-Session):' "$1"; then
+    echo "commit rejected: message contains a Co-Authored-By or Claude-Session trailer." >&2
+    echo "CLAUDE.md: \"No Co-Authored-By in git commits — ever.\" Remove the trailer and retry." >&2
+    exit 1
+fi

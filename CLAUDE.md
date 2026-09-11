@@ -19,7 +19,8 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Username is `Stoney_Eagle`** — underscore, not hyphen. Never change this.
 - **shadcn/ui (new-york) is the source of truth for the dashboard design** — ported 1:1 to Compose; full spec in `.claude/docs/design/spec/frontend-design-system.md`. The old Figma file (`MkKBuW2Ee6T5jC8fCtZsM0`) is **discarded** (not a viable dashboard); a fresh Figma may be minted from the spec later.
 - **HTML mockups** (the `nomnomzbot-design` repo — an external archived repo, not in this tree) are a loose historical reference only — the design system, not the mockups, is authoritative.
-- **No `Co-Authored-By` in git commits** — ever.
+- **No `Co-Authored-By` in git commits** — ever. Mechanically enforced by a `commit-msg` hook;
+  run `git config core.hooksPath .githooks` once per clone (see *Git Conventions*).
 - **No MediatR** — services are called directly via typed interfaces registered in DI.
 - **No Roslyn** — don't use Roslyn for code generation or analysis.
 - **Don't ask permission to fix bugs** — find it, fix it, move on.
@@ -674,7 +675,11 @@ never a repeat of the device-code dance.
 
 ## Git Conventions
 
-- No `Co-Authored-By` in commits — ever
+- No `Co-Authored-By` in commits — ever. Enforced mechanically, not just by convention: a
+  `commit-msg` hook at `.githooks/commit-msg` rejects any commit whose message carries a
+  `Co-Authored-By`/`Claude-Session` trailer (AI sessions have added these anyway, following a
+  generic system-level convention that overrides this file's explicit instruction — CLAUDE.md
+  alone was not enough). **One-time setup per clone: `git config core.hooksPath .githooks`.**
 - Conventional commit messages preferred (`feat:`, `fix:`, `chore:`, etc.)
 - Main branch: `master` (never `main`)
 - Remotes: `origin` = `NoMercyLabs/nomnomzbot` (canonical, push here); `fork` = personal `StoneyEagle/nomnomzbot`
