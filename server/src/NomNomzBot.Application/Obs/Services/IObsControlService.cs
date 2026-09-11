@@ -163,4 +163,13 @@ public interface IObsControlService
         string sceneName,
         CancellationToken ct = default
     );
+
+    /// <summary>Whether the virtual camera output is currently running.</summary>
+    Task<Result<ObsVirtualCamStatusDto>> GetVirtualCamStatusAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>OBS performance stats — CPU/memory load and render/output frame counters.</summary>
+    Task<Result<ObsStatsDto>> GetStatsAsync(Guid broadcasterId, CancellationToken ct = default);
 }

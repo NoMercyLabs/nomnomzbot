@@ -336,6 +336,71 @@ public sealed class ObsControlServiceTests
         result.ErrorMessage.Should().Be("scene not found");
     }
 
+    [Fact]
+    public async Task Get_virtual_cam_status_returns_the_real_output_active_flag()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetVirtualCamStatus"
+                ? new(true, new Dictionary<string, object?> { ["outputActive"] = true }, null)
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<ObsVirtualCamStatusDto> result = await h.Service.GetVirtualCamStatusAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.OutputActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Get_virtual_cam_status_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "virtual cam not available"));
+
+        Result<ObsVirtualCamStatusDto> result = await h.Service.GetVirtualCamStatusAsync(Channel);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("virtual cam not available");
+    }
+
+    [Fact]
+    public async Task Get_stats_parses_cpu_memory_fps_and_frame_counters()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetStats"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["cpuUsage"] = 12.5d,
+                        ["memoryUsage"] = 512.25d,
+                        ["activeFps"] = 59.94d,
+                        ["renderTotalFrames"] = 10000d,
+                        ["renderSkippedFrames"] = 3d,
+                        ["outputTotalFrames"] = 9998d,
+                        ["outputSkippedFrames"] = 1d,
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<ObsStatsDto> result = await h.Service.GetStatsAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().Be(new ObsStatsDto(12.5, 512.25, 59.94, 10000, 3, 9998, 1));
+    }
+
+    [Fact]
+    public async Task Get_stats_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "obs not ready"));
+
+        Result<ObsStatsDto> result = await h.Service.GetStatsAsync(Channel);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("obs not ready");
+    }
+
     private static string? Name(ObsRequest request) =>
         request.RequestData?.GetValueOrDefault("inputName") as string;
 

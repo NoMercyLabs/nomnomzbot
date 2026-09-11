@@ -87,6 +87,22 @@ public sealed record ObsInputDto(string Name, string Kind, bool? Muted, double? 
 /// different <c>sceneItemEnabled</c> in each.</summary>
 public sealed record ObsSceneItemDto(int SceneItemId, string SourceName, bool Enabled);
 
+/// <summary>Virtual camera output status (obs-websocket v5 <c>GetVirtualCamStatus</c>) — the same
+/// single <c>outputActive</c> shape the stream/record/replay-buffer status requests answer with.</summary>
+public sealed record ObsVirtualCamStatusDto(bool OutputActive);
+
+/// <summary>OBS performance stats (obs-websocket v5 <c>GetStats</c>) — CPU/memory load and the
+/// render-thread vs. output-thread frame counters used to detect dropped frames.</summary>
+public sealed record ObsStatsDto(
+    double CpuUsage,
+    double MemoryUsage,
+    double ActiveFps,
+    int RenderTotalFrames,
+    int RenderSkippedFrames,
+    int OutputTotalFrames,
+    int OutputSkippedFrames
+);
+
 /// <summary>REST body for the scene-switch route.</summary>
 public sealed record ObsSceneRequest(string Scene);
 

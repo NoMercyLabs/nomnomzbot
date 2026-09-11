@@ -88,6 +88,20 @@ public class ObsController(
         CancellationToken ct
     ) => ObsReadResponse(await control.GetSceneItemListAsync(channelId, sceneName, ct), []);
 
+    /// <summary>Whether the virtual camera output is currently running.</summary>
+    [HttpGet("virtual-cam/status")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<ObsVirtualCamStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetVirtualCamStatus(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetVirtualCamStatusAsync(channelId, ct), new(false));
+
+    /// <summary>OBS performance stats — CPU/memory load and render/output frame counters.</summary>
+    [HttpGet("stats")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<ObsStatsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStats(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetStatsAsync(channelId, ct), new(0, 0, 0, 0, 0, 0, 0));
+
     /// <summary>
     /// Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which
     /// mask a "not connected yet" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there

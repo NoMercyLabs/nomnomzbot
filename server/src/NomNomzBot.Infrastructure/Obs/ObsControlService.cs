@@ -586,6 +586,53 @@ public class ObsControlService : IObsControlService
         return Result.Success<IReadOnlyList<ObsSceneItemDto>>(items);
     }
 
+    public async Task<Result<ObsVirtualCamStatusDto>> GetVirtualCamStatusAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetVirtualCamStatus", null),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<ObsVirtualCamStatusDto>(status.ErrorMessage!, status.ErrorCode!);
+
+        return Result.Success(new ObsVirtualCamStatusDto(GetBool(response.Value, "outputActive")));
+    }
+
+    public async Task<Result<ObsStatsDto>> GetStatsAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetStats", null),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<ObsStatsDto>(status.ErrorMessage!, status.ErrorCode!);
+
+        IReadOnlyDictionary<string, object?>? data = response.Value.ResponseData;
+        return Result.Success(
+            new ObsStatsDto(
+                GetDouble(data, "cpuUsage"),
+                GetDouble(data, "memoryUsage"),
+                GetDouble(data, "activeFps"),
+                GetInt(data, "renderTotalFrames"),
+                GetInt(data, "renderSkippedFrames"),
+                GetInt(data, "outputTotalFrames"),
+                GetInt(data, "outputSkippedFrames")
+            )
+        );
+    }
+
     // ── Plumbing ────────────────────────────────────────────────────────────
 
     private async Task<Result> SendStatusAsync(
@@ -614,4 +661,13 @@ public class ObsControlService : IObsControlService
 
     private static bool GetBool(ObsResponse? response, string key) =>
         response?.ResponseData?.GetValueOrDefault(key) is bool and true;
+
+    // GetStats fields arrive as JSON numbers, which DirectObsTransport always boxes as double
+    // (see ParseRequestResponse) — these two read that common shape, one as-is and one narrowed to
+    // int for the frame counters, so GetStatsAsync above stays a plain field-by-field mapping.
+    private static double GetDouble(IReadOnlyDictionary<string, object?>? data, string key) =>
+        data?.GetValueOrDefault(key) is double value ? value : 0;
+
+    private static int GetInt(IReadOnlyDictionary<string, object?>? data, string key) =>
+        data?.GetValueOrDefault(key) is double value ? (int)value : 0;
 }
