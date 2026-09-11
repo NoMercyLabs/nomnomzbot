@@ -401,6 +401,95 @@ public sealed class ObsControlServiceTests
         result.ErrorMessage.Should().Be("obs not ready");
     }
 
+    [Fact]
+    public async Task Get_scene_transition_list_parses_name_and_flags_the_current_one()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetSceneTransitionList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["currentSceneTransitionName"] = "Fade",
+                        ["transitions"] =
+                            """[{"transitionName":"Fade","transitionKind":"fade_transition","transitionFixed":false,"transitionConfigurable":true,"transitionKindEnabled":true},{"transitionName":"Cut","transitionKind":"cut_transition","transitionFixed":true,"transitionConfigurable":false,"transitionKindEnabled":true}]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<ObsTransitionDto>> result =
+            await h.Service.GetSceneTransitionListAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+        ObsTransitionDto fade = result.Value.Single(t => t.Name == "Fade");
+        fade.IsCurrent.Should().BeTrue();
+        ObsTransitionDto cut = result.Value.Single(t => t.Name == "Cut");
+        cut.IsCurrent.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Get_scene_transition_list_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "not connected"));
+
+        Result<IReadOnlyList<ObsTransitionDto>> result =
+            await h.Service.GetSceneTransitionListAsync(Channel);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("not connected");
+    }
+
+    [Fact]
+    public async Task Get_source_filter_list_forwards_the_source_name_and_parses_each_filter()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetSourceFilterList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["filters"] =
+                            """[{"filterEnabled":true,"filterIndex":0,"filterKind":"chroma_key_filter_v2","filterName":"Chroma Key","filterSettings":{}},{"filterEnabled":false,"filterIndex":1,"filterKind":"color_filter_v2","filterName":"Color Correction","filterSettings":{}}]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<ObsFilterDto>> result = await h.Service.GetSourceFilterListAsync(
+            Channel,
+            "Webcam"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        h.Requests.Single().RequestData!["sourceName"].Should().Be("Webcam");
+        result.Value.Should().HaveCount(2);
+        ObsFilterDto chroma = result.Value.Single(f => f.Name == "Chroma Key");
+        chroma.Kind.Should().Be("chroma_key_filter_v2");
+        chroma.Enabled.Should().BeTrue();
+        chroma.Index.Should().Be(0);
+        ObsFilterDto color = result.Value.Single(f => f.Name == "Color Correction");
+        color.Enabled.Should().BeFalse();
+        color.Index.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Get_source_filter_list_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "source not found"));
+
+        Result<IReadOnlyList<ObsFilterDto>> result = await h.Service.GetSourceFilterListAsync(
+            Channel,
+            "Missing"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("source not found");
+    }
+
     private static string? Name(ObsRequest request) =>
         request.RequestData?.GetValueOrDefault("inputName") as string;
 

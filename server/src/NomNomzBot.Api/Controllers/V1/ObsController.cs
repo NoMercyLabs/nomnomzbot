@@ -102,6 +102,25 @@ public class ObsController(
     public async Task<IActionResult> GetStats(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetStatsAsync(channelId, ct), new(0, 0, 0, 0, 0, 0, 0));
 
+    /// <summary>The scene transitions OBS knows about, with the currently active one flagged.</summary>
+    [HttpGet("scene-transitions")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsTransitionDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetSceneTransitions(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetSceneTransitionListAsync(channelId, ct), []);
+
+    /// <summary>The filters attached to one source (scene or input).</summary>
+    [HttpGet("source-filters")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsFilterDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSourceFilters(
+        Guid channelId,
+        [FromQuery] string sourceName,
+        CancellationToken ct
+    ) => ObsReadResponse(await control.GetSourceFilterListAsync(channelId, sourceName, ct), []);
+
     /// <summary>
     /// Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which
     /// mask a "not connected yet" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there

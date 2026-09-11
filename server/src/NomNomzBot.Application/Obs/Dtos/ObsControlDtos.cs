@@ -91,6 +91,15 @@ public sealed record ObsSceneItemDto(int SceneItemId, string SourceName, bool En
 /// single <c>outputActive</c> shape the stream/record/replay-buffer status requests answer with.</summary>
 public sealed record ObsVirtualCamStatusDto(bool OutputActive);
 
+/// <summary>One scene transition OBS knows about (obs-websocket v5 <c>GetSceneTransitionList</c>) —
+/// mirrors <see cref="ObsSceneDto"/>'s shape: name + whether it is the one currently selected.</summary>
+public sealed record ObsTransitionDto(string Name, bool IsCurrent);
+
+/// <summary>One filter attached to a source (obs-websocket v5 <c>GetSourceFilterList</c>) — name,
+/// kind, whether it's enabled, and its position in the source's filter chain. <c>filterSettings</c>
+/// is provider-specific free-form data the dashboard's filter list has no use for, so it's left out.</summary>
+public sealed record ObsFilterDto(string Name, string Kind, bool Enabled, int Index);
+
 /// <summary>OBS performance stats (obs-websocket v5 <c>GetStats</c>) — CPU/memory load and the
 /// render-thread vs. output-thread frame counters used to detect dropped frames.</summary>
 public sealed record ObsStatsDto(

@@ -633,6 +633,99 @@ public class ObsControlService : IObsControlService
         );
     }
 
+    public async Task<Result<IReadOnlyList<ObsTransitionDto>>> GetSceneTransitionListAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetSceneTransitionList", null),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsTransitionDto>>(
+                status.ErrorMessage!,
+                status.ErrorCode!
+            );
+
+        string? current =
+            response.Value.ResponseData?.GetValueOrDefault("currentSceneTransitionName") as string;
+        List<ObsTransitionDto> transitions = [];
+        if (response.Value.ResponseData?.GetValueOrDefault("transitions") is string transitionsJson)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                transitionsJson
+            );
+            foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+                if (item.TryGetProperty("transitionName", out System.Text.Json.JsonElement nameEl))
+                {
+                    string name = nameEl.GetString() ?? "";
+                    transitions.Add(new(name, name == current));
+                }
+        }
+        return Result.Success<IReadOnlyList<ObsTransitionDto>>(transitions);
+    }
+
+    public async Task<Result<IReadOnlyList<ObsFilterDto>>> GetSourceFilterListAsync(
+        Guid broadcasterId,
+        string sourceName,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new(
+                "GetSourceFilterList",
+                new Dictionary<string, object?> { ["sourceName"] = sourceName }
+            ),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsFilterDto>>(
+                status.ErrorMessage!,
+                status.ErrorCode!
+            );
+
+        List<ObsFilterDto> filters = [];
+        if (response.Value.ResponseData?.GetValueOrDefault("filters") is string filtersJson)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                filtersJson
+            );
+            foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+            {
+                string name = item.TryGetProperty(
+                    "filterName",
+                    out System.Text.Json.JsonElement nameEl
+                )
+                    ? nameEl.GetString() ?? ""
+                    : "";
+                string kind = item.TryGetProperty(
+                    "filterKind",
+                    out System.Text.Json.JsonElement kindEl
+                )
+                    ? kindEl.GetString() ?? ""
+                    : "";
+                bool enabled =
+                    item.TryGetProperty("filterEnabled", out System.Text.Json.JsonElement enabledEl)
+                    && enabledEl.GetBoolean();
+                int index = item.TryGetProperty(
+                    "filterIndex",
+                    out System.Text.Json.JsonElement indexEl
+                )
+                    ? indexEl.GetInt32()
+                    : 0;
+                filters.Add(new(name, kind, enabled, index));
+            }
+        }
+        return Result.Success<IReadOnlyList<ObsFilterDto>>(filters);
+    }
+
     // ── Plumbing ────────────────────────────────────────────────────────────
 
     private async Task<Result> SendStatusAsync(

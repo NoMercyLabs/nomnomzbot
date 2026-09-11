@@ -172,4 +172,17 @@ public interface IObsControlService
 
     /// <summary>OBS performance stats — CPU/memory load and render/output frame counters.</summary>
     Task<Result<ObsStatsDto>> GetStatsAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    /// <summary>The scene transitions OBS knows about, with the currently active one flagged.</summary>
+    Task<Result<IReadOnlyList<ObsTransitionDto>>> GetSceneTransitionListAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The filters attached to one source (scene or input).</summary>
+    Task<Result<IReadOnlyList<ObsFilterDto>>> GetSourceFilterListAsync(
+        Guid broadcasterId,
+        string sourceName,
+        CancellationToken ct = default
+    );
 }
