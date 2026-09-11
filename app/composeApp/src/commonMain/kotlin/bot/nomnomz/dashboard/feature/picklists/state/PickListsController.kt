@@ -149,13 +149,16 @@ class PickListsController(
         }
     }
 
+    // The page is already showing content (Ready or Empty) — announce on the shell-level feedback toast rather
+    // than a local banner. Only when the page has nothing to show yet does a failure become the page's own
+    // Error state.
     private fun failWrite(detail: String) {
-        // Announce the failure on the frame (persistent until dismissed) AND keep the in-page banner.
-        feedback.error(Res.string.feedback_picklist_save_failed, detail)
         val current: PickListsState = _state.value
-        _state.value =
-            if (current is PickListsState.Ready) current.copy(actionError = detail)
-            else PickListsState.Error(detail)
+        if (current is PickListsState.Ready || current is PickListsState.Empty) {
+            feedback.error(Res.string.feedback_picklist_save_failed, detail)
+        } else {
+            _state.value = PickListsState.Error(detail)
+        }
     }
 
     // The description is sent as null (omitted from the wire body) when the operator leaves it blank — an empty
@@ -182,10 +185,10 @@ sealed interface PickListsState {
     data object Loading : PickListsState
 
     /**
-     * The channel's pick-lists are listed. [actionError] is non-null only when the last create/edit/delete failed —
-     * the screen surfaces it as a transient banner while keeping the list rendered.
+     * The channel's pick-lists are listed. A create/edit/delete failure announces on the shell-level feedback
+     * toast rather than a field here — see [PickListsController.failWrite].
      */
-    data class Ready(val lists: List<PickList>, val actionError: String? = null) : PickListsState
+    data class Ready(val lists: List<PickList>) : PickListsState
 
     data object Empty : PickListsState
 

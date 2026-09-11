@@ -144,12 +144,16 @@ class SoundController(
         }
     }
 
+    // The page is already showing content (Ready or Empty — the upload button still works from Empty) —
+    // announce on the shell-level feedback toast rather than a local banner. Only when the page has nothing to
+    // show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
-        feedback.error(Res.string.feedback_sound_clip_save_failed, detail)
         val current: SoundState = _state.value
-        _state.value =
-            if (current is SoundState.Ready) current.copy(actionError = detail)
-            else SoundState.Error(detail)
+        if (current is SoundState.Ready || current is SoundState.Empty) {
+            feedback.error(Res.string.feedback_sound_clip_save_failed, detail)
+        } else {
+            _state.value = SoundState.Error(detail)
+        }
     }
 }
 
@@ -157,7 +161,9 @@ class SoundController(
 sealed interface SoundState {
     data object Loading : SoundState
 
-    data class Ready(val clips: List<SoundClip>, val actionError: String? = null) : SoundState
+    // A write failure announces on the shell-level feedback toast rather than a field here — see
+    // [SoundController.failWrite].
+    data class Ready(val clips: List<SoundClip>) : SoundState
 
     data object Empty : SoundState
 

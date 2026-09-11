@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.songrequests.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -24,6 +26,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.songrequests_action_error
 
 // The Song Requests page's state-holder — the channel's live queue AND its SR management capabilities:
 // config (max queue, allowed providers, trust floor) and the public SR-page token. Loads all three in
@@ -31,6 +35,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class SongRequestsController(
     private val channelsApi: ChannelsApi,
     private val songRequestsApi: SongRequestsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<SongRequestsState> =
         MutableStateFlow(SongRequestsState.Loading)
@@ -156,10 +161,10 @@ class SongRequestsController(
         }
     }
 
+    // The page is already showing content — a control failure announces on the shell-level feedback toast
+    // rather than a local banner.
     private fun surfaceError(message: String) {
-        val current: SongRequestsState = _state.value
-        if (current is SongRequestsState.Ready)
-            _state.value = current.copy(actionError = message)
+        if (_state.value is SongRequestsState.Ready) feedback.error(Res.string.songrequests_action_error, message)
     }
 }
 
@@ -169,14 +174,13 @@ sealed interface SongRequestsState {
 
     /**
      * Loaded: the live queue, the SR config, and the SR-page token. [config] and [srPageToken] may be null
-     * when the backend call failed (resilient — the queue still renders). [actionError] surfaces the last
-     * control-action failure while keeping the queue intact.
+     * when the backend call failed (resilient — the queue still renders). A control-action failure announces
+     * on the shell-level feedback toast rather than a field here — see [SongRequestsController.surfaceError].
      */
     data class Ready(
         val queue: List<QueuedSong>,
         val config: MusicConfig?,
         val srPageToken: String?,
-        val actionError: String? = null,
     ) : SongRequestsState
 
     data class Error(val detail: String) : SongRequestsState

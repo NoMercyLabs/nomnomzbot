@@ -77,7 +77,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
@@ -448,7 +447,6 @@ fun PipelinesScreen(
             is PipelinesState.Empty ->
                 ListContent(
                     pipelines = emptyList(),
-                    actionError = null,
                     manage = manage,
                     controller = controller,
                     scope = scope,
@@ -458,7 +456,6 @@ fun PipelinesScreen(
             is PipelinesState.Ready ->
                 ListContent(
                     pipelines = current.pipelines,
-                    actionError = current.actionError,
                     manage = manage,
                     controller = controller,
                     scope = scope,
@@ -483,7 +480,6 @@ fun PipelinesScreen(
 @Composable
 private fun ListContent(
     pipelines: List<PipelineSummary>,
-    actionError: String?,
     manage: ManageDecision,
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
@@ -507,7 +503,7 @@ private fun ListContent(
             canReadHistory = canReadHistory,
             onOpenHistory = onOpenHistory,
         )
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_action_error, it)) }
+        // Write failures announce on the shell-level feedback toast (PipelinesController.failList).
 
         if (pipelines.isEmpty()) {
             CenteredMessage(stringResource(Res.string.pipelines_empty))
@@ -826,7 +822,7 @@ internal fun ChainEditor(
             }
         }
 
-        editing.actionError?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_action_error, it)) }
+        // A save failure announces on the shell-level feedback toast (PipelinesController.failEdit).
 
         Text(
             text = stringResource(Res.string.pipelines_step_count, editing.steps.size),

@@ -70,7 +70,6 @@ class SupportersControllerTest {
         assertEquals(SupporterConnectionMode.Webhook, connection.connectionMode)
         assertTrue(connection.isEnabled)
         assertEquals(SupporterConnectionStatus.Active, connection.status)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -226,12 +225,11 @@ class SupportersControllerTest {
 
         controller.upsertConnection(SupporterSourceKey.Kofi, SupporterConnectionMode.Webhook, isEnabled = false)
 
-        // The tiles are kept (not blown away) and the failure is surfaced on them AND on the frame; the store was
-        // left untouched so the toggle stays where it was.
+        // The tiles are kept (not blown away) and the failure announces on the frame; the store was left
+        // untouched so the toggle stays where it was.
         val state: ConnectionsState = controller.connections.value
         assertTrue(state is ConnectionsState.Ready)
         assertTrue((state as ConnectionsState.Ready).connections.single().isEnabled)
-        assertEquals("no permission", state.actionError)
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(Res.string.feedback_supporter_save_failed, feedback.only.label)
     }

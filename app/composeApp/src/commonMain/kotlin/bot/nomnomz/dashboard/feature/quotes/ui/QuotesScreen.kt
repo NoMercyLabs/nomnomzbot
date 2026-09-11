@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Button
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -147,7 +146,6 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubE
             is QuotesState.Empty ->
                 ManagedContent(
                     quotes = emptyList(),
-                    actionError = null,
                     search = "",
                     page = 1,
                     hasPrev = false,
@@ -165,7 +163,6 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubE
             is QuotesState.Ready ->
                 ManagedContent(
                     quotes = current.quotes,
-                    actionError = current.actionError,
                     search = current.search,
                     page = current.page,
                     hasPrev = current.hasPrev,
@@ -219,7 +216,6 @@ fun QuotesScreen(controller: QuotesController, heldActionKeys: Set<String>, hubE
 @Composable
 private fun ManagedContent(
     quotes: List<Quote>,
-    actionError: String?,
     search: String,
     page: Int,
     hasPrev: Boolean,
@@ -247,7 +243,7 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         Header(writeManage = writeManage, onNew = onNew)
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.quotes_action_error, it)) }
+        // Write failures announce on the shell-level feedback toast (QuotesController.failWrite).
 
         AppTextField(
             value = query,

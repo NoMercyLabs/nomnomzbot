@@ -115,12 +115,12 @@ class SupportersController(
         }
     }
 
+    // The page is already showing content — announce on the shell-level feedback toast rather than a local
+    // banner. Only when the tiles have nothing to show yet does a failure become the page's own Error state.
     private fun failConnectionWrite(detail: String) {
-        feedback.error(Res.string.feedback_supporter_save_failed, detail)
         val current: ConnectionsState = _connections.value
-        _connections.value =
-            if (current is ConnectionsState.Ready) current.copy(actionError = detail)
-            else ConnectionsState.Error(detail)
+        if (current is ConnectionsState.Ready) feedback.error(Res.string.feedback_supporter_save_failed, detail)
+        else _connections.value = ConnectionsState.Error(detail)
     }
 
     // ── Events feed ──────────────────────────────────────────────────────────────
@@ -160,11 +160,10 @@ sealed interface ConnectionsState {
 
     /**
      * The broadcaster's connection rows (possibly empty — the provider tiles still render, showing "not
-     * connected"). [actionError] is non-null only when the last connect/disconnect/toggle failed — the screen
-     * surfaces it as a transient banner while keeping the tiles rendered.
+     * connected"). A connect/disconnect/toggle failure announces on the shell-level feedback toast rather than
+     * a field here — see [SupportersController.failConnectionWrite].
      */
-    data class Ready(val connections: List<SupporterConnection>, val actionError: String? = null) :
-        ConnectionsState
+    data class Ready(val connections: List<SupporterConnection>) : ConnectionsState
 
     data class Error(val detail: String) : ConnectionsState
 }

@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -109,7 +108,6 @@ fun AssetsScreen(controller: AssetsController, role: ManagementRole?) {
             is AssetsState.Empty ->
                 AssetList(
                     assets = emptyList(),
-                    actionError = null,
                     manage = manage,
                     isUploading = isUploading,
                     publicUrl = controller::publicUrl,
@@ -119,7 +117,6 @@ fun AssetsScreen(controller: AssetsController, role: ManagementRole?) {
             is AssetsState.Ready ->
                 AssetList(
                     assets = current.assets,
-                    actionError = current.actionError,
                     manage = manage,
                     isUploading = isUploading,
                     publicUrl = controller::publicUrl,
@@ -158,7 +155,6 @@ fun AssetsScreen(controller: AssetsController, role: ManagementRole?) {
 @Composable
 private fun AssetList(
     assets: List<ChannelAsset>,
-    actionError: String?,
     manage: ManageDecision,
     isUploading: Boolean,
     publicUrl: (String) -> String?,
@@ -181,9 +177,7 @@ private fun AssetList(
             }
         }
 
-        actionError?.let { detail ->
-            ActionErrorBanner(message = stringResource(Res.string.assets_action_error, detail))
-        }
+        // Write failures announce on the shell-level feedback toast (AssetsController.failWrite).
 
         // Single card table — all assets in one container, rows separated by hairlines.
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {

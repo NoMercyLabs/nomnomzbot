@@ -50,7 +50,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -362,7 +361,6 @@ fun SettingsScreen(
         // Channel management — join/leave/reset; Broadcaster floor (setup:write).
         if (state is SettingsState.Ready) {
             ChannelManagementSection(
-                actionError = (state as SettingsState.Ready).channelActionError,
                 manage = ownerManage,
                 onJoin = { scope.launch { controller.joinBot() } },
                 onLeave = { pendingLeave = true },
@@ -738,7 +736,6 @@ private fun CenteredMessage(text: String) {
 // Join is non-destructive and shows no confirm dialog. Leave, Reset, and Delete are confirmed before executing.
 @Composable
 private fun ChannelManagementSection(
-    actionError: String?,
     manage: ManageDecision,
     onJoin: () -> Unit,
     onLeave: () -> Unit,
@@ -760,9 +757,7 @@ private fun ChannelManagementSection(
                 color = tokens.cardForeground,
             )
 
-            actionError?.let { err ->
-                ActionErrorBanner(message = stringResource(Res.string.settings_channel_action_error, err))
-            }
+            // Write failures announce on the shell-level feedback toast (SettingsController.applyChannelAction).
 
             // Join
             ChannelActionRow(
@@ -2399,11 +2394,7 @@ private fun PermissionsMatrix(
             )
         }
 
-        if (state.regrantError != null) {
-            ActionErrorBanner(
-                message = stringResource(Res.string.settings_permissions_regrant_error, state.regrantError),
-            )
-        }
+        // A failed re-grant start announces on the shell-level feedback toast (PermissionsController.regrant).
 
         val regrant = state.regrant
         if (regrant != null) {

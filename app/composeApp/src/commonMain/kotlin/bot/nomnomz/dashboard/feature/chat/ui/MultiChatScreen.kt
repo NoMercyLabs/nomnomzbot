@@ -37,7 +37,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -170,7 +170,10 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_multichat))
-        ready.actionError?.let { ActionErrorBanner(message = it) }
+        // A just-added channel's scrollback failed to load — a section-load failure, stays visible in place
+        // (not a dismissable toast) until the section reloads. Every moderation/composer write's outcome
+        // announces on the shell-level feedback toast instead (MultiChatController.runModerationCall).
+        ready.actionError?.let { InlineError(message = stringResource(Res.string.multichat_error, it)) }
 
         ChannelPicker(available = ready.available, watched = ready.watched, onToggle = onToggle)
 

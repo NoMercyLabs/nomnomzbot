@@ -73,7 +73,6 @@ class EventResponsesControllerTest {
         assertIs<EventResponsesState.Ready>(state)
         assertEquals(1, state.responses.size)
         assertEquals("channel.follow", state.responses.first().eventType)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -149,7 +148,7 @@ class EventResponsesControllerTest {
     }
 
     @Test
-    fun toggle_sets_action_error_on_write_failure() = runTest {
+    fun toggle_announces_on_the_feedback_toast_on_write_failure() = runTest {
         val summary =
             EventResponseSummary(
                 id = "er1",
@@ -163,6 +162,7 @@ class EventResponsesControllerTest {
                 listResult = ApiResult.Ok(listOf(summary)),
                 upsertResult = ApiResult.Failure(ApiError(status = 422, code = null, message = "write failed")),
             )
+        val feedback = RecordingFeedback()
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
@@ -170,6 +170,7 @@ class EventResponsesControllerTest {
                 widgetsApi = StubWidgetsApi,
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
+                feedback = feedback,
             )
 
         controller.load()
@@ -177,7 +178,7 @@ class EventResponsesControllerTest {
 
         val state: EventResponsesState = controller.state.value
         assertIs<EventResponsesState.Ready>(state)
-        assertNotNull(state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
     }
 
     @Test

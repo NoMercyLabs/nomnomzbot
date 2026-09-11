@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -431,13 +430,9 @@ private fun ReadyContent(
                     onMarkMoment = {
                         scope.launch {
                             val marker: LiveOpsMarker? = liveOpsController.createMarker(null)
-                            markerNotice =
-                                if (marker != null) {
-                                    markSuccessMsg
-                                } else {
-                                    (liveOpsController.state.value as? LiveOpsState.Ready)?.actionError
-                                        ?: markFailMsg
-                                }
+                            // A failure's real reason already announces on the shell-level feedback toast
+                            // (LiveOpsController.createMarker); this inline notice just confirms the outcome.
+                            markerNotice = if (marker != null) markSuccessMsg else markFailMsg
                         }
                     },
                     onStartPoll = { showPollDialog = true },
@@ -457,12 +452,9 @@ private fun ReadyContent(
                     onSnoozeAd = { scope.launch { liveOpsController.snoozeNextAd() } },
                 )
 
-                // Every live-ops quick action records a failure on ready.actionError (non-affiliate 403, channel
-                // not live, etc.); render it here so a failed poll/prediction/raid/commercial/clip is never a
-                // silent no-op that reads as a dead button.
-                ready?.actionError?.let { error ->
-                    ActionErrorBanner(message = error)
-                }
+                // Every live-ops quick action announces a failure on the shell-level feedback toast
+                // (non-affiliate 403, channel not live, etc.) — see LiveOpsController.setActionError — so a
+                // failed poll/prediction/raid/commercial/clip is never a silent no-op that reads as a dead button.
 
                 markerNotice?.let { notice ->
                     Text(

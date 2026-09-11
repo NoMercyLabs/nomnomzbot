@@ -35,7 +35,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -155,7 +154,6 @@ fun EventResponsesScreen(
             is EventResponsesState.Ready ->
                 ReadyContent(
                     responses = current.responses,
-                    actionError = current.actionError,
                     manage = manage,
                     onToggle = { response, enabled ->
                         scope.launch { controller.toggle(response.eventType, enabled) }
@@ -193,11 +191,10 @@ fun EventResponsesScreen(
     }
 }
 
-// Ready state: PageHeader + optional error banner + single-card table of event responses.
+// Ready state: PageHeader + single-card table of event responses.
 @Composable
 private fun ReadyContent(
     responses: List<EventResponseSummary>,
-    actionError: String?,
     manage: ManageDecision,
     onToggle: (EventResponseSummary, Boolean) -> Unit,
     onEdit: (EventResponseSummary) -> Unit,
@@ -212,9 +209,7 @@ private fun ReadyContent(
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_event_responses))
 
-        actionError?.let { detail ->
-            ActionErrorBanner(message = stringResource(Res.string.event_responses_action_error, detail))
-        }
+        // Write failures announce on the shell-level feedback toast (EventResponsesController.failWrite).
 
         // Single card table — all events in one container, rows separated by hairlines.
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {

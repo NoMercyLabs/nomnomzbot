@@ -213,14 +213,14 @@ class ChatTriggersController(
     }
 
     private fun failWrite(detail: String) {
-        feedback.error(Res.string.feedback_chat_trigger_save_failed, detail)
+        // The page is already showing content — announce on the shell-level feedback toast rather than a local
+        // banner. Only when the page has nothing to show yet does a failure become the page's own Error state.
         val current: ChatTriggersState = _state.value
-        _state.value =
-            when (current) {
-                is ChatTriggersState.Ready -> current.copy(actionError = detail)
-                is ChatTriggersState.Empty -> current.copy(actionError = detail)
-                else -> ChatTriggersState.Error(detail)
-            }
+        if (current is ChatTriggersState.Ready || current is ChatTriggersState.Empty) {
+            feedback.error(Res.string.feedback_chat_trigger_save_failed, detail)
+        } else {
+            _state.value = ChatTriggersState.Error(detail)
+        }
     }
 
     private companion object {
@@ -234,19 +234,17 @@ sealed interface ChatTriggersState {
 
     /**
      * The channel's triggers are listed. [pipelines] is the channel's pipeline list (for the bind-pipeline selector
-     * in the create/edit dialog). [actionError] is non-null only when the last write failed — the screen surfaces it
-     * as a transient banner (carrying the server-side validation reason) while keeping the list rendered.
+     * in the create/edit dialog). A write failure (carrying the server-side validation reason) announces on the
+     * shell-level feedback toast rather than a field here — see [ChatTriggersController.failWrite].
      */
     data class Ready(
         val triggers: List<ChatTrigger>,
         val pipelines: List<PipelineSummary> = emptyList(),
-        val actionError: String? = null,
     ) : ChatTriggersState
 
     /** No triggers yet, but the channel is onboarded. Carries [pipelines] so the create dialog still works. */
     data class Empty(
         val pipelines: List<PipelineSummary> = emptyList(),
-        val actionError: String? = null,
     ) : ChatTriggersState
 
     data class Error(val detail: String) : ChatTriggersState

@@ -260,12 +260,16 @@ class EventResponsesController(
         }
     }
 
+    // The page is already showing content (Ready or Empty) — announce on the shell-level feedback toast rather
+    // than a local banner. Only when the page has nothing to show yet does a failure become the page's own
+    // Error state.
     private fun failWrite(detail: String) {
-        feedback.error(Res.string.feedback_event_response_save_failed, detail)
         val current: EventResponsesState = _state.value
-        _state.value =
-            if (current is EventResponsesState.Ready) current.copy(actionError = detail)
-            else EventResponsesState.Error(detail)
+        if (current is EventResponsesState.Ready || current is EventResponsesState.Empty) {
+            feedback.error(Res.string.feedback_event_response_save_failed, detail)
+        } else {
+            _state.value = EventResponsesState.Error(detail)
+        }
     }
 
     companion object {
@@ -281,8 +285,8 @@ sealed interface EventResponsesState {
     data object Loading : EventResponsesState
 
     /**
-     * Responses are listed. [actionError] is non-null only when the last write failed — the screen surfaces
-     * it as a transient banner while keeping the list rendered.
+     * Responses are listed. A write failure announces on the shell-level feedback toast rather than a field
+     * here — see [EventResponsesController.failWrite].
      */
     data class Ready(
         val responses: List<EventResponseSummary>,
@@ -290,7 +294,6 @@ sealed interface EventResponsesState {
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
         val widgets: List<WidgetSummary> = emptyList(),
-        val actionError: String? = null,
     ) : EventResponsesState
 
     data object Empty : EventResponsesState

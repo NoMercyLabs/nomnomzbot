@@ -396,6 +396,7 @@
     <string name="home_live_ops_active_poll">Actieve poll: %1$s</string>
     <string name="home_live_ops_active_prediction">Actieve voorspelling: %1$s</string>
     <string name="home_live_ops_outcome_pick">Kies winnaar: %1$s</string>
+    <string name="home_live_ops_action_error">Actie mislukt: %1$s</string>
     <string name="chat_poll_title">Chat-poll</string>
     <string name="chat_poll_subtitle">Kijkers stemmen door een optienummer in de chat te typen — werkt op elk platform.</string>
     <string name="chat_poll_open_tag">Open</string>
@@ -1921,6 +1922,7 @@
     <string name="shell_nav_multichat">Multi-chat</string>
     <string name="multichat_loading">Kanalen laden…</string>
     <string name="multichat_error">Kon kanalen niet laden: %1$s</string>
+    <string name="multichat_action_error">Actie mislukt: %1$s</string>
     <string name="multichat_picker_hint">Kies kanalen om te volgen — hun chats komen samen in één feed hieronder, elke regel met kanaallabel.</string>
     <string name="multichat_picker_none">Geen kanalen die je bezit of modereert.</string>
     <string name="multichat_pick_a_channel">Kies hierboven een of meer kanalen om te beginnen met kijken.</string>

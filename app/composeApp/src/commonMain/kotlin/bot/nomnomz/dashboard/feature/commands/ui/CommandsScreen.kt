@@ -43,7 +43,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -215,7 +214,6 @@ fun CommandsScreen(
                     commands = emptyList(),
                     builtins = emptyList(),
                     pipelines = current.pipelines,
-                    actionError = null,
                     customCommandsUsage = customCommandsUsage,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
@@ -236,7 +234,6 @@ fun CommandsScreen(
                     commands = current.commands,
                     builtins = current.builtins,
                     pipelines = current.pipelines,
-                    actionError = current.actionError,
                     customCommandsUsage = customCommandsUsage,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
@@ -323,7 +320,6 @@ private fun ManagedContent(
     commands: List<CommandSummary>,
     builtins: List<BuiltinCommand>,
     pipelines: List<PipelineSummary>,
-    actionError: String?,
     customCommandsUsage: ResourceUsage?,
     manage: ManageDecision,
     onNew: () -> Unit,
@@ -403,9 +399,7 @@ private fun ManagedContent(
             }
         }
 
-        actionError?.let {
-            ActionErrorBanner(message = stringResource(Res.string.commands_action_error, it))
-        }
+        // Write failures announce on the shell-level feedback toast (CommandsController.failWrite).
 
         // Single card wrapping the entire table — rows are divided by hairlines, not individual cards.
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {

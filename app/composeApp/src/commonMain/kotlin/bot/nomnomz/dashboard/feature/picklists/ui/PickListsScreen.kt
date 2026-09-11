@@ -39,7 +39,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -154,7 +153,6 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
             is PickListsState.Empty ->
                 ManagedContent(
                     lists = emptyList(),
-                    actionError = null,
                     writeManage = writeManage,
                     deleteManage = deleteManage,
                     onNew = { editor = PickListEditor.create() },
@@ -165,7 +163,6 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
             is PickListsState.Ready ->
                 ManagedContent(
                     lists = current.lists,
-                    actionError = current.actionError,
                     writeManage = writeManage,
                     deleteManage = deleteManage,
                     onNew = { editor = PickListEditor.create() },
@@ -243,7 +240,6 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
 @Composable
 private fun ManagedContent(
     lists: List<PickList>,
-    actionError: String?,
     writeManage: ManageDecision,
     deleteManage: ManageDecision,
     onNew: () -> Unit,
@@ -266,7 +262,7 @@ private fun ManagedContent(
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.picklists_action_error, it)) }
+        // Write failures announce on the shell-level feedback toast (PickListsController.failWrite).
 
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (lists.isEmpty()) {

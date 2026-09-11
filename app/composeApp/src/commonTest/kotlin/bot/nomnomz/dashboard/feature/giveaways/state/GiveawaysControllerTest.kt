@@ -87,7 +87,6 @@ class GiveawaysControllerTest {
         assertEquals("Nitro drop", giveaway.title)
         assertEquals(GiveawayStatus.Open, giveaway.status)
         assertEquals(42, giveaway.entryCount)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -301,11 +300,10 @@ class GiveawaysControllerTest {
 
         controller.openGiveaway("g1")
 
-        // The list is kept (not blown away) and the failure is surfaced on it AND on the frame.
+        // The list is kept (not blown away) and the failure announces on the frame.
         val state: GiveawaysState = controller.state.value
         assertTrue(state is GiveawaysState.Ready)
         assertEquals("keep me", (state as GiveawaysState.Ready).giveaways.single().title)
-        assertEquals("no permission", state.actionError)
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(Res.string.feedback_giveaway_save_failed, feedback.only.label)
     }

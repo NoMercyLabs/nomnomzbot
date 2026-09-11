@@ -117,12 +117,16 @@ class AssetsController(
             origin + relativeUrl
         }
 
+    // The page is already showing content (Ready or Empty — the upload button still works from Empty) —
+    // announce on the shell-level feedback toast rather than a local banner. Only when the page has nothing to
+    // show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
-        feedback.error(Res.string.feedback_asset_save_failed, detail)
         val current: AssetsState = _state.value
-        _state.value =
-            if (current is AssetsState.Ready) current.copy(actionError = detail)
-            else AssetsState.Error(detail)
+        if (current is AssetsState.Ready || current is AssetsState.Empty) {
+            feedback.error(Res.string.feedback_asset_save_failed, detail)
+        } else {
+            _state.value = AssetsState.Error(detail)
+        }
     }
 
     private fun mimeTypeForFileName(fileName: String): String =
@@ -143,7 +147,9 @@ class AssetsController(
 sealed interface AssetsState {
     data object Loading : AssetsState
 
-    data class Ready(val assets: List<ChannelAsset>, val actionError: String? = null) : AssetsState
+    // A write failure announces on the shell-level feedback toast rather than a field here — see
+    // [AssetsController.failWrite].
+    data class Ready(val assets: List<ChannelAsset>) : AssetsState
 
     data object Empty : AssetsState
 

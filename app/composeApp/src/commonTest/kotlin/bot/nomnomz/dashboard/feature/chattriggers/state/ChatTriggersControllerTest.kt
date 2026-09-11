@@ -107,10 +107,9 @@ class ChatTriggersControllerTest {
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(Res.string.feedback_chat_trigger_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("regex did not compile"), feedback.only.formatArgs)
-        // The failure banner is ALSO surfaced in-page — never a silent failure.
+        // The list is kept intact (not blown away) — never a silent failure.
         val state: ChatTriggersState = controller.state.value
         assertTrue(state is ChatTriggersState.Empty)
-        assertEquals("regex did not compile", (state as ChatTriggersState.Empty).actionError)
     }
 }
 

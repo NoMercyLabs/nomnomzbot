@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.chat.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -67,7 +69,6 @@ class ChatControllerTest {
         assertEquals("m1", messages[0].id)
         assertEquals("hey", messages[0].message)
         assertEquals("Viewer Two", messages[1].displayName)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -131,7 +132,6 @@ class ChatControllerTest {
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
         assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -224,30 +224,35 @@ class ChatControllerTest {
                 messagesResults = listOf(ApiResult.Ok(listOf(parent))),
                 sendResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Bot token expired.")),
             )
-        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi, feedback = feedback)
 
         controller.load()
         controller.startReply(parent)
         controller.send("great point!")
 
         // The parent id still went out on the wire, but the failed send keeps reply mode so the operator can retry
-        // without re-selecting the message; the error surfaces over the intact feed.
+        // without re-selecting the message; the failure announces on the shell-level feedback toast.
         assertEquals(listOf<String?>("m1"), chatApi.sendReplyTargets)
         assertEquals("m1", controller.replyTarget.value?.id)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        assertEquals("Bot token expired.", (state as ChatState.Ready).actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Bot token expired."), feedback.only.formatArgs)
     }
 
     @Test
-    fun send_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
+    fun send_announces_on_the_feedback_toast_and_keeps_the_feed_when_it_fails() = runTest {
         val line = ChatMessage(id = "m1", userId = "u1", message = "hi")
         val chatApi =
             FakeChatApi(
                 messagesResults = listOf(ApiResult.Ok(listOf(line))),
                 sendResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Bot token expired.")),
             )
-        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi, feedback = feedback)
 
         controller.load()
         controller.send("hello")
@@ -255,9 +260,10 @@ class ChatControllerTest {
         assertEquals(listOf(Triple("ch1", "hello", "you")), chatApi.sendCalls)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        // The feed is intact (still the one line) and the failure is surfaced on the Ready state.
+        // The feed is intact (still the one line) and the failure announces on the shell-level feedback toast.
         assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
-        assertEquals("Bot token expired.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Bot token expired."), feedback.only.formatArgs)
         // The failed send did not trigger a reload.
         assertEquals(1, chatApi.messagesCalls)
     }
@@ -285,18 +291,19 @@ class ChatControllerTest {
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
         assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
-        assertNull(state.actionError)
     }
 
     @Test
-    fun delete_message_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
+    fun delete_message_announces_on_the_feedback_toast_and_keeps_the_feed_when_it_fails() = runTest {
         val spam = ChatMessage(id = "m2", userId = "u2", message = "spam")
         val chatApi =
             FakeChatApi(
                 messagesResults = listOf(ApiResult.Ok(listOf(spam))),
                 deleteResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
-        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi, feedback = feedback)
 
         controller.load()
         controller.deleteMessage("m2")
@@ -304,9 +311,10 @@ class ChatControllerTest {
         assertEquals(listOf("ch1" to "m2"), chatApi.deleteCalls)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        // The line is still there and the failure is surfaced.
+        // The line is still there and the failure announces on the shell-level feedback toast.
         assertEquals(listOf("m2"), (state as ChatState.Ready).messages.map { it.id })
-        assertEquals("Missing scope.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
         assertEquals(1, chatApi.messagesCalls)
     }
 
@@ -336,14 +344,16 @@ class ChatControllerTest {
     }
 
     @Test
-    fun timeout_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
+    fun timeout_announces_on_the_feedback_toast_and_keeps_the_feed_when_it_fails() = runTest {
         val troll = ChatMessage(id = "m1", userId = "u9", message = "rude")
         val chatApi =
             FakeChatApi(
                 messagesResults = listOf(ApiResult.Ok(listOf(troll))),
                 timeoutResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
-        val controller = ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi, feedback = feedback)
 
         controller.load()
         controller.timeout("u9", durationSeconds = 30)
@@ -351,9 +361,10 @@ class ChatControllerTest {
         assertEquals(listOf(Triple("ch1", "u9", 30)), chatApi.timeoutCalls)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        // The feed is intact and the failure is surfaced.
+        // The feed is intact and the failure announces on the shell-level feedback toast.
         assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
-        assertEquals("Missing scope.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
         assertEquals(1, chatApi.messagesCalls)
     }
 
@@ -388,15 +399,16 @@ class ChatControllerTest {
     }
 
     @Test
-    fun ban_surfaces_the_error_and_keeps_the_feed_when_it_fails() = runTest {
+    fun ban_announces_on_the_feedback_toast_and_keeps_the_feed_when_it_fails() = runTest {
         val line = ChatMessage(id = "m1", userId = "u9", message = "rude")
         val chatApi =
             FakeChatApi(
                 messagesResults = listOf(ApiResult.Ok(listOf(line))),
                 banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi)
+            ChatController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), chatApi, feedback = feedback)
 
         controller.load()
         controller.ban("u9", scope = "this_channel")
@@ -404,9 +416,10 @@ class ChatControllerTest {
         assertEquals(listOf(Triple("ch1", "u9", "this_channel")), chatApi.banCalls)
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        // The feed is intact and the failure is surfaced.
+        // The feed is intact and the failure announces on the shell-level feedback toast.
         assertEquals(listOf("m1"), (state as ChatState.Ready).messages.map { it.id })
-        assertEquals("Missing scope.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
     }
 
     @Test
@@ -572,16 +585,18 @@ class ChatControllerTest {
     }
 
     @Test
-    fun set_shield_mode_surfaces_the_error_and_keeps_the_feed_when_the_write_fails() = runTest {
+    fun set_shield_mode_announces_on_the_feedback_toast_and_keeps_the_feed_when_the_write_fails() = runTest {
         val moderationApi =
             FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
         moderationApi.setShieldModeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))
         val line = ChatMessage(id = "m1", message = "hey")
+        val feedback = RecordingFeedback()
         val controller =
             ChatController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeChatApi(ApiResult.Ok(listOf(line))),
                 moderationApi = moderationApi,
+                feedback = feedback,
             )
         controller.load()
 
@@ -589,7 +604,8 @@ class ChatControllerTest {
 
         val state: ChatState = controller.state.value
         assertTrue(state is ChatState.Ready)
-        assertEquals("Missing scope.", (state as ChatState.Ready).actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
         // The feed is intact — a failed shield write must not disturb the chat messages.
         assertEquals(listOf("m1"), state.messages.map { it.id })
     }

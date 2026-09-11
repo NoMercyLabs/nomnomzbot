@@ -66,7 +66,6 @@ class PickListsControllerTest {
         assertEquals("fight_moves", list.name)
         assertEquals("Attack phrases for !fight", list.description)
         assertEquals(listOf("throws a chair", "lands a jab"), list.items)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -120,7 +119,6 @@ class PickListsControllerTest {
         assertEquals(1, lists.size)
         assertEquals("fight_moves", lists.first().name)
         assertEquals(listOf("throws a chair", "lands a jab"), lists.first().items)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -188,23 +186,25 @@ class PickListsControllerTest {
     }
 
     @Test
-    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+    fun a_failed_write_keeps_the_list_and_announces_on_the_feedback_toast() = runTest {
         val api =
             RecordingPickListsApi(
                 ApiResult.Ok(listOf(PickList(id = "pl1", name = "keep_me", items = listOf("x")))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = PickListsController(api)
+        val feedback = RecordingFeedback()
+        val controller = PickListsController(api, feedback)
         controller.load()
 
         controller.deletePickList(id = "pl1")
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: PickListsState = controller.state.value
         assertTrue(state is PickListsState.Ready)
         assertEquals(1, (state as PickListsState.Ready).lists.size)
         assertEquals("keep_me", state.lists.first().name)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("no permission"), feedback.only.formatArgs)
     }
 
     @Test

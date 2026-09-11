@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -263,9 +262,8 @@ private fun ConnectionsSection(
                     )
                 is ConnectionsState.Ready ->
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        state.actionError?.let {
-                            ActionErrorBanner(message = stringResource(Res.string.supporters_action_error, it))
-                        }
+                        // Write failures announce on the shell-level feedback toast
+                        // (SupportersController.failConnectionWrite).
                         // One tile per SUPPORTED provider (this slice: Ko-fi only), merged with its backend row.
                         // We render the adapter set — never a hardcoded grid of not-yet-live providers.
                         SupportedProviders.forEachIndexed { index, provider ->

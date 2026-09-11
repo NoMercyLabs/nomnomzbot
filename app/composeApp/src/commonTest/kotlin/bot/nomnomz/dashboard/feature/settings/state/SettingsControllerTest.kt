@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.settings.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -163,7 +165,8 @@ class SettingsControllerTest {
     }
 
     @Test
-    fun delete_channel_surfaces_error_and_keeps_ready_state_on_failure() = runTest {
+    fun delete_channel_announces_on_the_feedback_toast_and_keeps_ready_state_on_failure() = runTest {
+        val feedback = RecordingFeedback()
         val controller =
             SettingsController(
                 FakeChannelsApi(
@@ -171,16 +174,18 @@ class SettingsControllerTest {
                     deleteResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
                 ),
                 FakeStreamApi(ApiResult.Ok(StreamInfo(title = "Stream"))),
+                feedback,
             )
         controller.load()
         assertTrue(controller.state.value is SettingsState.Ready)
 
         controller.deleteChannel()
 
-        // Stays Ready (so the user keeps the page) and surfaces the error.
+        // Stays Ready (so the user keeps the page) and announces on the shell-level feedback toast.
         val state: SettingsState = controller.state.value
         assertTrue(state is SettingsState.Ready)
-        assertEquals("Missing scope.", (state as SettingsState.Ready).channelActionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
     }
 
     @Test

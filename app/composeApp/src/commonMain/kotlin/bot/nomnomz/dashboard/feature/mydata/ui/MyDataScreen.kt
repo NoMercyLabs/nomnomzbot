@@ -31,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -131,9 +130,7 @@ fun MyDataScreen(controller: MyDataController) {
                         title = stringResource(Res.string.mydata_title),
                         subtitle = stringResource(Res.string.mydata_subtitle),
                     )
-                    current.actionError?.let {
-                        ActionErrorBanner(message = stringResource(Res.string.mydata_action_error, it))
-                    }
+                    // Write failures announce on the shell-level feedback toast (MyDataController.failWrite).
 
                     ExportCard(
                         notice = current.notice,

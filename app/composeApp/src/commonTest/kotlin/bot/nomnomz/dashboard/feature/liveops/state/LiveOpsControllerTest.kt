@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.liveops.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackMessage
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -61,14 +63,16 @@ class LiveOpsControllerTest {
     @Test
     fun mark_moment_returns_null_and_surfaces_the_error_when_twitch_rejects() = runTest {
         val api = FakeLiveOpsApi(markerResult = ApiResult.Failure(ApiError(400, "NOT_LIVE", "Channel is not live.")))
-        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val feedback = RecordingFeedback()
+        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback)
         controller.load()
 
         val marker: LiveOpsMarker? = controller.createMarker(null)
 
-        // Failure → null result AND the Twitch error on the Ready state (not a silent no-op).
+        // Failure → null result AND the Twitch error announced on the feedback toast (not a silent no-op).
         assertNull(marker)
-        assertEquals("Channel is not live.", (controller.state.value as? LiveOpsState.Ready)?.actionError)
+        val message: FeedbackMessage = feedback.only
+        assertEquals(listOf("Channel is not live."), message.formatArgs)
     }
 
     @Test
@@ -106,15 +110,16 @@ class LiveOpsControllerTest {
             FakeLiveOpsApi(
                 pollResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Affiliate required.")),
             )
-        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val feedback = RecordingFeedback()
+        val controller = LiveOpsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback)
         controller.load()
 
         val started: Boolean = controller.createPoll("Best map?", listOf("Dust", "Nuke"), 90)
 
-        // A rejected poll returns false (so the modal keeps the operator's input) and shows the reason — no
-        // active poll is invented on the panel.
+        // A rejected poll returns false (so the modal keeps the operator's input) and announces the reason on
+        // the feedback toast — no active poll is invented on the panel.
         assertFalse(started)
-        assertEquals("Affiliate required.", (controller.state.value as? LiveOpsState.Ready)?.actionError)
+        assertEquals(listOf("Affiliate required."), feedback.only.formatArgs)
         assertNull((controller.state.value as? LiveOpsState.Ready)?.activePoll)
     }
 }

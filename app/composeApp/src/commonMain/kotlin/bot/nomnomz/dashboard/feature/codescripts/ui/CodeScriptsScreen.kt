@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -41,6 +40,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.FileTree
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -187,9 +187,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                         onClick = { controller.close() },
                     )
                 }
-                current.actionError?.let { detail ->
-                    ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
-                }
+                // Write failures announce on the shell-level feedback toast (CodeScriptsController.failWrite).
                 ProjectView(
                     project = current.project,
                     selectedPath = current.selectedPath,
@@ -222,9 +220,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                         )
                     }
                 }
-                (current as? CodeScriptsState.Ready)?.actionError?.let { detail ->
-                    ActionErrorBanner(message = stringResource(Res.string.scripts_action_error, detail))
-                }
+                // Write failures announce on the shell-level feedback toast (CodeScriptsController.failWrite).
                 Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when (current) {
                         is CodeScriptsState.Loading -> CenteredMessage(stringResource(Res.string.scripts_loading))
@@ -690,7 +686,9 @@ private fun TestRunSection(
                 }
             }
 
-            error?.let { ActionErrorBanner(message = stringResource(Res.string.scripts_testrun_error, it)) }
+            // The dry-run's own outcome — a diagnostic reading tied to this panel, not a write action — stays
+            // visible in place rather than floating away as a toast.
+            error?.let { InlineError(message = stringResource(Res.string.scripts_testrun_error, it)) }
 
             result?.let { TestRunResultView(it) }
         }

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.chat.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -35,6 +37,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.chat_action_error
 
 // The Chat page's state-holder (frontend-ia.md §3 — the Chat group). Resolves the active channel, then loads
 // its real recent chat from the backend (persisted from EventSub `channel.chat.message`; no fabricated lines).
@@ -54,6 +58,7 @@ class ChatController(
     // dependencies: a state-holder test that does not exercise Shield Mode omits it, and the toggle then
     // stays hidden rather than rendering a state nobody read.
     private val moderationApi: ModerationApi? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<ChatState> = MutableStateFlow(ChatState.Loading)
 
@@ -381,11 +386,13 @@ class ChatController(
         }
     }
 
+    // The page is already showing content — a write action's failure announces on the shell-level feedback
+    // toast (dismissable) rather than blowing the feed away. Only when the page has nothing to show yet does a
+    // failure become the page's own Error state.
     private fun failAction(detail: String) {
         val current: ChatState = _state.value
-        _state.value =
-            if (current is ChatState.Ready) current.copy(actionError = detail)
-            else ChatState.Error(detail)
+        if (current is ChatState.Ready) feedback.error(Res.string.chat_action_error, detail)
+        else _state.value = ChatState.Error(detail)
     }
 
     private companion object {
@@ -469,8 +476,10 @@ sealed interface ChatState {
 
     /**
      * The channel's recent chat is listed (oldest first). [settings] is loaded once on first render.
-     * [actionError] is non-null only when the last action (send/delete/timeout/announce/settings-change)
-     * failed — the screen surfaces it as a transient banner while keeping the feed rendered.
+     * [actionError] is non-null only when a background refresh of the feed failed (a section-load failure) —
+     * the screen surfaces it in place (persistent, not a toast) while keeping the feed rendered. A write
+     * action's outcome (send/delete/timeout/announce/settings-change) instead announces on the shell-level
+     * feedback toast (see [ChatController.failAction]).
      *
      * [shieldEnabled] is emergency Shield Mode's current state (S076c) — null until [ChatController] has loaded
      * it once (the toggle stays hidden until then, like [settings]); [shieldAvailable] is false when that read

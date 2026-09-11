@@ -715,7 +715,7 @@ class PipelinesController(
     // Apply an in-memory chain transform while editing; a no-op outside the editor.
     private fun mutateChain(transform: (List<PipelineStep>) -> List<PipelineStep>) {
         val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
-        _state.value = editing.copy(steps = transform(editing.steps), actionError = null)
+        _state.value = editing.copy(steps = transform(editing.steps))
     }
 
     // A list write either re-lists AND announces success, or surfaces its error over the current list without
@@ -733,18 +733,20 @@ class PipelinesController(
         }
     }
 
+    // The list is already showing content (Ready or Empty — the create dialog still works from Empty) —
+    // announce on the shell-level feedback toast rather than a local banner. Only when the list has nothing to
+    // show yet does a failure become the page's own Error state.
     private fun failList(detail: String) {
-        feedback.error(Res.string.feedback_pipeline_save_failed, detail)
         val current: PipelinesState = _state.value
-        _state.value =
-            if (current is PipelinesState.Ready) current.copy(actionError = detail)
-            else PipelinesState.Error(detail)
+        if (current is PipelinesState.Ready || current is PipelinesState.Empty) {
+            feedback.error(Res.string.feedback_pipeline_save_failed, detail)
+        } else {
+            _state.value = PipelinesState.Error(detail)
+        }
     }
 
     private fun failEdit(detail: String) {
-        feedback.error(Res.string.feedback_pipeline_save_failed, detail)
-        val current: PipelinesState = _state.value
-        if (current is PipelinesState.Editing) _state.value = current.copy(actionError = detail)
+        if (_state.value is PipelinesState.Editing) feedback.error(Res.string.feedback_pipeline_save_failed, detail)
     }
 
     private companion object {
@@ -757,21 +759,22 @@ sealed interface PipelinesState {
     data object Loading : PipelinesState
 
     /**
-     * The channel's pipelines are listed. [actionError] is non-null only when the last create/rename/toggle/
-     * delete failed — the screen surfaces it as a banner while keeping the list rendered.
+     * The channel's pipelines are listed. A create/rename/toggle/delete failure announces on the shell-level
+     * feedback toast rather than a field here — see [PipelinesController.failList].
      */
-    data class Ready(val pipelines: List<PipelineSummary>, val actionError: String? = null) :
-        PipelinesState
+    data class Ready(val pipelines: List<PipelineSummary>) : PipelinesState
 
     data object Empty : PipelinesState
 
     /**
      * Editing one pipeline's action chain: the [pipelineId] the save targets, the pipeline's [name] (shown in
      * the editor header), the ordered [steps] being edited in memory, the backend-sourced block [palette] the
-     * step dialog offers, the cross-feature picker [options] (outbound endpoints / pick-lists), and an
-     * [actionError] when the last save failed (kept over the edited chain so unsaved work is not lost).
-     * [testRunning]/[testResult]/[testError] track the S047 dry-run (Test button): the backend runs the saved
-     * chain for real but CAPTURES every side-effecting action instead of performing it.
+     * step dialog offers, and the cross-feature picker [options] (outbound endpoints / pick-lists). A save
+     * failure announces on the shell-level feedback toast (kept over the edited chain so unsaved work is not
+     * lost) — see [PipelinesController.failEdit]. [testRunning]/[testResult]/[testError] track the S047 dry-run
+     * (Test button): the backend runs the saved chain for real but CAPTURES every side-effecting action instead
+     * of performing it — [testError] is a diagnostic reading, not a write outcome, so it stays visible in place
+     * rather than floating away as a toast.
      */
     data class Editing(
         val pipelineId: String,
@@ -779,7 +782,6 @@ sealed interface PipelinesState {
         val steps: List<PipelineStep>,
         val palette: RuntimePalette,
         val options: EditorOptions = EditorOptions(),
-        val actionError: String? = null,
         val testRunning: Boolean = false,
         val testResult: TestRunResult? = null,
         val testError: String? = null,

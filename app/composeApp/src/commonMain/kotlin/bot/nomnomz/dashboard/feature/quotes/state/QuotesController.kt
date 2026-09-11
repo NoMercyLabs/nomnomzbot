@@ -144,13 +144,16 @@ class QuotesController(
         }
     }
 
+    // The page is already showing content (Ready or Empty) — announce on the shell-level feedback toast rather
+    // than a local banner. Only when the page has nothing to show yet does a failure become the page's own
+    // Error state.
     private fun failWrite(detail: String) {
-        // Announce the failure on the frame (persistent until dismissed) AND keep the in-page banner.
-        feedback.error(Res.string.feedback_quote_save_failed, detail)
         val current: QuotesState = _state.value
-        _state.value =
-            if (current is QuotesState.Ready) current.copy(actionError = detail)
-            else QuotesState.Error(detail)
+        if (current is QuotesState.Ready || current is QuotesState.Empty) {
+            feedback.error(Res.string.feedback_quote_save_failed, detail)
+        } else {
+            _state.value = QuotesState.Error(detail)
+        }
     }
 
     // Optional attribution fields are sent as null (omitted from the wire body) when the operator leaves them
@@ -169,8 +172,8 @@ sealed interface QuotesState {
     /**
      * The channel's quotes are listed, one page of the current [search]. [page] is the 1-based page number;
      * [hasPrev]/[hasMore] drive the prev/next controls and [total] the "of N" count when the backend knows it.
-     * [actionError] is non-null only when the last create/edit/delete failed — surfaced as a transient banner
-     * while the list stays rendered.
+     * A create/edit/delete failure announces on the shell-level feedback toast rather than a field here — see
+     * [QuotesController.failWrite].
      */
     data class Ready(
         val quotes: List<Quote>,
@@ -179,7 +182,6 @@ sealed interface QuotesState {
         val hasPrev: Boolean = false,
         val hasMore: Boolean = false,
         val total: Int? = null,
-        val actionError: String? = null,
     ) : QuotesState
 
     data object Empty : QuotesState

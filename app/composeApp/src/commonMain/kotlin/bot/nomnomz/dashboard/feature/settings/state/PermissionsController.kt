@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.settings.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
 import bot.nomnomz.dashboard.core.network.DeviceLoginPoll
@@ -20,6 +22,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.settings_permissions_regrant_error
 
 // The Settings page's "Permissions" section (S070): reads the real backend scope/feature matrix
 // (TwitchScopeDiagnosticsController's GET /scopes) so the streamer sees, per declared scope, which feature(s)
@@ -31,6 +35,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class PermissionsController(
     private val diagnosticsApi: TwitchDiagnosticsApi,
     private val authApi: AuthApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<PermissionsState> = MutableStateFlow(PermissionsState.Loading)
 
@@ -63,11 +68,10 @@ class PermissionsController(
         try {
             when (val start: ApiResult<ScopeRegrantStart> = diagnosticsApi.startRegrant()) {
                 is ApiResult.Failure ->
-                    _state.value = ready.copy(regrantError = start.error.message)
+                    feedback.error(Res.string.settings_permissions_regrant_error, start.error.message)
                 is ApiResult.Ok -> {
                     _state.value =
                         ready.copy(
-                            regrantError = null,
                             regrant = PermissionsRegrantState(
                                 userCode = start.value.userCode,
                                 verificationUri = start.value.verificationUri,
@@ -130,12 +134,12 @@ sealed interface PermissionsState {
 
     /**
      * The loaded scope/feature matrix plus any in-flight re-grant. [regrant] is non-null while a device
-     * re-grant is awaiting approval; [regrantError] surfaces a failed START (e.g. nothing missing).
+     * re-grant is awaiting approval. A failed START (e.g. nothing missing) announces on the shell-level
+     * feedback toast rather than a field here — see [PermissionsController.regrant].
      */
     data class Ready(
         val matrix: TwitchScopeDiagnostics,
         val regrant: PermissionsRegrantState? = null,
-        val regrantError: String? = null,
     ) : PermissionsState
 
     data class Error(val detail: String) : PermissionsState

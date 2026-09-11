@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.chat.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -269,9 +271,10 @@ class MultiChatControllerTest {
     }
 
     @Test
-    fun set_shield_mode_failure_surfaces_the_action_error_and_leaves_the_indicator_unchanged() = runTest {
+    fun set_shield_mode_failure_announces_on_the_feedback_toast_and_leaves_the_indicator_unchanged() = runTest {
         val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
         moderationApi.setShieldModeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope."))
+        val feedback = RecordingFeedback()
         val controller =
             MultiChatController(
                 FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
@@ -279,6 +282,7 @@ class MultiChatControllerTest {
                 joinChannel = {},
                 leaveChannel = {},
                 moderationApi = moderationApi,
+                feedback = feedback,
             )
         controller.load()
         controller.addChannel("a")
@@ -286,7 +290,8 @@ class MultiChatControllerTest {
         controller.setShieldMode("a", enabled = true)
 
         val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
-        assertEquals("Missing scope.", ready.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Missing scope."), feedback.only.formatArgs)
         // The write failed, so the indicator must still read inactive — no optimistic flip on a failed call.
         assertTrue(ready.shieldModeActiveChannelIds.isEmpty())
     }
@@ -310,15 +315,17 @@ class MultiChatControllerTest {
     }
 
     @Test
-    fun send_message_failure_surfaces_as_action_error_without_touching_the_feed() = runTest {
+    fun send_message_failure_announces_on_the_feedback_toast_without_touching_the_feed() = runTest {
         val chat = FakeMultiChatApi()
         chat.sendResult = ApiResult.Failure(ApiError(500, "SEND_FAILED", "could not send"))
+        val feedback = RecordingFeedback()
         val controller =
             MultiChatController(
                 FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
                 chat,
                 joinChannel = {},
                 leaveChannel = {},
+                feedback = feedback,
             )
         controller.load()
         controller.addChannel("a")
@@ -326,7 +333,8 @@ class MultiChatControllerTest {
         controller.sendMessage("a", "hello chat")
 
         val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
-        assertEquals("could not send", ready.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("could not send"), feedback.only.formatArgs)
         assertTrue(ready.messages.isEmpty())
     }
 

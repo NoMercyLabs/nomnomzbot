@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.songrequests.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -24,7 +26,6 @@ import bot.nomnomz.dashboard.core.realtime.HubMusicState
 import bot.nomnomz.dashboard.core.realtime.HubMusicTrack
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -135,7 +136,6 @@ class SongRequestsControllerTest {
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
         assertEquals(listOf("B"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -184,7 +184,6 @@ class SongRequestsControllerTest {
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
         assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -204,7 +203,6 @@ class SongRequestsControllerTest {
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
         assertEquals(listOf("B", "A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -224,19 +222,23 @@ class SongRequestsControllerTest {
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
         assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertNull(state.actionError)
     }
 
     @Test
-    fun a_failed_ban_surfaces_the_error_and_keeps_the_queue() = runTest {
+    fun a_failed_ban_announces_on_the_feedback_toast_and_keeps_the_queue() = runTest {
         val queue = listOf(QueuedSong(position = 0, trackName = "A"))
         val songRequestsApi =
             FakeSongRequestsApi(
                 queueResults = listOf(ApiResult.Ok(queue)),
                 controlResult = ApiResult.Failure(ApiError(500, "ERR", "Ban failed.")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+            SongRequestsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                songRequestsApi,
+                feedback,
+            )
 
         controller.load()
         controller.ban(0)
@@ -245,7 +247,8 @@ class SongRequestsControllerTest {
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
         assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertEquals("Ban failed.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Ban failed."), feedback.only.formatArgs)
         assertEquals(1, songRequestsApi.queueCalls)
     }
 
@@ -260,15 +263,20 @@ class SongRequestsControllerTest {
     }
 
     @Test
-    fun a_failed_control_surfaces_the_error_and_keeps_the_queue() = runTest {
+    fun a_failed_control_announces_on_the_feedback_toast_and_keeps_the_queue() = runTest {
         val queue = listOf(QueuedSong(position = 0, trackName = "A"))
         val songRequestsApi =
             FakeSongRequestsApi(
                 queueResults = listOf(ApiResult.Ok(queue)),
                 controlResult = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "No active music provider.")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+            SongRequestsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                songRequestsApi,
+                feedback,
+            )
 
         controller.load()
         controller.skip()
@@ -276,9 +284,10 @@ class SongRequestsControllerTest {
         assertEquals(listOf("ch1"), songRequestsApi.skipCalls)
         val state: SongRequestsState = controller.state.value
         assertTrue(state is SongRequestsState.Ready)
-        // The queue is untouched and the failure is surfaced on the Ready state.
+        // The queue is untouched and the failure announces on the shell-level feedback toast.
         assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
-        assertEquals("No active music provider.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("No active music provider."), feedback.only.formatArgs)
         // Only the initial load read the queue; the failed control did not trigger a reload.
         assertEquals(1, songRequestsApi.queueCalls)
     }

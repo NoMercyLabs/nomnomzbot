@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -322,7 +321,6 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
                     is GiveawaysState.Empty ->
                         Body(
                             giveaways = emptyList(),
-                            actionError = null,
                             codePools = codePools,
                             canManageCodes = canManageCodes,
                             writeManage = writeManage,
@@ -337,7 +335,6 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
                     is GiveawaysState.Ready ->
                         Body(
                             giveaways = current.giveaways,
-                            actionError = current.actionError,
                             codePools = codePools,
                             canManageCodes = canManageCodes,
                             writeManage = writeManage,
@@ -534,7 +531,6 @@ private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
 @Composable
 private fun Body(
     giveaways: List<Giveaway>,
-    actionError: String?,
     codePools: CodePoolsState,
     canManageCodes: Boolean,
     writeManage: ManageDecision,
@@ -559,7 +555,7 @@ private fun Body(
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.giveaways_action_error, it)) }
+        // Write failures announce on the shell-level feedback toast (GiveawaysController.failWrite).
 
         Card(modifier = Modifier.fillMaxWidth()) {
             if (giveaways.isEmpty()) {
@@ -796,9 +792,8 @@ private fun CodePoolsSection(
                 state is CodePoolsState.Empty -> PoolPlaceholder(stringResource(Res.string.giveaways_pools_empty))
                 state is CodePoolsState.Ready -> {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        state.actionError?.let {
-                            ActionErrorBanner(message = stringResource(Res.string.giveaways_action_error, it))
-                        }
+                        // Write failures announce on the shell-level feedback toast
+                        // (GiveawaysController.failPoolWrite).
                         state.pools.forEachIndexed { index, pool ->
                             CodePoolRow(pool = pool, onManage = { onManage(pool) }, onDelete = { onDelete(pool) })
                             if (index < state.pools.lastIndex) Separator()
@@ -1407,9 +1402,8 @@ private fun WinnersDialog(
                             color = tokens.destructive,
                         )
                     is WinnersState.Ready -> {
-                        state.actionError?.let {
-                            ActionErrorBanner(message = stringResource(Res.string.giveaways_action_error, it))
-                        }
+                        // A redraw/reveal failure announces on the shell-level feedback toast
+                        // (GiveawaysController.winnersActionError).
                         if (state.winners.isEmpty()) {
                             Text(
                                 text = stringResource(Res.string.giveaways_winners_empty),
@@ -1725,9 +1719,6 @@ private fun ManagePoolDialog(
                             color = tokens.destructive,
                         )
                     is PoolDetailState.Ready -> {
-                        state.actionError?.let {
-                            ActionErrorBanner(message = stringResource(Res.string.giveaways_action_error, it))
-                        }
                         FieldLabel(stringResource(Res.string.giveaways_pool_codes_label))
                         if (state.pool.codes.isEmpty()) {
                             Text(

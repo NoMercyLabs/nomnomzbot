@@ -68,7 +68,6 @@ class QuotesControllerTest {
         assertEquals("Kappa is forever", quote.text)
         assertEquals("Stoney_Eagle", quote.quotedDisplayName)
         assertEquals("Just Chatting", quote.contextGame)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -117,7 +116,6 @@ class QuotesControllerTest {
         val quotes: List<Quote> = (state as QuotesState.Ready).quotes
         assertEquals(1, quotes.size)
         assertEquals("GG WP", quotes.first().text)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -180,23 +178,25 @@ class QuotesControllerTest {
     }
 
     @Test
-    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+    fun a_failed_write_keeps_the_list_and_announces_on_the_feedback_toast() = runTest {
         val quotesApi =
             RecordingQuotesApi(
                 ApiResult.Ok(listOf(Quote(id = "q1", number = 1, text = "keep me"))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = QuotesController(quotesApi)
+        val feedback = RecordingFeedback()
+        val controller = QuotesController(quotesApi, feedback)
         controller.load()
 
         controller.deleteQuote(number = 1)
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: QuotesState = controller.state.value
         assertTrue(state is QuotesState.Ready)
         assertEquals(1, (state as QuotesState.Ready).quotes.size)
         assertEquals("keep me", state.quotes.first().text)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("no permission"), feedback.only.formatArgs)
     }
 
     @Test

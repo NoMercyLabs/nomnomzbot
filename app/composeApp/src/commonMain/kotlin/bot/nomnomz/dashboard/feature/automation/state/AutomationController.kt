@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.automation.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomationApi
 import bot.nomnomz.dashboard.core.network.AutomationToken
@@ -24,6 +26,8 @@ import bot.nomnomz.dashboard.core.network.PipelinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.automation_action_error
 
 // The Automation API-tokens page state-holder (automation-api.md §5 + stream-deck.md): the channel's external
 // API tokens (issue / rotate / revoke) and one-time device pairing codes. It resolves the active channel, reads
@@ -37,6 +41,7 @@ class AutomationController(
     private val channelsApi: ChannelsApi,
     private val automationApi: AutomationApi,
     private val pipelinesApi: PipelinesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<AutomationUiState> = MutableStateFlow(AutomationUiState.Loading)
 
@@ -61,7 +66,7 @@ class AutomationController(
         refresh()
     }
 
-    /** Re-read the tokens (fatal on failure) + pipelines (best-effort), preserving any transient action error. */
+    /** Re-read the tokens (fatal on failure) + pipelines (best-effort). */
     suspend fun refresh() {
         val id: String = channelId ?: return
 
@@ -81,9 +86,7 @@ class AutomationController(
                 is ApiResult.Failure -> emptyList()
             }
 
-        val previous: AutomationUiState.Ready? = _state.value as? AutomationUiState.Ready
-        _state.value =
-            AutomationUiState.Ready(tokens = tokens, pipelines = pipelines, actionError = previous?.actionError)
+        _state.value = AutomationUiState.Ready(tokens = tokens, pipelines = pipelines)
     }
 
     /**
@@ -168,11 +171,12 @@ class AutomationController(
         }
     }
 
+    // The page is already showing content — announce on the shell-level feedback toast rather than a local
+    // banner. Only when the page has nothing to show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
         val current: AutomationUiState = _state.value
-        _state.value =
-            if (current is AutomationUiState.Ready) current.copy(actionError = detail)
-            else AutomationUiState.Error(detail)
+        if (current is AutomationUiState.Ready) feedback.error(Res.string.automation_action_error, detail)
+        else _state.value = AutomationUiState.Error(detail)
     }
 
     private companion object {
@@ -186,13 +190,12 @@ sealed interface AutomationUiState {
 
     /**
      * The channel's tokens (active + revoked tombstones) and its pipelines (for the create dialog's optional
-     * restrict-to-pipelines picker). [actionError] is non-null only when the last write failed — a transient
-     * banner over the content.
+     * restrict-to-pipelines picker). A write failure announces on the shell-level feedback toast rather than a
+     * field here — see [AutomationController.failWrite].
      */
     data class Ready(
         val tokens: List<AutomationToken>,
         val pipelines: List<PipelineSummary>,
-        val actionError: String? = null,
     ) : AutomationUiState
 
     data class Error(val detail: String) : AutomationUiState

@@ -558,7 +558,11 @@ class AppGraph {
         )
 
     val songRequestsController: SongRequestsController =
-        SongRequestsController(channelsApi = channelsApi, songRequestsApi = songRequestsApi)
+        SongRequestsController(
+            channelsApi = channelsApi,
+            songRequestsApi = songRequestsApi,
+            feedback = feedbackController,
+        )
 
     val ttsController: TtsController =
         TtsController(
@@ -584,7 +588,7 @@ class AppGraph {
         )
 
     val settingsController: SettingsController =
-        SettingsController(channelsApi = channelsApi, streamApi = streamApi)
+        SettingsController(channelsApi = channelsApi, streamApi = streamApi, feedback = feedbackController)
 
     val personalityController: PersonalityController =
         PersonalityController(channelsApi = channelsApi, settingsApi = channelSettingsApi)
@@ -595,7 +599,11 @@ class AppGraph {
     val engagementController: EngagementController = EngagementController(api = engagementApi)
 
     val permissionsController: PermissionsController =
-        PermissionsController(diagnosticsApi = twitchDiagnosticsApi, authApi = authApi)
+        PermissionsController(
+            diagnosticsApi = twitchDiagnosticsApi,
+            authApi = authApi,
+            feedback = feedbackController,
+        )
 
     val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi)
 
@@ -644,7 +652,12 @@ class AppGraph {
         )
 
     val chatController: ChatController =
-        ChatController(channelsApi = channelsApi, chatApi = chatApi, moderationApi = moderationApi)
+        ChatController(
+            channelsApi = channelsApi,
+            chatApi = chatApi,
+            moderationApi = moderationApi,
+            feedback = feedbackController,
+        )
 
     // A DEDICATED hub connection for the multi-watch page, kept SEPARATE from [dashboardHubClient]: the main
     // hub's single-channel Chat page appends every ChatMessage it receives, so joining extra channels on it would
@@ -659,6 +672,7 @@ class AppGraph {
             joinChannel = { channelId -> multiChatHubClient.join(channelId) },
             leaveChannel = { channelId -> multiChatHubClient.leave(channelId) },
             moderationApi = moderationApi,
+            feedback = feedbackController,
         )
 
     val quotesController: QuotesController =
@@ -707,6 +721,7 @@ class AppGraph {
             channelsApi = channelsApi,
             automationApi = automationApi,
             pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
         )
 
     // The personal GDPR "My data" plane (Gate-1 — the caller's own data). Reuses the shared journal file bridge
@@ -716,6 +731,7 @@ class AppGraph {
             gdprApi = gdprApi,
             fileBridge = journalFileBridge,
             currentUserId = { sessionStore.user.value?.id },
+            feedback = feedbackController,
         )
 
     val mediaShareController: MediaShareController =
@@ -819,10 +835,15 @@ class AppGraph {
         FederationController(channelsApi = channelsApi, federationApi = federationApi, feedback = feedbackController)
 
     val codeScriptsController: CodeScriptsController =
-        CodeScriptsController(api = codeScriptsApi, projectEditor = projectEditor, sdkTypesApi = sdkTypesApi)
+        CodeScriptsController(
+            api = codeScriptsApi,
+            projectEditor = projectEditor,
+            sdkTypesApi = sdkTypesApi,
+            feedback = feedbackController,
+        )
 
     val liveOpsController: LiveOpsController =
-        LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi)
+        LiveOpsController(channelsApi = channelsApi, liveOpsApi = liveOpsApi, feedback = feedbackController)
 
     val chatPollsController: ChatPollsController =
         ChatPollsController(channelsApi = channelsApi, chatPollsApi = chatPollsApi)

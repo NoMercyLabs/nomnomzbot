@@ -67,7 +67,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
@@ -77,6 +76,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeToggle
@@ -326,8 +326,11 @@ private fun MessageFeed(
     }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        // A background refresh of the feed failed — a section-load failure, stays visible in place until the
+        // next refresh. A write action's outcome (send/delete/timeout/announce) instead announces on the
+        // shell-level feedback toast (ChatController.failAction).
         actionError?.let { detail ->
-            ActionErrorBanner(message = stringResource(Res.string.chat_action_error, detail))
+            InlineError(message = stringResource(Res.string.chat_action_error, detail))
         }
         LazyColumn(
             state = listState,

@@ -164,7 +164,6 @@ class CommandsControllerTest {
         val commands: List<CommandSummary> = (state as CommandsState.Ready).commands
         assertEquals(1, commands.size)
         assertEquals("!hi", commands.first().name)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -213,22 +212,24 @@ class CommandsControllerTest {
     }
 
     @Test
-    fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
+    fun a_failed_write_keeps_the_list_and_announces_on_the_feedback_toast() = runTest {
+        val feedback = RecordingFeedback()
         val commandsApi =
             RecordingCommandsApi(
                 ApiResult.Ok(listOf(CommandSummary(id = "00000001-0000-0000-0000-000000000001", name = "!hi", isEnabled = true))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = makeController(commandsApi = commandsApi)
+        val controller = makeController(commandsApi = commandsApi, feedback = feedback)
         controller.load()
 
         controller.deleteCommand(name = "!hi")
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: CommandsState = controller.state.value
         assertTrue(state is CommandsState.Ready)
         assertEquals(1, (state as CommandsState.Ready).commands.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("no permission"), feedback.only.formatArgs)
     }
 
     @Test

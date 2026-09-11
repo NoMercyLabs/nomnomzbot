@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.mydata.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ConsentRecord
@@ -21,6 +23,8 @@ import bot.nomnomz.dashboard.core.network.GrantConsentBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.mydata_action_error
 
 // The "My data" (GDPR self-service) page state-holder (privacy.md §5): the signed-in caller's own data-subject
 // rights — export, erasure, opt-out, the request history, and the consent ledger. The routes are Gate-1 (the
@@ -34,6 +38,7 @@ class MyDataController(
     private val gdprApi: GdprApi,
     private val fileBridge: JournalFileIO,
     private val currentUserId: () -> String?,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<MyDataUiState> = MutableStateFlow(MyDataUiState.Loading)
 
@@ -61,12 +66,7 @@ class MyDataController(
             }
 
         val previous: MyDataUiState.Ready? = _state.value as? MyDataUiState.Ready
-        _state.value =
-            MyDataUiState.Ready(
-                requests = requests,
-                consents = consents,
-                actionError = previous?.actionError,
-            )
+        _state.value = MyDataUiState.Ready(requests = requests, consents = consents, notice = previous?.notice)
     }
 
     /**
@@ -140,14 +140,15 @@ class MyDataController(
 
     private fun noticeReady(notice: String) {
         val current: MyDataUiState = _state.value
-        if (current is MyDataUiState.Ready) _state.value = current.copy(notice = notice, actionError = null)
+        if (current is MyDataUiState.Ready) _state.value = current.copy(notice = notice)
     }
 
+    // The page is already showing content — announce on the shell-level feedback toast rather than a local
+    // banner. Only when the page has nothing to show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
         val current: MyDataUiState = _state.value
-        _state.value =
-            if (current is MyDataUiState.Ready) current.copy(actionError = detail)
-            else MyDataUiState.Error(detail)
+        if (current is MyDataUiState.Ready) feedback.error(Res.string.mydata_action_error, detail)
+        else _state.value = MyDataUiState.Error(detail)
     }
 
     private companion object {
@@ -161,13 +162,13 @@ sealed interface MyDataUiState {
     data object Loading : MyDataUiState
 
     /**
-     * The caller's erasure [requests] (history) and their [consents] ledger. [actionError] is non-null only when
-     * the last write failed (a transient banner); [notice] is a transient success marker (e.g. an export saved).
+     * The caller's erasure [requests] (history) and their [consents] ledger. [notice] is a transient success
+     * marker (e.g. an export saved). A write failure announces on the shell-level feedback toast rather than a
+     * field here — see [MyDataController.failWrite].
      */
     data class Ready(
         val requests: List<ErasureRequest>,
         val consents: List<ConsentRecord>,
-        val actionError: String? = null,
         val notice: String? = null,
     ) : MyDataUiState
 

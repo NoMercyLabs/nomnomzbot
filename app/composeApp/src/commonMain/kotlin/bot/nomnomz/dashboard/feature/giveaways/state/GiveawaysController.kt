@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.giveaways_action_error
 import nomnomzbot.composeapp.generated.resources.feedback_codepool_codes_added
 import nomnomzbot.composeapp.generated.resources.feedback_codepool_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_codepool_save_failed
@@ -210,8 +211,8 @@ class GiveawaysController(
     }
 
     /**
-     * Replace one winner (forfeit / no-show) with a fresh draw, then reload the panel AND the list. Surfaces the
-     * error over the kept panel on failure.
+     * Replace one winner (forfeit / no-show) with a fresh draw, then reload the panel AND the list. A failure
+     * announces on the shell-level [feedback] toast, keeping the panel intact.
      */
     suspend fun redrawWinner(giveaway: Giveaway, winnerId: String) {
         when (val result: ApiResult<Unit> = giveawaysApi.redraw(giveaway.id, winnerId)) {
@@ -226,8 +227,8 @@ class GiveawaysController(
 
     /**
      * Reveal [winnerId]'s assigned code — the failed-whisper fallback (Broadcaster-only). On success the plaintext
-     * is held in the open winner panel, keyed by winner, so the row shows it with a copy control. Surfaces the
-     * error over the kept panel on failure.
+     * is held in the open winner panel, keyed by winner, so the row shows it with a copy control. A failure
+     * announces on the shell-level [feedback] toast, keeping the panel intact.
      */
     suspend fun revealCode(giveaway: Giveaway, winnerId: String) {
         when (val result: ApiResult<String> = giveawaysApi.revealCode(giveaway.id, winnerId)) {
@@ -242,23 +243,24 @@ class GiveawaysController(
         }
     }
 
-    // Re-fetch the winner history into an open panel, preserving the giveaway header. A failure surfaces on the
-    // kept panel (Ready.actionError) rather than blanking it, unless the panel was never populated (then Error).
+    // Re-fetch the winner history into an open panel, preserving the giveaway header. A failure surfaces as the
+    // panel's own Error state only when it was never populated yet — an open, already-populated panel is left
+    // intact (the load happens right after a redraw/reveal write, whose own failure already announced above).
     private suspend fun loadWinnersInto(giveaway: Giveaway) {
         when (val result: ApiResult<List<GiveawayWinner>> = giveawaysApi.winners(giveaway.id)) {
             is ApiResult.Ok -> _winners.value = WinnersState.Ready(giveaway, result.value)
             is ApiResult.Failure -> {
-                val current: WinnersState = _winners.value
-                _winners.value =
-                    if (current is WinnersState.Ready) current.copy(actionError = result.error.message)
-                    else WinnersState.Error(giveaway, result.error.message)
+                if (_winners.value !is WinnersState.Ready) {
+                    _winners.value = WinnersState.Error(giveaway, result.error.message)
+                }
             }
         }
     }
 
+    // A redraw/reveal failure announces on the shell-level feedback toast — the panel is already showing
+    // content, so this is a transient outcome, not a reason to blank the panel.
     private fun winnersActionError(detail: String) {
-        val current: WinnersState = _winners.value
-        if (current is WinnersState.Ready) _winners.value = current.copy(actionError = detail)
+        if (_winners.value is WinnersState.Ready) feedback.error(Res.string.giveaways_action_error, detail)
     }
 
     // ── Entries panel ────────────────────────────────────────────────────────────
@@ -387,12 +389,16 @@ class GiveawaysController(
         }
     }
 
+    // The list is already showing content (Ready or Empty — the create dialog still works from Empty) —
+    // announce on the shell-level feedback toast rather than a local banner. Only when the list has nothing to
+    // show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
-        feedback.error(Res.string.feedback_giveaway_save_failed, detail)
         val current: GiveawaysState = _state.value
-        _state.value =
-            if (current is GiveawaysState.Ready) current.copy(actionError = detail)
-            else GiveawaysState.Error(detail)
+        if (current is GiveawaysState.Ready || current is GiveawaysState.Empty) {
+            feedback.error(Res.string.feedback_giveaway_save_failed, detail)
+        } else {
+            _state.value = GiveawaysState.Error(detail)
+        }
     }
 
     private suspend fun afterPoolWrite(
@@ -409,11 +415,12 @@ class GiveawaysController(
     }
 
     private fun failPoolWrite(detail: String) {
-        feedback.error(Res.string.feedback_codepool_save_failed, detail)
         val current: CodePoolsState = _codePools.value
-        _codePools.value =
-            if (current is CodePoolsState.Ready) current.copy(actionError = detail)
-            else CodePoolsState.Error(detail)
+        if (current is CodePoolsState.Ready || current is CodePoolsState.Empty) {
+            feedback.error(Res.string.feedback_codepool_save_failed, detail)
+        } else {
+            _codePools.value = CodePoolsState.Error(detail)
+        }
     }
 
     // A blank description is sent as null (omitted from the wire body) — an empty string is not a description.
@@ -425,10 +432,10 @@ sealed interface GiveawaysState {
     data object Loading : GiveawaysState
 
     /**
-     * The channel's giveaways are listed. [actionError] is non-null only when the last create/edit/lifecycle/
-     * delete failed — the screen surfaces it as a transient banner while keeping the list rendered.
+     * The channel's giveaways are listed. A create/edit/lifecycle/delete failure announces on the shell-level
+     * feedback toast rather than a field here — see [GiveawaysController.failWrite].
      */
-    data class Ready(val giveaways: List<Giveaway>, val actionError: String? = null) : GiveawaysState
+    data class Ready(val giveaways: List<Giveaway>) : GiveawaysState
 
     data object Empty : GiveawaysState
 
@@ -439,7 +446,7 @@ sealed interface GiveawaysState {
 sealed interface CodePoolsState {
     data object Loading : CodePoolsState
 
-    data class Ready(val pools: List<CodePool>, val actionError: String? = null) : CodePoolsState
+    data class Ready(val pools: List<CodePool>) : CodePoolsState
 
     data object Empty : CodePoolsState
 
@@ -454,14 +461,13 @@ sealed interface WinnersState {
 
     /**
      * The [giveaway]'s winner history. [revealedCodes] maps a winner id to its just-revealed plaintext code (the
-     * broadcaster reveal, one at a time, held only while the panel is open). [actionError] surfaces a failed
-     * redraw / reveal over the kept panel.
+     * broadcaster reveal, one at a time, held only while the panel is open). A failed redraw/reveal announces on
+     * the shell-level feedback toast rather than a field here — see [GiveawaysController.winnersActionError].
      */
     data class Ready(
         val giveaway: Giveaway,
         val winners: List<GiveawayWinner>,
         val revealedCodes: Map<String, String> = emptyMap(),
-        val actionError: String? = null,
     ) : WinnersState
 
     data class Error(val giveaway: Giveaway, val detail: String) : WinnersState
@@ -484,7 +490,7 @@ sealed interface PoolDetailState {
 
     data class Loading(val name: String) : PoolDetailState
 
-    data class Ready(val pool: CodePoolDetail, val actionError: String? = null) : PoolDetailState
+    data class Ready(val pool: CodePoolDetail) : PoolDetailState
 
     data class Error(val name: String, val detail: String) : PoolDetailState
 }

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.settings.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -19,6 +21,8 @@ import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.settings_channel_action_error
 
 // The Settings page's state-holder: resolves the active channel, loads its real stream info (title, category,
 // tags + live context), and persists edits to the broadcast metadata back (no fabricated values). The screen
@@ -28,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class SettingsController(
     private val channelsApi: ChannelsApi,
     private val streamApi: StreamApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<SettingsState> = MutableStateFlow(SettingsState.Loading)
 
@@ -115,20 +120,19 @@ class SettingsController(
         val target: String = channelId ?: return
         val current: SettingsState = _state.value
         if (current !is SettingsState.Ready) return
-        _state.value = current.copy(channelActionError = null)
         when (val result: ApiResult<Unit> = channelsApi.deleteChannel(target)) {
             is ApiResult.Ok -> _state.value = SettingsState.ChannelDeleted
             is ApiResult.Failure ->
-                _state.value = current.copy(channelActionError = result.error.message)
+                feedback.error(Res.string.settings_channel_action_error, result.error.message)
         }
     }
 
+    // A join/leave/reset failure announces on the shell-level feedback toast — the page is already showing
+    // content, so this is a transient outcome, not a reason to blank the page.
     private fun applyChannelAction(result: ApiResult<Unit>) {
-        val current: SettingsState = _state.value
-        val channelError: String? = if (result is ApiResult.Failure) result.error.message else null
-        _state.value =
-            if (current is SettingsState.Ready) current.copy(channelActionError = channelError)
-            else current
+        if (result is ApiResult.Failure && _state.value is SettingsState.Ready) {
+            feedback.error(Res.string.settings_channel_action_error, result.error.message)
+        }
     }
 }
 
@@ -138,16 +142,16 @@ sealed interface SettingsState {
 
     /**
      * The loaded stream info plus the in-flight save signals: [saving] while a write is pending, [justSaved]
-     * right after a successful save (the "Saved" confirmation), and [saveError] when the last save failed.
-     * [channelActionError] is set when a channel-management action (join/leave/reset/delete) fails; cleared on
-     * next successful action. The screen seeds its editable form from [info].
+     * right after a successful save (the "Saved" confirmation), and [saveError] when the last save failed. A
+     * channel-management action (join/leave/reset/delete) failure announces on the shell-level feedback toast
+     * rather than a field here — see [SettingsController.applyChannelAction]. The screen seeds its editable
+     * form from [info].
      */
     data class Ready(
         val info: StreamInfo,
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,
-        val channelActionError: String? = null,
     ) : SettingsState
 
     /** The channel was permanently deleted. The screen must navigate the operator to onboarding. */

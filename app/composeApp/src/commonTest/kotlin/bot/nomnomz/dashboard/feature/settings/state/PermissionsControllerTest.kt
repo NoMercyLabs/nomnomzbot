@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.settings.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
@@ -119,13 +121,14 @@ class PermissionsControllerTest {
     }
 
     @Test
-    fun regrant_surfaces_the_backends_failure_reason_without_a_silent_no_op() = runTest {
+    fun regrant_announces_the_backends_failure_reason_on_the_feedback_toast_without_a_silent_no_op() = runTest {
         val diagnostics =
             FakeDiagnosticsApi(
                 scopes = ApiResult.Ok(TwitchScopeDiagnostics()),
                 regrantFailure = ApiError(409, "NO_MISSING_SCOPES", "Nothing to grant."),
             )
-        val controller = PermissionsController(diagnostics, FakeAuthApi())
+        val feedback = RecordingFeedback()
+        val controller = PermissionsController(diagnostics, FakeAuthApi(), feedback)
         controller.load()
 
         controller.regrant()
@@ -133,7 +136,8 @@ class PermissionsControllerTest {
         val state: PermissionsState = controller.state.value
         assertTrue(state is PermissionsState.Ready)
         val ready: PermissionsState.Ready = state as PermissionsState.Ready
-        assertEquals("Nothing to grant.", ready.regrantError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("Nothing to grant."), feedback.only.formatArgs)
         assertNull(ready.regrant)
     }
 }

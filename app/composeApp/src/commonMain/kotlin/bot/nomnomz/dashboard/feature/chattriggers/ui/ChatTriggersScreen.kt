@@ -40,7 +40,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -162,7 +161,6 @@ fun ChatTriggersScreen(
             is ChatTriggersState.Empty ->
                 ManagedContent(
                     triggers = emptyList(),
-                    actionError = current.actionError,
                     manage = manage,
                     onNew = { editor = TriggerEditor.create() },
                     onEdit = { trigger -> editor = TriggerEditor.edit(trigger) },
@@ -174,7 +172,6 @@ fun ChatTriggersScreen(
             is ChatTriggersState.Ready ->
                 ManagedContent(
                     triggers = current.triggers,
-                    actionError = current.actionError,
                     manage = manage,
                     onNew = { editor = TriggerEditor.create() },
                     onEdit = { trigger -> editor = TriggerEditor.edit(trigger) },
@@ -252,7 +249,6 @@ fun ChatTriggersScreen(
 @Composable
 private fun ManagedContent(
     triggers: List<ChatTrigger>,
-    actionError: String?,
     manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (ChatTrigger) -> Unit,
@@ -273,7 +269,7 @@ private fun ManagedContent(
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.chattriggers_action_error, it)) }
+        // Write failures announce on the shell-level feedback toast (ChatTriggersController.failWrite).
 
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
             if (triggers.isEmpty()) {

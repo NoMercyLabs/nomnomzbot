@@ -23,10 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -117,7 +117,9 @@ fun PipelineTestRunDialog(
                     monospace = true,
                     minLines = 3,
                 )
-                error?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_testrun_error, it)) }
+                // The dry-run's own outcome — a diagnostic reading tied to this panel, not a write action —
+                // stays visible in place rather than floating away as a toast.
+                error?.let { InlineError(message = stringResource(Res.string.pipelines_testrun_error, it)) }
                 result?.let { TestRunResultView(it) }
             }
         },

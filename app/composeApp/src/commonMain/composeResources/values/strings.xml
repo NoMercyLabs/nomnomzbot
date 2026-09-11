@@ -399,6 +399,7 @@
     <string name="home_live_ops_active_poll">Active poll: %1$s</string>
     <string name="home_live_ops_active_prediction">Active prediction: %1$s</string>
     <string name="home_live_ops_outcome_pick">Pick winner: %1$s</string>
+    <string name="home_live_ops_action_error">Action failed: %1$s</string>
     <string name="chat_poll_title">Chat poll</string>
     <string name="chat_poll_subtitle">Viewers vote by typing an option number in chat — works on every platform.</string>
     <string name="chat_poll_open_tag">Open</string>
@@ -1924,6 +1925,7 @@
     <string name="shell_nav_multichat">Multi-chat</string>
     <string name="multichat_loading">Loading channels…</string>
     <string name="multichat_error">Could not load channels: %1$s</string>
+    <string name="multichat_action_error">Action failed: %1$s</string>
     <string name="multichat_picker_hint">Pick channels to watch — their chats merge into one feed below, each line tagged by channel.</string>
     <string name="multichat_picker_none">No channels you own or moderate.</string>
     <string name="multichat_pick_a_channel">Pick one or more channels above to start watching.</string>

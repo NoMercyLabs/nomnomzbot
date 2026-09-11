@@ -369,13 +369,16 @@ class CommandsController(
         }
     }
 
+    // The page is already showing content (Ready or Empty — the create dialog still works from Empty) —
+    // announce on the shell-level feedback toast rather than a local banner. Only when the page has nothing to
+    // show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
-        // Announce the failure on the frame (persistent until dismissed) AND keep the in-page banner.
-        feedback.error(Res.string.feedback_command_save_failed, detail)
         val current: CommandsState = _state.value
-        _state.value =
-            if (current is CommandsState.Ready) current.copy(actionError = detail)
-            else CommandsState.Error(detail)
+        if (current is CommandsState.Ready || current is CommandsState.Empty) {
+            feedback.error(Res.string.feedback_command_save_failed, detail)
+        } else {
+            _state.value = CommandsState.Error(detail)
+        }
     }
 
     private companion object {
@@ -460,9 +463,8 @@ sealed interface CommandsState {
     /**
      * The channel's commands are listed. [builtins] are the platform-defined commands (music, etc.);
      * [commands] are the user's custom commands; [pipelines] is the channel's pipeline list (for the
-     * attach-pipeline selector in the create/edit dialog). [actionError] is non-null only when the last
-     * create/edit/toggle/delete failed — the screen surfaces it as a transient banner while keeping the
-     * list rendered.
+     * attach-pipeline selector in the create/edit dialog). A create/edit/toggle/delete failure announces on
+     * the shell-level feedback toast rather than a field here — see [CommandsController.failWrite].
      */
     data class Ready(
         val commands: List<CommandSummary>,
@@ -470,7 +472,6 @@ sealed interface CommandsState {
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
         val codeScripts: List<CodeScriptSummary> = emptyList(),
-        val actionError: String? = null,
     ) : CommandsState
 
     /**

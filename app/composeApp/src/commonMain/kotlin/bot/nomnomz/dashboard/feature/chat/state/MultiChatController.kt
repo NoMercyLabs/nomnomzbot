@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.chat.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelBanOutcome
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -28,6 +30,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.multichat_action_error
 
 // The multi-channel chat-watch page's state-holder (frontend-ia.md — the Chat group; owner requirement
 // 2026-07-10: "a viewer+ should be able to view multiple chats at once so mods can monitor multiple channels").
@@ -53,6 +57,7 @@ class MultiChatController(
     // flip Shield Mode in the dashboard. Optional and nullable: a state-holder test that does not exercise
     // Shield Mode omits it, and [shieldModeActiveChannelIds] then only ever changes via the live hub push.
     private val moderationApi: ModerationApi? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<MultiChatState> = MutableStateFlow(MultiChatState.Loading)
 
@@ -147,17 +152,14 @@ class MultiChatController(
      * Turn emergency Shield Mode on or off ([enabled]) for [channelId] — the SAME `PATCH .../moderation/shield`
      * route the Moderation -> Desk toggle and the single-channel Chat page call
      * ([ModerationApi.setShieldMode]). Re-reads the fresh per-channel state on success so the indicator reflects
-     * the backend's truth immediately, without waiting on the hub's own begin/end echo; surfaces the error as
-     * [MultiChatState.Ready.actionError] on failure. No-ops when no [moderationApi] is wired.
+     * the backend's truth immediately, without waiting on the hub's own begin/end echo; a failure announces on
+     * the shell-level [feedback] toast. No-ops when no [moderationApi] is wired.
      */
     suspend fun setShieldMode(channelId: String, enabled: Boolean) {
         val api: ModerationApi = moderationApi ?: return
         when (val result: ApiResult<Unit> = api.setShieldMode(channelId, enabled)) {
             is ApiResult.Ok -> refreshShieldMode(channelId)
-            is ApiResult.Failure -> {
-                val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
-                _state.value = current.copy(actionError = result.error.message)
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.multichat_action_error, result.error.message)
         }
     }
 
@@ -187,7 +189,7 @@ class MultiChatController(
      * Send [message] to [channelId]'s chat as the bot (the same `POST .../chat/messages` call the single-channel
      * Chat page uses — [ChatApi.send]). The composer lets a mod reply into any ONE of the currently watched
      * channels without leaving the merged feed. The sent line arrives back through the live hub push like any
-     * other message; a failure surfaces as [MultiChatState.Ready.actionError].
+     * other message; a failure announces on the shell-level [feedback] toast.
      */
     suspend fun sendMessage(channelId: String, message: String) {
         if (message.isBlank()) return
@@ -198,7 +200,7 @@ class MultiChatController(
      * Delete [messageId] from [channelId]'s chat (the same `DELETE .../chat/messages/{id}` call the single-channel
      * Chat page uses — [ChatApi.deleteMessage]) — an inline moderation quick-action from the merged feed. On
      * success the line is dropped from the local feed immediately (the backend delete is not itself echoed back
-     * over the hub); a failure surfaces as [MultiChatState.Ready.actionError].
+     * over the hub); a failure announces on the shell-level [feedback] toast.
      */
     suspend fun deleteMessage(channelId: String, messageId: String) {
         runModerationCall(
@@ -210,7 +212,7 @@ class MultiChatController(
     /**
      * Timeout [userId] in [channelId] for [durationSeconds] (the same `POST .../moderation/actions` call the
      * single-channel Chat page uses — [ChatApi.timeout]) — an inline moderation quick-action from the merged feed.
-     * A failure surfaces as [MultiChatState.Ready.actionError].
+     * A failure announces on the shell-level [feedback] toast.
      */
     suspend fun timeoutUser(channelId: String, userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
         runModerationCall { chatApi.timeout(channelId, userId, durationSeconds) }
@@ -219,36 +221,36 @@ class MultiChatController(
     /**
      * Ban [userId] from [channelId] only ("this_channel" scope, the same `POST .../moderation/actions/ban` call
      * the single-channel Chat page uses — [ChatApi.banUser]) — an inline moderation quick-action from the merged
-     * feed. A failure (network or a per-channel rejection reported inside the result) surfaces as
-     * [MultiChatState.Ready.actionError].
+     * feed. A failure (network or a per-channel rejection reported inside the result) announces on the
+     * shell-level [feedback] toast.
      */
     suspend fun banUser(channelId: String, userId: String) {
         runModerationCall(
             call = { chatApi.banUser(channelId, userId, scope = "this_channel") },
             onSuccess = { ready, banResult ->
                 val outcome: ChannelBanOutcome? = banResult.channels.firstOrNull()
-                if (outcome != null && !outcome.succeeded) ready.copy(actionError = outcome.error) else ready
+                if (outcome != null && !outcome.succeeded) {
+                    feedback.error(Res.string.multichat_action_error, outcome.error.orEmpty())
+                }
+                ready
             },
         )
     }
 
-    // The one place a chat mutation's [ApiResult] turns into a state update: on [ApiResult.Failure] it stamps
-    // [MultiChatState.Ready.actionError] with the backend's message; on [ApiResult.Ok] it clears any prior
-    // actionError and applies [onSuccess] (defaulting to a no-op) to the cleared state, given the call's own
-    // result value — the single mechanism [sendMessage]/[deleteMessage]/[timeoutUser]/[banUser] all share,
-    // rather than four repeats of the same when-branch.
+    // The one place a chat mutation's [ApiResult] turns into a state update: on [ApiResult.Failure] it announces
+    // the backend's message on the shell-level [feedback] toast; on [ApiResult.Ok] it applies [onSuccess]
+    // (defaulting to a no-op), given the call's own result value — the single mechanism
+    // [sendMessage]/[deleteMessage]/[timeoutUser]/[banUser] all share, rather than four repeats of the same
+    // when-branch.
     private suspend fun <T> runModerationCall(
         onSuccess: (MultiChatState.Ready, T) -> MultiChatState.Ready = { ready, _ -> ready },
         call: suspend () -> ApiResult<T>,
     ) {
         when (val result: ApiResult<T> = call()) {
-            is ApiResult.Failure -> {
-                val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
-                _state.value = current.copy(actionError = result.error.message)
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.multichat_action_error, result.error.message)
             is ApiResult.Ok -> {
                 val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
-                _state.value = onSuccess(current.copy(actionError = null), result.value)
+                _state.value = onSuccess(current, result.value)
             }
         }
     }
@@ -383,9 +385,11 @@ sealed interface MultiChatState {
     /**
      * [available] is every channel the caller can watch (the picker); [watched] is the subset currently being
      * monitored; [messages] is the merged, time-ordered feed across the watched channels (tag each line by its
-     * `channelId`). [actionError] is non-null only when the last add/scrollback failed — surfaced as a transient
-     * banner while keeping the feed rendered. [shieldModeActiveChannelIds] holds the watched channel ids currently
-     * under Twitch Shield Mode (S076c) — surfaced as a per-channel banner/indicator, toggled by the live
+     * `channelId`). [actionError] is non-null only when a just-added channel's scrollback failed to load —
+     * a section-load failure, surfaced in place (persistent, not a toast) while keeping the feed rendered.
+     * Every moderation/composer write's outcome instead announces on the shell-level feedback toast (see
+     * [runModerationCall]). [shieldModeActiveChannelIds] holds the watched channel ids currently under Twitch
+     * Shield Mode (S076c) — surfaced as a per-channel banner/indicator, toggled by the live
      * `shield_mode_begin`/`shield_mode_end` hub push.
      */
     data class Ready(

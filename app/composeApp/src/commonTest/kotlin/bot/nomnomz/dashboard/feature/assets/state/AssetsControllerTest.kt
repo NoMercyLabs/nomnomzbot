@@ -72,7 +72,6 @@ class AssetsControllerTest {
         assertEquals("image/png", asset.mimeType)
         assertEquals(2048L, asset.sizeBytes)
         assertEquals("/api/v1/assets/file/ch1/alert-badge?v=1", asset.url)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -125,7 +124,6 @@ class AssetsControllerTest {
         val state: AssetsState = controller.state.value
         assertTrue(state is AssetsState.Ready)
         assertEquals("logo", (state as AssetsState.Ready).assets.first().name)
-        assertNull(state.actionError)
 
         // And the success was announced with the "uploaded" label.
         assertEquals(FeedbackKind.Success, feedback.only.kind)
@@ -214,21 +212,21 @@ class AssetsControllerTest {
         val state: AssetsState = controller.state.value
         assertTrue(state is AssetsState.Ready)
         assertEquals("keep-me", (state as AssetsState.Ready).assets.first().name)
-        assertEquals("Channel storage limit of 64 MB exceeded.", state.actionError)
-        // And announced as an ERROR carrying that detail — never a success.
+        // Announced as an ERROR carrying the backend's friendly detail — never a success.
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(Res.string.feedback_asset_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("Channel storage limit of 64 MB exceeded."), feedback.only.formatArgs)
     }
 
     @Test
-    fun a_failed_delete_surfaces_the_error_over_the_kept_list() = runTest {
+    fun a_failed_delete_keeps_the_list_and_announces_on_the_feedback_toast() = runTest {
         val assetsApi =
             RecordingAssetsApi(
                 ApiResult.Ok(listOf(ChannelAsset(id = "a1", name = "keep-me", displayName = "Keep me", kind = "image"))),
                 writeError = ApiError(403, "FORBIDDEN", "no permission"),
             )
-        val controller = controller(assetsApi)
+        val feedback = RecordingFeedback()
+        val controller = controller(assetsApi, feedback = feedback)
         controller.load()
 
         controller.deleteAsset("a1")
@@ -236,7 +234,8 @@ class AssetsControllerTest {
         val state: AssetsState = controller.state.value
         assertTrue(state is AssetsState.Ready)
         assertEquals(1, (state as AssetsState.Ready).assets.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf("no permission"), feedback.only.formatArgs)
     }
 
     @Test

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.liveops.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -25,13 +27,17 @@ import bot.nomnomz.dashboard.core.network.LiveOpsRaid
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.home_live_ops_action_error
 
 // Broadcaster live-ops quick-actions for the Dashboard home page.
 // Loads the currently active poll/prediction on demand and exposes fire-and-forget action methods
-// for raids, clips, ads and poll/prediction lifecycle.
+// for raids, clips, ads and poll/prediction lifecycle. A quick action's failure announces on the
+// shell-level [feedback] toast rather than a local state field.
 class LiveOpsController(
     private val channelsApi: ChannelsApi,
     private val liveOpsApi: LiveOpsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<LiveOpsState> = MutableStateFlow(LiveOpsState.Idle)
     val state: StateFlow<LiveOpsState> = _state.asStateFlow()
@@ -68,7 +74,6 @@ class LiveOpsController(
                     activePoll = polls.firstOrNull { it.status == "ACTIVE" },
                     activePrediction = preds.firstOrNull { it.status == "ACTIVE" || it.status == "LOCKED" },
                     adSchedule = schedule,
-                    actionError = null,
                 )
             }
         }
@@ -135,7 +140,7 @@ class LiveOpsController(
         }
     }
 
-    /** Cancel the pending raid. Returns true on success; a failure surfaces on [LiveOpsState.Ready.actionError]
+    /** Cancel the pending raid. Returns true on success; a failure announces on [feedback]
      * so the UI keeps the Cancel affordance up instead of falsely implying the raid was stopped. */
     suspend fun cancelRaid(): Boolean {
         val ch: String = channelId ?: return false
@@ -159,7 +164,7 @@ class LiveOpsController(
     /**
      * Drop a stream marker (a VOD bookmark) at the current live position with an optional [description]. Returns
      * the created marker on success, or null on failure (Twitch rejects when the channel isn't live — its error
-     * surfaces on the panel). No-ops with no channel.
+     * announces on [feedback]). No-ops with no channel.
      */
     suspend fun createMarker(description: String?): LiveOpsMarker? {
         val ch: String = channelId ?: return null
@@ -196,11 +201,6 @@ class LiveOpsController(
         }
     }
 
-    fun clearError() {
-        val current: LiveOpsState = _state.value
-        if (current is LiveOpsState.Ready) _state.value = current.copy(actionError = null)
-    }
-
     private fun activePollId(): String? = (_state.value as? LiveOpsState.Ready)?.activePoll?.id
 
     private fun activePredictionId(): String? = (_state.value as? LiveOpsState.Ready)?.activePrediction?.id
@@ -215,9 +215,11 @@ class LiveOpsController(
         if (current is LiveOpsState.Ready) _state.value = current.copy(activePrediction = prediction)
     }
 
+    // A quick action's failure announces on the shell-level feedback toast — the panel is already showing
+    // content, so a control failure (raid rejected, poll couldn't start, …) is a transient outcome, not a
+    // reason to blank the page.
     private fun setActionError(message: String) {
-        val current: LiveOpsState = _state.value
-        if (current is LiveOpsState.Ready) _state.value = current.copy(actionError = message)
+        if (_state.value is LiveOpsState.Ready) feedback.error(Res.string.home_live_ops_action_error, message)
     }
 }
 
@@ -229,6 +231,5 @@ sealed interface LiveOpsState {
         val activePoll: LiveOpsPoll?,
         val activePrediction: LiveOpsPrediction?,
         val adSchedule: LiveOpsAdSchedule?,
-        val actionError: String?,
     ) : LiveOpsState
 }

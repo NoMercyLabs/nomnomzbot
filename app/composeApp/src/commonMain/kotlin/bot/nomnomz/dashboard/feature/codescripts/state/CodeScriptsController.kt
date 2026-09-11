@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.codescripts.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
@@ -27,6 +29,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.scripts_action_error
 
 // The Code Scripts page's state-holder. Lists all scripts, opens a project view for one (its `src/` file set +
 // manifest), and drives create / enable-toggle / delete. Editing a script's code opens the shared multi-file
@@ -37,6 +41,7 @@ class CodeScriptsController(
     private val api: CodeScriptsApi,
     private val projectEditor: ProjectEditorIO,
     private val sdkTypesApi: SdkTypesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<CodeScriptsState> = MutableStateFlow(CodeScriptsState.Loading)
 
@@ -142,8 +147,10 @@ class CodeScriptsController(
                         versionsLoadingMore = false,
                     )
                 }
-            is ApiResult.Failure ->
-                updateEditing(id) { it.copy(versionsLoadingMore = false, actionError = result.error.message) }
+            is ApiResult.Failure -> {
+                updateEditing(id) { it.copy(versionsLoadingMore = false) }
+                failWrite(result.error.message)
+            }
         }
     }
 
@@ -158,7 +165,7 @@ class CodeScriptsController(
         when (val result: ApiResult<Unit> = api.deleteVersion(id, versionId)) {
             is ApiResult.Ok ->
                 updateEditing(id) { it.copy(versions = it.versions.filterNot { v -> v.id == versionId }) }
-            is ApiResult.Failure -> updateEditing(id) { it.copy(actionError = result.error.message) }
+            is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
@@ -333,14 +340,16 @@ class CodeScriptsController(
         }
     }
 
+    // The page is already showing content (Ready, Empty — the create dialog still works — or Editing) —
+    // announce on the shell-level feedback toast rather than a local banner. Only when the page has nothing to
+    // show yet does a failure become the page's own Error state.
     private fun failWrite(detail: String) {
         val current: CodeScriptsState = _state.value
-        _state.value =
-            when (current) {
-                is CodeScriptsState.Ready -> current.copy(actionError = detail)
-                is CodeScriptsState.Editing -> current.copy(actionError = detail)
-                else -> CodeScriptsState.Error(detail)
-            }
+        when (current) {
+            is CodeScriptsState.Ready, is CodeScriptsState.Empty, is CodeScriptsState.Editing ->
+                feedback.error(Res.string.scripts_action_error, detail)
+            else -> _state.value = CodeScriptsState.Error(detail)
+        }
     }
 }
 
@@ -354,7 +363,6 @@ sealed interface CodeScriptsState {
 
     data class Ready(
         val scripts: List<CodeScriptSummary>,
-        val actionError: String? = null,
     ) : CodeScriptsState
 
     /**
@@ -375,7 +383,6 @@ sealed interface CodeScriptsState {
         val versionsHasMore: Boolean = false,
         /** True while a "load more" fetch for the version history is in flight. */
         val versionsLoadingMore: Boolean = false,
-        val actionError: String? = null,
         val testRunning: Boolean = false,
         val testResult: TestRunResult? = null,
         val testError: String? = null,

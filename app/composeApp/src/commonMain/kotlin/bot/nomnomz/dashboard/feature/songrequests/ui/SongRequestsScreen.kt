@@ -44,7 +44,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -172,7 +171,6 @@ fun SongRequestsScreen(
                     queue = current.queue,
                     config = current.config,
                     srPageToken = current.srPageToken,
-                    actionError = current.actionError,
                     moderate = moderate,
                     configure = configure,
                     onSkip = { scope.launch { controller.skip() } },
@@ -193,7 +191,6 @@ private fun ReadyContent(
     queue: List<QueuedSong>,
     config: MusicConfig?,
     srPageToken: String?,
-    actionError: String?,
     moderate: ManageDecision,
     configure: ManageDecision,
     onSkip: () -> Unit,
@@ -225,11 +222,7 @@ private fun ReadyContent(
             PlaybackControls(moderate = moderate, onSkip = onSkip, onPause = onPause, onResume = onResume)
         }
 
-        actionError?.let { detail ->
-            item {
-                ActionErrorBanner(message = stringResource(Res.string.songrequests_action_error, detail))
-            }
-        }
+        // Control failures announce on the shell-level feedback toast (SongRequestsController.surfaceError).
 
         // ── Queue list ───────────────────────────────────────────────────────
         item {

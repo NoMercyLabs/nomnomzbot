@@ -152,7 +152,6 @@ class PipelinesControllerTest {
         val state: PipelinesState = controller.state.value
         assertTrue(state is PipelinesState.Ready)
         assertEquals("Raid handler", (state as PipelinesState.Ready).pipelines.first().name)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -243,11 +242,10 @@ class PipelinesControllerTest {
 
         controller.deletePipeline(id = "00000001-0000-0000-0000-000000000001")
 
-        // The list is kept (not blown away) and the failure surfaces on it + on the frame.
+        // The list is kept (not blown away) and the failure announces on the frame.
         val state: PipelinesState = controller.state.value
         assertTrue(state is PipelinesState.Ready)
         assertEquals(1, (state as PipelinesState.Ready).pipelines.size)
-        assertEquals("no permission", state.actionError)
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(Res.string.feedback_pipeline_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
@@ -379,12 +377,11 @@ class PipelinesControllerTest {
 
         controller.saveChain()
 
-        // The edited chain is NOT lost, and the failure surfaces on the editor + on the frame.
+        // The edited chain is NOT lost, and the failure announces on the frame.
         val state: PipelinesState = controller.state.value
         assertTrue(state is PipelinesState.Editing)
         val editing: PipelinesState.Editing = state as PipelinesState.Editing
         assertEquals(1, editing.steps.size)
-        assertEquals("denied", editing.actionError)
         assertEquals(FeedbackKind.Error, feedback.only.kind)
     }
 

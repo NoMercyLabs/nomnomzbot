@@ -42,7 +42,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -139,7 +138,6 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
             is SoundState.Empty ->
                 ClipList(
                     clips = emptyList(),
-                    actionError = null,
                     manage = manage,
                     isUploading = isUploading,
                     onUpload = { scope.launch { controller.uploadClip() } },
@@ -151,7 +149,6 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
             is SoundState.Ready ->
                 ClipList(
                     clips = current.clips,
-                    actionError = current.actionError,
                     manage = manage,
                     isUploading = isUploading,
                     onUpload = { scope.launch { controller.uploadClip() } },
@@ -213,7 +210,6 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
 @Composable
 private fun ClipList(
     clips: List<SoundClip>,
-    actionError: String?,
     manage: ManageDecision,
     isUploading: Boolean,
     onUpload: () -> Unit,
@@ -238,9 +234,7 @@ private fun ClipList(
             }
         }
 
-        actionError?.let { detail ->
-            ActionErrorBanner(message = stringResource(Res.string.sound_clips_action_error, detail))
-        }
+        // Write failures announce on the shell-level feedback toast (SoundController.failWrite).
 
         // Single card table — all clips in one container, rows separated by hairlines.
         Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
