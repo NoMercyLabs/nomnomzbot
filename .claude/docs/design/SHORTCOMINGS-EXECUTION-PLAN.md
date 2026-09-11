@@ -36,11 +36,12 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       a picker (needs a new `IObsControlService` method wrapping OBS-WS `GetHotkeyList` first);
       **screenshot** (`ScreenshotAsync`) and **batch/vendor pass-through** (`RequestBatchAsync`,
       `CallVendorAsync`) have no controller route or UI.
-- [ ] **S-STREAMDECK-OBS-REMAINDER** Replay-buffer/virtual-cam keys shipped (`44aa4e1e`+`64a902e7`,
-      48/48 tests green including real instantiated-class proofs — icons are placeholders, reusing
-      `record-start.svg`/`device.svg` pending real OBS-themed art). Still open: a scene/input dropdown
-      picker (current property inspector is free-text); live icon state (mute/streaming/recording tile
-      feedback — no OBS equivalent of music's `song.changed` WS push exists yet).
+- [ ] **S-STREAMDECK-OBS-REMAINDER** Replay-buffer/virtual-cam keys and the scene/input dropdown
+      pickers (`8957ed53`, new `automation/v1/obs/scenes`+`obs/inputs` endpoints) are shipped — icons
+      are still placeholders, reusing `record-start.svg`/`device.svg` pending real OBS-themed art.
+      Still open: **live icon state** (mute/streaming/recording tile feedback) — no OBS equivalent of
+      music's `song.changed` WS push exists yet; needs a new `IObsControlService`-side push, event
+      descriptor, WS wiring, and plugin-side rendering — a materially separate feature.
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
