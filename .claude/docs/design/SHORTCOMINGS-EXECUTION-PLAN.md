@@ -31,10 +31,12 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
 - [ ] **S-PL7-VISUAL** A live browser render check of the 7 screens the scroll-container sweep
       touched (Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/Widgets) is still owed — the wasm
       dev server hit a memory-contention failure on this box every attempt this session.
-- [ ] **S-OBS-PROTOCOL-GAPS** Genuinely not implemented server-side in `ObsControlService` at all:
+- [ ] **S-OBS-PROTOCOL-GAPS** `GetStats` and `GetVirtualCamStatus` are done (commit `2851691c`:
+      service methods + DTOs + `GET virtual-cam/status`/`GET stats` controller reads + fake-transport
+      and controller tests). Still genuinely not implemented server-side in `ObsControlService`:
       studio mode enable/disable (only `TriggerStudioTransitionAsync` exists, needs studio mode
-      already on), `GetStats` (CPU/FPS/render-lag), `GetVirtualCamStatus`, `GetSceneTransitionList`,
-      `GetSourceFilterList`. Real obs-websocket protocol additions, not UI wiring.
+      already on), `GetSceneTransitionList`, `GetSourceFilterList`. Real obs-websocket protocol
+      additions, not UI wiring.
 - [ ] **S-OBS-UI-REMAINDER** Server-ready but no dashboard UI: `SetPreviewSceneAsync`, per-source mute
       (`ToggleInputMuteAsync`), filter enable/disable, transition select, studio-mode transition
       trigger, media trigger, hotkey trigger, browser-source refresh, screenshot, batch/vendor
