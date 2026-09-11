@@ -31,17 +31,14 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
 - [ ] **S-PL7-VISUAL** A live browser render check of the 7 screens the scroll-container sweep
       touched (Home/Me/MyChannel/NowPlaying/PointsAndStore/Rewards/Widgets) is still owed — the wasm
       dev server hit a memory-contention failure on this box every attempt this session.
-- [ ] **S-OBS-UI-REMAINDER** Server-ready but no dashboard UI: `SetPreviewSceneAsync`, per-source mute
-      (`ToggleInputMuteAsync`), filter enable/disable, transition select, studio-mode enable/disable
-      (`GetStudioModeEnabledAsync`/`SetStudioModeEnabledAsync`, `cf12c4f1`) + transition trigger, media
-      trigger, hotkey trigger, browser-source refresh, screenshot, batch/vendor pass-through, the
-      per-scene source-visibility surface (`7c3f0c09` — `GetSceneItemListAsync`/`SetSourceVisibleAsync`
-      have controller endpoints, no scene picker + per-item toggle UI yet), and the scene-transition/
-      source-filter lists (`628fb8d8`, stats/virtual-cam status also unread on the dashboard). Each
-      needs its own enumeration UI (transition list, media input list, hotkey list) — judged lower
-      value than replay buffer/virtual cam for a streamer's live-control surface, so deferred rather
-      than built in S-PL5b. `SetRecording` also only sends Start/Stop/Toggle though `RecordAction`
-      supports Pause/Resume/Split.
+- [ ] **S-OBS-UI-REMAINDER** (`57a34672`) Studio mode, scene transitions, source visibility, source
+      filters, stats, virtual-cam status, media transport, and browser-source refresh are now wired
+      end to end (6 new controller routes + 5 new Compose cards); recording gained Pause/Resume/Split.
+      Still open, deliberately deferred as lower-value power-user surfaces: **hotkey trigger** — no
+      `GetHotkeyList`-equivalent exists anywhere in the stack yet, so there's nothing to enumerate for
+      a picker (needs a new `IObsControlService` method wrapping OBS-WS `GetHotkeyList` first);
+      **screenshot** (`ScreenshotAsync`) and **batch/vendor pass-through** (`RequestBatchAsync`,
+      `CallVendorAsync`) have no controller route or UI.
 - [ ] **S-STREAMDECK-OBS-REMAINDER** Replay-buffer/virtual-cam keys shipped (`44aa4e1e`+`64a902e7`,
       48/48 tests green including real instantiated-class proofs — icons are placeholders, reusing
       `record-start.svg`/`device.svg` pending real OBS-themed art). Still open: a scene/input dropdown
