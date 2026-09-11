@@ -25,7 +25,6 @@
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listInputs" });
-        if (ev.detail.source) document.getElementById("source").value = ev.detail.source;
         document.getElementById("enabled").value = ev.detail.enabled === false ? "false" : "true";
         if (ev.detail.source) requestFromPlugin({ type: "listSourceFilters", sourceName: ev.detail.source });
       });
@@ -39,6 +38,7 @@
             option.textContent = input.name;
             select.appendChild(option);
           }
+          select.value = piActionInfo.payload?.settings?.source ?? "";
         } else if (ev.detail?.type === "sourceFilters") {
           const select = document.getElementById("filter");
           select.innerHTML = "";
@@ -48,6 +48,7 @@
             option.textContent = filter.enabled ? filter.name : `${filter.name} (disabled)`;
             select.appendChild(option);
           }
+          select.value = piActionInfo.payload?.settings?.filter ?? "";
         }
       });
       document.getElementById("source").addEventListener("change", (ev) => {

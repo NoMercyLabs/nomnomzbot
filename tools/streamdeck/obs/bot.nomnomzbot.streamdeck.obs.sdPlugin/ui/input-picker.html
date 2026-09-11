@@ -14,7 +14,6 @@
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listInputs" });
-        if (ev.detail.inputName) document.getElementById("inputName").value = ev.detail.inputName;
       });
       document.addEventListener("pi:message", (ev) => {
         if (ev.detail?.type !== "inputs") return;
@@ -26,6 +25,7 @@
           option.textContent = input.muted ? `${input.name} (muted)` : input.name;
           select.appendChild(option);
         }
+        select.value = piActionInfo.payload?.settings?.inputName ?? "";
       });
       document.getElementById("inputName").addEventListener("change", (ev) => {
         setSettings({ inputName: ev.target.value });

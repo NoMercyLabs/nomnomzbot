@@ -1,7 +1,7 @@
 {
   "Name": "NomNomzBot OBS",
   "UUID": "bot.nomnomzbot.streamdeck.obs",
-  "Version": "1.0.0",
+  "Version": "1.0.1",
   "Author": "NoMercy Labs",
   "Description": "Control OBS Studio through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
   "Icon": "imgs/plugin/marketplace",
@@ -14,7 +14,7 @@
     { "Platform": "mac", "MinimumVersion": "10.15" }
   ],
   "Nodejs": { "Version": "20", "Debug": "enabled" },
-  "Category": "NomNomzBot",
+  "Category": "NomNomzBot OBS",
   "CategoryIcon": "imgs/plugin/category",
   "Actions": [
     {

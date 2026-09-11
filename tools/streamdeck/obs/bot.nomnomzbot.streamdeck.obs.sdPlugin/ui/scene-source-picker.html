@@ -25,7 +25,6 @@
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listScenes" });
-        if (ev.detail.scene) document.getElementById("scene").value = ev.detail.scene;
         document.getElementById("visible").value = ev.detail.visible === false ? "false" : "true";
         if (ev.detail.scene) requestFromPlugin({ type: "listSceneItems", sceneName: ev.detail.scene });
       });
@@ -39,6 +38,7 @@
             option.textContent = scene.isCurrent ? `${scene.name} (current)` : scene.name;
             select.appendChild(option);
           }
+          select.value = piActionInfo.payload?.settings?.scene ?? "";
         } else if (ev.detail?.type === "sceneItems") {
           const select = document.getElementById("source");
           select.innerHTML = "";
@@ -48,6 +48,7 @@
             option.textContent = item.enabled ? item.sourceName : `${item.sourceName} (hidden)`;
             select.appendChild(option);
           }
+          select.value = piActionInfo.payload?.settings?.source ?? "";
         }
       });
       document.getElementById("scene").addEventListener("change", (ev) => {

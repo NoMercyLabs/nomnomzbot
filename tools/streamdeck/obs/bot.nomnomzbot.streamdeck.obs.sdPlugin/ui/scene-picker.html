@@ -14,7 +14,6 @@
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listScenes" });
-        if (ev.detail.scene) document.getElementById("scene").value = ev.detail.scene;
       });
       document.addEventListener("pi:message", (ev) => {
         if (ev.detail?.type !== "scenes") return;
@@ -26,6 +25,7 @@
           option.textContent = scene.isCurrent ? `${scene.name} (current)` : scene.name;
           select.appendChild(option);
         }
+        select.value = piActionInfo.payload?.settings?.scene ?? "";
       });
       document.getElementById("scene").addEventListener("change", (ev) => {
         setSettings({ scene: ev.target.value });

@@ -14,7 +14,6 @@
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listDevices" });
-        if (ev.detail.deviceId) document.getElementById("deviceId").value = ev.detail.deviceId;
       });
       document.addEventListener("pi:message", (ev) => {
         if (ev.detail?.type !== "devices") return;
@@ -26,6 +25,7 @@
           option.textContent = device.isActive ? `${device.name} (active)` : device.name;
           select.appendChild(option);
         }
+        select.value = piActionInfo.payload?.settings?.deviceId ?? "";
       });
       document.getElementById("deviceId").addEventListener("change", (ev) => {
         setSettings({ deviceId: ev.target.value });

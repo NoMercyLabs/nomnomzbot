@@ -14,7 +14,6 @@
       document.addEventListener("pi:ready", (ev) => {
         initBackgroundColorPicker(document.getElementById("appearance"), ev.detail);
         requestFromPlugin({ type: "listPlaylists" });
-        if (ev.detail.playlistId) document.getElementById("playlistId").value = ev.detail.playlistId;
       });
       document.addEventListener("pi:message", (ev) => {
         if (ev.detail?.type !== "playlists") return;
@@ -26,6 +25,7 @@
           option.textContent = `${playlist.name} (${playlist.trackCount})`;
           select.appendChild(option);
         }
+        select.value = piActionInfo.payload?.settings?.playlistId ?? "";
       });
       document.getElementById("playlistId").addEventListener("change", (ev) => {
         setSettings({ playlistId: ev.target.value });
