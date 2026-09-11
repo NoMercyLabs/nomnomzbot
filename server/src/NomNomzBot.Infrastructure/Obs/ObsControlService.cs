@@ -253,6 +253,18 @@ public class ObsControlService : IObsControlService
         return await SendStatusAsync(broadcasterId, "TriggerStudioModeTransition", null, ct);
     }
 
+    public Task<Result> SetStudioModeEnabledAsync(
+        Guid broadcasterId,
+        bool enabled,
+        CancellationToken ct = default
+    ) =>
+        SendStatusAsync(
+            broadcasterId,
+            "SetStudioModeEnabled",
+            new() { ["studioModeEnabled"] = enabled },
+            ct
+        );
+
     public Task<Result> TriggerMediaAsync(
         Guid broadcasterId,
         string inputName,
@@ -724,6 +736,26 @@ public class ObsControlService : IObsControlService
             }
         }
         return Result.Success<IReadOnlyList<ObsFilterDto>>(filters);
+    }
+
+    public async Task<Result<ObsStudioModeStatusDto>> GetStudioModeEnabledAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetStudioModeEnabled", null),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<ObsStudioModeStatusDto>(status.ErrorMessage!, status.ErrorCode!);
+
+        return Result.Success(
+            new ObsStudioModeStatusDto(GetBool(response.Value, "studioModeEnabled"))
+        );
     }
 
     // ── Plumbing ────────────────────────────────────────────────────────────

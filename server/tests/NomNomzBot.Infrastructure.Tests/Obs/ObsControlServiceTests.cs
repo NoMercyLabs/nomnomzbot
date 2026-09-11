@@ -490,6 +490,59 @@ public sealed class ObsControlServiceTests
         result.ErrorMessage.Should().Be("source not found");
     }
 
+    [Fact]
+    public async Task Get_studio_mode_enabled_returns_the_real_studio_mode_flag()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetStudioModeEnabled"
+                ? new(true, new Dictionary<string, object?> { ["studioModeEnabled"] = true }, null)
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<ObsStudioModeStatusDto> result = await h.Service.GetStudioModeEnabledAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Enabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Get_studio_mode_enabled_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "not connected"));
+
+        Result<ObsStudioModeStatusDto> result = await h.Service.GetStudioModeEnabledAsync(Channel);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("not connected");
+    }
+
+    [Fact]
+    public async Task Set_studio_mode_enabled_sends_the_studio_mode_enabled_flag()
+    {
+        Harness h = Build();
+
+        Result on = await h.Service.SetStudioModeEnabledAsync(Channel, true);
+        on.IsSuccess.Should().BeTrue(on.ErrorMessage);
+        h.Requests.Single().RequestType.Should().Be("SetStudioModeEnabled");
+        h.Requests.Single().RequestData!["studioModeEnabled"].Should().Be(true);
+
+        h.Requests.Clear();
+        Result off = await h.Service.SetStudioModeEnabledAsync(Channel, false);
+        off.IsSuccess.Should().BeTrue(off.ErrorMessage);
+        h.Requests.Single().RequestData!["studioModeEnabled"].Should().Be(false);
+    }
+
+    [Fact]
+    public async Task Set_studio_mode_enabled_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "studio mode not available"));
+
+        Result result = await h.Service.SetStudioModeEnabledAsync(Channel, true);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("studio mode not available");
+    }
+
     private static string? Name(ObsRequest request) =>
         request.RequestData?.GetValueOrDefault("inputName") as string;
 

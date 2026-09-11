@@ -103,6 +103,14 @@ public interface IObsControlService
         int? durationMs,
         CancellationToken ct = default
     );
+
+    /// <summary>Turn studio mode on or off. <see cref="TriggerStudioTransitionAsync"/> only works
+    /// once studio mode is already on — this is what turns it on in the first place.</summary>
+    Task<Result> SetStudioModeEnabledAsync(
+        Guid broadcasterId,
+        bool enabled,
+        CancellationToken ct = default
+    );
     Task<Result> TriggerMediaAsync(
         Guid broadcasterId,
         string inputName,
@@ -183,6 +191,12 @@ public interface IObsControlService
     Task<Result<IReadOnlyList<ObsFilterDto>>> GetSourceFilterListAsync(
         Guid broadcasterId,
         string sourceName,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Whether studio mode (preview/program) is currently on.</summary>
+    Task<Result<ObsStudioModeStatusDto>> GetStudioModeEnabledAsync(
+        Guid broadcasterId,
         CancellationToken ct = default
     );
 }

@@ -100,6 +100,10 @@ public sealed record ObsTransitionDto(string Name, bool IsCurrent);
 /// is provider-specific free-form data the dashboard's filter list has no use for, so it's left out.</summary>
 public sealed record ObsFilterDto(string Name, string Kind, bool Enabled, int Index);
 
+/// <summary>Studio mode status (obs-websocket v5 <c>GetStudioModeEnabled</c>) — the same single-flag
+/// shape as <see cref="ObsVirtualCamStatusDto"/>.</summary>
+public sealed record ObsStudioModeStatusDto(bool Enabled);
+
 /// <summary>OBS performance stats (obs-websocket v5 <c>GetStats</c>) — CPU/memory load and the
 /// render-thread vs. output-thread frame counters used to detect dropped frames.</summary>
 public sealed record ObsStatsDto(
@@ -129,3 +133,6 @@ public sealed record ObsInputVolumeRequest(string InputName, double VolumeDb);
 
 /// <summary>REST body for the per-source visibility route: hide/show one item within one scene.</summary>
 public sealed record ObsSourceVisibilityRequest(string SceneName, string SourceName, bool Visible);
+
+/// <summary>REST body for the studio-mode route: turn studio mode on or off.</summary>
+public sealed record ObsStudioModeRequest(bool Enabled);

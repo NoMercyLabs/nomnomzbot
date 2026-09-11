@@ -121,6 +121,13 @@ public class ObsController(
         CancellationToken ct
     ) => ObsReadResponse(await control.GetSourceFilterListAsync(channelId, sourceName, ct), []);
 
+    /// <summary>Whether studio mode (preview/program) is currently on.</summary>
+    [HttpGet("studio-mode")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<ObsStudioModeStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStudioMode(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetStudioModeEnabledAsync(channelId, ct), new(false));
+
     /// <summary>
     /// Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which
     /// mask a "not connected yet" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there
@@ -283,6 +290,17 @@ public class ObsController(
         [FromBody] ObsToggleRequest request,
         CancellationToken ct
     ) => ResultResponse(await control.SetVirtualCamAsync(channelId, request.Action, ct));
+
+    /// <summary>Turn studio mode (preview/program) on or off — a prerequisite for the studio
+    /// transition (<c>TriggerStudioModeTransition</c>) to work at all.</summary>
+    [HttpPost("studio-mode")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetStudioMode(
+        Guid channelId,
+        [FromBody] ObsStudioModeRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetStudioModeEnabledAsync(channelId, request.Enabled, ct));
 
     /// <summary>Raw OBS-WS pass-through (the full surface; broadcast-tier).</summary>
     [HttpPost("request")]
