@@ -240,6 +240,86 @@ public class ObsController(
             )
         );
 
+    /// <summary>Set the studio-mode preview scene (distinct from the program scene <c>POST scene</c>
+    /// switches) — the scene queued up to become program on the next studio transition.</summary>
+    [HttpPost("scene/preview")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetPreviewScene(
+        Guid channelId,
+        [FromBody] ObsSceneRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.SetPreviewSceneAsync(channelId, request.Scene, ct));
+
+    /// <summary>Cut the current preview scene to program — requires studio mode to already be on
+    /// (<c>POST studio-mode</c>).</summary>
+    [HttpPost("studio-mode/transition")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TriggerStudioTransition(
+        Guid channelId,
+        [FromBody] ObsStudioTransitionRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.TriggerStudioTransitionAsync(channelId, request.DurationMs, ct)
+        );
+
+    /// <summary>Make one scene transition the active one.</summary>
+    [HttpPost("scene-transitions/current")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetCurrentTransition(
+        Guid channelId,
+        [FromBody] ObsCurrentTransitionRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetCurrentTransitionAsync(channelId, request.TransitionName, ct)
+        );
+
+    /// <summary>Enable/disable one filter on one source (scene or input).</summary>
+    [HttpPost("source-filters/enabled")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetFilterEnabled(
+        Guid channelId,
+        [FromBody] ObsFilterEnabledRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.SetFilterEnabledAsync(
+                channelId,
+                request.SourceName,
+                request.FilterName,
+                request.Enabled,
+                ct
+            )
+        );
+
+    /// <summary>Control a media-source input: play/pause/restart/stop/next/previous.</summary>
+    [HttpPost("inputs/media")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TriggerMediaAction(
+        Guid channelId,
+        [FromBody] ObsMediaActionRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.TriggerMediaAsync(channelId, request.InputName, request.Action, ct)
+        );
+
+    /// <summary>Reload a browser-source input's page.</summary>
+    [HttpPost("inputs/refresh-browser")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RefreshBrowserInput(
+        Guid channelId,
+        [FromBody] ObsRefreshBrowserRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.RefreshBrowserAsync(channelId, request.InputName, ct));
+
     /// <summary>Streaming start/stop/toggle (broadcast-impacting).</summary>
     [HttpPost("streaming")]
     [RequireAction("obs:control:broadcast")]

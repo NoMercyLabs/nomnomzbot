@@ -19,10 +19,16 @@ import bot.nomnomz.dashboard.core.network.ObsApi
 import bot.nomnomz.dashboard.core.network.ObsBridgeSetup
 import bot.nomnomz.dashboard.core.network.ObsBridgeStatus
 import bot.nomnomz.dashboard.core.network.ObsConnection
+import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
 import bot.nomnomz.dashboard.core.network.ObsScene
+import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsState
+import bot.nomnomz.dashboard.core.network.ObsStats
+import bot.nomnomz.dashboard.core.network.ObsStudioModeStatus
+import bot.nomnomz.dashboard.core.network.ObsTransition
+import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import java.util.Locale
 import kotlinx.coroutines.test.runTest
@@ -134,4 +140,33 @@ private class UnreachableObsApi : ObsApi {
     override suspend fun setReplayBuffer(channelId: String, action: Int): ApiResult<Unit> = error("unreachable")
     override suspend fun saveReplayBuffer(channelId: String): ApiResult<Unit> = error("unreachable")
     override suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit> = error("unreachable")
+    override suspend fun virtualCamStatus(channelId: String): ApiResult<ObsVirtualCamStatus> = error("unreachable")
+    override suspend fun stats(channelId: String): ApiResult<ObsStats> = error("unreachable")
+    override suspend fun sceneItems(channelId: String, sceneName: String): ApiResult<List<ObsSceneItem>> =
+        error("unreachable")
+    override suspend fun setSourceVisibility(
+        channelId: String,
+        sceneName: String,
+        sourceName: String,
+        visible: Boolean,
+    ): ApiResult<Unit> = error("unreachable")
+    override suspend fun sceneTransitions(channelId: String): ApiResult<List<ObsTransition>> = error("unreachable")
+    override suspend fun setCurrentTransition(channelId: String, transitionName: String): ApiResult<Unit> =
+        error("unreachable")
+    override suspend fun sourceFilters(channelId: String, sourceName: String): ApiResult<List<ObsFilter>> =
+        error("unreachable")
+    override suspend fun setFilterEnabled(
+        channelId: String,
+        sourceName: String,
+        filterName: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> = error("unreachable")
+    override suspend fun studioMode(channelId: String): ApiResult<ObsStudioModeStatus> = error("unreachable")
+    override suspend fun setStudioMode(channelId: String, enabled: Boolean): ApiResult<Unit> = error("unreachable")
+    override suspend fun setPreviewScene(channelId: String, scene: String): ApiResult<Unit> = error("unreachable")
+    override suspend fun triggerStudioTransition(channelId: String, durationMs: Int?): ApiResult<Unit> =
+        error("unreachable")
+    override suspend fun triggerMedia(channelId: String, inputName: String, action: Int): ApiResult<Unit> =
+        error("unreachable")
+    override suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit> = error("unreachable")
 }

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import io.ktor.http.encodeURLQueryComponent
 import kotlinx.serialization.Serializable
 
 // The typed OBS-control facade — the channel's OBS WebSocket connection config, its browser-source bridge, and
@@ -91,6 +92,62 @@ interface ObsApi {
 
     /** Control the virtual camera output ([action]: 0 = start, 1 = stop, 2 = toggle — see [ObsToggle]). */
     suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit>
+
+    /** Whether the virtual camera output is currently running. */
+    suspend fun virtualCamStatus(channelId: String): ApiResult<ObsVirtualCamStatus>
+
+    /** OBS performance stats — CPU/memory load and render/output frame counters. */
+    suspend fun stats(channelId: String): ApiResult<ObsStats>
+
+    /** The items placed in [sceneName], with their per-scene visibility — distinct from [inputs], which only
+     * sees global audio/video inputs, never per-scene placement. */
+    suspend fun sceneItems(channelId: String, sceneName: String): ApiResult<List<ObsSceneItem>>
+
+    /** Hide/show one item within one scene, without touching the underlying input's mute state or its
+     * placement in any other scene. */
+    suspend fun setSourceVisibility(
+        channelId: String,
+        sceneName: String,
+        sourceName: String,
+        visible: Boolean,
+    ): ApiResult<Unit>
+
+    /** The scene transitions OBS knows about, with the currently active one flagged. */
+    suspend fun sceneTransitions(channelId: String): ApiResult<List<ObsTransition>>
+
+    /** Make [transitionName] the active scene transition. */
+    suspend fun setCurrentTransition(channelId: String, transitionName: String): ApiResult<Unit>
+
+    /** The filters attached to [sourceName] (a scene or an input). */
+    suspend fun sourceFilters(channelId: String, sourceName: String): ApiResult<List<ObsFilter>>
+
+    /** Enable/disable [filterName] on [sourceName]. */
+    suspend fun setFilterEnabled(
+        channelId: String,
+        sourceName: String,
+        filterName: String,
+        enabled: Boolean,
+    ): ApiResult<Unit>
+
+    /** Whether studio mode (preview/program) is currently on. */
+    suspend fun studioMode(channelId: String): ApiResult<ObsStudioModeStatus>
+
+    /** Turn studio mode on or off — a prerequisite for [triggerStudioTransition] to work at all. */
+    suspend fun setStudioMode(channelId: String, enabled: Boolean): ApiResult<Unit>
+
+    /** Set the studio-mode preview scene (distinct from [switchScene], which sets the PROGRAM scene) — the
+     * scene queued up to become program on the next [triggerStudioTransition]. */
+    suspend fun setPreviewScene(channelId: String, scene: String): ApiResult<Unit>
+
+    /** Cut the current preview scene to program. [durationMs] null uses the transition's own configured
+     * duration. Requires studio mode to already be on. */
+    suspend fun triggerStudioTransition(channelId: String, durationMs: Int? = null): ApiResult<Unit>
+
+    /** Control a media-source input ([action]: see [ObsMediaAction]). */
+    suspend fun triggerMedia(channelId: String, inputName: String, action: Int): ApiResult<Unit>
+
+    /** Reload a browser-source input's page. */
+    suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit>
 }
 
 class RestObsApi(private val client: ApiClient) : ObsApi {
@@ -154,6 +211,80 @@ class RestObsApi(private val client: ApiClient) : ObsApi {
 
     override suspend fun setVirtualCam(channelId: String, action: Int): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/obs/virtual-cam", ObsToggleBody(action = action))
+
+    override suspend fun virtualCamStatus(channelId: String): ApiResult<ObsVirtualCamStatus> =
+        client.getEnvelope("api/v1/channels/$channelId/obs/virtual-cam/status")
+
+    override suspend fun stats(channelId: String): ApiResult<ObsStats> =
+        client.getEnvelope("api/v1/channels/$channelId/obs/stats")
+
+    override suspend fun sceneItems(channelId: String, sceneName: String): ApiResult<List<ObsSceneItem>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/obs/scene-items?sceneName=${sceneName.encodeURLQueryComponent()}"
+        )
+
+    override suspend fun setSourceVisibility(
+        channelId: String,
+        sceneName: String,
+        sourceName: String,
+        visible: Boolean,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/scene-items/visibility",
+            ObsSourceVisibilityBody(sceneName = sceneName, sourceName = sourceName, visible = visible),
+        )
+
+    override suspend fun sceneTransitions(channelId: String): ApiResult<List<ObsTransition>> =
+        client.getEnvelope("api/v1/channels/$channelId/obs/scene-transitions")
+
+    override suspend fun setCurrentTransition(channelId: String, transitionName: String): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/scene-transitions/current",
+            ObsCurrentTransitionBody(transitionName = transitionName),
+        )
+
+    override suspend fun sourceFilters(channelId: String, sourceName: String): ApiResult<List<ObsFilter>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/obs/source-filters?sourceName=${sourceName.encodeURLQueryComponent()}"
+        )
+
+    override suspend fun setFilterEnabled(
+        channelId: String,
+        sourceName: String,
+        filterName: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/source-filters/enabled",
+            ObsFilterEnabledBody(sourceName = sourceName, filterName = filterName, enabled = enabled),
+        )
+
+    override suspend fun studioMode(channelId: String): ApiResult<ObsStudioModeStatus> =
+        client.getEnvelope("api/v1/channels/$channelId/obs/studio-mode")
+
+    override suspend fun setStudioMode(channelId: String, enabled: Boolean): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/obs/studio-mode", ObsStudioModeBody(enabled = enabled))
+
+    override suspend fun setPreviewScene(channelId: String, scene: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/obs/scene/preview", ObsSceneBody(scene = scene))
+
+    override suspend fun triggerStudioTransition(channelId: String, durationMs: Int?): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/studio-mode/transition",
+            ObsStudioTransitionBody(durationMs = durationMs),
+        )
+
+    override suspend fun triggerMedia(channelId: String, inputName: String, action: Int): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/inputs/media",
+            ObsMediaActionBody(inputName = inputName, action = action),
+        )
+
+    override suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/inputs/refresh-browser",
+            ObsRefreshBrowserBody(inputName = inputName),
+        )
 }
 
 /**
@@ -285,3 +416,88 @@ data class ObsToggleBody(val action: Int)
 /** The recording-control body (backend `ObsRecordRequest`): [action] is an [ObsRecordAction] value. */
 @Serializable
 data class ObsRecordBody(val action: Int)
+
+/**
+ * The media-input control verbs (backend `MediaAction`, serialized as an integer). Used for the
+ * `inputs/media` POST's `action` field.
+ */
+object ObsMediaAction {
+    const val Play: Int = 0
+    const val Pause: Int = 1
+    const val Stop: Int = 2
+    const val Restart: Int = 3
+    const val Next: Int = 4
+    const val Previous: Int = 5
+}
+
+/** Whether the virtual camera output is currently running (backend `ObsVirtualCamStatusDto`). */
+@Serializable
+data class ObsVirtualCamStatus(val outputActive: Boolean = false)
+
+/**
+ * OBS performance stats (backend `ObsStatsDto`): CPU/memory load and the render-thread vs. output-thread
+ * frame counters used to detect dropped frames.
+ */
+@Serializable
+data class ObsStats(
+    val cpuUsage: Double = 0.0,
+    val memoryUsage: Double = 0.0,
+    val activeFps: Double = 0.0,
+    val renderTotalFrames: Int = 0,
+    val renderSkippedFrames: Int = 0,
+    val outputTotalFrames: Int = 0,
+    val outputSkippedFrames: Int = 0,
+)
+
+/**
+ * One item (source instance) placed in a scene (backend `ObsSceneItemDto`) — the per-scene visibility
+ * state [ObsInput] cannot express, since a global input can appear in several scenes with a different
+ * enabled state in each.
+ */
+@Serializable
+data class ObsSceneItem(val sceneItemId: Int = 0, val sourceName: String = "", val enabled: Boolean = false)
+
+/** The scene-item visibility body (backend `ObsSourceVisibilityRequest`). */
+@Serializable
+data class ObsSourceVisibilityBody(val sceneName: String, val sourceName: String, val visible: Boolean)
+
+/** One scene transition OBS knows about (backend `ObsTransitionDto`): its [name] and whether it is the
+ * one currently selected. */
+@Serializable
+data class ObsTransition(val name: String = "", val isCurrent: Boolean = false)
+
+/** The transition-select body (backend `ObsCurrentTransitionRequest`). */
+@Serializable
+data class ObsCurrentTransitionBody(val transitionName: String)
+
+/** The studio-mode-transition body (backend `ObsStudioTransitionRequest`): [durationMs] null uses the
+ * transition's own configured duration. */
+@Serializable
+data class ObsStudioTransitionBody(val durationMs: Int? = null)
+
+/**
+ * One filter attached to a source (backend `ObsFilterDto`): [name], [kind], whether it's [enabled], and
+ * its position ([index]) in the source's filter chain.
+ */
+@Serializable
+data class ObsFilter(val name: String = "", val kind: String = "", val enabled: Boolean = false, val index: Int = 0)
+
+/** The filter-enable body (backend `ObsFilterEnabledRequest`). */
+@Serializable
+data class ObsFilterEnabledBody(val sourceName: String, val filterName: String, val enabled: Boolean)
+
+/** Studio mode status (backend `ObsStudioModeStatusDto`). */
+@Serializable
+data class ObsStudioModeStatus(val enabled: Boolean = false)
+
+/** The studio-mode body (backend `ObsStudioModeRequest`). */
+@Serializable
+data class ObsStudioModeBody(val enabled: Boolean)
+
+/** The media-input control body (backend `ObsMediaActionRequest`): [action] is an [ObsMediaAction] value. */
+@Serializable
+data class ObsMediaActionBody(val inputName: String, val action: Int)
+
+/** The browser-source-refresh body (backend `ObsRefreshBrowserRequest`). */
+@Serializable
+data class ObsRefreshBrowserBody(val inputName: String)

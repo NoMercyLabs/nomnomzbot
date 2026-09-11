@@ -18,11 +18,17 @@ import bot.nomnomz.dashboard.core.network.ObsApi
 import bot.nomnomz.dashboard.core.network.ObsBridgeSetup
 import bot.nomnomz.dashboard.core.network.ObsBridgeStatus
 import bot.nomnomz.dashboard.core.network.ObsConnection
+import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
 import bot.nomnomz.dashboard.core.network.ObsScene
+import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsState
+import bot.nomnomz.dashboard.core.network.ObsStats
+import bot.nomnomz.dashboard.core.network.ObsStudioModeStatus
 import bot.nomnomz.dashboard.core.network.ObsToggle
+import bot.nomnomz.dashboard.core.network.ObsTransition
+import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubObsLiveState
@@ -135,14 +141,27 @@ class ObsControllerTest {
     }
 
     @Test
-    fun toggle_virtual_cam_always_sends_the_stateless_toggle_action() = runTest {
+    fun toggle_virtual_cam_starts_it_when_status_reports_inactive() = runTest {
         val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.virtualCamActive = false
         val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
         controller.load()
 
         controller.toggleVirtualCam()
 
-        assertEquals(ObsToggle.Toggle, obsApi.lastVirtualCamAction)
+        assertEquals(ObsToggle.Start, obsApi.lastVirtualCamAction)
+    }
+
+    @Test
+    fun toggle_virtual_cam_stops_it_when_status_reports_active() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.virtualCamActive = true
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.toggleVirtualCam()
+
+        assertEquals(ObsToggle.Stop, obsApi.lastVirtualCamAction)
     }
 }
 
@@ -171,6 +190,7 @@ private class RecordingObsApi(initial: ObsState) : ObsApi {
     var lastReplayBufferAction: Int? = null
     var replayBufferSaveCalled: Boolean = false
     var lastVirtualCamAction: Int? = null
+    var virtualCamActive: Boolean = false
 
     override suspend fun connection(channelId: String): ApiResult<ObsConnection> = ApiResult.Ok(ObsConnection())
     override suspend fun upsertConnection(channelId: String, body: UpsertObsConnectionBody): ApiResult<ObsConnection> =
@@ -204,4 +224,36 @@ private class RecordingObsApi(initial: ObsState) : ObsApi {
         lastVirtualCamAction = action
         return ApiResult.Ok(Unit)
     }
+
+    override suspend fun virtualCamStatus(channelId: String): ApiResult<ObsVirtualCamStatus> =
+        ApiResult.Ok(ObsVirtualCamStatus(outputActive = virtualCamActive))
+    override suspend fun stats(channelId: String): ApiResult<ObsStats> = ApiResult.Ok(ObsStats())
+    override suspend fun sceneItems(channelId: String, sceneName: String): ApiResult<List<ObsSceneItem>> =
+        error("not used by this test")
+    override suspend fun setSourceVisibility(
+        channelId: String,
+        sceneName: String,
+        sourceName: String,
+        visible: Boolean,
+    ): ApiResult<Unit> = error("not used by this test")
+    override suspend fun sceneTransitions(channelId: String): ApiResult<List<ObsTransition>> = ApiResult.Ok(emptyList())
+    override suspend fun setCurrentTransition(channelId: String, transitionName: String): ApiResult<Unit> =
+        error("not used by this test")
+    override suspend fun sourceFilters(channelId: String, sourceName: String): ApiResult<List<ObsFilter>> =
+        error("not used by this test")
+    override suspend fun setFilterEnabled(
+        channelId: String,
+        sourceName: String,
+        filterName: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> = error("not used by this test")
+    override suspend fun studioMode(channelId: String): ApiResult<ObsStudioModeStatus> = ApiResult.Ok(ObsStudioModeStatus())
+    override suspend fun setStudioMode(channelId: String, enabled: Boolean): ApiResult<Unit> = error("not used by this test")
+    override suspend fun setPreviewScene(channelId: String, scene: String): ApiResult<Unit> = error("not used by this test")
+    override suspend fun triggerStudioTransition(channelId: String, durationMs: Int?): ApiResult<Unit> =
+        error("not used by this test")
+    override suspend fun triggerMedia(channelId: String, inputName: String, action: Int): ApiResult<Unit> =
+        error("not used by this test")
+    override suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit> =
+        error("not used by this test")
 }

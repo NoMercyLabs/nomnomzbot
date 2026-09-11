@@ -136,3 +136,19 @@ public sealed record ObsSourceVisibilityRequest(string SceneName, string SourceN
 
 /// <summary>REST body for the studio-mode route: turn studio mode on or off.</summary>
 public sealed record ObsStudioModeRequest(bool Enabled);
+
+/// <summary>REST body for the studio-mode transition route: cut the preview scene to program.
+/// <paramref name="DurationMs"/> is null to use the transition's own configured duration.</summary>
+public sealed record ObsStudioTransitionRequest(int? DurationMs);
+
+/// <summary>REST body for the scene-transition-select route: make one transition the active one.</summary>
+public sealed record ObsCurrentTransitionRequest(string TransitionName);
+
+/// <summary>REST body for the filter-enable route: enable/disable one filter on one source.</summary>
+public sealed record ObsFilterEnabledRequest(string SourceName, string FilterName, bool Enabled);
+
+/// <summary>REST body for the media-input-control route (play/pause/restart/stop/next/previous).</summary>
+public sealed record ObsMediaActionRequest(string InputName, MediaAction Action);
+
+/// <summary>REST body for the browser-source-refresh route.</summary>
+public sealed record ObsRefreshBrowserRequest(string InputName);

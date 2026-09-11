@@ -44,6 +44,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
@@ -60,10 +61,18 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ObsConnection
+import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
+import bot.nomnomz.dashboard.core.network.ObsMediaAction
+import bot.nomnomz.dashboard.core.network.ObsScene
+import bot.nomnomz.dashboard.core.network.ObsSceneItem
+import bot.nomnomz.dashboard.core.network.ObsStats
+import bot.nomnomz.dashboard.core.network.ObsTransition
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.obs.state.ObsController
+import bot.nomnomz.dashboard.feature.obs.state.ObsFiltersView
 import bot.nomnomz.dashboard.feature.obs.state.ObsLive
+import bot.nomnomz.dashboard.feature.obs.state.ObsSceneItemsView
 import bot.nomnomz.dashboard.feature.obs.state.ObsUiState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -81,6 +90,7 @@ import nomnomzbot.composeapp.generated.resources.obs_bridge_online
 import nomnomzbot.composeapp.generated.resources.obs_bridge_rotate
 import nomnomzbot.composeapp.generated.resources.obs_bridge_title
 import nomnomzbot.composeapp.generated.resources.obs_bridge_url_label
+import nomnomzbot.composeapp.generated.resources.obs_browser_refresh
 import nomnomzbot.composeapp.generated.resources.obs_clear_password
 import nomnomzbot.composeapp.generated.resources.obs_connection_desc
 import nomnomzbot.composeapp.generated.resources.obs_connection_title
@@ -90,8 +100,20 @@ import nomnomzbot.composeapp.generated.resources.obs_current_scene
 import nomnomzbot.composeapp.generated.resources.obs_direct_remote_warning
 import nomnomzbot.composeapp.generated.resources.obs_enabled_label
 import nomnomzbot.composeapp.generated.resources.obs_error
+import nomnomzbot.composeapp.generated.resources.obs_filter_enabled_action
+import nomnomzbot.composeapp.generated.resources.obs_filter_row_type
+import nomnomzbot.composeapp.generated.resources.obs_filters_desc
+import nomnomzbot.composeapp.generated.resources.obs_filters_empty
+import nomnomzbot.composeapp.generated.resources.obs_filters_pick_source
+import nomnomzbot.composeapp.generated.resources.obs_filters_title
 import nomnomzbot.composeapp.generated.resources.obs_host_label
 import nomnomzbot.composeapp.generated.resources.obs_loading
+import nomnomzbot.composeapp.generated.resources.obs_media_next
+import nomnomzbot.composeapp.generated.resources.obs_media_pause
+import nomnomzbot.composeapp.generated.resources.obs_media_play
+import nomnomzbot.composeapp.generated.resources.obs_media_previous
+import nomnomzbot.composeapp.generated.resources.obs_media_restart
+import nomnomzbot.composeapp.generated.resources.obs_media_stop
 import nomnomzbot.composeapp.generated.resources.obs_mixer_db
 import nomnomzbot.composeapp.generated.resources.obs_mixer_desc
 import nomnomzbot.composeapp.generated.resources.obs_mixer_empty
@@ -108,6 +130,9 @@ import nomnomzbot.composeapp.generated.resources.obs_password_hint
 import nomnomzbot.composeapp.generated.resources.obs_password_label
 import nomnomzbot.composeapp.generated.resources.obs_password_stored
 import nomnomzbot.composeapp.generated.resources.obs_port_label
+import nomnomzbot.composeapp.generated.resources.obs_recording_pause
+import nomnomzbot.composeapp.generated.resources.obs_recording_resume
+import nomnomzbot.composeapp.generated.resources.obs_recording_split
 import nomnomzbot.composeapp.generated.resources.obs_recording_start
 import nomnomzbot.composeapp.generated.resources.obs_recording_stop
 import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_save
@@ -115,16 +140,43 @@ import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_start
 import nomnomzbot.composeapp.generated.resources.obs_replay_buffer_stop
 import nomnomzbot.composeapp.generated.resources.obs_retry
 import nomnomzbot.composeapp.generated.resources.obs_save
+import nomnomzbot.composeapp.generated.resources.obs_scene_item_row_type
+import nomnomzbot.composeapp.generated.resources.obs_scene_item_visible_action
+import nomnomzbot.composeapp.generated.resources.obs_scene_items_desc
+import nomnomzbot.composeapp.generated.resources.obs_scene_items_empty
+import nomnomzbot.composeapp.generated.resources.obs_scene_items_pick_scene
+import nomnomzbot.composeapp.generated.resources.obs_scene_items_title
 import nomnomzbot.composeapp.generated.resources.obs_input_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scene_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scenes_label
+import nomnomzbot.composeapp.generated.resources.obs_sources_desc
+import nomnomzbot.composeapp.generated.resources.obs_sources_empty
+import nomnomzbot.composeapp.generated.resources.obs_sources_title
+import nomnomzbot.composeapp.generated.resources.obs_stats_cpu
+import nomnomzbot.composeapp.generated.resources.obs_stats_desc
+import nomnomzbot.composeapp.generated.resources.obs_stats_fps
+import nomnomzbot.composeapp.generated.resources.obs_stats_memory
+import nomnomzbot.composeapp.generated.resources.obs_stats_output_frames
+import nomnomzbot.composeapp.generated.resources.obs_stats_render_frames
+import nomnomzbot.composeapp.generated.resources.obs_stats_title
 import nomnomzbot.composeapp.generated.resources.obs_status_disabled
 import nomnomzbot.composeapp.generated.resources.obs_status_enabled
 import nomnomzbot.composeapp.generated.resources.obs_status_error
 import nomnomzbot.composeapp.generated.resources.obs_streaming_start
 import nomnomzbot.composeapp.generated.resources.obs_streaming_stop
+import nomnomzbot.composeapp.generated.resources.obs_studio_mode_cut
+import nomnomzbot.composeapp.generated.resources.obs_studio_mode_desc
+import nomnomzbot.composeapp.generated.resources.obs_studio_mode_disabled_hint
+import nomnomzbot.composeapp.generated.resources.obs_studio_mode_enabled_label
+import nomnomzbot.composeapp.generated.resources.obs_studio_mode_preview_label
+import nomnomzbot.composeapp.generated.resources.obs_studio_mode_title
 import nomnomzbot.composeapp.generated.resources.obs_subtitle
-import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_toggle
+import nomnomzbot.composeapp.generated.resources.obs_transition_row_type
+import nomnomzbot.composeapp.generated.resources.obs_transitions_desc
+import nomnomzbot.composeapp.generated.resources.obs_transitions_empty
+import nomnomzbot.composeapp.generated.resources.obs_transitions_title
+import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_start
+import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_stop
 import nomnomzbot.composeapp.generated.resources.shell_nav_obs
 import org.jetbrains.compose.resources.stringResource
 
@@ -210,6 +262,9 @@ fun ObsScreen(
                         onSwitchScene = { scene -> scope.launch { controller.switchScene(scene) } },
                         onToggleStreaming = { scope.launch { controller.toggleStreaming() } },
                         onToggleRecording = { scope.launch { controller.toggleRecording() } },
+                        onPauseRecording = { scope.launch { controller.pauseRecording() } },
+                        onResumeRecording = { scope.launch { controller.resumeRecording() } },
+                        onSplitRecording = { scope.launch { controller.splitRecording() } },
                         onToggleReplayBuffer = { scope.launch { controller.toggleReplayBuffer() } },
                         onSaveReplayBuffer = { scope.launch { controller.saveReplayBuffer() } },
                         onToggleVirtualCam = { scope.launch { controller.toggleVirtualCam() } },
@@ -227,6 +282,47 @@ fun ObsScreen(
                             onSetVolume = { input, volumeDb ->
                                 scope.launch { controller.setInputVolume(input, volumeDb) }
                             },
+                        )
+                        StatsCard(stats = current.live.stats)
+                        StudioModeCard(
+                            studioModeEnabled = current.live.studioModeEnabled,
+                            scenes = current.live.scenes,
+                            controlManage = controlManage,
+                            onSetStudioMode = { enabled -> scope.launch { controller.setStudioMode(enabled) } },
+                            onSetPreviewScene = { scene -> scope.launch { controller.setPreviewScene(scene) } },
+                            onCutToProgram = { scope.launch { controller.triggerStudioTransition() } },
+                        )
+                        TransitionsCard(
+                            transitions = current.live.transitions,
+                            controlManage = controlManage,
+                            onSelectTransition = { name -> scope.launch { controller.setCurrentTransition(name) } },
+                        )
+                        SceneItemsCard(
+                            scenes = current.live.scenes,
+                            view = current.sceneItemsView,
+                            controlManage = controlManage,
+                            onPickScene = { scene -> scope.launch { controller.loadSceneItems(scene) } },
+                            onSetVisible = { scene, source, visible ->
+                                scope.launch { controller.setSourceVisible(scene, source, visible) }
+                            },
+                        )
+                        SourceFiltersCard(
+                            inputs = current.live.inputs,
+                            sceneItemsView = current.sceneItemsView,
+                            view = current.filtersView,
+                            controlManage = controlManage,
+                            onPickSource = { source -> scope.launch { controller.loadSourceFilters(source) } },
+                            onSetFilterEnabled = { source, filter, enabled ->
+                                scope.launch { controller.setFilterEnabled(source, filter, enabled) }
+                            },
+                        )
+                        SourceActionsCard(
+                            inputs = current.live.inputs,
+                            controlManage = controlManage,
+                            onTriggerMedia = { input, action ->
+                                scope.launch { controller.triggerMedia(input, action) }
+                            },
+                            onRefreshBrowser = { input -> scope.launch { controller.refreshBrowserSource(input) } },
                         )
                     }
                 }
@@ -416,6 +512,9 @@ private fun ControlCard(
     onSwitchScene: (String) -> Unit,
     onToggleStreaming: () -> Unit,
     onToggleRecording: () -> Unit,
+    onPauseRecording: () -> Unit,
+    onResumeRecording: () -> Unit,
+    onSplitRecording: () -> Unit,
     onToggleReplayBuffer: () -> Unit,
     onSaveReplayBuffer: () -> Unit,
     onToggleVirtualCam: () -> Unit,
@@ -517,6 +616,33 @@ private fun ControlCard(
                         )
                     }
                 }
+                // Pause/resume/split only make sense once a recording is running; split additionally needs it
+                // to not already be paused. Compact secondary buttons — recording start/stop above already
+                // carries this row's one attention-grabbing (destructive-while-active) control.
+                ManageGate(decision = broadcastManage) { gateEnabled ->
+                    Button(
+                        onClick = if (live.state.recordPaused) onResumeRecording else onPauseRecording,
+                        enabled = gateEnabled && live.state.recording,
+                        variant = ButtonVariant.Outline,
+                        size = ButtonSize.Sm,
+                    ) {
+                        Text(
+                            text =
+                                if (live.state.recordPaused) stringResource(Res.string.obs_recording_resume)
+                                else stringResource(Res.string.obs_recording_pause)
+                        )
+                    }
+                }
+                ManageGate(decision = broadcastManage) { gateEnabled ->
+                    Button(
+                        onClick = onSplitRecording,
+                        enabled = gateEnabled && live.state.recording,
+                        variant = ButtonVariant.Outline,
+                        size = ButtonSize.Sm,
+                    ) {
+                        Text(text = stringResource(Res.string.obs_recording_split))
+                    }
+                }
             }
 
             Separator()
@@ -547,8 +673,16 @@ private fun ControlCard(
                     ) {
                         Text(text = stringResource(Res.string.obs_replay_buffer_save))
                     }
-                    Button(onClick = onToggleVirtualCam, enabled = gateEnabled, variant = ButtonVariant.Outline) {
-                        Text(text = stringResource(Res.string.obs_virtual_cam_toggle))
+                    Button(
+                        onClick = onToggleVirtualCam,
+                        enabled = gateEnabled,
+                        variant = if (live.virtualCamActive) ButtonVariant.Destructive else ButtonVariant.Outline,
+                    ) {
+                        Text(
+                            text =
+                                if (live.virtualCamActive) stringResource(Res.string.obs_virtual_cam_stop)
+                                else stringResource(Res.string.obs_virtual_cam_start)
+                        )
                     }
                 }
             }
@@ -668,6 +802,486 @@ private fun MixerRow(
             onValueChangeFinished = { onSetVolume(input.name, faderDb.toDouble()) },
         )
     }
+}
+
+// The OBS performance stats (obs-control.md §5) — read-only, so no manage gate. Hidden entirely when the
+// best-effort read failed (a genuine "not available" — distinct from a true zero reading), matching the rest
+// of the live surface's best-effort-degrade behavior.
+@Composable
+private fun StatsCard(stats: ObsStats?) {
+    if (stats == null) return
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_stats_title),
+                description = stringResource(Res.string.obs_stats_desc),
+                trailing = {},
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                Text(text = stringResource(Res.string.obs_stats_cpu, formatOneDecimal(stats.cpuUsage)), style = typography.sm, color = tokens.cardForeground)
+                Text(text = stringResource(Res.string.obs_stats_memory, formatOneDecimal(stats.memoryUsage)), style = typography.sm, color = tokens.cardForeground)
+                Text(text = stringResource(Res.string.obs_stats_fps, formatOneDecimal(stats.activeFps)), style = typography.sm, color = tokens.cardForeground)
+            }
+            Text(
+                text = stringResource(Res.string.obs_stats_render_frames, stats.renderSkippedFrames, stats.renderTotalFrames),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+            Text(
+                text = stringResource(Res.string.obs_stats_output_frames, stats.outputSkippedFrames, stats.outputTotalFrames),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+    }
+}
+
+// Studio mode (obs-control.md §5): preview/program. The preview-scene picker cannot highlight a "current"
+// selection — OBS-WS exposes no read for it — so every scene renders as a plain Outline pick, never a false
+// [selected] state (truthful-data rule: never show unenforced/unknown state as if it were known).
+@Composable
+private fun StudioModeCard(
+    studioModeEnabled: Boolean,
+    scenes: List<ObsScene>,
+    controlManage: ManageDecision,
+    onSetStudioMode: (Boolean) -> Unit,
+    onSetPreviewScene: (String) -> Unit,
+    onCutToProgram: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_studio_mode_title),
+                description = stringResource(Res.string.obs_studio_mode_desc),
+                trailing = {},
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(text = stringResource(Res.string.obs_studio_mode_enabled_label), color = tokens.cardForeground)
+                ManageGate(decision = controlManage) { gateEnabled ->
+                    Switch(checked = studioModeEnabled, onCheckedChange = onSetStudioMode, enabled = gateEnabled)
+                }
+            }
+            if (!studioModeEnabled) {
+                Text(
+                    text = stringResource(Res.string.obs_studio_mode_disabled_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+                return@Column
+            }
+            if (scenes.isEmpty()) return@Column
+
+            Text(text = stringResource(Res.string.obs_studio_mode_preview_label), style = typography.sm, color = tokens.mutedForeground)
+            val sceneTypeLabel: String = stringResource(Res.string.obs_scene_row_type)
+            ManageGate(decision = controlManage) { gateEnabled ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        scenes.forEachIndexed { index, scene ->
+                            val label: String =
+                                resolveRowLabel(
+                                    primary = scene.name,
+                                    typeLabel = sceneTypeLabel,
+                                    discriminatorSource = "preview-$index-${scene.name}",
+                                )
+                            Badge(
+                                variant = BadgeVariant.Outline,
+                                enabled = gateEnabled,
+                                onClick = if (gateEnabled) ({ onSetPreviewScene(scene.name) }) else null,
+                            ) {
+                                Text(text = label, maxLines = 1)
+                            }
+                        }
+                    }
+                    Button(onClick = onCutToProgram, enabled = gateEnabled, variant = ButtonVariant.Outline) {
+                        Text(text = stringResource(Res.string.obs_studio_mode_cut))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Scene transitions (obs-control.md §5) — the same picker pattern as the program-scene picker in [ControlCard],
+// but for which transition OBS uses on the next scene change.
+@Composable
+private fun TransitionsCard(
+    transitions: List<ObsTransition>,
+    controlManage: ManageDecision,
+    onSelectTransition: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_transitions_title),
+                description = stringResource(Res.string.obs_transitions_desc),
+                trailing = {},
+            )
+            if (transitions.isEmpty()) {
+                Text(text = stringResource(Res.string.obs_transitions_empty), style = typography.sm, color = tokens.mutedForeground)
+                return@Column
+            }
+            val typeLabel: String = stringResource(Res.string.obs_transition_row_type)
+            ManageGate(decision = controlManage) { gateEnabled ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    transitions.forEachIndexed { index, transition ->
+                        val label: String =
+                            resolveRowLabel(
+                                primary = transition.name,
+                                typeLabel = typeLabel,
+                                discriminatorSource = "$index-${transition.name}",
+                            )
+                        Badge(
+                            variant = if (transition.isCurrent) BadgeVariant.Default else BadgeVariant.Outline,
+                            selected = transition.isCurrent,
+                            enabled = gateEnabled,
+                            onClick = if (gateEnabled) ({ onSelectTransition(transition.name) }) else null,
+                        ) {
+                            Text(text = label, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Per-scene source visibility (obs-control.md §5, 7c3f0c09's endpoints): pick a scene, then show/hide each item
+// placed in it. Distinct from the audio mixer's global input mute — this is per-SCENE placement, so the same
+// source can be visible in one scene and hidden in another.
+@Composable
+private fun SceneItemsCard(
+    scenes: List<ObsScene>,
+    view: ObsSceneItemsView?,
+    controlManage: ManageDecision,
+    onPickScene: (String) -> Unit,
+    onSetVisible: (sceneName: String, sourceName: String, visible: Boolean) -> Unit,
+) {
+    if (scenes.isEmpty()) return
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_scene_items_title),
+                description = stringResource(Res.string.obs_scene_items_desc),
+                trailing = {},
+            )
+            Text(text = stringResource(Res.string.obs_scene_items_pick_scene), style = typography.sm, color = tokens.mutedForeground)
+            val sceneTypeLabel: String = stringResource(Res.string.obs_scene_row_type)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                scenes.forEachIndexed { index, scene ->
+                    val label: String =
+                        resolveRowLabel(
+                            primary = scene.name,
+                            typeLabel = sceneTypeLabel,
+                            discriminatorSource = "items-$index-${scene.name}",
+                        )
+                    Badge(
+                        variant = if (view?.sceneName == scene.name) BadgeVariant.Default else BadgeVariant.Outline,
+                        selected = view?.sceneName == scene.name,
+                        onClick = { onPickScene(scene.name) },
+                    ) {
+                        Text(text = label, maxLines = 1)
+                    }
+                }
+            }
+            if (view != null) {
+                Separator()
+                if (view.items.isEmpty()) {
+                    Text(text = stringResource(Res.string.obs_scene_items_empty), style = typography.sm, color = tokens.mutedForeground)
+                } else {
+                    val itemTypeLabel: String = stringResource(Res.string.obs_scene_item_row_type)
+                    ManageGate(decision = controlManage) { gateEnabled ->
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            view.items.forEachIndexed { index, item ->
+                                val displayName: String =
+                                    resolveRowLabel(
+                                        primary = item.sourceName,
+                                        typeLabel = itemTypeLabel,
+                                        discriminatorSource = "$index-${item.sourceName}",
+                                    )
+                                val visibleLabel: String = stringResource(Res.string.obs_scene_item_visible_action, displayName)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        text = displayName,
+                                        style = typography.sm,
+                                        color = tokens.cardForeground,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Switch(
+                                        checked = item.enabled,
+                                        onCheckedChange = { on -> onSetVisible(view.sceneName, item.sourceName, on) },
+                                        enabled = gateEnabled,
+                                        modifier = Modifier.semantics { contentDescription = visibleLabel },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Source filters (obs-control.md §5): pick a source (from the live inputs or the currently browsed scene's
+// items), then enable/disable each filter attached to it.
+@Composable
+private fun SourceFiltersCard(
+    inputs: List<ObsInput>,
+    sceneItemsView: ObsSceneItemsView?,
+    view: ObsFiltersView?,
+    controlManage: ManageDecision,
+    onPickSource: (String) -> Unit,
+    onSetFilterEnabled: (sourceName: String, filterName: String, enabled: Boolean) -> Unit,
+) {
+    val sourceNames: List<String> =
+        (inputs.map { it.name } + (sceneItemsView?.items?.map { it.sourceName } ?: emptyList()))
+            .filter { it.isNotBlank() }
+            .distinct()
+    if (sourceNames.isEmpty()) return
+
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_filters_title),
+                description = stringResource(Res.string.obs_filters_desc),
+                trailing = {},
+            )
+            Text(text = stringResource(Res.string.obs_filters_pick_source), style = typography.sm, color = tokens.mutedForeground)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                sourceNames.forEachIndexed { index, name ->
+                    val label: String =
+                        resolveRowLabel(
+                            primary = name,
+                            typeLabel = stringResource(Res.string.obs_filter_row_type),
+                            discriminatorSource = "$index-$name",
+                        )
+                    Badge(
+                        variant = if (view?.sourceName == name) BadgeVariant.Default else BadgeVariant.Outline,
+                        selected = view?.sourceName == name,
+                        onClick = { onPickSource(name) },
+                    ) {
+                        Text(text = label, maxLines = 1)
+                    }
+                }
+            }
+            if (view != null) {
+                Separator()
+                if (view.filters.isEmpty()) {
+                    Text(text = stringResource(Res.string.obs_filters_empty), style = typography.sm, color = tokens.mutedForeground)
+                } else {
+                    ManageGate(decision = controlManage) { gateEnabled ->
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            val filterTypeLabel: String = stringResource(Res.string.obs_filter_row_type)
+                            view.filters.sortedBy { it.index }.forEachIndexed { index, filter ->
+                                val filterLabel: String =
+                                    resolveRowLabel(
+                                        primary = filter.name,
+                                        typeLabel = filterTypeLabel,
+                                        discriminatorSource = "$index-${filter.name}",
+                                    )
+                                val enabledLabel: String = stringResource(Res.string.obs_filter_enabled_action, filterLabel)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        text = filterLabel,
+                                        style = typography.sm,
+                                        color = tokens.cardForeground,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Switch(
+                                        checked = filter.enabled,
+                                        onCheckedChange = { on -> onSetFilterEnabled(view.sourceName, filter.name, on) },
+                                        enabled = gateEnabled,
+                                        modifier = Modifier.semantics { contentDescription = enabledLabel },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The kinds OBS reports for its two media-input plugins (Media Source / VLC Video Source) — the only inputs
+// that answer to TriggerMediaInputAction.
+private val MediaSourceKinds: Set<String> = setOf("ffmpeg_source", "vlc_source")
+
+// Per-source actions that don't fit the mixer or the scene/filter pickers: reload a browser source's page, and
+// transport-control a media source. Always rendered (with an empty state) rather than hidden, matching the
+// rest of the page's cards — never silently omitting a section the operator might expect.
+@Composable
+private fun SourceActionsCard(
+    inputs: List<ObsInput>,
+    controlManage: ManageDecision,
+    onTriggerMedia: (inputName: String, action: Int) -> Unit,
+    onRefreshBrowser: (inputName: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val mediaInputs: List<ObsInput> = inputs.filter { it.kind in MediaSourceKinds }
+    val browserInputs: List<ObsInput> = inputs.filter { it.kind == "browser_source" }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_sources_title),
+                description = stringResource(Res.string.obs_sources_desc),
+                trailing = {},
+            )
+            if (mediaInputs.isEmpty() && browserInputs.isEmpty()) {
+                Text(text = stringResource(Res.string.obs_sources_empty), style = typography.sm, color = tokens.mutedForeground)
+                return@Column
+            }
+            ManageGate(decision = controlManage) { gateEnabled ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
+                    mediaInputs.forEach { input ->
+                        MediaSourceRow(input = input, enabled = gateEnabled, onTriggerMedia = onTriggerMedia)
+                    }
+                    browserInputs.forEach { input ->
+                        BrowserSourceRow(input = input, enabled = gateEnabled, onRefreshBrowser = onRefreshBrowser)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaSourceRow(input: ObsInput, enabled: Boolean, onTriggerMedia: (String, Int) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val displayName: String =
+        resolveRowLabel(
+            primary = input.name,
+            secondary = input.kind,
+            typeLabel = stringResource(Res.string.obs_input_row_type),
+            discriminatorSource = input.name,
+        )
+    val transportActions: List<Pair<String, Int>> =
+        listOf(
+            stringResource(Res.string.obs_media_play) to ObsMediaAction.Play,
+            stringResource(Res.string.obs_media_pause) to ObsMediaAction.Pause,
+            stringResource(Res.string.obs_media_stop) to ObsMediaAction.Stop,
+            stringResource(Res.string.obs_media_restart) to ObsMediaAction.Restart,
+            stringResource(Res.string.obs_media_previous) to ObsMediaAction.Previous,
+            stringResource(Res.string.obs_media_next) to ObsMediaAction.Next,
+        )
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(text = displayName, style = typography.sm, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            transportActions.forEach { (label, action) ->
+                Button(
+                    onClick = { onTriggerMedia(input.name, action) },
+                    enabled = enabled,
+                    variant = ButtonVariant.Outline,
+                    size = ButtonSize.Sm,
+                ) {
+                    Text(text = label)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrowserSourceRow(input: ObsInput, enabled: Boolean, onRefreshBrowser: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    val displayName: String =
+        resolveRowLabel(
+            primary = input.name,
+            secondary = input.kind,
+            typeLabel = stringResource(Res.string.obs_input_row_type),
+            discriminatorSource = input.name,
+        )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = displayName,
+            style = typography.sm,
+            color = tokens.cardForeground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Button(onClick = { onRefreshBrowser(input.name) }, enabled = enabled, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
+            Text(text = stringResource(Res.string.obs_browser_refresh))
+        }
+    }
+}
+
+// OBS reports stats as raw doubles (e.g. 12.34567% CPU) — round to one decimal for a readable stat, without a
+// locale-dependent String.format (unavailable in common Kotlin).
+private fun formatOneDecimal(value: Double): String {
+    val rounded: Double = kotlin.math.round(value * 10) / 10
+    val whole: Long = rounded.toLong()
+    val tenths: Long = kotlin.math.abs(((rounded - whole) * 10).toLong())
+    return "$whole.$tenths"
 }
 
 // ── shared bits ────────────────────────────────────────────────────────────

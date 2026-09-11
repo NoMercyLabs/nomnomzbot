@@ -17,12 +17,18 @@ import bot.nomnomz.dashboard.core.network.ObsApi
 import bot.nomnomz.dashboard.core.network.ObsBridgeSetup
 import bot.nomnomz.dashboard.core.network.ObsBridgeStatus
 import bot.nomnomz.dashboard.core.network.ObsConnection
+import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
 import bot.nomnomz.dashboard.core.network.ObsRecordAction
 import bot.nomnomz.dashboard.core.network.ObsScene
+import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsState
+import bot.nomnomz.dashboard.core.network.ObsStats
+import bot.nomnomz.dashboard.core.network.ObsStudioModeStatus
 import bot.nomnomz.dashboard.core.network.ObsToggle
+import bot.nomnomz.dashboard.core.network.ObsTransition
+import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -219,18 +225,134 @@ class ObsController(
         afterLiveAction(obsApi.saveReplayBuffer(id))
     }
 
-    /**
-     * Toggle the virtual camera. Unlike streaming/recording/replay-buffer, OBS-WS exposes no status query for
-     * this output today, so there is no "current" flag to flip off of — this always sends [ObsToggle.Toggle] and
-     * lets OBS itself decide the resulting state; then re-reads live state (which does not yet reflect virtual
-     * cam, but keeps the rest of the page in sync with anything else that changed).
-     */
+    /** Start or stop the virtual camera based on its current status; then re-read live state. */
     suspend fun toggleVirtualCam() {
         val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
-        afterLiveAction(obsApi.setVirtualCam(id, ObsToggle.Toggle))
+        val active: Boolean = (_state.value as? ObsUiState.Ready)?.live?.virtualCamActive == true
+        afterLiveAction(obsApi.setVirtualCam(id, if (active) ObsToggle.Stop else ObsToggle.Start))
+    }
+
+    /** Pause the current recording; then re-read live state. */
+    suspend fun pauseRecording() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setRecording(id, ObsRecordAction.Pause))
+    }
+
+    /** Resume a paused recording; then re-read live state. */
+    suspend fun resumeRecording() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setRecording(id, ObsRecordAction.Resume))
+    }
+
+    /** Split the current recording into a new file; then re-read live state. */
+    suspend fun splitRecording() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setRecording(id, ObsRecordAction.Split))
+    }
+
+    /** Turn studio mode (preview/program) on or off; then re-read live state. */
+    suspend fun setStudioMode(enabled: Boolean) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setStudioMode(id, enabled))
+    }
+
+    /**
+     * Queue [scene] as the studio-mode preview scene. OBS-WS exposes no read for "the current preview scene", so
+     * the picker cannot highlight a selection the way the program-scene picker does — this is fire-and-forget.
+     */
+    suspend fun setPreviewScene(scene: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setPreviewScene(id, scene))
+    }
+
+    /** Cut the current preview scene to program (requires studio mode already on); then re-read live state. */
+    suspend fun triggerStudioTransition() {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.triggerStudioTransition(id))
+    }
+
+    /** Make [transitionName] the active scene transition; then re-read live state. */
+    suspend fun setCurrentTransition(transitionName: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.setCurrentTransition(id, transitionName))
+    }
+
+    /** Play/pause/restart/stop/skip a media-source input; then re-read live state. */
+    suspend fun triggerMedia(inputName: String, action: Int) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.triggerMedia(id, inputName, action))
+    }
+
+    /** Reload a browser-source input's page. Fire-and-forget — nothing in the live surface reflects it. */
+    suspend fun refreshBrowserSource(inputName: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        when (val result: ApiResult<*> = obsApi.refreshBrowser(id, inputName)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
+     * Load the items placed in [sceneName] with their per-scene visibility — an on-demand view (not part of the
+     * periodic live refresh) since it depends on which scene the operator picked to inspect.
+     */
+    suspend fun loadSceneItems(sceneName: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        when (val result: ApiResult<List<ObsSceneItem>> = obsApi.sceneItems(id, sceneName)) {
+            is ApiResult.Ok -> setSceneItemsView(ObsSceneItemsView(sceneName, result.value))
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /** Hide/show [sourceName] within [sceneName], then reload that scene's item list to reflect it. */
+    suspend fun setSourceVisible(sceneName: String, sourceName: String, visible: Boolean) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        when (val result: ApiResult<Unit> = obsApi.setSourceVisibility(id, sceneName, sourceName, visible)) {
+            is ApiResult.Ok -> loadSceneItems(sceneName)
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
+     * Load the filters attached to [sourceName] — an on-demand view (not part of the periodic live refresh)
+     * since it depends on which source the operator picked to inspect.
+     */
+    suspend fun loadSourceFilters(sourceName: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        when (val result: ApiResult<List<ObsFilter>> = obsApi.sourceFilters(id, sourceName)) {
+            is ApiResult.Ok -> setFiltersView(ObsFiltersView(sourceName, result.value))
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /** Enable/disable [filterName] on [sourceName], then reload that source's filter list to reflect it. */
+    suspend fun setFilterEnabled(sourceName: String, filterName: String, enabled: Boolean) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        when (val result: ApiResult<Unit> = obsApi.setFilterEnabled(id, sourceName, filterName, enabled)) {
+            is ApiResult.Ok -> loadSourceFilters(sourceName)
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
     }
 
     // ── internals ────────────────────────────────────────────────────────────
+
+    private fun setSceneItemsView(view: ObsSceneItemsView) {
+        val ready: ObsUiState.Ready = _state.value as? ObsUiState.Ready ?: return
+        _state.value = ready.copy(sceneItemsView = view)
+    }
+
+    private fun setFiltersView(view: ObsFiltersView) {
+        val ready: ObsUiState.Ready = _state.value as? ObsUiState.Ready ?: return
+        _state.value = ready.copy(filtersView = view)
+    }
+
+    /** One best-effort sub-read of the live surface: [default] on failure, so one flaky OBS-WS request never
+     * blanks the whole page — only the section it feeds. */
+    private suspend fun <T> bestEffort(default: T, call: suspend () -> ApiResult<T>): T =
+        when (val result: ApiResult<T> = call()) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> default
+        }
 
     // The truthful reachability read: PROBE first. The passive state read returns a graceful empty 200 even when
     // OBS is offline (so it can't tell reachable from the connect prompt) — trusting it lit up Start Streaming +
@@ -249,25 +371,33 @@ class ObsController(
         return readLive(id)
     }
 
-    // The live OBS read (state + scenes + inputs) is best-effort — OBS may not be running / connected. A failure
-    // becomes an [ObsLive] carrying an error, so the page shows "OBS not reachable" rather than a dead page.
+    // The live OBS read (state + scenes + inputs + outputs/studio surface) is best-effort — OBS may not be
+    // running / connected. A failure on the PRIMARY state read becomes an [ObsLive] carrying an error, so the
+    // page shows "OBS not reachable" rather than a dead page. The secondary reads (scenes, inputs, virtual cam,
+    // stats, transitions, studio mode) each fall back to an empty/false default on their own failure, so one
+    // flaky sub-read never blanks the whole live surface.
     private suspend fun readLive(id: String): ObsLive {
         val state: ObsState =
             when (val result: ApiResult<ObsState> = obsApi.state(id)) {
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> return ObsLive(reachable = false, error = result.error.message)
             }
-        val scenes: List<ObsScene> =
-            when (val result: ApiResult<List<ObsScene>> = obsApi.scenes(id)) {
-                is ApiResult.Ok -> result.value
-                is ApiResult.Failure -> emptyList()
-            }
-        val inputs: List<ObsInput> =
-            when (val result: ApiResult<List<ObsInput>> = obsApi.inputs(id)) {
-                is ApiResult.Ok -> result.value
-                is ApiResult.Failure -> emptyList()
-            }
-        return ObsLive(reachable = true, state = state, scenes = scenes, inputs = inputs)
+        val scenes: List<ObsScene> = bestEffort(emptyList()) { obsApi.scenes(id) }
+        val inputs: List<ObsInput> = bestEffort(emptyList()) { obsApi.inputs(id) }
+        val virtualCamActive: Boolean = bestEffort(ObsVirtualCamStatus()) { obsApi.virtualCamStatus(id) }.outputActive
+        val stats: ObsStats? = bestEffort(null) { obsApi.stats(id) }
+        val transitions: List<ObsTransition> = bestEffort(emptyList()) { obsApi.sceneTransitions(id) }
+        val studioModeEnabled: Boolean = bestEffort(ObsStudioModeStatus()) { obsApi.studioMode(id) }.enabled
+        return ObsLive(
+            reachable = true,
+            state = state,
+            scenes = scenes,
+            inputs = inputs,
+            virtualCamActive = virtualCamActive,
+            stats = stats,
+            transitions = transitions,
+            studioModeEnabled = studioModeEnabled,
+        )
     }
 
     private suspend fun afterWrite(result: ApiResult<*>) {
@@ -311,6 +441,10 @@ sealed interface ObsUiState {
         val bridgeStatus: ObsBridgeStatus?,
         val live: ObsLive,
         val actionError: String? = null,
+        /** The scene-items view the operator last opened (scene picker → per-item visibility), if any. */
+        val sceneItemsView: ObsSceneItemsView? = null,
+        /** The source-filters view the operator last opened (source picker → per-filter enable), if any. */
+        val filtersView: ObsFiltersView? = null,
     ) : ObsUiState
 
     data class Error(val detail: String) : ObsUiState
@@ -318,12 +452,25 @@ sealed interface ObsUiState {
 
 /**
  * The live OBS read. [reachable] is false when OBS could not be queried (not running / not connected), with the
- * reason in [error]; otherwise [state] / [scenes] / [inputs] carry the live control surface.
+ * reason in [error]; otherwise [state] / [scenes] / [inputs] carry the live control surface, and
+ * [virtualCamActive] / [stats] / [transitions] / [studioModeEnabled] carry the outputs/studio surface (each
+ * independently best-effort — a single failed sub-read degrades to its default rather than blanking the page).
  */
 data class ObsLive(
     val reachable: Boolean,
     val state: ObsState = ObsState(),
     val scenes: List<ObsScene> = emptyList(),
     val inputs: List<ObsInput> = emptyList(),
+    val virtualCamActive: Boolean = false,
+    val stats: ObsStats? = null,
+    val transitions: List<ObsTransition> = emptyList(),
+    val studioModeEnabled: Boolean = false,
     val error: String? = null,
 )
+
+/** The scene-items view (obs-control.md — per-scene source visibility): the [sceneName] the operator picked to
+ * inspect and its current [items]. */
+data class ObsSceneItemsView(val sceneName: String, val items: List<ObsSceneItem>)
+
+/** The source-filters view: the [sourceName] the operator picked to inspect and its current [filters]. */
+data class ObsFiltersView(val sourceName: String, val filters: List<ObsFilter>)
