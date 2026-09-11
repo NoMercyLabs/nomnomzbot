@@ -327,11 +327,22 @@ class RewardsController(
 
     /**
      * Take control of an external reward by recreating it under the bot's own Twitch client, so the bot can then
-     * manage it. Reloads on success (the row flips to manageable); surfaces the error on failure.
+     * manage it. On success the row flips to manageable. A conflicting-title failure still reloads: the backend
+     * parks the request (RewardService.ParkPendingMigrationAsync) so the row's `isMigrationPending` flips true and
+     * its action button becomes "Finalize migration" — the operator frees the title on Twitch's own dashboard on
+     * their own time, then clicks that button again, which re-enters this same call and completes the take-over
+     * once Twitch confirms the title is free. No retry loop and no timeout: the parked state persists until they
+     * come back to it.
      */
     suspend fun recreate(rewardId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(rewardsApi.recreate(channel, rewardId))
+        when (val result: ApiResult<Unit> = rewardsApi.recreate(channel, rewardId)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> {
+                load()
+                failWrite(result.error.message)
+            }
+        }
     }
 
     /**

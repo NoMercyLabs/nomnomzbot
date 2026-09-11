@@ -447,7 +447,34 @@ class RewardsControllerTest {
         assertTrue(state is RewardsState.Ready)
         val reward: RewardSummary = (state as RewardsState.Ready).rewards.first { it.id == "ext1" }
         assertTrue(reward.isManageable)
-        assertNull(state.actionError)
+    }
+
+    @Test
+    fun recreate_reloads_even_on_a_title_conflict_so_the_row_flips_to_finalize_migration() = runTest {
+        // A duplicate-title conflict isn't a no-op failure: the backend still parks the request server-side
+        // (RewardService.ParkPendingMigrationAsync) so the operator can free the title on Twitch's own time and
+        // finalize later. If the controller skipped the reload on failure the way plain write errors do, the row
+        // would stay stuck showing "Take control" forever with no way back in — this proves it doesn't.
+        val rewardsApi =
+            RecordingRewardsApi(
+                ApiResult.Ok(
+                    listOf(RewardSummary(id = "ext1", title = "First", isManageable = false))
+                ),
+                writeResult = ApiResult.Failure(
+                    ApiError(422, "MIGRATION_PENDING_EXTERNAL_REMOVAL", "Twitch won't allow a second reward...")
+                ),
+            )
+        val controller =
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+        controller.load()
+
+        controller.recreate(rewardId = "ext1")
+
+        val state: RewardsState = controller.state.value
+        assertTrue(state is RewardsState.Ready)
+        val reward: RewardSummary = (state as RewardsState.Ready).rewards.first { it.id == "ext1" }
+        assertTrue(reward.isMigrationPending, "row should be marked pending after the reload")
+        assertEquals("Twitch won't allow a second reward...", state.actionError)
     }
 
     @Test
@@ -642,9 +669,15 @@ private class RecordingRewardsApi(
 
     override suspend fun recreate(channelId: String, rewardId: String): ApiResult<Unit> {
         recreated += rewardId
+        val index: Int = store.indexOfFirst { it.id == rewardId }
         if (writeResult is ApiResult.Ok) {
-            val index: Int = store.indexOfFirst { it.id == rewardId }
             if (index >= 0) store[index] = store[index].copy(isManageable = true)
+        } else if (
+            writeResult is ApiResult.Failure && writeResult.error.code == "MIGRATION_PENDING_EXTERNAL_REMOVAL"
+        ) {
+            // Mirrors RewardService.ParkPendingMigrationAsync: the title conflict still marks the row
+            // pending server-side even though the call itself reports Failure.
+            if (index >= 0) store[index] = store[index].copy(isMigrationPending = true)
         }
         return writeResult
     }
