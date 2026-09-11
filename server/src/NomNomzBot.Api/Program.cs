@@ -952,12 +952,8 @@ try
     // false for a genuinely signed-in visitor, bouncing them to the marketing page and reading as a lost
     // session (owner report 2026-09-10). "nnz_session" mirrors its lifetime but is scoped Path=/ and carries no
     // secret, only presence, purely so this routing check can see it (AuthController.SetSessionMarkerCookie).
-    string landingFile = Path.Combine(
-        app.Environment.ContentRootPath,
-        "Assets",
-        "landing",
-        "index.html"
-    );
+    string landingAssets = Path.Combine(app.Environment.ContentRootPath, "Assets", "landing");
+    string landingFile = Path.Combine(landingAssets, "index.html");
     if (File.Exists(landingFile))
     {
         app.MapGet(
@@ -978,6 +974,25 @@ try
                 }
             )
             .ExcludeFromDescription();
+
+        // The landing page's own CSS (style.css) — split out of index.html for editability, served from the
+        // same committed Assets folder rather than the gitignored web root. An explicit MapGet, not UseStaticFiles:
+        // this file lives alongside index.html above rather than under a dedicated "/editor"-style subtree, and an
+        // explicit route is resolved by the routing system itself regardless of where in the pipeline it's
+        // registered — no middleware-ordering assumptions to get wrong, same reasoning as the "/" mapping above.
+        string landingStyle = Path.Combine(landingAssets, "style.css");
+        if (File.Exists(landingStyle))
+        {
+            app.MapGet(
+                    "/landing/style.css",
+                    (HttpContext context) =>
+                    {
+                        context.Response.Headers.CacheControl = "no-cache, must-revalidate";
+                        return Results.File(landingStyle, "text/css; charset=utf-8");
+                    }
+                )
+                .ExcludeFromDescription();
+        }
     }
 
     // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's

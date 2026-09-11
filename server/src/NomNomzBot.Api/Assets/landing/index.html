@@ -12,212 +12,372 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NomNomzBot — Your channel, supercharged</title>
-<meta name="description" content="NomNomzBot runs your commands, timers, moderation, alerts, music, and more — one dashboard for your whole stream, across Twitch, Kick, YouTube, and X." />
-<style>
-  /* Palette lifted verbatim from the dashboard's own dark theme tokens (Tokens.kt DarkTokens) so this page
-     and the app it leads into never look like two different products. */
-  :root {
-    --bg: #111111;
-    --card: #191919;
-    --card-hover: #1f1f1f;
-    --fg: #eeeeee;
-    --muted: #b5b5b5;
-    --border: #1f1f1f;
-    --accent: #b188d2;
-    --accent-fg: #17131a;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    line-height: 1.5;
-  }
-  a { color: inherit; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-
-  header.nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 0;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
-  .mark {
-    width: 32px; height: 32px; border-radius: 9px;
-    background: var(--accent); color: var(--accent-fg);
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 17px; flex: none;
-  }
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    border-radius: 999px; font-weight: 600; text-decoration: none;
-    padding: 11px 22px; font-size: 15px; border: 1px solid transparent;
-    cursor: pointer;
-  }
-  .btn-primary { background: var(--accent); color: var(--accent-fg); }
-  .btn-primary:hover { filter: brightness(1.08); }
-  .btn-ghost { background: transparent; color: var(--fg); border-color: var(--border); }
-  .btn-ghost:hover { background: var(--card); }
-  .btn-lg { padding: 15px 34px; font-size: 16px; }
-
-  section.hero {
-    text-align: center;
-    padding: 64px 0 56px;
-  }
-  .hero .mark { width: 72px; height: 72px; border-radius: 20px; font-size: 34px; margin: 0 auto 28px; }
-  h1 {
-    font-size: clamp(32px, 5vw, 48px);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 0 16px;
-  }
-  .subtitle {
-    color: var(--muted);
-    font-size: 18px;
-    max-width: 560px;
-    margin: 0 auto 32px;
-  }
-  .platforms {
-    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
-    margin-top: 40px;
-  }
-  .platform-chip {
-    border: 1px solid var(--border);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 6px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-  }
-
-  section.features { padding: 40px 0 72px; }
-  h2 {
-    text-align: center;
-    font-size: 26px;
-    font-weight: 700;
-    margin: 0 0 40px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 16px;
-  }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 22px;
-  }
-  .card .icon {
-    width: 38px; height: 38px; border-radius: 10px;
-    background: var(--card-hover);
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 14px;
-    font-size: 18px;
-  }
-  .card h3 { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
-  .card p { color: var(--muted); font-size: 14px; margin: 0; }
-
-  section.cta {
-    text-align: center;
-    padding: 56px 0 72px;
-    border-top: 1px solid var(--border);
-  }
-  section.cta h2 { margin-bottom: 12px; }
-  section.cta p { color: var(--muted); margin: 0 0 28px; }
-
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 28px 0 40px;
-    color: var(--muted);
-    font-size: 13px;
-    display: flex; flex-wrap: wrap; gap: 12px;
-    align-items: center; justify-content: space-between;
-  }
-  footer a { text-decoration: none; }
-  footer a:hover { color: var(--fg); }
-  footer .links { display: flex; gap: 20px; }
-</style>
+<title>NomNomzBot — Run your stream, not your admin work</title>
+<meta name="description" content="NomNomzBot moderates chat, answers viewers, and fires alerts the instant they happen — across Twitch, Kick, YouTube, and X, from one dashboard. Free, self-hosted, open source." />
+<link rel="stylesheet" href="/landing/style.css" />
 </head>
 <body>
-  <div class="wrap">
-    <header class="nav">
-      <div class="brand">
-        <span class="mark">N</span>
-        NomNomzBot
-      </div>
-      <a class="btn btn-ghost" href="/app">Get started</a>
-    </header>
-  </div>
+  <header class="nav">
+    <div class="brand">
+      <span class="mark">N</span>
+      NomNomzBot
+    </div>
+    <nav class="nav-links">
+      <a class="nav-link" href="#outcomes">Features</a>
+      <a class="nav-link" href="#deploy">Self-host vs hosted</a>
+      <a class="nav-link" href="#integrations">Integrations</a>
+      <a class="nav-link" href="https://github.com/NoMercyLabs/nomnomzbot" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-primary" href="/app">Connect your channel</a>
+    </div>
+  </header>
 
   <section class="hero">
-    <div class="wrap">
-      <span class="mark">N</span>
-      <h1>Your channel, supercharged</h1>
-      <p class="subtitle">NomNomzBot runs your commands, timers, moderation, alerts, music, and more — one dashboard for your whole stream.</p>
-      <a class="btn btn-primary btn-lg" href="/app">Get started</a>
-      <div class="platforms">
-        <span class="platform-chip">Twitch</span>
-        <span class="platform-chip">Kick</span>
-        <span class="platform-chip">YouTube</span>
-        <span class="platform-chip">X</span>
+    <div class="hero-glow"></div>
+    <div class="wrap hero-inner">
+      <h1>Run your stream. Skip the busywork.</h1>
+      <p class="subtitle">NomNomzBot moderates chat, answers viewers, and fires alerts the instant they happen — across Twitch, Kick, YouTube, and X, from one dashboard.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-lg" href="/app">Connect your channel</a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/NoMercyLabs/nomnomzbot" target="_blank" rel="noopener">View source</a>
+      </div>
+      <p class="fine-print">Free, self-hosted, open source (AGPL-3.0). No credit card, no seat limits.</p>
+
+      <div class="shell-frame">
+        <input class="shell-tab" type="radio" name="tab" id="tab-dashboard" checked>
+        <input class="shell-tab" type="radio" name="tab" id="tab-chat">
+        <input class="shell-tab" type="radio" name="tab" id="tab-mod">
+        <input class="shell-tab" type="radio" name="tab" id="tab-rules">
+        <input class="shell-tab" type="radio" name="tab" id="tab-alerts">
+        <div class="shell">
+          <div class="app-sidebar">
+            <div class="channel-row">
+              <span class="channel-avatar"></span>
+              <span class="channel-name">crumb_tv</span>
+              <span class="channel-caret">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10C15.5 11 12 16 12 16C12 16 8.5 11 6 10"/></svg>
+              </span>
+            </div>
+
+            <div class="nav-group-label">HOME</div>
+            <label class="nav-item" for="tab-dashboard">
+              <span class="nav-icon">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4194 10H10M2.58058 10H10M10 10V20.9491M2.5 12C2.5 5.16193 4.85718 3 12 3C19.1429 3 21.5 5.16193 21.5 12C21.5 18.8371 19.1429 21.0169 12 21.0169C4.85718 21.0169 2.5 18.8371 2.5 12Z"/></svg>
+              </span>Dashboard
+            </label>
+
+            <div class="nav-group-label">CHAT</div>
+            <label class="nav-item" for="tab-chat">
+              <span class="nav-icon">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M7.78631 21.074C11.4896 22.7867 16.0159 22.1264 19.071 19.0698C22.9723 15.1681 22.9803 8.83593 19.071 4.9271C15.1698 1.0243 8.83147 1.0243 4.9302 4.9271C1.87411 7.9826 1.21285 12.5106 2.92631 16.2134C3.14639 16.7601 2.16555 20.2991 2.93334 21.067C3.70113 21.8339 7.23961 20.8539 7.78631 21.074Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="17" cy="12" r="1.5" fill="currentColor"/></svg>
+              </span>Chat
+            </label>
+
+            <div class="nav-group-label">MODERATION</div>
+            <label class="nav-item" for="tab-mod">
+              <span class="nav-icon">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 13.7567L16.7102 14.203C15.8228 14.203 15.0133 14.705 14.6193 15.5C14.1416 16.4632 13.1481 17.1248 12 17.1248C10.8519 17.1248 9.85852 16.4632 9.38079 15.5C8.98674 14.705 8.17723 14.203 7.28987 14.203L3 13.7567M2.45203 11.9687C2.45203 5.13063 4.83298 2.85193 11.9758 2.85193C19.1187 2.85193 21.4996 5.13063 21.4996 11.9687C21.4996 18.8058 19.1187 21.0855 11.9758 21.0855C4.83298 21.0855 2.45203 18.8058 2.45203 11.9687Z"/></svg>
+              </span>Queue
+            </label>
+            <label class="nav-item" for="tab-rules">
+              <span class="nav-icon">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.1765 7.39415H20.6481M11.1437 17.8828H4.67111M15.205 17.8837C15.205 19.9254 15.8859 20.6054 17.9267 20.6054C19.9676 20.6054 20.6485 19.9254 20.6485 17.8837C20.6485 15.8419 19.9676 15.1619 17.9267 15.1619C15.8859 15.1619 15.205 15.8419 15.205 17.8837ZM10.1153 7.39281C10.1153 5.35192 9.43433 4.67102 7.39343 4.67102C5.35164 4.67102 4.67075 5.35192 4.67075 7.39281C4.67075 9.4346 5.35164 10.1146 7.39343 10.1146C9.43433 10.1146 10.1153 9.4346 10.1153 7.39281Z"/></svg>
+              </span>Rules
+            </label>
+
+            <div class="nav-group-label">STREAM</div>
+            <label class="nav-item" for="tab-alerts">
+              <span class="nav-icon">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.3059 20.5122C13.0116 21.9579 10.9926 21.9751 9.68591 20.5122M11.9961 2.51416C7.56185 2.51416 5.63519 6.5294 5.63519 9.18368C5.63519 11.1675 5.92281 10.5837 4.82471 13.0037C3.48376 16.4523 8.87614 17.8618 11.9961 17.8618C15.1152 17.8618 20.5076 16.4523 19.1676 13.0037C18.0695 10.5837 18.3571 11.1675 18.3571 9.18368C18.3571 6.5294 16.4295 2.51416 11.9961 2.51416Z"/></svg>
+              </span>Alerts
+            </label>
+
+            <div class="sidebar-footer">
+              <span class="profile-avatar"></span>
+              <div>
+                <div class="profile-name">crumb_tv</div>
+                <div class="profile-role">Broadcaster</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="app-content">
+            <div class="pane-view" id="view-dashboard">
+              <h3 class="page-title">Dashboard</h3>
+              <div class="app-card">
+                <div class="stat-grid">
+                  <div class="stat-tile"><div class="stat-value">1,204</div><div class="stat-label">Viewers</div></div>
+                  <div class="stat-tile"><div class="stat-value">38,910</div><div class="stat-label">Followers</div></div>
+                  <div class="stat-tile"><div class="stat-value">612</div><div class="stat-label">Chatters today</div></div>
+                  <div class="stat-tile"><div class="stat-value">2h 14m</div><div class="stat-label">Uptime</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pane-view" id="view-chat">
+              <h3 class="page-title">Chat</h3>
+              <div class="app-card">
+                <div class="chat-row">
+                  <span class="msg-avatar" style="background:#5b8cff"></span>
+                  <div><span class="msg-name">daisy_plays</span>!songrequest never gonna give you up</div>
+                </div>
+                <div class="chat-row">
+                  <span class="msg-avatar" style="background:var(--accent)"></span>
+                  <div><span class="msg-name bot">NomNomzBot</span>queued, 3rd in line — now playing: Come Alive, Foals</div>
+                </div>
+                <div class="chat-row">
+                  <span class="msg-avatar" style="background:#e0a545"></span>
+                  <div><span class="msg-name">mod_kris</span>!raid shoutout on</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pane-view" id="view-mod">
+              <h3 class="page-title">Moderation queue</h3>
+              <div class="app-card">
+                <div class="queue-row">
+                  <span class="queue-who">viewer_204</span>
+                  <span class="queue-reason">reported: posting the same link 6 times</span>
+                  <span class="queue-action deny">Timeout</span>
+                </div>
+                <div class="queue-row">
+                  <span class="queue-who">nite_owl22</span>
+                  <span class="queue-reason">unban request — 14-day timeout expired</span>
+                  <span class="queue-action approve">Approve</span>
+                </div>
+                <div class="queue-row">
+                  <span class="queue-who">chat_fan99</span>
+                  <span class="queue-reason">reported: off-topic, not against the rules</span>
+                  <span class="queue-action approve">Dismiss</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pane-view" id="view-rules">
+              <h3 class="page-title">Moderation rules</h3>
+              <div class="app-card">
+                <div class="automod-row">
+                  <span class="automod-name">Link filter</span>
+                  <span class="automod-state on">ON</span>
+                </div>
+                <div class="automod-row">
+                  <span class="automod-name">Caps filter<span class="automod-detail">flags over 60% caps</span></span>
+                  <span class="automod-state on">ON</span>
+                </div>
+                <div class="automod-row">
+                  <span class="automod-name">Banned phrases</span>
+                  <span class="automod-state off">OFF</span>
+                </div>
+              </div>
+              <div class="app-card">
+                <div class="page-title" style="font-size:13px;font-weight:700;color:var(--faint);margin-bottom:0;">Blocked terms</div>
+                <div class="term-chips">
+                  <span class="term-chip">free nitro</span>
+                  <span class="term-chip">discord.gg/</span>
+                  <span class="term-chip">cheap followers</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pane-view" id="view-alerts">
+              <h3 class="page-title">Alerts</h3>
+              <div class="app-card">
+                <div class="alert-row">
+                  <span class="alert-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.3059 20.5122C13.0116 21.9579 10.9926 21.9751 9.68591 20.5122M11.9961 2.51416C7.56185 2.51416 5.63519 6.5294 5.63519 9.18368C5.63519 11.1675 5.92281 10.5837 4.82471 13.0037C3.48376 16.4523 8.87614 17.8618 11.9961 17.8618C15.1152 17.8618 20.5076 16.4523 19.1676 13.0037C18.0695 10.5837 18.3571 11.1675 18.3571 9.18368C18.3571 6.5294 16.4295 2.51416 11.9961 2.51416Z"/></svg></span>
+                  <div class="alert-body">
+                    <div class="alert-title">New raid — 214 viewers from crumb_tv</div>
+                    <div class="alert-sub">shoutout posted to chat · overlay played on stream</div>
+                  </div>
+                </div>
+                <div class="alert-row">
+                  <span class="alert-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.223 12.0195V18.5277C19.223 19.8918 18.1177 20.9981 16.7536 20.9981H7.24771C5.88361 20.9981 4.77734 19.8918 4.77734 18.5277V12.0195M12 21.0002V12.0976M12.0002 7.49995H7.95066C6.70721 7.49995 5.7002 6.49292 5.7002 5.24947C5.7002 4.00796 6.70721 2.99997 7.95066 2.99997C11.1002 2.99997 12.0002 7.49995 12.0002 7.49995ZM12.002 7.49995H16.0511C17.2945 7.49995 18.3015 6.49292 18.3015 5.24947C18.3015 4.00796 17.2945 2.99997 16.0511 2.99997C12.9016 2.99997 12.002 7.49995 12.002 7.49995ZM5.0042 7.52731H18.8884C19.9256 7.52731 20.7663 8.36796 20.7663 9.40514V10.2215C20.7663 11.2003 19.9723 11.9933 18.9945 11.9933H5.11025C4.07307 11.9933 3.23242 11.1526 3.23242 10.1164V9.29812C3.23242 8.32028 4.02539 7.52731 5.0042 7.52731Z"/></svg></span>
+                  <div class="alert-body">
+                    <div class="alert-title">crumb_tv just subscribed — 6 months</div>
+                    <div class="alert-sub">overlay played · TTS read the message</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="features">
+  <section class="audience-band">
     <div class="wrap">
-      <h2>What you get</h2>
-      <div class="grid">
-        <div class="card">
-          <div class="icon">⊞</div>
-          <h3>One dashboard, every platform</h3>
-          <p>Connect Twitch, Kick, YouTube, and X, and run one channel live across all of them from a single dashboard.</p>
+      <p class="audience-line">Built for the <b>streamer</b> running the show and the <b>mods</b> keeping the chat clean.</p>
+    </div>
+  </section>
+
+  <section class="outcomes" id="outcomes">
+    <div class="wrap">
+
+      <div class="outcome">
+        <div class="outcome-copy">
+          <h2>Chat gets answered before you can type</h2>
+          <p>Build the reply once in the visual pipeline editor, and every !command, !songrequest, and !socials answers itself — even three at once, mid-play.</p>
         </div>
-        <div class="card">
-          <div class="icon">⌘</div>
-          <h3>Commands, built visually</h3>
-          <p>Build chat commands and automated responses with a visual pipeline editor — no scripting required.</p>
+        <div class="outcome-visual">
+          <div class="mini-card">
+            <div class="chat-row">
+              <span class="msg-avatar" style="background:#5b8cff"></span>
+              <div><span class="msg-name">viewer_87</span>!socials</div>
+            </div>
+            <div class="chat-row">
+              <span class="msg-avatar" style="background:var(--accent)"></span>
+              <div><span class="msg-name bot">NomNomzBot</span>follow on X and Kick — links in panel</div>
+            </div>
+            <div class="chat-row">
+              <span class="msg-avatar" style="background:#e0a545"></span>
+              <div><span class="msg-name">viewer_42</span>!uptime</div>
+            </div>
+            <div class="chat-row">
+              <span class="msg-avatar" style="background:var(--accent)"></span>
+              <div><span class="msg-name bot">NomNomzBot</span>live for 2h 14m</div>
+            </div>
+          </div>
         </div>
-        <div class="card">
-          <div class="icon">◍</div>
-          <h3>Know your community, moderate with confidence</h3>
-          <p>A viewer directory shows who's active in your community, and moderation tools handle timeouts, bans, and rule enforcement.</p>
+      </div>
+
+      <div class="outcome reverse">
+        <div class="outcome-copy">
+          <h2>Moderate without babysitting the chat</h2>
+          <p>Reports and unban requests land in one queue with the message that triggered them — approve, dismiss, or act, without digging through scrollback first.</p>
         </div>
-        <div class="card">
-          <div class="icon">◔</div>
-          <h3>Text-to-speech that says it right</h3>
-          <p>Give viewers a voice, pick from a library of voices, and set custom pronunciations for the names and words your channel uses.</p>
+        <div class="outcome-visual">
+          <div class="mini-card">
+            <div class="queue-row">
+              <span class="queue-who">viewer_204</span>
+              <span class="queue-reason">reported: posting the same link 6 times</span>
+              <span class="queue-action deny">Timeout</span>
+            </div>
+            <div class="queue-row">
+              <span class="queue-who">nite_owl22</span>
+              <span class="queue-reason">unban request — 14-day timeout expired</span>
+              <span class="queue-action approve">Approve</span>
+            </div>
+            <div class="queue-row">
+              <span class="queue-who">chat_fan99</span>
+              <span class="queue-reason">reported: off-topic, not against the rules</span>
+              <span class="queue-action approve">Dismiss</span>
+            </div>
+          </div>
         </div>
-        <div class="card">
-          <div class="icon">◆</div>
-          <h3>Currency, games, and giveaways</h3>
-          <p>Run a channel currency, play games, host giveaways, and track it all on a leaderboard.</p>
+      </div>
+
+      <div class="outcome">
+        <div class="outcome-copy">
+          <h2>Never miss the moment that matters</h2>
+          <p>A follow, sub, or raid fires the alert, plays the overlay, and posts the shoutout the instant it happens — not whenever you notice the chat scroll past it.</p>
         </div>
-        <div class="card">
-          <div class="icon">⇄</div>
-          <h3>Spotify, Discord, and YouTube, connected</h3>
-          <p>Share what's playing from Spotify, post updates to Discord, and bring in YouTube — all from one dashboard.</p>
+        <div class="outcome-visual">
+          <div class="mini-card">
+            <div class="alert-row">
+              <span class="alert-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.223 12.0195V18.5277C19.223 19.8918 18.1177 20.9981 16.7536 20.9981H7.24771C5.88361 20.9981 4.77734 19.8918 4.77734 18.5277V12.0195M12 21.0002V12.0976M12.0002 7.49995H7.95066C6.70721 7.49995 5.7002 6.49292 5.7002 5.24947C5.7002 4.00796 6.70721 2.99997 7.95066 2.99997C11.1002 2.99997 12.0002 7.49995 12.0002 7.49995ZM12.002 7.49995H16.0511C17.2945 7.49995 18.3015 6.49292 18.3015 5.24947C18.3015 4.00796 17.2945 2.99997 16.0511 2.99997C12.9016 2.99997 12.002 7.49995 12.002 7.49995ZM5.0042 7.52731H18.8884C19.9256 7.52731 20.7663 8.36796 20.7663 9.40514V10.2215C20.7663 11.2003 19.9723 11.9933 18.9945 11.9933H5.11025C4.07307 11.9933 3.23242 11.1526 3.23242 10.1164V9.29812C3.23242 8.32028 4.02539 7.52731 5.0042 7.52731Z"/></svg></span>
+              <div class="alert-body">
+                <div class="alert-title">crumb_tv just subscribed — 6 months</div>
+                <div class="alert-sub">overlay played · TTS read the message</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="card">
-          <div class="icon">▭</div>
-          <h3>Overlays for OBS</h3>
-          <p>Add browser-source overlays and widgets to OBS for alerts, now-playing, and more.</p>
+      </div>
+
+      <div class="outcome reverse">
+        <div class="outcome-copy">
+          <h2>Every platform you stream to, one dashboard</h2>
+          <p>Same commands, same mods, same moderation rules — whichever platform your viewers showed up on today. Add a platform without rebuilding anything.</p>
         </div>
+        <div class="outcome-visual">
+          <div class="mini-card platform-pane">
+            <input class="platform-input" type="radio" name="pt" id="pt-twitch" checked style="position:absolute;opacity:0">
+            <input class="platform-input" type="radio" name="pt" id="pt-kick" style="position:absolute;opacity:0">
+            <input class="platform-input" type="radio" name="pt" id="pt-youtube" style="position:absolute;opacity:0">
+            <input class="platform-input" type="radio" name="pt" id="pt-x" style="position:absolute;opacity:0">
+            <div class="platform-tabs">
+              <label class="platform-tab" for="pt-twitch">Twitch</label>
+              <label class="platform-tab" for="pt-kick">Kick</label>
+              <label class="platform-tab" for="pt-youtube">YouTube</label>
+              <label class="platform-tab" for="pt-x">X</label>
+            </div>
+            <div class="pane-view chat-row" id="pv-twitch">
+              <span class="msg-avatar" style="background:#5b8cff"></span>
+              <div>!uptime answered on Twitch — same pipeline, every platform</div>
+            </div>
+            <div class="pane-view chat-row" id="pv-kick">
+              <span class="msg-avatar" style="background:#5cd65c"></span>
+              <div>!uptime answered on Kick — same pipeline, every platform</div>
+            </div>
+            <div class="pane-view chat-row" id="pv-youtube">
+              <span class="msg-avatar" style="background:#e05c5c"></span>
+              <div>!uptime answered on YouTube — same pipeline, every platform</div>
+            </div>
+            <div class="pane-view chat-row" id="pv-x">
+              <span class="msg-avatar" style="background:#cfcfcf"></span>
+              <div>!uptime answered on X — same pipeline, every platform</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="deploy" id="deploy">
+    <div class="wrap">
+      <div class="deploy-head">
+        <h2>Run it your way</h2>
+        <p>Self-host on your own box for free, or wait for the hosted version if you'd rather not run a server.</p>
+      </div>
+      <div class="deploy-grid">
+        <div class="deploy-card is-live">
+          <div class="deploy-card-head">
+            <h3>Self-host</h3>
+            <span class="deploy-tag">Free forever</span>
+          </div>
+          <ul class="deploy-list">
+            <li><span class="li-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.85547C14.5636 9.48764 11.2433 14.2837 9.72078 17.1442C8.74399 15.5051 7.50533 14.0476 6 12.7764"/></svg></span>Your server — one Docker Compose command, or a single binary with zero dependencies</li>
+            <li><span class="li-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.85547C14.5636 9.48764 11.2433 14.2837 9.72078 17.1442C8.74399 15.5051 7.50533 14.0476 6 12.7764"/></svg></span>Every feature unlocked — no seat limits, no paid tiers</li>
+            <li><span class="li-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.85547C14.5636 9.48764 11.2433 14.2837 9.72078 17.1442C8.74399 15.5051 7.50533 14.0476 6 12.7764"/></svg></span>Open source (AGPL-3.0) — audit it, fork it, patch it yourself</li>
+          </ul>
+          <a class="btn btn-primary" href="/app">Connect your channel</a>
+        </div>
+        <div class="deploy-card">
+          <div class="deploy-card-head">
+            <h3>Hosted by NoMercy Labs</h3>
+            <span class="deploy-tag muted">In development</span>
+          </div>
+          <ul class="deploy-list">
+            <li><span class="li-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.85547C14.5636 9.48764 11.2433 14.2837 9.72078 17.1442C8.74399 15.5051 7.50533 14.0476 6 12.7764"/></svg></span>No server to run — sign in and go live</li>
+            <li><span class="li-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.85547C14.5636 9.48764 11.2433 14.2837 9.72078 17.1442C8.74399 15.5051 7.50533 14.0476 6 12.7764"/></svg></span>Same dashboard, same feature set</li>
+            <li><span class="li-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.85547C14.5636 9.48764 11.2433 14.2837 9.72078 17.1442C8.74399 15.5051 7.50533 14.0476 6 12.7764"/></svg></span>Viewers get one free account across every streamer on the instance</li>
+          </ul>
+        </div>
+      </div>
+      <p class="deploy-note">Only NoMercy Labs may operate NomNomzBot as a paid service for other streamers — running your own bot stays free and unrestricted, forever.</p>
+    </div>
+  </section>
+
+  <section class="integrations" id="integrations">
+    <div class="wrap">
+      <p class="integrations-head">Connects to what your stream already runs on</p>
+      <div class="integrations-row">
+        <span class="integration-name">Spotify</span>
+        <span class="integration-name">Discord</span>
+        <span class="integration-name">YouTube</span>
+        <span class="integration-name">Azure &amp; ElevenLabs TTS</span>
+        <span class="integration-name">OBS</span>
       </div>
     </div>
   </section>
 
   <section class="cta">
     <div class="wrap">
-      <h2>Ready to run your stream from one place?</h2>
-      <p>Connect a platform and you're live in the dashboard in under a minute.</p>
-      <a class="btn btn-primary btn-lg" href="/app">Get started</a>
+      <h2>Connect a platform. You're live in the dashboard in under a minute.</h2>
+      <p>Self-host for free, forever — no NoMercy infrastructure required.</p>
+      <a class="btn btn-primary btn-lg" href="/app">Connect your channel</a>
     </div>
   </section>
 
