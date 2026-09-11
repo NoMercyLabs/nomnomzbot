@@ -21,6 +21,8 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Application.Obs.Dtos;
+using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
@@ -51,6 +53,7 @@ public class AutomationCommandService : IAutomationCommandService
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _musicManageApi;
     private readonly IActionAuthorizationService _actionAuthz;
+    private readonly IObsControlService _obs;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutomationCommandService> _logger;
 
@@ -63,6 +66,7 @@ public class AutomationCommandService : IAutomationCommandService
         IMusicService music,
         IMusicProviderManageApi musicManageApi,
         IActionAuthorizationService actionAuthz,
+        IObsControlService obs,
         TimeProvider timeProvider,
         ILogger<AutomationCommandService> logger
     )
@@ -75,6 +79,7 @@ public class AutomationCommandService : IAutomationCommandService
         _music = music;
         _musicManageApi = musicManageApi;
         _actionAuthz = actionAuthz;
+        _obs = obs;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -396,6 +401,75 @@ public class AutomationCommandService : IAutomationCommandService
                 p.Uri,
                 p.TrackCount,
                 p.ImageUrl
+            )),
+        ];
+        return Result.Success(mapped);
+    }
+
+    public async Task<Result<IReadOnlyList<AutomationObsSceneDto>>> GetObsScenesAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationObsSceneDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsSceneDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Result<IReadOnlyList<ObsSceneDto>> scenes = await _obs.GetScenesAsync(
+            principal.BroadcasterId,
+            ct
+        );
+        if (scenes.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsSceneDto>>(
+                scenes.ErrorMessage!,
+                scenes.ErrorCode!
+            );
+
+        IReadOnlyList<AutomationObsSceneDto> mapped =
+        [
+            .. scenes.Value.Select(s => new AutomationObsSceneDto(s.Name, s.IsCurrent)),
+        ];
+        return Result.Success(mapped);
+    }
+
+    public async Task<Result<IReadOnlyList<AutomationObsInputDto>>> GetObsInputsAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<IReadOnlyList<AutomationObsInputDto>>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsInputDto>>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Result<IReadOnlyList<ObsInputDto>> inputs = await _obs.GetInputsAsync(
+            principal.BroadcasterId,
+            ct
+        );
+        if (inputs.IsFailure)
+            return Result.Failure<IReadOnlyList<AutomationObsInputDto>>(
+                inputs.ErrorMessage!,
+                inputs.ErrorCode!
+            );
+
+        IReadOnlyList<AutomationObsInputDto> mapped =
+        [
+            .. inputs.Value.Select(i => new AutomationObsInputDto(
+                i.Name,
+                i.Kind,
+                i.Muted,
+                i.VolumeDb
             )),
         ];
         return Result.Success(mapped);

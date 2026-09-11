@@ -72,4 +72,19 @@ public interface IAutomationCommandService
         int offset = 0,
         CancellationToken ct = default
     );
+
+    /// <summary>The channel's OBS scenes (scope <c>read</c>), for a Stream Deck property-inspector
+    /// picker (S-STREAMDECK-OBS-REMAINDER) — fails with the same <c>OBS_*</c> codes as the dashboard's
+    /// own <c>GET .../obs/scenes</c> when OBS isn't connected.</summary>
+    Task<Result<IReadOnlyList<AutomationObsSceneDto>>> GetObsScenesAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The channel's OBS inputs (scope <c>read</c>), for a Stream Deck property-inspector
+    /// picker (S-STREAMDECK-OBS-REMAINDER).</summary>
+    Task<Result<IReadOnlyList<AutomationObsInputDto>>> GetObsInputsAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    );
 }

@@ -119,3 +119,14 @@ public sealed record AutomationPlaylistDto(
     int TrackCount,
     string? ImageUrl
 );
+
+/// <summary>
+/// One OBS scene, as the data plane lists it for a property-inspector picker (S-STREAMDECK-OBS-REMAINDER)
+/// — mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsSceneDto"/>, kept as its own type so the
+/// automation-plane contract can evolve independently of the dashboard-facing OBS DTOs.
+/// </summary>
+public sealed record AutomationObsSceneDto(string Name, bool IsCurrent);
+
+/// <summary>One OBS input (audio/video source), as the data plane lists it for a property-inspector
+/// picker — mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsInputDto"/>.</summary>
+public sealed record AutomationObsInputDto(string Name, string Kind, bool? Muted, double? VolumeDb);

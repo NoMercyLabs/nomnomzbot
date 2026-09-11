@@ -17,8 +17,9 @@ export interface ToggleMuteSettings extends JsonObject {
 }
 
 /** Invokes the dashboard's `obs_input_mute` pipeline (obs-control.md §5) with `toggle: true` — flips
- * whichever audio input this key names (mic, desktop audio, …) rather than setting an absolute
- * muted/unmuted state, matching a single-key toggle press. */
+ * whichever audio input this key names (mic, desktop audio, …), chosen from a live dropdown
+ * (ui/input-picker.html, S-STREAMDECK-OBS-REMAINDER) fed by `GET /automation/v1/obs/inputs`, rather
+ * than setting an absolute muted/unmuted state, matching a single-key toggle press. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.obs-toggle-mute" })
 export class ToggleMuteAction extends ObsAction<ToggleMuteSettings> {
   protected readonly pipelineName = "obs_input_mute";

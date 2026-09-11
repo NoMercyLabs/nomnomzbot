@@ -19,6 +19,8 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Application.Obs.Dtos;
+using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
@@ -52,6 +54,7 @@ public sealed class AutomationCommandServiceTests
         public required IMusicService Music { get; init; }
         public required IMusicProviderManageApi MusicManageApi { get; init; }
         public required IActionAuthorizationService ActionAuthz { get; init; }
+        public required IObsControlService Obs { get; init; }
     }
 
     private static Harness Build(bool rateLimited = false)
@@ -121,6 +124,8 @@ public sealed class AutomationCommandServiceTests
             )
             .Returns(Result.Success(true));
 
+        IObsControlService obs = Substitute.For<IObsControlService>();
+
         AutomationCommandService service = new(
             db,
             scopeFactory,
@@ -130,6 +135,7 @@ public sealed class AutomationCommandServiceTests
             music,
             musicManageApi,
             actionAuthz,
+            obs,
             TimeProvider.System,
             NullLogger<AutomationCommandService>.Instance
         );
@@ -145,6 +151,7 @@ public sealed class AutomationCommandServiceTests
             Music = music,
             MusicManageApi = musicManageApi,
             ActionAuthz = actionAuthz,
+            Obs = obs,
         };
     }
 
@@ -491,5 +498,118 @@ public sealed class AutomationCommandServiceTests
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Should().ContainSingle(p => p.Id == "pl-1" && p.TrackCount == 12);
+    }
+
+    // ─── S-STREAMDECK-OBS-REMAINDER: scene/input read surface for the Stream Deck picker ─────
+
+    [Fact]
+    public async Task GetObsScenes_maps_the_obs_control_services_scene_list()
+    {
+        Harness h = Build();
+        h.Obs.GetScenesAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ObsSceneDto>>([
+                    new("Starting Soon", false),
+                    new("Game Scene", true),
+                ])
+            );
+
+        Result<IReadOnlyList<AutomationObsSceneDto>> result = await h.Service.GetObsScenesAsync(
+            Principal()
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().HaveCount(2);
+        result.Value.Should().ContainSingle(s => s.Name == "Game Scene" && s.IsCurrent);
+        result.Value.Should().ContainSingle(s => s.Name == "Starting Soon" && !s.IsCurrent);
+    }
+
+    [Fact]
+    public async Task GetObsScenes_rejects_a_token_without_the_read_scope_and_never_calls_obs()
+    {
+        Harness h = Build();
+
+        Result<IReadOnlyList<AutomationObsSceneDto>> result = await h.Service.GetObsScenesAsync(
+            Principal(scopes: ["invoke"])
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h.Obs.DidNotReceive().GetScenesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetObsScenes_propagates_an_OBS_not_connected_failure_as_is()
+    {
+        Harness h = Build();
+        h.Obs.GetScenesAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<IReadOnlyList<ObsSceneDto>>(
+                    "OBS is not connected.",
+                    "OBS_NOT_CONNECTED"
+                )
+            );
+
+        Result<IReadOnlyList<AutomationObsSceneDto>> result = await h.Service.GetObsScenesAsync(
+            Principal()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("OBS_NOT_CONNECTED");
+    }
+
+    [Fact]
+    public async Task GetObsInputs_maps_the_obs_control_services_input_list()
+    {
+        Harness h = Build();
+        h.Obs.GetInputsAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<ObsInputDto>>([
+                    new("Mic/Aux", "wasapi_input_capture", false, -6.0),
+                ])
+            );
+
+        Result<IReadOnlyList<AutomationObsInputDto>> result = await h.Service.GetObsInputsAsync(
+            Principal()
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Should()
+            .ContainSingle(i =>
+                i.Name == "Mic/Aux"
+                && i.Kind == "wasapi_input_capture"
+                && i.Muted == false
+                && i.VolumeDb == -6.0
+            );
+    }
+
+    [Fact]
+    public async Task GetObsInputs_rejects_a_token_without_the_read_scope_and_never_calls_obs()
+    {
+        Harness h = Build();
+
+        Result<IReadOnlyList<AutomationObsInputDto>> result = await h.Service.GetObsInputsAsync(
+            Principal(scopes: ["invoke"])
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h.Obs.DidNotReceive().GetInputsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_rate_limited_GetObsScenes_carries_the_retry_hint_and_never_calls_obs()
+    {
+        Harness h = Build(rateLimited: true);
+
+        Result<IReadOnlyList<AutomationObsSceneDto>> result = await h.Service.GetObsScenesAsync(
+            Principal()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("RATE_LIMITED");
+        result.ErrorDetail.Should().Be("17", "the Retry-After seconds ride the error detail");
+        await h.Obs.DidNotReceive().GetScenesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 }

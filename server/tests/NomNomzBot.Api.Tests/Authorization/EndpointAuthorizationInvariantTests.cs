@@ -138,6 +138,10 @@ public sealed class EndpointAuthorizationInvariantTests
             "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (music-automation-controls.md §4)",
         ["AutomationDataController.GetMusicPlaylists"] =
             "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (music-automation-controls.md §4)",
+        ["AutomationDataController.GetObsScenes"] =
+            "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (S-STREAMDECK-OBS-REMAINDER; obs-control.md §7 pattern mirrored onto the automation plane)",
+        ["AutomationDataController.GetObsInputs"] =
+            "API-token plane: token scheme + scope 'read' enforced in AutomationCommandService (S-STREAMDECK-OBS-REMAINDER; obs-control.md §7 pattern mirrored onto the automation plane)",
         // ── Community-plane Everyone floor with NO seeded action key (spec-cited) ──
         ["MusicController.GetQueue"] =
             "community / Everyone with no action key (music-sr.md §5.1 'GET queue — community / Everyone'; 'No new action keys are introduced')",

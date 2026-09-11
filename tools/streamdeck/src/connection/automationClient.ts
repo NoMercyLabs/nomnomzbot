@@ -52,6 +52,18 @@ export interface PlaylistPayload extends JsonObject {
   imageUrl: string | null;
 }
 
+export interface ObsScenePayload extends JsonObject {
+  name: string;
+  isCurrent: boolean;
+}
+
+export interface ObsInputPayload extends JsonObject {
+  name: string;
+  kind: string;
+  muted: boolean | null;
+  volumeDb: number | null;
+}
+
 /** The project-wide response envelope (StatusResponseDto&lt;T&gt;): {@code status: "ok"|"error"} +
  * {@code message} on failure. There is no {@code success} boolean or {@code errorCode} on the wire —
  * error KIND (expired token vs. forbidden vs. not found, …) is conveyed purely via HTTP status. */
@@ -169,6 +181,18 @@ export class AutomationClient {
       "GET",
       `/automation/v1/music/playlists?limit=${limit}&offset=${offset}`,
     );
+  }
+
+  /** S-STREAMDECK-OBS-REMAINDER: the scene list for the Switch Scene property inspector's dropdown
+   * (replaces the free-text scene name field). Mirrors {@link getDevices}/{@link getPlaylists}. */
+  async getObsScenes(): Promise<ObsScenePayload[]> {
+    return this.request<ObsScenePayload[]>("GET", "/automation/v1/obs/scenes");
+  }
+
+  /** The input list for the Toggle Mute property inspector's dropdown (replaces the free-text input
+   * name field). */
+  async getObsInputs(): Promise<ObsInputPayload[]> {
+    return this.request<ObsInputPayload[]>("GET", "/automation/v1/obs/inputs");
   }
 
   /** Connects (or reconnects) the WS subscription for `song.changed`. Idempotent.

@@ -221,7 +221,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.obs-switch-scene",
       "Icon": "imgs/actions/scene",
       "Tooltip": "Switches the active OBS scene to the one configured on this key.",
-      "PropertyInspectorPath": "ui/simple-param.html",
+      "PropertyInspectorPath": "ui/scene-picker.html",
       "States": [{ "Image": "imgs/actions/scene" }]
     },
     {
@@ -229,7 +229,7 @@
       "UUID": "bot.nomnomzbot.streamdeck.obs-toggle-mute",
       "Icon": "imgs/actions/mic-mute",
       "Tooltip": "Mutes/unmutes the OBS audio input configured on this key.",
-      "PropertyInspectorPath": "ui/simple-param.html",
+      "PropertyInspectorPath": "ui/input-picker.html",
       "States": [{ "Image": "imgs/actions/mic-mute" }]
     },
     {

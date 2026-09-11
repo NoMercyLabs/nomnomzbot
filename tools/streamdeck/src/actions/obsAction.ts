@@ -22,7 +22,7 @@ import { getDeviceFlowStatus, onDeviceFlowStatusChange } from "../connection/dev
 import { renderIconKey, DEFAULT_BACKGROUND } from "../nowPlaying/keyRenderer.js";
 
 interface PiRequest extends JsonObject {
-  type: "getPairingStatus" | "getHost" | "setHost";
+  type: "getPairingStatus" | "getHost" | "setHost" | "listScenes" | "listInputs";
   host?: string;
 }
 
@@ -83,10 +83,10 @@ export abstract class ObsAction<TSettings extends JsonObject = JsonObject> exten
   }
 
   /** Property-inspector requests — same relay pattern as MusicAction's onSendToPlugin (P5): the PI
-   * can't hold the bearer token itself, so pairing/host reads are relayed through here. No
-   * listDevices/listPlaylists-equivalent: OBS scene/input names are a plain text field
-   * (ui/simple-param.html) rather than a fetched picker, matching the "keep it simple" fallback for
-   * a first OBS slice (S-PL5c) — a dashboard-driven scene/input dropdown is a natural follow-up. */
+   * can't hold the bearer token itself, so pairing/host/scene/input reads are relayed through here.
+   * listScenes/listInputs (S-STREAMDECK-OBS-REMAINDER) replace the original plain-text scene/input
+   * name field (S-PL5c's "keep it simple" fallback) with a fetched picker, matching
+   * listDevices/listPlaylists on MusicAction. */
   override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, TSettings>): Promise<void> {
     const request = ev.payload as PiRequest;
     if (request.type === "getPairingStatus") {
@@ -111,6 +111,12 @@ export abstract class ObsAction<TSettings extends JsonObject = JsonObject> exten
       await streamDeck.ui.sendToPropertyInspector({ type: "host", host: await getHost() });
     } else if (request.type === "setHost" && request.host) {
       await setHost(request.host);
+    } else if (request.type === "listScenes") {
+      const scenes = await automationClient.getObsScenes().catch(() => []);
+      await streamDeck.ui.sendToPropertyInspector({ type: "scenes", scenes });
+    } else if (request.type === "listInputs") {
+      const inputs = await automationClient.getObsInputs().catch(() => []);
+      await streamDeck.ui.sendToPropertyInspector({ type: "inputs", inputs });
     }
   }
 }

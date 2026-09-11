@@ -17,8 +17,8 @@ export interface SwitchSceneSettings extends JsonObject {
 }
 
 /** Invokes the dashboard's `obs_switch_scene` pipeline (obs-control.md §5) with this key's configured
- * scene name — a plain text field (ui/simple-param.html), matching the "keep it simple" fallback for
- * a first OBS slice rather than a fetched scene picker. */
+ * scene name — chosen from a live dropdown (ui/scene-picker.html, S-STREAMDECK-OBS-REMAINDER) fed by
+ * `GET /automation/v1/obs/scenes`. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.obs-switch-scene" })
 export class SwitchSceneAction extends ObsAction<SwitchSceneSettings> {
   protected readonly pipelineName = "obs_switch_scene";

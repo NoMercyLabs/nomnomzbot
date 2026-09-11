@@ -221,6 +221,32 @@ public class AutomationDataController(
         );
     }
 
+    /// <summary>The channel's OBS scenes (scope <c>read</c>) — Stream Deck property-inspector picker
+    /// (S-STREAMDECK-OBS-REMAINDER), mirroring <see cref="ObsController.GetScenes"/>.</summary>
+    [HttpGet("obs/scenes")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationObsSceneDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetObsScenes(CancellationToken ct)
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetObsScenesAsync(principal, ct));
+    }
+
+    /// <summary>The channel's OBS inputs (scope <c>read</c>) — Stream Deck property-inspector picker
+    /// (S-STREAMDECK-OBS-REMAINDER), mirroring <see cref="ObsController.GetInputs"/>.</summary>
+    [HttpGet("obs/inputs")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<AutomationObsInputDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetObsInputs(CancellationToken ct)
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetObsInputsAsync(principal, ct));
+    }
+
     /// <summary>The principal the authentication handler parked for this request.</summary>
     private AutomationPrincipal? Principal =>
         HttpContext.Items[typeof(AutomationPrincipal)] as AutomationPrincipal;
