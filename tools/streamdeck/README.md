@@ -10,40 +10,30 @@
 -----------------------------------------------------------------------------
 -->
 
-# NomNomzBot Stream Deck plugin
+# NomNomzBot Stream Deck plugins
 
-Control Spotify (and any other connected NomNomzBot music provider) through your bot's own
-Automation API. Pairs itself, defaults to your self-hosted bot at `localhost`.
+An npm workspace holding two independently installable Elgato Stream Deck plugins, plus the
+internal library they share:
 
-## Install
+- **[`music/`](music/README.md)** — `NomNomzBot Music`, Spotify/music control over the bot's own
+  Automation API.
+- **[`obs/`](obs/README.md)** — `NomNomzBot OBS`, OBS Studio control over the bot's own
+  Automation API.
+- **`shared/`** — `@nomnomzbot/streamdeck-shared`, the connection/pairing/token layer both
+  plugins depend on. **Not itself installable** — it has no `.sdPlugin` folder and is never
+  packaged or released; it exists purely so the auth code has one copy, not two forks.
 
-Download the latest `bot.nomnomzbot.streamdeck.streamDeckPlugin` from the
-[Releases page](https://github.com/NoMercyLabs/nomnomzbot/releases?q=streamdeck-v) and double-click
-it — the Stream Deck app installs it directly. Requires Stream Deck software 6.5+.
+Each plugin is versioned, tested, built, and released independently — see their own READMEs for
+development and release instructions.
 
-One package installs identically on **Windows** and **macOS**; a `.streamDeckPlugin` file is just
-the `.sdPlugin` folder zipped with that extension, so there's no separate installer per OS.
+## Setup
 
-**Linux** is not supported — Elgato does not ship an official Stream Deck app for Linux. Community
-projects such as [`streamdeck-linux-gui`](https://github.com/streamdeck-linux-gui/streamdeck-linux-gui)
-reimplement a Stream Deck client and may load third-party plugins, but they're unofficial, not built
-or tested by NoMercy Labs, and compatibility isn't guaranteed.
-
-## Development
+From this directory (`tools/streamdeck/`):
 
 ```bash
-npm ci
-npm run build       # bundles src/plugin.ts -> bot.nomnomzbot.streamdeck.sdPlugin/bin/plugin.js
-npm run watch        # rebuild on change
-npm run test
-npm run typecheck
+npm install       # installs and links all three workspace packages
 ```
 
-## Releasing
-
-Pushing a `streamdeck-v*` tag (e.g. `streamdeck-v1.0.0`) runs
-[`.github/workflows/streamdeck-release.yml`](../../.github/workflows/streamdeck-release.yml), which
-builds, tests, packages the `.sdPlugin` folder into a `.streamDeckPlugin` zip, and attaches it to a
-GitHub Release. Bump `Version` in
-[`bot.nomnomzbot.streamdeck.sdPlugin/manifest.json`](bot.nomnomzbot.streamdeck.sdPlugin/manifest.json)
-to match before tagging.
+Then work from `music/`, `obs/`, or `shared/` as needed — each has its own `npm run <script>`
+(`build`, `test`, `typecheck`, `check`), runnable either from inside that directory or from here
+with `-w <package>` (e.g. `npm run test -w music`).

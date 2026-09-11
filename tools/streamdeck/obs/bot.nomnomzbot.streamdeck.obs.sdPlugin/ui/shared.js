@@ -1,0 +1,76 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+// The Elgato SDK calls this global once the PI's websocket handshake is ready. `settings` is this
+// key's per-action Settings blob; the PI can't hold the bearer token itself (streamdeck-plugin.md P5)
+// so any authed read (device/playlist lists) is relayed through the plugin process via sendToPlugin.
+let piSocket = null;
+let piContext = null;
+let piActionInfo = null;
+
+window.connectElgatoStreamDeckSocket = function (port, uuid, event, info, actionInfo) {
+  piContext = uuid;
+  piActionInfo = JSON.parse(actionInfo);
+  piSocket = new WebSocket(`ws://127.0.0.1:${port}`);
+  piSocket.onopen = () => {
+    piSocket.send(JSON.stringify({ event, uuid }));
+    document.dispatchEvent(new CustomEvent("pi:ready", { detail: piActionInfo.payload?.settings ?? {} }));
+  };
+  piSocket.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+    if (data.event === "sendToPropertyInspector") {
+      document.dispatchEvent(new CustomEvent("pi:message", { detail: data.payload }));
+    }
+  };
+};
+
+function setSettings(partial) {
+  const settings = { ...(piActionInfo.payload?.settings ?? {}), ...partial };
+  piActionInfo.payload.settings = settings;
+  piSocket.send(
+    JSON.stringify({
+      event: "setSettings",
+      context: piContext,
+      payload: settings,
+    }),
+  );
+}
+
+function requestFromPlugin(request) {
+  piSocket.send(
+    JSON.stringify({
+      event: "sendToPlugin",
+      context: piContext,
+      payload: request,
+    }),
+  );
+}
+
+/**
+ * Every action gets the same "Key color" background picker (keyRenderer.js's DEFAULT_BACKGROUND).
+ * A plain native <input type="color">, not sdpi-color: sdpi-color is a Lit-based custom element
+ * whose shadow-DOM input binds `.defaultValue` (not `.value`) to its reactive property on render,
+ * so an externally-set `.value` can be silently dropped or overwritten by the component's own next
+ * render cycle — exactly the "picker shows blank / doesn't stick" symptom. The native input has none
+ * of that indirection: its `value` property is standard, synchronous, and always visible.
+ */
+function initBackgroundColorPicker(container, settings) {
+  const item = document.createElement("sdpi-item");
+  item.setAttribute("label", "Key color");
+  const picker = document.createElement("input");
+  picker.type = "color";
+  picker.style.cssText = "width:100%;height:28px;border:none;border-radius:4px;cursor:pointer;background:transparent;padding:0";
+  picker.value = settings.backgroundColor || "#1a1a1a";
+  const apply = (ev) => setSettings({ backgroundColor: ev.target.value });
+  picker.addEventListener("input", apply);
+  picker.addEventListener("change", apply);
+  item.appendChild(picker);
+  container.appendChild(item);
+}

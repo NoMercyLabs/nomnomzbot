@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v3/sdpi-components.js"></script>
+    <script src="shared.js"></script>
+  </head>
+  <body>
+    <!-- The plugin's own settings page (manifest top-level PropertyInspectorPath) — reached from the
+         Stream Deck app's Plugins list, not from any individual key. The ONE place pairing/host setup
+         lives; no per-key duplication (streamdeck-plugin.md P6). -->
+    <sdpi-item label="Host">
+      <sdpi-textfield id="host" placeholder="http://localhost:5080"></sdpi-textfield>
+    </sdpi-item>
+    <sdpi-item label="Status">
+      <span id="status">Checking connection…</span>
+    </sdpi-item>
+    <sdpi-item id="linkItem" style="display: none">
+      <a id="link" href="#" target="_blank" rel="noopener">Open approval page</a>
+    </sdpi-item>
+    <script>
+      document.addEventListener("pi:ready", () => {
+        requestFromPlugin({ type: "getHost" });
+        requestFromPlugin({ type: "getPairingStatus" });
+
+        document.getElementById("host").addEventListener("change", (change) => {
+          requestFromPlugin({ type: "setHost", host: change.target.value });
+          document.getElementById("status").textContent = "Starting pairing…";
+          document.getElementById("linkItem").style.display = "none";
+        });
+      });
+
+      document.addEventListener("pi:message", (ev) => {
+        const msg = ev.detail;
+        if (msg?.type === "host") {
+          document.getElementById("host").value = msg.host || "";
+        } else if (msg?.type === "pairingStatus") {
+          const linkItem = document.getElementById("linkItem");
+          const link = document.getElementById("link");
+          if (msg.paired) {
+            document.getElementById("status").textContent =
+              `Connected${msg.tokenExpiresAt ? ` (expires ${new Date(msg.tokenExpiresAt).toLocaleDateString()})` : ""}`;
+            linkItem.style.display = "none";
+          } else if (msg.verificationUri) {
+            document.getElementById("status").textContent = "Waiting for approval…";
+            link.href = msg.verificationUri;
+            linkItem.style.display = "";
+          } else if (msg.lastError) {
+            document.getElementById("status").textContent = `${msg.lastError} — retrying…`;
+            linkItem.style.display = "none";
+          } else {
+            document.getElementById("status").textContent = "Starting pairing…";
+            linkItem.style.display = "none";
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

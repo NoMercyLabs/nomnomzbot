@@ -1,3 +1,4 @@
 node_modules/
-bot.nomnomzbot.streamdeck.sdPlugin/bin/
 *.log
+*/bot.nomnomzbot.streamdeck.*.sdPlugin/bin/
+shared/dist/

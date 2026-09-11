@@ -2,7 +2,7 @@
 
 **Status:** Implementable. Code the owner writes from this should compile first-try.
 **Sources of truth:** Elgato Stream Deck SDK v2 (`com.elgato.streamdeck`, Node.js/TypeScript plugin runtime, `manifest.json` action registry, property inspector = per-action HTML page, `setImage`/`setTitle`/`setState`/`sendToPropertyInspector` websocket protocol between the Stream Deck app and the plugin process). Corpus: `stream-deck.md` (the backend contract — pairing D2/D7, token lifecycle D8; this plugin is the device side and restates none of it); `music-automation-controls.md` (the 19 `music_*` pipeline actions + `GetNowPlayingAsync`/`GetDevicesAsync`/`GetPlaylistsAsync` reads + `song.changed` event this plugin's keys drive/display); `automation-api.md` (§1 WS protocol `op`/`id`/`response`/`event` shape, `D3` auth-transport: native tools use `Authorization: Bearer`).
-**Conventions (binding):** TypeScript, strict mode, `tools/streamdeck/` (D5, `stream-deck.md`). Elgato SDK plugin UUID reverse-DNS: `bot.nomnomz.streamdeck`. No React/framework needed for property inspector pages — Elgato's own `sdpi-components` web components (their documented PI toolkit) keep the PI dependency-free and consistent with every other Elgato plugin's look.
+**Conventions (binding):** TypeScript, strict mode, `tools/streamdeck/` (D5, `stream-deck.md`) — an npm workspace with three packages: `shared/` (the connection/pairing/token layer, not itself an installable plugin), `music/` (installable plugin, UUID `bot.nomnomzbot.streamdeck.music`), and `obs/` (installable plugin, UUID `bot.nomnomzbot.streamdeck.obs`). No React/framework needed for property inspector pages — Elgato's own `sdpi-components` web components (their documented PI toolkit) keep the PI dependency-free and consistent with every other Elgato plugin's look.
 
 > **Why.** `stream-deck.md`/`music-automation-controls.md` built the entire backend contract this plugin rides — a token, a WS event stream, a REST invoke/read surface. This spec is the client: what ships to the Elgato Marketplace, how the 19 backend music actions become 19 clearly-labeled Stream Deck actions (plus one generic Run pipeline key) (owner: no partial grouping — every capability gets its own tray entry with its own description, plain streamer-friendly language over technical terms), and how a key shows *live* state (elapsed time, shuffle/repeat/favorite) without polling.
 
@@ -24,7 +24,7 @@
 
 ## 1. Action manifest (tray entries)
 
-`manifest.json` `Actions[]`: 19 rows under category `"NomNomzBot: Music"` (one per `music-automation-controls.md` §3.1 pipeline action) plus the generic **Run pipeline** row under category `"NomNomzBot"` (P1). `Name`/`Tooltip` are the plain-language surface (not the backend `Type` string), `UUID = bot.nomnomz.streamdeck.<slug>`.
+`manifest.json` `Actions[]`: 19 rows under category `"NomNomzBot: Music"` (one per `music-automation-controls.md` §3.1 pipeline action) plus the generic **Run pipeline** row under category `"NomNomzBot"` (P1). `Name`/`Tooltip` are the plain-language surface (not the backend `Type` string), `UUID = bot.nomnomzbot.streamdeck.music.<slug>` in the `music/` plugin's own manifest (OBS actions carry `bot.nomnomzbot.streamdeck.obs.<slug>` in the `obs/` plugin's manifest — each plugin ships its own `manifest.json`, per §2).
 
 | Backend `Type` | Stream Deck `Name` | Tooltip | Key rendering | PI fields |
 |---|---|---|---|---|
@@ -53,27 +53,44 @@
 
 ## 2. Plugin process architecture
 
+An npm workspace of three packages — one shared library plus one installable plugin per action
+group, each with its own `manifest.json`, so Music and OBS ship and version independently:
+
 ```
 tools/streamdeck/
-  manifest.json                # SDK manifest: 19 music actions + Run pipeline + plugin metadata
-  src/
-    plugin.ts                  # SDK entrypoint — singleton connection owner (P2)
-    connection/
+  package.json                 # workspace root: {"workspaces": ["shared", "music", "obs"]}
+  shared/                      # @nomnomzbot/streamdeck-shared — NOT an installable plugin
+    src/
       automationClient.ts      # WS subscribe (song.changed) + REST invoke/read/refresh (P6, P7)
       pairing.ts                # loopback HTTP listener (P3) + code-fallback relay
       tokenStore.ts             # global-settings read/write, refresh-timer (P7)
-    nowPlaying/
-      state.ts                  # shared NowPlayingState (P2), anchor+extrapolation (P4)
-      keyRenderer.ts             # canvas → PNG data-URI for play/pause+time keys
-    actions/
-      <one file per manifest action>.ts   # SDK action class: onKeyDown → invoke; onWillAppear → subscribe to state
-    propertyinspector/
-      shared.html + shared.js    # sdpi-components base
-      device-picker.html         # music_transfer_device PI
-      playlist-picker.html       # add/remove-from-playlist PI
-      pipeline-picker.html       # Run pipeline PI (P1)
-      pairing-fallback.html      # not-yet-paired PI (P3 manual code fallback)
+      deviceFlow.ts, deviceFlowState.ts, authWindow.ts, index.ts (barrel)
+    tests/
+  music/                        # installable plugin, UUID bot.nomnomzbot.streamdeck.music
+    bot.nomnomzbot.streamdeck.music.sdPlugin/
+      manifest.json             # SDK manifest: 19 music actions + Run pipeline + plugin metadata
+    src/
+      plugin.ts                 # SDK entrypoint — singleton connection owner (P2)
+      nowPlaying/
+        state.ts                 # shared NowPlayingState (P2), anchor+extrapolation (P4)
+        keyRenderer.ts            # SVG data-URI renderer for play/pause+time keys
+      actions/
+        <one file per manifest action>.ts   # SDK action class: onKeyDown → invoke; onWillAppear → subscribe to state
+    tests/
+  obs/                          # installable plugin, UUID bot.nomnomzbot.streamdeck.obs
+    bot.nomnomzbot.streamdeck.obs.sdPlugin/
+      manifest.json
+    src/
+      plugin.ts
+      keyRenderer.ts             # generic icon-key SVG renderer (no now-playing state)
+      actions/
+    tests/
 ```
+
+Both plugins' `ui/` folders (property inspector pages) follow the same shape: `settings.html` +
+`shared.js` (`sdpi-components` base) plus per-action picker pages (`device-picker.html`,
+`playlist-picker.html`, `pipeline-picker.html`, …) selected by each action's own
+`PropertyInspectorPath` in its plugin's `manifest.json`.
 
 Every action file follows the same shape: `onWillAppear` registers the key with `keyRenderer`/`state` for live repaint; `onKeyDown` resolves its `Settings` (device/playlist id, volume, etc.) and calls `automationClient.invoke(Type, params)`; a shared error path (`TOKEN_EXPIRED`, `CAPABILITY_UNSUPPORTED`, `PREMIUM_REQUIRED`) flashes the key red via `showAlert()` (SDK built-in) with the failure reason in the tooltip — never a silent no-op, matching the project's "truthful data, not fake enforcement" standard.
 
