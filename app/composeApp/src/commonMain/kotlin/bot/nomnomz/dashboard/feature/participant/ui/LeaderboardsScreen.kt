@@ -84,7 +84,6 @@ private fun Ready(state: LeaderboardsState.Ready, onToggleConsent: (Boolean) -> 
     val spacing = LocalSpacing.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6)) {
-        state.actionError?.let { ActionErrorBanner(detail = it) }
         ConsentCard(optedIn = state.optedIn, onToggle = onToggleConsent)
         RankingCard(state = state)
     }

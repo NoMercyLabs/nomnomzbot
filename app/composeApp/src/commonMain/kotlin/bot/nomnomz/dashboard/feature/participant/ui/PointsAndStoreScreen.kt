@@ -108,7 +108,6 @@ private fun Ready(
             modifier = Modifier.fillMaxWidth().padding(spacing.s6),
             verticalArrangement = Arrangement.spacedBy(spacing.s4),
         ) {
-            state.actionError?.let { ActionErrorBanner(detail = it) }
             BalanceCard(state = state)
             if (state.canTransfer) TransferCard(frozen = state.account.isFrozen, onTransfer = onTransfer)
             CatalogCard(items = state.catalog, frozen = state.account.isFrozen, onPurchase = onPurchase)

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.tts.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -438,7 +440,6 @@ class TtsControllerTest {
         assertEquals(1, ready.lexicon.size)
         assertEquals("Jaydee", ready.lexicon.single().replacement)
         assertEquals("word", ready.lexicon.single().matchKind)
-        assertNull(ready.lexiconError)
     }
 
     @Test
@@ -476,15 +477,19 @@ class TtsControllerTest {
         ttsApi.lexiconEntries.add(
             TtsLexiconEntry(id = "lex-1", phrase = "brb", replacement = "be right back", matchKind = "word")
         )
-        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi, feedback = feedback)
         controller.load()
         ttsApi.lexiconWriteFailure = ApiError(409, "ALREADY_EXISTS", "duplicate rule")
 
         controller.addLexiconEntry("brb", "bathroom break", "word")
 
+        // The failure announces on the shell-level feedback toast and the list stays untouched.
         val ready: TtsState.Ready = controller.state.value as TtsState.Ready
-        assertEquals("duplicate rule", ready.lexiconError)
-        assertEquals(listOf("brb"), ready.lexicon.map { it.phrase }) // list untouched
+        assertEquals(listOf("brb"), ready.lexicon.map { it.phrase })
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("duplicate rule"), feedback.only.formatArgs)
     }
 }
 

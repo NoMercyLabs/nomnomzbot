@@ -75,6 +75,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_action_applied
 import nomnomzbot.composeapp.generated.resources.feedback_action_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
+import nomnomzbot.composeapp.generated.resources.moderation_action_error
 
 // The Moderation page's state-holder: resolve the active channel, load its real list of currently-banned
 // viewers from the backend (no fabricated entries), and lift a ban on request. The screen renders [state];
@@ -454,14 +455,7 @@ class ModerationController(
                 feedback.success(Res.string.feedback_unbanned)
                 load()
             }
-            is ApiResult.Failure -> {
-                // Announce the failure on the frame (persistent) AND keep the in-page banner over the list.
-                feedback.error(Res.string.feedback_unban_failed, result.error.message)
-                val current: ModerationState = _state.value
-                if (current is ModerationState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.feedback_unban_failed, result.error.message)
         }
     }
 
@@ -707,7 +701,7 @@ class ModerationController(
                         historyHasMore = result.value.hasMore,
                         historyFilter = effectiveFilter,
                     )
-            is ApiResult.Failure -> _state.value = current.copy(actionError = result.error.message)
+            is ApiResult.Failure -> feedback.error(Res.string.moderation_action_error, result.error.message)
         }
     }
 
@@ -824,12 +818,9 @@ class ModerationController(
         }
     }
 
-    // Surface a write error on the current Ready list without disturbing it (same shape as the other writes).
+    // Announce a write failure on the shell-level feedback toast without disturbing the current Ready list.
     private fun setActionError(message: String) {
-        val current: ModerationState = _state.value
-        if (current is ModerationState.Ready) {
-            _state.value = current.copy(actionError = message)
-        }
+        if (_state.value is ModerationState.Ready) feedback.error(Res.string.moderation_action_error, message)
     }
 
     /**
@@ -840,12 +831,7 @@ class ModerationController(
         val channel: String = channelId ?: return
         when (val result: ApiResult<Unit> = moderationApi.setShieldMode(channel, enabled)) {
             is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: ModerationState = _state.value
-                if (current is ModerationState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
 
@@ -968,12 +954,7 @@ class ModerationController(
                 )
         ) {
             is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: ModerationState = _state.value
-                if (current is ModerationState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
 
@@ -1060,13 +1041,7 @@ class ModerationController(
                 feedback.success(Res.string.feedback_action_applied)
                 load()
             }
-            is ApiResult.Failure -> {
-                feedback.error(Res.string.feedback_action_failed, result.error.message)
-                val current: ModerationState = _state.value
-                if (current is ModerationState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.feedback_action_failed, result.error.message)
         }
     }
 
@@ -1111,12 +1086,7 @@ class ModerationController(
         val channel: String = channelId ?: return
         when (val result: ApiResult<Unit> = moderationApi.announce(channel, message, color)) {
             is ApiResult.Ok -> Unit
-            is ApiResult.Failure -> {
-                val current: ModerationState = _state.value
-                if (current is ModerationState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
 
@@ -1204,7 +1174,6 @@ class ModerationController(
                         ready.copy(
                             trustPolicy = result.value,
                             trustWeightSumInvalid = false,
-                            actionError = null,
                         )
                 }
             }
@@ -1234,7 +1203,6 @@ class ModerationController(
                         ready.copy(
                             spamDefense =
                                 ready.spamDefense?.copy(settings = result.value, isPinned = true),
-                            actionError = null,
                         )
                 }
             }
@@ -1266,7 +1234,6 @@ class ModerationController(
                                         detection
                                     }
                                 },
-                            actionError = null,
                         )
                 }
             }
@@ -1298,7 +1265,6 @@ class ModerationController(
                                         block
                                     }
                                 },
-                            actionError = null,
                         )
                 }
             }
@@ -1318,7 +1284,7 @@ class ModerationController(
             is ApiResult.Ok -> {
                 val ready: ModerationState = _state.value
                 if (ready is ModerationState.Ready) {
-                    _state.value = ready.copy(twitchAutoMod = result.value, actionError = null)
+                    _state.value = ready.copy(twitchAutoMod = result.value)
                 }
             }
             is ApiResult.Failure -> setActionError(result.error.message)
@@ -1328,12 +1294,7 @@ class ModerationController(
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
             is ApiResult.Ok -> load()
-            is ApiResult.Failure -> {
-                val current: ModerationState = _state.value
-                if (current is ModerationState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
 }
@@ -1343,8 +1304,8 @@ sealed interface ModerationState {
     data object Loading : ModerationState
 
     /**
-     * The active bans + the recent mod action log, plus an optional message when the last unban attempt failed
-     * (the lists stay intact).
+     * The active bans + the recent mod action log. A failed write announces on the shell-level feedback toast
+     * rather than a field here — see [ModerationController.setActionError].
      */
     data class Ready(
         val bans: List<BannedUser>,
@@ -1358,7 +1319,6 @@ sealed interface ModerationState {
         // Custom chat filters (regex / blocklist, J.6, S066) — see load().
         val chatFilters: List<ChatFilter> = emptyList(),
         val stats: ModerationStats = ModerationStats(),
-        val actionError: String? = null,
         val unbanRequests: List<UnbanRequest> = emptyList(),
         val reports: List<ViewerReport> = emptyList(),
         // The AutoMod held-message review queue (J.1, S066) — pending items awaiting approve/deny. See load().

@@ -96,7 +96,6 @@ private fun Ready(state: NowPlayingState.Ready, onSubmit: (String) -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(spacing.s6),
             verticalArrangement = Arrangement.spacedBy(spacing.s4),
         ) {
-            state.actionError?.let { ActionErrorBanner(detail = it) }
             NowPlayingCard(track = state.snapshot.nowPlaying)
             SubmitCard(
                 pendingLimit = state.pendingLimit,

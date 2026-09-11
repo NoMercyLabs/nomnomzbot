@@ -10,6 +10,10 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.io.PickedFile
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -106,7 +110,6 @@ class ViewerProfileControllerTest {
         assertEquals(listOf(Triple("ch1", "tw-99", "Spamming links")), communityApi.banCalls)
         // The write reloaded the profile (the SAME reload discipline every mutation here follows).
         assertEquals(2, communityApi.profileCallCount)
-        assertNull((controller.state.value as ViewerProfileState.Ready).actionError)
     }
 
     @Test
@@ -115,15 +118,15 @@ class ViewerProfileControllerTest {
         // cannot be addressed for them. The controller must refuse rather than call the API with a blank id.
         val profile = fakeProfile(displayName = "KickOnly", twitchId = null)
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(profile))
-        val controller = controller(communityApi = communityApi)
+        val feedback = RecordingFeedback()
+        val controller = controller(communityApi = communityApi, feedback = feedback)
         controller.load("u1")
 
         controller.ban("reason")
 
         assertTrue(communityApi.banCalls.isEmpty())
-        val state: ViewerProfileState.Ready = controller.state.value as ViewerProfileState.Ready
         assertEquals(1, communityApi.profileCallCount) // no reload — the write never reached the backend
-        assertTrue(state.actionError != null)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
     }
 
     @Test
@@ -174,19 +177,20 @@ class ViewerProfileControllerTest {
     @Test
     fun a_rejected_override_message_surfaces_the_backends_reason_on_the_page_banner() = runTest {
         // A caller that fires-and-forgets the write (the Profile screen's overrides section calls this but a
-        // caller could ignore the return) must still see the failure — via the SAME actionError banner every
-        // other write on this page uses, not a silently swallowed error.
+        // caller could ignore the return) must still see the failure — via the SAME shell-level feedback toast
+        // every other write on this page uses, not a silently swallowed error.
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile(twitchId = "tw-1")))
         val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
         moderationApi.setShoutoutOverrideResult = ApiResult.Failure(ApiError(400, "BAD_REQUEST", "Template too long."))
-        val controller = controller(communityApi = communityApi, moderationApi = moderationApi)
+        val feedback = RecordingFeedback()
+        val controller = controller(communityApi = communityApi, moderationApi = moderationApi, feedback = feedback)
         controller.load("u1")
 
         val returned: String? = controller.saveOverrideMessage("shoutout", "x".repeat(2000))
 
         assertEquals("Template too long.", returned)
-        val state: ViewerProfileState.Ready = controller.state.value as ViewerProfileState.Ready
-        assertEquals("Template too long.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("Template too long."), feedback.only.formatArgs)
         // No reload happened on failure — the profile still reflects the PRE-write state.
         assertEquals(1, communityApi.profileCallCount)
     }
@@ -248,14 +252,16 @@ class ViewerProfileControllerTest {
     fun erase_user_data_calls_users_api_and_surfaces_a_failure_on_the_banner() = runTest {
         val usersApi = VPCFakeUsersApi(eraseResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "compliance:erasure required.")))
         val communityApi = VPCFakeCommunityApi(profileResult = ApiResult.Ok(fakeProfile()))
-        val controller = controller(communityApi = communityApi, usersApi = usersApi)
+        val feedback = RecordingFeedback()
+        val controller = controller(communityApi = communityApi, usersApi = usersApi, feedback = feedback)
         controller.load("u1")
 
         val error: String? = controller.eraseUserData()
 
         assertEquals("compliance:erasure required.", error)
         assertEquals(listOf("u1"), usersApi.eraseCalls)
-        assertEquals("compliance:erasure required.", (controller.state.value as ViewerProfileState.Ready).actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("compliance:erasure required."), feedback.only.formatArgs)
     }
 
     @Test
@@ -298,6 +304,7 @@ class ViewerProfileControllerTest {
         gdprApi: GdprApi = VPCFakeGdprApi(),
         usersApi: UsersApi = VPCFakeUsersApi(),
         fileBridge: JournalFileIO = VPCFakeFileBridge(),
+        feedback: Feedback = NoOpFeedback,
     ): ViewerProfileController =
         ViewerProfileController(
             channelsApi = VPCFakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
@@ -309,6 +316,7 @@ class ViewerProfileControllerTest {
             gdprApi = gdprApi,
             usersApi = usersApi,
             fileBridge = fileBridge,
+            feedback = feedback,
         )
 
     private fun fakeProfile(

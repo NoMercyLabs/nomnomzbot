@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.music.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlockTrackBody
@@ -38,7 +40,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -156,7 +157,6 @@ class MusicControllerTest {
         assertEquals("Sandstorm", ready.queue[0].trackName)
         assertEquals("viewer1", ready.queue[0].requestedBy)
         assertEquals(1, ready.queue[1].position)
-        assertNull(ready.actionError)
     }
 
     @Test
@@ -244,7 +244,6 @@ class MusicControllerTest {
         val state: MusicState = controller.state.value
         assertTrue(state is MusicState.Ready)
         assertFalse((state as MusicState.Ready).nowPlaying?.isPlaying ?: true)
-        assertNull(state.actionError)
         // Two snapshot reads: the initial load plus the reload after the successful pause.
         assertEquals(2, musicApi.queueCalls)
     }
@@ -287,7 +286,6 @@ class MusicControllerTest {
         // The skipped-to track is now playing and the queue advanced.
         assertEquals("B", (state as MusicState.Ready).nowPlaying?.trackName)
         assertTrue(state.queue.isEmpty())
-        assertNull(state.actionError)
     }
 
     @Test
@@ -317,7 +315,6 @@ class MusicControllerTest {
         val state: MusicState = controller.state.value
         assertTrue(state is MusicState.Ready)
         assertEquals(listOf("A"), (state as MusicState.Ready).queue.map { it.trackName })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -332,7 +329,13 @@ class MusicControllerTest {
                 snapshots = listOf(ApiResult.Ok(snapshot)),
                 controlResult = ApiResult.Failure(ApiError(503, "UNAVAILABLE", "No active music provider.")),
             )
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            MusicController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                musicApi,
+                feedback = feedback,
+            )
 
         controller.load()
         controller.skip()
@@ -340,10 +343,11 @@ class MusicControllerTest {
         assertEquals(listOf("ch1"), musicApi.skipCalls)
         val state: MusicState = controller.state.value
         assertTrue(state is MusicState.Ready)
-        // The snapshot is untouched and the failure is surfaced on the Ready state.
+        // The snapshot is untouched and the failure announces on the shell-level feedback toast.
         assertEquals("A", (state as MusicState.Ready).nowPlaying?.trackName)
         assertEquals(listOf("Q1"), state.queue.map { it.trackName })
-        assertEquals("No active music provider.", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("No active music provider."), feedback.only.formatArgs)
         // Only the initial load read the snapshot; the failed control did not trigger a reload.
         assertEquals(1, musicApi.queueCalls)
     }
@@ -511,7 +515,6 @@ class MusicControllerTest {
             musicApi.blockCalls,
         )
         assertEquals(listOf(1), musicApi.blockedReads)
-        assertNull((controller.state.value as MusicState.Ready).actionError)
     }
 
     @Test
@@ -521,15 +524,21 @@ class MusicControllerTest {
                 snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
                 blockResult = ApiResult.Failure(ApiError(409, "TRACK_BLOCKED", "Track is already blocked.")),
             )
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            MusicController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                musicApi,
+                feedback = feedback,
+            )
         controller.load()
         musicApi.blockedReads.clear()
 
         controller.blockTrack(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = null)
 
-        val state: MusicState.Ready = controller.state.value as MusicState.Ready
-        // The 409 surfaces on the Ready state; nothing re-read, so the rows stay put.
-        assertEquals("Track is already blocked.", state.actionError)
+        // The 409 announces on the shell-level feedback toast; nothing re-read, so the rows stay put.
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("Track is already blocked."), feedback.only.formatArgs)
         assertTrue(musicApi.blockedReads.isEmpty())
     }
 
@@ -544,7 +553,6 @@ class MusicControllerTest {
 
         assertEquals(listOf("bt1"), musicApi.unblockCalls)
         assertEquals(listOf(1), musicApi.blockedReads)
-        assertNull((controller.state.value as MusicState.Ready).actionError)
     }
 
     @Test

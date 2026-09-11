@@ -28,12 +28,16 @@ import bot.nomnomz.dashboard.core.network.UpdateRewardBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubRedemptionStatusChanged
 import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.rewards_action_error
 
 // The Rewards page's state-holder (frontend-ia.md §3 — the channel's channel-point rewards). Resolves the active
 // channel, then loads its real reward list from the backend (Twitch Helix Custom Rewards; no fabricated rewards).
@@ -43,6 +47,7 @@ class RewardsController(
     private val channelsApi: ChannelsApi,
     private val rewardsApi: RewardsApi,
     private val pipelinesApi: PipelinesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<RewardsState> = MutableStateFlow(RewardsState.Loading)
 
@@ -399,11 +404,11 @@ class RewardsController(
         }
     }
 
+    // Every failWrite call site is a write outcome (create/edit/toggle/delete/sync/timer action/...), never a
+    // "this list can't load" state — that's [loadWarning] instead. The failure announces on the shell-level
+    // feedback toast (dismissable) and the page keeps whatever it was showing.
     private fun failWrite(detail: String) {
-        val current: RewardsState = _state.value
-        _state.value =
-            if (current is RewardsState.Ready) current.copy(actionError = detail)
-            else RewardsState.Error(detail)
+        feedback.error(Res.string.rewards_action_error, detail)
     }
 
     private companion object {
@@ -417,18 +422,18 @@ sealed interface RewardsState {
 
     /**
      * The channel's rewards are listed, alongside the [redemptions] pending in the queue (status=unfulfilled,
-     * newest-first). [actionError] is non-null only when the last create/edit/toggle/delete failed — the screen
-     * surfaces it as a transient banner while keeping the list rendered. [loadWarning] is non-null when one of
-     * the supplementary reads (redemptions/pipelines/timers) failed on the last [RewardsController.load] — those
-     * lists then degrade to empty rather than failing the whole page, but that must stay visibly distinct from
-     * the channel genuinely having none, so the screen surfaces it too.
+     * newest-first). A create/edit/toggle/delete failure announces on the shell-level feedback toast rather than
+     * a field here — see [RewardsController.failWrite]. [loadWarning] is non-null when one of the supplementary
+     * reads (redemptions/pipelines/timers) failed on the last [RewardsController.load] — those lists then degrade
+     * to empty rather than failing the whole page, but that must stay visibly distinct from the channel genuinely
+     * having none, so the screen surfaces it as a persistent inline notice (the section is still broken, not a
+     * one-off action outcome to dismiss).
      */
     data class Ready(
         val rewards: List<RewardSummary>,
         val redemptions: List<RedemptionSummary> = emptyList(),
         val pipelines: List<PipelineSummary> = emptyList(),
         val timers: List<RedemptionTimer> = emptyList(),
-        val actionError: String? = null,
         val loadWarning: String? = null,
     ) : RewardsState
 

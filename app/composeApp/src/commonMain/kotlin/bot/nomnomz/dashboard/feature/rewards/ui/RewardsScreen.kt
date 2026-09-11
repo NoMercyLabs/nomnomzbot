@@ -50,7 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -84,7 +84,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.rewards_action_error
 import nomnomzbot.composeapp.generated.resources.rewards_load_warning
 import nomnomzbot.composeapp.generated.resources.rewards_cost
 import nomnomzbot.composeapp.generated.resources.rewards_delete_action
@@ -224,7 +223,6 @@ fun RewardsScreen(
                     rewards = emptyList(),
                     redemptions = emptyList(),
                     timers = emptyList(),
-                    actionError = null,
                     loadWarning = null,
                     edit = edit,
                     lifecycle = lifecycle,
@@ -250,7 +248,6 @@ fun RewardsScreen(
                     rewards = current.rewards,
                     redemptions = current.redemptions,
                     timers = current.timers,
-                    actionError = current.actionError,
                     loadWarning = current.loadWarning,
                     edit = edit,
                     lifecycle = lifecycle,
@@ -371,7 +368,6 @@ private fun ManagedContent(
     rewards: List<RewardSummary>,
     redemptions: List<RedemptionSummary>,
     timers: List<RedemptionTimer>,
-    actionError: String?,
     loadWarning: String?,
     edit: ManageDecision,
     lifecycle: ManageDecision,
@@ -394,8 +390,7 @@ private fun ManagedContent(
     ) {
         // Creating/syncing/importing rewards are Broadcaster-only lifecycle actions — New + Sync + Import gate on [lifecycle].
         Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync, onImport = onImport)
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_action_error, it)) }
-        loadWarning?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_load_warning, it)) }
+        loadWarning?.let { InlineError(message = stringResource(Res.string.rewards_load_warning, it)) }
 
         if (rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty()) {
             CenteredMessage(stringResource(Res.string.rewards_empty))

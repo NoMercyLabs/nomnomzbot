@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.participant.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
@@ -42,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.participant_action_error
 import nomnomzbot.composeapp.generated.resources.participant_no_channel
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
@@ -66,6 +69,7 @@ class ParticipantController(
     private val systemApi: SystemApi,
     private val analyticsApi: AnalyticsApi,
     private val pronounsApi: PronounsApi? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _myChannel: MutableStateFlow<MyChannelState> = MutableStateFlow(MyChannelState.Loading)
     private val _nowPlaying: MutableStateFlow<NowPlayingState> = MutableStateFlow(NowPlayingState.Loading)
@@ -184,12 +188,7 @@ class ParticipantController(
                 participantApi.submitSongRequest(channelId, query.trim(), requestedBy)
         ) {
             is ApiResult.Ok -> loadNowPlaying()
-            is ApiResult.Failure -> {
-                val current: NowPlayingState = _nowPlaying.value
-                if (current is NowPlayingState.Ready) {
-                    _nowPlaying.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.participant_action_error, result.error.message)
         }
     }
 
@@ -258,11 +257,10 @@ class ParticipantController(
     private fun afterLeaderboardToggle(result: ApiResult<Unit>, optedIn: Boolean) {
         val current: LeaderboardsState = _leaderboards.value
         if (current !is LeaderboardsState.Ready) return
-        _leaderboards.value =
-            when (result) {
-                is ApiResult.Ok -> current.copy(optedIn = optedIn, actionError = null)
-                is ApiResult.Failure -> current.copy(actionError = result.error.message)
-            }
+        when (result) {
+            is ApiResult.Ok -> _leaderboards.value = current.copy(optedIn = optedIn)
+            is ApiResult.Failure -> feedback.error(Res.string.participant_action_error, result.error.message)
+        }
     }
 
     // ── My Points & Store ────────────────────────────────────────────────────
@@ -335,12 +333,7 @@ class ParticipantController(
     private suspend fun afterStoreWrite(result: ApiResult<Unit>) {
         when (result) {
             is ApiResult.Ok -> loadStore()
-            is ApiResult.Failure -> {
-                val current: StoreState = _store.value
-                if (current is StoreState.Ready) {
-                    _store.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.participant_action_error, result.error.message)
         }
     }
 
@@ -386,15 +379,10 @@ class ParticipantController(
                 loadGames()
                 val current: ParticipantGamesState = _games.value
                 if (current is ParticipantGamesState.Ready) {
-                    _games.value = current.copy(lastOutcome = outcome, actionError = null)
+                    _games.value = current.copy(lastOutcome = outcome)
                 }
             }
-            is ApiResult.Failure -> {
-                val current: ParticipantGamesState = _games.value
-                if (current is ParticipantGamesState.Ready) {
-                    _games.value = current.copy(actionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.participant_action_error, result.error.message)
         }
     }
 

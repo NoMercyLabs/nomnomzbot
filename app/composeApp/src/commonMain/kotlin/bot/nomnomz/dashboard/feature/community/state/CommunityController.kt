@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.community.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -21,6 +23,8 @@ import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.community_action_error
 
 // The Community DIRECTORY page's state-holder (owner punch list 2026-09-08 §3A) — a search-first list for
 // finding someone fast. Resolves the active channel, then loads its real member list from the backend (Twitch
@@ -32,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class CommunityController(
     private val channelsApi: ChannelsApi,
     private val communityApi: CommunityApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<CommunityState> = MutableStateFlow(CommunityState.Loading)
 
@@ -192,9 +197,8 @@ class CommunityController(
 
     private fun failWrite(detail: String) {
         val current: CommunityState = _state.value
-        _state.value =
-            if (current is CommunityState.Ready) current.copy(actionError = detail)
-            else CommunityState.Error(detail)
+        if (current is CommunityState.Ready) feedback.error(Res.string.community_action_error, detail)
+        else _state.value = CommunityState.Error(detail)
     }
 
     private companion object {
@@ -225,8 +229,8 @@ sealed interface CommunityState {
     /**
      * The channel's members are listed, one page of the active [role] filter, sorted most-recently-active
      * first. [page] is the 1-based page number; [hasPrev]/[hasMore] drive the prev/next controls and [total]
-     * the "of N" count when the backend knows it. [actionError] is non-null only when the last page fetch or
-     * search failed — surfaced as a transient banner while the list stays rendered.
+     * the "of N" count when the backend knows it. A failed page fetch or search announces on the shell-level
+     * feedback toast rather than a field here — see [CommunityController.failWrite].
      */
     data class Ready(
         val members: List<CommunityMember>,
@@ -235,7 +239,6 @@ sealed interface CommunityState {
         val hasPrev: Boolean = false,
         val hasMore: Boolean = false,
         val total: Int? = null,
-        val actionError: String? = null,
     ) : CommunityState
 
     data object Empty : CommunityState

@@ -52,7 +52,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -135,7 +134,6 @@ import nomnomzbot.composeapp.generated.resources.spam_campaigns_title
 import nomnomzbot.composeapp.generated.resources.spam_detections_title
 import nomnomzbot.composeapp.generated.resources.spam_follow_blocks_title
 import nomnomzbot.composeapp.generated.resources.spam_review_queue_title
-import nomnomzbot.composeapp.generated.resources.moderation_action_error
 import nomnomzbot.composeapp.generated.resources.moderation_moderators_title
 import nomnomzbot.composeapp.generated.resources.moderation_moderators_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_moderators_add
@@ -526,7 +524,6 @@ fun ModerationScreen(
                     moderators = current.moderators,
                     chatFilters = current.chatFilters,
                     stats = current.stats,
-                    actionError = current.actionError,
                     unbanRequests = current.unbanRequests,
                     reports = current.reports,
                     automodQueue = current.automodQueue,
@@ -704,7 +701,6 @@ private fun BansList(
     moderators: List<Moderator>,
     chatFilters: List<ChatFilter>,
     stats: ModerationStats,
-    actionError: String?,
     unbanRequests: List<UnbanRequest>,
     reports: List<ViewerReport>,
     automodQueue: List<ModerationQueueItem>,
@@ -829,11 +825,6 @@ private fun BansList(
     ) {
         item(key = "page-header") {
             PageHeader(title = stringResource(Res.string.shell_nav_moderation))
-        }
-        actionError?.let { detail ->
-            item(key = "unban-error") {
-                ActionErrorBanner(message = stringResource(Res.string.moderation_action_error, detail))
-            }
         }
         sectionItem(section, ModerationSection.Desk, "stats") {
             Card(modifier = Modifier.fillMaxWidth()) {

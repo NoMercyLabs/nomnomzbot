@@ -10,6 +10,10 @@
 
 package bot.nomnomz.dashboard.feature.rewards.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -264,7 +268,6 @@ class RewardsControllerTest {
         assertEquals(1, rewards.size)
         assertEquals("Hydrate!", rewards.first().title)
         assertEquals(500, rewards.first().cost)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -371,17 +374,19 @@ class RewardsControllerTest {
                 ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!", isEnabled = true))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi, feedback)
         controller.load()
 
         controller.deleteReward(rewardId = "r1")
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: RewardsState = controller.state.value
         assertTrue(state is RewardsState.Ready)
         assertEquals(1, (state as RewardsState.Ready).rewards.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 
     @Test
@@ -419,7 +424,6 @@ class RewardsControllerTest {
         val external: RewardSummary = rewards.first { it.id == "ext1" }
         assertEquals("StreamElements Reward", external.title)
         assertTrue(!external.isManageable)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -464,8 +468,9 @@ class RewardsControllerTest {
                     ApiError(422, "MIGRATION_PENDING_EXTERNAL_REMOVAL", "Twitch won't allow a second reward...")
                 ),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi, feedback)
         controller.load()
 
         controller.recreate(rewardId = "ext1")
@@ -474,7 +479,8 @@ class RewardsControllerTest {
         assertTrue(state is RewardsState.Ready)
         val reward: RewardSummary = (state as RewardsState.Ready).rewards.first { it.id == "ext1" }
         assertTrue(reward.isMigrationPending, "row should be marked pending after the reload")
-        assertEquals("Twitch won't allow a second reward...", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("Twitch won't allow a second reward..."), feedback.only.formatArgs)
     }
 
     @Test
@@ -699,7 +705,8 @@ private class RecordingRewardsApi(
 private fun makeRewardsController(
     channelsApi: ChannelsApi,
     rewardsApi: RewardsApi,
-): RewardsController = RewardsController(channelsApi, rewardsApi, StubRewardPipelinesApi)
+    feedback: Feedback = NoOpFeedback,
+): RewardsController = RewardsController(channelsApi, rewardsApi, StubRewardPipelinesApi, feedback)
 
 private object StubRewardPipelinesApi : bot.nomnomz.dashboard.core.network.PipelinesApi {
     override suspend fun list(

@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.discord.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -30,6 +32,8 @@ import bot.nomnomz.dashboard.core.network.UpdateDiscordRoleBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.discord_action_error
 
 // The Discord page's state-holder (frontend-ia.md — the Stream group): the channel's linked Discord guild(s)
 // and, per guild, the notification rules — which channel-event trigger posts to which Discord channel, with
@@ -42,6 +46,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class DiscordController(
     private val channelsApi: ChannelsApi,
     private val discordApi: DiscordApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<DiscordState> = MutableStateFlow(DiscordState.Loading)
 
@@ -310,9 +315,8 @@ class DiscordController(
 
     private fun failWrite(detail: String) {
         val current: DiscordState = _state.value
-        _state.value =
-            if (current is DiscordState.Ready) current.copy(actionError = detail)
-            else DiscordState.Error(detail)
+        if (current is DiscordState.Ready) feedback.error(Res.string.discord_action_error, detail)
+        else _state.value = DiscordState.Error(detail)
     }
 
     // The current row for [configId], scanned across every loaded guild — the source of the preserved fields a
@@ -373,11 +377,10 @@ sealed interface DiscordState {
     data object Loading : DiscordState
 
     /**
-     * The channel's linked guild(s), each with its notification rules. [actionError] is non-null only when the
-     * last create/edit/toggle/delete failed — the screen surfaces it as a transient banner while keeping the
-     * guilds rendered.
+     * The channel's linked guild(s), each with its notification rules. A failed create/edit/toggle/delete
+     * announces on the shell-level feedback toast rather than a field here — see [DiscordController.failWrite].
      */
-    data class Ready(val guilds: List<GuildNotifications>, val actionError: String? = null) : DiscordState
+    data class Ready(val guilds: List<GuildNotifications>) : DiscordState
 
     /** Discord is not connected for this channel (no guild link) — the screen points to Integrations. */
     data object Empty : DiscordState

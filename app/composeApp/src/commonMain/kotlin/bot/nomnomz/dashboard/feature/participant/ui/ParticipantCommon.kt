@@ -67,21 +67,6 @@ internal fun ParticipantError(detail: String, onRetry: () -> Unit) {
     }
 }
 
-/** A transient action-error banner shown over a kept-rendered Ready state (a failed self-service write). */
-@Composable
-internal fun ActionErrorBanner(detail: String) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Text(
-        text = detail,
-        style = typography.sm,
-        color = tokens.destructive,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s1, vertical = spacing.s1),
-    )
-}
-
 /** A titled card container — the section primitive for the participant screens. */
 @Composable
 internal fun SectionCard(title: String, content: @Composable () -> Unit) {

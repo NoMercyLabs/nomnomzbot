@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.tts.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -18,6 +20,8 @@ import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.tts_queue_action_error
 
 // The state-holder for the TTS moderator approval queue (item 16 P.1a). When "Require moderator approval" is on,
 // every TTS utterance is held here until a mod approves it (played) or rejects it (discarded). Resolves the
@@ -28,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class TtsQueueController(
     private val channelsApi: ChannelsApi,
     private val ttsApi: TtsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<TtsQueueState> = MutableStateFlow(TtsQueueState.Loading)
 
@@ -80,9 +85,8 @@ class TtsQueueController(
 
     private fun failWrite(detail: String) {
         val current: TtsQueueState = _state.value
-        _state.value =
-            if (current is TtsQueueState.Ready) current.copy(actionError = detail)
-            else TtsQueueState.Error(detail)
+        if (current is TtsQueueState.Ready) feedback.error(Res.string.tts_queue_action_error, detail)
+        else _state.value = TtsQueueState.Error(detail)
     }
 
     private companion object {
@@ -95,11 +99,10 @@ sealed interface TtsQueueState {
     data object Loading : TtsQueueState
 
     /**
-     * The channel's pending utterances are listed. [actionError] is non-null only when the last approve/reject
-     * failed — the panel surfaces it as a transient banner while keeping the list rendered.
+     * The channel's pending utterances are listed. A failed approve/reject announces on the shell-level feedback
+     * toast rather than a field here — see [TtsQueueController.failWrite].
      */
-    data class Ready(val entries: List<TtsQueueEntry>, val actionError: String? = null) :
-        TtsQueueState
+    data class Ready(val entries: List<TtsQueueEntry>) : TtsQueueState
 
     data object Empty : TtsQueueState
 

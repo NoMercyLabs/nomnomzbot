@@ -64,7 +64,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -127,7 +126,6 @@ import nomnomzbot.composeapp.generated.resources.tts_lexicon_dialog_save
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_edit
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_edit_action
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_empty
-import nomnomzbot.composeapp.generated.resources.tts_lexicon_error
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_kind_exact
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_kind_word
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_title
@@ -213,7 +211,6 @@ import nomnomzbot.composeapp.generated.resources.tts_voices_use_action
 import nomnomzbot.composeapp.generated.resources.tts_voices_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_tts
 import nomnomzbot.composeapp.generated.resources.tts_test_error
-import nomnomzbot.composeapp.generated.resources.tts_queue_action_error
 import nomnomzbot.composeapp.generated.resources.tts_queue_approve
 import nomnomzbot.composeapp.generated.resources.tts_queue_censored
 import nomnomzbot.composeapp.generated.resources.tts_queue_empty
@@ -510,7 +507,6 @@ private fun ReadyContent(
                 PronunciationTab(
                     lexicon = state.lexicon,
                     busy = state.lexiconBusy,
-                    error = state.lexiconError,
                     manage = manage,
                     onAdd = onAddLexicon,
                     onUpdate = onUpdateLexicon,
@@ -715,7 +711,6 @@ internal fun PerViewerTab(
 internal fun PronunciationTab(
     lexicon: List<TtsLexiconEntry>,
     busy: Boolean,
-    error: String?,
     manage: ManageDecision,
     onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
     onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
@@ -730,7 +725,6 @@ internal fun PronunciationTab(
             PronunciationSection(
                 lexicon = lexicon,
                 busy = busy,
-                error = error,
                 manage = manage,
                 onAdd = onAdd,
                 onUpdate = onUpdate,
@@ -842,11 +836,6 @@ private fun TtsQueueSection(controller: TtsQueueController, manage: ManageDecisi
                     color = tokens.destructive,
                 )
             is TtsQueueState.Ready -> {
-                current.actionError?.let { detail ->
-                    ActionErrorBanner(
-                        message = stringResource(Res.string.tts_queue_action_error, detail)
-                    )
-                }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     current.entries.forEachIndexed { index, entry ->
                         if (index > 0) Separator()
@@ -1555,7 +1544,6 @@ private val LEXICON_KINDS: List<Pair<String, StringResource>> =
 private fun PronunciationSection(
     lexicon: List<TtsLexiconEntry>,
     busy: Boolean,
-    error: String?,
     manage: ManageDecision,
     onAdd: (phrase: String, replacement: String, matchKind: String) -> Unit,
     onUpdate: (id: String, phrase: String, replacement: String, matchKind: String) -> Unit,
@@ -1596,10 +1584,6 @@ private fun PronunciationSection(
                 style = typography.sm,
                 color = tokens.mutedForeground,
             )
-            error?.let { detail ->
-                ActionErrorBanner(message = stringResource(Res.string.tts_lexicon_error, detail))
-            }
-
             if (lexicon.isEmpty()) {
                 Text(
                     text = stringResource(Res.string.tts_lexicon_empty),

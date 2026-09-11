@@ -64,7 +64,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.BlockedTrack
@@ -80,7 +80,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.music_action_error
 import nomnomzbot.composeapp.generated.resources.music_spotify_needs_reauth
 import nomnomzbot.composeapp.generated.resources.music_spotify_reconnect
 import nomnomzbot.composeapp.generated.resources.music_art_placeholder
@@ -214,7 +213,6 @@ fun MusicScreen(
                     blockedPage = current.blockedPage,
                     blockedTotal = current.blockedTotal,
                     blockedHasMore = current.blockedHasMore,
-                    actionError = current.actionError,
                     manage = manage,
                     onPlay = { scope.launch { controller.resume() } },
                     onPause = { scope.launch { controller.pause() } },
@@ -253,7 +251,6 @@ private fun ReadyContent(
     blockedPage: Int,
     blockedTotal: Int,
     blockedHasMore: Boolean,
-    actionError: String?,
     manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
@@ -288,7 +285,7 @@ private fun ReadyContent(
         PageHeader(title = stringResource(Res.string.shell_nav_music))
         if (spotifyNeedsReauth) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                ActionErrorBanner(message = stringResource(Res.string.music_spotify_needs_reauth))
+                InlineError(message = stringResource(Res.string.music_spotify_needs_reauth))
                 Button(onClick = onReconnectSpotify) {
                     Text(stringResource(Res.string.music_spotify_reconnect), maxLines = 1)
                 }
@@ -304,10 +301,6 @@ private fun ReadyContent(
                 onSkip = onSkip,
                 onTrackEndReached = onTrackEndReached,
             )
-        }
-
-        actionError?.let { detail ->
-            ActionErrorBanner(message = stringResource(Res.string.music_action_error, detail))
         }
 
         Text(

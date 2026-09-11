@@ -14,6 +14,8 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -42,6 +44,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.widgets_action_error
+import nomnomzbot.composeapp.generated.resources.widgets_review_action_error
 
 // The Overlays page's state-holder (frontend-ia.md §3 — the Stream group; a plain holder, not a ViewModel).
 // Resolves the active channel, then lists its real OBS overlay widgets from the backend (no fabricated rows) —
@@ -56,6 +61,7 @@ class WidgetsController(
     private val widgetGalleryApi: WidgetGalleryApi,
     private val projectEditor: ProjectEditorIO,
     private val sdkTypesApi: SdkTypesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<WidgetsState> = MutableStateFlow(WidgetsState.Loading)
 
@@ -299,17 +305,33 @@ class WidgetsController(
     suspend fun galleryItemDetail(galleryItemId: String): ApiResult<GalleryItemDetail> =
         widgetGalleryApi.getGalleryItem(galleryItemId)
 
-    /** Reviewer verdict on a submission. Returns the raw result so the panel refreshes the queue on success. */
-    suspend fun reviewGalleryItem(
-        galleryItemId: String,
-        body: ReviewGalleryItemBody,
-    ): ApiResult<GalleryItemDetail> = widgetGalleryApi.reviewGalleryItem(galleryItemId, body)
+    /**
+     * Reviewer verdict on a submission. Returns the updated item so the panel refreshes the queue on success;
+     * a failure announces on the shell-level feedback toast and returns null (the panel stays open on the
+     * current item, unlike a raw [ApiResult] whose failure used to go unrendered because this action runs from
+     * the detail panel, not the list view the old inline banner was scoped to).
+     */
+    suspend fun reviewGalleryItem(galleryItemId: String, body: ReviewGalleryItemBody): GalleryItemDetail? =
+        when (val result: ApiResult<GalleryItemDetail> = widgetGalleryApi.reviewGalleryItem(galleryItemId, body)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> {
+                feedback.error(Res.string.widgets_review_action_error, result.error.message)
+                null
+            }
+        }
 
-    /** Reviewer re-pin — moves the item to a new commit and back to `in_review` (off the public list). */
-    suspend fun pinGalleryItem(
-        galleryItemId: String,
-        body: PinGalleryItemBody,
-    ): ApiResult<GalleryItemDetail> = widgetGalleryApi.pinGalleryItem(galleryItemId, body)
+    /**
+     * Reviewer re-pin — moves the item to a new commit and back to `in_review` (off the public list). Same
+     * failure handling as [reviewGalleryItem].
+     */
+    suspend fun pinGalleryItem(galleryItemId: String, body: PinGalleryItemBody): GalleryItemDetail? =
+        when (val result: ApiResult<GalleryItemDetail> = widgetGalleryApi.pinGalleryItem(galleryItemId, body)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> {
+                feedback.error(Res.string.widgets_review_action_error, result.error.message)
+                null
+            }
+        }
 
     /**
      * Install a gallery item into the active channel (compiled + live), then reload so the new overlay appears in
@@ -426,11 +448,11 @@ class WidgetsController(
         }
     }
 
+    // Every failWrite call site is a write/control outcome (a toggle, a delete, a rename, a compile...), never
+    // a "this list can't load" state — the page keeps whatever it was showing and the failure announces on the
+    // shell-level feedback toast (dismissable) instead of blowing the list away.
     private fun failWrite(detail: String) {
-        val current: WidgetsState = _state.value
-        _state.value =
-            if (current is WidgetsState.Ready) current.copy(actionError = detail)
-            else WidgetsState.Error(detail)
+        feedback.error(Res.string.widgets_action_error, detail)
     }
 
     private companion object {
@@ -452,11 +474,10 @@ sealed interface WidgetsState {
     data object Loading : WidgetsState
 
     /**
-     * The channel's overlay widgets are listed. [actionError] is non-null only when the last toggle/delete
-     * failed — the screen surfaces it as a transient banner while keeping the list rendered.
+     * The channel's overlay widgets are listed. A write/control failure announces on the shell-level feedback
+     * toast rather than a field here — see [WidgetsController.failWrite].
      */
-    data class Ready(val widgets: List<WidgetSummary>, val actionError: String? = null) :
-        WidgetsState
+    data class Ready(val widgets: List<WidgetSummary>) : WidgetsState
 
     data object Empty : WidgetsState
 

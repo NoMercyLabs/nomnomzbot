@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.mediashare.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.MediaShareApi
 import bot.nomnomz.dashboard.core.network.MediaShareConfig
@@ -18,6 +20,8 @@ import bot.nomnomz.dashboard.core.network.UpdateMediaShareConfigBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.mediashare_action_error
 
 // The Media-Share moderator-queue page state-holder (media-share.md §5): the channel's clip queue (approve /
 // reject / skip / mark-played / reorder) and the channel's Media-Share config. The active channel rides in the
@@ -27,7 +31,10 @@ import kotlinx.coroutines.flow.asStateFlow
 // The queue is fatal on read failure (there is nothing to moderate without it); the config is best-effort — a
 // failure falls back to a default [MediaShareConfig] so the queue still renders. A failed write surfaces a
 // transient [MediaShareUiState.Ready.actionError] banner rather than tearing down the page.
-class MediaShareController(private val mediaShareApi: MediaShareApi) {
+class MediaShareController(
+    private val mediaShareApi: MediaShareApi,
+    private val feedback: Feedback = NoOpFeedback,
+) {
     private val _state: MutableStateFlow<MediaShareUiState> = MutableStateFlow(MediaShareUiState.Loading)
 
     /** The page render state: loading / ready (queue + config) / error. */
@@ -66,8 +73,7 @@ class MediaShareController(private val mediaShareApi: MediaShareApi) {
         statusFilter = status
 
         when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(status)) {
-            is ApiResult.Ok ->
-                _state.value = current.copy(queue = result.value, statusFilter = status, actionError = null)
+            is ApiResult.Ok -> _state.value = current.copy(queue = result.value, statusFilter = status)
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
@@ -103,7 +109,7 @@ class MediaShareController(private val mediaShareApi: MediaShareApi) {
         when (val result: ApiResult<MediaShareConfig> = mediaShareApi.updateConfig(body)) {
             is ApiResult.Ok -> {
                 val current: MediaShareUiState.Ready = _state.value as? MediaShareUiState.Ready ?: return
-                _state.value = current.copy(config = result.value, actionError = null)
+                _state.value = current.copy(config = result.value)
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -123,16 +129,15 @@ class MediaShareController(private val mediaShareApi: MediaShareApi) {
     private suspend fun refreshQueue() {
         val previous: MediaShareUiState.Ready = _state.value as? MediaShareUiState.Ready ?: return
         when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(statusFilter)) {
-            is ApiResult.Ok -> _state.value = previous.copy(queue = result.value, actionError = null)
+            is ApiResult.Ok -> _state.value = previous.copy(queue = result.value)
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
     private fun failWrite(detail: String) {
         val current: MediaShareUiState = _state.value
-        _state.value =
-            if (current is MediaShareUiState.Ready) current.copy(actionError = detail)
-            else MediaShareUiState.Error(detail)
+        if (current is MediaShareUiState.Ready) feedback.error(Res.string.mediashare_action_error, detail)
+        else _state.value = MediaShareUiState.Error(detail)
     }
 }
 
@@ -141,14 +146,13 @@ sealed interface MediaShareUiState {
     data object Loading : MediaShareUiState
 
     /**
-     * The channel's clip [queue] in the active [statusFilter] lane (null = all) and its [config]. [actionError]
-     * is non-null only when the last write failed — a transient banner over the content.
+     * The channel's clip [queue] in the active [statusFilter] lane (null = all) and its [config]. A failed write
+     * announces on the shell-level feedback toast rather than a field here — see [MediaShareController.failWrite].
      */
     data class Ready(
         val queue: List<MediaShareRequest>,
         val config: MediaShareConfig,
         val statusFilter: String? = null,
-        val actionError: String? = null,
     ) : MediaShareUiState
 
     data class Error(val detail: String) : MediaShareUiState

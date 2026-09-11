@@ -27,7 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -140,7 +140,7 @@ fun WidgetSubmitDialog(
                         style = typography.sm,
                         color = tokens.mutedForeground,
                     )
-                    error?.let { ActionErrorBanner(message = it) }
+                    error?.let { InlineError(message = it) }
                     AppTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -244,8 +244,8 @@ private val ReviewStatuses: List<String> = listOf("submitted", "in_review", "ver
 fun WidgetReviewSheet(
     loadQueue: suspend (String) -> ApiResult<List<GalleryItemSummary>>,
     loadDetail: suspend (String) -> ApiResult<GalleryItemDetail>,
-    onReview: suspend (String, ReviewGalleryItemBody) -> ApiResult<GalleryItemDetail>,
-    onPin: suspend (String, PinGalleryItemBody) -> ApiResult<GalleryItemDetail>,
+    onReview: suspend (String, ReviewGalleryItemBody) -> GalleryItemDetail?,
+    onPin: suspend (String, PinGalleryItemBody) -> GalleryItemDetail?,
     onDismiss: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -288,7 +288,7 @@ fun WidgetReviewSheet(
                             }
                         }
                     }
-                    error?.let { ActionErrorBanner(message = stringResource(Res.string.widgets_review_action_error, it)) }
+                    error?.let { InlineError(message = stringResource(Res.string.widgets_review_action_error, it)) }
                     when {
                         loading -> Spinner(modifier = Modifier.fillMaxWidth())
                         queue.isEmpty() ->
@@ -324,23 +324,20 @@ fun WidgetReviewSheet(
                         detail = detail,
                         onReview = { body ->
                             scope.launch {
-                                when (val result: ApiResult<GalleryItemDetail> = onReview(detail.id, body)) {
-                                    is ApiResult.Ok -> {
-                                        selected = null
-                                        refresh()
-                                    }
-                                    is ApiResult.Failure -> error = result.error.message
+                                // A failure already announced on the shell-level feedback toast (see
+                                // WidgetsController.reviewGalleryItem) — the panel simply stays open on this
+                                // item so the reviewer can retry, rather than losing their place.
+                                if (onReview(detail.id, body) != null) {
+                                    selected = null
+                                    refresh()
                                 }
                             }
                         },
                         onPin = { body ->
                             scope.launch {
-                                when (val result: ApiResult<GalleryItemDetail> = onPin(detail.id, body)) {
-                                    is ApiResult.Ok -> {
-                                        selected = null
-                                        refresh()
-                                    }
-                                    is ApiResult.Failure -> error = result.error.message
+                                if (onPin(detail.id, body) != null) {
+                                    selected = null
+                                    refresh()
                                 }
                             }
                         },

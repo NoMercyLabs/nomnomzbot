@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -73,7 +72,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole as ShellManagement
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.community_action_error
 import nomnomzbot.composeapp.generated.resources.community_ban_action_short
 import nomnomzbot.composeapp.generated.resources.community_ban_confirm
 import nomnomzbot.composeapp.generated.resources.community_ban_dismiss
@@ -300,10 +298,6 @@ private fun ProfileContent(
                 trailing = { TextButton(onClick = onBack) { Text(text = stringResource(Res.string.community_profile_back)) } },
             )
         }
-        state.actionError?.let { detail ->
-            item(key = "action-error") { ActionErrorBanner(message = stringResource(Res.string.community_action_error, detail)) }
-        }
-
         item(key = "identity") {
             IdentitySection(
                 identity = identity,

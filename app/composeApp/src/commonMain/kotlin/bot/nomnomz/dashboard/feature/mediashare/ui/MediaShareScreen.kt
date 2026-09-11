@@ -35,7 +35,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -70,7 +69,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.mediashare_action_error
 import nomnomzbot.composeapp.generated.resources.mediashare_allow_twitch_clips
 import nomnomzbot.composeapp.generated.resources.mediashare_allow_youtube
 import nomnomzbot.composeapp.generated.resources.mediashare_approve
@@ -153,10 +151,6 @@ fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
                         title = stringResource(Res.string.mediashare_title),
                         subtitle = stringResource(Res.string.mediashare_subtitle),
                     )
-
-                    current.actionError?.let {
-                        ActionErrorBanner(message = stringResource(Res.string.mediashare_action_error, it))
-                    }
 
                     StatusFilterRow(
                         selected = current.statusFilter,

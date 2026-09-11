@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.tts.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -32,6 +34,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.Instant
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.tts_lexicon_error
 
 // The TTS page's state-holder: resolves the active channel, loads its real TTS configuration, and
 // persists edits back (no fabricated values). The screen renders [state]; it edits a local form seeded
@@ -43,6 +47,7 @@ class TtsController(
     // Optional viewer-search source for the per-viewer voice picker. Nullable so the state-holder tests construct
     // the controller without it (they don't exercise the picker); production wires the real one.
     private val communityApi: CommunityApi? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<TtsState> = MutableStateFlow(TtsState.Loading)
 
@@ -163,12 +168,12 @@ class TtsController(
         val current: TtsState = _state.value
         if (current !is TtsState.Ready) return
 
-        _state.value = current.copy(lexiconBusy = true, lexiconError = null)
+        _state.value = current.copy(lexiconBusy = true)
         when (val result: ApiResult<*> = write(channel)) {
-            is ApiResult.Failure ->
-                (_state.value as? TtsState.Ready)?.let {
-                    _state.value = it.copy(lexiconBusy = false, lexiconError = result.error.message)
-                }
+            is ApiResult.Failure -> {
+                (_state.value as? TtsState.Ready)?.let { _state.value = it.copy(lexiconBusy = false) }
+                feedback.error(Res.string.tts_lexicon_error, result.error.message)
+            }
             is ApiResult.Ok -> {
                 val refreshed: List<TtsLexiconEntry> =
                     when (val list: ApiResult<List<TtsLexiconEntry>> = ttsApi.lexicon(channel)) {
@@ -176,7 +181,7 @@ class TtsController(
                         is ApiResult.Ok -> list.value
                     }
                 (_state.value as? TtsState.Ready)?.let {
-                    _state.value = it.copy(lexicon = refreshed, lexiconBusy = false, lexiconError = null)
+                    _state.value = it.copy(lexicon = refreshed, lexiconBusy = false)
                 }
             }
         }
@@ -467,10 +472,10 @@ sealed interface TtsState {
         val viewerVoice: ViewerVoiceState? = null,
         // The searchable voice-browser state, or null until the operator opens/searches it.
         val voiceBrowser: VoiceBrowserState? = null,
-        // The pronunciation lexicon: the channel's rules plus the panel's write-in-flight / error signals.
+        // The pronunciation lexicon: the channel's rules plus the panel's write-in-flight signal. A failed
+        // add/update/delete announces on the shell-level feedback toast rather than a field here.
         val lexicon: List<TtsLexiconEntry> = emptyList(),
         val lexiconBusy: Boolean = false,
-        val lexiconError: String? = null,
         // The auto-provisioned OBS overlay (URL + last-ran signal), or null while it hasn't loaded / failed
         // to load — the rest of the page still renders in that case (see [TtsController.load]).
         val overlay: TtsOverlay? = null,

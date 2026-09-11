@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.tts.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -118,16 +120,19 @@ class TtsQueueControllerTest {
                 ApiResult.Ok(listOf(TtsQueueEntry(id = "q1", originalText = "hi"))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = TtsQueueController(FakeQueueChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        val feedback = RecordingFeedback()
+        val controller =
+            TtsQueueController(FakeQueueChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi, feedback)
         controller.load()
 
         controller.approve("q1")
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: TtsQueueState = controller.state.value
         assertTrue(state is TtsQueueState.Ready)
         assertEquals(1, (state as TtsQueueState.Ready).entries.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 }
 

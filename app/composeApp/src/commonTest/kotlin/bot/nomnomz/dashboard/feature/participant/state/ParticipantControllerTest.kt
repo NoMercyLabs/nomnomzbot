@@ -75,6 +75,10 @@ import bot.nomnomz.dashboard.core.network.ViewerEngagementDay
 import bot.nomnomz.dashboard.core.network.ViewerProfilePage
 import bot.nomnomz.dashboard.core.network.WatchStreak
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -179,13 +183,17 @@ class ParticipantControllerTest {
     @Test
     fun a_failed_song_submit_keeps_the_queue_and_surfaces_the_reason() = runTest {
         val api = FakeParticipantApi(songRequestResult = ApiResult.Failure(ApiError(503, "ERR", "no provider")))
-        val controller = controller(api = api, music = FakeMusicApi(ApiResult.Ok(MusicSnapshot())))
+        val feedback = RecordingFeedback()
+        val controller =
+            controller(api = api, music = FakeMusicApi(ApiResult.Ok(MusicSnapshot())), feedback = feedback)
         controller.loadNowPlaying()
 
         controller.submitSongRequest("a song", null)
 
-        val ready: NowPlayingState.Ready = controller.nowPlaying.value as NowPlayingState.Ready
-        assertEquals("no provider", ready.actionError)
+        // The queue is kept (not blown away) and the failure announces on the shell-level feedback toast.
+        assertTrue(controller.nowPlaying.value is NowPlayingState.Ready)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no provider"), feedback.only.formatArgs)
     }
 
     // ── Leaderboards ─────────────────────────────────────────────────────────
@@ -430,6 +438,7 @@ class ParticipantControllerTest {
         analytics: AnalyticsApi = FakeAnalyticsApi(),
         standing: ParticipantStanding = ParticipantStanding.Everyone,
         canTransfer: Boolean = false,
+        feedback: Feedback = NoOpFeedback,
     ): ParticipantController =
         ParticipantController(
             channelId = channelId,
@@ -442,6 +451,7 @@ class ParticipantControllerTest {
             musicApi = music,
             systemApi = system,
             analyticsApi = analytics,
+            feedback = feedback,
         )
 }
 

@@ -39,7 +39,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -81,7 +80,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.obs_action_error
 import nomnomzbot.composeapp.generated.resources.obs_bridge_copied
 import nomnomzbot.composeapp.generated.resources.obs_bridge_copy
 import nomnomzbot.composeapp.generated.resources.obs_bridge_desc
@@ -226,9 +224,6 @@ fun ObsScreen(
                         title = stringResource(Res.string.shell_nav_obs),
                         subtitle = stringResource(Res.string.obs_subtitle),
                     )
-                    current.actionError?.let {
-                        ActionErrorBanner(message = stringResource(Res.string.obs_action_error, it))
-                    }
                     ConnectionCard(
                         connection = current.connection,
                         manage = configManage,

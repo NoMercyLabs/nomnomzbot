@@ -12,6 +12,10 @@ package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -37,7 +41,6 @@ import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
@@ -85,7 +88,6 @@ class WidgetsControllerTest {
         assertEquals(true, widget.isEnabled)
         // The browser-source URL — the page's core value (paste into OBS) — survives intact to the row.
         assertEquals("http://localhost:8080/overlay?widgetId=w-1&token=tok", widget.overlayUrl)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -225,17 +227,19 @@ class WidgetsControllerTest {
                 ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
+        val feedback = RecordingFeedback()
         val controller =
-            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, feedback = feedback)
         controller.load()
 
         controller.deleteWidget(widgetId = "w-1")
 
-        // The list is kept (not blown away) and the failure is surfaced on it.
+        // The list is kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: WidgetsState = controller.state.value
         assertTrue(state is WidgetsState.Ready)
         assertEquals(1, (state as WidgetsState.Ready).widgets.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 
     @Test
@@ -618,7 +622,8 @@ private fun widgetsController(
     editor: ProjectEditorIO = FakeProjectEditor(),
     galleryApi: WidgetGalleryApi = FakeWidgetGalleryApi(),
     sdkTypesApi: SdkTypesApi = FakeSdkTypesApi(),
-): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor, sdkTypesApi)
+    feedback: Feedback = NoOpFeedback,
+): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor, sdkTypesApi, feedback)
 
 // A fake SDK-types facade. The editor tests don't assert on the declarations (the fake project editor never
 // opens a real language service), so it just returns an empty d.ts — the same graceful path a fetch failure

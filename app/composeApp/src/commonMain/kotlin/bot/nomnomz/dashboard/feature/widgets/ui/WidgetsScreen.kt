@@ -44,7 +44,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -84,7 +83,6 @@ import bot.nomnomz.dashboard.feature.widgets.state.WidgetsState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_badge_disabled
 import nomnomzbot.composeapp.generated.resources.widgets_badge_enabled
 import nomnomzbot.composeapp.generated.resources.widgets_compile_success
@@ -294,7 +292,6 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             is WidgetsState.Ready ->
                 ReadyContent(
                     widgets = current.widgets,
-                    actionError = current.actionError,
                     manage = manage,
                     onToggle = { widget, enabled ->
                         scope.launch { controller.toggleWidget(widget.id, enabled) }
@@ -510,7 +507,6 @@ private fun WidgetsHeaderActions(
 @Composable
 private fun ReadyContent(
     widgets: List<WidgetSummary>,
-    actionError: String?,
     manage: ManageDecision,
     onToggle: (WidgetSummary, Boolean) -> Unit,
     onDelete: (WidgetSummary) -> Unit,
@@ -528,7 +524,6 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.widgets_action_error, it)) }
         WidgetList(
             widgets = widgets,
             manage = manage,

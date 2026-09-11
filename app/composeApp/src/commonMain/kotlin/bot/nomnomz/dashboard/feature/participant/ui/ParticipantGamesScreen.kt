@@ -92,7 +92,6 @@ private fun Ready(state: ParticipantGamesState.Ready, onPlay: (String, Long) -> 
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        state.actionError?.let { ActionErrorBanner(detail = it) }
         state.lastOutcome?.let { OutcomeCard(outcome = it) }
         GamesCard(games = state.games, onPlay = onPlay)
         HistoryCard(history = state.history)

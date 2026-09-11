@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.discord.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -207,7 +209,6 @@ class DiscordControllerTest {
         val configs: List<DiscordNotificationConfig> = (state as DiscordState.Ready).guilds.first().configs
         assertEquals(1, configs.size)
         assertEquals("channel.follow", configs.first().triggerType)
-        assertNull(state.actionError)
     }
 
     @Test
@@ -328,16 +329,19 @@ class DiscordControllerTest {
                     mapOf("g1" to mutableListOf(config(id = "c1", guild = "g1", trigger = "stream.online", target = "111"))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+        val feedback = RecordingFeedback()
+        val controller =
+            DiscordController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback)
         controller.load()
 
         controller.deleteConfig(configId = "c1")
 
-        // The guilds are kept (not blown away) and the failure is surfaced on them.
+        // The guilds are kept (not blown away) and the failure announces on the shell-level feedback toast.
         val state: DiscordState = controller.state.value
         assertTrue(state is DiscordState.Ready)
         assertEquals(1, (state as DiscordState.Ready).guilds.first().configs.size)
-        assertEquals("no permission", state.actionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 
     @Test

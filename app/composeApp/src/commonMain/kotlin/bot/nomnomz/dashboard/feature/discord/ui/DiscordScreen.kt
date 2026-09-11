@@ -43,8 +43,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -86,7 +86,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.discord_action_error
 import nomnomzbot.composeapp.generated.resources.discord_channel_category_none
 import nomnomzbot.composeapp.generated.resources.discord_channel_not_postable
 import nomnomzbot.composeapp.generated.resources.discord_channel_type_announcement
@@ -310,7 +309,6 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
             is DiscordState.Ready ->
                 ReadyContent(
                     guilds = current.guilds,
-                    actionError = current.actionError,
                     manage = manage,
                     controller = controller,
                     rolesVersion = rolesVersion,
@@ -522,7 +520,6 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?, template
 @Composable
 private fun ReadyContent(
     guilds: List<GuildNotifications>,
-    actionError: String?,
     manage: ManageDecision,
     controller: DiscordController,
     rolesVersion: Int,
@@ -547,7 +544,6 @@ private fun ReadyContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_discord))
-        actionError?.let { ActionErrorBanner(message = stringResource(Res.string.discord_action_error, it)) }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -636,7 +632,7 @@ private fun GuildCard(
             )
 
             guild.loadError?.let {
-                ActionErrorBanner(message = stringResource(Res.string.discord_config_load_error, it))
+                InlineError(message = stringResource(Res.string.discord_config_load_error, it))
             }
 
             if (guild.configs.isEmpty()) {

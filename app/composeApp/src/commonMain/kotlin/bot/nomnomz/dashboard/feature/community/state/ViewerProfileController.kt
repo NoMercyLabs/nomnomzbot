@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -30,6 +32,8 @@ import bot.nomnomz.dashboard.core.network.ViewerProfileSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.community_action_error
 
 // The Community PROFILE page's state-holder (owner punch list 2026-09-08 §3) — the single-person view opened
 // from the Directory. Loads the full [ViewerProfileSummary] in one call and drives every genuinely-editable
@@ -48,6 +52,7 @@ class ViewerProfileController(
     private val gdprApi: GdprApi,
     private val usersApi: UsersApi,
     private val fileBridge: JournalFileIO,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<ViewerProfileState> =
         MutableStateFlow(ViewerProfileState.Loading)
@@ -413,9 +418,8 @@ class ViewerProfileController(
 
     private fun failWrite(detail: String) {
         val current: ViewerProfileState = _state.value
-        _state.value =
-            if (current is ViewerProfileState.Ready) current.copy(actionError = detail)
-            else ViewerProfileState.Error(detail)
+        if (current is ViewerProfileState.Ready) feedback.error(Res.string.community_action_error, detail)
+        else _state.value = ViewerProfileState.Error(detail)
     }
 
     private companion object {
@@ -431,8 +435,10 @@ sealed interface ViewerProfileState {
     data object Loading : ViewerProfileState
 
     /**
-     * The person's full profile plus a page of their moderation history log. [actionError] is non-null only
-     * when the last write failed — surfaced as a transient banner while the profile stays rendered.
+     * The person's full profile plus a page of their moderation history log. A failed write announces on the
+     * shell-level feedback toast rather than a field here — see [ViewerProfileController.failWrite]. (Some
+     * writes ALSO return their error message directly — see [ViewerProfileController.saveOverrideMessage] —
+     * for the caller that shows it inline next to the specific field it belongs to.)
      */
     data class Ready(
         val profile: ViewerProfileSummary,
@@ -440,7 +446,6 @@ sealed interface ViewerProfileState {
         val historyHasMore: Boolean,
         val availableVoices: List<TtsVoice> = emptyList(),
         val isBanned: Boolean = false,
-        val actionError: String? = null,
     ) : ViewerProfileState
 
     data class Error(val detail: String) : ViewerProfileState

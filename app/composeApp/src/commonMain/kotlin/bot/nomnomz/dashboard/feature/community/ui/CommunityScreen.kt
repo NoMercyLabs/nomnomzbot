@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
@@ -62,7 +61,6 @@ import bot.nomnomz.dashboard.feature.community.state.ViewerProfileController
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.community_action_error
 import nomnomzbot.composeapp.generated.resources.community_banned
 import nomnomzbot.composeapp.generated.resources.community_directory_search_hint
 import nomnomzbot.composeapp.generated.resources.community_directory_subtitle
@@ -157,7 +155,6 @@ private fun DirectoryScreen(
                     hasPrev = false,
                     hasMore = false,
                     total = 0,
-                    actionError = null,
                     pickedViewer = pickedViewer,
                     onSelectRole = { newRole -> scope.launch { controller.selectRole(newRole) } },
                     onPrevPage = { scope.launch { controller.prevPage() } },
@@ -176,7 +173,6 @@ private fun DirectoryScreen(
                     hasPrev = current.hasPrev,
                     hasMore = current.hasMore,
                     total = current.total,
-                    actionError = current.actionError,
                     pickedViewer = pickedViewer,
                     onSelectRole = { newRole -> scope.launch { controller.selectRole(newRole) } },
                     onPrevPage = { scope.launch { controller.prevPage() } },
@@ -199,7 +195,6 @@ private fun DirectoryList(
     hasPrev: Boolean,
     hasMore: Boolean,
     total: Int?,
-    actionError: String?,
     pickedViewer: PickerRef?,
     onSelectRole: (String) -> Unit,
     onPrevPage: () -> Unit,
@@ -222,11 +217,6 @@ private fun DirectoryList(
                 title = stringResource(Res.string.community_directory_title),
                 subtitle = stringResource(Res.string.community_directory_subtitle),
             )
-        }
-        actionError?.let { detail ->
-            item(key = "action-error") {
-                ActionErrorBanner(message = stringResource(Res.string.community_action_error, detail))
-            }
         }
         // Search is the PROMINENT, first-class tool (owner punch list §3A: "a prominent search box") — it
         // reaches any known viewer, not just the current page, and is the primary way to find someone fast.

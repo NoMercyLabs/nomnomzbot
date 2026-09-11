@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -38,6 +37,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -100,7 +100,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun AttentionInbox(
     items: List<ActionRequiredItem>,
-    attentionError: String?,
     onReview: (ActionRequiredItem) -> Unit,
     onDismiss: (ActionRequiredItem) -> Unit,
 ) {
@@ -118,7 +117,6 @@ fun AttentionInbox(
                 style = typography.sm,
                 color = tokens.mutedForeground,
             )
-            attentionError?.let { error -> ActionErrorBanner(message = error) }
             items.forEach { item ->
                 AttentionRow(item = item, onReview = { onReview(item) }, onDismiss = { onDismiss(item) })
             }
@@ -333,7 +331,10 @@ private fun HeldReviewBody(
         TrustHeatBadges(trust = trust, heatThreshold = state.heatThreshold)
     }
 
-    state.actionError?.let { error -> ActionErrorBanner(message = error) }
+    // The dialog stays open across multiple resolve actions (a moderator works through the whole held-message
+    // queue), so the last action's failure stays visible in place rather than floating away as a toast — the
+    // moderator is still looking right at the row they're about to retry.
+    state.actionError?.let { error -> InlineError(message = error) }
     state.blockedTerm?.let { term ->
         Text(
             text = stringResource(Res.string.home_held_term_blocked, term),

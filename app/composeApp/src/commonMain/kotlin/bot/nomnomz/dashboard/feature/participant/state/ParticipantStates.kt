@@ -51,13 +51,13 @@ sealed interface NowPlayingState {
 
     /**
      * [pendingLimit] is the caller's per-request song cap (higher for sub/VIP). [subscriberLaneUnlocked] flags
-     * whether the sub-only queue lane is available to them. [actionError] is non-null only after a failed submit.
+     * whether the sub-only queue lane is available to them. A failed submit announces on the shell-level feedback
+     * toast rather than a field here — see [ParticipantController.submitSongRequest].
      */
     data class Ready(
         val snapshot: MusicSnapshot,
         val pendingLimit: Int,
         val subscriberLaneUnlocked: Boolean,
-        val actionError: String? = null,
     ) : NowPlayingState
 
     data class Error(val detail: String) : NowPlayingState
@@ -69,13 +69,13 @@ sealed interface LeaderboardsState {
 
     /**
      * [optedIn] is the caller's current leaderboard visibility (toggled by opt-in/opt-out). [subscriberBoardUnlocked]
-     * flags whether the sub-only leaderboard is shown. [actionError] is non-null only after a failed toggle.
+     * flags whether the sub-only leaderboard is shown. A failed toggle announces on the shell-level feedback toast
+     * rather than a field here — see [ParticipantController.afterLeaderboardToggle].
      */
     data class Ready(
         val ranking: List<LeaderboardEntry>,
         val subscriberBoardUnlocked: Boolean,
         val optedIn: Boolean = true,
-        val actionError: String? = null,
     ) : LeaderboardsState
 
     data class Error(val detail: String) : LeaderboardsState
@@ -90,7 +90,6 @@ sealed interface StoreState {
         val catalog: List<CatalogItem>,
         val jars: List<SavingsJar>,
         val canTransfer: Boolean,
-        val actionError: String? = null,
     ) : StoreState
 
     data class Error(val detail: String) : StoreState
@@ -102,13 +101,13 @@ sealed interface ParticipantGamesState {
 
     /**
      * [games] are the channel's enabled games. [history] is the caller's own recent plays. [lastOutcome] holds the
-     * just-settled play so the screen can show what happened; [actionError] is non-null only after a failed play.
+     * just-settled play so the screen can show what happened. A failed play announces on the shell-level feedback
+     * toast rather than a field here — see [ParticipantController.playGame].
      */
     data class Ready(
         val games: List<GameSummary>,
         val history: List<GamePlay>,
         val lastOutcome: GamePlayResult? = null,
-        val actionError: String? = null,
     ) : ParticipantGamesState
 
     data class Error(val detail: String) : ParticipantGamesState

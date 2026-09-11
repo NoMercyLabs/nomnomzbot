@@ -476,10 +476,15 @@ class AppGraph {
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,
             onChatColorResolved = ::setChatAccentColor,
+            feedback = feedbackController,
         )
 
     val communityController: CommunityController =
-        CommunityController(channelsApi = channelsApi, communityApi = communityApi)
+        CommunityController(
+            channelsApi = channelsApi,
+            communityApi = communityApi,
+            feedback = feedbackController,
+        )
 
     // The Community Profile page (owner punch list 2026-09-08 §3) — the single-person view a Directory row
     // opens. Owns every genuinely-editable per-person section through its own existing endpoint: shoutout/raid
@@ -497,6 +502,7 @@ class AppGraph {
             gdprApi = gdprApi,
             usersApi = usersApi,
             fileBridge = journalFileBridge,
+            feedback = feedbackController,
         )
 
     val commandsController: CommandsController =
@@ -544,15 +550,25 @@ class AppGraph {
         AnalyticsController(channelsApi = channelsApi, analyticsApi = analyticsApi)
 
     val rewardsController: RewardsController =
-        RewardsController(channelsApi = channelsApi, rewardsApi = rewardsApi, pipelinesApi = pipelinesApi)
+        RewardsController(
+            channelsApi = channelsApi,
+            rewardsApi = rewardsApi,
+            pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
+        )
 
     val songRequestsController: SongRequestsController =
         SongRequestsController(channelsApi = channelsApi, songRequestsApi = songRequestsApi)
 
     val ttsController: TtsController =
-        TtsController(channelsApi = channelsApi, ttsApi = ttsApi, communityApi = communityApi)
+        TtsController(
+            channelsApi = channelsApi,
+            ttsApi = ttsApi,
+            communityApi = communityApi,
+            feedback = feedbackController,
+        )
     val ttsQueueController: TtsQueueController =
-        TtsQueueController(channelsApi = channelsApi, ttsApi = ttsApi)
+        TtsQueueController(channelsApi = channelsApi, ttsApi = ttsApi, feedback = feedbackController)
 
     val gamesController: GamesController =
         GamesController(channelsApi = channelsApi, gamesApi = gamesApi, feedback = feedbackController)
@@ -624,6 +640,7 @@ class AppGraph {
             widgetGalleryApi = widgetGalleryApi,
             projectEditor = projectEditor,
             sdkTypesApi = sdkTypesApi,
+            feedback = feedbackController,
         )
 
     val chatController: ChatController =
@@ -677,9 +694,10 @@ class AppGraph {
         )
 
     val discordController: DiscordController =
-        DiscordController(channelsApi = channelsApi, discordApi = discordApi)
+        DiscordController(channelsApi = channelsApi, discordApi = discordApi, feedback = feedbackController)
 
-    val obsController: ObsController = ObsController(channelsApi = channelsApi, obsApi = obsApi)
+    val obsController: ObsController =
+        ObsController(channelsApi = channelsApi, obsApi = obsApi, feedback = feedbackController)
 
     val vtsController: VtsController =
         VtsController(channelsApi = channelsApi, vtsApi = vtsApi, feedback = feedbackController)
@@ -700,7 +718,8 @@ class AppGraph {
             currentUserId = { sessionStore.user.value?.id },
         )
 
-    val mediaShareController: MediaShareController = MediaShareController(mediaShareApi = mediaShareApi)
+    val mediaShareController: MediaShareController =
+        MediaShareController(mediaShareApi = mediaShareApi, feedback = feedbackController)
 
     // Local bundle packs + the hosted marketplace client. The export/import ZIP round-trips through the shared
     // journal file bridge; the export picker lists the channel's own commands/pipelines/widgets/sounds.
@@ -756,6 +775,7 @@ class AppGraph {
             musicApi = musicApi,
             integrationsApi = integrationsApi,
             baseUrlProvider = sessionStore::baseUrl,
+            feedback = feedbackController,
         )
 
     val pipelinesController: PipelinesController =
@@ -837,6 +857,7 @@ class AppGraph {
             systemApi = systemApi,
             analyticsApi = analyticsApi,
             pronounsApi = pronounsApi,
+            feedback = feedbackController,
         )
 
     /**

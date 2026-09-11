@@ -438,7 +438,6 @@ class ModerationControllerTest {
         assertTrue(state is ModerationState.Ready)
         val bans: List<BannedUser> = (state as ModerationState.Ready).bans
         assertEquals(listOf("u2"), bans.map { it.id })
-        assertNull(state.actionError)
     }
 
     @Test
@@ -463,9 +462,9 @@ class ModerationControllerTest {
         assertEquals(listOf("ch1" to "u1"), moderationApi.unbanCalls)
         val state: ModerationState = controller.state.value
         assertTrue(state is ModerationState.Ready)
-        // The list is untouched and the failure is surfaced on the Ready state.
+        // The list is untouched — the failure announces on the shell-level feedback toast instead (see
+        // a_failed_unban_announces_an_error_carrying_the_backend_detail).
         assertEquals(listOf("u1"), (state as ModerationState.Ready).bans.map { it.id })
-        assertEquals("Missing scope.", state.actionError)
         // Only the initial load fetched bans; the failed unban did not trigger a reload.
         assertEquals(1, moderationApi.bansCalls)
     }
@@ -532,16 +531,17 @@ class ModerationControllerTest {
     fun warn_surfaces_the_backend_message_when_the_action_is_refused() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(listOf(BannedUser(id = "u1"))))
         api.warnResult = ApiResult.Ok(ModerationActionResult(success = false, message = "Missing scope."))
-        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        val feedback = RecordingFeedback()
+        val controller =
+            ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi(), feedback)
         controller.load()
 
         controller.warn("123", "spamming links")
 
-        // A success=false result surfaces the backend's message rather than silently pretending it worked.
-        assertEquals(
-            "Missing scope.",
-            (controller.state.value as? ModerationState.Ready)?.actionError,
-        )
+        // A success=false result surfaces the backend's message rather than silently pretending it worked —
+        // on the shell-level feedback toast now, not a state field.
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("Missing scope."), feedback.only.formatArgs)
     }
 
     @Test

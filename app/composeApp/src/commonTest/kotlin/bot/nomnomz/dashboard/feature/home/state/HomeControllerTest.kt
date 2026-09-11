@@ -46,6 +46,10 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
 import bot.nomnomz.dashboard.core.realtime.HubStreamInfoChanged
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -858,14 +862,16 @@ class HomeControllerTest {
             result = ApiResult.Ok(listOf(item)),
             dismissResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "below the dismiss floor")),
         )
-        val controller = attentionController(notificationsApi = notificationsApi)
+        val feedback = RecordingFeedback()
+        val controller = attentionController(notificationsApi = notificationsApi, feedback = feedback)
         controller.load()
 
         controller.dismissAttentionItem(item)
 
         val ready: HomeState.Ready = controller.state.value as HomeState.Ready
         assertEquals(1, ready.actionRequired.size)
-        assertEquals("below the dismiss floor", ready.attentionError)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(listOf<Any>("below the dismiss floor"), feedback.only.formatArgs)
     }
 
     @Test
@@ -887,6 +893,7 @@ class HomeControllerTest {
     private fun attentionController(
         notificationsApi: FakeNotificationsApi = FakeNotificationsApi(),
         moderationApi: FakeModerationApi = FakeModerationApi(),
+        feedback: Feedback = NoOpFeedback,
     ): HomeController =
         HomeController(
             channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
@@ -898,6 +905,7 @@ class HomeControllerTest {
             pipelinesApi = FakePipelinesApi(),
             moderationApi = moderationApi,
             integrationsApi = FakeIntegrationsApi(),
+            feedback = feedback,
         )
 
     private fun heldItem(

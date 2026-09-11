@@ -320,7 +320,6 @@ class TtsScreenTest {
                             TtsLexiconEntry(id = "lex-1", phrase = "brb", replacement = "be right back", matchKind = "word")
                         ),
                     busy = false,
-                    error = null,
                     manage = ManageDecision.Allowed,
                     onAdd = { _, _, _ -> },
                     onUpdate = { _, _, _, _ -> },

@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.home.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -47,6 +49,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterIsInstance
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.home_attention_error
 
 // The Home page's state-holder (frontend-ia.md §3 — the live channel landing). Resolves the active channel,
 // then loads its real snapshot, current stream info, and recent activity from the backend in parallel.
@@ -87,6 +91,7 @@ class HomeController(
     private val accessToken: () -> String? = { null },
     /** Called once after the primary channel resolves with the streamer's chat color (#RRGGBB or null). */
     private val onChatColorResolved: ((String?) -> Unit)? = null,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<HomeState> = MutableStateFlow(HomeState.Loading)
 
@@ -388,12 +393,7 @@ class HomeController(
         val channel: String = channelId ?: return
         when (val result: ApiResult<Unit> = notificationsApi.dismissActionRequired(channel, listOf(item.id))) {
             is ApiResult.Ok -> removeAttentionItem(item.id)
-            is ApiResult.Failure -> {
-                val current: HomeState = _state.value
-                if (current is HomeState.Ready) {
-                    _state.value = current.copy(attentionError = result.error.message)
-                }
-            }
+            is ApiResult.Failure -> feedback.error(Res.string.home_attention_error, result.error.message)
         }
     }
 
@@ -524,10 +524,7 @@ class HomeController(
     private fun removeAttentionItem(itemId: String) {
         val current: HomeState = _state.value
         if (current is HomeState.Ready) {
-            _state.value = current.copy(
-                actionRequired = current.actionRequired.filterNot { it.id == itemId },
-                attentionError = null,
-            )
+            _state.value = current.copy(actionRequired = current.actionRequired.filterNot { it.id == itemId })
         }
     }
 }
@@ -608,8 +605,6 @@ sealed interface HomeState {
         val firstRunSteps: List<FirstRunStep> = emptyList(),
         /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
         val streamError: String? = null,
-        /** Non-null when the last attention-inbox dismiss failed — the backend's error verbatim. */
-        val attentionError: String? = null,
         /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
         val replayStatus: Map<String, ReplayStatus> = emptyMap(),
     ) : HomeState

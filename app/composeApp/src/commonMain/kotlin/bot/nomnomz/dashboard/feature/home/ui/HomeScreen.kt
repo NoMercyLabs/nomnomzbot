@@ -267,7 +267,6 @@ fun HomeScreen(
                     activity = current.activity,
                     topCommands = current.topCommands,
                     actionRequired = current.actionRequired,
-                    attentionError = current.attentionError,
                     firstRunSteps = current.firstRunSteps,
                     streamError = current.streamError,
                     replayStatus = current.replayStatus,
@@ -323,7 +322,6 @@ private fun ReadyContent(
     activity: List<ActivityEvent>,
     topCommands: List<CommandSummary>,
     actionRequired: List<ActionRequiredItem>,
-    attentionError: String?,
     firstRunSteps: List<FirstRunStep>,
     streamError: String?,
     replayStatus: Map<String, ReplayStatus>,
@@ -390,7 +388,6 @@ private fun ReadyContent(
         if (actionRequired.isNotEmpty()) {
             AttentionInbox(
                 items = actionRequired,
-                attentionError = attentionError,
                 onReview = onReviewAttention,
                 onDismiss = onDismissAttention,
             )

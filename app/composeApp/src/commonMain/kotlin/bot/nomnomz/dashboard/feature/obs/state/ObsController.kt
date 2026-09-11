@@ -31,11 +31,14 @@ import bot.nomnomz.dashboard.core.network.ObsTransition
 import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.obs_action_error
 import nomnomzbot.composeapp.generated.resources.obs_no_channel_error
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
@@ -49,6 +52,7 @@ import org.jetbrains.compose.resources.getString
 class ObsController(
     private val channelsApi: ChannelsApi,
     private val obsApi: ObsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<ObsUiState> = MutableStateFlow(ObsUiState.Loading)
 
@@ -107,14 +111,12 @@ class ObsController(
 
         val live: ObsLive = readLiveWithProbe(id)
 
-        val previous: ObsUiState.Ready? = _state.value as? ObsUiState.Ready
         _state.value =
             ObsUiState.Ready(
                 connection = connection,
                 bridgeSetup = bridgeSetup,
                 bridgeStatus = bridgeStatus,
                 live = live,
-                actionError = previous?.actionError,
             )
     }
 
@@ -414,11 +416,14 @@ class ObsController(
         }
     }
 
+    // The page is already showing content — a control/write failure announces on the shell-level feedback
+    // toast (dismissable, see core/feedback/FeedbackHost.kt) rather than blowing the page away. Only when
+    // the page has nothing to show yet (still Loading, or already in Error) does a failure become the page's
+    // own Error state.
     private fun failWrite(detail: String) {
         val current: ObsUiState = _state.value
-        _state.value =
-            if (current is ObsUiState.Ready) current.copy(actionError = detail)
-            else ObsUiState.Error(detail)
+        if (current is ObsUiState.Ready) feedback.error(Res.string.obs_action_error, detail)
+        else _state.value = ObsUiState.Error(detail)
     }
 
     private companion object {
@@ -432,15 +437,14 @@ sealed interface ObsUiState {
     data object Loading : ObsUiState
 
     /**
-     * The channel's OBS config, the browser-source bridge, and the live OBS state (best-effort). [actionError]
-     * is non-null only when the last write/control failed — surfaced as a transient banner over the content.
+     * The channel's OBS config, the browser-source bridge, and the live OBS state (best-effort). A write/control
+     * failure announces on the shell-level feedback toast rather than a field here — see [ObsController.failWrite].
      */
     data class Ready(
         val connection: ObsConnection,
         val bridgeSetup: ObsBridgeSetup?,
         val bridgeStatus: ObsBridgeStatus?,
         val live: ObsLive,
-        val actionError: String? = null,
         /** The scene-items view the operator last opened (scene picker → per-item visibility), if any. */
         val sceneItemsView: ObsSceneItemsView? = null,
         /** The source-filters view the operator last opened (source picker → per-filter enable), if any. */
