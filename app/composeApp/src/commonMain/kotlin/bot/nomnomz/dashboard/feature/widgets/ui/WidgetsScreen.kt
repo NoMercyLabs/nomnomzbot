@@ -16,6 +16,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,6 +66,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
@@ -234,52 +236,52 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         modifier = Modifier.fillMaxSize().background(tokens.background).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        PageHeader(
-            title = stringResource(Res.string.shell_nav_overlays),
-            subtitle = stringResource(Res.string.widgets_subtitle),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
+        // PageHeader's trailing slot sits in a fixed 96dp band (see PageHeader.kt) that can't grow to fit a
+        // wrapped second line, so up to five actions beside the title overflowed the viewport at Compact
+        // instead of reflowing — the "Review" pill showed as one-character-per-line and the row scrolled
+        // horizontally (S-PL7-VISUAL). At Compact the header goes title-only and the actions move into a
+        // full-width FlowRow beneath it, wrapping instead of overflowing; at Medium/Expanded they stay beside
+        // the title as before.
+        if (windowSize.isCompact) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                PageHeader(
+                    title = stringResource(Res.string.shell_nav_overlays),
+                    subtitle = stringResource(Res.string.widgets_subtitle),
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    WidgetsHeaderActions(
+                        isReviewer = isReviewer,
+                        manage = manage,
+                        onGallery = { showGalleryDialog = true },
+                        onSubmit = { showSubmitDialog = true },
+                        onReview = { showReviewQueue = true },
+                        onRotateToken = { showRotateTokenConfirm = true },
+                        onCreate = { showCreateDialog = true },
+                    )
+                }
+            }
+        } else {
+            PageHeader(
+                title = stringResource(Res.string.shell_nav_overlays),
+                subtitle = stringResource(Res.string.widgets_subtitle),
             ) {
-                // Browsing the gallery is a public read, so it stays ungated; the Install / Clone controls inside
-                // the dialog carry the Editor write gate.
-                Button(
-                    onClick = { showGalleryDialog = true },
-                    variant = ButtonVariant.Outline,
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(Res.string.widgets_gallery_action))
-                }
-                // Submitting a community widget is open to any signed-in user (it lands in the review queue,
-                // not the live catalogue) — the backend validates the SHA/URL and gates the eventual verify.
-                Button(
-                    onClick = { showSubmitDialog = true },
-                    variant = ButtonVariant.Outline,
-                ) {
-                    Text(stringResource(Res.string.widgets_submit_action))
-                }
-                // The review queue only appears for a platform reviewer (gallery:review). The backend is the real
-                // gate — a non-reviewer's list is scoped to their own items and every review write 403s.
-                if (isReviewer) {
-                    Button(
-                        onClick = { showReviewQueue = true },
-                        variant = ButtonVariant.Outline,
-                    ) {
-                        Text(stringResource(Res.string.widgets_review_action))
-                    }
-                }
-                ManageGate(manage) {
-                    Button(
-                        onClick = { showRotateTokenConfirm = true },
-                        variant = ButtonVariant.Outline,
-                    ) {
-                        Text(stringResource(Res.string.widgets_rotate_token_action))
-                    }
-                }
-                ManageGate(manage) {
-                    Button(onClick = { showCreateDialog = true }) {
-                        Text(stringResource(Res.string.widgets_create_action))
-                    }
+                    WidgetsHeaderActions(
+                        isReviewer = isReviewer,
+                        manage = manage,
+                        onGallery = { showGalleryDialog = true },
+                        onSubmit = { showSubmitDialog = true },
+                        onReview = { showReviewQueue = true },
+                        onRotateToken = { showRotateTokenConfirm = true },
+                        onCreate = { showCreateDialog = true },
+                    )
                 }
             }
         }
@@ -462,6 +464,47 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     }
 }
 
+// The Gallery / Submit / Review / Rotate token / Create trio-plus as plain (non-scoped) composables so the
+// same calls render identically inside the Expanded Row and the Compact FlowRow above.
+@Composable
+private fun WidgetsHeaderActions(
+    isReviewer: Boolean,
+    manage: ManageDecision,
+    onGallery: () -> Unit,
+    onSubmit: () -> Unit,
+    onReview: () -> Unit,
+    onRotateToken: () -> Unit,
+    onCreate: () -> Unit,
+) {
+    // Browsing the gallery is a public read, so it stays ungated; the Install / Clone controls inside
+    // the dialog carry the Editor write gate.
+    Button(onClick = onGallery, variant = ButtonVariant.Outline) {
+        Text(stringResource(Res.string.widgets_gallery_action))
+    }
+    // Submitting a community widget is open to any signed-in user (it lands in the review queue,
+    // not the live catalogue) — the backend validates the SHA/URL and gates the eventual verify.
+    Button(onClick = onSubmit, variant = ButtonVariant.Outline) {
+        Text(stringResource(Res.string.widgets_submit_action))
+    }
+    // The review queue only appears for a platform reviewer (gallery:review). The backend is the real
+    // gate — a non-reviewer's list is scoped to their own items and every review write 403s.
+    if (isReviewer) {
+        Button(onClick = onReview, variant = ButtonVariant.Outline) {
+            Text(stringResource(Res.string.widgets_review_action))
+        }
+    }
+    ManageGate(manage) {
+        Button(onClick = onRotateToken, variant = ButtonVariant.Outline) {
+            Text(stringResource(Res.string.widgets_rotate_token_action))
+        }
+    }
+    ManageGate(manage) {
+        Button(onClick = onCreate) {
+            Text(stringResource(Res.string.widgets_create_action))
+        }
+    }
+}
+
 // The list-bearing content: an optional write-failure banner over the overlay rows. The header (title +
 // subtitle) lives on the screen so it shows in every state, matching the integrations page.
 @Composable
@@ -609,197 +652,96 @@ private fun WidgetRow(
             .padding(horizontal = spacing.s4, vertical = spacing.s3),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
+        // Up to nine trailing controls (settings, edit code, test, update, versions, rename, clone, delete,
+        // toggle) beside the name+description column leave that column a sliver once they claim their fixed
+        // width on a narrow pane — Text still wraps, but with almost no width per line it degrades to one
+        // character per line instead of a readable two-line wrap ("Last ran 479m ago" rendering as "L" / "a" /
+        // "s" / "t" / ... down the whole card — S-PL7-VISUAL). Same shape as PipelinesScreen's tree rows and
+        // AdminScreen's flag-override row: at Compact the info column takes its own full-width line and the
+        // controls wrap in a FlowRow beneath it instead of squeezing beside it; at Medium/Expanded they stay
+        // beside the info column as before.
+        val runTest: () -> Unit = { rowScope.launch { testResult = onTest() } }
+        if (windowSize.isCompact) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    // One node for the text block: "Alerts, vanilla, enabled.".
-                    .clearAndSetSemantics { contentDescription = "$widgetDisplayName, ${widget.framework}, $stateLabel." },
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                Text(
-                    text = widgetDisplayName,
-                    style = typography.lg,
-                    color = tokens.cardForeground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                WidgetRowInfo(
+                    widget = widget,
+                    widgetDisplayName = widgetDisplayName,
+                    stateLabel = stateLabel,
+                    lastRanText = lastRanText,
+                    testResult = testResult,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Text(
-                    text = "$stateLabel · ${widget.framework}",
-                    style = typography.sm,
-                    color = if (widget.isEnabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                // "Overlay last-seen": whether a live browser source has this widget open right now
-                // (backend IOverlayPresenceRegistry) — proof the overlay is actually loaded in OBS, without
-                // having to fire a test event first.
-                Text(
-                    text =
-                        stringResource(
-                            if (widget.isAttached) Res.string.widgets_overlay_live
-                            else Res.string.widgets_overlay_not_connected
-                        ),
-                    style = typography.xs,
-                    color = if (widget.isAttached) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-                if (widget.lastRuntimeError != null) {
-                    Text(
-                        text = stringResource(Res.string.widgets_runtime_error, widget.lastRuntimeError),
-                        style = typography.xs,
-                        color = tokens.destructive,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                } else {
-                    Text(text = lastRanText, style = typography.xs, color = tokens.mutedForeground)
-                }
-                if (widget.galleryUpdateAvailable) {
-                    Badge(variant = BadgeVariant.Secondary) {
-                        Text(stringResource(Res.string.widgets_update_badge), style = typography.xs)
-                    }
-                }
-                when (val result: ApiResult<String>? = testResult) {
-                    null -> {}
-                    is ApiResult.Ok ->
-                        Text(
-                            text = stringResource(Res.string.widgets_test_result, result.value),
-                            style = typography.xs,
-                            color = tokens.mutedForeground,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    is ApiResult.Failure ->
-                        Text(
-                            text = stringResource(Res.string.widgets_test_error, result.error.message),
-                            style = typography.xs,
-                            color = tokens.destructive,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                }
-            }
-
-            // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
-            // shown only for widget types that have a registered typed form. Gated by the Editor manage floor.
-            if (hasTypedSettings) {
-                ManageGate(decision = manage) { enabled ->
-                    TextButton(
-                        onClick = onSettings,
-                        enabled = enabled,
-                        modifier = Modifier.semantics { contentDescription = settingsLabel },
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.widgets_settings_action_short),
-                            color = if (enabled) tokens.primary else tokens.mutedForeground,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = onEditCode,
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = editCodeLabel },
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s1),
                 ) {
-                    Text(
-                        text = stringResource(Res.string.widgets_edit_code_action_short),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
+                    WidgetRowActions(
+                        hasTypedSettings = hasTypedSettings,
+                        manage = manage,
+                        settingsLabel = settingsLabel,
+                        onSettings = onSettings,
+                        editCodeLabel = editCodeLabel,
+                        onEditCode = onEditCode,
+                        testLabel = testLabel,
+                        onTest = runTest,
+                        galleryUpdateAvailable = widget.galleryUpdateAvailable,
+                        updateLabel = updateLabel,
+                        onUpdateFromGallery = onUpdateFromGallery,
+                        versionsLabel = versionsLabel,
+                        onVersions = onVersions,
+                        renameLabel = renameLabel,
+                        onRename = onRename,
+                        cloneLabel = cloneLabel,
+                        onClone = onClone,
+                        deleteLabel = deleteLabel,
+                        onDelete = onDelete,
+                        toggleLabel = toggleLabel,
+                        isEnabled = widget.isEnabled,
+                        onToggle = onToggle,
                     )
                 }
             }
-            // Fires a representative sample event through the real dispatch (backend widget:write test-event
-            // route) so the operator can prove the overlay reacts without waiting for a real follow/sub/cheer.
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = { rowScope.launch { testResult = onTest() } },
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = testLabel },
-                ) {
-                    Text(
-                        text = stringResource(Res.string.widgets_test_action_short),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
-                }
-            }
-            // Only ever shown once the gallery item's source has actually moved on (never a proactive prompt);
-            // the platform never rebuilds this widget on its own, so this is the one control that does.
-            if (widget.galleryUpdateAvailable) {
-                ManageGate(decision = manage) { enabled ->
-                    TextButton(
-                        onClick = onUpdateFromGallery,
-                        enabled = enabled,
-                        modifier = Modifier.semantics { contentDescription = updateLabel },
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.widgets_update_action_short),
-                            color = if (enabled) tokens.primary else tokens.mutedForeground,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
-            // Version history + rollback is a read to open, so it stays enabled below the manage floor; the
-            // rollback control inside the dialog carries the write gate.
-            TextButton(
-                onClick = onVersions,
-                modifier = Modifier.semantics { contentDescription = versionsLabel },
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
-                Text(
-                    text = stringResource(Res.string.widgets_versions_action_short),
-                    color = tokens.primary,
-                    maxLines = 1,
+                WidgetRowInfo(
+                    widget = widget,
+                    widgetDisplayName = widgetDisplayName,
+                    stateLabel = stateLabel,
+                    lastRanText = lastRanText,
+                    testResult = testResult,
+                    modifier = Modifier.weight(1f),
                 )
-            }
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = onRename,
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = renameLabel },
-                ) {
-                    Text(
-                        text = stringResource(Res.string.widgets_rename_action_short),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
-                }
-            }
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = onClone,
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = cloneLabel },
-                ) {
-                    Text(
-                        text = stringResource(Res.string.widgets_clone_action_short),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
-                }
-            }
-            ManageGate(decision = manage) { enabled ->
-                GlyphButton(
-                    icon = TrashGlyph,
-                    label = deleteLabel,
-                    onClick = onDelete,
-                    enabled = enabled,
-                    tint = tokens.destructive,
-                )
-            }
-            ManageGate(decision = manage) { enabled ->
-                Switch(
-                    checked = widget.isEnabled,
-                    onCheckedChange = onToggle,
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = toggleLabel },
+                WidgetRowActions(
+                    hasTypedSettings = hasTypedSettings,
+                    manage = manage,
+                    settingsLabel = settingsLabel,
+                    onSettings = onSettings,
+                    editCodeLabel = editCodeLabel,
+                    onEditCode = onEditCode,
+                    testLabel = testLabel,
+                    onTest = runTest,
+                    galleryUpdateAvailable = widget.galleryUpdateAvailable,
+                    updateLabel = updateLabel,
+                    onUpdateFromGallery = onUpdateFromGallery,
+                    versionsLabel = versionsLabel,
+                    onVersions = onVersions,
+                    renameLabel = renameLabel,
+                    onRename = onRename,
+                    cloneLabel = cloneLabel,
+                    onClone = onClone,
+                    deleteLabel = deleteLabel,
+                    onDelete = onDelete,
+                    toggleLabel = toggleLabel,
+                    isEnabled = widget.isEnabled,
+                    onToggle = onToggle,
                 )
             }
         }
@@ -856,6 +798,242 @@ private fun WidgetRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+// The name/state/last-ran/test-result text block for one overlay row — split out of [WidgetRow] so it can be
+// given either a weight(1f) (beside the actions, Expanded) or a fillMaxWidth() (above the actions, Compact).
+@Composable
+private fun WidgetRowInfo(
+    widget: WidgetSummary,
+    widgetDisplayName: String,
+    stateLabel: String,
+    lastRanText: String,
+    testResult: ApiResult<String>?,
+    modifier: Modifier = Modifier,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier =
+            modifier
+                // One node for the text block: "Alerts, vanilla, enabled.".
+                .clearAndSetSemantics { contentDescription = "$widgetDisplayName, ${widget.framework}, $stateLabel." },
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(
+            text = widgetDisplayName,
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "$stateLabel · ${widget.framework}",
+            style = typography.sm,
+            color = if (widget.isEnabled) tokens.primary else tokens.mutedForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        // "Overlay last-seen": whether a live browser source has this widget open right now
+        // (backend IOverlayPresenceRegistry) — proof the overlay is actually loaded in OBS, without
+        // having to fire a test event first.
+        Text(
+            text =
+                stringResource(
+                    if (widget.isAttached) Res.string.widgets_overlay_live
+                    else Res.string.widgets_overlay_not_connected
+                ),
+            style = typography.xs,
+            color = if (widget.isAttached) tokens.primary else tokens.mutedForeground,
+            maxLines = 1,
+        )
+        if (widget.lastRuntimeError != null) {
+            Text(
+                text = stringResource(Res.string.widgets_runtime_error, widget.lastRuntimeError),
+                style = typography.xs,
+                color = tokens.destructive,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Text(text = lastRanText, style = typography.xs, color = tokens.mutedForeground)
+        }
+        if (widget.galleryUpdateAvailable) {
+            Badge(variant = BadgeVariant.Secondary) {
+                Text(stringResource(Res.string.widgets_update_badge), style = typography.xs)
+            }
+        }
+        when (val result: ApiResult<String>? = testResult) {
+            null -> {}
+            is ApiResult.Ok ->
+                Text(
+                    text = stringResource(Res.string.widgets_test_result, result.value),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            is ApiResult.Failure ->
+                Text(
+                    text = stringResource(Res.string.widgets_test_error, result.error.message),
+                    style = typography.xs,
+                    color = tokens.destructive,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+        }
+    }
+}
+
+// The settings/edit-code/test/update/versions/rename/clone/delete/toggle trailing controls for one overlay
+// row, as plain (non-scoped) composables — split out of [WidgetRow] so the same calls render identically
+// inside the Expanded Row (beside [WidgetRowInfo]) and the Compact FlowRow (beneath it).
+@Composable
+private fun WidgetRowActions(
+    hasTypedSettings: Boolean,
+    manage: ManageDecision,
+    settingsLabel: String,
+    onSettings: () -> Unit,
+    editCodeLabel: String,
+    onEditCode: () -> Unit,
+    testLabel: String,
+    onTest: () -> Unit,
+    galleryUpdateAvailable: Boolean,
+    updateLabel: String,
+    onUpdateFromGallery: () -> Unit,
+    versionsLabel: String,
+    onVersions: () -> Unit,
+    renameLabel: String,
+    onRename: () -> Unit,
+    cloneLabel: String,
+    onClone: () -> Unit,
+    deleteLabel: String,
+    onDelete: () -> Unit,
+    toggleLabel: String,
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+
+    // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
+    // shown only for widget types that have a registered typed form. Gated by the Editor manage floor.
+    if (hasTypedSettings) {
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onSettings,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = settingsLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.widgets_settings_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onEditCode,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = editCodeLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.widgets_edit_code_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
+    // Fires a representative sample event through the real dispatch (backend widget:write test-event
+    // route) so the operator can prove the overlay reacts without waiting for a real follow/sub/cheer.
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onTest,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = testLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.widgets_test_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
+    // Only ever shown once the gallery item's source has actually moved on (never a proactive prompt);
+    // the platform never rebuilds this widget on its own, so this is the one control that does.
+    if (galleryUpdateAvailable) {
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onUpdateFromGallery,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = updateLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.widgets_update_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+    // Version history + rollback is a read to open, so it stays enabled below the manage floor; the
+    // rollback control inside the dialog carries the write gate.
+    TextButton(
+        onClick = onVersions,
+        modifier = Modifier.semantics { contentDescription = versionsLabel },
+    ) {
+        Text(
+            text = stringResource(Res.string.widgets_versions_action_short),
+            color = tokens.primary,
+            maxLines = 1,
+        )
+    }
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onRename,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = renameLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.widgets_rename_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onClone,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = cloneLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.widgets_clone_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
+    ManageGate(decision = manage) { enabled ->
+        GlyphButton(
+            icon = TrashGlyph,
+            label = deleteLabel,
+            onClick = onDelete,
+            enabled = enabled,
+            tint = tokens.destructive,
+        )
+    }
+    ManageGate(decision = manage) { enabled ->
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = onToggle,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = toggleLabel },
+        )
     }
 }
 
