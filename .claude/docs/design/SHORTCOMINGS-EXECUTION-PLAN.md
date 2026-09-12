@@ -55,11 +55,12 @@ segment, so none of those fields ever rendered in the property inspector — sam
 and fixed in the sibling music plugin's own `simple-param.html` (`f3e854b7`), both now
 mutation-guarded against recurrence.
 
-- [ ] **S-STREAMDECK-OBS-REMAINDER — live icon state** (mute/streaming/recording tile feedback) — no
-      OBS equivalent of music's `song.changed` WS push exists yet; needs a new
-      `IObsControlService`-side push, event descriptor, WS wiring, and plugin-side rendering — a
-      materially separate feature. Icons are still placeholders, reusing
-      `record-start.svg`/`device.svg` pending real OBS-themed art.
+**S-STREAMDECK-OBS-REMAINDER CLOSED (`99d1b03a`).** Live icon state shipped: mute/streaming/
+recording tiles now update from real OBS state, mirroring the music plugin's `song.changed`
+architecture — 3 typed domain events, an `ObsAutomationStateForwarder` projector, 3 automation
+event descriptors, and a seed-read endpoint for the tile's first paint before a push arrives.
+Real OBS-themed icon art is still a design-asset gap (existing placeholder pairs are reused for
+the on/off swap) — not a code task, owner content-authoring territory.
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
@@ -713,16 +714,18 @@ wired, enforced and deployed; those lines are gone from this tracker. One piece 
       contribution eligibility — is built and is what makes corpus-match and near-duplicate able to
       fire at all.
 
-**Known infrastructure fault, outside this work:** `https://dev.nomnomz.bot` returns 530. The origin
-serves correctly on `http://192.168.2.60:5080`; the Cloudflare tunnel token in the host's `.env`
-(tunnel `cf9f7591`) is rejected by Cloudflare on every connection attempt. Reissuing it needs
-Cloudflare account access. Verify deploys over the LAN address until then.
+**Stale — the Cloudflare tunnel 530 fault is resolved.** `https://dev.nomnomz.bot` was seen
+returning 530 (rejected tunnel token, tunnel `cf9f7591`) as of an earlier note; confirmed live and
+serving correctly as of the 09-05 S-UX-4 pass and again 09-12 (owner's own browser hit the real
+dashboard at the bare root). Still verify deploys over the LAN address (`192.168.2.60:5080`) as the
+primary check — the tunnel is a convenience hop, not the source of truth — but it is not currently
+broken.
 
 **Your asks, and where each one is:**
 
 | Your words | Slice | State |
 |---|---|---|
-| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | editor SHIPPED `d4a7b397`, save-path bug fixed `934355cb`, proven round-tripping in a browser; visual hierarchy slice S-PIPE-TREE-VIS open |
+| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | **CLOSED.** editor SHIPPED `d4a7b397`, save-path bug fixed `934355cb`, proven round-tripping in a browser; visual hierarchy slice S-PIPE-TREE-VIS also closed (`1f658e0b`/`2110f3b8`/`dcf73ed1`). |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
 | item pickers show a rich list, not opaque ids | S-RICH-PICKERS | **CLOSED.** ChatTriggers now uses `PipelineBindPicker` (`28621f9a`, verified — `ChatTriggersScreenTest` proves the name renders while the real id is what saves). Automation has no compatible field: its only pipeline UI is a multi-select "restrict token to pipelines" chip list already rendering names via `resolveRowLabel`, structurally incompatible with the single-select picker — nothing to wire there. |
 | budget system for payment tiers by resource usage | S-BUDGETS | queued - intent recorded: recover real cost, not upsell |
