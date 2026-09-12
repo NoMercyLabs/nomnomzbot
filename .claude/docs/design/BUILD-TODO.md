@@ -60,11 +60,6 @@ separately here.
   2. **Bridge (remote/SaaS):** Dashboard → OBS → "bridge setup" → copy the `/obs-bridge?token=` URL →
      add it as a Browser Source in OBS (any size, e.g. 1×1). Bridge status should flip to a leader online;
      drive a scene switch from the dashboard and confirm OBS reacts.
-- [ ] **Every feature human-tested** — swept ~30 screens live as a human (a11y-tree health + error scan).
-  Only defect found = the OBS state-read 500 (fixed); federation peers 403s because the self-host owner has
-  no platform-IAM principal (see owner-calls below). Deep-verified: widget editor (highlight/scroll/live Vue
-  preview renders the real BSOD), commands dialog, widgets overlay render, widget settings. Not yet clicked
-  one-by-one: economy/games knobs, webhooks, sound-clip config, OBS mixer, roles make-a-mod, music/VTS.
 **CLOSED — Old-bot parity, command diff.** All 10 missing legacy commands now have real builtins, and
 `{user.messageCount}` reads the real aggregate. The 15 code scripts are confirmed sound: queried the
 live deployed database directly — all 20 non-deleted `CodeScripts` across both real channels
