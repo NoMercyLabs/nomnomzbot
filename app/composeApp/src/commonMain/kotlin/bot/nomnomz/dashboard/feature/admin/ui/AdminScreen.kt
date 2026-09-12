@@ -142,6 +142,7 @@ import nomnomzbot.composeapp.generated.resources.admin_system_cpu
 import nomnomzbot.composeapp.generated.resources.admin_system_memory
 import nomnomzbot.composeapp.generated.resources.admin_system_version
 import nomnomzbot.composeapp.generated.resources.admin_tab_billing
+import nomnomzbot.composeapp.generated.resources.assets_size_mb
 import nomnomzbot.composeapp.generated.resources.admin_tab_content
 import nomnomzbot.composeapp.generated.resources.admin_tab_channels
 import nomnomzbot.composeapp.generated.resources.admin_tab_flags
@@ -1306,7 +1307,10 @@ internal fun SystemTab(state: AdminState) {
                 }
             }
             StatCard(label = stringResource(Res.string.admin_system_version), value = sys.botVersion)
-            StatCard(label = stringResource(Res.string.admin_system_memory), value = sys.memoryUsageMb.toString())
+            StatCard(
+                label = stringResource(Res.string.admin_system_memory),
+                value = stringResource(Res.string.assets_size_mb, sys.memoryUsageMb.toString()),
+            )
             StatCard(label = stringResource(Res.string.admin_system_cpu), value = "${(sys.cpuPercent * 10).toLong().let { t -> "${t / 10}.${t % 10}" }}%")
 
             Spacer(modifier = Modifier.height(spacing.s2))

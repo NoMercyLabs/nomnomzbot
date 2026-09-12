@@ -3405,9 +3405,9 @@
     <string name="admin_impersonate_justification">Motivering</string>
     <string name="admin_impersonate_error_no_session">Geen open ondersteuningssessie voor deze tenant. Probeer het straks opnieuw, of controleer het auditlog.</string>
     <string name="admin_impersonate_error_not_permitted">Je rol staat imiteren niet toe. Dit vereist de platformeigenaarsrol op een SaaS-omgeving.</string>
-    <string name="admin_system_version">Versie: %1$s</string>
-    <string name="admin_system_memory">Geheugen: %1$d MB</string>
-    <string name="admin_system_cpu">CPU: %1$.1f%%</string>
+    <string name="admin_system_version">Versie</string>
+    <string name="admin_system_memory">Geheugen</string>
+    <string name="admin_system_cpu">CPU</string>
     <string name="admin_flag_enabled">Ingeschakeld</string>
     <string name="admin_flag_enabled_rollout">Ingeschakeld — %1$d%</string>
     <string name="admin_flag_disabled">Uitgeschakeld</string>
