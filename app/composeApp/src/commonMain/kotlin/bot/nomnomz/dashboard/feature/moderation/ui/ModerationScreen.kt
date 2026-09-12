@@ -275,6 +275,11 @@ import nomnomzbot.composeapp.generated.resources.moderation_rules_create_name_re
 import nomnomzbot.composeapp.generated.resources.moderation_rules_create_title
 import nomnomzbot.composeapp.generated.resources.moderation_rules_create_type
 import nomnomzbot.composeapp.generated.resources.moderation_rules_title
+import nomnomzbot.composeapp.generated.resources.moderation_rules_group_filtering
+import nomnomzbot.composeapp.generated.resources.moderation_rules_group_enforcement
+import nomnomzbot.composeapp.generated.resources.moderation_rules_group_network
+import nomnomzbot.composeapp.generated.resources.moderation_rules_group_general
+import nomnomzbot.composeapp.generated.resources.moderation_heat_section_title
 import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_title
 import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_add
 import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_enable
@@ -434,6 +439,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_add
 import nomnomzbot.composeapp.generated.resources.moderation_shared_trusted_remove
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.SharedFlow
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 // The Moderation page: the channel's currently-banned viewers, all real data from [ModerationController].
@@ -468,6 +474,39 @@ private fun LazyListScope.sectionItem(
     content: @Composable LazyItemScope.() -> Unit,
 ) {
     if (active == owner) item(key = key, content = content)
+}
+
+/**
+ * The Rules tab used to be one continuous scroll of 11 unrelated configuration surfaces — blocked terms,
+ * AutoMod (local + Twitch), custom rules, chat filters, trust weights, spam defense, the escalation ladder,
+ * shared bans, and shoutout config — all at the same visual weight with no grouping. That reads as
+ * overwhelming because it IS: eleven different jobs presented as one. Grouping by what a moderator is
+ * actually trying to DO (not which backend service a card happens to call) mirrors the admin plane's own
+ * "18 flat surfaces -> 5 job groups" precedent (`AdminTabGroup` in `AdminScreen.kt`).
+ */
+private enum class RulesGroup(val label: StringResource) {
+    /** What content gets blocked before it lands: blocked terms, AutoMod (local + Twitch), custom rules, chat filters. */
+    ContentFilters(Res.string.moderation_rules_group_filtering),
+
+    /** What the bot does on its own once a filter fires: trust weights, spam defense, heat auto-timeout, escalation. */
+    AutoEnforcement(Res.string.moderation_rules_group_enforcement),
+
+    /** Trust extended to other channels: shared-chat bans. */
+    Network(Res.string.moderation_rules_group_network),
+
+    /** Configuration that governs enforcement's ladder but isn't itself a filter or a job above — shoutout config. */
+    General(Res.string.moderation_rules_group_general),
+}
+
+/** Emits [content] only on the Rules page, and only while its own job group is the one selected. */
+private fun LazyListScope.rulesSectionItem(
+    active: ModerationSection,
+    group: RulesGroup,
+    selectedGroup: RulesGroup,
+    key: String,
+    content: @Composable LazyItemScope.() -> Unit,
+) {
+    if (active == ModerationSection.Rules && group == selectedGroup) item(key = key, content = content)
 }
 
 @Composable
@@ -690,7 +729,9 @@ private const val DEFAULT_HEAT_THRESHOLD: Int = 80
 private const val STANDING_PROVIDER: String = "twitch"
 
 @Composable
-private fun BansList(
+// Internal (not private) solely so ModerationRulesGroupingRenderTest (jvmTest, same package) can render the
+// Rules page's job-group tabs directly against plain data, without standing up a full ModerationController.
+internal fun BansList(
     section: ModerationSection,
     bans: List<BannedUser>,
     modLog: List<ModLogEntry>,
@@ -788,6 +829,8 @@ private fun BansList(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    // Which job group is showing on the Rules page (see [RulesGroup]). Irrelevant on the other three pages.
+    var selectedRulesGroup: RulesGroup by remember { mutableStateOf(RulesGroup.ContentFilters) }
     // Escalation is edited in a dialog (the whole ladder is replaced on save); this owns its open/closed state.
     var showEscalationDialog: Boolean by remember { mutableStateOf(false) }
     // The nuke batch awaiting a revert confirmation, if any.
@@ -1048,8 +1091,22 @@ private fun BansList(
                 }
             }
         }
+        // The Rules page's job-group switch (see [RulesGroup]) — replaces one 11-card scroll with four
+        // purpose-grouped ones, only one primary tab strip on the page, and only one visible job at a time.
+        sectionItem(section, ModerationSection.Rules, "rules-group-tabs") {
+            TabsList {
+                RulesGroup.entries.forEach { group ->
+                    TabsTrigger(
+                        selected = selectedRulesGroup == group,
+                        onClick = { selectedRulesGroup = group },
+                    ) {
+                        Text(stringResource(group.label))
+                    }
+                }
+            }
+        }
         // Always shown in Ready so the add input is reachable even with no terms yet.
-        sectionItem(section, ModerationSection.Rules, "terms-header") {
+        rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-header") {
             Text(
                 text = stringResource(Res.string.moderation_terms_title),
                 style = typography.lg,
@@ -1059,15 +1116,17 @@ private fun BansList(
         }
         if (!blockedTermsAvailable) {
             // The live blocked-terms list is unavailable here — don't offer an add input that would just fail.
-            sectionItem(section, ModerationSection.Rules, "terms-unavailable") {
+            rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-unavailable") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SectionUnavailable(stringResource(Res.string.moderation_terms_unavailable))
                 }
             }
         } else {
-            sectionItem(section, ModerationSection.Rules, "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
+            rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-add") {
+                AddTermRow(manage = manage, onAdd = onAddTerm)
+            }
             if (blockedTerms.isNotEmpty()) {
-                sectionItem(section, ModerationSection.Rules, "terms-card") {
+                rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-card") {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column {
                             blockedTerms.forEachIndexed { index, term ->
@@ -1081,25 +1140,9 @@ private fun BansList(
                 }
             }
         }
-        sectionItem(section, ModerationSection.Rules, "shoutout-header") {
-            Text(
-                text = stringResource(Res.string.moderation_shoutout_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-                maxLines = 1,
-            )
-        }
-        sectionItem(section, ModerationSection.Rules, "shoutout-card") {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                ShoutoutTemplateEditor(
-                    template = shoutoutTemplate,
-                    manage = manage,
-                    templateHelpersApi = templateHelpersApi,
-                    onSave = onSaveShoutoutTemplate,
-                )
-            }
-        }
-        sectionItem(section, ModerationSection.Rules, "automod-header") {
+        // AutoMod: the local engine and Twitch's own AutoMod are two cards under one header — both are the
+        // same job (deciding what never reaches chat), just two different engines doing it.
+        rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "automod-header") {
             Text(
                 text = stringResource(Res.string.moderation_automod_title),
                 style = typography.lg,
@@ -1107,7 +1150,7 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        sectionItem(section, ModerationSection.Rules, "automod-card") {
+        rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "automod-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     AutomodRow(
@@ -1185,43 +1228,12 @@ private fun BansList(
                         manage = manage,
                         onSave = onSaveEmoteMaxEmotes,
                     )
-                    Separator()
-                    HeatThresholdRow(
-                        threshold = automod.heatTimeoutThreshold,
-                        manage = manage,
-                        onSave = onSaveHeatThreshold,
-                    )
-                    // The auto-timeout is OPT-IN: off, crossing the line above only flags the viewer.
-                    AutomodRow(
-                        name = stringResource(Res.string.moderation_heat_auto_timeout_title),
-                        enabled = automod.autoTimeoutOnHeat,
-                        detail = stringResource(Res.string.moderation_heat_auto_timeout_explain),
-                        manage = manage,
-                        onToggle = { onToggleAutoTimeoutOnHeat(!automod.autoTimeoutOnHeat) },
-                    )
-                    AutomodNumberRow(
-                        value = automod.heatTimeoutSeconds,
-                        label = stringResource(Res.string.moderation_heat_timeout_seconds_label),
-                        hint = stringResource(Res.string.moderation_heat_timeout_seconds_hint),
-                        manage = manage,
-                        onSave = onSaveHeatTimeoutSeconds,
-                    )
                 }
             }
         }
-        // Trust & Automation (S-OWN23 T4): what the bot does on its own, and every number behind it.
-        sectionItem(section, ModerationSection.Rules, "trust-automation-header") {
-            Text(
-                text = trustAutomationSectionTitle(),
-                style = typography.lg,
-                color = tokens.cardForeground,
-                maxLines = 1,
-            )
-        }
-        sectionItem(section, ModerationSection.Rules, "automation-panel") {
-            Card(modifier = Modifier.fillMaxWidth()) { AutomationPanel(lines = automationLines) }
-        }
-        sectionItem(section, ModerationSection.Rules, "twitch-automod-card") {
+        // Twitch's own AutoMod, right under the local engine's header — same job (deciding what never
+        // reaches chat), a second engine doing it.
+        rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "twitch-automod-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 TwitchAutoModEditor(
                     settings = twitchAutoMod,
@@ -1230,10 +1242,22 @@ private fun BansList(
                 )
             }
         }
+        // Trust & Automation (S-OWN23 T4): what the bot does on its own, and every number behind it.
+        rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "trust-automation-header") {
+            Text(
+                text = trustAutomationSectionTitle(),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "automation-panel") {
+            Card(modifier = Modifier.fillMaxWidth()) { AutomationPanel(lines = automationLines) }
+        }
         // The trust editor renders only when the policy read succeeded (Moderator+ read floor); the writes inside
         // it stay gated at the Broadcaster floor.
         trustPolicy?.let { policy ->
-            sectionItem(section, ModerationSection.Rules, "trust-policy-card") {
+            rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "trust-policy-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     TrustPolicyEditor(
                         policy = policy,
@@ -1248,12 +1272,50 @@ private fun BansList(
         // (Moderator+ floor), and the writes inside it stay gated at the Broadcaster floor, because
         // changing these weights is where enforcement gets switched on at all.
         spamDefense?.let { policy ->
-            sectionItem(section, ModerationSection.Rules, "spam-defense-card") {
+            rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "spam-defense-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SpamDefenseSection(
                         policy = policy,
                         manage = broadcasterManage,
                         onSave = onSaveSpamDefense,
+                    )
+                }
+            }
+        }
+        // Heat & auto-timeout — split out of the local AutoMod card (owner request 2026-09-12): heat is
+        // computed FROM AutoMod/filter hits but ACTS automatically, so it is an enforcement decision, not a
+        // filtering one, and belongs with trust weights/spam defense/escalation, not with the filters above.
+        rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "heat-header") {
+            Text(
+                text = stringResource(Res.string.moderation_heat_section_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "heat-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    HeatThresholdRow(
+                        threshold = automod.heatTimeoutThreshold,
+                        manage = manage,
+                        onSave = onSaveHeatThreshold,
+                    )
+                    Separator()
+                    // The auto-timeout is OPT-IN: off, crossing the line above only flags the viewer.
+                    AutomodRow(
+                        name = stringResource(Res.string.moderation_heat_auto_timeout_title),
+                        enabled = automod.autoTimeoutOnHeat,
+                        detail = stringResource(Res.string.moderation_heat_auto_timeout_explain),
+                        manage = manage,
+                        onToggle = { onToggleAutoTimeoutOnHeat(!automod.autoTimeoutOnHeat) },
+                    )
+                    AutomodNumberRow(
+                        value = automod.heatTimeoutSeconds,
+                        label = stringResource(Res.string.moderation_heat_timeout_seconds_label),
+                        hint = stringResource(Res.string.moderation_heat_timeout_seconds_hint),
+                        manage = manage,
+                        onSave = onSaveHeatTimeoutSeconds,
                     )
                 }
             }
@@ -1331,7 +1393,7 @@ private fun BansList(
         }
         // Escalation ladder (J.10). Rendered only when the policy read succeeded (Moderator+ read floor).
         escalationPolicy?.let { policy ->
-            sectionItem(section, ModerationSection.Rules, "escalation-header") {
+            rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "escalation-header") {
                 Text(
                     text = stringResource(Res.string.moderation_escalation_title),
                     style = typography.lg,
@@ -1339,7 +1401,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            sectionItem(section, ModerationSection.Rules, "escalation-card") {
+            rulesSectionItem(section, RulesGroup.AutoEnforcement, selectedRulesGroup, "escalation-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     EscalationLadderCard(
                         policy = policy,
@@ -1349,9 +1411,10 @@ private fun BansList(
                 }
             }
         }
-        // Shared-chat bans trust web (J.9). Rendered only when the SuperMod-gated read succeeded.
+        // Shared-chat bans trust web (J.9) — trust extended to OTHER channels, its own job, not filtering or
+        // enforcement. Rendered only when the SuperMod-gated read succeeded.
         sharedBanSettings?.let { settings ->
-            sectionItem(section, ModerationSection.Rules, "shared-bans-header") {
+            rulesSectionItem(section, RulesGroup.Network, selectedRulesGroup, "shared-bans-header") {
                 Text(
                     text = stringResource(Res.string.moderation_shared_title),
                     style = typography.lg,
@@ -1359,7 +1422,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            sectionItem(section, ModerationSection.Rules, "shared-bans-card") {
+            rulesSectionItem(section, RulesGroup.Network, selectedRulesGroup, "shared-bans-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SharedBansCard(
                         settings = settings,
@@ -1450,7 +1513,7 @@ private fun BansList(
                 onNext = onNextHistoryPage,
             )
         }
-        sectionItem(section, ModerationSection.Rules, "rules-header") {
+        rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "rules-header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1474,7 +1537,7 @@ private fun BansList(
             }
         }
         if (rules.isNotEmpty()) {
-            sectionItem(section, ModerationSection.Rules, "rules-card") {
+            rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "rules-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         rules.forEachIndexed { index, rule ->
@@ -1492,7 +1555,7 @@ private fun BansList(
                 }
             }
         }
-        sectionItem(section, ModerationSection.Rules, "chat-filters-header") {
+        rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "chat-filters-header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1516,7 +1579,7 @@ private fun BansList(
             }
         }
         if (chatFilters.isNotEmpty()) {
-            sectionItem(section, ModerationSection.Rules, "chat-filters-card") {
+            rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "chat-filters-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         chatFilters.forEachIndexed { index, filter ->
@@ -1532,6 +1595,29 @@ private fun BansList(
                         }
                     }
                 }
+            }
+        }
+        // Shoutout announcement config: not filtering, not enforcement, not network trust — its own job
+        // (owner note: shoutout belongs where a person is looked up, which argues for Community; kept here
+        // for THIS slice, scoped to the Rules tab's internal grouping, not a re-split of the whole Moderation
+        // page — moving it to Community is a bigger cross-screen change: new nav placement, wiring through a
+        // different controller/state, its own i18n and tests. Tracked as a follow-on, not silently dropped).
+        rulesSectionItem(section, RulesGroup.General, selectedRulesGroup, "shoutout-header") {
+            Text(
+                text = stringResource(Res.string.moderation_shoutout_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        rulesSectionItem(section, RulesGroup.General, selectedRulesGroup, "shoutout-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                ShoutoutTemplateEditor(
+                    template = shoutoutTemplate,
+                    manage = manage,
+                    templateHelpersApi = templateHelpersApi,
+                    onSave = onSaveShoutoutTemplate,
+                )
             }
         }
     }

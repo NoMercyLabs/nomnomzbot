@@ -555,6 +555,10 @@
     <string name="moderation_automod_enable_action">Enable %1$s filter</string>
     <string name="moderation_automod_disable_action">Disable %1$s filter</string>
     <string name="moderation_rules_title">Filter rules</string>
+    <string name="moderation_rules_group_filtering">Filtering</string>
+    <string name="moderation_rules_group_enforcement">Enforcement</string>
+    <string name="moderation_rules_group_network">Network</string>
+    <string name="moderation_rules_group_general">General</string>
     <string name="moderation_rules_enable">Enable</string>
     <string name="moderation_rules_disable">Disable</string>
     <string name="moderation_rules_enable_action">Enable rule %1$s</string>
@@ -5327,6 +5331,7 @@
     <string name="moderation_trust_heat_action_filter_hit">filter hit</string>
     <!-- The auto-timeout switch itself (opt-in) and its length. -->
     <string name="moderation_heat_auto_timeout_title">Automatic timeout on heat</string>
+    <string name="moderation_heat_section_title">Heat &amp; auto-timeout</string>
     <string name="moderation_heat_auto_timeout_explain">On, the bot times a user out by itself when their heat crosses the line. Off, a crossing only flags them for a human.</string>
     <string name="moderation_heat_timeout_seconds_label">Automatic timeout length (seconds)</string>
     <string name="moderation_heat_timeout_seconds_hint">How long the automatic timeout lasts.</string>

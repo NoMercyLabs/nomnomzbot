@@ -552,6 +552,10 @@
     <string name="moderation_automod_enable_action">%1$s-filter inschakelen</string>
     <string name="moderation_automod_disable_action">%1$s-filter uitschakelen</string>
     <string name="moderation_rules_title">Filterregels</string>
+    <string name="moderation_rules_group_filtering">Filtering</string>
+    <string name="moderation_rules_group_enforcement">Handhaving</string>
+    <string name="moderation_rules_group_network">Netwerk</string>
+    <string name="moderation_rules_group_general">Algemeen</string>
     <string name="moderation_rules_enable">Inschakelen</string>
     <string name="moderation_rules_disable">Uitschakelen</string>
     <string name="moderation_rules_enable_action">Regel %1$s inschakelen</string>
@@ -5305,6 +5309,7 @@
     <string name="moderation_trust_heat_action_automod_denied">geweigerd AutoMod-bericht</string>
     <string name="moderation_trust_heat_action_filter_hit">filtertreffer</string>
     <string name="moderation_heat_auto_timeout_title">Automatische timeout bij heat</string>
+    <string name="moderation_heat_section_title">Heat en auto-timeout</string>
     <string name="moderation_heat_auto_timeout_explain">Aan = de bot geeft zelf een timeout als de heat over de grens gaat. Uit = een grensoverschrijding markeert de gebruiker alleen voor een mens.</string>
     <string name="moderation_heat_timeout_seconds_label">Lengte automatische timeout (seconden)</string>
     <string name="moderation_heat_timeout_seconds_hint">Hoe lang de automatische timeout duurt.</string>

@@ -65,22 +65,27 @@ class ModerationSectionOwnershipTest {
                     "spam-follow-blocks-header",
                     "spam-follow-blocks-card",
                 ),
-            // Change a rule — read carefully, visited rarely.
+            // Change a rule — read carefully, visited rarely. Owner request 2026-09-12: the Rules page itself
+            // used to be one flat scroll of 11 unrelated configuration surfaces. It is now split into job
+            // groups (see rulesGroupOwners below) behind one tab strip ("rules-group-tabs" is that strip —
+            // page chrome, not tied to any one group, so it stays outside the group map the same way
+            // page-header/unban-error stay outside the page map).
             "Rules" to
                 setOf(
+                    "rules-group-tabs",
                     "terms-header",
                     "terms-unavailable",
                     "terms-add",
                     "terms-card",
-                    "shoutout-header",
-                    "shoutout-card",
                     "automod-header",
                     "automod-card",
+                    "twitch-automod-card",
                     "trust-automation-header",
                     "automation-panel",
-                    "twitch-automod-card",
                     "trust-policy-card",
                     "spam-defense-card",
+                    "heat-header",
+                    "heat-card",
                     "escalation-header",
                     "escalation-card",
                     "shared-bans-header",
@@ -89,6 +94,8 @@ class ModerationSectionOwnershipTest {
                     "rules-card",
                     "chat-filters-header",
                     "chat-filters-card",
+                    "shoutout-header",
+                    "shoutout-card",
                 ),
             // Find what happened.
             "History" to
@@ -104,26 +111,95 @@ class ModerationSectionOwnershipTest {
                 ),
         )
 
+    // Ownership for the three pages that are still one flat list (Desk/Queue/History) plus the "rules-group-tabs"
+    // chrome item, which the Rules page renders via the same plain helper because it must show regardless of
+    // which job group is selected.
     private val ownedItem: Regex =
         Regex("""sectionItem\(section, ModerationSection\.(\w+), "([a-z0-9-]+)"\)""")
+
+    // Everything else on the Rules page goes through rulesSectionItem, which is hardcoded to only ever emit on
+    // ModerationSection.Rules (see the helper above `RulesScreen`'s BansList in ModerationScreen.kt) — so a
+    // match here always belongs to the "Rules" page; the captured group is the job group within that page.
+    private val ruleGroupItem: Regex =
+        Regex("""rulesSectionItem\(section, RulesGroup\.(\w+), selectedRulesGroup, "([a-z0-9-]+)"\)""")
+
     private val unownedItem: Regex = Regex("""\bitem\(key = "([a-z0-9-]+)"\)""")
+
+    // The job groups the Rules page's own tab strip switches between (S-UX-follow-on, owner request
+    // 2026-09-12): filtering incoming content, automatic enforcement, trust extended to other channels, and
+    // the one leftover surface (shoutout) that fits none of the three. Changing a value here is a deliberate
+    // re-placement, not a refactor — same discipline as expectedOwners above.
+    private val expectedRulesGroups: Map<String, Set<String>> =
+        mapOf(
+            "ContentFilters" to
+                setOf(
+                    "terms-header",
+                    "terms-unavailable",
+                    "terms-add",
+                    "terms-card",
+                    "automod-header",
+                    "automod-card",
+                    "twitch-automod-card",
+                    "rules-header",
+                    "rules-card",
+                    "chat-filters-header",
+                    "chat-filters-card",
+                ),
+            "AutoEnforcement" to
+                setOf(
+                    "trust-automation-header",
+                    "automation-panel",
+                    "trust-policy-card",
+                    "spam-defense-card",
+                    "heat-header",
+                    "heat-card",
+                    "escalation-header",
+                    "escalation-card",
+                ),
+            "Network" to setOf("shared-bans-header", "shared-bans-card"),
+            "General" to setOf("shoutout-header", "shoutout-card"),
+        )
 
     @Test
     fun every_section_is_owned_by_exactly_one_page() {
         val source: String = screen.readText()
 
         val actual: Map<String, Set<String>> =
-            ownedItem
-                .findAll(source)
-                .groupBy({ it.groupValues[1] }, { it.groupValues[2] })
+            (ownedItem.findAll(source).map { it.groupValues[1] to it.groupValues[2] } +
+                    ruleGroupItem.findAll(source).map { "Rules" to it.groupValues[2] })
+                .groupBy({ it.first }, { it.second })
                 .mapValues { (_, keys) -> keys.toSet() }
 
         assertEquals(expectedOwners, actual, "a moderation section changed pages without updating this map")
 
-        val allOwned: List<String> = ownedItem.findAll(source).map { it.groupValues[2] }.toList()
+        val allOwned: List<String> =
+            ownedItem.findAll(source).map { it.groupValues[2] }.toList() +
+                ruleGroupItem.findAll(source).map { it.groupValues[2] }.toList()
         val duplicated: List<String> = allOwned.groupBy { it }.filterValues { it.size > 1 }.keys.toList()
         if (duplicated.isNotEmpty()) {
             fail("these sections are emitted by more than one page: $duplicated")
+        }
+    }
+
+    @Test
+    fun every_rules_section_is_owned_by_exactly_one_job_group() {
+        // Proves the Rules page's OWN internal split (the point of this slice) the same way the outer test
+        // proves the four-page split: a deliberate map, checked against the source, that fails loudly — naming
+        // the offending key — the moment a card is added without deciding which job it belongs to.
+        val source: String = screen.readText()
+
+        val actual: Map<String, Set<String>> =
+            ruleGroupItem
+                .findAll(source)
+                .groupBy({ it.groupValues[1] }, { it.groupValues[2] })
+                .mapValues { (_, keys) -> keys.toSet() }
+
+        assertEquals(expectedRulesGroups, actual, "a Rules-page card changed job group without updating this map")
+
+        val allGrouped: List<String> = ruleGroupItem.findAll(source).map { it.groupValues[2] }.toList()
+        val duplicated: List<String> = allGrouped.groupBy { it }.filterValues { it.size > 1 }.keys.toList()
+        if (duplicated.isNotEmpty()) {
+            fail("these Rules cards are emitted by more than one job group: $duplicated")
         }
     }
 
@@ -158,8 +234,10 @@ class ModerationSectionOwnershipTest {
         // 49 items were counted on the page before the split: 47 owned + the 2 shared chrome items. History
         // grew by 4 (owner punch list 2026-09-08 §12 — the browsable filtered log: header, filter controls,
         // list card, pager) when the empty-hiding mod-log/nuke-batch bug fix reused their EXISTING keys
-        // rather than adding new ones.
+        // rather than adding new ones. The Rules page then grew by 3 (owner request 2026-09-12, this slice):
+        // "rules-group-tabs" (the new job-group switch itself) plus "heat-header"/"heat-card" (heat auto-timeout
+        // split out of the AutoMod card into its own Enforcement-group card — no control lost, just relocated).
         val owned: Int = expectedOwners.values.sumOf { it.size }
-        assertEquals(51, owned, "a moderation section was dropped or added without a decision")
+        assertEquals(54, owned, "a moderation section was dropped or added without a decision")
     }
 }
