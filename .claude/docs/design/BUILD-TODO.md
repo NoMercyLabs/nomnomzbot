@@ -65,22 +65,16 @@ separately here.
   no platform-IAM principal (see owner-calls below). Deep-verified: widget editor (highlight/scroll/live Vue
   preview renders the real BSOD), commands dialog, widgets overlay render, widget settings. Not yet clicked
   one-by-one: economy/games knobs, webhooks, sound-clip config, OBS mixer, roles make-a-mod, music/VTS.
-- [ ] **Old-bot parity — command diff, last step.** The 10 missing legacy commands (`!help`, `!commands`,
-  `!lurk`/`!unlurk`, `!leaderboard`, `!songhistory`, `!playlist`, `!bansong`, `!whisper`, `!discord`,
-  `!accountage`) all now have real builtins, and `{user.messageCount}` reads the same
-  `IViewerAnalyticsService` aggregate as `{viewer.messages}` instead of a stubbed "0". Still open: the
-  ~28 fun/script commands remain custom-command territory with no preset seed (unchanged from the §C7
-  audit — no new backend capability needed, just seed content, an owner content-authoring task not a
-  code slice); and confirming each of the 15 code scripts test-runs green needs `IScriptTestRunService`
-  run against the actual live channel's DB (`CodeScriptsController.TestRun`) — not reachable from a
-  sandboxed dev session with no CodeScript rows seeded anywhere in the repo, so this needs the owner (or
-  an agent with live-box access) to run it for real.
+- [ ] **Old-bot parity — command diff, last step.** All 10 missing legacy commands now have real
+  builtins, and `{user.messageCount}` reads the real aggregate. Still open: the ~28 fun/script
+  commands remain custom-command territory with no preset seed — an owner content-authoring task, not
+  a code slice; and confirming each of the 15 code scripts test-runs green against a real channel DB
+  (in progress — being run live against the deployed box this session).
 
-
-
-
-
-- [ ] individual tokens per widget + rotatable tokens → grounded in `usability-shortcomings-audit-scope-and-plan.md` §B5
+**CLOSED — individual tokens per widget + rotatable tokens.** Each widget now gets its own
+`OverlayToken`; rotating one widget's token no longer invalidates any other widget's active
+connection, a 15-minute grace window keeps the old token live during rotation, and the dashboard
+shows the changed URL with a re-copy prompt. Commits `680ca2e0`/`ff1685a7`.
 
 ## Audit plans (2026-08-20 → 08-22) — the three plans to execute, in this order of reading
 - `stability-audit-scope-and-plan.md` (F1–F19) · `widget-quality-audit-scope-and-plan.md` (§1–§8) ·
