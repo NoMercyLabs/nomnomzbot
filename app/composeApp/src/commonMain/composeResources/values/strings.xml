@@ -3904,6 +3904,7 @@
     <string name="feedback_sound_clip_preview_overlay_sent">Sent to the overlay</string>
     <string name="feedback_sound_clip_preview_overlay_failed">Couldn't preview on the overlay: %1$s</string>
     <string name="sound_clips_upload_action">Upload Clip</string>
+    <string name="sound_clips_upload_hint">MP3, WAV or OGG, up to 10 MB per clip</string>
     <string name="feedback_sound_clip_uploaded">Clip uploaded.</string>
     <string name="feedback_sound_clip_upload_failed">Upload failed: %1$s</string>
 

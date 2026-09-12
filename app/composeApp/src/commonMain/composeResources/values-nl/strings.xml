@@ -3890,6 +3890,7 @@
     <string name="feedback_sound_clip_preview_overlay_sent">Verzonden naar de overlay</string>
     <string name="feedback_sound_clip_preview_overlay_failed">Kon niet tonen op de overlay: %1$s</string>
     <string name="sound_clips_upload_action">Fragment uploaden</string>
+    <string name="sound_clips_upload_hint">MP3, WAV of OGG, max. 10 MB per fragment</string>
     <string name="feedback_sound_clip_uploaded">Fragment geüpload.</string>
     <string name="feedback_sound_clip_upload_failed">Upload mislukt: %1$s</string>
 

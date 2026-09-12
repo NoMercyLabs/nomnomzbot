@@ -106,6 +106,7 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_preview_overlay_act
 import nomnomzbot.composeapp.generated.resources.sound_clips_retry
 import nomnomzbot.composeapp.generated.resources.sound_clips_size_kb
 import nomnomzbot.composeapp.generated.resources.sound_clips_upload_action
+import nomnomzbot.composeapp.generated.resources.sound_clips_upload_hint
 import nomnomzbot.composeapp.generated.resources.sound_clips_volume_pct
 import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
@@ -226,7 +227,10 @@ private fun ClipList(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        PageHeader(title = stringResource(Res.string.shell_nav_sound)) {
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_sound),
+            subtitle = stringResource(Res.string.sound_clips_upload_hint),
+        ) {
             ManageGate(decision = manage) { enabled ->
                 Button(onClick = onUpload, enabled = enabled && !isUploading) {
                     Text(text = stringResource(Res.string.sound_clips_upload_action))
