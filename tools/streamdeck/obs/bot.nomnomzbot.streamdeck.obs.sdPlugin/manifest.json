@@ -192,6 +192,14 @@
       "Tooltip": "Calls a third-party OBS-WS vendor plugin request.",
       "PropertyInspectorPath": "ui/simple-param.html",
       "States": [{ "Image": "imgs/actions/device" }]
+    },
+    {
+      "Name": "Raw OBS Request Batch",
+      "UUID": "bot.nomnomzbot.streamdeck.obs.obs-request-batch",
+      "Icon": "imgs/actions/device",
+      "Tooltip": "Sends a batch of raw obs-websocket requests (JSON array).",
+      "PropertyInspectorPath": "ui/simple-param.html",
+      "States": [{ "Image": "imgs/actions/device" }]
     }
   ]
 }

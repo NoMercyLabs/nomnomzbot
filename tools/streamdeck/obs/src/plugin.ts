@@ -33,6 +33,7 @@ import { ScreenshotAction } from "./actions/obsScreenshot.js";
 import { SaveReplayAction } from "./actions/obsSaveReplay.js";
 import { RequestAction } from "./actions/obsRequest.js";
 import { CallVendorAction } from "./actions/obsCallVendor.js";
+import { RequestBatchAction } from "./actions/obsRequestBatch.js";
 
 streamDeck.logger.setLevel("info");
 
@@ -60,6 +61,7 @@ for (const registration of [
   new SaveReplayAction(),
   new RequestAction(),
   new CallVendorAction(),
+  new RequestBatchAction(),
 ]) {
   streamDeck.actions.registerAction(registration);
 }

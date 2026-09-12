@@ -15,11 +15,12 @@ import type { KeyDownEvent } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
 
 // S-STREAMDECK-OBS-REMAINDER: same proof as obsInstantiatedActions.test.ts / obsInstantiatedActions2.test.ts
-// (which cover the original 6 obs_* action types already wired to the plugin), extended to the 12 newly
-// added obs_* pipeline action types (of the 13 the backend implements — obs_request_batch is deferred,
-// see the plugin.ts / manifest.json history for why: its `requests` array field can't survive the
-// auto-provisioned pipeline's whole-value `{field}` template substitution, which always re-wraps a
-// resolved value as a JSON string, never an array). Instantiates the real @action(...)-decorated classes
+// (which cover the original 6 obs_* action types already wired to the plugin), extended to all 13 obs_*
+// pipeline action types the backend implements — including obs_request_batch, wired up once
+// PipelineEngine.ResolveTemplatedFieldsAsync stopped always re-wrapping a resolved Templated Text
+// field's value as a JSON string: before that fix, the auto-provisioned pipeline's whole-value
+// `{requests}` placeholder always resolved to a JSON string, and `requests` needs a real JSON array.
+// Instantiates the real @action(...)-decorated classes
 // and drives their actual onKeyDown against a real fake HTTP server, asserting the exact
 // POST /automation/v1/invoke body — proving both the field-name mapping AND that resolveParams's optional
 // fields are only sent when actually configured.
@@ -341,6 +342,32 @@ describe("CallVendorAction (src/actions/obsCallVendor.ts) — real @action(...)-
     expect(receivedInvokes[0]!.body).toEqual({
       pipelineName: "obs_call_vendor",
       variables: { vendor: "obs-shaderfilter", request_type: "Refresh" },
+    });
+  });
+});
+
+describe("RequestBatchAction (src/actions/obsRequestBatch.ts) — real @action(...)-decorated class", () => {
+  it("onKeyDown invokes obs_request_batch with the configured requests JSON array", async () => {
+    const { RequestBatchAction } = await import("../src/actions/obsRequestBatch.js");
+    const requests = '[{"request_type":"StartRecord"},{"request_type":"StartStream"}]';
+
+    await new RequestBatchAction().onKeyDown(fakeKeyDownEvent({ requests }));
+
+    expect(receivedInvokes).toHaveLength(1);
+    expect(receivedInvokes[0]!.body).toEqual({
+      pipelineName: "obs_request_batch",
+      variables: { requests },
+    });
+  });
+
+  it("onKeyDown falls back to an empty requests value when unconfigured", async () => {
+    const { RequestBatchAction } = await import("../src/actions/obsRequestBatch.js");
+
+    await new RequestBatchAction().onKeyDown(fakeKeyDownEvent());
+
+    expect(receivedInvokes[0]!.body).toEqual({
+      pipelineName: "obs_request_batch",
+      variables: { requests: "" },
     });
   });
 });

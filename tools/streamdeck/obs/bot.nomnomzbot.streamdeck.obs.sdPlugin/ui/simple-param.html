@@ -55,17 +55,31 @@
         ],
         // S-STREAMDECK-OBS-REMAINDER: no backend list exists for hotkey names, OBS-WS request
         // types, or vendor names — free text is the only option for these three.
-        "bot.nomnomzbot.streamdeck.obs-hotkey": [
+        //
+        // Keys must match the manifest's UUID exactly — the plugin id ("bot.nomnomzbot.streamdeck.obs")
+        // is doubled into every action UUID (e.g. "bot.nomnomzbot.streamdeck.obs.obs-hotkey"), not
+        // "bot.nomnomzbot.streamdeck.obs-hotkey". The four keys below were missing that doubled
+        // segment, so piActionInfo.action never matched a FIELD_CONFIG entry and none of these
+        // fields ever rendered in the property inspector — fixed alongside adding obs-request-batch.
+        "bot.nomnomzbot.streamdeck.obs.obs-hotkey": [
           { key: "hotkeyName", label: "Hotkey name", type: "text", default: "" },
         ],
-        "bot.nomnomzbot.streamdeck.obs-request": [
+        "bot.nomnomzbot.streamdeck.obs.obs-request": [
           { key: "requestType", label: "Request type", type: "text", default: "" },
           { key: "requestData", label: "Request data (JSON object, optional)", type: "text", default: "" },
         ],
-        "bot.nomnomzbot.streamdeck.obs-call-vendor": [
+        "bot.nomnomzbot.streamdeck.obs.obs-call-vendor": [
           { key: "vendor", label: "Vendor", type: "text", default: "" },
           { key: "requestType", label: "Request type", type: "text", default: "" },
           { key: "requestData", label: "Request data (JSON object, optional)", type: "text", default: "" },
+        ],
+        "bot.nomnomzbot.streamdeck.obs.obs-request-batch": [
+          {
+            key: "requests",
+            label: 'Requests (JSON array, e.g. [{"request_type":"StartRecord"}])',
+            type: "text",
+            default: "",
+          },
         ],
       };
 
