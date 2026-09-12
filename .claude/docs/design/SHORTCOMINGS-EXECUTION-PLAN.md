@@ -28,14 +28,18 @@ buffer/virtual cam), `b72c491c`+`5eba6182`+`5f8ad377` (Stream Deck OBS plugin + 
 fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container sweep), `f96ecdcb`
 (music sanction audit), `5ede9fb9` (OBS scene idempotency). What's left, filed as its own slices:
 
-- [ ] **S-OBS-UI-REMAINDER** (`57a34672`) Studio mode, scene transitions, source visibility, source
-      filters, stats, virtual-cam status, media transport, and browser-source refresh are now wired
-      end to end (6 new controller routes + 5 new Compose cards); recording gained Pause/Resume/Split.
-      Still open, deliberately deferred as lower-value power-user surfaces: **hotkey trigger** — no
-      `GetHotkeyList`-equivalent exists anywhere in the stack yet, so there's nothing to enumerate for
-      a picker (needs a new `IObsControlService` method wrapping OBS-WS `GetHotkeyList` first);
-      **screenshot** (`ScreenshotAsync`) and **batch/vendor pass-through** (`RequestBatchAsync`,
-      `CallVendorAsync`) have no controller route or UI.
+**S-OBS-UI-REMAINDER CLOSED (`57a34672`, `bfb82f84`, `889af563`).** Studio mode, scene transitions,
+source visibility, source filters, stats, virtual-cam status, media transport, and browser-source
+refresh wired end to end; recording gained Pause/Resume/Split. The three deferred power-user
+surfaces are now done too: **hotkey trigger** — `GetHotkeyListAsync` added (a real backend gap, not
+just missing wiring) wrapping OBS-WS `GetHotkeyList`, plus routes and a Compose picker card;
+**screenshot** — `POST source-screenshot` wraps `ScreenshotAsync`, rendered via a new
+`expect`/`actual` Skia-based static-image decoder (`StaticImageDecode.kt`, sibling to the existing
+animated-frame decoder); **batch/vendor pass-through** — `POST request/batch`/`request/vendor` wrap
+`RequestBatchAsync`/`CallVendorAsync` behind the same broadcast-tier gate as the single-request raw
+pass-through, as a JSON textarea + response viewer with client-side parse validation. 1202 jvmTest
+green, `compileKotlinWasmJs` clean, backend suites green, `openapi/v1.json` refreshed with all 5 new
+paths confirmed via `ApiRouteContractTest`.
 **S-STREAMDECK-OBS-REMAINDER `obs_request_batch` CLOSED (`fac0b671`, `df47b9f6`).** Root cause
 confirmed and fixed at the engine seam: `PipelineEngine.ResolveTemplatedFieldsAsync`'s `String` case
 always re-wrapped a resolved template as a JSON string via `SerializeToElement`, even when the
