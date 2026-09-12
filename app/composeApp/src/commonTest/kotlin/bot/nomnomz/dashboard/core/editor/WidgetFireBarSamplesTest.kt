@@ -63,6 +63,35 @@ class WidgetFireBarSamplesTest {
     }
 
     @Test
+    fun `ChatMessageEnriched sample carries a title, so chat_box's onEnriched guard does not drop it`() {
+        // chat_box.vue's onEnriched(e) returns immediately when e.title is falsy -- BUILD-TODO's "event
+        // clicker" report: a widget's REAL declared subscription (chat_box declares ChatMessageEnriched)
+        // fired a sample with no title, so the button existed but rendered nothing.
+        val sample: JsonObject = WidgetFireBarSamples.sampleFor("ChatMessageEnriched")
+
+        assertEquals("Never Gonna Give You Up", sample.getValue("title").jsonPrimitive.content)
+        assertEquals("test-message", sample.getValue("messageId").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `moderation samples carry the field each handler guards on, not the generic default`() {
+        val cleared: JsonObject = WidgetFireBarSamples.sampleFor("ChatCleared")
+        val deleted: JsonObject = WidgetFireBarSamples.sampleFor("MessageDeleted")
+        val userCleared: JsonObject = WidgetFireBarSamples.sampleFor("UserMessagesCleared")
+
+        assertTrue("clearedByUserId" in cleared)
+        assertEquals("test-message", deleted.getValue("messageId").jsonPrimitive.content)
+        assertEquals("test-chatter", userCleared.getValue("targetUserId").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `track_saved_changed sample carries isSaved, not the generic default`() {
+        val sample: JsonObject = WidgetFireBarSamples.sampleFor("track_saved_changed")
+
+        assertEquals(true, sample.getValue("isSaved").jsonPrimitive.content.toBoolean())
+    }
+
+    @Test
     fun `an unknown event type falls back to the documented default sample, not an empty object`() {
         val fallback: JsonObject = WidgetFireBarSamples.sampleFor("something_nobody_declared")
 

@@ -199,6 +199,41 @@ internal static class WidgetTestSamples
                 track = "Test Track",
                 artist = "Test Artist",
             },
+            // Heart-pulse on the now-playing widget (now_playing.vue's onTrackSavedChanged) — the ONLY field it
+            // reads is isSaved; omitting it left the button firing but the sample was indistinguishable from
+            // the generic default, so the pulse animation exercised nothing.
+            "track_saved_changed" => new { isSaved = true },
+            // Chat overlay's song-request card (ChatMessageEnrichedBroadcastHandler's real payload shape).
+            // onEnriched(e) in chat_box.vue returns immediately when `e.title` is falsy — firing the generic
+            // default sample ({ user }, no title) made this button a silent no-op even though the widget
+            // genuinely subscribes to it.
+            "ChatMessageEnriched" => new
+            {
+                messageId = "test-message",
+                linkUrl = "https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC",
+                title = "Never Gonna Give You Up",
+                description = "Rick Astley",
+                imageUrl = "https://i.scdn.co/image/ab67616d0000b2734cd0672c1e1a9b4b8f5e1f32",
+                provider = "spotify",
+                userDisplayName = "TestViewer",
+                userLogin = "testviewer",
+            },
+            // Chat moderation frames (ChatModerationBroadcastHandlers) — chat_box.vue's onChatCleared takes no
+            // fields at all, but onMessageDeleted/onUserMessagesCleared each guard on one specific id and return
+            // without it, so the generic default sample (no such field) made both silent no-ops.
+            "ChatCleared" => new { clearedByUserId = "test-moderator" },
+            "MessageDeleted" => new
+            {
+                messageId = "test-message",
+                deletedByUserId = "test-moderator",
+                targetUserId = "test-chatter",
+            },
+            "UserMessagesCleared" => new
+            {
+                targetUserId = "test-chatter",
+                targetUserDisplayName = "TestChatter",
+                targetUserLogin = "testchatter",
+            },
             "hype_train_begin" or "hype_train_progress" => new
             {
                 level = 2,

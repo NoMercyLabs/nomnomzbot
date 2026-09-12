@@ -81,7 +81,6 @@ separately here.
 
 
 - [ ] individual tokens per widget + rotatable tokens → grounded in `usability-shortcomings-audit-scope-and-plan.md` §B5
-- [ ] rendered widget code from the event clicker does not reflect the actual widget. or the rendered widget is correct but the code is not.
 
 ## Audit plans (2026-08-20 → 08-22) — the three plans to execute, in this order of reading
 - `stability-audit-scope-and-plan.md` (F1–F19) · `widget-quality-audit-scope-and-plan.md` (§1–§8) ·

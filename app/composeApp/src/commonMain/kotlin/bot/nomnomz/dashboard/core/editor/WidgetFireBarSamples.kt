@@ -78,6 +78,37 @@ internal object WidgetFireBarSamples {
                     put("track", "Test Track")
                     put("artist", "Test Artist")
                 }
+            // now_playing.vue's onTrackSavedChanged reads only isSaved; the fallback default sample has no such
+            // field, so firing this real, declared subscription pulsed nothing.
+            "track_saved_changed" -> buildJsonObject { put("isSaved", true) }
+            // chat_box.vue's onEnriched(e) returns immediately when `e.title` is falsy (song-request card) — the
+            // generic default sample has no title, so this real subscription's button was a silent no-op.
+            "ChatMessageEnriched" ->
+                buildJsonObject {
+                    put("messageId", "test-message")
+                    put("linkUrl", "https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")
+                    put("title", "Never Gonna Give You Up")
+                    put("description", "Rick Astley")
+                    put("imageUrl", "https://i.scdn.co/image/ab67616d0000b2734cd0672c1e1a9b4b8f5e1f32")
+                    put("provider", "spotify")
+                    put("userDisplayName", "TestViewer")
+                    put("userLogin", "testviewer")
+                }
+            // chat_box.vue's moderation handlers each guard on a specific field (onMessageDeleted/
+            // onUserMessagesCleared return without their id); the generic default sample carries none of them.
+            "ChatCleared" -> buildJsonObject { put("clearedByUserId", "test-moderator") }
+            "MessageDeleted" ->
+                buildJsonObject {
+                    put("messageId", "test-message")
+                    put("deletedByUserId", "test-moderator")
+                    put("targetUserId", "test-chatter")
+                }
+            "UserMessagesCleared" ->
+                buildJsonObject {
+                    put("targetUserId", "test-chatter")
+                    put("targetUserDisplayName", "TestChatter")
+                    put("targetUserLogin", "testchatter")
+                }
             "hype_train_begin", "hype_train_progress" ->
                 buildJsonObject {
                     put("level", 2)
@@ -192,6 +223,11 @@ internal object WidgetFireBarSamples {
             "supporter.merch",
             "supporter.charity",
             "now_playing",
+            "track_saved_changed",
+            "ChatMessageEnriched",
+            "ChatCleared",
+            "MessageDeleted",
+            "UserMessagesCleared",
             "hype_train_begin",
             "hype_train_progress",
             "hype_train_end",
