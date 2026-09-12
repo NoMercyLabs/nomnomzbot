@@ -540,6 +540,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     userId,
                     broadcasterId.Value,
                     needed.Contains("user.followAge"),
+                    needed.Contains("user.messageCount"),
                     ct
                 );
             }
@@ -656,6 +657,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         string twitchUserId,
         Guid broadcasterId,
         bool needFollowAge,
+        bool needMessageCount,
         CancellationToken ct
     )
     {
@@ -700,8 +702,21 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     ct
                 );
 
-            // Message count needs a per-user chat aggregate that does not exist yet — placeholder until then.
-            vars.TryAdd("user.messageCount", "0");
+            // {user.messageCount} aliases the same viewer-analytics aggregate {viewer.messages} reads —
+            // one real per-channel chat-message count, not a second stubbed source of truth.
+            if (needMessageCount && !vars.ContainsKey("user.messageCount"))
+            {
+                IViewerAnalyticsService analytics =
+                    scope.ServiceProvider.GetRequiredService<IViewerAnalyticsService>();
+                Result<ViewerProfileDto> profileResult = await analytics.GetProfileAsync(
+                    broadcasterId,
+                    user.Id,
+                    ct
+                );
+                vars["user.messageCount"] = (
+                    profileResult.IsSuccess ? profileResult.Value.TotalMessages : 0
+                ).ToString();
+            }
         }
         catch (Exception ex)
         {
