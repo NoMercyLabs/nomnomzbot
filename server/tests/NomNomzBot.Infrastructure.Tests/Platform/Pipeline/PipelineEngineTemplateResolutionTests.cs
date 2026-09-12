@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
@@ -238,6 +239,180 @@ public sealed class PipelineEngineTemplateResolutionTests
             .SendMessageAsync(Channel, "Stoney said {{literal}}", Arg.Any<CancellationToken>());
     }
 
+    // ─── Templated Text field carrying raw JSON (S-STREAMDECK-OBS-REMAINDER) ──────────────────
+
+    /// <summary>Fixture: a single Templated Text field whose resolved <see cref="JsonElement"/> is
+    /// captured verbatim, so a test can assert on its <see cref="JsonValueKind"/> and shape — this is
+    /// what <c>obs_request</c>'s/<c>obs_call_vendor</c>'s <c>request_data</c> and
+    /// <c>obs_request_batch</c>'s <c>requests</c> fields are (a plain Text field, no dedicated "raw JSON"
+    /// <see cref="PipelineActionFieldKind"/> exists) so the engine's resolution seam must preserve
+    /// array/object shape rather than always flattening to a JSON string.</summary>
+    private sealed class CapturesResolvedElementFixtureAction : ICommandAction
+    {
+        public string ActionType => "guard_fixture_captures_resolved_element";
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+
+        public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+            [new("value", PipelineActionFieldKind.Text, Templated: true)];
+
+        public JsonElement? CapturedElement { get; private set; }
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            if (
+                action.Parameters is not null
+                && action.Parameters.TryGetValue("value", out JsonElement el)
+            )
+                CapturedElement = el.Clone();
+            return Task.FromResult(ActionResult.Success("ok"));
+        }
+    }
+
+    [Fact]
+    public async Task TemplatedTextField_ConfiguredValueIsAJsonArray_ResolvesToARealJsonArray_NotAString()
+    {
+        // No placeholders at all — the resolver's contract hands plain text straight back (see the
+        // "plain value" test above), so the literal JSON array text is what ResolveAsync returns.
+        const string arrayJson = """[{"a":1},{"a":2}]""";
+        MapResolver resolver = new(new Dictionary<string, string> { [arrayJson] = arrayJson });
+        CapturesResolvedElementFixtureAction fixtureAction = new();
+        PipelineEngine engine = CreateEngine([fixtureAction], resolver);
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"guard_fixture_captures_resolved_element","value":__VALUE__}}]}""".Replace(
+                "__VALUE__",
+                JsonSerializer.Serialize(arrayJson)
+            );
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(Request(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        fixtureAction.CapturedElement.Should().NotBeNull();
+        fixtureAction.CapturedElement!.Value.ValueKind.Should().Be(JsonValueKind.Array);
+        fixtureAction.CapturedElement!.Value.GetArrayLength().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task TemplatedTextField_PlainNonJsonTemplate_StillResolvesToAJsonString_Regression()
+    {
+        MapResolver resolver = new(
+            new Dictionary<string, string> { ["hello {{user.name}}"] = "hello Stoney_Eagle" }
+        );
+        CapturesResolvedElementFixtureAction fixtureAction = new();
+        PipelineEngine engine = CreateEngine([fixtureAction], resolver);
+
+        const string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"guard_fixture_captures_resolved_element","value":"hello {{user.name}}"}}]}""";
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(Request(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        fixtureAction.CapturedElement.Should().NotBeNull();
+        fixtureAction.CapturedElement!.Value.ValueKind.Should().Be(JsonValueKind.String);
+        fixtureAction.CapturedElement!.Value.GetString().Should().Be("hello Stoney_Eagle");
+    }
+
+    [Theory]
+    [InlineData("42")]
+    [InlineData("true")]
+    public async Task TemplatedTextField_ResolvedTextIsABareScalar_StaysAJsonString_NeverBecomesNumberOrBool(
+        string scalarText
+    )
+    {
+        // A resolved value of "42" or "true" must NOT silently become the JSON number 42 or the JSON
+        // bool true — only array/object roots opt into re-parsing.
+        MapResolver resolver = new(new Dictionary<string, string> { [scalarText] = scalarText });
+        CapturesResolvedElementFixtureAction fixtureAction = new();
+        PipelineEngine engine = CreateEngine([fixtureAction], resolver);
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"guard_fixture_captures_resolved_element","value":__VALUE__}}]}""".Replace(
+                "__VALUE__",
+                JsonSerializer.Serialize(scalarText)
+            );
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(Request(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        fixtureAction.CapturedElement.Should().NotBeNull();
+        fixtureAction.CapturedElement!.Value.ValueKind.Should().Be(JsonValueKind.String);
+        fixtureAction.CapturedElement!.Value.GetString().Should().Be(scalarText);
+    }
+
+    /// <summary>Fixture: a Repeatable Templated Text field (the <c>obs_request_batch.requests</c>/
+    /// <c>run_pipeline.args</c> shape — the builder stores it as a JSON array of per-item strings, each
+    /// resolved independently by the engine's <c>Array</c> case) — captures the resolved array element
+    /// verbatim so a test can assert each item's shape survived.</summary>
+    private sealed class CapturesResolvedRepeatableFixtureAction : ICommandAction
+    {
+        public string ActionType => "guard_fixture_captures_resolved_repeatable";
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+
+        public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+            [new("items", PipelineActionFieldKind.Text, Repeatable: true, Templated: true)];
+
+        public JsonElement? CapturedElement { get; private set; }
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            if (
+                action.Parameters is not null
+                && action.Parameters.TryGetValue("items", out JsonElement el)
+            )
+                CapturedElement = el.Clone();
+            return Task.FromResult(ActionResult.Success("ok"));
+        }
+    }
+
+    [Fact]
+    public async Task RepeatableTemplatedTextField_OneItemIsJsonObjectText_ThatItemResolvesToARealObject()
+    {
+        // Mirrors obs_request_batch's real storage shape: "requests" is Repeatable Text, so the
+        // dashboard stores it as an array of per-item strings — one per repeated input — not one big
+        // JSON-array string. Only the second item happens to be JSON object syntax; the first is plain
+        // text and must be untouched (regression guard within the same array).
+        const string objectItemJson = """{"request_type":"StartRecord"}""";
+        MapResolver resolver = new(
+            new Dictionary<string, string>
+            {
+                ["plain"] = "plain",
+                [objectItemJson] = objectItemJson,
+            }
+        );
+        CapturesResolvedRepeatableFixtureAction fixtureAction = new();
+        PipelineEngine engine = CreateEngine([fixtureAction], resolver);
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"guard_fixture_captures_resolved_repeatable","items":["plain",__ITEM__]}}]}""".Replace(
+                "__ITEM__",
+                JsonSerializer.Serialize(objectItemJson)
+            );
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(Request(json));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        fixtureAction.CapturedElement.Should().NotBeNull();
+        JsonElement array = fixtureAction.CapturedElement!.Value;
+        array.ValueKind.Should().Be(JsonValueKind.Array);
+        array[0].ValueKind.Should().Be(JsonValueKind.String, "the plain item must stay untouched");
+        array[0].GetString().Should().Be("plain");
+        array[1]
+            .ValueKind.Should()
+            .Be(
+                JsonValueKind.Object,
+                "before the fix every array item was flattened to a JSON string regardless of its own shape, which is exactly what broke obs_request_batch's per-item request objects"
+            );
+        array[1].GetProperty("request_type").GetString().Should().Be("StartRecord");
+    }
+
     // ─── Structural guard: ResolvesOwnTemplates must match actual source behaviour ─────────────
 
     /// <summary>Fixture: claims <c>ResolvesOwnTemplates =&gt; true</c> but its body never calls a resolver
@@ -362,7 +537,7 @@ public sealed class PipelineEngineTemplateResolutionTests
 
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(configuration);
         services.AddApplication();
         services.AddInfrastructure(configuration);
 
@@ -389,7 +564,7 @@ public sealed class PipelineEngineTemplateResolutionTests
         );
         int deliberatelyLiteralTextFields = actions
             .SelectMany(a => a.Fields)
-            .Count(f => f.Kind == PipelineActionFieldKind.Text && !f.Templated);
+            .Count(f => f is { Kind: PipelineActionFieldKind.Text, Templated: false });
 
         alreadyTemplating.Should().BeGreaterThan(0);
         newlyTemplating.Should().BeGreaterThan(0);

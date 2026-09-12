@@ -166,7 +166,7 @@ public sealed class PipelineEngine : IPipelineEngine
             _sanctions is null || _sanctions.Current is not null
                 ? null
                 : _sanctions.Begin(
-                    NomNomzBot.Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
+                    Application.Contracts.Security.OutboundSanction.ChannelConfiguration(
                         $"pipeline:{request.PipelineId?.ToString() ?? "inline"}"
                     )
                 );
@@ -881,7 +881,7 @@ public sealed class PipelineEngine : IPipelineEngine
                         ctx.CancellationToken
                     );
                     resolvedParams ??= new Dictionary<string, JsonElement>(action.Parameters);
-                    resolvedParams[field.Name] = JsonSerializer.SerializeToElement(resolved);
+                    resolvedParams[field.Name] = ResolvedStringToElement(resolved);
                     break;
                 }
                 case JsonValueKind.Array:
@@ -899,7 +899,7 @@ public sealed class PipelineEngine : IPipelineEngine
                             ctx.BroadcasterId,
                             ctx.CancellationToken
                         );
-                        items[i] = JsonSerializer.SerializeToElement(itemResolved);
+                        items[i] = ResolvedStringToElement(itemResolved);
                         changed = true;
                     }
                     if (changed)
@@ -948,6 +948,39 @@ public sealed class PipelineEngine : IPipelineEngine
         return resolvedParams is null
             ? action
             : new ActionDefinition { Type = action.Type, Parameters = resolvedParams };
+    }
+
+    /// <summary>
+    /// A resolved Templated Text field's value normally becomes a JSON string, unconditionally — that
+    /// breaks a Text-kind field that carries raw JSON array/object syntax by convention (there is no
+    /// dedicated <see cref="PipelineActionFieldKind"/> for "raw JSON"; e.g. <c>obs_request</c>'s and
+    /// <c>obs_call_vendor</c>'s <c>request_data</c>, <c>obs_request_batch</c>'s <c>requests</c>): the
+    /// consuming action expects <see cref="JsonValueKind.Object"/>/<see cref="JsonValueKind.Array"/> and
+    /// silently no-ops or fails when it instead finds a string. If the resolved text parses as valid JSON
+    /// AND the root is an array or object, use the parsed element so the shape survives. A bare scalar
+    /// (e.g. resolved text <c>"42"</c> or <c>"true"</c>) must NOT become a JSON number/bool — only
+    /// array/object roots opt in, so a normal templated string is never affected.
+    /// </summary>
+    private static JsonElement ResolvedStringToElement(string resolved)
+    {
+        if (resolved.Length == 0 || (resolved[0] != '[' && resolved[0] != '{'))
+            return JsonSerializer.SerializeToElement(resolved);
+
+        try
+        {
+            using JsonDocument parsed = JsonDocument.Parse(resolved);
+            if (
+                parsed.RootElement.ValueKind == JsonValueKind.Array
+                || parsed.RootElement.ValueKind == JsonValueKind.Object
+            )
+                return parsed.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            // Not valid JSON — fall through and keep it as a plain string, exactly as before.
+        }
+
+        return JsonSerializer.SerializeToElement(resolved);
     }
 
     // ─── Step resolution helpers ─────────────────────────────────────────────

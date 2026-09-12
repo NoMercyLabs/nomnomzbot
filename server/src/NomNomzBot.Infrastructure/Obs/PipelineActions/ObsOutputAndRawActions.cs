@@ -177,6 +177,7 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
             new(
                 "request_data",
                 PipelineActionFieldKind.Text,
+                Templated: true,
                 Description: new("pipeline.obs_request.request_data.help")
             ),
         ];
@@ -243,6 +244,7 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
                 PipelineActionFieldKind.Text,
                 Required: true,
                 Repeatable: true,
+                Templated: true,
                 Description: new("pipeline.obs_request_batch.requests.help")
             ),
             new(
@@ -347,6 +349,7 @@ public sealed class ObsCallVendorAction(IObsControlService obs) : ObsActionBase(
             new(
                 "request_data",
                 PipelineActionFieldKind.Text,
+                Templated: true,
                 Description: new("pipeline.obs_call_vendor.request_data.help")
             ),
         ];
