@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.obs.state
 
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -21,6 +22,8 @@ import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
+import bot.nomnomz.dashboard.core.network.ObsRawResponseBody
+import bot.nomnomz.dashboard.core.network.ObsRequestBatchBody
 import bot.nomnomz.dashboard.core.network.ObsScene
 import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsState
@@ -28,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.ObsStats
 import bot.nomnomz.dashboard.core.network.ObsStudioModeStatus
 import bot.nomnomz.dashboard.core.network.ObsToggle
 import bot.nomnomz.dashboard.core.network.ObsTransition
+import bot.nomnomz.dashboard.core.network.ObsVendorRequestBody
 import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -163,6 +167,117 @@ class ObsControllerTest {
 
         assertEquals(ObsToggle.Stop, obsApi.lastVirtualCamAction)
     }
+
+    // S-OBS-UI-REMAINDER (deferred trio): hotkey trigger, screenshot, raw batch/vendor pass-through.
+
+    @Test
+    fun the_hotkey_list_reaches_the_live_surface() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.hotkeysList = listOf("OBSBasic.StartStreaming", "ReplayBuffer.Save")
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+
+        controller.load()
+
+        val live: ObsLive = (controller.state.value as ObsUiState.Ready).live
+        assertEquals(listOf("OBSBasic.StartStreaming", "ReplayBuffer.Save"), live.hotkeys)
+    }
+
+    @Test
+    fun trigger_hotkey_forwards_the_name_and_refreshes_live_state() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.triggerHotkey("OBSBasic.StartStreaming")
+
+        assertEquals("OBSBasic.StartStreaming", obsApi.lastTriggeredHotkey)
+    }
+
+    @Test
+    fun capture_screenshot_stores_the_image_data_uri_on_success() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.screenshotResult = ApiResult.Ok("data:image/png;base64,SGVsbG8=")
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.captureScreenshot("Webcam", "png")
+
+        assertEquals("Webcam", obsApi.lastScreenshotSource)
+        assertEquals("png", obsApi.lastScreenshotFormat)
+        val ready: ObsUiState.Ready = controller.state.value as ObsUiState.Ready
+        assertEquals("Webcam", ready.screenshotView?.sourceName)
+        assertEquals("data:image/png;base64,SGVsbG8=", ready.screenshotView?.imageDataUri)
+        assertEquals(null, ready.screenshotView?.error)
+    }
+
+    @Test
+    fun capture_screenshot_stores_the_failure_without_an_image() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.screenshotResult = ApiResult.Failure(ApiError(404, "NOT_FOUND", "source not found"))
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.captureScreenshot("Missing", "png")
+
+        val ready: ObsUiState.Ready = controller.state.value as ObsUiState.Ready
+        assertEquals(null, ready.screenshotView?.imageDataUri)
+        assertEquals("source not found", ready.screenshotView?.error)
+    }
+
+    @Test
+    fun run_raw_batch_parses_the_typed_json_and_sends_it_unchanged() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.batchResponse = ApiResult.Ok(listOf(ObsRawResponseBody(ok = true)))
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.runRawBatch("""{"requests":[{"requestType":"GetVersion"}]}""")
+
+        assertEquals(1, obsApi.lastBatchBody?.requests?.size)
+        assertEquals("GetVersion", obsApi.lastBatchBody?.requests?.single()?.requestType)
+        val ready: ObsUiState.Ready = controller.state.value as ObsUiState.Ready
+        assertTrue(ready.batchResult!!.contains("true"), "the response must reach the page: ${ready.batchResult}")
+    }
+
+    @Test
+    fun run_raw_batch_never_calls_the_api_on_malformed_json() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.runRawBatch("not json")
+
+        assertEquals(null, obsApi.lastBatchBody, "a malformed payload must never reach the network")
+        val ready: ObsUiState.Ready = controller.state.value as ObsUiState.Ready
+        assertTrue(ready.batchResult!!.startsWith("Invalid JSON"))
+    }
+
+    @Test
+    fun run_raw_vendor_forwards_name_type_and_parsed_data() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        obsApi.vendorResponse = ApiResult.Ok(ObsRawResponseBody(ok = true))
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.runRawVendor("obs-websocket", "GetVersion", """{"sourceName":"Webcam"}""")
+
+        assertEquals("obs-websocket", obsApi.lastVendorBody?.vendorName)
+        assertEquals("GetVersion", obsApi.lastVendorBody?.requestType)
+        assertEquals(1, obsApi.lastVendorBody?.requestData?.size)
+        val ready: ObsUiState.Ready = controller.state.value as ObsUiState.Ready
+        assertTrue(ready.vendorResult!!.contains("true"))
+    }
+
+    @Test
+    fun run_raw_vendor_treats_blank_data_as_no_data() = runTest {
+        val obsApi = RecordingObsApi(initial = ObsState())
+        val controller = ObsController(FixedChannelChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), obsApi)
+        controller.load()
+
+        controller.runRawVendor("obs-websocket", "GetVersion", "")
+
+        assertEquals(null, obsApi.lastVendorBody?.requestData)
+    }
 }
 
 private class FixedChannelChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -191,6 +306,15 @@ private class RecordingObsApi(initial: ObsState) : ObsApi {
     var replayBufferSaveCalled: Boolean = false
     var lastVirtualCamAction: Int? = null
     var virtualCamActive: Boolean = false
+    var hotkeysList: List<String> = emptyList()
+    var lastTriggeredHotkey: String? = null
+    var screenshotResult: ApiResult<String> = ApiResult.Ok("data:image/png;base64,AAAA")
+    var lastScreenshotSource: String? = null
+    var lastScreenshotFormat: String? = null
+    var batchResponse: ApiResult<List<ObsRawResponseBody>> = ApiResult.Ok(emptyList())
+    var lastBatchBody: ObsRequestBatchBody? = null
+    var vendorResponse: ApiResult<ObsRawResponseBody> = ApiResult.Ok(ObsRawResponseBody(ok = true))
+    var lastVendorBody: ObsVendorRequestBody? = null
 
     override suspend fun connection(channelId: String): ApiResult<ObsConnection> = ApiResult.Ok(ObsConnection())
     override suspend fun upsertConnection(channelId: String, body: UpsertObsConnectionBody): ApiResult<ObsConnection> =
@@ -256,4 +380,29 @@ private class RecordingObsApi(initial: ObsState) : ObsApi {
         error("not used by this test")
     override suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit> =
         error("not used by this test")
+    override suspend fun hotkeys(channelId: String): ApiResult<List<String>> = ApiResult.Ok(hotkeysList)
+
+    override suspend fun triggerHotkey(channelId: String, hotkeyName: String): ApiResult<Unit> {
+        lastTriggeredHotkey = hotkeyName
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun screenshot(channelId: String, sourceName: String, imageFormat: String): ApiResult<String> {
+        lastScreenshotSource = sourceName
+        lastScreenshotFormat = imageFormat
+        return screenshotResult
+    }
+
+    override suspend fun requestBatch(
+        channelId: String,
+        body: ObsRequestBatchBody,
+    ): ApiResult<List<ObsRawResponseBody>> {
+        lastBatchBody = body
+        return batchResponse
+    }
+
+    override suspend fun callVendor(channelId: String, body: ObsVendorRequestBody): ApiResult<ObsRawResponseBody> {
+        lastVendorBody = body
+        return vendorResponse
+    }
 }

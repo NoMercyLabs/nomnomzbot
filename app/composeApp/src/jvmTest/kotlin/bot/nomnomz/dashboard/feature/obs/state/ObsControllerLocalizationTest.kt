@@ -22,12 +22,15 @@ import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
+import bot.nomnomz.dashboard.core.network.ObsRawResponseBody
+import bot.nomnomz.dashboard.core.network.ObsRequestBatchBody
 import bot.nomnomz.dashboard.core.network.ObsScene
 import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsState
 import bot.nomnomz.dashboard.core.network.ObsStats
 import bot.nomnomz.dashboard.core.network.ObsStudioModeStatus
 import bot.nomnomz.dashboard.core.network.ObsTransition
+import bot.nomnomz.dashboard.core.network.ObsVendorRequestBody
 import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import java.util.Locale
@@ -169,4 +172,14 @@ private class UnreachableObsApi : ObsApi {
     override suspend fun triggerMedia(channelId: String, inputName: String, action: Int): ApiResult<Unit> =
         error("unreachable")
     override suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit> = error("unreachable")
+    override suspend fun hotkeys(channelId: String): ApiResult<List<String>> = error("unreachable")
+    override suspend fun triggerHotkey(channelId: String, hotkeyName: String): ApiResult<Unit> = error("unreachable")
+    override suspend fun screenshot(channelId: String, sourceName: String, imageFormat: String): ApiResult<String> =
+        error("unreachable")
+    override suspend fun requestBatch(
+        channelId: String,
+        body: ObsRequestBatchBody,
+    ): ApiResult<List<ObsRawResponseBody>> = error("unreachable")
+    override suspend fun callVendor(channelId: String, body: ObsVendorRequestBody): ApiResult<ObsRawResponseBody> =
+        error("unreachable")
 }

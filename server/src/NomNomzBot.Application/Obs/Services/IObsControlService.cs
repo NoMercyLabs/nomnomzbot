@@ -122,6 +122,13 @@ public interface IObsControlService
         string hotkeyName,
         CancellationToken ct = default
     );
+
+    /// <summary>The hotkey names OBS knows about — <see cref="TriggerHotkeyAsync"/> has no picker
+    /// without this enumeration.</summary>
+    Task<Result<IReadOnlyList<string>>> GetHotkeyListAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
     Task<Result> RefreshBrowserAsync(
         Guid broadcasterId,
         string inputName,

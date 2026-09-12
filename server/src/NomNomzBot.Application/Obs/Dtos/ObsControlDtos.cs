@@ -152,3 +152,18 @@ public sealed record ObsMediaActionRequest(string InputName, MediaAction Action)
 
 /// <summary>REST body for the browser-source-refresh route.</summary>
 public sealed record ObsRefreshBrowserRequest(string InputName);
+
+/// <summary>REST body for the hotkey-trigger route.</summary>
+public sealed record ObsHotkeyTriggerRequest(string HotkeyName);
+
+/// <summary>REST body for the source-screenshot route (obs-websocket v5 <c>GetSourceScreenshot</c>).
+/// <paramref name="ImageFormat"/> is an encoder OBS supports (e.g. <c>png</c>, <c>jpg</c>).</summary>
+public sealed record ObsScreenshotRequest(string SourceName, string ImageFormat);
+
+/// <summary>REST body for the vendor pass-through route (obs-websocket v5 <c>CallVendorRequest</c>) —
+/// the escape hatch for third-party OBS plugins that add their own vendor requests.</summary>
+public sealed record ObsVendorRequest(
+    string VendorName,
+    string RequestType,
+    IReadOnlyDictionary<string, object?>? RequestData
+);

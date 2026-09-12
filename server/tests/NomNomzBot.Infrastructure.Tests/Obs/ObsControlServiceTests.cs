@@ -491,6 +491,46 @@ public sealed class ObsControlServiceTests
     }
 
     [Fact]
+    public async Task Get_hotkey_list_parses_every_hotkey_name()
+    {
+        Harness h = Build(request =>
+            request.RequestType == "GetHotkeyList"
+                ? new(
+                    true,
+                    new Dictionary<string, object?>
+                    {
+                        ["hotkeys"] =
+                            """["OBSBasic.StartStreaming","OBSBasic.StopStreaming","ReplayBuffer.Save"]""",
+                    },
+                    null
+                )
+                : new ObsResponse(true, null, null)
+        );
+
+        Result<IReadOnlyList<string>> result = await h.Service.GetHotkeyListAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Should()
+            .BeEquivalentTo([
+                "OBSBasic.StartStreaming",
+                "OBSBasic.StopStreaming",
+                "ReplayBuffer.Save",
+            ]);
+    }
+
+    [Fact]
+    public async Task Get_hotkey_list_surfaces_an_obs_error_as_a_failure()
+    {
+        Harness h = Build(_ => new(false, null, "not connected"));
+
+        Result<IReadOnlyList<string>> result = await h.Service.GetHotkeyListAsync(Channel);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("not connected");
+    }
+
+    [Fact]
     public async Task Get_studio_mode_enabled_returns_the_real_studio_mode_flag()
     {
         Harness h = Build(request =>

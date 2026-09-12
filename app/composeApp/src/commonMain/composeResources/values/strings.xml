@@ -4209,6 +4209,30 @@
     <string name="obs_media_next">Next</string>
     <string name="obs_media_previous">Previous</string>
     <string name="obs_browser_refresh">Refresh</string>
+    <string name="obs_hotkeys_title">Hotkeys</string>
+    <string name="obs_hotkeys_desc">Fire any hotkey OBS knows about by name.</string>
+    <string name="obs_hotkeys_empty">No hotkeys reported.</string>
+    <string name="obs_hotkey_row_type">Hotkey</string>
+    <string name="obs_screenshot_title">Screenshot</string>
+    <string name="obs_screenshot_desc">Capture a still image of one source.</string>
+    <string name="obs_screenshot_source_label">Source</string>
+    <string name="obs_screenshot_format_label">Format</string>
+    <string name="obs_screenshot_capture">Capture</string>
+    <string name="obs_screenshot_empty">No sources reported.</string>
+    <string name="obs_screenshot_error">Couldn't capture: %1$s</string>
+    <string name="obs_screenshot_alt">Screenshot of %1$s</string>
+    <string name="obs_screenshot_decode_error">The capture couldn't be decoded as an image.</string>
+    <string name="obs_batch_title">Raw request batch</string>
+    <string name="obs_batch_desc">Power-user/dev surface: send a raw OBS-WS request batch as JSON.</string>
+    <string name="obs_batch_input_label">Request batch (JSON)</string>
+    <string name="obs_batch_input_hint">{"requests":[{"requestType":"GetVersion"}]}</string>
+    <string name="obs_vendor_title">Vendor request</string>
+    <string name="obs_vendor_desc">Power-user/dev surface: call a third-party OBS plugin's vendor request.</string>
+    <string name="obs_vendor_name_label">Vendor name</string>
+    <string name="obs_vendor_type_label">Request type</string>
+    <string name="obs_vendor_data_label">Request data (JSON, optional)</string>
+    <string name="obs_passthrough_send">Send</string>
+    <string name="obs_passthrough_response_label">Response</string>
 
     <!-- VTube Studio page -->
     <string name="vts_subtitle">Connect VTube Studio and control your model, hotkeys, and expressions.</string>

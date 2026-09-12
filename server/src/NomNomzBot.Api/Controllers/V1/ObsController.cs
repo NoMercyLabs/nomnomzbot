@@ -128,6 +128,13 @@ public class ObsController(
     public async Task<IActionResult> GetStudioMode(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetStudioModeEnabledAsync(channelId, ct), new(false));
 
+    /// <summary>The hotkey names OBS knows about — the enumeration a hotkey-trigger picker needs.</summary>
+    [HttpGet("hotkeys")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHotkeys(Guid channelId, CancellationToken ct) =>
+        ObsReadResponse(await control.GetHotkeyListAsync(channelId, ct), []);
+
     /// <summary>
     /// Actively probe whether OBS is reachable RIGHT NOW. Unlike the passive state/scenes/inputs reads — which
     /// mask a "not connected yet" as an empty 200 so the page shows its connect prompt, not a 500 (so a 200 there
@@ -320,6 +327,30 @@ public class ObsController(
         CancellationToken ct
     ) => ResultResponse(await control.RefreshBrowserAsync(channelId, request.InputName, ct));
 
+    /// <summary>Fire a hotkey by name (see <c>GET hotkeys</c> for the enumeration).</summary>
+    [HttpPost("hotkeys/trigger")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TriggerHotkey(
+        Guid channelId,
+        [FromBody] ObsHotkeyTriggerRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await control.TriggerHotkeyAsync(channelId, request.HotkeyName, ct));
+
+    /// <summary>Capture a still image of one source — the response data URI (e.g.
+    /// <c>data:image/png;base64,...</c>) is ready to decode and display, never persisted server-side.</summary>
+    [HttpPost("source-screenshot")]
+    [RequireAction("obs:control")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CaptureScreenshot(
+        Guid channelId,
+        [FromBody] ObsScreenshotRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.ScreenshotAsync(channelId, request.SourceName, request.ImageFormat, ct)
+        );
+
     /// <summary>Streaming start/stop/toggle (broadcast-impacting).</summary>
     [HttpPost("streaming")]
     [RequireAction("obs:control:broadcast")]
@@ -391,6 +422,37 @@ public class ObsController(
         [FromBody] ObsRequest request,
         CancellationToken ct
     ) => ResultResponse(await control.RequestAsync(channelId, request, ct));
+
+    /// <summary>Raw OBS-WS request batch (the full surface; broadcast-tier) — a power-user/dev surface,
+    /// same gate as the single-request pass-through above.</summary>
+    [HttpPost("request/batch")]
+    [RequireAction("obs:control:broadcast")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsResponse>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RawRequestBatch(
+        Guid channelId,
+        [FromBody] ObsRequestBatch request,
+        CancellationToken ct
+    ) => ResultResponse(await control.RequestBatchAsync(channelId, request, ct));
+
+    /// <summary>Third-party OBS plugin vendor request pass-through (broadcast-tier) — the escape hatch
+    /// for plugin-defined requests <see cref="RawRequest"/> alone cannot address.</summary>
+    [HttpPost("request/vendor")]
+    [RequireAction("obs:control:broadcast")]
+    [ProducesResponseType<StatusResponseDto<ObsResponse>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CallVendor(
+        Guid channelId,
+        [FromBody] ObsVendorRequest request,
+        CancellationToken ct
+    ) =>
+        ResultResponse(
+            await control.CallVendorAsync(
+                channelId,
+                request.VendorName,
+                request.RequestType,
+                request.RequestData,
+                ct
+            )
+        );
 
     /// <summary>The channel's OBS connection configuration (defaults when none is stored yet).</summary>
     [HttpGet("connection")]

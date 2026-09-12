@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.core.network
 
 import io.ktor.http.encodeURLQueryComponent
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 // The typed OBS-control facade — the channel's OBS WebSocket connection config, its browser-source bridge, and
 // live scene/output control (obs-control.md §4/§5). All real state from the backend: the connection row, the
@@ -148,6 +149,23 @@ interface ObsApi {
 
     /** Reload a browser-source input's page. */
     suspend fun refreshBrowser(channelId: String, inputName: String): ApiResult<Unit>
+
+    /** The hotkey names OBS knows about — the enumeration a hotkey-trigger picker needs. */
+    suspend fun hotkeys(channelId: String): ApiResult<List<String>>
+
+    /** Fire a hotkey by name (see [hotkeys] for the enumeration). */
+    suspend fun triggerHotkey(channelId: String, hotkeyName: String): ApiResult<Unit>
+
+    /** Capture a still image of [sourceName] in [imageFormat] (e.g. `"png"`, `"jpg"`). Returns a ready-to-decode
+     * data URI (`data:image/png;base64,...`), never persisted server-side. */
+    suspend fun screenshot(channelId: String, sourceName: String, imageFormat: String): ApiResult<String>
+
+    /** Raw OBS-WS request batch (the full surface; power-user/dev only) — one [ObsRawResponseBody] per request,
+     * in order. */
+    suspend fun requestBatch(channelId: String, body: ObsRequestBatchBody): ApiResult<List<ObsRawResponseBody>>
+
+    /** Third-party OBS plugin vendor request pass-through (power-user/dev only). */
+    suspend fun callVendor(channelId: String, body: ObsVendorRequestBody): ApiResult<ObsRawResponseBody>
 }
 
 class RestObsApi(private val client: ApiClient) : ObsApi {
@@ -285,6 +303,30 @@ class RestObsApi(private val client: ApiClient) : ObsApi {
             "api/v1/channels/$channelId/obs/inputs/refresh-browser",
             ObsRefreshBrowserBody(inputName = inputName),
         )
+
+    override suspend fun hotkeys(channelId: String): ApiResult<List<String>> =
+        client.getEnvelope("api/v1/channels/$channelId/obs/hotkeys")
+
+    override suspend fun triggerHotkey(channelId: String, hotkeyName: String): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/obs/hotkeys/trigger",
+            ObsHotkeyTriggerBody(hotkeyName = hotkeyName),
+        )
+
+    override suspend fun screenshot(channelId: String, sourceName: String, imageFormat: String): ApiResult<String> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/obs/source-screenshot",
+            ObsScreenshotBody(sourceName = sourceName, imageFormat = imageFormat),
+        )
+
+    override suspend fun requestBatch(
+        channelId: String,
+        body: ObsRequestBatchBody,
+    ): ApiResult<List<ObsRawResponseBody>> =
+        client.postEnvelope("api/v1/channels/$channelId/obs/request/batch", body)
+
+    override suspend fun callVendor(channelId: String, body: ObsVendorRequestBody): ApiResult<ObsRawResponseBody> =
+        client.postEnvelope("api/v1/channels/$channelId/obs/request/vendor", body)
 }
 
 /**
@@ -501,3 +543,42 @@ data class ObsMediaActionBody(val inputName: String, val action: Int)
 /** The browser-source-refresh body (backend `ObsRefreshBrowserRequest`). */
 @Serializable
 data class ObsRefreshBrowserBody(val inputName: String)
+
+/** The hotkey-trigger body (backend `ObsHotkeyTriggerRequest`). */
+@Serializable
+data class ObsHotkeyTriggerBody(val hotkeyName: String)
+
+/** The source-screenshot body (backend `ObsScreenshotRequest`). */
+@Serializable
+data class ObsScreenshotBody(val sourceName: String, val imageFormat: String)
+
+/**
+ * One raw OBS-WS request (backend `ObsRequest`) — the power-user pass-through shape. [requestData] is
+ * arbitrary JSON (kotlinx.serialization's own [JsonElement], not a typed model), matching the server's
+ * `IReadOnlyDictionary<string, object?>?`.
+ */
+@Serializable
+data class ObsRawRequestBody(val requestType: String, val requestData: Map<String, JsonElement>? = null)
+
+/**
+ * A raw OBS-WS request batch (backend `ObsRequestBatch`). [execution] is an `ObsBatchExecution` ordinal
+ * (0 = SerialRealtime, 1 = SerialFrame, 2 = Parallel).
+ */
+@Serializable
+data class ObsRequestBatchBody(
+    val requests: List<ObsRawRequestBody>,
+    val execution: Int = 0,
+    val haltOnFailure: Boolean = false,
+)
+
+/** The outcome of one raw OBS-WS request (backend `ObsResponse`) — the power-user response-viewer shape. */
+@Serializable
+data class ObsRawResponseBody(val ok: Boolean, val responseData: Map<String, JsonElement>? = null, val error: String? = null)
+
+/** A vendor-request pass-through body (backend `ObsVendorRequest`) — third-party OBS plugin requests. */
+@Serializable
+data class ObsVendorRequestBody(
+    val vendorName: String,
+    val requestType: String,
+    val requestData: Map<String, JsonElement>? = null,
+)

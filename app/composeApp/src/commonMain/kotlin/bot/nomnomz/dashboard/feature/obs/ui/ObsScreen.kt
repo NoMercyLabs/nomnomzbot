@@ -10,11 +10,13 @@
 
 package bot.nomnomz.dashboard.feature.obs.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -55,10 +58,12 @@ import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.media.decodeStaticImage
 import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
@@ -72,11 +77,13 @@ import bot.nomnomz.dashboard.feature.obs.state.ObsController
 import bot.nomnomz.dashboard.feature.obs.state.ObsFiltersView
 import bot.nomnomz.dashboard.feature.obs.state.ObsLive
 import bot.nomnomz.dashboard.feature.obs.state.ObsSceneItemsView
+import bot.nomnomz.dashboard.feature.obs.state.ObsScreenshotView
 import bot.nomnomz.dashboard.feature.obs.state.ObsUiState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
+import kotlin.io.encoding.Base64
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -87,6 +94,10 @@ import nomnomzbot.composeapp.generated.resources.obs_bridge_offline
 import nomnomzbot.composeapp.generated.resources.obs_bridge_online
 import nomnomzbot.composeapp.generated.resources.obs_bridge_rotate
 import nomnomzbot.composeapp.generated.resources.obs_bridge_title
+import nomnomzbot.composeapp.generated.resources.obs_batch_desc
+import nomnomzbot.composeapp.generated.resources.obs_batch_input_hint
+import nomnomzbot.composeapp.generated.resources.obs_batch_input_label
+import nomnomzbot.composeapp.generated.resources.obs_batch_title
 import nomnomzbot.composeapp.generated.resources.obs_bridge_url_label
 import nomnomzbot.composeapp.generated.resources.obs_browser_refresh
 import nomnomzbot.composeapp.generated.resources.obs_clear_password
@@ -105,6 +116,10 @@ import nomnomzbot.composeapp.generated.resources.obs_filters_empty
 import nomnomzbot.composeapp.generated.resources.obs_filters_pick_source
 import nomnomzbot.composeapp.generated.resources.obs_filters_title
 import nomnomzbot.composeapp.generated.resources.obs_host_label
+import nomnomzbot.composeapp.generated.resources.obs_hotkey_row_type
+import nomnomzbot.composeapp.generated.resources.obs_hotkeys_desc
+import nomnomzbot.composeapp.generated.resources.obs_hotkeys_empty
+import nomnomzbot.composeapp.generated.resources.obs_hotkeys_title
 import nomnomzbot.composeapp.generated.resources.obs_loading
 import nomnomzbot.composeapp.generated.resources.obs_media_next
 import nomnomzbot.composeapp.generated.resources.obs_media_pause
@@ -127,6 +142,8 @@ import nomnomzbot.composeapp.generated.resources.obs_outputs_label
 import nomnomzbot.composeapp.generated.resources.obs_password_hint
 import nomnomzbot.composeapp.generated.resources.obs_password_label
 import nomnomzbot.composeapp.generated.resources.obs_password_stored
+import nomnomzbot.composeapp.generated.resources.obs_passthrough_response_label
+import nomnomzbot.composeapp.generated.resources.obs_passthrough_send
 import nomnomzbot.composeapp.generated.resources.obs_port_label
 import nomnomzbot.composeapp.generated.resources.obs_recording_pause
 import nomnomzbot.composeapp.generated.resources.obs_recording_resume
@@ -147,6 +164,15 @@ import nomnomzbot.composeapp.generated.resources.obs_scene_items_title
 import nomnomzbot.composeapp.generated.resources.obs_input_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scene_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scenes_label
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_alt
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_capture
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_decode_error
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_desc
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_empty
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_error
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_format_label
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_source_label
+import nomnomzbot.composeapp.generated.resources.obs_screenshot_title
 import nomnomzbot.composeapp.generated.resources.obs_sources_desc
 import nomnomzbot.composeapp.generated.resources.obs_sources_empty
 import nomnomzbot.composeapp.generated.resources.obs_sources_title
@@ -173,6 +199,11 @@ import nomnomzbot.composeapp.generated.resources.obs_transition_row_type
 import nomnomzbot.composeapp.generated.resources.obs_transitions_desc
 import nomnomzbot.composeapp.generated.resources.obs_transitions_empty
 import nomnomzbot.composeapp.generated.resources.obs_transitions_title
+import nomnomzbot.composeapp.generated.resources.obs_vendor_data_label
+import nomnomzbot.composeapp.generated.resources.obs_vendor_desc
+import nomnomzbot.composeapp.generated.resources.obs_vendor_name_label
+import nomnomzbot.composeapp.generated.resources.obs_vendor_title
+import nomnomzbot.composeapp.generated.resources.obs_vendor_type_label
 import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_start
 import nomnomzbot.composeapp.generated.resources.obs_virtual_cam_stop
 import nomnomzbot.composeapp.generated.resources.shell_nav_obs
@@ -318,6 +349,30 @@ fun ObsScreen(
                                 scope.launch { controller.triggerMedia(input, action) }
                             },
                             onRefreshBrowser = { input -> scope.launch { controller.refreshBrowserSource(input) } },
+                        )
+                        HotkeysCard(
+                            hotkeys = current.live.hotkeys,
+                            controlManage = controlManage,
+                            onTriggerHotkey = { name -> scope.launch { controller.triggerHotkey(name) } },
+                        )
+                        ScreenshotCard(
+                            inputs = current.live.inputs,
+                            view = current.screenshotView,
+                            controlManage = controlManage,
+                            onCapture = { source, format ->
+                                scope.launch { controller.captureScreenshot(source, format) }
+                            },
+                        )
+                        PassthroughCard(
+                            // Same broadcast-tier gate as the single-request raw pass-through — a power-user/dev
+                            // surface, not a moderator control.
+                            broadcastManage = broadcastManage,
+                            batchResult = current.batchResult,
+                            vendorResult = current.vendorResult,
+                            onRunBatch = { requestsJson -> scope.launch { controller.runRawBatch(requestsJson) } },
+                            onRunVendor = { vendorName, requestType, dataJson ->
+                                scope.launch { controller.runRawVendor(vendorName, requestType, dataJson) }
+                            },
                         )
                     }
                 }
@@ -1277,6 +1332,309 @@ private fun formatOneDecimal(value: Double): String {
     val whole: Long = rounded.toLong()
     val tenths: Long = kotlin.math.abs(((rounded - whole) * 10).toLong())
     return "$whole.$tenths"
+}
+
+// Hotkey enumeration + trigger (obs-control.md §5, TriggerHotkeyByName) — momentary fire-and-forget actions, so
+// unlike the scene/transition pickers no badge is ever shown "selected".
+@Composable
+private fun HotkeysCard(
+    hotkeys: List<String>,
+    controlManage: ManageDecision,
+    onTriggerHotkey: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_hotkeys_title),
+                description = stringResource(Res.string.obs_hotkeys_desc),
+                trailing = {},
+            )
+            if (hotkeys.isEmpty()) {
+                Text(text = stringResource(Res.string.obs_hotkeys_empty), style = typography.sm, color = tokens.mutedForeground)
+                return@Column
+            }
+            val typeLabel: String = stringResource(Res.string.obs_hotkey_row_type)
+            ManageGate(decision = controlManage) { gateEnabled ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    hotkeys.forEachIndexed { index, hotkey ->
+                        val label: String =
+                            resolveRowLabel(
+                                primary = hotkey,
+                                typeLabel = typeLabel,
+                                discriminatorSource = "$index-$hotkey",
+                            )
+                        Badge(
+                            variant = BadgeVariant.Outline,
+                            enabled = gateEnabled,
+                            onClick = if (gateEnabled) ({ onTriggerHotkey(hotkey) }) else null,
+                        ) {
+                            Text(text = label, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The two encoders OBS-WS's GetSourceScreenshot supports for a still capture.
+private val ScreenshotFormats: List<String> = listOf("png", "jpg")
+
+// Source screenshot (obs-control.md §5, GetSourceScreenshot) — pick a source and format, capture, preview. The
+// decode from the returned data URI to a renderable bitmap happens here (UI layer), never in the state holder.
+@Composable
+private fun ScreenshotCard(
+    inputs: List<ObsInput>,
+    view: ObsScreenshotView?,
+    controlManage: ManageDecision,
+    onCapture: (sourceName: String, imageFormat: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val sourceNames: List<String> = inputs.map { it.name }.filter { it.isNotBlank() }.distinct()
+    var selectedSource: String? by remember(sourceNames) { mutableStateOf(sourceNames.firstOrNull()) }
+    var selectedFormat: String by remember { mutableStateOf(ScreenshotFormats.first()) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_screenshot_title),
+                description = stringResource(Res.string.obs_screenshot_desc),
+                trailing = {},
+            )
+            if (sourceNames.isEmpty()) {
+                Text(text = stringResource(Res.string.obs_screenshot_empty), style = typography.sm, color = tokens.mutedForeground)
+                return@Column
+            }
+            ManageGate(decision = controlManage) { gateEnabled ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                    Text(text = stringResource(Res.string.obs_screenshot_source_label), style = typography.sm, color = tokens.mutedForeground)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        sourceNames.forEach { name ->
+                            Badge(
+                                variant = if (selectedSource == name) BadgeVariant.Default else BadgeVariant.Outline,
+                                selected = selectedSource == name,
+                                enabled = gateEnabled,
+                                onClick = if (gateEnabled) ({ selectedSource = name }) else null,
+                            ) {
+                                Text(text = name, maxLines = 1)
+                            }
+                        }
+                    }
+                    Text(text = stringResource(Res.string.obs_screenshot_format_label), style = typography.sm, color = tokens.mutedForeground)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        ScreenshotFormats.forEach { format ->
+                            Badge(
+                                variant = if (selectedFormat == format) BadgeVariant.Default else BadgeVariant.Outline,
+                                selected = selectedFormat == format,
+                                enabled = gateEnabled,
+                                onClick = if (gateEnabled) ({ selectedFormat = format }) else null,
+                            ) {
+                                Text(text = format, maxLines = 1)
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = { selectedSource?.let { source -> onCapture(source, selectedFormat) } },
+                        enabled = gateEnabled && selectedSource != null,
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(text = stringResource(Res.string.obs_screenshot_capture))
+                    }
+                }
+            }
+            if (view != null) {
+                Separator()
+                ScreenshotPreview(view = view)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScreenshotPreview(view: ObsScreenshotView) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    if (view.error != null) {
+        Text(
+            text = stringResource(Res.string.obs_screenshot_error, view.error),
+            style = typography.sm,
+            color = tokens.destructiveForeground,
+        )
+        return
+    }
+    val dataUri: String = view.imageDataUri ?: return
+    val bitmap: ImageBitmap? = remember(dataUri) { decodeDataUri(dataUri) }
+    if (bitmap == null) {
+        Text(
+            text = stringResource(Res.string.obs_screenshot_decode_error),
+            style = typography.sm,
+            color = tokens.destructiveForeground,
+        )
+        return
+    }
+    Image(
+        bitmap = bitmap,
+        contentDescription = stringResource(Res.string.obs_screenshot_alt, view.sourceName),
+        modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+    )
+}
+
+// The screenshot data URI is "data:image/<format>;base64,<payload>" (obs-websocket v5's GetSourceScreenshot
+// shape) — strip everything up to and including the comma, then decode the base64 payload.
+private fun decodeDataUri(dataUri: String): ImageBitmap? {
+    val base64: String = dataUri.substringAfter(',', missingDelimiterValue = "")
+    if (base64.isEmpty()) return null
+    val bytes: ByteArray =
+        try {
+            Base64.decode(base64)
+        } catch (e: Exception) {
+            return null
+        }
+    return decodeStaticImage(bytes)
+}
+
+// Raw batch/vendor pass-through (obs-control.md §5 full surface) — power-user/dev only, gated at the same
+// broadcast tier as the single-request raw pass-through it sits beside. Two cards, not one: a batch and a
+// vendor call are unrelated actions with unrelated inputs and unrelated responses.
+@Composable
+private fun PassthroughCard(
+    broadcastManage: ManageDecision,
+    batchResult: String?,
+    vendorResult: String?,
+    onRunBatch: (String) -> Unit,
+    onRunVendor: (vendorName: String, requestType: String, dataJson: String) -> Unit,
+) {
+    BatchRequestCard(broadcastManage = broadcastManage, result = batchResult, onRun = onRunBatch)
+    VendorRequestCard(broadcastManage = broadcastManage, result = vendorResult, onRun = onRunVendor)
+}
+
+@Composable
+private fun BatchRequestCard(broadcastManage: ManageDecision, result: String?, onRun: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var requestsJson: String by remember { mutableStateOf("") }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_batch_title),
+                description = stringResource(Res.string.obs_batch_desc),
+                trailing = {},
+            )
+            ManageGate(decision = broadcastManage) { gateEnabled ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                    Textarea(
+                        value = requestsJson,
+                        onValueChange = { requestsJson = it },
+                        label = stringResource(Res.string.obs_batch_input_label),
+                        placeholder = stringResource(Res.string.obs_batch_input_hint),
+                        enabled = gateEnabled,
+                        minLines = 4,
+                        monospace = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = { onRun(requestsJson) },
+                        enabled = gateEnabled && requestsJson.isNotBlank(),
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(text = stringResource(Res.string.obs_passthrough_send))
+                    }
+                }
+            }
+            if (result != null) {
+                Separator()
+                Text(text = stringResource(Res.string.obs_passthrough_response_label), style = typography.sm, color = tokens.mutedForeground)
+                Text(text = result, style = typography.xs, color = tokens.cardForeground)
+            }
+        }
+    }
+}
+
+@Composable
+private fun VendorRequestCard(
+    broadcastManage: ManageDecision,
+    result: String?,
+    onRun: (vendorName: String, requestType: String, dataJson: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var vendorName: String by remember { mutableStateOf("") }
+    var requestType: String by remember { mutableStateOf("") }
+    var dataJson: String by remember { mutableStateOf("") }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            SectionHeader(
+                title = stringResource(Res.string.obs_vendor_title),
+                description = stringResource(Res.string.obs_vendor_desc),
+                trailing = {},
+            )
+            ManageGate(decision = broadcastManage) { gateEnabled ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                    AppTextField(
+                        value = vendorName,
+                        onValueChange = { vendorName = it },
+                        label = stringResource(Res.string.obs_vendor_name_label),
+                        enabled = gateEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    AppTextField(
+                        value = requestType,
+                        onValueChange = { requestType = it },
+                        label = stringResource(Res.string.obs_vendor_type_label),
+                        enabled = gateEnabled,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Textarea(
+                        value = dataJson,
+                        onValueChange = { dataJson = it },
+                        label = stringResource(Res.string.obs_vendor_data_label),
+                        enabled = gateEnabled,
+                        minLines = 3,
+                        monospace = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = { onRun(vendorName, requestType, dataJson) },
+                        enabled = gateEnabled && vendorName.isNotBlank() && requestType.isNotBlank(),
+                        variant = ButtonVariant.Outline,
+                    ) {
+                        Text(text = stringResource(Res.string.obs_passthrough_send))
+                    }
+                }
+            }
+            if (result != null) {
+                Separator()
+                Text(text = stringResource(Res.string.obs_passthrough_response_label), style = typography.sm, color = tokens.mutedForeground)
+                Text(text = result, style = typography.xs, color = tokens.cardForeground)
+            }
+        }
+    }
 }
 
 // ── shared bits ────────────────────────────────────────────────────────────

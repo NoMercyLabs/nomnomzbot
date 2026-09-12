@@ -4195,6 +4195,30 @@
     <string name="obs_media_next">Volgende</string>
     <string name="obs_media_previous">Vorige</string>
     <string name="obs_browser_refresh">Vernieuwen</string>
+    <string name="obs_hotkeys_title">Sneltoetsen</string>
+    <string name="obs_hotkeys_desc">Voer op naam elke sneltoets uit die OBS kent.</string>
+    <string name="obs_hotkeys_empty">Geen sneltoetsen gemeld.</string>
+    <string name="obs_hotkey_row_type">Sneltoets</string>
+    <string name="obs_screenshot_title">Schermafbeelding</string>
+    <string name="obs_screenshot_desc">Leg een stilstaand beeld van één bron vast.</string>
+    <string name="obs_screenshot_source_label">Bron</string>
+    <string name="obs_screenshot_format_label">Formaat</string>
+    <string name="obs_screenshot_capture">Vastleggen</string>
+    <string name="obs_screenshot_empty">Geen bronnen gemeld.</string>
+    <string name="obs_screenshot_error">Vastleggen mislukt: %1$s</string>
+    <string name="obs_screenshot_alt">Schermafbeelding van %1$s</string>
+    <string name="obs_screenshot_decode_error">De opname kon niet als afbeelding worden gedecodeerd.</string>
+    <string name="obs_batch_title">Ruwe verzoekenbatch</string>
+    <string name="obs_batch_desc">Voor gevorderde gebruikers/ontwikkelaars: stuur een ruwe OBS-WS-verzoekenbatch als JSON.</string>
+    <string name="obs_batch_input_label">Verzoekenbatch (JSON)</string>
+    <string name="obs_batch_input_hint">{"requests":[{"requestType":"GetVersion"}]}</string>
+    <string name="obs_vendor_title">Leveranciersverzoek</string>
+    <string name="obs_vendor_desc">Voor gevorderde gebruikers/ontwikkelaars: roep het leveranciersverzoek van een externe OBS-plugin aan.</string>
+    <string name="obs_vendor_name_label">Leveranciersnaam</string>
+    <string name="obs_vendor_type_label">Verzoektype</string>
+    <string name="obs_vendor_data_label">Verzoekgegevens (JSON, optioneel)</string>
+    <string name="obs_passthrough_send">Versturen</string>
+    <string name="obs_passthrough_response_label">Antwoord</string>
 
     <!-- VTube Studio-pagina -->
     <string name="vts_subtitle">Verbind VTube Studio en bestuur je model, sneltoetsen en expressies.</string>

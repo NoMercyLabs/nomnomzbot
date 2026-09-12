@@ -20,7 +20,9 @@ import bot.nomnomz.dashboard.core.network.ObsConnection
 import bot.nomnomz.dashboard.core.network.ObsFilter
 import bot.nomnomz.dashboard.core.network.ObsInput
 import bot.nomnomz.dashboard.core.network.ObsProbe
+import bot.nomnomz.dashboard.core.network.ObsRawResponseBody
 import bot.nomnomz.dashboard.core.network.ObsRecordAction
+import bot.nomnomz.dashboard.core.network.ObsRequestBatchBody
 import bot.nomnomz.dashboard.core.network.ObsScene
 import bot.nomnomz.dashboard.core.network.ObsSceneItem
 import bot.nomnomz.dashboard.core.network.ObsState
@@ -28,6 +30,7 @@ import bot.nomnomz.dashboard.core.network.ObsStats
 import bot.nomnomz.dashboard.core.network.ObsStudioModeStatus
 import bot.nomnomz.dashboard.core.network.ObsToggle
 import bot.nomnomz.dashboard.core.network.ObsTransition
+import bot.nomnomz.dashboard.core.network.ObsVendorRequestBody
 import bot.nomnomz.dashboard.core.network.ObsVirtualCamStatus
 import bot.nomnomz.dashboard.core.network.UpsertObsConnectionBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -37,11 +40,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.obs_action_error
 import nomnomzbot.composeapp.generated.resources.obs_no_channel_error
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
+
+// The power-user raw batch/vendor surface's own JSON instance — pretty-printed for the response viewer, lenient
+// on input so a hand-typed request forgives trailing commas/etc. Kept local to this file rather than shared with
+// [bot.nomnomz.dashboard.core.network.ApiClient]'s internal instance, which this state holder has no access to.
+private val PassthroughJson: Json = Json {
+    prettyPrint = true
+    ignoreUnknownKeys = true
+    isLenient = true
+}
 
 // The OBS-control page state-holder (obs-control.md §4): the channel's OBS connection config, the browser-source
 // bridge, and — when OBS is reachable — the live scene/output state. It resolves the active channel, reads the
@@ -279,6 +293,12 @@ class ObsController(
         afterLiveAction(obsApi.setCurrentTransition(id, transitionName))
     }
 
+    /** Fire a hotkey by name (see [ObsLive.hotkeys] for the enumeration); then re-read live state. */
+    suspend fun triggerHotkey(hotkeyName: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        afterLiveAction(obsApi.triggerHotkey(id, hotkeyName))
+    }
+
     /** Play/pause/restart/stop/skip a media-source input; then re-read live state. */
     suspend fun triggerMedia(inputName: String, action: Int) {
         val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
@@ -336,6 +356,64 @@ class ObsController(
         }
     }
 
+    /**
+     * Capture a still image of [sourceName] and store it for display — an on-demand view (not part of the
+     * periodic live refresh) since it depends on which source/format the operator picked. The decode from the
+     * returned data URI to a renderable bitmap happens in the UI layer ([bot.nomnomz.dashboard.core.media]),
+     * so this only stores the raw data URI (or the failure).
+     */
+    suspend fun captureScreenshot(sourceName: String, imageFormat: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        when (val result: ApiResult<String> = obsApi.screenshot(id, sourceName, imageFormat)) {
+            is ApiResult.Ok ->
+                setScreenshotView(ObsScreenshotView(sourceName, imageDataUri = result.value, error = null))
+            is ApiResult.Failure ->
+                setScreenshotView(ObsScreenshotView(sourceName, imageDataUri = null, error = result.error.message))
+        }
+    }
+
+    /**
+     * Power-user surface: parse [requestsJson] as a JSON [ObsRequestBatchBody] and send it as a raw OBS-WS
+     * request batch, storing the pretty-printed response (or a parse/API error) for display. A malformed
+     * payload never reaches the network — it fails as a local parse error instead.
+     */
+    suspend fun runRawBatch(requestsJson: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        val body: ObsRequestBatchBody =
+            try {
+                PassthroughJson.decodeFromString(requestsJson)
+            } catch (e: Exception) {
+                setPassthroughResult(batchResult = "Invalid JSON: ${e.message}")
+                return
+            }
+        when (val result: ApiResult<List<ObsRawResponseBody>> = obsApi.requestBatch(id, body)) {
+            is ApiResult.Ok -> setPassthroughResult(batchResult = PassthroughJson.encodeToString(result.value))
+            is ApiResult.Failure -> setPassthroughResult(batchResult = "Error: ${result.error.message}")
+        }
+    }
+
+    /**
+     * Power-user surface: send a vendor request pass-through. [requestDataJson] is optional free-form JSON
+     * (blank = no data); a malformed payload never reaches the network — it fails as a local parse error.
+     */
+    suspend fun runRawVendor(vendorName: String, requestType: String, requestDataJson: String) {
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        val data: Map<String, JsonElement>? =
+            if (requestDataJson.isBlank()) null
+            else
+                try {
+                    PassthroughJson.decodeFromString(requestDataJson)
+                } catch (e: Exception) {
+                    setPassthroughResult(vendorResult = "Invalid JSON: ${e.message}")
+                    return
+                }
+        val body = ObsVendorRequestBody(vendorName = vendorName, requestType = requestType, requestData = data)
+        when (val result: ApiResult<ObsRawResponseBody> = obsApi.callVendor(id, body)) {
+            is ApiResult.Ok -> setPassthroughResult(vendorResult = PassthroughJson.encodeToString(result.value))
+            is ApiResult.Failure -> setPassthroughResult(vendorResult = "Error: ${result.error.message}")
+        }
+    }
+
     // ── internals ────────────────────────────────────────────────────────────
 
     private fun setSceneItemsView(view: ObsSceneItemsView) {
@@ -346,6 +424,20 @@ class ObsController(
     private fun setFiltersView(view: ObsFiltersView) {
         val ready: ObsUiState.Ready = _state.value as? ObsUiState.Ready ?: return
         _state.value = ready.copy(filtersView = view)
+    }
+
+    private fun setScreenshotView(view: ObsScreenshotView) {
+        val ready: ObsUiState.Ready = _state.value as? ObsUiState.Ready ?: return
+        _state.value = ready.copy(screenshotView = view)
+    }
+
+    private fun setPassthroughResult(batchResult: String? = null, vendorResult: String? = null) {
+        val ready: ObsUiState.Ready = _state.value as? ObsUiState.Ready ?: return
+        _state.value =
+            ready.copy(
+                batchResult = batchResult ?: ready.batchResult,
+                vendorResult = vendorResult ?: ready.vendorResult,
+            )
     }
 
     /** One best-effort sub-read of the live surface: [default] on failure, so one flaky OBS-WS request never
@@ -390,6 +482,7 @@ class ObsController(
         val stats: ObsStats? = bestEffort(null) { obsApi.stats(id) }
         val transitions: List<ObsTransition> = bestEffort(emptyList()) { obsApi.sceneTransitions(id) }
         val studioModeEnabled: Boolean = bestEffort(ObsStudioModeStatus()) { obsApi.studioMode(id) }.enabled
+        val hotkeys: List<String> = bestEffort(emptyList()) { obsApi.hotkeys(id) }
         return ObsLive(
             reachable = true,
             state = state,
@@ -399,6 +492,7 @@ class ObsController(
             stats = stats,
             transitions = transitions,
             studioModeEnabled = studioModeEnabled,
+            hotkeys = hotkeys,
         )
     }
 
@@ -449,6 +543,12 @@ sealed interface ObsUiState {
         val sceneItemsView: ObsSceneItemsView? = null,
         /** The source-filters view the operator last opened (source picker → per-filter enable), if any. */
         val filtersView: ObsFiltersView? = null,
+        /** The last screenshot the operator captured, if any. */
+        val screenshotView: ObsScreenshotView? = null,
+        /** The pretty-printed response (or error) from the last raw batch request, if any. */
+        val batchResult: String? = null,
+        /** The pretty-printed response (or error) from the last raw vendor request, if any. */
+        val vendorResult: String? = null,
     ) : ObsUiState
 
     data class Error(val detail: String) : ObsUiState
@@ -469,6 +569,8 @@ data class ObsLive(
     val stats: ObsStats? = null,
     val transitions: List<ObsTransition> = emptyList(),
     val studioModeEnabled: Boolean = false,
+    /** The hotkey names OBS knows about — the enumeration a hotkey-trigger picker needs. */
+    val hotkeys: List<String> = emptyList(),
     val error: String? = null,
 )
 
@@ -478,3 +580,7 @@ data class ObsSceneItemsView(val sceneName: String, val items: List<ObsSceneItem
 
 /** The source-filters view: the [sourceName] the operator picked to inspect and its current [filters]. */
 data class ObsFiltersView(val sourceName: String, val filters: List<ObsFilter>)
+
+/** The last screenshot capture: the [sourceName] it was taken of, and either [imageDataUri] (success) or
+ * [error] (failure) — never both. */
+data class ObsScreenshotView(val sourceName: String, val imageDataUri: String?, val error: String?)

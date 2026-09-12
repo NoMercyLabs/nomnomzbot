@@ -302,6 +302,37 @@ public class ObsControlService : IObsControlService
             ct
         );
 
+    public async Task<Result<IReadOnlyList<string>>> GetHotkeyListAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new("GetHotkeyList", null),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<IReadOnlyList<string>>(status.ErrorMessage!, status.ErrorCode!);
+
+        List<string> hotkeys = [];
+        if (response.Value.ResponseData?.GetValueOrDefault("hotkeys") is string hotkeysJson)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                hotkeysJson
+            );
+            foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+            {
+                string? name = item.GetString();
+                if (!string.IsNullOrEmpty(name))
+                    hotkeys.Add(name);
+            }
+        }
+        return Result.Success<IReadOnlyList<string>>(hotkeys);
+    }
+
     public Task<Result> RefreshBrowserAsync(
         Guid broadcasterId,
         string inputName,
