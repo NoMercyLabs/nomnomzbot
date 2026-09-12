@@ -65,13 +65,16 @@ separately here.
   no platform-IAM principal (see owner-calls below). Deep-verified: widget editor (highlight/scroll/live Vue
   preview renders the real BSOD), commands dialog, widgets overlay render, widget settings. Not yet clicked
   one-by-one: economy/games knobs, webhooks, sound-clip config, OBS mixer, roles make-a-mod, music/VTS.
-- [ ] **Old-bot parity — command diff RE-OPENED (2026-08-22).** The earlier "every command covered" claim
-  was wrong: 10 legacy commands need backend and have neither builtin nor seed — `!help`, `!commands`,
+- [ ] **Old-bot parity — command diff, last step.** The 10 missing legacy commands (`!help`, `!commands`,
   `!lurk`/`!unlurk`, `!leaderboard`, `!songhistory`, `!playlist`, `!bansong`, `!whisper`, `!discord`,
-  `!accountage` — plus no preset seeds any of the ~28 fun/script commands. Grounded list in
-  `usability-shortcomings-audit-scope-and-plan.md` §C7; queued in `SHORTCOMINGS-EXECUTION-PLAN.md`
-  Tier 1.3 / 6.7. Still open from before: `{user.messageCount}` stubbed "0" (alias to `{viewer.messages}`
-  or drop); confirm each of the 15 code scripts test-runs green on the live channel.
+  `!accountage`) all now have real builtins, and `{user.messageCount}` reads the same
+  `IViewerAnalyticsService` aggregate as `{viewer.messages}` instead of a stubbed "0". Still open: the
+  ~28 fun/script commands remain custom-command territory with no preset seed (unchanged from the §C7
+  audit — no new backend capability needed, just seed content, an owner content-authoring task not a
+  code slice); and confirming each of the 15 code scripts test-runs green needs `IScriptTestRunService`
+  run against the actual live channel's DB (`CodeScriptsController.TestRun`) — not reachable from a
+  sandboxed dev session with no CodeScript rows seeded anywhere in the repo, so this needs the owner (or
+  an agent with live-box access) to run it for real.
 
 
 
