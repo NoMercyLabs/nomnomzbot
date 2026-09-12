@@ -36,20 +36,26 @@ fix), `0b1df4e8` (7TV paint toggle), `4dd944f0`+`74f6ea79` (scroll-container swe
       a picker (needs a new `IObsControlService` method wrapping OBS-WS `GetHotkeyList` first);
       **screenshot** (`ScreenshotAsync`) and **batch/vendor pass-through** (`RequestBatchAsync`,
       `CallVendorAsync`) have no controller route or UI.
-- [ ] **S-STREAMDECK-OBS-REMAINDER** (`0d804e82`) Full parity with the backend's 19 OBS pipeline
-      action types minus one: all scene/source/filter/transition/input/media/hotkey/screenshot/replay/
-      raw-request/vendor-call actions now have Stream Deck keys, picker-backed where a list endpoint
-      exists. Icons are still placeholders, reusing `record-start.svg`/`device.svg` pending real
-      OBS-themed art. Still open:
-      - **`obs_request_batch`** — genuinely blocked, not deferred for UI-shaping reasons:
-        `PipelineEngine.ResolveTemplatedFieldsAsync` always re-wraps a templated field as a JSON
-        string, never an array, so its required `requests` array can never survive the
-        automation-invoke path. Needs an engine-level fix before any UI is worth building (also
-        affects `obs_request`/`obs_call_vendor`'s `request_data` object field the same way — those
-        got Stream Deck fields anyway since they'll start working once the engine gap closes).
-      - **Live icon state** (mute/streaming/recording tile feedback) — no OBS equivalent of music's
-        `song.changed` WS push exists yet; needs a new `IObsControlService`-side push, event
-        descriptor, WS wiring, and plugin-side rendering — a materially separate feature.
+**S-STREAMDECK-OBS-REMAINDER `obs_request_batch` CLOSED (`fac0b671`, `df47b9f6`).** Root cause
+confirmed and fixed at the engine seam: `PipelineEngine.ResolveTemplatedFieldsAsync`'s `String` case
+always re-wrapped a resolved template as a JSON string via `SerializeToElement`, even when the
+resolved text was itself valid JSON — so `obs_request_batch`'s `requests` array (and
+`obs_request`/`obs_call_vendor`'s `request_data` object, which additionally wasn't marked
+`Templated` at all) could never survive as real JSON. Fixed generically: a resolved string that
+parses as JSON with an `Array`/`Object` root now keeps that shape; a bare scalar (`"42"`, `"true"`)
+still stays a string, proven by a dedicated regression test. `obs_request_batch` now has a Stream
+Deck key (raw-JSON textarea, same pattern as `obs_request`/`obs_call_vendor`), and a real,
+pre-existing, separate bug was found and fixed in the same pass: `simple-param.html`'s `FIELD_CONFIG`
+keys for `obs-hotkey`/`obs-request`/`obs-call-vendor` were missing the manifest's doubled UUID
+segment, so none of those fields ever rendered in the property inspector — same defect class found
+and fixed in the sibling music plugin's own `simple-param.html` (`f3e854b7`), both now
+mutation-guarded against recurrence.
+
+- [ ] **S-STREAMDECK-OBS-REMAINDER — live icon state** (mute/streaming/recording tile feedback) — no
+      OBS equivalent of music's `song.changed` WS push exists yet; needs a new
+      `IObsControlService`-side push, event descriptor, WS wiring, and plugin-side rendering — a
+      materially separate feature. Icons are still placeholders, reusing
+      `record-start.svg`/`device.svg` pending real OBS-themed art.
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
