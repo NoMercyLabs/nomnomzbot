@@ -128,4 +128,17 @@ public interface IDiscordBotGateway
         string guildId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Creates (or, per Discord's own de-dupe rule for a non-unique request, reuses) a permanent, unlimited-use
+    /// invite for <paramref name="channelId"/> (<c>POST /channels/{id}/invites</c>, requires Create Instant
+    /// Invite in that channel) — the real backend a <c>!discord</c> chat command needs; there is no stored
+    /// invite URL anywhere in the schema to read instead. Returns the bare invite code
+    /// (<c>discord.gg/{code}</c>), not a fabricated link.
+    /// </summary>
+    Task<Result<string>> CreateChannelInviteAsync(
+        Guid broadcasterId,
+        string channelId,
+        CancellationToken ct = default
+    );
 }

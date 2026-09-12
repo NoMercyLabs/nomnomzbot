@@ -298,6 +298,62 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         return Result.Success(dtos);
     }
 
+    public async Task<Result<string>> CreateChannelInviteAsync(
+        Guid broadcasterId,
+        string channelId,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> token = await ResolveBotTokenAsync(broadcasterId, ct);
+        if (token.IsFailure)
+            return token;
+
+        using HttpRequestMessage request = new(
+            HttpMethod.Post,
+            $"{DiscordApiBase}/channels/{Uri.EscapeDataString(channelId)}/invites"
+        )
+        {
+            // Permanent (max_age 0), unlimited-use (max_uses 0), not forced-unique — Discord returns an
+            // existing matching invite rather than minting a fresh code every time !discord runs.
+            Content = JsonContent.Create(
+                new DiscordCreateInvitePayload(0, 0, false, false),
+                options: WireJson
+            ),
+        };
+        request.Headers.TryAddWithoutValidation("Authorization", $"Bot {token.Value}");
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Discord invite creation failed (transport).");
+            return Result.Failure<string>("Discord request failed.", "DISCORD_TRANSPORT");
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+                return await MapPostErrorAsync(response, ct);
+
+            try
+            {
+                DiscordInviteWire? body =
+                    await response.Content.ReadFromJsonAsync<DiscordInviteWire>(WireJson, ct);
+                return body is null || string.IsNullOrEmpty(body.Code)
+                    ? Result.Failure<string>("Discord returned no invite code.", "DISCORD_ERROR")
+                    : Result.Success(body.Code);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Malformed Discord invite response.");
+                return Result.Failure<string>("Malformed Discord response.", "DISCORD_TRANSPORT");
+            }
+        }
+    }
+
     /// <summary>Discord's Manage Roles permission bit (1 &lt;&lt; 28).</summary>
     private const ulong ManageRolesPermission = 0x10000000;
 
@@ -979,4 +1035,14 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
     private sealed record DiscordGuildMemberWire(
         [property: JsonPropertyName("roles")] List<string> Roles
     );
+
+    /// <summary><c>POST /channels/{id}/invites</c> request body.</summary>
+    private sealed record DiscordCreateInvitePayload(
+        [property: JsonPropertyName("max_age")] int MaxAge,
+        [property: JsonPropertyName("max_uses")] int MaxUses,
+        [property: JsonPropertyName("temporary")] bool Temporary,
+        [property: JsonPropertyName("unique")] bool Unique
+    );
+
+    private sealed record DiscordInviteWire([property: JsonPropertyName("code")] string Code);
 }

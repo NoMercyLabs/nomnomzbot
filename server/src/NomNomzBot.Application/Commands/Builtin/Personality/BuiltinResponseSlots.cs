@@ -184,6 +184,19 @@ public static class BuiltinResponseSlots
         public const string CouldNotBan = "couldnotban";
     }
 
+    /// <summary><c>!discord</c> — legacy parity (S068 command diff): points viewers at the channel's linked
+    /// Discord server via a live-created invite.</summary>
+    public static class Discord
+    {
+        public const string Key = "discord";
+
+        /// <summary>No active Discord guild link for this channel — no variables.</summary>
+        public const string NotConnected = "notconnected";
+
+        /// <summary>The link exists but no invitable channel/invite could be created — no variables.</summary>
+        public const string Unavailable = "unavailable";
+    }
+
     /// <summary><c>!update</c> — usage/error tone slots (S069h).</summary>
     public static class UpdateUserInfo
     {

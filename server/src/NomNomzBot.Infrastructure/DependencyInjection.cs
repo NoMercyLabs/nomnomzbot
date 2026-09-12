@@ -1080,6 +1080,7 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Commands.Builtins.LeaderboardBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.PlaylistBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.WhisperBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.DiscordInviteBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CoinflipBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.DiceBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SlotsBuiltin>();

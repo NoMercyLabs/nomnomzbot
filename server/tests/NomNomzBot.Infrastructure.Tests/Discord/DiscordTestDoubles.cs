@@ -272,4 +272,16 @@ internal sealed class RecordingGateway : IDiscordBotGateway
         GuildReads.Add($"postable-channels:{guildId}");
         return Task.FromResult(NextPostableChannelsResult);
     }
+
+    public Result<string> NextInviteResult { get; set; } = Result.Success("abc123");
+
+    public Task<Result<string>> CreateChannelInviteAsync(
+        Guid broadcasterId,
+        string channelId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"invite:{channelId}");
+        return Task.FromResult(NextInviteResult);
+    }
 }
