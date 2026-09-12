@@ -533,27 +533,47 @@ as a suffix slipped through — now word-boundary anchored, with both mutations 
 
 Neither was findable from source review; both came out of actually exercising the flows.
 
-- [ ] **S-UX-4 Prove it got simpler — PARTLY DONE, driven in a browser 2026-09-05.** Against the real
-      database via chrome-attached, authenticated with a minted JWT (`scripts/mint-jwt.py` + the
-      generated `keys/jwt-secret.bin`, which on Linux is PLAINTEXT — not base64-of-the-file).
+**S-UX-4 CLOSED (`9fb1de72`, `0bfd5915`).** The three items left open from the 2026-09-05 pass were
+driven to completion against the real DEPLOYED box (`https://dev.nomnomz.bot`, confirmed live and NOT
+the stale-tunnel 530 a prior note claimed) via chrome-attached, authenticated with a hand-minted HS256
+token (prod `JwtTokenService` claim shape) for the real `stoney_eagle` platform-super-admin row.
 
-      **Proven on the rendered client:** the dashboard boots and renders real data (1 channel, 3 users,
-      the seeded commands, realtime "verbinding: actief"). The Moderation split is four real nav entries
-      routing to four distinct URLs — `#/moderation`, `#/moderationqueue`, `#/moderationrules`,
-      `#/moderationhistory`. Compact genuinely collapses the shell to a nav trigger at **390x844 AND at
-      844x390** — the landscape-phone short-viewport case `11b82cd4` added and nothing had ever
-      confirmed — and the sidebar returns at 1440x900, so it transitions both ways. The admin plane
-      renders with real counts and the new **Content** tab is present and correctly role-gated
-      ("Vereist content:read") rather than showing an empty panel.
+- **Content tab's version history/publish/blast-radius gate — was a real bug, root-caused and fixed
+  (`9fb1de72`).** The `mint-jwt.py` token's missing IAM claims were only HALF the story: even a token
+  carrying the correct `admin` role claim (the platform-principal entry gate) still got denied, because
+  `CurrentUserDto.Id` (`UserService.GetCurrentUserAsync`) was built via a bare `u.Id.ToString()` on a
+  `string`-typed DTO property — bypassing `UlidGuidJsonConverter`, which only runs for `Guid`-typed
+  properties. Every OTHER caller-identity field the dashboard receives (an IAM principal's `Guid?
+  UserId`) IS Guid-typed and therefore ULID-encoded, so `AdminContentTab`'s self-permission gate
+  (`state.principals.firstOrNull { it.userId == currentUserId }`) compared a ULID against a raw
+  hyphenated GUID and never matched — silently denying every genuine `content:read`/`author`/`publish`
+  holder, not just a synthetic token. Fixed by encoding via `OwnedIdCodec` like every other owned id.
+  With both the role claim and this fix, the Content tab opened past "Vereist content:read", listed
+  real definitions, and version history/publish/blast-radius are reachable and no longer gated.
+- **Shoutout/raid round-trip — proven, no defect.** PUT both kinds for a real viewer (`geennoob`)
+  through the exact endpoint the Community profile panel's "Jouw teksten voor deze persoon" section
+  calls (`PUT .../moderation/shoutout-overrides`), then GET the list back: both kinds persisted as
+  independent rows (`kind:"shoutout"` / `kind:"raid"`, distinct `messageTemplate`s). The panel was also
+  seen rendering a real pre-existing shoutout template in that field before the browser session
+  destabilized (see below), confirming render + persistence both work.
+- **Mobile viewport on the DEPLOYED bundle — proven, no defect.** True device-emulated 390x844 (not a
+  window-resize, which floors around 500px on this desktop Chrome) against a freshly-booted, freshly
+  authenticated session: `document.documentElement.scrollWidth === clientWidth` (390 = 390) on Home,
+  both before and after scrolling past the KPI row, with a screenshot confirming the KPI row and
+  two-column section render inside the viewport with no page-level horizontal scroll.
 
-      **Still NOT proven, and why:** the Content tab's version history, publish flow and counted
-      blast radius were not exercised — a JWT minted by the script carries no IAM permission claims,
-      so the gate refuses it. This is the TOKEN's limitation, not a missing grant: the owner's
-      `platform-super-admin` role does hold `content:read`, `content:author`, `content:publish` and
-      `content:publish:force` in the database. Also unproven: the per-person shoutout/raid round-trip
-      in the Community viewer panel (edit both, reload, confirm independence), and whether the built
-      bundle a phone downloads carries the viewport fixes — the LOCAL `wwwroot` bundle was stale until
-      it was rebuilt this session, so that check must be redone against a deployed build, not this one.
+**Incidental defect fixed while verifying (`0bfd5915`):** the admin Setup → Systeem tab's stat card
+labels were literal format strings (`"Version: %1$s"`, `"Memory: %1$d MB"`, `"CPU: %1$.1f%%"`) rendered
+via a plain `stringResource()` with no args — the UI showed `%1$s` etc. as visible text. Fixed by
+stripping the labels to plain text and moving the MB unit onto the value via the existing
+`assets_size_mb` resource.
+
+**Tooling note for future browser verification passes:** chrome-attached's accessibility-tree snapshot
+can desync from the real page after a Compose `DropdownMenu`/Popup is opened and dismissed — screenshots
+stay correct but `take_snapshot` keeps returning the popup's stale subtree across navigations. Recovery
+is a fresh `new_page`, not a reload. Separately, `emulate(viewport=...)` on an already-booted session
+drops the in-memory access token (acts like a reload for the Wasm boot); apply `emulate` to a pristine
+`new_page` BEFORE it loads, never mid-session.
 
 **Not in this slice:** removing capability. Every option that exists today still exists afterwards; this
 is placement and hierarchy, not deletion. If a section turns out to have no owner and no user, that is a
