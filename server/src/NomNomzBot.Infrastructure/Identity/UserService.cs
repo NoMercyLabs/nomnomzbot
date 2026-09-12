@@ -17,6 +17,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -53,23 +54,43 @@ public class UserService : IUserService
         if (!Guid.TryParse(_currentUser.UserId, out Guid currentUserId))
             return Errors.NotFound<CurrentUserDto>("User", _currentUser.UserId);
 
-        CurrentUserDto? user = await _db
+        // Project the raw fields first, then encode the id in C# (below) rather than inside the LINQ
+        // projection — OwnedIdCodec.Encode has no SQL translation, and every OTHER owned-id field in the
+        // API is wire-encoded via UlidGuidJsonConverter (Guid-typed DTO properties only). This DTO types
+        // Id as string, so it bypassed that converter entirely and leaked the raw hyphenated Guid — the
+        // one caller-identity field a client can compare against an IAM principal's Guid-typed (thus
+        // ULID-encoded) UserId never matched, silently denying every genuine content:read/author/publish
+        // holder in AdminContentTab's self-permission gate (S-UX-4 verification, 2026-09-12).
+        var row = await _db
             .Users.Where(u => u.Id == currentUserId)
-            .Select(u => new CurrentUserDto(
-                u.Id.ToString(),
+            .Select(u => new
+            {
+                u.Id,
                 u.Username,
                 u.DisplayName,
                 u.ProfileImageUrl,
                 u.Color,
                 u.BroadcasterType,
                 u.IsPlatformPrincipal,
-                u.CreatedAt
-            ))
+                u.CreatedAt,
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return user is null
-            ? Errors.NotFound<CurrentUserDto>("User", _currentUser.UserId)
-            : Result.Success(user);
+        if (row is null)
+            return Errors.NotFound<CurrentUserDto>("User", _currentUser.UserId);
+
+        CurrentUserDto user = new(
+            OwnedIdCodec.Encode(row.Id),
+            row.Username,
+            row.DisplayName,
+            row.ProfileImageUrl,
+            row.Color,
+            row.BroadcasterType,
+            row.IsPlatformPrincipal,
+            row.CreatedAt
+        );
+
+        return Result.Success(user);
     }
 
     public async Task<Result<UserDto>> GetOrCreateAsync(
@@ -385,7 +406,7 @@ public class UserService : IUserService
                 u.Channel != null ? "moderator" : "user",
                 u.Channel != null ? 1 : 0,
                 u.CreatedAt,
-                (DateTime?)u.UpdatedAt
+                u.UpdatedAt
             ))
             .ToListAsync(cancellationToken);
 
