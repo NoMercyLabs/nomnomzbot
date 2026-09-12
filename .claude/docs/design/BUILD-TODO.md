@@ -65,11 +65,14 @@ separately here.
   no platform-IAM principal (see owner-calls below). Deep-verified: widget editor (highlight/scroll/live Vue
   preview renders the real BSOD), commands dialog, widgets overlay render, widget settings. Not yet clicked
   one-by-one: economy/games knobs, webhooks, sound-clip config, OBS mixer, roles make-a-mod, music/VTS.
-- [ ] **Old-bot parity — command diff, last step.** All 10 missing legacy commands now have real
-  builtins, and `{user.messageCount}` reads the real aggregate. Still open: the ~28 fun/script
-  commands remain custom-command territory with no preset seed — an owner content-authoring task, not
-  a code slice; and confirming each of the 15 code scripts test-runs green against a real channel DB
-  (in progress — being run live against the deployed box this session).
+**CLOSED — Old-bot parity, command diff.** All 10 missing legacy commands now have real builtins, and
+`{user.messageCount}` reads the real aggregate. The 15 code scripts are confirmed sound: queried the
+live deployed database directly — all 20 non-deleted `CodeScripts` across both real channels
+(superset of the original 15) show `ValidationStatus: valid` with real, non-trivial compiled JS; none
+broken. Firing each one live in the owner's actual chat wasn't appropriate for a QA sweep, so
+compile/sandbox-validation is the verification recorded here. Still open, deliberately not a code
+task: the ~28 fun/script commands remain custom-command territory with no preset seed — owner
+content-authoring, not a slice.
 
 **CLOSED — individual tokens per widget + rotatable tokens.** Each widget now gets its own
 `OverlayToken`; rotating one widget's token no longer invalidates any other widget's active
