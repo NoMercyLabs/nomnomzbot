@@ -10,6 +10,7 @@
 
 import streamDeck from "@elgato/streamdeck";
 import { automationClient, runDeviceFlowLoop } from "@nomnomzbot/streamdeck-shared";
+import { obsLiveState } from "./state.js";
 
 import { SwitchSceneAction } from "./actions/obsSwitchScene.js";
 import { ToggleMuteAction } from "./actions/obsToggleMute.js";
@@ -65,6 +66,12 @@ for (const registration of [
 ]) {
   streamDeck.actions.registerAction(registration);
 }
+
+// S-STREAMDECK-OBS-REMAINDER: live icon state — mirrors the music plugin's `onNowPlaying` wiring
+// (plugin.ts P2), one shared store fed by the WS push, every key instance reads from it.
+automationClient.onObsStreamingState((payload) => obsLiveState.applyStreaming(payload));
+automationClient.onObsRecordingState((payload) => obsLiveState.applyRecording(payload));
+automationClient.onObsMuteState((payload) => obsLiveState.applyMute(payload));
 
 automationClient.onDisconnected(() => {
   streamDeck.logger.warn("Automation token lost — restarting the device pairing flow.");

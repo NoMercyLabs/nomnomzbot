@@ -293,6 +293,19 @@ public class AutomationDataController(
         return WithRetryAfter(await commands.GetObsSourceFiltersAsync(principal, sourceName, ct));
     }
 
+    /// <summary>Live streaming/recording state (scope <c>read</c>) — the seed read a Stream Deck tile
+    /// makes right after connecting, before the first <c>obs.streaming.changed</c>/
+    /// <c>obs.recording.changed</c> push arrives (S-STREAMDECK-OBS-REMAINDER), mirroring
+    /// <see cref="GetNowPlaying"/>'s seed-read role for the music tiles.</summary>
+    [HttpGet("obs/state")]
+    [ProducesResponseType<StatusResponseDto<AutomationObsStateDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetObsState(CancellationToken ct)
+    {
+        if (Principal is not { } principal)
+            return UnauthenticatedResponse();
+        return WithRetryAfter(await commands.GetObsStateAsync(principal, ct));
+    }
+
     /// <summary>The principal the authentication handler parked for this request.</summary>
     private AutomationPrincipal? Principal =>
         HttpContext.Items[typeof(AutomationPrincipal)] as AutomationPrincipal;

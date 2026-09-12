@@ -45,3 +45,40 @@ public sealed class ObsConnectionEstablishedEvent : DomainEventBase
     public required bool Streaming { get; init; }
     public required bool Recording { get; init; }
 }
+
+/// <summary>
+/// The channel's OBS streaming output started or stopped (obs-websocket v5
+/// <c>StreamStateChanged</c>) — projected from <see cref="ObsEventReceivedEvent"/> by
+/// <c>Infrastructure.Obs.EventHandlers.ObsAutomationStateForwarder</c> into the public
+/// <c>obs.streaming.changed</c> automation event (S-STREAMDECK-OBS-REMAINDER), mirroring how
+/// <c>SongChangedEvent</c> feeds <c>song.changed</c>.
+/// </summary>
+public sealed class ObsStreamingStateChangedEvent : DomainEventBase
+{
+    /// <summary>Whether the stream output is active right now.</summary>
+    public required bool Active { get; init; }
+}
+
+/// <summary>
+/// The channel's OBS recording output started, stopped, paused, or resumed (obs-websocket v5
+/// <c>RecordStateChanged</c>) — projected the same way as <see cref="ObsStreamingStateChangedEvent"/>
+/// into the public <c>obs.recording.changed</c> automation event.
+/// </summary>
+public sealed class ObsRecordingStateChangedEvent : DomainEventBase
+{
+    /// <summary>Whether the record output is active (started/resumed) right now.</summary>
+    public required bool Active { get; init; }
+
+    /// <summary>Whether an active recording is currently paused.</summary>
+    public required bool Paused { get; init; }
+}
+
+/// <summary>
+/// One OBS audio input's mute state changed (obs-websocket v5 <c>InputMuteStateChanged</c>) —
+/// projected the same way into the public <c>obs.mute.changed</c> automation event.
+/// </summary>
+public sealed class ObsInputMuteStateChangedEvent : DomainEventBase
+{
+    public required string InputName { get; init; }
+    public required bool Muted { get; init; }
+}

@@ -143,3 +143,25 @@ public sealed record AutomationObsTransitionDto(string Name, bool IsCurrent);
 /// <summary>One filter attached to an OBS source, as the data plane lists it for a property-inspector
 /// picker — mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsFilterDto"/>.</summary>
 public sealed record AutomationObsFilterDto(string Name, string Kind, bool Enabled, int Index);
+
+/// <summary>The <c>obs.streaming.changed</c> event payload (S-STREAMDECK-OBS-REMAINDER) — mirrors
+/// <see cref="NomNomzBot.Domain.Obs.Events.ObsStreamingStateChangedEvent"/> field-for-field.</summary>
+public sealed record AutomationObsStreamingStateDto(bool Active);
+
+/// <summary>The <c>obs.recording.changed</c> event payload — mirrors
+/// <see cref="NomNomzBot.Domain.Obs.Events.ObsRecordingStateChangedEvent"/> field-for-field.</summary>
+public sealed record AutomationObsRecordingStateDto(bool Active, bool Paused);
+
+/// <summary>The <c>obs.mute.changed</c> event payload — mirrors
+/// <see cref="NomNomzBot.Domain.Obs.Events.ObsInputMuteStateChangedEvent"/> field-for-field.</summary>
+public sealed record AutomationObsMuteStateDto(string InputName, bool Muted);
+
+/// <summary>
+/// Live streaming/recording state (S-STREAMDECK-OBS-REMAINDER) — the one-shot seed a Stream Deck key
+/// fetches right after connecting/reconnecting, before the first <c>obs.streaming.changed</c>/
+/// <c>obs.recording.changed</c> push arrives, mirroring how <see cref="AutomationNowPlayingDto"/> seeds
+/// the music tiles. Mirrors <see cref="NomNomzBot.Application.Obs.Dtos.ObsStateDto"/>'s output fields
+/// only — <c>CurrentScene</c>/<c>ReplayBufferActive</c>/<c>RecordTimecode</c> are out of this slice's
+/// scope (no Stream Deck tile renders them live yet).
+/// </summary>
+public sealed record AutomationObsStateDto(bool Streaming, bool Recording, bool RecordPaused);

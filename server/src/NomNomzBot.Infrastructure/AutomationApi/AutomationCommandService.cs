@@ -581,6 +581,34 @@ public class AutomationCommandService : IAutomationCommandService
         return Result.Success(mapped);
     }
 
+    public async Task<Result<AutomationObsStateDto>> GetObsStateAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    )
+    {
+        if (!principal.Scopes.Contains("read"))
+            return Forbidden<AutomationObsStateDto>("read");
+        Result limited = await AcquireAsync(principal, "read", ReadsPerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<AutomationObsStateDto>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Result<ObsStateDto> state = await _obs.GetStateAsync(principal.BroadcasterId, ct);
+        if (state.IsFailure)
+            return Result.Failure<AutomationObsStateDto>(state.ErrorMessage!, state.ErrorCode!);
+
+        return Result.Success(
+            new AutomationObsStateDto(
+                state.Value.Streaming,
+                state.Value.Recording,
+                state.Value.RecordPaused
+            )
+        );
+    }
+
     /// <summary>music-automation-controls.md D5 — a pipeline with any <c>music_*</c> step needs the
     /// token's CREATOR to still hold <c>music:control:write</c>, checked at invoke time (not mint time)
     /// so a later demotion takes effect without having to revoke the token.</summary>

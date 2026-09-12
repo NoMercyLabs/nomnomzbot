@@ -82,6 +82,32 @@ export interface ObsFilterPayload extends JsonObject {
   index: number;
 }
 
+/** `obs.streaming.changed` push payload (S-STREAMDECK-OBS-REMAINDER) — mirrors
+ * `AutomationObsStreamingStateDto` field-for-field. */
+export interface ObsStreamingStatePayload extends JsonObject {
+  active: boolean;
+}
+
+/** `obs.recording.changed` push payload — mirrors `AutomationObsRecordingStateDto`. */
+export interface ObsRecordingStatePayload extends JsonObject {
+  active: boolean;
+  paused: boolean;
+}
+
+/** `obs.mute.changed` push payload — mirrors `AutomationObsMuteStateDto`. */
+export interface ObsMuteStatePayload extends JsonObject {
+  inputName: string;
+  muted: boolean;
+}
+
+/** The one-shot seed read for streaming/recording tiles right after connecting, before the first
+ * `obs.streaming.changed`/`obs.recording.changed` push arrives — mirrors `AutomationObsStateDto`. */
+export interface ObsStatePayload extends JsonObject {
+  streaming: boolean;
+  recording: boolean;
+  recordPaused: boolean;
+}
+
 /** The project-wide response envelope (StatusResponseDto&lt;T&gt;): {@code status: "ok"|"error"} +
  * {@code message} on failure. There is no {@code success} boolean or {@code errorCode} on the wire —
  * error KIND (expired token vs. forbidden vs. not found, …) is conveyed purely via HTTP status. */
@@ -150,6 +176,9 @@ export class AutomationClient {
   private wsWatchdogTimer: ReturnType<typeof setInterval> | null = null;
   private wsLastActivityAt = 0;
   private nowPlayingListeners = new Set<(payload: NowPlayingPayload) => void>();
+  private obsStreamingListeners = new Set<(payload: ObsStreamingStatePayload) => void>();
+  private obsRecordingListeners = new Set<(payload: ObsRecordingStatePayload) => void>();
+  private obsMuteListeners = new Set<(payload: ObsMuteStatePayload) => void>();
   private disconnectListeners = new Set<() => void>();
   private readonly timing: AutomationClientTiming;
 
@@ -163,6 +192,21 @@ export class AutomationClient {
 
   onNowPlaying(listener: (payload: NowPlayingPayload) => void): void {
     this.nowPlayingListeners.add(listener);
+  }
+
+  /** S-STREAMDECK-OBS-REMAINDER: fired on every `obs.streaming.changed` push. */
+  onObsStreamingState(listener: (payload: ObsStreamingStatePayload) => void): void {
+    this.obsStreamingListeners.add(listener);
+  }
+
+  /** Fired on every `obs.recording.changed` push. */
+  onObsRecordingState(listener: (payload: ObsRecordingStatePayload) => void): void {
+    this.obsRecordingListeners.add(listener);
+  }
+
+  /** Fired on every `obs.mute.changed` push (one audio input's mute state). */
+  onObsMuteState(listener: (payload: ObsMuteStatePayload) => void): void {
+    this.obsMuteListeners.add(listener);
   }
 
   /** Fired when pairing is lost (hard expiry / revocation) so keys can revert to "not connected". */
@@ -236,6 +280,13 @@ export class AutomationClient {
     );
   }
 
+  /** S-STREAMDECK-OBS-REMAINDER: live streaming/recording state — the seed read
+   * {@link resyncObsState} makes right after connecting, before the first
+   * `obs.streaming.changed`/`obs.recording.changed` push arrives. */
+  async getObsState(): Promise<ObsStatePayload> {
+    return this.request<ObsStatePayload>("GET", "/automation/v1/obs/state");
+  }
+
   /** Connects (or reconnects) the WS subscription for `song.changed`. Idempotent.
    *
    * A key rendered before the first `song.changed` frame arrives (e.g. right after pairing, or a
@@ -255,8 +306,18 @@ export class AutomationClient {
     socket.on("open", () => {
       this.reconnectDelayMs = 1000;
       socket.send(JSON.stringify({ op: "authenticate", id: "auth", token: state.token }));
-      socket.send(JSON.stringify({ op: "subscribe", id: "sub", events: ["song.changed"] }));
+      // S-STREAMDECK-OBS-REMAINDER: the OBS live-state events ride the same subscription as
+      // `song.changed` — harmless to request in a music-only or OBS-only install, since a plugin
+      // process with no listener registered for a given payload simply never reads it.
+      socket.send(
+        JSON.stringify({
+          op: "subscribe",
+          id: "sub",
+          events: ["song.changed", "obs.streaming.changed", "obs.recording.changed", "obs.mute.changed"],
+        }),
+      );
       void this.resyncNowPlaying();
+      void this.resyncObsState();
       this.startResyncTimer();
       this.startWsWatchdog(socket);
     });
@@ -272,9 +333,28 @@ export class AutomationClient {
         // {event, payload} shape this used to check — which meant song.changed pushes were parsed
         // but never matched, and every "live" update actually came from the periodic REST resync.
         const msg = JSON.parse(raw.toString()) as { op?: string; type?: string; data?: unknown };
-        if (msg.op === "event" && msg.type === "song.changed" && msg.data) {
-          const payload = msg.data as NowPlayingPayload;
-          for (const listener of this.nowPlayingListeners) listener(payload);
+        if (msg.op !== "event" || !msg.data) return;
+        switch (msg.type) {
+          case "song.changed": {
+            const payload = msg.data as NowPlayingPayload;
+            for (const listener of this.nowPlayingListeners) listener(payload);
+            break;
+          }
+          case "obs.streaming.changed": {
+            const payload = msg.data as ObsStreamingStatePayload;
+            for (const listener of this.obsStreamingListeners) listener(payload);
+            break;
+          }
+          case "obs.recording.changed": {
+            const payload = msg.data as ObsRecordingStatePayload;
+            for (const listener of this.obsRecordingListeners) listener(payload);
+            break;
+          }
+          case "obs.mute.changed": {
+            const payload = msg.data as ObsMuteStatePayload;
+            for (const listener of this.obsMuteListeners) listener(payload);
+            break;
+          }
         }
       } catch {
         // malformed frame — ignore, the next one will be fine
@@ -298,9 +378,34 @@ export class AutomationClient {
     for (const listener of this.nowPlayingListeners) listener(payload);
   }
 
+  /** One-shot GET fallback for the OBS live-state tiles, mirroring {@link resyncNowPlaying} — skipped
+   * entirely when nothing is listening (a music-only install never has OBS listeners registered), so
+   * this never adds request noise to a process that has no OBS tile at all. */
+  private async resyncObsState(): Promise<void> {
+    if (this.obsStreamingListeners.size > 0 || this.obsRecordingListeners.size > 0) {
+      const state = await this.getObsState().catch(() => null);
+      if (state) {
+        for (const listener of this.obsStreamingListeners) listener({ active: state.streaming });
+        for (const listener of this.obsRecordingListeners)
+          listener({ active: state.recording, paused: state.recordPaused });
+      }
+    }
+    if (this.obsMuteListeners.size > 0) {
+      const inputs = await this.getObsInputs().catch(() => []);
+      for (const input of inputs) {
+        if (input.muted === null) continue;
+        for (const listener of this.obsMuteListeners)
+          listener({ inputName: input.name, muted: input.muted });
+      }
+    }
+  }
+
   private startResyncTimer(): void {
     this.stopResyncTimer();
-    this.resyncTimer = setInterval(() => void this.resyncNowPlaying(), RESYNC_INTERVAL_MS);
+    this.resyncTimer = setInterval(() => {
+      void this.resyncNowPlaying();
+      void this.resyncObsState();
+    }, RESYNC_INTERVAL_MS);
   }
 
   private stopResyncTimer(): void {

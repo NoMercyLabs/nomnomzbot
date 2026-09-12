@@ -10,16 +10,24 @@
 
 import { action } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
-import { ObsAction } from "./obsAction.js";
+import { ObsLiveIconAction } from "./obsLiveIconAction.js";
+import { obsLiveState } from "../state.js";
 
 /** Invokes the dashboard's `obs_streaming` pipeline (obs-control.md §5) with `action: "toggle"` — one
- * key that starts or stops streaming depending on OBS's current state. */
+ * key that starts or stops streaming depending on OBS's current state.
+ *
+ * S-STREAMDECK-OBS-REMAINDER: the icon itself swaps between `stream-start`/`stream-stop` to show what
+ * pressing the key will DO next (start while idle, stop while live), fed by the `obs.streaming.changed`
+ * live push — a static icon can't express that for a single toggle key. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.obs.obs-toggle-streaming" })
-export class ToggleStreamingAction extends ObsAction {
+export class ToggleStreamingAction extends ObsLiveIconAction {
   protected readonly pipelineName = "obs_streaming";
-  protected readonly iconName = "stream-start";
 
   protected override resolveParams(_settings: JsonObject): Record<string, unknown> {
     return { action: "toggle" };
+  }
+
+  protected override liveIcon(): { iconName: string; dimmed: boolean } {
+    return { iconName: obsLiveState.isStreaming === true ? "stream-stop" : "stream-start", dimmed: false };
   }
 }

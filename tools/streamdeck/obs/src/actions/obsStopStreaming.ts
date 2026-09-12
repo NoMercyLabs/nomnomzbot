@@ -10,15 +10,23 @@
 
 import { action } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
-import { ObsAction } from "./obsAction.js";
+import { ObsLiveIconAction } from "./obsLiveIconAction.js";
+import { obsLiveState } from "../state.js";
 
-/** Invokes the dashboard's `obs_streaming` pipeline (obs-control.md §5) with `action: "stop"`. */
+/** Invokes the dashboard's `obs_streaming` pipeline (obs-control.md §5) with `action: "stop"`.
+ *
+ * S-STREAMDECK-OBS-REMAINDER: dims once OBS is confirmed NOT streaming — pressing it would be a
+ * no-op. Stays undimmed while the state is still unknown (no seed read has landed yet), so the key
+ * never falsely claims "already stopped" before it actually knows. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.obs.obs-stop-streaming" })
-export class StopStreamingAction extends ObsAction {
+export class StopStreamingAction extends ObsLiveIconAction {
   protected readonly pipelineName = "obs_streaming";
-  protected readonly iconName = "stream-stop";
 
   protected override resolveParams(_settings: JsonObject): Record<string, unknown> {
     return { action: "stop" };
+  }
+
+  protected override liveIcon(): { iconName: string; dimmed: boolean } {
+    return { iconName: "stream-stop", dimmed: obsLiveState.isStreaming === false };
   }
 }

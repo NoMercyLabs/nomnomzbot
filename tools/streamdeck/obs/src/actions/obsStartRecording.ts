@@ -10,15 +10,22 @@
 
 import { action } from "@elgato/streamdeck";
 import type { JsonObject } from "@elgato/utils";
-import { ObsAction } from "./obsAction.js";
+import { ObsLiveIconAction } from "./obsLiveIconAction.js";
+import { obsLiveState } from "../state.js";
 
-/** Invokes the dashboard's `obs_recording` pipeline (obs-control.md §5) with `action: "start"`. */
+/** Invokes the dashboard's `obs_recording` pipeline (obs-control.md §5) with `action: "start"`.
+ *
+ * S-STREAMDECK-OBS-REMAINDER: dims once OBS is ALREADY recording (fed by `obs.recording.changed`) —
+ * pressing it again would be a no-op. */
 @action({ UUID: "bot.nomnomzbot.streamdeck.obs.obs-start-recording" })
-export class StartRecordingAction extends ObsAction {
+export class StartRecordingAction extends ObsLiveIconAction {
   protected readonly pipelineName = "obs_recording";
-  protected readonly iconName = "record-start";
 
   protected override resolveParams(_settings: JsonObject): Record<string, unknown> {
     return { action: "start" };
+  }
+
+  protected override liveIcon(): { iconName: string; dimmed: boolean } {
+    return { iconName: "record-start", dimmed: obsLiveState.isRecording === true };
   }
 }

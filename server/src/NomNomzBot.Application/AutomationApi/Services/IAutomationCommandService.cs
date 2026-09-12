@@ -110,4 +110,13 @@ public interface IAutomationCommandService
         string sourceName,
         CancellationToken ct = default
     );
+
+    /// <summary>Live streaming/recording state (scope <c>read</c>) — the seed read a Stream Deck key
+    /// makes right after connecting, before the first <c>obs.streaming.changed</c>/
+    /// <c>obs.recording.changed</c> push arrives (S-STREAMDECK-OBS-REMAINDER). Mirrors
+    /// <see cref="GetNowPlayingAsync"/>'s seed-read role for the music tiles.</summary>
+    Task<Result<AutomationObsStateDto>> GetObsStateAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct = default
+    );
 }

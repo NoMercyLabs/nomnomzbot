@@ -43,8 +43,8 @@ interface PiRequest extends JsonObject {
 }
 
 /** Every action's Settings may carry a per-key background color, picked in its property inspector —
- * same convention as the music actions (musicAction.ts). */
-function backgroundColorOf(settings: JsonObject): string {
+ * same convention as the music actions (musicAction.ts). Exported for {@link "./obsLiveIconAction.js"}. */
+export function backgroundColorOf(settings: JsonObject): string {
   const value = (settings as { backgroundColor?: unknown }).backgroundColor;
   return typeof value === "string" && value.length > 0 ? value : DEFAULT_BACKGROUND;
 }
