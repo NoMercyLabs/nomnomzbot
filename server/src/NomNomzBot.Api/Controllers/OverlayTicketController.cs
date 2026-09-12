@@ -11,19 +11,20 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Overlay;
-using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Controllers;
 
 /// <summary>
-/// Exchanges the long-lived <c>Channel.OverlayToken</c> for a short-lived, single-use ticket (S035 item 3,
-/// U·B5/B7). The overlay SDK sends the long-lived token in a header here — a plain HTTP request CAN carry
-/// custom headers, unlike the WebSocket upgrade OBS browser sources use — and only the resulting ticket ever
-/// appears on the <c>/hubs/overlay</c> query string. Anonymous (the token itself is the credential) but
-/// throttled per token so a leaked token, or a runaway source, cannot hammer this endpoint unbounded.
+/// Exchanges an overlay browser-source token for a short-lived, single-use ticket (S035 item 3, U·B5/B7). The
+/// overlay SDK sends the token in a header here — a plain HTTP request CAN carry custom headers, unlike the
+/// WebSocket upgrade OBS browser sources use — and only the resulting ticket ever appears on the
+/// <c>/hubs/overlay</c> query string. The token resolves via <see cref="IWidgetService.ResolveBroadcasterIdByOverlayTokenAsync"/>
+/// — a widget's own <c>OverlayToken</c> (audit B5, the per-widget page's normal case), its still-live
+/// <c>PreviousOverlayToken</c> during a rotation grace window, or (legacy) the channel-wide <c>Channel.OverlayToken</c>.
+/// Anonymous (the token itself is the credential) but throttled per token so a leaked token, or a runaway
+/// source, cannot hammer this endpoint unbounded.
 /// </summary>
 [ApiController]
 [Route("overlay")]
@@ -34,17 +35,17 @@ public sealed class OverlayTicketController : ControllerBase
 {
     private const string TokenHeaderName = "X-Overlay-Token";
 
-    private readonly IApplicationDbContext _db;
+    private readonly IWidgetService _widgetService;
     private readonly IOverlayTicketService _tickets;
     private readonly IOverlayConnectionThrottle _throttle;
 
     public OverlayTicketController(
-        IApplicationDbContext db,
+        IWidgetService widgetService,
         IOverlayTicketService tickets,
         IOverlayConnectionThrottle throttle
     )
     {
-        _db = db;
+        _widgetService = widgetService;
         _tickets = tickets;
         _throttle = throttle;
     }
@@ -59,14 +60,14 @@ public sealed class OverlayTicketController : ControllerBase
         if (!_throttle.TryAcquire(token))
             return StatusCode(StatusCodes.Status429TooManyRequests);
 
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == token,
+        Guid? broadcasterId = await _widgetService.ResolveBroadcasterIdByOverlayTokenAsync(
+            token,
             cancellationToken
         );
-        if (channel == null)
+        if (broadcasterId is null)
             return Unauthorized();
 
-        string ticket = _tickets.IssueTicket(channel.Id);
+        string ticket = _tickets.IssueTicket(broadcasterId.Value);
         return Ok(new { ticket });
     }
 }

@@ -289,4 +289,26 @@ public interface IWidgetService
         string widgetId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Mints a new <see cref="NomNomzBot.Domain.Widgets.Entities.Widget.OverlayToken"/> for exactly this widget
+    /// (audit B5). The retired token keeps resolving for a grace window (see
+    /// <see cref="WidgetTokenRotationResult.GraceExpiresAt"/>) so an OBS browser source that has not yet been
+    /// re-copied with the new URL does not go blank mid-stream; every OTHER widget's token is untouched.
+    /// </summary>
+    Task<Result<WidgetTokenRotationResult>> RotateOverlayTokenAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Resolves an overlay browser-source token — a widget's own <c>OverlayToken</c>, its still-live
+    /// <c>PreviousOverlayToken</c> during a rotation grace window, or (legacy) the channel-wide
+    /// <c>Channels.OverlayToken</c> — to the channel it authenticates. Null when the token matches nothing live.
+    /// </summary>
+    Task<Guid?> ResolveBroadcasterIdByOverlayTokenAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    );
 }

@@ -72,15 +72,33 @@ public class WidgetsController : BaseController
         )
             return widget;
 
-        string? explicitBase = _configuration["OverlayBaseUrl"];
-        string origin = string.IsNullOrWhiteSpace(explicitBase)
-            ? Request.ResolvePublicOrigin(_configuration)
-            : explicitBase.TrimEnd('/');
-
         return widget with
         {
-            OverlayUrl = $"{origin}{current.PathAndQuery}",
+            OverlayUrl = $"{ResolveOverlayOrigin()}{current.PathAndQuery}",
         };
+    }
+
+    private WidgetTokenRotationResult WithOverlayOrigin(WidgetTokenRotationResult rotation)
+    {
+        string origin = ResolveOverlayOrigin();
+        return rotation with
+        {
+            PreviousUrl = WithOverlayOrigin(rotation.PreviousUrl, origin),
+            NewUrl = WithOverlayOrigin(rotation.NewUrl, origin),
+        };
+    }
+
+    private static string WithOverlayOrigin(string url, string origin) =>
+        Uri.TryCreate(url, UriKind.Absolute, out Uri? current)
+            ? $"{origin}{current.PathAndQuery}"
+            : url;
+
+    private string ResolveOverlayOrigin()
+    {
+        string? explicitBase = _configuration["OverlayBaseUrl"];
+        return string.IsNullOrWhiteSpace(explicitBase)
+            ? Request.ResolvePublicOrigin(_configuration)
+            : explicitBase.TrimEnd('/');
     }
 
     /// <summary>List a channel's overlay widgets, paginated.</summary>
@@ -470,5 +488,34 @@ public class WidgetsController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
+    }
+
+    /// <summary>
+    /// Mints a new overlay token for exactly THIS widget (audit B5) — every other widget's URL keeps working
+    /// unchanged. The retired token stays live for a grace window; the response carries both URLs and the
+    /// expiry so the dashboard can prompt the streamer to re-copy the new one into OBS before the old one stops.
+    /// </summary>
+    [RequireAction("widget:write")]
+    [HttpPost("{widgetId}/overlay-token/rotate")]
+    [ProducesResponseType<StatusResponseDto<WidgetTokenRotationResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RotateWidgetOverlayToken(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetTokenRotationResult> result = await _widgetService.RotateOverlayTokenAsync(
+            channelId,
+            Decode(widgetId),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(
+            new StatusResponseDto<WidgetTokenRotationResult>
+            {
+                Data = WithOverlayOrigin(result.Value),
+            }
+        );
     }
 }

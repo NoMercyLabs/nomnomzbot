@@ -41,6 +41,18 @@ public sealed record WidgetDetail(
     bool IsAttached
 );
 
+/// <summary>
+/// Result of rotating one widget's overlay token (audit B5). <see cref="PreviousUrl"/> stays live until
+/// <see cref="GraceExpiresAt"/> — the dashboard shows both so the streamer can re-copy <see cref="NewUrl"/> into
+/// OBS before the old one stops working, instead of the source going blank with no warning.
+/// </summary>
+public sealed record WidgetTokenRotationResult(
+    Guid WidgetId,
+    string PreviousUrl,
+    string NewUrl,
+    DateTimeOffset GraceExpiresAt
+);
+
 public sealed record CreateWidgetRequest
 {
     public required string Name { get; init; }

@@ -50,11 +50,15 @@ public class WidgetConfiguration : IEntityTypeConfiguration<Widget>
 
         builder.Property(e => e.PlatformSourceHash).HasMaxLength(64);
 
+        builder.Property(e => e.OverlayToken).IsRequired().HasMaxLength(64);
+        builder.Property(e => e.PreviousOverlayToken).HasMaxLength(64);
+
         builder.HasIndex(e => e.BroadcasterId);
         builder.HasIndex(e => e.Source);
         builder.HasIndex(e => e.GalleryItemId);
         builder.HasIndex(e => e.ActiveVersionId);
         builder.HasIndex(e => e.PlatformSourceDefinitionId);
+        builder.HasIndex(e => e.OverlayToken).IsUnique().HasDatabaseName("IX_Widget_OverlayToken");
 
         builder
             .HasOne(e => e.Channel)

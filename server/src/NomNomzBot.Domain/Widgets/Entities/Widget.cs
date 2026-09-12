@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Security.Cryptography;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -86,6 +87,29 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// <summary>When this row last received a platform-originated update.</summary>
     public DateTime? PlatformSourceSyncedAt { get; set; }
 
+    /// <summary>
+    /// This widget's OWN overlay browser-source credential (audit B5 — replaces reading the channel-wide
+    /// <see cref="Channel.OverlayToken"/> for every widget URL). Rotating one widget's token only ever touches
+    /// this row, so it never invalidates any other widget's active OBS browser source.
+    /// </summary>
+    [MaxLength(64)]
+    public string OverlayToken { get; set; } = GenerateOverlayToken();
+
+    /// <summary>The token this widget carried immediately before its most recent rotation. Kept live until
+    /// <see cref="PreviousOverlayTokenExpiresAt"/> so an OBS browser source that has not yet reconnected with the
+    /// freshly-copied URL keeps working through the grace window instead of going blank mid-stream.</summary>
+    [MaxLength(64)]
+    public string? PreviousOverlayToken { get; set; }
+
+    /// <summary>When <see cref="PreviousOverlayToken"/> stops being accepted; null when no rotation is pending.</summary>
+    public DateTime? PreviousOverlayTokenExpiresAt { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
+
+    /// <summary>48-char opaque, URL-safe, cryptographically random (mirrors the <see cref="Channel.OverlayToken"/> /
+    /// <c>SongRequestPageToken</c> precedent) — never derived from the channel token, so a leaked widget URL never
+    /// exposes anything about the channel-wide credential.</summary>
+    public static string GenerateOverlayToken() =>
+        Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
 }

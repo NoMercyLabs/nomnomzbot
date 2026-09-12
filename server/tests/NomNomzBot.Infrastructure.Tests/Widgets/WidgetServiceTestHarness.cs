@@ -40,11 +40,11 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Map Channel FIRST as a standalone key — minimal, only so the service's existence check + the
-        // Rollback path's `widget.Channel.OverlayToken` read work. It is configured before Widget so the
-        // Widget→Channel FK below binds to this minimal mapping and EF never walks Channel's real navigations
-        // (which would drag the chat/stream value-object graph that SQLite cannot host). Its jsonb List<string>
-        // columns and navigations are ignored.
+        // Map Channel FIRST as a standalone key — minimal, only so the service's existence checks + the
+        // channel-wide-token fallback in ResolveChannelByOverlayTokenAsync work. It is configured before Widget
+        // so the Widget→Channel FK below binds to this minimal mapping and EF never walks Channel's real
+        // navigations (which would drag the chat/stream value-object graph that SQLite cannot host). Its jsonb
+        // List<string> columns and navigations are ignored.
         modelBuilder.Entity<Channel>(b =>
         {
             b.HasKey(c => c.Id);

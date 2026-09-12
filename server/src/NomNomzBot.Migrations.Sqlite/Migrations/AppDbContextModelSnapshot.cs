@@ -11318,6 +11318,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OverlayToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("PlatformSourceDefinitionId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
@@ -11331,6 +11336,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("PreviousOverlayToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PreviousOverlayTokenExpiresAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Settings")
                         .IsRequired()
@@ -11353,6 +11365,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.HasIndex("GalleryItemId");
+
+                    b.HasIndex("OverlayToken")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Widget_OverlayToken");
 
                     b.HasIndex("PlatformSourceDefinitionId");
 

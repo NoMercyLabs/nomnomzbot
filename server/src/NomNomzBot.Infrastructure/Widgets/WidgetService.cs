@@ -34,6 +34,10 @@ namespace NomNomzBot.Infrastructure.Widgets;
 
 public class WidgetService : IWidgetService
 {
+    /// <summary>How long a widget's retired token keeps resolving after rotation (audit B5), so an OBS browser
+    /// source that has not yet been re-copied with the new URL does not go blank mid-stream.</summary>
+    private static readonly TimeSpan TokenRotationGraceWindow = TimeSpan.FromMinutes(15);
+
     private readonly IApplicationDbContext _db;
     private readonly string _overlayBaseUrl;
     private readonly IEventBus _eventBus;
@@ -111,7 +115,7 @@ public class WidgetService : IWidgetService
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
 
-        return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
+        return Result.Success(ToDetail(widget));
     }
 
     public async Task<Result<WidgetDetail>> CloneToEditAsync(
@@ -457,9 +461,7 @@ public class WidgetService : IWidgetService
             widget.GalleryItemId,
             cancellationToken
         );
-        return Result.Success(
-            ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl, galleryRevision)
-        );
+        return Result.Success(ToDetail(widget, galleryRevision));
     }
 
     public async Task<Result> DeleteAsync(
@@ -589,8 +591,6 @@ public class WidgetService : IWidgetService
             .. widgets.Select(w =>
                 ToDetail(
                     w,
-                    w.Channel.OverlayToken,
-                    _overlayBaseUrl,
                     w.GalleryItemId is { } gid && galleryRevisions.TryGetValue(gid, out int rev)
                         ? rev
                         : null
@@ -629,9 +629,7 @@ public class WidgetService : IWidgetService
             widget.GalleryItemId,
             cancellationToken
         );
-        return Result.Success(
-            ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl, galleryRevision)
-        );
+        return Result.Success(ToDetail(widget, galleryRevision));
     }
 
     public async Task<Result<WidgetDetail>> GetByTokenAsync(
@@ -661,7 +659,7 @@ public class WidgetService : IWidgetService
                 "NOT_FOUND"
             );
 
-        return Result.Success(ToDetail(widget, channel.OverlayToken, _overlayBaseUrl));
+        return Result.Success(ToDetail(widget));
     }
 
     public async Task<Result<WidgetSettingsSchema>> GetSettingsSchemaAsync(
@@ -1048,9 +1046,58 @@ public class WidgetService : IWidgetService
             widget.GalleryItemId,
             cancellationToken
         );
-        return Result.Success(
-            ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl, galleryRevision)
+        return Result.Success(ToDetail(widget, galleryRevision));
+    }
+
+    /// <summary>Mints a new token for exactly this widget (audit B5) and starts the grace window on the retired
+    /// one. See <see cref="WidgetTokenRotationResult"/> for what the dashboard shows the streamer afterward.</summary>
+    public async Task<Result<WidgetTokenRotationResult>> RotateOverlayTokenAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<WidgetTokenRotationResult>("Widget", widgetId);
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
         );
+        if (widget is null)
+            return Errors.NotFound<WidgetTokenRotationResult>("Widget", widgetId);
+
+        string previousUrl = BuildOverlayUrl(widget.Id, widget.OverlayToken);
+        DateTimeOffset graceExpiresAt = _timeProvider.GetUtcNow().Add(TokenRotationGraceWindow);
+
+        widget.PreviousOverlayToken = widget.OverlayToken;
+        widget.PreviousOverlayTokenExpiresAt = graceExpiresAt.UtcDateTime;
+        widget.OverlayToken = Widget.GenerateOverlayToken();
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(
+            new WidgetTokenRotationResult(
+                widget.Id,
+                previousUrl,
+                BuildOverlayUrl(widget.Id, widget.OverlayToken),
+                graceExpiresAt
+            )
+        );
+    }
+
+    /// <summary>Resolves an overlay token to the channel it authenticates — a widget's own token, its
+    /// still-grace-windowed previous token, or (legacy) the channel-wide token. See
+    /// <see cref="ResolveChannelByOverlayTokenAsync"/> for the shared lookup every token-gated overlay read uses.</summary>
+    public async Task<Guid?> ResolveBroadcasterIdByOverlayTokenAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
+        return channel?.Id;
     }
 
     public async Task<Result> RecordRuntimeErrorAsync(
@@ -1114,10 +1161,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == overlayToken,
-            cancellationToken
-        );
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
         if (channel is null)
             return Result.Failure<OverlayManifest>(
                 "No channel found for the provided overlay token.",
@@ -1176,10 +1220,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == overlayToken,
-            cancellationToken
-        );
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
         if (channel is null)
             return Result.Failure<string>(
                 "No channel found for the provided overlay token.",
@@ -1197,10 +1238,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == overlayToken,
-            cancellationToken
-        );
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
         if (channel is null)
             return Result.Failure<OverlayNowPlayingSnapshot?>(
                 "No channel found for the provided overlay token.",
@@ -1236,10 +1274,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == overlayToken,
-            cancellationToken
-        );
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
         if (channel is null)
             return Result.Failure<string?>(
                 "No channel found for the provided overlay token.",
@@ -1255,10 +1290,7 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == overlayToken,
-            cancellationToken
-        );
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
         if (channel is null)
             return Result.Failure<IReadOnlyList<MusicQueueItem>>(
                 "No channel found for the provided overlay token.",
@@ -1281,10 +1313,7 @@ public class WidgetService : IWidgetService
         if (!TryDecodeWidgetId(widgetId, out Guid widgetGuid))
             return Errors.NotFound<OverlayBundle>("Widget", widgetId);
 
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == overlayToken,
-            cancellationToken
-        );
+        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
         if (channel is null)
             return Result.Failure<OverlayBundle>(
                 "No channel found for the provided overlay token.",
@@ -1504,12 +1533,52 @@ public class WidgetService : IWidgetService
         };
     }
 
-    private WidgetDetail ToDetail(
-        Widget w,
+    private string BuildOverlayUrl(Guid widgetId, string overlayToken) =>
+        $"{_overlayBaseUrl}/overlay?widgetId={widgetId}&token={Uri.EscapeDataString(overlayToken)}";
+
+    /// <summary>
+    /// The one lookup every token-gated overlay read (<see cref="GetOverlayManifestAsync"/>,
+    /// <see cref="GetOverlayBundleAsync"/>, the Spotify/now-playing/queue/script-storage reads, and the hub ticket
+    /// exchange) shares: try the token as a widget's own <see cref="Widget.OverlayToken"/>, then as a
+    /// still-grace-windowed <see cref="Widget.PreviousOverlayToken"/>, then (legacy full-manifest path, and any
+    /// caller still using the channel-wide token directly) as <see cref="Channel.OverlayToken"/>. A widget-matched
+    /// token always resolves to that widget's OWN channel — rotating widget A's token can never affect widget B.
+    /// </summary>
+    private async Task<Channel?> ResolveChannelByOverlayTokenAsync(
         string overlayToken,
-        string overlayBaseUrl,
-        int? currentGalleryRevision = null
+        CancellationToken cancellationToken
     )
+    {
+        if (string.IsNullOrWhiteSpace(overlayToken))
+            return null;
+
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        Widget? widget = await _db
+            .Widgets.IgnoreQueryFilters()
+            .Include(w => w.Channel)
+            .FirstOrDefaultAsync(
+                w =>
+                    w.DeletedAt == null
+                    && (
+                        w.OverlayToken == overlayToken
+                        || (
+                            w.PreviousOverlayToken == overlayToken
+                            && w.PreviousOverlayTokenExpiresAt != null
+                            && w.PreviousOverlayTokenExpiresAt > now
+                        )
+                    ),
+                cancellationToken
+            );
+        if (widget is not null)
+            return widget.Channel;
+
+        return await _db.Channels.FirstOrDefaultAsync(
+            c => c.OverlayToken == overlayToken,
+            cancellationToken
+        );
+    }
+
+    private WidgetDetail ToDetail(Widget w, int? currentGalleryRevision = null)
     {
         return new(
             w.Id,
@@ -1518,7 +1587,7 @@ public class WidgetService : IWidgetService
             w.Framework,
             w.Source,
             w.IsEnabled,
-            $"{overlayBaseUrl}/overlay?widgetId={w.Id}&token={overlayToken}",
+            BuildOverlayUrl(w.Id, w.OverlayToken),
             w.ActiveVersionId,
             w.GalleryItemId,
             w.Settings.ToDictionary(k => k.Key, v => (object?)v.Value),
