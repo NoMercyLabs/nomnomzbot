@@ -87360,6 +87360,112 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/overlay-token/rotate": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Mints a new overlay token for exactly THIS widget (audit B5) — every other widget's URL keeps working\r\nunchanged. The retired token stays live for a grace window; the response carries both URLs and the\r\nexpiry so the dashboard can prompt the streamer to re-copy the new one into OBS before the old one stops.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfWidgetTokenRotationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/widgets/test-event": {
       "post": {
         "tags": [
@@ -118440,6 +118546,43 @@
           }
         }
       },
+      "StatusResponseDtoOfWidgetTokenRotationResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WidgetTokenRotationResult"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfWidgetVersionDetail": {
         "type": "object",
         "properties": {
@@ -126030,6 +126173,33 @@
           }
         },
         "description": "The test-fire request: an event type, and an optional explicit payload (a sample is used when omitted)."
+      },
+      "WidgetTokenRotationResult": {
+        "required": [
+          "widgetId",
+          "previousUrl",
+          "newUrl",
+          "graceExpiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "widgetId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "previousUrl": {
+            "type": "string"
+          },
+          "newUrl": {
+            "type": "string"
+          },
+          "graceExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Result of rotating one widget's overlay token (audit B5). string WidgetTokenRotationResult.PreviousUrl stays live until\r\nDateTimeOffset WidgetTokenRotationResult.GraceExpiresAt — the dashboard shows both so the streamer can re-copy string WidgetTokenRotationResult.NewUrl into\r\nOBS before the old one stops working, instead of the source going blank with no warning."
       },
       "WidgetVersionDetail": {
         "required": [

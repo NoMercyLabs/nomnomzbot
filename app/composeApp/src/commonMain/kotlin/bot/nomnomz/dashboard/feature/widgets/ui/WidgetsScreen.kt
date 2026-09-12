@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +74,7 @@ import bot.nomnomz.dashboard.core.network.GalleryListRequest
 import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -99,6 +101,17 @@ import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_action
 import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_confirm
 import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_message
 import nomnomzbot.composeapp.generated.resources.widgets_rotate_token_title
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_action
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_confirm
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_dismiss
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_message
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_result_done
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_result_message
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_result_new_label
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_result_previous_label
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_result_title
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_overlays
 import nomnomzbot.composeapp.generated.resources.widgets_submit_action
 import nomnomzbot.composeapp.generated.resources.widgets_review_action
@@ -217,6 +230,11 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     var showSubmitDialog: Boolean by remember { mutableStateOf(false) }
     var showReviewQueue: Boolean by remember { mutableStateOf(false) }
     var showRotateTokenConfirm: Boolean by remember { mutableStateOf(false) }
+    // Per-widget token rotation (audit B5): confirm target, then — on success — the before/after URLs + grace
+    // expiry the operator must re-copy into OBS. Kept separate from the channel-wide rotate above; rotating one
+    // widget's token never touches another widget's URL.
+    var pendingRotateWidgetToken: WidgetSummary? by remember { mutableStateOf(null) }
+    var rotatedWidgetToken: RotatedWidgetToken? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -304,6 +322,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                     onSettings = { widget -> pendingSettings = widget },
                     onUpdateFromGallery = { widget -> scope.launch { controller.updateFromGallery(widget.id) } },
                     onTest = { widget -> controller.testWidget(widget) },
+                    onRotateToken = { widget -> pendingRotateWidgetToken = widget },
                 )
         }
     }
@@ -360,6 +379,35 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
             },
             onDismiss = { showRotateTokenConfirm = false },
         )
+    }
+
+    pendingRotateWidgetToken?.let { widget ->
+        ConfirmDialog(
+            title = stringResource(Res.string.widgets_rotate_widget_token_title),
+            message =
+                stringResource(
+                    Res.string.widgets_rotate_widget_token_message,
+                    widget.name,
+                    WidgetTokenRotationGraceMinutes,
+                ),
+            confirmLabel = stringResource(Res.string.widgets_rotate_widget_token_confirm),
+            dismissLabel = stringResource(Res.string.widgets_rotate_widget_token_dismiss),
+            destructive = false,
+            onConfirm = {
+                pendingRotateWidgetToken = null
+                scope.launch {
+                    when (val result: ApiResult<WidgetTokenRotation> = controller.rotateWidgetToken(widget.id)) {
+                        is ApiResult.Ok -> rotatedWidgetToken = RotatedWidgetToken(widget.name, result.value)
+                        is ApiResult.Failure -> {} // the controller already surfaced this via Feedback
+                    }
+                }
+            },
+            onDismiss = { pendingRotateWidgetToken = null },
+        )
+    }
+
+    rotatedWidgetToken?.let { outcome ->
+        WidgetTokenRotationResultDialog(outcome = outcome, onDismiss = { rotatedWidgetToken = null })
     }
 
     pendingRename?.let { widget ->
@@ -517,6 +565,7 @@ private fun ReadyContent(
     onSettings: (WidgetSummary) -> Unit,
     onUpdateFromGallery: (WidgetSummary) -> Unit,
     onTest: suspend (WidgetSummary) -> ApiResult<String>,
+    onRotateToken: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -536,6 +585,7 @@ private fun ReadyContent(
             onSettings = onSettings,
             onUpdateFromGallery = onUpdateFromGallery,
             onTest = onTest,
+            onRotateToken = onRotateToken,
             modifier = Modifier.weight(1f),
         )
     }
@@ -554,6 +604,7 @@ private fun WidgetList(
     onSettings: (WidgetSummary) -> Unit,
     onUpdateFromGallery: (WidgetSummary) -> Unit,
     onTest: suspend (WidgetSummary) -> ApiResult<String>,
+    onRotateToken: (WidgetSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -579,6 +630,7 @@ private fun WidgetList(
                     onSettings = { onSettings(widget) },
                     onUpdateFromGallery = { onUpdateFromGallery(widget) },
                     onTest = { onTest(widget) },
+                    onRotateToken = { onRotateToken(widget) },
                 )
             }
         }
@@ -603,6 +655,7 @@ private fun WidgetRow(
     onSettings: () -> Unit,
     onUpdateFromGallery: () -> Unit,
     onTest: suspend () -> ApiResult<String>,
+    onRotateToken: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -632,6 +685,7 @@ private fun WidgetRow(
     val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widgetDisplayName)
     val updateLabel: String = stringResource(Res.string.widgets_update_action, widgetDisplayName)
     val testLabel: String = stringResource(Res.string.widgets_test_action, widgetDisplayName)
+    val rotateTokenLabel: String = stringResource(Res.string.widgets_rotate_widget_token_action, widgetDisplayName)
     // "Last ran" / runtime-error state was fetched but never rendered — a widget silently failing every time it
     // ran looked identical to one that had never been asked to run at all.
     val now = remember { Clock.System.now() }
@@ -692,6 +746,8 @@ private fun WidgetRow(
                         onRename = onRename,
                         cloneLabel = cloneLabel,
                         onClone = onClone,
+                        rotateTokenLabel = rotateTokenLabel,
+                        onRotateToken = onRotateToken,
                         deleteLabel = deleteLabel,
                         onDelete = onDelete,
                         toggleLabel = toggleLabel,
@@ -732,6 +788,8 @@ private fun WidgetRow(
                     onRename = onRename,
                     cloneLabel = cloneLabel,
                     onClone = onClone,
+                    rotateTokenLabel = rotateTokenLabel,
+                    onRotateToken = onRotateToken,
                     deleteLabel = deleteLabel,
                     onDelete = onDelete,
                     toggleLabel = toggleLabel,
@@ -905,6 +963,8 @@ private fun WidgetRowActions(
     onRename: () -> Unit,
     cloneLabel: String,
     onClone: () -> Unit,
+    rotateTokenLabel: String,
+    onRotateToken: () -> Unit,
     deleteLabel: String,
     onDelete: () -> Unit,
     toggleLabel: String,
@@ -1013,6 +1073,22 @@ private fun WidgetRowActions(
             )
         }
     }
+    // Per-widget token rotation (audit B5): mints a new URL for ONLY this overlay — every other widget's URL
+    // is untouched, unlike the header's channel-wide rotate. Neutral text weight (not tokens.primary) — this
+    // is a maintenance action, not the row's primary task, so it never competes with Edit code / Test.
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onRotateToken,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = rotateTokenLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.widgets_rotate_widget_token_action_short),
+                color = tokens.mutedForeground,
+                maxLines = 1,
+            )
+        }
+    }
     ManageGate(decision = manage) { enabled ->
         GlyphButton(
             icon = TrashGlyph,
@@ -1069,6 +1145,81 @@ private data class PendingDelete(val id: String, val name: String)
 
 // The rollback-confirm target: which widget, and the version to re-serve.
 private data class PendingRollback(val widgetId: String, val version: WidgetVersionSummary)
+
+// Matches the backend's fixed grace window (WidgetService.TokenRotationGraceWindow) — there is no config
+// endpoint for it, so the confirm message quotes the same constant the server actually enforces.
+private const val WidgetTokenRotationGraceMinutes: Int = 15
+
+// A per-widget token rotation's outcome: the widget's display name (for the result dialog's copy) plus the
+// backend's before/after URLs and grace expiry.
+private data class RotatedWidgetToken(val widgetName: String, val rotation: WidgetTokenRotation)
+
+// Shown right after a per-widget token rotation (audit B5) — this is the "consequences must be visible" surface
+// the old channel-wide rotate never had: exactly which URL changed, and until when the old one still works. One
+// primary action (copy the new URL, via the accented chip inside CopyValue) plus a single "Done" to dismiss —
+// the old URL is shown muted, informational only, never a second competing action.
+@Composable
+private fun WidgetTokenRotationResultDialog(outcome: RotatedWidgetToken, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val graceExpiresAt: Instant? = RelativeTime.parseOrNull(outcome.rotation.graceExpiresAt)
+    val graceExpiresLabel: String = graceExpiresAt?.toString() ?: outcome.rotation.graceExpiresAt
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.widgets_rotate_widget_token_result_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Text(
+                    text = stringResource(Res.string.widgets_rotate_widget_token_result_message, graceExpiresLabel),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    Text(
+                        text =
+                            stringResource(
+                                Res.string.widgets_rotate_widget_token_result_previous_label,
+                                graceExpiresLabel,
+                            ),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                    CopyValue(
+                        value = outcome.rotation.previousUrl,
+                        copyLabel = stringResource(Res.string.widgets_url_copy),
+                        copiedLabel = stringResource(Res.string.widgets_url_copied),
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    Text(
+                        text = stringResource(Res.string.widgets_rotate_widget_token_result_new_label),
+                        style = typography.xs,
+                        color = tokens.primary,
+                    )
+                    CopyValue(
+                        value = outcome.rotation.newUrl,
+                        copyLabel = stringResource(Res.string.widgets_url_copy),
+                        copiedLabel = stringResource(Res.string.widgets_url_copied),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text(stringResource(Res.string.widgets_rotate_widget_token_result_done))
+            }
+        },
+    )
+}
 
 // The framework set the backend accepts for a new widget (CreateWidgetRequest.framework).
 private val WIDGET_FRAMEWORKS: List<String> = listOf("vanilla", "vue", "react", "svelte")

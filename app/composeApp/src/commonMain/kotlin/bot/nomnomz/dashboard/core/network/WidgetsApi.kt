@@ -135,6 +135,15 @@ interface WidgetsApi {
     suspend fun rotateOverlayToken(channelId: String): ApiResult<String>
 
     /**
+     * Mint a new overlay token for exactly THIS widget (audit B5, backend `POST
+     * .../widgets/{widgetId}/overlay-token/rotate`) — every other widget's browser-source URL is untouched. The
+     * retired token stays live for a grace window (see [WidgetTokenRotation.graceExpiresAt]); the response
+     * carries both URLs so the dashboard can show the operator what changed and prompt them to re-copy the new
+     * one into OBS before the old one stops working.
+     */
+    suspend fun rotateWidgetOverlayToken(channelId: String, widgetId: String): ApiResult<WidgetTokenRotation>
+
+    /**
      * Pull the linked gallery item's current source into this widget as a new compiled version — the explicit
      * action behind [WidgetSummary.galleryUpdateAvailable]. The platform never rebuilds an installed widget on
      * its own; this is the streamer choosing to take the update. Fails if the widget was never installed from
@@ -274,6 +283,14 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> =
         client.postEnvelope("api/v1/channels/$channelId/overlay-token/rotate", Unit)
 
+    // No body — the widget is addressed entirely by the {widgetId} segment; the backend mints a new token for
+    // just this widget and returns the before/after URLs + grace expiry (backend `WidgetTokenRotationResult`).
+    override suspend fun rotateWidgetOverlayToken(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<WidgetTokenRotation> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets/$widgetId/overlay-token/rotate", Unit)
+
     // No body — the widget is addressed entirely by the {widgetId} segment; the backend recompiles from its
     // linked gallery item's current source and returns the refreshed widget (galleryUpdateAvailable now false).
     override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> =
@@ -366,6 +383,19 @@ data class WidgetSummary(
     // "overlay last-seen" signal, so a streamer can tell an overlay is actually loaded in OBS without needing
     // to fire a test event first.
     val isAttached: Boolean = false,
+)
+
+/**
+ * Result of rotating one widget's overlay token (backend `WidgetTokenRotationResult`, audit B5). [previousUrl]
+ * keeps resolving until [graceExpiresAt] (an ISO-8601 instant) — the dashboard shows both so the operator can
+ * re-copy [newUrl] into OBS before the old one stops working, instead of the source going blank with no warning.
+ */
+@Serializable
+data class WidgetTokenRotation(
+    val widgetId: String = "",
+    val previousUrl: String = "",
+    val newUrl: String = "",
+    val graceExpiresAt: String = "",
 )
 
 /**

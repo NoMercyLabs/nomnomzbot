@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
@@ -218,6 +219,36 @@ class WidgetsControllerTest {
 
         assertTrue(widgetsApi.rotateCalled)
         assertTrue(controller.state.value is WidgetsState.Ready)
+    }
+
+    // Audit B5: rotating ONE widget's token must address only that widget — never every widget on the channel
+    // like the legacy channel-wide rotate above. Proves the controller calls the per-widget endpoint with
+    // exactly the targeted id, leaves the other widget's id untouched, and surfaces the before/after URLs +
+    // grace expiry the screen needs to show the operator what changed.
+    @Test
+    fun rotateWidgetToken_addresses_only_the_targeted_widget_and_returns_its_new_urls() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(id = "w-1", name = "Alerts", isEnabled = true),
+                        WidgetSummary(id = "w-2", name = "Now Playing", isEnabled = true),
+                    )
+                )
+            )
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        val result: ApiResult<WidgetTokenRotation> = controller.rotateWidgetToken(widgetId = "w-1")
+
+        assertEquals(listOf("w-1"), widgetsApi.rotatedWidgetTokenIds, "only w-1's token may be rotated")
+        val rotation: WidgetTokenRotation = (result as ApiResult.Ok).value
+        assertEquals("w-1", rotation.widgetId)
+        assertTrue(rotation.previousUrl.contains("old-w-1"))
+        assertTrue(rotation.newUrl.contains("new-w-1"))
+        assertTrue(rotation.newUrl != rotation.previousUrl)
+        assertEquals("2026-09-12T12:15:00Z", rotation.graceExpiresAt)
     }
 
     @Test
@@ -871,6 +902,25 @@ private class RecordingWidgetsApi(
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> {
         rotateCalled = true
         return ApiResult.Ok("new-overlay-token")
+    }
+
+    // Records which widget's token was rotated, so a test can assert rotating ONE widget never touches another.
+    val rotatedWidgetTokenIds: MutableList<String> = mutableListOf()
+
+    override suspend fun rotateWidgetOverlayToken(
+        channelId: String,
+        widgetId: String,
+    ): ApiResult<WidgetTokenRotation> {
+        rotatedWidgetTokenIds += widgetId
+        if (writeResult is ApiResult.Failure) return writeResult
+        return ApiResult.Ok(
+            WidgetTokenRotation(
+                widgetId = widgetId,
+                previousUrl = "https://bot.example/overlay?widgetId=$widgetId&token=old-$widgetId",
+                newUrl = "https://bot.example/overlay?widgetId=$widgetId&token=new-$widgetId",
+                graceExpiresAt = "2026-09-12T12:15:00Z",
+            )
+        )
     }
 
     // Records which widget was updated and flips its store row's galleryUpdateAvailable off — the real

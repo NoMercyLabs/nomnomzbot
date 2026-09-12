@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WidgetSummary
+import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import kotlin.test.Test
@@ -360,6 +361,8 @@ private class FakeWidgetsApi : WidgetsApi {
     override suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> =
         error("stub")
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> = error("stub")
+    override suspend fun rotateWidgetOverlayToken(channelId: String, widgetId: String): ApiResult<WidgetTokenRotation> =
+        error("stub")
     override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> =
         error("stub")
     override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> = error("stub")

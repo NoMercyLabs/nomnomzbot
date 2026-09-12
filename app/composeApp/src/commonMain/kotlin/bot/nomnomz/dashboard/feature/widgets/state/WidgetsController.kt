@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
 import bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
+import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetVersionDetail
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
@@ -47,6 +48,7 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
 import nomnomzbot.composeapp.generated.resources.widgets_review_action_error
+import nomnomzbot.composeapp.generated.resources.widgets_rotate_widget_token_error
 
 // The Overlays page's state-holder (frontend-ia.md §3 — the Stream group; a plain holder, not a ViewModel).
 // Resolves the active channel, then lists its real OBS overlay widgets from the backend (no fabricated rows) —
@@ -145,6 +147,23 @@ class WidgetsController(
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }
+    }
+
+    /**
+     * Mint a new overlay token for exactly this widget (audit B5) — every other widget's browser-source URL is
+     * untouched. Returns the before/after URLs + grace expiry so the screen can show the operator what changed
+     * and prompt them to re-copy the new URL into OBS; reloads the list on success so the row's
+     * [WidgetSummary.overlayUrl] reflects the new token immediately.
+     */
+    suspend fun rotateWidgetToken(widgetId: String): ApiResult<WidgetTokenRotation> {
+        val channel: String =
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+        val result: ApiResult<WidgetTokenRotation> = widgetsApi.rotateWidgetOverlayToken(channel, widgetId)
+        when (result) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> feedback.error(Res.string.widgets_rotate_widget_token_error, result.error.message)
+        }
+        return result
     }
 
     /**
