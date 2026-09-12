@@ -13,13 +13,13 @@
     <div id="appearance"></div>
     <script>
       const FIELD_CONFIG = {
-        "bot.nomnomzbot.streamdeck.music-set-volume": [
+        "bot.nomnomzbot.streamdeck.music.music-set-volume": [
           { key: "volume", label: "Volume (0-100)", type: "range", min: 0, max: 100, default: 50 },
         ],
-        "bot.nomnomzbot.streamdeck.music-seek": [
+        "bot.nomnomzbot.streamdeck.music.music-seek": [
           { key: "positionSeconds", label: "Position (seconds)", type: "number", default: 0 },
         ],
-        "bot.nomnomzbot.streamdeck.music-set-shuffle": [
+        "bot.nomnomzbot.streamdeck.music.music-set-shuffle": [
           {
             key: "enabled",
             label: "Shuffle",
@@ -31,16 +31,16 @@
             default: "true",
           },
         ],
-        "bot.nomnomzbot.streamdeck.music-volume-up": [
+        "bot.nomnomzbot.streamdeck.music.music-volume-up": [
           { key: "step", label: "Step (+)", type: "number", default: 10 },
         ],
-        "bot.nomnomzbot.streamdeck.music-volume-down": [
+        "bot.nomnomzbot.streamdeck.music.music-volume-down": [
           { key: "step", label: "Step (-)", type: "number", default: 10 },
         ],
-        "bot.nomnomzbot.streamdeck.music-volume-mute": [
+        "bot.nomnomzbot.streamdeck.music.music-volume-mute": [
           { key: "unmuteVolume", label: "Unmute to (0-100)", type: "number", default: 50 },
         ],
-        "bot.nomnomzbot.streamdeck.music-set-repeat": [
+        "bot.nomnomzbot.streamdeck.music.music-set-repeat": [
           {
             key: "mode",
             label: "Repeat mode",
@@ -52,20 +52,6 @@
             ],
             default: "off",
           },
-        ],
-        // S-STREAMDECK-OBS-REMAINDER: no backend list exists for hotkey names, OBS-WS request
-        // types, or vendor names — free text is the only option for these three.
-        "bot.nomnomzbot.streamdeck.obs-hotkey": [
-          { key: "hotkeyName", label: "Hotkey name", type: "text", default: "" },
-        ],
-        "bot.nomnomzbot.streamdeck.obs-request": [
-          { key: "requestType", label: "Request type", type: "text", default: "" },
-          { key: "requestData", label: "Request data (JSON object, optional)", type: "text", default: "" },
-        ],
-        "bot.nomnomzbot.streamdeck.obs-call-vendor": [
-          { key: "vendor", label: "Vendor", type: "text", default: "" },
-          { key: "requestType", label: "Request type", type: "text", default: "" },
-          { key: "requestData", label: "Request data (JSON object, optional)", type: "text", default: "" },
         ],
       };
 
