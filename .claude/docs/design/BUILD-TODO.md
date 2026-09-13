@@ -30,11 +30,6 @@ separately here.
 ## 🔒 Owner calls — gated, cannot close autonomously
 
 - [ ] **24d.** Confirm authz key names — the two OWNER-CONFIRM items (Plane-C key mappings + Gate-2 keys minted 2026-07-04) in `ROADMAP.md` § Security & authorization fixes.
-- [ ] **Self-host owner = platform admin?** The owner user has NO IAM principal, so platform-IAM-gated
-  features 403 for them (found: federation `peers` requires `IamPermissionKeys.AuditRead`; the Federatie
-  screen then shows "Forbidden"). Decide: auto-seed the self-host root owner as a platform-admin IAM
-  principal (so operator features work), and/or nav-gate platform-admin screens so they don't surface to
-  non-admins. Ties into the federation-transport design fork below.
 - [ ] **Code scripts vs vscode editor** — plus **Bamo's JS-over-C# feedback**: decide the
   user-scripting model + a rich built-in helper library so users never touch C#. *(highest leverage)*
 - [ ] **YouTube non-BYOC** — register a Google Cloud OAuth client + pass verification; ship as defaults.
