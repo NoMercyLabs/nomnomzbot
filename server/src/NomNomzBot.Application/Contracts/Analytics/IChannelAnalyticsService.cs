@@ -54,4 +54,16 @@ public interface IChannelAnalyticsService
         string streamId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The channel's activity over a range, broken out by streaming platform (D1 — one channel, many
+    /// platform connections). Only providers with real activity in the range appear; only metrics whose
+    /// source event carries a platform tag are broken out (see <see cref="ChannelAnalyticsPlatformSummaryDto"/>).
+    /// </summary>
+    Task<Result<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>> GetPlatformSummaryAsync(
+        Guid broadcasterId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken ct = default
+    );
 }

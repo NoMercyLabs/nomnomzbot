@@ -91,6 +91,21 @@ public sealed record StreamAnalyticsDto(
 /// <summary>A channel's top viewer over a range by the chosen metric (analytics.md §4) — not the economy board.</summary>
 public sealed record TopViewerDto(Guid ViewerUserId, string? DisplayName, long MetricValue);
 
+/// <summary>
+/// One streaming platform's slice of the channel's activity over a range (analytics.md §4, D1 —
+/// one channel, many platform connections). Only metrics whose source event actually carries a
+/// platform tag are broken out here; a provider only appears when it has real, nonzero activity in
+/// the range — never a zero placeholder for a platform that was never connected.
+/// </summary>
+public sealed record ChannelAnalyticsPlatformSummaryDto(
+    string Provider,
+    long TotalMessages,
+    int UniqueChatters,
+    int NewFollowers,
+    int NewSubscribers,
+    long BitsCheered
+);
+
 /// <summary>The metric a top-viewers query ranks by (analytics.md §4).</summary>
 public enum TopViewerMetric
 {

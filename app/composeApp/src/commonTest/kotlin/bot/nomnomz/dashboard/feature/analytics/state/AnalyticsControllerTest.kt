@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.PlatformSummaryEntry
 import bot.nomnomz.dashboard.core.network.StreamAnalytics
 import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
@@ -240,6 +241,47 @@ class AnalyticsControllerTest {
     }
 
     @Test
+    fun load_includes_the_platform_breakdown_in_ready_state() = runTest {
+        val breakdown: List<PlatformSummaryEntry> =
+            listOf(
+                PlatformSummaryEntry(provider = "twitch", totalMessages = 400, newFollowers = 10),
+                PlatformSummaryEntry(provider = "kick", totalMessages = 60, newFollowers = 2),
+            )
+        val controller =
+            AnalyticsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeAnalyticsApi(
+                    summaryResult = ApiResult.Ok(AnalyticsSummary(totalMessages = 460)),
+                    platformSummaryResult = ApiResult.Ok(breakdown),
+                ),
+            )
+
+        controller.load()
+
+        val ready: AnalyticsState.Ready = controller.state.value as AnalyticsState.Ready
+        assertEquals(2, ready.platformBreakdown.size)
+        assertEquals("twitch", ready.platformBreakdown[0].provider)
+        assertEquals(400L, ready.platformBreakdown[0].totalMessages)
+    }
+
+    @Test
+    fun load_tolerates_a_platform_breakdown_failure_and_stays_ready_with_an_empty_list() = runTest {
+        val controller =
+            AnalyticsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeAnalyticsApi(
+                    summaryResult = ApiResult.Ok(AnalyticsSummary(totalMessages = 1)),
+                    platformSummaryResult = ApiResult.Failure(ApiError(500, "ERR", "by-platform down")),
+                ),
+            )
+
+        controller.load()
+
+        val ready: AnalyticsState.Ready = controller.state.value as AnalyticsState.Ready
+        assertTrue(ready.platformBreakdown.isEmpty())
+    }
+
+    @Test
     fun load_viewers_surfaces_the_first_page_of_the_viewer_list() = runTest {
         val page: ViewerProfilePage =
             ViewerProfilePage(
@@ -354,6 +396,7 @@ private class FakeAnalyticsApi(
     private val topViewersResult: ApiResult<List<TopViewerEntry>> = ApiResult.Ok(emptyList()),
     private val streamsResult: ApiResult<List<StreamListItem>> = ApiResult.Ok(emptyList()),
     private val streamDetailResult: ApiResult<StreamAnalytics> = ApiResult.Ok(StreamAnalytics()),
+    private val platformSummaryResult: ApiResult<List<PlatformSummaryEntry>> = ApiResult.Ok(emptyList()),
     private val viewersResult: ApiResult<ViewerProfilePage> = ApiResult.Ok(ViewerProfilePage()),
     private val profileResult: ApiResult<ViewerAnalyticsProfile> = ApiResult.Ok(ViewerAnalyticsProfile()),
 ) : AnalyticsApi {
@@ -386,6 +429,12 @@ private class FakeAnalyticsApi(
     ): ApiResult<List<DailyMetricRow>> = dailyResult
 
     override suspend fun streams(channelId: String): ApiResult<List<StreamListItem>> = streamsResult
+
+    override suspend fun platformSummary(
+        channelId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<PlatformSummaryEntry>> = platformSummaryResult
 
     override suspend fun streamDetail(
         channelId: String,

@@ -831,6 +831,12 @@ private class FakeAnalyticsApi : AnalyticsApi {
     override suspend fun streams(channelId: String): ApiResult<List<bot.nomnomz.dashboard.core.network.StreamListItem>> =
         ApiResult.Ok(emptyList())
 
+    override suspend fun platformSummary(
+        channelId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.PlatformSummaryEntry>> = ApiResult.Ok(emptyList())
+
     override suspend fun streamDetail(
         channelId: String,
         streamId: String,
