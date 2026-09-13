@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.realtime
 
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -136,7 +137,18 @@ class DashboardHubClient {
     /** Hub invocations received from the server after a successful [connect] + `JoinChannel`. */
     val events: SharedFlow<HubEvent> = _events.asSharedFlow()
 
-    /** True while the WebSocket is connected and the handshake is complete. */
+    /**
+     * True while the WebSocket is connected and the handshake is complete.
+     *
+     * Written by the internal connect-loop coroutine ([openSession]/[connect]) and read cross-coroutine —
+     * both by [join]/[leave] (each launched on their own coroutine over [scope]) and by any external caller
+     * polling it from another dispatcher/thread. A plain `var` gives no happens-before edge between that
+     * writer and those readers, so a reader could observe a stale cached value indefinitely on a loaded
+     * multi-core runner (the same JMM visibility class already fixed once for this class's test coverage —
+     * see the `received` list in `DashboardHubClientReconnectTest`, fixed in c70fafa9 — but never applied
+     * here). [Volatile] makes every write immediately visible to every reader, closing that gap.
+     */
+    @Volatile
     var isConnected: Boolean = false
         private set
 

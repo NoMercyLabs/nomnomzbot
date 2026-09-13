@@ -191,13 +191,19 @@ class DashboardHubClientReconnectTest {
                     second.sendText(pushFrame)
                     // The client must still Ack it (it did receive the frame) even though it drops it.
                     assertEquals("""{"type":8,"sequenceId":1}""", second.receiveText()?.trimEnd(RECORD_SEPARATOR))
+                    // Checked while this connection is STILL OPEN — see the first test's comment. Closing
+                    // the socket first (as this test used to) races the client's own close-detection: the
+                    // instant it notices the drop it starts ANOTHER resume attempt, which this test never
+                    // services with a further accepted connection — so isConnected can flip true then false
+                    // again before a check made after the close ever observes it, hanging the poll for the
+                    // full liveness timeout. Proving it here, before the socket drops, removes that race.
+                    awaitConnected(client)
+                    // The duplicate must NOT have been redelivered to [events] — still exactly one. Also
+                    // checked before the socket drops, for the same reason.
+                    delay(200)
+                    assertEquals(1, received.size, "a resent duplicate below the processed sequence id must be dropped")
                 }
             }
-            awaitConnected(client)
-
-            // The duplicate must NOT have been redelivered to [events] — still exactly one.
-            delay(200)
-            assertEquals(1, received.size, "a resent duplicate below the processed sequence id must be dropped")
 
             client.disconnect()
             collectJob.cancel()
@@ -248,9 +254,15 @@ class DashboardHubClientReconnectTest {
                         third.receiveText()?.trimEnd(RECORD_SEPARATOR),
                         "a refused resume must fall back to a fresh JoinChannel connect, not retry resume",
                     )
+                    // Checked while this connection is STILL OPEN — see the first test's comment. A fresh
+                    // connect sets isConnected true locally without waiting on the server, but closing this
+                    // socket first (as this test used to) still races the client's own close-detection into
+                    // starting a FOURTH attempt (a resume this time) that this test never services with a
+                    // further accepted connection — hanging a check made after the close for the full
+                    // liveness timeout instead of ever observing the true it already reached.
+                    awaitConnected(client)
                 }
             }
-            awaitConnected(client)
 
             client.disconnect()
         }
