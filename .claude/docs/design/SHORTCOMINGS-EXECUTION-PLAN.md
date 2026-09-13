@@ -1593,9 +1593,14 @@ later.)
   smoke). S071 is now fully closed. Still open, own future item: the `openapi/v1.json` entry for
   `ActionRequiredItemDto` was hand-added (API couldn't start at the time it was written) — worth a
   follow-up regenerate-and-diff now that startup is fixed, to confirm it matches byte-for-byte.
-- **S072** IA reconciliation — Admin via profile menu + chrome swap; theme + Account in profile menu;
-  tabbed Settings; `MyData` on the participant rung; shipped routes listed in `frontend-ia.md`
-  (U·B6). 🔒 regroup sidebar vs update spec.
+- **S072** IA reconciliation — tabbed Settings and `MyData` on the participant rung are shipped;
+  shipped routes are listed in `frontend-ia.md` (U·B6); the sidebar-regroup-vs-spec fork is resolved
+  (nav reorg shipped 2026-09-09 owner punch list §9, `frontend-ia.md` already reflects it — verified
+  09-13, no doc drift). Still open: **Admin via profile menu + chrome swap** — `Beheer` currently
+  renders as its own standalone sidebar link under CONFIGURATIE, not folded into the profile-menu
+  dropdown alongside theme/Account as this item originally specced. Confirm the profile-menu
+  destination is still the intended target before building it (the sidebar link may have been a
+  deliberate later call, not an oversight) — 🔒.
 - **S031** X Live as a platform connection (D3) — `IntegrationProvider.twitter`, login + connection,
   chat read/send via X's API to the extent it exposes (document limits), events where available
   (U·C4, spec `platform-identity.md` §10). Done-when: X connection attaches; chat lines carry `x`.
