@@ -934,6 +934,10 @@
     <string name="commands_dialog_cooldown_label">Afkoeltijd (seconden)</string>
     <string name="commands_dialog_cooldown_per_user_label">Aparte afkoeltijd per gebruiker</string>
     <string name="commands_dialog_user_cooldown_label">Afkoeltijd per gebruiker (seconden)</string>
+    <string name="commands_dialog_shadow_warning_title">Deze naam komt overeen met een ingebouwde opdracht</string>
+    <string name="commands_dialog_shadow_warning_body">Er bestaat al een ingebouwde opdracht !%1$s. Als je deze opdracht opslaat, antwoordt die van jou in plaats daarvan — de ingebouwde opdracht wordt stil voor dit kanaal. Ga alleen door als je dat wilt.</string>
+    <string name="commands_dialog_shadow_acknowledge">Ik begrijp het — toch opslaan</string>
+    <string name="commands_row_shadows_builtin">Overschaduwt ingebouwde opdracht !%1$s</string>
     <string name="timers_new">Nieuwe timer</string>
     <string name="timers_toggle">%1$s aan/uit</string>
     <string name="timers_edit">%1$s bewerken</string>

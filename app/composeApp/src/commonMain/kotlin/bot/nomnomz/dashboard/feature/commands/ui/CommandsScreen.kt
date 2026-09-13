@@ -43,9 +43,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.Alert
+import bot.nomnomz.dashboard.core.designsystem.component.AlertDescription
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.AlertTitle
+import bot.nomnomz.dashboard.core.designsystem.component.AlertVariant
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
@@ -147,6 +153,10 @@ import nomnomzbot.composeapp.generated.resources.commands_dialog_response_add
 import nomnomzbot.composeapp.generated.resources.commands_dialog_response_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_response_remove
 import nomnomzbot.composeapp.generated.resources.commands_dialog_responses_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_shadow_acknowledge
+import nomnomzbot.composeapp.generated.resources.commands_dialog_shadow_warning_body
+import nomnomzbot.composeapp.generated.resources.commands_dialog_shadow_warning_title
+import nomnomzbot.composeapp.generated.resources.commands_row_shadows_builtin
 import nomnomzbot.composeapp.generated.resources.commands_dialog_save
 import nomnomzbot.composeapp.generated.resources.commands_dialog_tier_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_user_cooldown_label
@@ -268,11 +278,16 @@ fun CommandsScreen(
             is CommandsState.Empty -> s.codeScripts
             else -> emptyList()
         }
+        val builtinsForDialog: List<BuiltinCommand> = when (val s: CommandsState = state) {
+            is CommandsState.Ready -> s.builtins
+            else -> emptyList()
+        }
         CommandFormDialog(
             editor = open,
             pipelines = pipelines,
             pickListNames = pickListNames,
             codeScripts = codeScripts,
+            builtins = builtinsForDialog,
             templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
             onSubmit = { input ->
@@ -354,6 +369,14 @@ private fun ManagedContent(
         )
     }
 
+    // The owner punch list's "existing shadowed commands" ask: a custom command (by its own trigger name OR
+    // any alias) whose normalized text matches a built-in's key silently takes over that built-in's replies —
+    // nothing on this list said so before. One set, reused by every row below, so the badge is never a per-row
+    // re-derivation.
+    val shadowedBuiltinKeys: Set<String> = remember(builtins) {
+        builtins.map { it.builtinKey.normalizedTriggerName() }.toSet()
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
@@ -420,6 +443,7 @@ private fun ManagedContent(
                         CommandTableRow(
                             command = command,
                             manage = manage,
+                            shadowsBuiltin = command.shadowsAnyBuiltin(shadowedBuiltinKeys),
                             onEdit = { onEdit(command) },
                             onToggle = { enabled -> onToggle(command, enabled) },
                             onDelete = { onDelete(command) },
@@ -474,6 +498,7 @@ private fun ManagedContent(
 private fun CommandTableRow(
     command: CommandSummary,
     manage: ManageDecision,
+    shadowsBuiltin: String?,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
@@ -525,6 +550,15 @@ private fun CommandTableRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+
+        // Owner punch list §7: a command that shadows a built-in used to be invisible in this list — the
+        // streamer could only discover it by chat behaving wrong. Destructive is the design system's only
+        // "pay attention" tone (no dedicated warning token yet), used sparingly here as the row's one flag.
+        if (shadowsBuiltin != null) {
+            Badge(variant = BadgeVariant.Destructive) {
+                Text(text = stringResource(Res.string.commands_row_shadows_builtin, shadowsBuiltin))
+            }
         }
 
         ManageGate(decision = manage) { enabled ->
@@ -687,6 +721,7 @@ private fun CommandFormDialog(
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
     codeScripts: List<CodeScriptSummary>,
+    builtins: List<BuiltinCommand>,
     templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onSubmit: (CommandInput) -> Unit,
@@ -745,6 +780,17 @@ private fun CommandFormDialog(
     var prefixMenuOpen: Boolean by remember { mutableStateOf(false) }
     var matchMenuOpen: Boolean by remember { mutableStateOf(false) }
 
+    // Owner punch list §7 (editor-time warning, point 1/2): the streamer must see this BEFORE saving, not
+    // discover it later by chat behaving wrong. Re-derives live as [name] is typed; non-blocking (shadowing a
+    // builtin can be a deliberate override) but never silent — [shadowAcknowledged] gates submission and is
+    // keyed to the specific builtin so retyping a different colliding name asks again.
+    val shadowedBuiltinKey: String? = remember(name, builtins) {
+        val trigger: String = name.normalizedTriggerName()
+        builtins.map { it.builtinKey }.firstOrNull { it.normalizedTriggerName() == trigger }
+    }
+    var acknowledgedShadowKey: String? by remember { mutableStateOf(null) }
+    val shadowAcknowledged: Boolean = shadowedBuiltinKey == null || acknowledgedShadowKey == shadowedBuiltinKey
+
     val cooldownValue: Int? = cooldown.ifBlank { "0" }.toIntOrNull()
     val userCooldownValue: Int? = userCooldown.ifBlank { "0" }.toIntOrNull()
     val cooldownValid: Boolean = cooldownValue != null && cooldownValue >= 0
@@ -763,7 +809,8 @@ private fun CommandFormDialog(
             cooldownValid &&
             userCooldownValid &&
             patternValid &&
-            prefixValid
+            prefixValid &&
+            shadowAcknowledged
 
     val title: String =
         stringResource(
@@ -793,6 +840,26 @@ private fun CommandFormDialog(
                     label = stringResource(Res.string.commands_dialog_name_label),
                     isError = name.isBlank(),
                 )
+
+                // Owner punch list §7 (editor-time warning): non-blocking (a deliberate override is a valid
+                // reason to shadow a built-in) but never silent — an explicit checkbox is required before
+                // [canSubmit] allows saving, so the streamer can never end up here by accident.
+                if (shadowedBuiltinKey != null) {
+                    Alert(variant = AlertVariant.Destructive, modifier = Modifier.fillMaxWidth()) {
+                        AlertTitle(stringResource(Res.string.commands_dialog_shadow_warning_title))
+                        AlertDescription(
+                            stringResource(Res.string.commands_dialog_shadow_warning_body, shadowedBuiltinKey)
+                        )
+                        SwitchRow(
+                            label = stringResource(Res.string.commands_dialog_shadow_acknowledge),
+                            checked = acknowledgedShadowKey == shadowedBuiltinKey,
+                            onCheckedChange = { checked ->
+                                acknowledgedShadowKey = if (checked) shadowedBuiltinKey else null
+                            },
+                        )
+                    }
+                }
+
                 AppTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -1346,6 +1413,22 @@ private val MatchModes: List<String> = listOf("StartsWith", "Exact", "Contains",
 
 // The permission rungs the picker offers as ROLE NAMES mapped to their unified-ladder value (roles-permissions
 // §0). Ascending so [permissionLabel] resolves a stored level to the highest rung it clears.
+
+// Owner punch list §7: normalizes a trigger-ish string (a command name, an alias, or a builtin key) to the
+// bare, lowercase token `ChatMessageHandler` actually dispatches on — stripping a leading `!` (or whatever the
+// channel's own prefix happens to be typed as) so "!quote", "quote" and a builtin key "quote" all collide the
+// same way the chat handler's real name-resolution does.
+private fun String.normalizedTriggerName(): String = trim().trimStart('!').lowercase()
+
+// True (returning the shadowed builtin's display trigger, e.g. "quote") when this command's own name OR any
+// of its aliases normalizes to a key in [builtinKeys] — a custom command can shadow a built-in through an
+// alias exactly as easily as through its primary name (ChatMessageHandler.ResolveAuthoredCommand matches
+// every alias, not just the canonical name).
+private fun CommandSummary.shadowsAnyBuiltin(builtinKeys: Set<String>): String? {
+    val ownName: String = name.normalizedTriggerName()
+    if (ownName in builtinKeys) return ownName
+    return aliases.map { it.normalizedTriggerName() }.firstOrNull { it in builtinKeys }
+}
 
 // Three-way tab: All shows everything, Custom hides built-ins, Builtin hides custom commands.
 private enum class CommandTab { All, Custom, Builtin }

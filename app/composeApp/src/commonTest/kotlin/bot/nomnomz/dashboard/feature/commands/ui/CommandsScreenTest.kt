@@ -11,12 +11,17 @@
 package bot.nomnomz.dashboard.feature.commands.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyChild
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -144,6 +149,130 @@ class CommandsScreenTest {
         // stateDescription — the same shape every other disabled write control in this app has, so assert there.
         onNode(hasAnyChild(hasContentDescription("Test pipeline")), useUnmergedTree = true).assertIsNotEnabled()
     }
+
+    // Owner punch list §7 — the streamer bug report: a custom command silently shadows a built-in with no
+    // warning anywhere. These prove the fix fires for a REAL name collision (case-insensitively, prefix
+    // stripped) and does NOT fire for an ordinary command — not a surface/smoke check.
+
+    @Test
+    fun list_view_flags_a_custom_command_whose_name_collides_with_a_builtin() = runComposeUiTest {
+        val shadowing = CommandSummary(id = "c1", name = "quote", tier = "template", isEnabled = true)
+        val ordinary = CommandSummary(id = "c2", name = "hello", tier = "template", isEnabled = true)
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(),
+                commandsApi = FakeCommandsApi(listOf(shadowing, ordinary)),
+                builtinsApi = FakeBuiltinsApi(listOf(BuiltinCommand(builtinKey = "quote", name = "!quote"))),
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+            )
+        runBlocking { controller.load() }
+
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        CommandsScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        // The shadowing row carries the badge naming what it shadows, exactly once (not once per row)...
+        onAllNodes(hasText("Shadows built-in !quote")).assertCountEquals(1)
+        // ...and the ordinary "hello" command never renders any shadow badge at all.
+        onNodeWithText("Shadows built-in !hello").assertDoesNotExist()
+    }
+
+    @Test
+    fun editor_warns_live_while_typing_a_name_that_collides_with_a_builtin_and_blocks_submit_until_acknowledged() =
+        runComposeUiTest {
+            val controller =
+                CommandsController(
+                    channelsApi = FakeChannelsApi(),
+                    commandsApi = FakeCommandsApi(emptyList()),
+                    builtinsApi = FakeBuiltinsApi(listOf(BuiltinCommand(builtinKey = "quote", name = "!quote"))),
+                    pipelinesApi = RecordingPipelinesApi(),
+                    pickListsApi = FakePickListsApi(),
+                )
+            runBlocking { controller.load() }
+
+            setContent {
+                withLifecycle {
+                    NomNomzTheme {
+                        bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                            CommandsScreen(
+                                controller = controller,
+                                role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                                templateHelpersApi = FakeTemplateHelpersApi(),
+                            )
+                        }
+                    }
+                }
+            }
+            waitForIdle()
+
+            onNodeWithText("New command").performClick()
+            waitForIdle()
+
+            // A fresh create dialog already pre-fills a default response template (no empty reaction), so
+            // typing the colliding name is the only thing needed to isolate the shadow gate below. Index [1]:
+            // index [0] is the page's own search field, which stays mounted behind the dialog.
+            onAllNodes(hasSetTextAction())[1].performTextInput("quote")
+            waitForIdle()
+
+            // The warning is visible before any save attempt (never a silent shadow), and Create is blocked.
+            onNodeWithText("This name matches a built-in command").assertExists()
+            onNodeWithText("Create").assertIsNotEnabled()
+
+            // Acknowledging it unblocks the save — a deliberate override is allowed, just never silent.
+            onNodeWithContentDescription("I understand — save it anyway").performClick()
+            waitForIdle()
+            onNodeWithText("Create").assertIsEnabled()
+        }
+
+    @Test
+    fun editor_shows_no_shadow_warning_for_a_name_that_does_not_collide_with_any_builtin() = runComposeUiTest {
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(),
+                commandsApi = FakeCommandsApi(emptyList()),
+                builtinsApi = FakeBuiltinsApi(listOf(BuiltinCommand(builtinKey = "quote", name = "!quote"))),
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+            )
+        runBlocking { controller.load() }
+
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        CommandsScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("New command").performClick()
+        waitForIdle()
+
+        // Index [1]: index [0] is the page's own search field, mounted behind the dialog.
+        onAllNodes(hasSetTextAction())[1].performTextInput("hello")
+        waitForIdle()
+
+        onNodeWithText("This name matches a built-in command").assertDoesNotExist()
+        onNodeWithText("Create").assertIsEnabled()
+    }
 }
 
 @androidx.compose.runtime.Composable
@@ -187,8 +316,8 @@ private class FakeCommandsApi(private val commands: List<CommandSummary>) : Comm
     override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-private class FakeBuiltinsApi : BuiltinsApi {
-    override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> = ApiResult.Ok(emptyList())
+private class FakeBuiltinsApi(private val builtins: List<BuiltinCommand> = emptyList()) : BuiltinsApi {
+    override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> = ApiResult.Ok(builtins)
     override suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun setResponseOverride(
