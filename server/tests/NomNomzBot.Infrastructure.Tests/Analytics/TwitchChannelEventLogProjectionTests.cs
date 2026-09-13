@@ -119,6 +119,69 @@ public sealed class TwitchChannelEventLogProjectionTests
     }
 
     [Fact]
+    public async Task Folds_the_events_own_provider_into_data_for_platform_broken_out_reads()
+    {
+        using ReadModelRebuildDatabase database = ReadModelRebuildDatabase.Open();
+        await using ReadModelRebuildDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(db);
+
+        IReadOnlyList<DomainEventBase> spread =
+        [
+            new FollowEvent
+            {
+                BroadcasterId = Channel,
+                OccurredAt = new(Live, TimeSpan.Zero),
+                Provider = "kick",
+                UserId = "500",
+                UserDisplayName = "Dana",
+                UserLogin = "dana",
+                FollowedAt = new(Live, TimeSpan.Zero),
+            },
+            new CheerEvent
+            {
+                BroadcasterId = Channel,
+                OccurredAt = new(Live.AddSeconds(10), TimeSpan.Zero),
+                Provider = "twitch",
+                UserId = "200",
+                UserDisplayName = "Bob",
+                Bits = 75,
+                Message = "cheer",
+                IsAnonymous = false,
+            },
+            // A fact type with no Provider concept on the domain event (redemptions are Twitch-only
+            // channel points today) — must stay untagged rather than defaulted.
+            new RewardRedeemedEvent
+            {
+                BroadcasterId = Channel,
+                OccurredAt = new(Live.AddSeconds(20), TimeSpan.Zero),
+                RewardId = "reward-1",
+                RewardTitle = "Hydrate",
+                RedemptionId = "redemption-1",
+                UserId = "100",
+                UserDisplayName = "Alice",
+                Cost = 100,
+                UserInput = null,
+            },
+        ];
+        await AppendAsync(journal, spread);
+
+        TwitchChannelEventLogProjection projection = NewProjection(db);
+        ProjectionRunner runner = NewRunner(db, journal, projection);
+        await runner.RunOnceAsync(projection.Name, Channel);
+
+        List<ChannelEvent> rows = await db.ChannelEvents.AsNoTracking().ToListAsync();
+
+        DataOf(rows, "channel.follow")["provider"]!.Value<string>().Should().Be("kick");
+        DataOf(rows, "channel.cheer")["provider"]!.Value<string>().Should().Be("twitch");
+        DataOf(rows, "channel.channel_points_custom_reward_redemption.add")
+            .Should()
+            .NotContainKey(
+                "provider",
+                "RewardRedeemedEvent carries no Provider — must not be silently defaulted"
+            );
+    }
+
+    [Fact]
     public async Task Reset_then_replay_rebuilds_the_log_identically_and_is_idempotent()
     {
         using ReadModelRebuildDatabase database = ReadModelRebuildDatabase.Open();

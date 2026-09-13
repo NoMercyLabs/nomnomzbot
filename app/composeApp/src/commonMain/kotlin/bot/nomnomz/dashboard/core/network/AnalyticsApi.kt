@@ -29,6 +29,16 @@ interface AnalyticsApi {
     /** Per-day time-series over the inclusive `[from, to]` range (used for trend charts). */
     suspend fun daily(channelId: String, from: String, to: String): ApiResult<List<DailyMetricRow>>
 
+    /**
+     * The channel's activity over the inclusive `[from, to]` range, broken out by streaming platform
+     * (D1 — one channel, many platform connections). Only providers with real activity appear.
+     */
+    suspend fun platformSummary(
+        channelId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<PlatformSummaryEntry>>
+
     /** The channel's stream history, newest first — the per-stream analytics entry point. */
     suspend fun streams(channelId: String): ApiResult<List<StreamListItem>>
 
@@ -95,6 +105,13 @@ class RestAnalyticsApi(private val client: ApiClient) : AnalyticsApi {
         to: String,
     ): ApiResult<List<DailyMetricRow>> =
         client.getEnvelope("api/v1/channels/$channelId/analytics/channel/daily?from=$from&to=$to")
+
+    override suspend fun platformSummary(
+        channelId: String,
+        from: String,
+        to: String,
+    ): ApiResult<List<PlatformSummaryEntry>> =
+        client.getEnvelope("api/v1/channels/$channelId/analytics/channel/by-platform?from=$from&to=$to")
 
     // The stream history is a `PaginatedResponse<StreamListItemDto>` (a flat `{ data, hasMore }`), read with
     // getDirect and unwrapped to its list — one generous page covers a session's stream picker.
@@ -212,6 +229,22 @@ data class DailyMetricRow(
     val currencySpentTotal: Long = 0,
     val gamesPlayed: Int = 0,
     val peakViewers: Int? = null,
+)
+
+/**
+ * One streaming platform's slice of the channel's activity (backend `ChannelAnalyticsPlatformSummaryDto`, D1 —
+ * one channel, many platform connections). [provider] is the `AuthEnums.Platform` key (`twitch`/`kick`/`youtube`).
+ * Only metrics whose source event actually carries a platform tag are broken out; a provider only appears when
+ * it has real, nonzero activity in the range.
+ */
+@Serializable
+data class PlatformSummaryEntry(
+    val provider: String = "",
+    val totalMessages: Long = 0,
+    val uniqueChatters: Int = 0,
+    val newFollowers: Int = 0,
+    val newSubscribers: Int = 0,
+    val bitsCheered: Long = 0,
 )
 
 /**

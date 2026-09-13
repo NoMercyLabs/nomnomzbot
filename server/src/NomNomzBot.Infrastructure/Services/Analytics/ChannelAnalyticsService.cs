@@ -9,10 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Services.Analytics;
 
@@ -275,6 +277,163 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
             eventCounts.GetValueOrDefault("channel.channel_points_custom_reward_redemption.add")
         );
         return Result.Success(dto);
+    }
+
+    // The channel-event-log types whose Data JSON carries the per-event "provider" tag (added by
+    // TwitchChannelEventLogProjection) and that feed the current channel/summary headline metrics.
+    private static readonly IReadOnlyDictionary<string, PlatformEventKind> PlatformEventTypes =
+        new Dictionary<string, PlatformEventKind>(StringComparer.Ordinal)
+        {
+            ["channel.follow"] = PlatformEventKind.Follow,
+            ["channel.subscribe"] = PlatformEventKind.Subscribe,
+            ["channel.subscription.message"] = PlatformEventKind.Subscribe,
+            ["channel.subscription.gift"] = PlatformEventKind.Subscribe,
+            ["channel.cheer"] = PlatformEventKind.Cheer,
+        };
+
+    private enum PlatformEventKind
+    {
+        Follow,
+        Subscribe,
+        Cheer,
+    }
+
+    public async Task<
+        Result<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>
+    > GetPlatformSummaryAsync(
+        Guid broadcasterId,
+        DateOnly from,
+        DateOnly to,
+        CancellationToken ct = default
+    )
+    {
+        if (!IsValidRange(from, to))
+            return Result.Failure<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>(
+                "from must be on or before to and the range must not exceed 366 days.",
+                "VALIDATION_FAILED"
+            );
+
+        DateTime windowStart = from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        DateTime windowEnd = to.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+
+        // Messages + unique chatters: ChatMessage.Provider is a real, first-class column populated by
+        // every chat ingest path (Twitch EventSub, Kick webhook, YouTube poller) — no JSON parsing needed.
+        List<(string Provider, string UserId)> chatRows = await db
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == broadcasterId
+                && m.CreatedAt >= windowStart
+                && m.CreatedAt <= windowEnd
+            )
+            .Select(m => new ValueTuple<string, string>(m.Provider, m.UserId))
+            .ToListAsync(ct);
+
+        Dictionary<string, (long Messages, int UniqueChatters)> chatByProvider = chatRows
+            .GroupBy(r => r.Provider, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => ((long)g.Count(), g.Select(r => r.UserId).Distinct().Count()),
+                StringComparer.Ordinal
+            );
+
+        // Follows/subs/cheers have no dedicated persisted column for their provider — fold it out of the
+        // channel-event-log's Data JSON snapshot instead (populated by TwitchChannelEventLogProjection).
+        List<string> eventTypes = [.. PlatformEventTypes.Keys];
+        List<(string Type, string? Data)> eventRows = await db
+            .ChannelEvents.Where(e =>
+                e.ChannelId == broadcasterId
+                && e.CreatedAt >= windowStart
+                && e.CreatedAt <= windowEnd
+                && eventTypes.Contains(e.Type)
+            )
+            .Select(e => new ValueTuple<string, string?>(e.Type, e.Data))
+            .ToListAsync(ct);
+
+        Dictionary<string, (int Follows, int Subscribes, long Bits)> factsByProvider = new(
+            StringComparer.Ordinal
+        );
+        foreach ((string type, string? data) in eventRows)
+        {
+            if (!PlatformEventTypes.TryGetValue(type, out PlatformEventKind kind))
+                continue;
+            string provider = ExtractProvider(data);
+            (int Follows, int Subscribes, long Bits) current = factsByProvider.GetValueOrDefault(
+                provider,
+                (0, 0, 0)
+            );
+            factsByProvider[provider] = kind switch
+            {
+                PlatformEventKind.Follow => (current.Follows + 1, current.Subscribes, current.Bits),
+                PlatformEventKind.Subscribe => (
+                    current.Follows,
+                    current.Subscribes + 1,
+                    current.Bits
+                ),
+                PlatformEventKind.Cheer => (
+                    current.Follows,
+                    current.Subscribes,
+                    current.Bits + ExtractBits(data)
+                ),
+                _ => current,
+            };
+        }
+
+        IEnumerable<string> providers = chatByProvider.Keys.Union(
+            factsByProvider.Keys,
+            StringComparer.Ordinal
+        );
+
+        List<ChannelAnalyticsPlatformSummaryDto> breakdown =
+        [
+            .. providers
+                .Select(provider =>
+                {
+                    (long Messages, int UniqueChatters) chat = chatByProvider.GetValueOrDefault(
+                        provider,
+                        (0, 0)
+                    );
+                    (int Follows, int Subscribes, long Bits) facts =
+                        factsByProvider.GetValueOrDefault(provider, (0, 0, 0));
+                    return new ChannelAnalyticsPlatformSummaryDto(
+                        provider,
+                        chat.Messages,
+                        chat.UniqueChatters,
+                        facts.Follows,
+                        facts.Subscribes,
+                        facts.Bits
+                    );
+                })
+                .OrderByDescending(d => d.TotalMessages + d.NewFollowers + d.NewSubscribers),
+        ];
+
+        return Result.Success<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>(breakdown);
+    }
+
+    private static string ExtractProvider(string? data)
+    {
+        if (string.IsNullOrEmpty(data))
+            return AuthEnums.Platform.Twitch;
+        try
+        {
+            return JObject.Parse(data)["provider"]?.Value<string>() ?? AuthEnums.Platform.Twitch;
+        }
+        catch (Newtonsoft.Json.JsonException)
+        {
+            return AuthEnums.Platform.Twitch;
+        }
+    }
+
+    private static long ExtractBits(string? data)
+    {
+        if (string.IsNullOrEmpty(data))
+            return 0;
+        try
+        {
+            return JObject.Parse(data)["bits"]?.Value<long?>() ?? 0;
+        }
+        catch (Newtonsoft.Json.JsonException)
+        {
+            return 0;
+        }
     }
 
     /// <summary>Whole seconds from start to end — null while the stream is live or never stamped.</summary>

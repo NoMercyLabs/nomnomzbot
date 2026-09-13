@@ -59,6 +59,16 @@ public class AnalyticsController(
         CancellationToken ct
     ) => ResultResponse(await channelAnalytics.GetSummaryAsync(channelId, from, to, ct));
 
+    /// <summary>Read the channel's activity broken out by streaming platform for a date range (D1).</summary>
+    [HttpGet("channel/by-platform")]
+    [RequireAction("analytics:read")]
+    public async Task<IActionResult> GetChannelByPlatform(
+        Guid channelId,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct
+    ) => ResultResponse(await channelAnalytics.GetPlatformSummaryAsync(channelId, from, to, ct));
+
     /// <summary>Rank the channel's top viewers by the chosen metric over a date range.</summary>
     [HttpGet("channel/top-viewers")]
     [RequireAction("analytics:read")]

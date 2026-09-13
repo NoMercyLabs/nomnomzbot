@@ -703,6 +703,16 @@
     <string name="analytics_chart_chatters">Unieke chatters per dag</string>
     <string name="analytics_chart_caption">%1$s – %2$s · piek %3$s</string>
     <string name="analytics_chart_empty">Nog geen dagelijkse gegevens.</string>
+    <string name="analytics_platform_title">Per platform</string>
+    <string name="analytics_platform_empty">Geen activiteit met platformlabel in deze periode.</string>
+    <string name="analytics_platform_col_messages">Berichten</string>
+    <string name="analytics_platform_col_chatters">Chatters</string>
+    <string name="analytics_platform_col_followers">Volgers</string>
+    <string name="analytics_platform_col_subscribers">Abonnees</string>
+    <string name="analytics_platform_col_bits">Bits</string>
+    <string name="analytics_platform_twitch">Twitch</string>
+    <string name="analytics_platform_kick">Kick</string>
+    <string name="analytics_platform_youtube">YouTube</string>
     <string name="rewards_loading">Je beloningen laden…</string>
     <string name="rewards_empty">Nog geen beloningen</string>
     <string name="rewards_error">Kon de beloningen niet laden: %1$s</string>

@@ -16,6 +16,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.PlatformSummaryEntry
 import bot.nomnomz.dashboard.core.network.StreamAnalytics
 import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
@@ -99,11 +100,14 @@ class AnalyticsController(
                 }
             val streamsDeferred =
                 async { analyticsApi.streams(channel.id) }
+            val platformDeferred =
+                async { analyticsApi.platformSummary(channel.id, from = from, to = to) }
 
             val summaryResult: ApiResult<AnalyticsSummary> = summaryDeferred.await()
             val dailyResult: ApiResult<List<DailyMetricRow>> = dailyDeferred.await()
             val topResult: ApiResult<List<TopViewerEntry>> = topDeferred.await()
             val streamsResult: ApiResult<List<StreamListItem>> = streamsDeferred.await()
+            val platformResult: ApiResult<List<PlatformSummaryEntry>> = platformDeferred.await()
 
             if (summaryResult is ApiResult.Failure) {
                 _state.value = AnalyticsState.Error(summaryResult.error.message)
@@ -116,6 +120,7 @@ class AnalyticsController(
                     daily = (dailyResult as? ApiResult.Ok)?.value ?: emptyList(),
                     topViewers = (topResult as? ApiResult.Ok)?.value ?: emptyList(),
                     streams = (streamsResult as? ApiResult.Ok)?.value ?: emptyList(),
+                    platformBreakdown = (platformResult as? ApiResult.Ok)?.value ?: emptyList(),
                 )
         }
     }
@@ -426,6 +431,11 @@ sealed interface AnalyticsState {
         val topViewers: List<TopViewerEntry> = emptyList(),
         /** The channel's stream history for the per-stream picker (newest first); empty = no recorded streams. */
         val streams: List<StreamListItem> = emptyList(),
+        /**
+         * The channel's activity broken out by streaming platform (D1). Only providers with real
+         * activity in the window appear; empty when the range has none (never a fake zero row).
+         */
+        val platformBreakdown: List<PlatformSummaryEntry> = emptyList(),
         /** The selected stream id, or null for the all-time view. */
         val selectedStreamId: String? = null,
         /** The selected stream's folded analytics — non-null only while a stream is selected and loaded. */

@@ -290,6 +290,15 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
         // set-based pass without re-branching on type. Anonymous/absent actors carry no id and stay unlinked.
         WriteActor(@event.EventType, source, data);
 
+        // The streaming platform this fact happened on (D1 — one channel, many platform connections),
+        // snapshotted from the domain event's own Provider where it carries one (IProviderScopedEvent:
+        // chat, follow, cheer, sub/resub/gift). Events with no Provider concept (raids, redemptions,
+        // moderation) are left untagged rather than defaulted, so a consumer can tell "not yet on this
+        // event" apart from a genuine Twitch fact.
+        string? provider = source["Provider"]?.Value<string>();
+        if (!string.IsNullOrEmpty(provider))
+            data["provider"] = provider;
+
         return JsonConvert.SerializeObject(data);
     }
 

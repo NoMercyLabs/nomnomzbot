@@ -64,6 +64,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.network.AnalyticsSummary
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
+import bot.nomnomz.dashboard.core.network.PlatformSummaryEntry
 import bot.nomnomz.dashboard.core.network.StreamAnalytics
 import bot.nomnomz.dashboard.core.network.StreamListItem
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
@@ -97,6 +98,16 @@ import nomnomzbot.composeapp.generated.resources.analytics_daily_title
 import nomnomzbot.composeapp.generated.resources.analytics_error
 import nomnomzbot.composeapp.generated.resources.analytics_loading
 import nomnomzbot.composeapp.generated.resources.analytics_peak_offline
+import nomnomzbot.composeapp.generated.resources.analytics_platform_col_bits
+import nomnomzbot.composeapp.generated.resources.analytics_platform_col_chatters
+import nomnomzbot.composeapp.generated.resources.analytics_platform_col_followers
+import nomnomzbot.composeapp.generated.resources.analytics_platform_col_messages
+import nomnomzbot.composeapp.generated.resources.analytics_platform_col_subscribers
+import nomnomzbot.composeapp.generated.resources.analytics_platform_empty
+import nomnomzbot.composeapp.generated.resources.analytics_platform_kick
+import nomnomzbot.composeapp.generated.resources.analytics_platform_title
+import nomnomzbot.composeapp.generated.resources.analytics_platform_twitch
+import nomnomzbot.composeapp.generated.resources.analytics_platform_youtube
 import nomnomzbot.composeapp.generated.resources.analytics_retry
 import nomnomzbot.composeapp.generated.resources.analytics_stat_bits
 import nomnomzbot.composeapp.generated.resources.analytics_stat_chatters
@@ -255,6 +266,9 @@ private fun ReadyContent(
         }
         // The daily trend charts + top viewers stay on the trailing window regardless of the stream selection.
         item { ChartsSection(daily = ready.daily) }
+        // The platform breakdown (D1 — one channel, many platform connections) — a summary-level view, so it
+        // sits with the other range-level sections rather than inside the per-stream/per-viewer drill-downs.
+        item { PlatformBreakdownSection(breakdown = ready.platformBreakdown) }
         item { DailyTrendsSection(daily = ready.daily) }
         item { TopViewersSection(topViewers = ready.topViewers) }
         // The viewer drill-down: either one viewer's profile (when opened) or the searchable, sortable, paginated
@@ -500,6 +514,113 @@ private fun ChartCard(
         }
     }
 }
+
+// The platform breakdown (D1 — one channel, many platform connections): one row per streaming platform
+// with real activity in the range. Never a placeholder row for a platform that has none — an empty list
+// (single connection, or no platform-tagged activity yet) reads as the empty state, not a fake zero row.
+@Composable
+private fun PlatformBreakdownSection(breakdown: List<PlatformSummaryEntry>) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.analytics_platform_title),
+            style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
+            color = tokens.cardForeground,
+        )
+
+        if (breakdown.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.analytics_platform_empty),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            val messagesLabel: String = stringResource(Res.string.analytics_platform_col_messages)
+            val chattersLabel: String = stringResource(Res.string.analytics_platform_col_chatters)
+            val followersLabel: String = stringResource(Res.string.analytics_platform_col_followers)
+            val subscribersLabel: String = stringResource(Res.string.analytics_platform_col_subscribers)
+            val bitsLabel: String = stringResource(Res.string.analytics_platform_col_bits)
+
+            Card(modifier = Modifier.fillMaxWidth()) {
+                breakdown.forEachIndexed { index: Int, entry: PlatformSummaryEntry ->
+                    if (index > 0) Separator()
+                    PlatformRow(
+                        providerLabel = platformLabel(entry.provider),
+                        messagesLabel = messagesLabel,
+                        messages = entry.totalMessages.toString(),
+                        chattersLabel = chattersLabel,
+                        chatters = entry.uniqueChatters.toString(),
+                        followersLabel = followersLabel,
+                        followers = entry.newFollowers.toString(),
+                        subscribersLabel = subscribersLabel,
+                        subscribers = entry.newSubscribers.toString(),
+                        bitsLabel = bitsLabel,
+                        bits = entry.bitsCheered.toString(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+// One platform's row: its name as the row title (same weight as a viewer's name in TopViewersSection), then
+// every metric as a wrapping "label value" pair — the same compact pattern as [CompactDailyRow], which already
+// reads correctly at any width instead of a fixed weighted-column table fighting for space at phone width.
+@Composable
+private fun PlatformRow(
+    providerLabel: String,
+    messagesLabel: String,
+    messages: String,
+    chattersLabel: String,
+    chatters: String,
+    followersLabel: String,
+    followers: String,
+    subscribersLabel: String,
+    subscribers: String,
+    bitsLabel: String,
+    bits: String,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(
+            text = providerLabel,
+            style = typography.base.copy(fontWeight = FontWeight.SemiBold),
+            color = tokens.cardForeground,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+        ) {
+            CompactMetric(messagesLabel, messages)
+            CompactMetric(chattersLabel, chatters)
+            CompactMetric(followersLabel, followers)
+            CompactMetric(subscribersLabel, subscribers)
+            CompactMetric(bitsLabel, bits)
+        }
+    }
+}
+
+/** The provider key's localized display name — an unrecognized future key falls back to itself. */
+@Composable
+private fun platformLabel(provider: String): String =
+    when (provider) {
+        "twitch" -> stringResource(Res.string.analytics_platform_twitch)
+        "kick" -> stringResource(Res.string.analytics_platform_kick)
+        "youtube" -> stringResource(Res.string.analytics_platform_youtube)
+        else -> provider
+    }
 
 @Composable
 private fun DailyTrendsSection(daily: List<DailyMetricRow>) {

@@ -141,6 +141,112 @@ public sealed class ChannelAnalyticsServiceTests
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
     }
 
+    // ── Platform breakdown (D1 — one channel, many platform connections) ─────
+
+    [Fact]
+    public async Task GetPlatformSummary_splits_messages_chatters_follows_subs_and_bits_by_provider()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        DateTimeOffset day = new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero);
+
+        // Twitch: 2 messages from 1 chatter, 1 follow, 1 sub, 100 bits.
+        db.ChatMessages.AddRange(
+            ChatMessageOnProvider("t-1", "twitch", "viewer-a", day),
+            ChatMessageOnProvider("t-2", "twitch", "viewer-a", day.AddMinutes(1))
+        );
+        db.ChannelEvents.AddRange(
+            EventRowWithProvider("e-follow-tw", "channel.follow", "twitch", day),
+            EventRowWithProvider("e-sub-tw", "channel.subscribe", "twitch", day),
+            EventRowWithProvider("e-cheer-tw", "channel.cheer", "twitch", day, bits: 100)
+        );
+
+        // Kick: 1 message from 1 (different) chatter, 1 follow, 50 bits-equivalent.
+        db.ChatMessages.Add(ChatMessageOnProvider("k-1", "kick", "viewer-b", day));
+        db.ChannelEvents.AddRange(
+            EventRowWithProvider("e-follow-kick", "channel.follow", "kick", day),
+            EventRowWithProvider("e-cheer-kick", "channel.cheer", "kick", day, bits: 50)
+        );
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<ChannelAnalyticsPlatformSummaryDto> breakdown = (
+            await sut.GetPlatformSummaryAsync(Channel, new(2026, 6, 21), new(2026, 6, 21))
+        ).Value;
+
+        breakdown.Should().HaveCount(2, "only providers with real activity in range appear");
+        ChannelAnalyticsPlatformSummaryDto twitch = breakdown.Single(d => d.Provider == "twitch");
+        twitch.TotalMessages.Should().Be(2);
+        twitch.UniqueChatters.Should().Be(1);
+        twitch.NewFollowers.Should().Be(1);
+        twitch.NewSubscribers.Should().Be(1);
+        twitch.BitsCheered.Should().Be(100);
+
+        ChannelAnalyticsPlatformSummaryDto kick = breakdown.Single(d => d.Provider == "kick");
+        kick.TotalMessages.Should().Be(1);
+        kick.UniqueChatters.Should().Be(1);
+        kick.NewFollowers.Should().Be(1);
+        kick.NewSubscribers.Should().Be(0);
+        kick.BitsCheered.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task GetPlatformSummary_never_lists_a_platform_with_no_activity_in_range()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        db.ChatMessages.Add(
+            ChatMessageOnProvider(
+                "t-1",
+                "twitch",
+                "viewer-a",
+                new(2026, 6, 21, 12, 0, 0, TimeSpan.Zero)
+            )
+        );
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<ChannelAnalyticsPlatformSummaryDto> breakdown = (
+            await sut.GetPlatformSummaryAsync(Channel, new(2026, 6, 21), new(2026, 6, 21))
+        ).Value;
+
+        breakdown.Should().ContainSingle();
+        breakdown[0].Provider.Should().Be("twitch");
+    }
+
+    private static NomNomzBot.Domain.Chat.Entities.ChatMessage ChatMessageOnProvider(
+        string id,
+        string provider,
+        string userId,
+        DateTimeOffset at
+    ) =>
+        new()
+        {
+            Id = id,
+            BroadcasterId = Channel,
+            Provider = provider,
+            UserId = userId,
+            Username = userId,
+            DisplayName = userId,
+            UserType = "viewer",
+            Message = "hi",
+            CreatedAt = at.UtcDateTime,
+        };
+
+    private static NomNomzBot.Domain.Identity.Entities.ChannelEvent EventRowWithProvider(
+        string id,
+        string type,
+        string provider,
+        DateTimeOffset at,
+        int? bits = null
+    ) =>
+        new()
+        {
+            Id = id,
+            ChannelId = Channel,
+            Type = type,
+            CreatedAt = at.UtcDateTime,
+            Data = bits is { } b
+                ? $$"""{"provider":"{{provider}}","bits":{{b}}}"""
+                : $$"""{"provider":"{{provider}}"}""",
+        };
+
     // ── Per-stream views ("stream by stream, not all-time") ──────────────────
 
     private static readonly DateTimeOffset StreamStart = new(2026, 7, 15, 18, 0, 0, TimeSpan.Zero);
