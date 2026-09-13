@@ -42,12 +42,15 @@ separately here.
 - [ ] **Design forks on shipped backends** (each a genuine owner/product decision — building blind is
   the "rushed/yolo" failure the owner flagged): **pipelines 6-surface unification** (one trigger→action
   model across commands/event-responses/chat-triggers/timers/redemptions/webhooks — a large refactor);
-  **community reposition** (loyalty view vs merge away); **data-sources push-bridge** payload contract;
-  **federation transport** (mTLS/OIDC); **cross-platform ban fan-out** — the grouping model is
-  decided: D1 one channel, many platform connections (see `PRODUCT-ALIGNMENT.md`), built in
-  `SHORTCOMINGS-EXECUTION-PLAN.md` Tier 6.1 (one ban → every platform connection of the channel);
-  **import** feasibility for Streamer.bot (`.sb`) + provider overlays (opaque formats). (Resolved this
-  session: pick-lists rename ✓, games/commands precedence ✓.)
+  **data-sources push-bridge** payload contract; **federation transport** (mTLS/OIDC);
+  **cross-platform ban fan-out** — the grouping model is decided: D1 one channel, many platform
+  connections (see `PRODUCT-ALIGNMENT.md`), built in `SHORTCOMINGS-EXECUTION-PLAN.md` Tier 6.1 (one
+  ban → every platform connection of the channel); **import** feasibility for Streamer.bot (`.sb`) +
+  provider overlays (opaque formats). (Resolved: pick-lists rename ✓, games/commands precedence ✓;
+  **community reposition resolved by the 2026-09-09 Community rework** — built as its own standalone
+  Directory+Profile page (identity/standing, moderation history, economy, permits, shoutout/raid/
+  TTS-voice overrides, command usage, quotes), not merged away — that IS the "keep it as its own
+  page" answer to this fork, confirmed against the shipped screens 09-13.)
 
 ## new issues found
 - [ ] **OBS real-in-the-loop smoke — OWNER-run on a real OBS** (the deterministic legs are done:
