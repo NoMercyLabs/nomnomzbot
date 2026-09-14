@@ -18,6 +18,7 @@ val DashboardGlyph: DrawableResource = AppIcons.GridInterfaceHeader
 val ChatGlyph: DrawableResource = AppIcons.Comments
 val CommandsGlyph: DrawableResource = AppIcons.Terminal
 val EventResponsesGlyph: DrawableResource = AppIcons.MessageSettings
+val VoiceTriggersGlyph: DrawableResource = AppIcons.Speaker
 val PipelinesGlyph: DrawableResource = AppIcons.FlowChart
 val TimersGlyph: DrawableResource = AppIcons.TimerClock
 val QuotesGlyph: DrawableResource = AppIcons.CreativeQuoteOpen

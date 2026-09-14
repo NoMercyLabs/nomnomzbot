@@ -87,6 +87,8 @@ import bot.nomnomz.dashboard.core.io.JournalFileBridge
 import bot.nomnomz.dashboard.core.network.RestChatApi
 import bot.nomnomz.dashboard.core.network.ChatTriggersApi
 import bot.nomnomz.dashboard.core.network.RestChatTriggersApi
+import bot.nomnomz.dashboard.core.network.VoiceTriggersApi
+import bot.nomnomz.dashboard.core.network.RestVoiceTriggersApi
 import bot.nomnomz.dashboard.core.network.RestCommandsApi
 import bot.nomnomz.dashboard.core.network.RestCommunityApi
 import bot.nomnomz.dashboard.core.network.RestDiscordApi
@@ -176,6 +178,7 @@ import bot.nomnomz.dashboard.feature.analytics.state.AnalyticsController
 import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersController
+import bot.nomnomz.dashboard.feature.voicetriggers.state.VoiceTriggersController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.community.state.ViewerProfileController
@@ -331,6 +334,7 @@ class AppGraph {
     val viewerDataApi: ViewerDataApi = RestViewerDataApi(apiClient)
     val commandsApi: CommandsApi = RestCommandsApi(apiClient)
     val chatTriggersApi: ChatTriggersApi = RestChatTriggersApi(apiClient)
+    val voiceTriggersApi: VoiceTriggersApi = RestVoiceTriggersApi(apiClient)
     val builtinsApi: BuiltinsApi = RestBuiltinsApi(apiClient)
     val timersApi: TimersApi = RestTimersApi(apiClient)
     val moderationApi: ModerationApi = RestModerationApi(apiClient)
@@ -522,6 +526,14 @@ class AppGraph {
             channelsApi = channelsApi,
             chatTriggersApi = chatTriggersApi,
             pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
+        )
+
+    val voiceTriggersController: VoiceTriggersController =
+        VoiceTriggersController(
+            channelsApi = channelsApi,
+            voiceTriggersApi = voiceTriggersApi,
+            assetsApi = assetsApi,
             feedback = feedbackController,
         )
 

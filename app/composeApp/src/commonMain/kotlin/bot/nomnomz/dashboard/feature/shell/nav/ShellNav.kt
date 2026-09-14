@@ -23,6 +23,7 @@ enum class ShellRoute {
     MultiChat,
     Commands,
     ChatTriggers,
+    VoiceTriggers,
     EventResponses,
     Quotes,
     PickLists,
@@ -124,6 +125,9 @@ object ShellNav {
             // Chat triggers (keyword auto-replies) sit beside Commands in the Chat group; read at Moderator, write
             // at Editor, governed by the `chattriggers:read` action key so a broadcaster can delegate reading.
             NavPage(ShellRoute.ChatTriggers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "chattriggers:read"),
+            // Voice triggers (spoken-word counters + overlay stickers) sit beside Chat Triggers — same
+            // floors, same `voicetriggers:*` action-key convention.
+            NavPage(ShellRoute.VoiceTriggers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "voicetriggers:read"),
             NavPage(ShellRoute.EventResponses, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "eventresponses:read"),
             NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
             NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),

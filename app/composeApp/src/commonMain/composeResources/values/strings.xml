@@ -166,6 +166,7 @@
     <string name="shell_nav_dashboard">Dashboard</string>
     <string name="shell_nav_commands">Commands</string>
     <string name="shell_nav_chat_triggers">Chat Triggers</string>
+    <string name="shell_nav_voice_triggers">Voice Triggers</string>
     <string name="shell_nav_timers">Timers</string>
     <string name="shell_nav_moderation">Moderation</string>
     <string name="shell_nav_moderation_queue">Review Queue</string>
@@ -1901,6 +1902,9 @@
     <string name="feedback_chat_trigger_saved">Chat trigger saved</string>
     <string name="feedback_chat_trigger_deleted">Chat trigger deleted</string>
     <string name="feedback_chat_trigger_save_failed">Couldn't save the chat trigger: %1$s</string>
+    <string name="feedback_voice_trigger_saved">Voice trigger saved</string>
+    <string name="feedback_voice_trigger_deleted">Voice trigger deleted</string>
+    <string name="feedback_voice_trigger_save_failed">Couldn't save the voice trigger: %1$s</string>
     <string name="feedback_event_response_saved">Event response saved</string>
     <string name="feedback_event_response_reset">Event response reset to default</string>
     <string name="feedback_event_response_save_failed">Couldn't save the event response: %1$s</string>
@@ -2127,6 +2131,41 @@
     <string name="chattriggers_dialog_create">Add</string>
     <string name="chattriggers_dialog_save">Save</string>
     <string name="chattriggers_dialog_cancel">Cancel</string>
+    <string name="voicetriggers_loading">Loading voice triggers…</string>
+    <string name="voicetriggers_empty">No voice triggers yet. Add the first one.</string>
+    <string name="voicetriggers_error">Couldn't load voice triggers: %1$s</string>
+    <string name="voicetriggers_retry">Retry</string>
+    <string name="voicetriggers_helper">Say a word out loud and the bot shows a sticker on stream and counts it — e.g. "technically" → sticker + count up. Needs the voice-listener page open (see below).</string>
+    <string name="voicetriggers_new_action">New trigger</string>
+    <string name="voicetriggers_enabled">Enabled</string>
+    <string name="voicetriggers_disabled">Disabled</string>
+    <string name="voicetriggers_cooldown">%1$ds cooldown</string>
+    <string name="voicetriggers_count">Said %1$d times</string>
+    <string name="voicetriggers_edit_action">Edit trigger %1$s</string>
+    <string name="voicetriggers_delete_action">Delete trigger %1$s</string>
+    <string name="voicetriggers_toggle_action">Toggle trigger %1$s</string>
+    <string name="voicetriggers_row_description">%1$s, %2$s, %3$s</string>
+    <string name="voicetriggers_delete_title">Delete voice trigger?</string>
+    <string name="voicetriggers_delete_message">Delete the trigger for '%1$s'? This can't be undone.</string>
+    <string name="voicetriggers_delete_confirm">Delete</string>
+    <string name="voicetriggers_delete_cancel">Cancel</string>
+    <string name="voicetriggers_dialog_create_title">New voice trigger</string>
+    <string name="voicetriggers_dialog_edit_title">Edit voice trigger</string>
+    <string name="voicetriggers_dialog_word_label">Word or phrase to listen for</string>
+    <string name="voicetriggers_dialog_starting_count_label">Starting count</string>
+    <string name="voicetriggers_dialog_starting_count_help">Set once, e.g. to match a number you already have from another bot. Can't be changed later — only the live count moves from here.</string>
+    <string name="voicetriggers_dialog_cooldown_label">Cooldown (seconds)</string>
+    <string name="voicetriggers_dialog_sticker_label">Sticker</string>
+    <string name="voicetriggers_dialog_sticker_none">None</string>
+    <string name="voicetriggers_dialog_enabled_label">Enabled</string>
+    <string name="voicetriggers_dialog_create">Add</string>
+    <string name="voicetriggers_dialog_save">Save</string>
+    <string name="voicetriggers_dialog_cancel">Cancel</string>
+    <string name="voicetriggers_listener_title">Voice listener</string>
+    <string name="voicetriggers_listener_explainer">Open this link in a REAL Chrome browser tab and leave it running while you stream — not as an OBS source. OBS's browser source can't listen to your microphone at all, but a normal Chrome tab can, for free, using Chrome's own built-in speech recognition. It listens for your trigger words and tells the bot when it hears one.</string>
+    <string name="voicetriggers_listener_copy">Copy listener link</string>
+    <string name="voicetriggers_listener_copied">Copied!</string>
+    <string name="voicetriggers_listener_unavailable">Couldn't load your listener link. Reload this page to try again.</string>
 
     <!-- Giveaways page — campaigns + secret-safe code pools (giveaways.md §6). -->
     <string name="giveaways_row_type">Giveaway</string>
@@ -4724,6 +4763,7 @@
     <string name="widget_option_events_supporter_membership">Membership</string>
     <string name="widget_option_events_supporter_merch">Merch</string>
     <string name="widget_option_events_supporter_charity">Charity</string>
+    <string name="widget_option_events_voice_trigger">Voice trigger</string>
     <string name="widget_option_providers_twitch">Twitch</string>
     <string name="widget_option_providers_bttv">BetterTTV</string>
     <string name="widget_option_providers_ffz">FrankerFaceZ</string>

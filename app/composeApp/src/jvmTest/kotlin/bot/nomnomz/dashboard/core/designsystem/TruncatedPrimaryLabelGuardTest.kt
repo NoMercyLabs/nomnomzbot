@@ -79,6 +79,9 @@ class TruncatedPrimaryLabelGuardTest {
             "tts/ui/TtsScreen.kt" to 1,
             "webhooks/ui/WebhooksScreen.kt" to 5,
             "widgets/ui/WidgetsScreen.kt" to 3,
+            // The count/cooldown status line under the trigger's word — secondary, never the row's own
+            // primary label (the word itself has no maxLines/Ellipsis).
+            "voicetriggers/ui/VoiceTriggersScreen.kt" to 1,
         )
 
     private val callStart: Regex = Regex("""\b(Text|EmojiText)\(""")

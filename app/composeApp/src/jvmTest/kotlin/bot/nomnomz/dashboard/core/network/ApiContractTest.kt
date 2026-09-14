@@ -210,6 +210,7 @@ class ApiContractTest {
             CreatePickListBody.serializer() to "CreatePickListRequest",
             UpdatePickListBody.serializer() to "UpdatePickListRequest",
             ChatTrigger.serializer() to "ChatTriggerDto",
+            VoiceTrigger.serializer() to "VoiceTriggerDto",
             CreateChatTriggerBody.serializer() to "CreateChatTriggerRequest",
             UpdateChatTriggerBody.serializer() to "UpdateChatTriggerRequest",
             Giveaway.serializer() to "GiveawayDto",

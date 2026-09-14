@@ -99,6 +99,7 @@ import bot.nomnomz.dashboard.feature.analytics.ui.AnalyticsScreen
 import bot.nomnomz.dashboard.feature.chat.ui.ChatScreen
 import bot.nomnomz.dashboard.feature.chat.ui.MultiChatScreen
 import bot.nomnomz.dashboard.feature.chattriggers.ui.ChatTriggersScreen
+import bot.nomnomz.dashboard.feature.voicetriggers.ui.VoiceTriggersScreen
 import bot.nomnomz.dashboard.feature.commands.ui.CommandsScreen
 import bot.nomnomz.dashboard.feature.community.ui.CommunityScreen
 import bot.nomnomz.dashboard.feature.eventresponses.ui.EventResponsesScreen
@@ -174,6 +175,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat
 import nomnomzbot.composeapp.generated.resources.shell_nav_multichat
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat_triggers
+import nomnomzbot.composeapp.generated.resources.shell_nav_voice_triggers
 import nomnomzbot.composeapp.generated.resources.shell_nav_commands
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
 import nomnomzbot.composeapp.generated.resources.shell_nav_dashboard
@@ -596,6 +598,8 @@ private fun ShellContent(
                 )
             ShellRoute.ChatTriggers ->
                 ChatTriggersScreen(controller = graph.chatTriggersController, role = role, templateHelpersApi = graph.templateHelpersApi)
+            ShellRoute.VoiceTriggers ->
+                VoiceTriggersScreen(controller = graph.voiceTriggersController, role = role)
             ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role, templateHelpersApi = graph.templateHelpersApi)
             ShellRoute.Quotes -> QuotesScreen(
                     controller = graph.quotesController,
@@ -1467,6 +1471,7 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.MultiChat -> CommunityGlyph
         ShellRoute.Commands -> CommandsGlyph
         ShellRoute.ChatTriggers -> EventResponsesGlyph
+        ShellRoute.VoiceTriggers -> VoiceTriggersGlyph
         ShellRoute.EventResponses -> EventResponsesGlyph
         ShellRoute.Pipelines -> PipelinesGlyph
         ShellRoute.Timers -> TimersGlyph
@@ -1518,6 +1523,7 @@ private fun ShellRoute.label(): String =
             ShellRoute.MultiChat -> Res.string.shell_nav_multichat
             ShellRoute.Commands -> Res.string.shell_nav_commands
             ShellRoute.ChatTriggers -> Res.string.shell_nav_chat_triggers
+            ShellRoute.VoiceTriggers -> Res.string.shell_nav_voice_triggers
             ShellRoute.EventResponses -> Res.string.shell_nav_event_responses
             ShellRoute.Quotes -> Res.string.shell_nav_quotes
             ShellRoute.PickLists -> Res.string.shell_nav_pick_lists

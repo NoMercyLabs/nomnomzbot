@@ -163,6 +163,7 @@
     <string name="shell_nav_dashboard">Dashboard</string>
     <string name="shell_nav_commands">Commando's</string>
     <string name="shell_nav_chat_triggers">Chattriggers</string>
+    <string name="shell_nav_voice_triggers">Stemtriggers</string>
     <string name="shell_nav_timers">Timers</string>
     <string name="shell_nav_moderation">Moderatie</string>
     <string name="shell_nav_moderation_queue">Wachtrij</string>
@@ -1896,6 +1897,9 @@
     <string name="feedback_chat_trigger_saved">Chattrigger opgeslagen</string>
     <string name="feedback_chat_trigger_deleted">Chattrigger verwijderd</string>
     <string name="feedback_chat_trigger_save_failed">Chattrigger opslaan mislukt: %1$s</string>
+    <string name="feedback_voice_trigger_saved">Stemtrigger opgeslagen</string>
+    <string name="feedback_voice_trigger_deleted">Stemtrigger verwijderd</string>
+    <string name="feedback_voice_trigger_save_failed">Stemtrigger opslaan mislukt: %1$s</string>
     <string name="feedback_event_response_saved">Eventreactie opgeslagen</string>
     <string name="feedback_event_response_reset">Eventreactie teruggezet naar standaard</string>
     <string name="feedback_event_response_save_failed">Eventreactie opslaan mislukt: %1$s</string>
@@ -2122,6 +2126,41 @@
     <string name="chattriggers_dialog_create">Toevoegen</string>
     <string name="chattriggers_dialog_save">Opslaan</string>
     <string name="chattriggers_dialog_cancel">Annuleren</string>
+    <string name="voicetriggers_loading">Stemtriggers laden…</string>
+    <string name="voicetriggers_empty">Nog geen stemtriggers. Voeg de eerste toe.</string>
+    <string name="voicetriggers_error">Stemtriggers laden mislukt: %1$s</string>
+    <string name="voicetriggers_retry">Opnieuw proberen</string>
+    <string name="voicetriggers_helper">Zeg een woord hardop en de bot toont een sticker op stream en telt het mee — bv. "technically" → sticker + teller omhoog. Hiervoor moet de spraaklistener-pagina open staan (zie hieronder).</string>
+    <string name="voicetriggers_new_action">Nieuwe trigger</string>
+    <string name="voicetriggers_enabled">Ingeschakeld</string>
+    <string name="voicetriggers_disabled">Uitgeschakeld</string>
+    <string name="voicetriggers_cooldown">%1$ds afkoeltijd</string>
+    <string name="voicetriggers_count">%1$d keer gezegd</string>
+    <string name="voicetriggers_edit_action">Trigger %1$s bewerken</string>
+    <string name="voicetriggers_delete_action">Trigger %1$s verwijderen</string>
+    <string name="voicetriggers_toggle_action">Trigger %1$s omschakelen</string>
+    <string name="voicetriggers_row_description">%1$s, %2$s, %3$s</string>
+    <string name="voicetriggers_delete_title">Stemtrigger verwijderen?</string>
+    <string name="voicetriggers_delete_message">De trigger voor '%1$s' verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="voicetriggers_delete_confirm">Verwijderen</string>
+    <string name="voicetriggers_delete_cancel">Annuleren</string>
+    <string name="voicetriggers_dialog_create_title">Nieuwe stemtrigger</string>
+    <string name="voicetriggers_dialog_edit_title">Stemtrigger bewerken</string>
+    <string name="voicetriggers_dialog_word_label">Woord of zin om op te letten</string>
+    <string name="voicetriggers_dialog_starting_count_label">Startaantal</string>
+    <string name="voicetriggers_dialog_starting_count_help">Eenmalig instellen, bv. om een aantal over te nemen van een andere bot. Kan later niet meer gewijzigd worden — alleen de live teller loopt vanaf hier verder.</string>
+    <string name="voicetriggers_dialog_cooldown_label">Afkoeltijd (seconden)</string>
+    <string name="voicetriggers_dialog_sticker_label">Sticker</string>
+    <string name="voicetriggers_dialog_sticker_none">Geen</string>
+    <string name="voicetriggers_dialog_enabled_label">Ingeschakeld</string>
+    <string name="voicetriggers_dialog_create">Toevoegen</string>
+    <string name="voicetriggers_dialog_save">Opslaan</string>
+    <string name="voicetriggers_dialog_cancel">Annuleren</string>
+    <string name="voicetriggers_listener_title">Spraaklistener</string>
+    <string name="voicetriggers_listener_explainer">Open deze link in een ECHTE Chrome-browsertab en laat hem openstaan tijdens het streamen — niet als OBS-bron. De browserbron van OBS kan helemaal niet naar je microfoon luisteren, maar een gewone Chrome-tab wel, gratis, met Chrome's eigen ingebouwde spraakherkenning. Hij luistert naar je triggerwoorden en meldt het aan de bot zodra hij er een hoort.</string>
+    <string name="voicetriggers_listener_copy">Listenerlink kopiëren</string>
+    <string name="voicetriggers_listener_copied">Gekopieerd!</string>
+    <string name="voicetriggers_listener_unavailable">Je listenerlink kon niet worden geladen. Herlaad deze pagina om het opnieuw te proberen.</string>
 
     <!-- Giveaways-pagina — campagnes + veilige codevoorraden (giveaways.md §6). -->
     <string name="giveaways_row_type">Weggeefactie</string>
@@ -4708,6 +4747,7 @@
     <string name="widget_option_events_supporter_membership">Lidmaatschap</string>
     <string name="widget_option_events_supporter_merch">Merchandise</string>
     <string name="widget_option_events_supporter_charity">Goed doel</string>
+    <string name="widget_option_events_voice_trigger">Spraaktrigger</string>
     <string name="widget_option_providers_twitch">Twitch</string>
     <string name="widget_option_providers_bttv">BetterTTV</string>
     <string name="widget_option_providers_ffz">FrankerFaceZ</string>
