@@ -115,6 +115,8 @@ public sealed class AdminSupportAuthorizationTests
     [InlineData(nameof(AdminSupportController.SearchPeople))]
     [InlineData(nameof(AdminSupportController.GetPerson))]
     [InlineData(nameof(AdminSupportController.GetPersonHistory))]
+    [InlineData(nameof(AdminSupportController.GetTenantCommands))]
+    [InlineData(nameof(AdminSupportController.GetTenantPipelines))]
     public void All_support_desk_actions_are_gated_on_the_support_view_key(string methodName)
     {
         PolicyOf(typeof(AdminSupportController), methodName)

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
@@ -117,6 +118,71 @@ public class AdminSupportController(
                 pagination,
                 ct
             );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>
+    /// The custom (non-platform) commands one tenant has authored for themselves — investigation-only,
+    /// read-only. "Every system command" is already covered by the platform content-authoring plane; this is
+    /// "every command a streamer built for themselves", not visible anywhere else on the admin plane.
+    /// </summary>
+    [HttpGet("tenants/{channelId:guid}/commands")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.UserSupportView)]
+    [ProducesResponseType<PaginatedResponse<CommandListItem>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTenantCommands(
+        Guid channelId,
+        [FromQuery] string justification,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PagedList<CommandListItem>>(null!));
+
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<CommandListItem>> result = await support.GetTenantCommandsAsync(
+            acting.Value,
+            channelId,
+            justification,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>
+    /// The custom (non-platform-sourced) pipelines one tenant has built for themselves — same investigation
+    /// purpose and gate as <see cref="GetTenantCommands"/>.
+    /// </summary>
+    [HttpGet("tenants/{channelId:guid}/pipelines")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.UserSupportView)]
+    [ProducesResponseType<PaginatedResponse<PipelineListItemDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTenantPipelines(
+        Guid channelId,
+        [FromQuery] string justification,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PagedList<PipelineListItemDto>>(null!));
+
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<PipelineListItemDto>> result = await support.GetTenantPipelinesAsync(
+            acting.Value,
+            channelId,
+            justification,
+            pagination,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

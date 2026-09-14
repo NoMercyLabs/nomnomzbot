@@ -12,11 +12,13 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity;
@@ -27,6 +29,7 @@ using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NSubstitute;
+using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -607,5 +610,189 @@ public sealed class AdminSupportServiceTests
         result.IsSuccess.Should().BeTrue("no history is an EMPTY state, never an error");
         result.Value.Items.Should().BeEmpty();
         result.Value.TotalCount.Should().Be(0);
+    }
+
+    private static void SeedCommand(
+        AuthDbContext db,
+        Guid broadcasterId,
+        string name,
+        bool isPlatform
+    )
+    {
+        db.Commands.Add(
+            new Command
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = broadcasterId,
+                Name = name,
+                NameNormalized = name.ToLowerInvariant(),
+                Tier = "template",
+                TemplateResponse = "hi",
+                IsPlatform = isPlatform,
+            }
+        );
+    }
+
+    private static void SeedPipeline(
+        AuthDbContext db,
+        Guid broadcasterId,
+        string name,
+        Guid? platformSourceDefinitionId
+    )
+    {
+        db.Pipelines.Add(
+            new PipelineEntity
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = broadcasterId,
+                Name = name,
+                PlatformSourceDefinitionId = platformSourceDefinitionId,
+            }
+        );
+    }
+
+    [Fact]
+    public async Task Tenant_commands_shows_only_that_tenants_own_custom_commands()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+
+        Guid targetOwner = SeedViewer(db, "target_streamer", "tw-target");
+        Guid targetTenant = SeedTenant(db, "target_streamer", targetOwner);
+        Guid otherOwner = SeedViewer(db, "other_streamer", "tw-other");
+        Guid otherTenant = SeedTenant(db, "other_streamer", otherOwner);
+
+        SeedCommand(db, targetTenant, "!hug", isPlatform: false);
+        SeedCommand(db, targetTenant, "!shoutout", isPlatform: true);
+        SeedCommand(db, otherTenant, "!hug", isPlatform: false);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<CommandListItem>> result = await sut.GetTenantCommandsAsync(
+            operatorPrincipal,
+            targetTenant,
+            Why,
+            Page
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Items.Should()
+            .ContainSingle()
+            .Which.Name.Should()
+            .Be("!hug", "the platform command and the OTHER tenant's command must not leak in");
+    }
+
+    [Fact]
+    public async Task Tenant_commands_without_the_support_key_is_refused()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.TenantRead);
+        Guid owner = SeedViewer(db, "target_streamer", "tw-target");
+        Guid tenant = SeedTenant(db, "target_streamer", owner);
+        SeedCommand(db, tenant, "!hug", isPlatform: false);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<CommandListItem>> result = await sut.GetTenantCommandsAsync(
+            operatorPrincipal,
+            tenant,
+            Why,
+            Page
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task Tenant_commands_requires_a_justification()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+        Guid owner = SeedViewer(db, "target_streamer", "tw-target");
+        Guid tenant = SeedTenant(db, "target_streamer", owner);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<CommandListItem>> result = await sut.GetTenantCommandsAsync(
+            operatorPrincipal,
+            tenant,
+            "  ",
+            Page
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task Tenant_commands_for_an_unknown_channel_is_not_found()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<CommandListItem>> result = await sut.GetTenantCommandsAsync(
+            operatorPrincipal,
+            Guid.NewGuid(),
+            Why,
+            Page
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Tenant_pipelines_shows_only_that_tenants_own_built_pipelines()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.UserSupportView);
+
+        Guid targetOwner = SeedViewer(db, "target_streamer", "tw-target");
+        Guid targetTenant = SeedTenant(db, "target_streamer", targetOwner);
+        Guid otherOwner = SeedViewer(db, "other_streamer", "tw-other");
+        Guid otherTenant = SeedTenant(db, "other_streamer", otherOwner);
+
+        SeedPipeline(db, targetTenant, "raid-hype", platformSourceDefinitionId: null);
+        SeedPipeline(db, targetTenant, "welcome-sub", Guid.NewGuid());
+        SeedPipeline(db, otherTenant, "raid-hype", platformSourceDefinitionId: null);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<PipelineListItemDto>> result = await sut.GetTenantPipelinesAsync(
+            operatorPrincipal,
+            targetTenant,
+            Why,
+            Page
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Items.Should()
+            .ContainSingle()
+            .Which.Name.Should()
+            .Be(
+                "raid-hype",
+                "the platform-sourced pipeline and the OTHER tenant's pipeline must not leak in"
+            );
+    }
+
+    [Fact]
+    public async Task Tenant_pipelines_without_the_support_key_is_refused()
+    {
+        (AdminSupportService sut, AuthDbContext db, _) = Build();
+        Guid operatorPrincipal = SeedOperator(db, IamPermissionKeys.TenantRead);
+        Guid owner = SeedViewer(db, "target_streamer", "tw-target");
+        Guid tenant = SeedTenant(db, "target_streamer", owner);
+        SeedPipeline(db, tenant, "raid-hype", platformSourceDefinitionId: null);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<PipelineListItemDto>> result = await sut.GetTenantPipelinesAsync(
+            operatorPrincipal,
+            tenant,
+            Why,
+            Page
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
     }
 }

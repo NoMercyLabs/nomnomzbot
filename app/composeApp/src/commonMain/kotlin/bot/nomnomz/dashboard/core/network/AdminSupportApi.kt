@@ -189,6 +189,26 @@ interface AdminSupportApi {
         page: Int = 1,
         pageSize: Int = 25,
     ): ApiResult<PaginatedEnvelope<SupportPersonHistoryEntry>>
+
+    /**
+     * The custom (non-platform) commands ONE tenant has authored for themselves — investigation-only,
+     * read-only. Distinct from the platform content-authoring plane, which only ever shows the shared
+     * system templates.
+     */
+    suspend fun getTenantCommands(
+        channelId: String,
+        justification: String,
+        page: Int = 1,
+        pageSize: Int = 100,
+    ): ApiResult<PaginatedEnvelope<CommandSummary>>
+
+    /** The custom (non-platform-sourced) pipelines ONE tenant has built for themselves. Same purpose/gate. */
+    suspend fun getTenantPipelines(
+        channelId: String,
+        justification: String,
+        page: Int = 1,
+        pageSize: Int = 100,
+    ): ApiResult<PaginatedEnvelope<PipelineSummary>>
 }
 
 class AdminSupportApiImpl(private val client: ApiClient) : AdminSupportApi {
@@ -219,6 +239,28 @@ class AdminSupportApiImpl(private val client: ApiClient) : AdminSupportApi {
     ): ApiResult<PaginatedEnvelope<SupportPersonHistoryEntry>> =
         client.getDirect(
             "api/v1/admin/support/people/$subjectUserId/history" +
+                "?justification=${justification.encodeQuery()}&page=$page&pageSize=$pageSize",
+        )
+
+    override suspend fun getTenantCommands(
+        channelId: String,
+        justification: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<CommandSummary>> =
+        client.getDirect(
+            "api/v1/admin/support/tenants/$channelId/commands" +
+                "?justification=${justification.encodeQuery()}&page=$page&pageSize=$pageSize",
+        )
+
+    override suspend fun getTenantPipelines(
+        channelId: String,
+        justification: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<PipelineSummary>> =
+        client.getDirect(
+            "api/v1/admin/support/tenants/$channelId/pipelines" +
                 "?justification=${justification.encodeQuery()}&page=$page&pageSize=$pageSize",
         )
 }

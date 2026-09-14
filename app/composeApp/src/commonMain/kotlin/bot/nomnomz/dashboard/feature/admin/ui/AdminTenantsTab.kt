@@ -54,6 +54,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
+import bot.nomnomz.dashboard.core.network.CommandSummary
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import bot.nomnomz.dashboard.feature.admin.state.ImpersonationRefusal
@@ -67,6 +69,19 @@ import nomnomzbot.composeapp.generated.resources.admin_impersonate_justification
 import nomnomzbot.composeapp.generated.resources.admin_impersonate_title
 import nomnomzbot.composeapp.generated.resources.admin_tenant_ban
 import nomnomzbot.composeapp.generated.resources.admin_tenant_close
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_command_detail
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_desc
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_empty_commands
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_empty_pipelines
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_error
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_justification
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_load
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_pipeline_detail
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_pipeline_row_type
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_row_type
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_section_commands
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_section_pipelines
+import nomnomzbot.composeapp.generated.resources.admin_tenant_content_title
 import nomnomzbot.composeapp.generated.resources.admin_tenant_deployment
 import nomnomzbot.composeapp.generated.resources.admin_tenant_detail_title
 import nomnomzbot.composeapp.generated.resources.admin_tenant_empty
@@ -91,6 +106,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tenant_suspended_banner
 import nomnomzbot.composeapp.generated.resources.admin_tenant_row_type
 import nomnomzbot.composeapp.generated.resources.admin_tenant_tier
 import nomnomzbot.composeapp.generated.resources.admin_tenant_view
+import nomnomzbot.composeapp.generated.resources.admin_tenant_view_content
 import org.jetbrains.compose.resources.stringResource
 
 private const val STATUS_ACTIVE: String = "active"
@@ -172,6 +188,27 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
             onImpersonate = { impersonateFor = detail },
             onSuspend = { suspendFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
             onReinstate = { reinstateFor = state.tenants.firstOrNull { it.id == detail.id } ?: AdminTenant(detail.id, detail.name, detail.twitchChannelId, detail.status, detail.billingTierKey, false, detail.createdAt, detail.suspendedAt) },
+            onViewContent = { scope.launch { controller.openTenantContent(detail.id) } },
+        )
+    }
+
+    // Read-only investigation panel: this tenant's OWN custom commands/pipelines (support desk, gated on
+    // user:support:view). Opened from the drawer above; closing it clears the loaded rows.
+    state.tenantContentOpenFor?.let { channelId ->
+        val tenantName: String =
+            state.selectedTenant?.takeIf { it.id == channelId }?.name
+                ?: state.tenants.firstOrNull { it.id == channelId }?.name
+                ?: channelId
+        TenantContentSheet(
+            tenantName = tenantName,
+            justification = state.tenantContentJustification,
+            onJustificationChange = { controller.setTenantContentJustification(it) },
+            onLoad = { scope.launch { controller.openTenantContent(channelId) } },
+            loading = state.tenantContentLoading,
+            error = state.tenantContentError,
+            commands = state.tenantCommands,
+            pipelines = state.tenantPipelines,
+            onDismiss = { controller.closeTenantContent() },
         )
     }
 
@@ -315,6 +352,7 @@ private fun TenantDetailDrawer(
     onImpersonate: () -> Unit,
     onSuspend: () -> Unit,
     onReinstate: () -> Unit,
+    onViewContent: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -356,6 +394,137 @@ private fun TenantDetailDrawer(
                     OutlinedButton(onClick = onSuspend) { Text(text = stringResource(Res.string.admin_tenant_suspend)) }
                 }
                 OutlinedButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_tenant_close)) }
+            }
+            // Read-only investigation, not an editing surface — kept as a neutral text action, one step below
+            // the outlined suspend/reinstate lever and well below the impersonate primary.
+            TextButton(onClick = onViewContent) {
+                Text(text = stringResource(Res.string.admin_tenant_view_content))
+            }
+        }
+    }
+}
+
+/**
+ * Read-only view of ONE tenant's own custom (non-platform) commands and (non-platform-sourced) pipelines —
+ * support/moderation/abuse investigation, never an editing surface. The lookup is audited server-side, so a
+ * reason is required before [onLoad] can run.
+ */
+@Composable
+private fun TenantContentSheet(
+    tenantName: String,
+    justification: String,
+    onJustificationChange: (String) -> Unit,
+    onLoad: () -> Unit,
+    loading: Boolean,
+    error: String?,
+    commands: List<CommandSummary>,
+    pipelines: List<PipelineSummary>,
+    onDismiss: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+    val canLook: Boolean = justification.isNotBlank()
+
+    Sheet(open = true, onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s2).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.admin_tenant_content_title, tenantName),
+                style = typography.lg,
+                color = tokens.foreground,
+            )
+            Text(
+                text = stringResource(Res.string.admin_tenant_content_desc),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+
+            AppTextField(
+                value = justification,
+                onValueChange = onJustificationChange,
+                label = stringResource(Res.string.admin_tenant_content_justification),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // The one primary action in this sheet — everything else here (including Close) is a neutral
+            // outline/text action.
+            Button(onClick = onLoad, enabled = canLook) {
+                Text(text = stringResource(Res.string.admin_tenant_content_load))
+            }
+
+            error?.let { InlineError(message = stringResource(Res.string.admin_tenant_content_error, it)) }
+
+            if (loading) {
+                Spinner(color = tokens.primary)
+            } else {
+                ContentSection(
+                    title = stringResource(Res.string.admin_tenant_content_section_commands),
+                    emptyLabel = stringResource(Res.string.admin_tenant_content_empty_commands),
+                    rowTypeLabel = stringResource(Res.string.admin_tenant_content_row_type),
+                    items = commands,
+                    idOf = { it.id },
+                    nameOf = { it.name },
+                    detailOf = { stringResource(Res.string.admin_tenant_content_command_detail, it.tier, it.useCount.toInt()) },
+                )
+                ContentSection(
+                    title = stringResource(Res.string.admin_tenant_content_section_pipelines),
+                    emptyLabel = stringResource(Res.string.admin_tenant_content_empty_pipelines),
+                    rowTypeLabel = stringResource(Res.string.admin_tenant_content_pipeline_row_type),
+                    items = pipelines,
+                    idOf = { it.id },
+                    nameOf = { it.name },
+                    detailOf = { stringResource(Res.string.admin_tenant_content_pipeline_detail, it.triggerCount.toString()) },
+                )
+            }
+
+            Spacer(modifier = Modifier.height(spacing.s1))
+            OutlinedButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_tenant_close)) }
+        }
+    }
+}
+
+@Composable
+private fun <T> ContentSection(
+    title: String,
+    emptyLabel: String,
+    rowTypeLabel: String,
+    items: List<T>,
+    idOf: (T) -> String,
+    nameOf: (T) -> String,
+    detailOf: @Composable (T) -> String,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(text = title, style = typography.sm, color = tokens.mutedForeground)
+        if (items.isEmpty()) {
+            EmptyLine(emptyLabel)
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    items.forEachIndexed { index, item ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+                            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+                        ) {
+                            Text(
+                                text = resolveRowLabel(
+                                    primary = nameOf(item),
+                                    typeLabel = rowTypeLabel,
+                                    discriminatorSource = idOf(item),
+                                ),
+                                style = typography.sm,
+                                color = tokens.cardForeground,
+                            )
+                            Text(text = detailOf(item), style = typography.xs, color = tokens.mutedForeground)
+                        }
+                        if (index < items.lastIndex) Separator()
+                    }
+                }
             }
         }
     }
