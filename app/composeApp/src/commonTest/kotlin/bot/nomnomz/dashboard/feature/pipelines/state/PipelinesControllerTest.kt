@@ -1248,8 +1248,8 @@ private object StubWebhooksApi : WebhooksApi {
         ApiResult.Ok(InboundWebhook())
     override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
-    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String> =
-        ApiResult.Ok("")
+    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<InboundWebhook> =
+        ApiResult.Ok(InboundWebhook())
     override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun outboundEventCatalogue(channelId: String): ApiResult<List<OutboundEventCatalogueEntry>> =
         ApiResult.Ok(emptyList())
@@ -1261,8 +1261,8 @@ private object StubWebhooksApi : WebhooksApi {
     override suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<String> =
-        ApiResult.Ok("")
+    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<OutboundWebhookCreated> =
+        ApiResult.Ok(OutboundWebhookCreated())
     override suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult> =
         ApiResult.Ok(WebhookTestResult())
     override suspend fun outboundDeliveries(channelId: String, endpointId: String): ApiResult<List<OutboundDelivery>> =

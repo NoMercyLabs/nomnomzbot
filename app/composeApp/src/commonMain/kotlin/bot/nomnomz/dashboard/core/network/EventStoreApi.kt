@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
 // Backend routes:
 //   POST /api/v1/event-store/channels/{channelId}/export               → JSONL file (application/x-ndjson)
 //   POST /api/v1/event-store/channels/{channelId}/import               ← multipart file → StatusResponseDto<EventJournalImportSummary>
-//   POST /api/v1/event-store/channels/{channelId}/rebuild-projections  → StatusResponseDto<string> (task ID)
+//   POST /api/v1/event-store/channels/{channelId}/rebuild-projections  → StatusResponseDto<ProjectionRebuildResult[]>
 interface EventStoreApi {
     /** Exports the channel's whole event journal as raw JSONL bytes (one event envelope per line). */
     suspend fun exportJournal(channelId: String): ApiResult<ByteArray>
@@ -32,8 +32,11 @@ interface EventStoreApi {
         bytes: ByteArray,
     ): ApiResult<EventJournalImportSummary>
 
-    /** Enqueues a full projection rebuild for the channel. The backend returns a task-tracking ID. */
-    suspend fun rebuildProjections(channelId: String): ApiResult<String>
+    /**
+     * Runs a full projection rebuild for the channel to completion (synchronous — not a background task) and
+     * returns the per-projection event counts applied.
+     */
+    suspend fun rebuildProjections(channelId: String): ApiResult<List<ProjectionRebuildResult>>
 }
 
 class RestEventStoreApi(private val client: ApiClient) : EventStoreApi {
@@ -53,9 +56,16 @@ class RestEventStoreApi(private val client: ApiClient) : EventStoreApi {
             contentType = ContentType("application", "x-ndjson"),
         )
 
-    override suspend fun rebuildProjections(channelId: String): ApiResult<String> =
+    override suspend fun rebuildProjections(channelId: String): ApiResult<List<ProjectionRebuildResult>> =
         client.postEnvelope("api/v1/event-store/channels/$channelId/rebuild-projections", Unit)
 }
+
+/** One projection's rebuild outcome (backend `ProjectionRebuildResult`). */
+@Serializable
+data class ProjectionRebuildResult(
+    val projectionName: String = "",
+    val eventsApplied: Long = 0,
+)
 
 /**
  * The import outcome (backend `EventJournalImportSummary`): how many JSONL lines the file held, how many events

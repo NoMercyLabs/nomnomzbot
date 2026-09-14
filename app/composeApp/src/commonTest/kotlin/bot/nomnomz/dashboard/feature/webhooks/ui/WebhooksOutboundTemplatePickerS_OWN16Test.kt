@@ -214,7 +214,7 @@ private class FakeWebhooksApi(private val outbound: List<OutboundWebhook>) : Web
         error("stub")
     override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
-    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String> = error("stub")
+    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<InboundWebhook> = error("stub")
     override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun inboundBlastRadius(channelId: String, endpointId: String): ApiResult<BlastRadiusSummary> =
         ApiResult.Ok(BlastRadiusSummary())
@@ -229,7 +229,8 @@ private class FakeWebhooksApi(private val outbound: List<OutboundWebhook>) : Web
     override suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<String> = error("stub")
+    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<OutboundWebhookCreated> =
+        error("stub")
     override suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult> =
         ApiResult.Ok(WebhookTestResult())
     override suspend fun outboundDeliveries(channelId: String, endpointId: String): ApiResult<List<OutboundDelivery>> =

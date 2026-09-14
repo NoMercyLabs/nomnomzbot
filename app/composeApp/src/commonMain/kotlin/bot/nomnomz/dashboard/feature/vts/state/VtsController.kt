@@ -119,18 +119,18 @@ class VtsController(
             failWrite(getString(Res.string.vts_no_channel_error))
             return VtsAuthorizeOutcome.Failed
         }
-        return when (val result: ApiResult<Boolean> = vtsApi.authorize(id)) {
-            is ApiResult.Ok ->
-                if (result.value) {
-                    refresh()
-                    VtsAuthorizeOutcome.Granted
-                } else {
-                    VtsAuthorizeOutcome.Denied
-                }
-            is ApiResult.Failure -> {
-                failWrite(result.error.message)
-                VtsAuthorizeOutcome.Failed
+        return when (val result: ApiResult<Unit> = vtsApi.authorize(id)) {
+            is ApiResult.Ok -> {
+                refresh()
+                VtsAuthorizeOutcome.Granted
             }
+            is ApiResult.Failure ->
+                if (result.error.code == "VTS_DENIED") {
+                    VtsAuthorizeOutcome.Denied
+                } else {
+                    failWrite(result.error.message)
+                    VtsAuthorizeOutcome.Failed
+                }
         }
     }
 

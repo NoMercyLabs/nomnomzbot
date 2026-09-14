@@ -218,8 +218,8 @@ class WebhooksController(
      */
     suspend fun rotateInboundToken(endpointId: String): String? {
         val channel: String = channelId ?: run { failWrite("No active channel."); return null }
-        return when (val result: ApiResult<String> = webhooksApi.rotateInboundToken(channel, endpointId)) {
-            is ApiResult.Ok -> { load(); result.value }
+        return when (val result: ApiResult<InboundWebhook> = webhooksApi.rotateInboundToken(channel, endpointId)) {
+            is ApiResult.Ok -> { load(); result.value.ingestUrl }
             is ApiResult.Failure -> { failWrite(result.error.message); null }
         }
     }
@@ -309,8 +309,10 @@ class WebhooksController(
      */
     suspend fun rotateOutboundSecret(endpointId: String): String? {
         val channel: String = channelId ?: run { failWrite("No active channel."); return null }
-        return when (val result: ApiResult<String> = webhooksApi.rotateOutboundSecret(channel, endpointId)) {
-            is ApiResult.Ok -> { load(); result.value }
+        return when (
+            val result: ApiResult<OutboundWebhookCreated> = webhooksApi.rotateOutboundSecret(channel, endpointId)
+        ) {
+            is ApiResult.Ok -> { load(); result.value.signingSecret }
             is ApiResult.Failure -> { failWrite(result.error.message); null }
         }
     }

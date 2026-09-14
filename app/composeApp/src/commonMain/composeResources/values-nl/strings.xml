@@ -1727,7 +1727,7 @@
     <string name="journal_rebuild_confirm_message">Dit herhaalt het volledige gebeurtenislogboek om alle leesmodellen vanaf nul opnieuw op te bouwen. Kanaldata is tijdelijk onvolledig tijdens de verwerking. Dit kan niet ongedaan worden gemaakt. Doorgaan?</string>
     <string name="journal_rebuild_confirm_ok">Herbouwen</string>
     <string name="journal_rebuild_confirm_cancel">Annuleren</string>
-    <string name="journal_rebuilding">Projecties worden herbouwd… taak %1$s</string>
+    <string name="journal_rebuilt">%1$d projectie(s) herbouwd — %2$d gebeurtenis(sen) opnieuw toegepast</string>
 
     <!-- Federation page -->
     <string name="federation_title">Federatie</string>

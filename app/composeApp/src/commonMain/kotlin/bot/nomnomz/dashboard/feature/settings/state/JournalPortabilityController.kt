@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.EventJournalImportSummary
 import bot.nomnomz.dashboard.core.network.EventStoreApi
+import bot.nomnomz.dashboard.core.network.ProjectionRebuildResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -110,8 +111,8 @@ class JournalPortabilityController(
     }
 
     /**
-     * Enqueue a full projection rebuild for the channel. The backend processes it async; the UI surfaces the
-     * task ID as confirmation. This is a Danger-zone action — the caller must confirm first.
+     * Run a full projection rebuild for the channel to completion (synchronous — the backend replays the whole
+     * journal before responding). This is a Danger-zone action — the caller must confirm first.
      */
     suspend fun rebuildProjections() {
         if (_state.value.busy) return
@@ -126,9 +127,9 @@ class JournalPortabilityController(
                 is ApiResult.Ok -> resolved.value
             }
 
-        when (val result: ApiResult<String> = eventStoreApi.rebuildProjections(target)) {
+        when (val result: ApiResult<List<ProjectionRebuildResult>> = eventStoreApi.rebuildProjections(target)) {
             is ApiResult.Failure -> _state.value = JournalPortabilityState(error = result.error.message)
-            is ApiResult.Ok -> _state.value = JournalPortabilityState(rebuildTaskId = result.value)
+            is ApiResult.Ok -> _state.value = JournalPortabilityState(rebuildResults = result.value)
         }
     }
 
@@ -160,6 +161,6 @@ data class JournalPortabilityState(
     val busy: Boolean = false,
     val exported: Boolean = false,
     val imported: EventJournalImportSummary? = null,
-    val rebuildTaskId: String? = null,
+    val rebuildResults: List<ProjectionRebuildResult>? = null,
     val error: String? = null,
 )

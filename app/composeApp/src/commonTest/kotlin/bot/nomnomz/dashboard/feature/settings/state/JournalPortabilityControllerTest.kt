@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.EventJournalImportSummary
 import bot.nomnomz.dashboard.core.network.EventStoreApi
+import bot.nomnomz.dashboard.core.network.ProjectionRebuildResult
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -225,8 +226,8 @@ private class FakeEventStoreApi(
         return importResult
     }
 
-    override suspend fun rebuildProjections(channelId: String): ApiResult<String> =
-        ApiResult.Ok("ok")
+    override suspend fun rebuildProjections(channelId: String): ApiResult<List<ProjectionRebuildResult>> =
+        ApiResult.Ok(emptyList())
 }
 
 private class FakeFileBridge(

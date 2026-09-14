@@ -1730,7 +1730,7 @@
     <string name="journal_rebuild_confirm_message">This replays the entire event ledger to rebuild all read models from scratch. The channel's data will be temporarily incomplete while it runs. This cannot be undone. Continue?</string>
     <string name="journal_rebuild_confirm_ok">Rebuild</string>
     <string name="journal_rebuild_confirm_cancel">Cancel</string>
-    <string name="journal_rebuilding">Rebuilding projections… task %1$s</string>
+    <string name="journal_rebuilt">Rebuilt %1$d projection(s) — %2$d event(s) replayed</string>
 
     <!-- Federation page -->
     <string name="federation_title">Federation</string>

@@ -21,14 +21,14 @@ import kotlinx.serialization.Serializable
 //   GET    .../inbound                              →  PaginatedResponse<InboundWebhookEndpointDto>
 //   POST   .../inbound                              →  StatusResponseDto<InboundWebhookEndpointDto>
 //   PUT    .../inbound/{id}                         →  StatusResponseDto<InboundWebhookEndpointDto>
-//   POST   .../inbound/{id}/rotate-token            →  StatusResponseDto<{ ingestUrl: string }>
+//   POST   .../inbound/{id}/rotate-token            →  StatusResponseDto<InboundWebhookEndpointDto>
 //   DELETE .../inbound/{id}                         →  204 No Content
 //   PUT    .../inbound/{id}                         →  StatusResponseDto<InboundWebhookEndpointDto>  (full edit)
 //   GET    .../outbound/event-catalogue             →  StatusResponseDto<List<OutboundWebhookEventCatalogueEntry>>
 //   GET    .../outbound                             →  PaginatedResponse<OutboundWebhookEndpointDto>
 //   POST   .../outbound                             →  StatusResponseDto<OutboundWebhookEndpointCreatedDto>
 //   PUT    .../outbound/{id}                        →  StatusResponseDto<OutboundWebhookEndpointDto>  (full edit)
-//   POST   .../outbound/{id}/rotate-secret          →  StatusResponseDto<{ signingSecret: string }>
+//   POST   .../outbound/{id}/rotate-secret          →  StatusResponseDto<OutboundWebhookEndpointCreatedDto>
 //   POST   .../outbound/{id}/reenable               →  204 No Content
 //   POST   .../outbound/{id}/test                   →  StatusResponseDto<WebhookTestResultDto>
 //   GET    .../outbound/{id}/deliveries             →  PaginatedResponse<OutboundWebhookDeliveryDto>
@@ -39,7 +39,7 @@ interface WebhooksApi {
     suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook>
     suspend fun updateInbound(channelId: String, endpointId: String, body: UpdateInboundBody): ApiResult<InboundWebhook>
     suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit>
-    suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String>
+    suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<InboundWebhook>
     suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit>
 
     /**
@@ -58,7 +58,7 @@ interface WebhooksApi {
     suspend fun updateOutbound(channelId: String, endpointId: String, body: UpdateOutboundBody): ApiResult<OutboundWebhook>
     suspend fun toggleOutbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit>
     suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit>
-    suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<String>
+    suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<OutboundWebhookCreated>
     suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult>
     suspend fun outboundDeliveries(channelId: String, endpointId: String): ApiResult<List<OutboundDelivery>>
 
@@ -91,7 +91,7 @@ class RestWebhooksApi(private val client: ApiClient) : WebhooksApi {
     override suspend fun toggleInbound(channelId: String, endpointId: String, enabled: Boolean): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/webhooks/inbound/$endpointId", UpdateEnabledBody(enabled))
 
-    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String> =
+    override suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<InboundWebhook> =
         client.postEnvelope("api/v1/channels/$channelId/webhooks/inbound/$endpointId/rotate-token", Unit)
 
     override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> =
@@ -127,7 +127,7 @@ class RestWebhooksApi(private val client: ApiClient) : WebhooksApi {
     override suspend fun reenableOutbound(channelId: String, endpointId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/webhooks/outbound/$endpointId/reenable")
 
-    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<String> =
+    override suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<OutboundWebhookCreated> =
         client.postEnvelope("api/v1/channels/$channelId/webhooks/outbound/$endpointId/rotate-secret", Unit)
 
     override suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult> =

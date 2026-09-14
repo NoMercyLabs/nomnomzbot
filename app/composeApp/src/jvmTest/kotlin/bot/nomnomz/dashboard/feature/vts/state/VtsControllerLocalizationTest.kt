@@ -116,7 +116,7 @@ private class UnreachableVtsApi : VtsApi {
     override suspend fun connection(channelId: String): ApiResult<VtsConnection> = error("unreachable")
     override suspend fun upsertConnection(channelId: String, body: UpsertVtsConnectionBody): ApiResult<VtsConnection> =
         error("unreachable")
-    override suspend fun authorize(channelId: String): ApiResult<Boolean> = error("unreachable")
+    override suspend fun authorize(channelId: String): ApiResult<Unit> = error("unreachable")
     override suspend fun rotateBridgeToken(channelId: String): ApiResult<VtsConnection> = error("unreachable")
     override suspend fun inventory(channelId: String): ApiResult<VtsModelInventory> = error("unreachable")
     override suspend fun control(channelId: String, body: VtsControlBody): ApiResult<VtsRequestResult> =

@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
 // Backend routes (VtsController):
 //   GET    /api/v1/channels/{channelId}/vts/connection                      →  StatusResponseDto<VtsConnectionDto>
 //   PUT    /api/v1/channels/{channelId}/vts/connection                      →  StatusResponseDto<VtsConnectionDto>
-//   POST   /api/v1/channels/{channelId}/vts/connection/authorize            →  StatusResponseDto<boolean>
+//   POST   /api/v1/channels/{channelId}/vts/connection/authorize            →  bare success/failure (no payload)
 //   POST   /api/v1/channels/{channelId}/vts/connection/rotate-bridge-token  →  StatusResponseDto<VtsConnectionDto>
 //   GET    /api/v1/channels/{channelId}/vts/inventory                       →  StatusResponseDto<VtsModelInventory>
 //   POST   /api/v1/channels/{channelId}/vts/control                         →  StatusResponseDto<VtsRequestResult>
@@ -36,9 +36,11 @@ interface VtsApi {
 
     /**
      * Request a plugin token from VTS. The streamer must click "Allow" in the VTS popup; the call BLOCKS up to
-     * ~60s. Returns `true` when granted, `false` when denied. A transport/timeout maps to an [ApiResult.Failure].
+     * ~60s. The backend returns bare success/failure (no payload) — success means granted; a denial, transport
+     * error, or timeout all come back as [ApiResult.Failure], distinguished by [ApiError.code] (`VTS_DENIED` for
+     * an explicit deny).
      */
-    suspend fun authorize(channelId: String): ApiResult<Boolean>
+    suspend fun authorize(channelId: String): ApiResult<Unit>
 
     /** Rotate the bridge token (for bridge mode). Returns the refreshed connection row. */
     suspend fun rotateBridgeToken(channelId: String): ApiResult<VtsConnection>
@@ -59,8 +61,8 @@ class RestVtsApi(private val client: ApiClient) : VtsApi {
         body: UpsertVtsConnectionBody,
     ): ApiResult<VtsConnection> = client.putEnvelope("api/v1/channels/$channelId/vts/connection", body)
 
-    override suspend fun authorize(channelId: String): ApiResult<Boolean> =
-        client.postEnvelope("api/v1/channels/$channelId/vts/connection/authorize")
+    override suspend fun authorize(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/vts/connection/authorize")
 
     override suspend fun rotateBridgeToken(channelId: String): ApiResult<VtsConnection> =
         client.postEnvelope("api/v1/channels/$channelId/vts/connection/rotate-bridge-token")

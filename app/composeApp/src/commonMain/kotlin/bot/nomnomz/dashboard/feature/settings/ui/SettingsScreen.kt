@@ -121,7 +121,7 @@ import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_cancel
 import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_message
 import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_ok
 import nomnomzbot.composeapp.generated.resources.journal_rebuild_confirm_title
-import nomnomzbot.composeapp.generated.resources.journal_rebuilding
+import nomnomzbot.composeapp.generated.resources.journal_rebuilt
 import nomnomzbot.composeapp.generated.resources.journal_working
 import nomnomzbot.composeapp.generated.resources.settings_error
 import nomnomzbot.composeapp.generated.resources.settings_label_category
@@ -1793,14 +1793,19 @@ private fun JournalStatus(state: JournalPortabilityState, onDismiss: () -> Unit,
                 TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
             }
         }
-        state.rebuildTaskId != null -> {
+        state.rebuildResults != null -> {
             Row(
                 modifier = modifier,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stringResource(Res.string.journal_rebuilding, state.rebuildTaskId),
+                    text =
+                        stringResource(
+                            Res.string.journal_rebuilt,
+                            state.rebuildResults.size,
+                            state.rebuildResults.sumOf { it.eventsApplied },
+                        ),
                     style = typography.sm,
                     color = tokens.mutedForeground,
                     maxLines = 2,
