@@ -796,12 +796,12 @@ private class RecordingCodeScriptsApi : bot.nomnomz.dashboard.core.network.CodeS
     override suspend fun publishVersion(
         id: String,
         versionId: String,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptSummary> = error("stub")
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptDetail> = error("stub")
 
     override suspend fun setEnabled(
         id: String,
         enabled: Boolean,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptSummary> = error("stub")
+    ): ApiResult<Unit> = error("stub")
 
     override suspend fun delete(id: String): ApiResult<Unit> = error("stub")
 

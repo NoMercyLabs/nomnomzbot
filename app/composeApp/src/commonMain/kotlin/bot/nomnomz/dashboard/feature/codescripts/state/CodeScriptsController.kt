@@ -184,7 +184,7 @@ class CodeScriptsController(
     suspend fun rollback(id: String, versionId: String) {
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
-        when (val result: ApiResult<CodeScriptSummary> = api.publishVersion(id, versionId)) {
+        when (val result: ApiResult<CodeScriptDetail> = api.publishVersion(id, versionId)) {
             is ApiResult.Ok -> {
                 open(id)
                 loadListSilent()
@@ -336,7 +336,7 @@ class CodeScriptsController(
 
     /** Toggle enabled/disabled. */
     suspend fun setEnabled(id: String, enabled: Boolean) {
-        when (val result: ApiResult<CodeScriptSummary> = api.setEnabled(id, enabled)) {
+        when (val result: ApiResult<Unit> = api.setEnabled(id, enabled)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)
         }

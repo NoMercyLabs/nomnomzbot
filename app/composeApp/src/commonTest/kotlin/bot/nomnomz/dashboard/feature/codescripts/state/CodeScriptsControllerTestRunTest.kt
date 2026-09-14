@@ -140,10 +140,10 @@ class CodeScriptsControllerTestRunTest {
 
         override suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-        override suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary> =
-            ApiResult.Ok(summary)
+        override suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptDetail> =
+            ApiResult.Ok(detail)
 
-        override suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary> = ApiResult.Ok(summary)
+        override suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<Unit> = ApiResult.Ok(Unit)
 
         override suspend fun delete(id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     }

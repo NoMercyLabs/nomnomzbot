@@ -62,8 +62,8 @@ interface CodeScriptsApi {
      */
     suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit>
 
-    suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary>
-    suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary>
+    suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptDetail>
+    suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<Unit>
     suspend fun delete(id: String): ApiResult<Unit>
 
     /**
@@ -108,11 +108,11 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
     override suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/code-scripts/$id/versions/$versionId")
 
-    override suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary> =
+    override suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptDetail> =
         client.postEnvelope("api/v1/code-scripts/$id/versions/$versionId/publish", Unit)
 
-    override suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary> =
-        client.patchEnvelope("api/v1/code-scripts/$id/enabled", SetEnabledBody(enabled))
+    override suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<Unit> =
+        client.patchUnit("api/v1/code-scripts/$id/enabled", SetEnabledBody(enabled))
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/code-scripts/$id")
