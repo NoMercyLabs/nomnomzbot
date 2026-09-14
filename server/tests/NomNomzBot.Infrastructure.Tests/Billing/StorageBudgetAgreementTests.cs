@@ -401,6 +401,10 @@ public sealed class StorageBudgetAgreementTests
 
         public ChannelContext? Get(Guid broadcasterId) => null;
 
+        public void TouchMusicDemand(Guid broadcasterId, string connectionId) { }
+
+        public void ReleaseMusicDemand(Guid broadcasterId, string connectionId) { }
+
         public Task<ChannelContext> GetOrCreateAsync(
             Guid broadcasterId,
             string twitchChannelId,

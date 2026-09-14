@@ -9,13 +9,28 @@
 // -----------------------------------------------------------------------------
 
 using System.Net;
+using System.Threading.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Twitch.Events;
 using Polly;
+using Polly.RateLimiting;
 
 namespace NomNomzBot.Infrastructure.Platform.Resilience;
+
+/// <summary>
+/// The <see cref="HttpRequestMessage.Options"/> key every Spotify request carries so
+/// <see cref="ResiliencePolicies.AddSpotifyResilienceHandler"/> can route it to the right rate-limit
+/// partition (<see cref="SpotifyMusicProvider.SendAsync"/> sets it on every request it builds). Absent
+/// (the default, <c>false</c>) means interactive — a user-triggered call, never the background poller.
+/// </summary>
+public static class SpotifyRequestTags
+{
+    public static readonly HttpRequestOptionsKey<bool> IsBackgroundPoll = new(
+        "spotify.isBackgroundPoll"
+    );
+}
 
 /// <summary>
 /// Configures Polly resilience pipelines for external HTTP clients.
@@ -343,52 +358,85 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddSpotifyResilienceHandler(this IHttpClientBuilder builder)
     {
+        // One pair of limiters for the whole app (the client_id-scoped budget IS app-wide, never per-request) —
+        // declared once here rather than inside the pipeline factory below so a rebuilt pipeline (DI reload,
+        // test host restart) never accidentally mints a second, un-coordinated pair against the same real
+        // Spotify budget. See the doc comment below for why the budget is split and how it's sized.
+        SlidingWindowRateLimiter pollLimiter = new(
+            new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 180,
+                Window = TimeSpan.FromSeconds(30),
+                SegmentsPerWindow = 6,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 20,
+            }
+        );
+        SlidingWindowRateLimiter interactiveLimiter = new(
+            new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 270,
+                Window = TimeSpan.FromSeconds(30),
+                SegmentsPerWindow = 6,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 30,
+            }
+        );
+
         builder.AddResilienceHandler(
             "spotify-resilience",
             pipeline =>
             {
                 // Spotify's rate limit is per-app (client_id) across every user token that app holds, on a
                 // rolling 30s window (developer.spotify.com/documentation/web-api/concepts/rate-limits) — not
-                // per-user as MusicStatePollingService's own doc comment once assumed. That poller polls every
-                // CONNECTED CHANNEL at a flat 1s cadence (one real GetCurrentTrackAsync call per channel per
-                // second — MusicStatePollingService.PollInterval), and a self-hosted deployment can carry
-                // unlimited channels (product statement) all sharing the one Spotify app the operator
-                // registered — so channel count alone, not just call frequency, can burn through the shared
-                // budget. This gate sits outermost (before retry/circuit-breaker) and is the ONE place ALL
-                // outbound Spotify calls funnel through (poller, mutation actions, search, everything) — poller
-                // reads and interactive pause/play/skip calls share the SAME queue, FIFO (OldestFirst).
+                // per-user. This gate sits outermost (before retry/circuit-breaker) and is the ONE place ALL
+                // outbound Spotify calls funnel through (poller, mutation actions, search, everything).
                 //
-                // The original PermitLimit here was 60/30s (2 req/s) — picked before checking it against the
-                // poller's own demand. With just 3 connected channels the poller alone needs 3 req/s = 90/30s,
-                // already past that ceiling: the queue never drains, and an interactive pause landing behind
-                // the backlog waits multiple seconds for a permit — confirmed live (POST .../music/pause took
-                // 9.3s end-to-end against a 3-channel deployment with this cap; see PR conversation). The gate
-                // built specifically to keep pause/play "instant" (NowPlayingCache, MusicStatePollingService
-                // registration) was silently undone by this same session's own earlier rate limit.
+                // TWO separate queues, not one shared FIFO: a single shared budget let MusicStatePollingService's
+                // own background reads (one per connected channel, every tick it's due — see that class's own
+                // cadence doc comment) queue AHEAD of a real user's pause/skip/search whenever the poller had
+                // already enqueued first, confirmed live (POST .../music/pause took 9.3s end-to-end behind a
+                // poller backlog; see PR conversation, and the 30s Spotify timeouts observed 2026-09-14). A busy
+                // poller must never be able to starve an interactive action of budget, so each request is routed
+                // by SpotifyRequestTags.IsBackgroundPoll (set on every request SpotifyMusicProvider.SendAsync
+                // builds) to its OWN SlidingWindowRateLimiter with its OWN ceiling.
                 //
-                // Sized instead against the poller's real formula: PermitLimit/Window must clear
-                // (connectedChannels req/s) with real headroom left for interactive bursts on top, for as many
-                // channels as this deployment is meant to comfortably support before the poller itself is the
-                // bottleneck. 900/30s = 30 req/s sustained supports ~28 actively-polled channels before the
-                // poller alone saturates it — comfortably past self-host's typical single-digit channel counts,
-                // still small next to Spotify's own (undocumented, but empirically much larger) per-app
-                // ceiling, and Polly's retry/circuit-breaker below remains the real backstop against an actual
-                // 429 from Spotify itself.
+                // Poll: sized to the poller's own formula (PollInterval — 1s per FAST-eligible channel, the
+                // MusicStatePollingService's demand-aware cadence — MusicStatePollingService.IsFastPollEligible)
+                // with headroom for a burst of channels going live/watched at once, but deliberately smaller
+                // than before (previously 900/30s shared): total budget also came DOWN here because Spotify
+                // itself was observed 429-ing this app already (2026-09-14) — the old combined ceiling assumed
+                // more real per-app headroom than Spotify is actually granting right now.
+                // Interactive: the larger share — a real pause/skip/search must never wait behind background
+                // reads it has no reason to know about.
+                //
+                // An outer timeout WRAPPING the rate limiter (added first = outermost) matters on its own:
+                // time spent waiting in either limiter's queue is not covered by the per-attempt 8s timeout
+                // below (that one only starts once a permit is granted and the real send begins) — without
+                // this, a request stuck queuing rides all the way to the raw HttpClient.Timeout default (30s,
+                // ConfigureHttpClientDefaults) instead of failing fast and predictably. Set above the 8s
+                // per-attempt budget so it only ever fires on a genuine queue backup, not a normal single slow
+                // call.
+                pipeline.AddTimeout(TimeSpan.FromSeconds(12));
+
                 pipeline.AddRateLimiter(
-                    new System.Threading.RateLimiting.SlidingWindowRateLimiter(
-                        new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions
+                    new RateLimiterStrategyOptions
+                    {
+                        RateLimiter = args =>
                         {
-                            PermitLimit = 900,
-                            Window = TimeSpan.FromSeconds(30),
-                            SegmentsPerWindow = 6,
-                            QueueProcessingOrder = System
-                                .Threading
-                                .RateLimiting
-                                .QueueProcessingOrder
-                                .OldestFirst,
-                            QueueLimit = 50,
-                        }
-                    )
+                            bool isBackgroundPoll =
+                                args.Context.GetRequestMessage()
+                                    ?.Options.TryGetValue(
+                                        SpotifyRequestTags.IsBackgroundPoll,
+                                        out bool tagged
+                                    ) == true
+                                && tagged;
+                            RateLimiter limiter = isBackgroundPoll
+                                ? pollLimiter
+                                : interactiveLimiter;
+                            return limiter.AcquireAsync(1, args.Context.CancellationToken);
+                        },
+                    }
                 );
 
                 // Retry: 2 attempts, exponential backoff starting at 1s, jitter

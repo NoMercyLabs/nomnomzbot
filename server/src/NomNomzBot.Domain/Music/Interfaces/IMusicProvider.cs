@@ -177,9 +177,18 @@ public interface IMusicProvider
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// The current playback state. <paramref name="isBackgroundPoll"/> distinguishes the background
+    /// freshness poller's own calls (<c>MusicStatePollingService</c>) from every interactive read (a
+    /// dashboard load, a chat command, a mutation's own re-read) — a provider that partitions its own
+    /// outbound rate-limit budget (music-rate-limiting.md) between background and interactive traffic reads
+    /// it to pick the right partition, so a busy poller can never starve a real user action of budget.
+    /// Providers that don't partition simply ignore it.
+    /// </summary>
     Task<TrackInfo?> GetCurrentTrackAsync(
         Guid broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool isBackgroundPoll = false
     );
 
     /// <summary>

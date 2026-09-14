@@ -247,6 +247,18 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     public IReadOnlyCollection<ChannelContext> GetLiveChannels() =>
         _channels.Values.Where(c => c.IsLive).ToList().AsReadOnly();
 
+    public void TouchMusicDemand(Guid broadcasterId, string connectionId)
+    {
+        if (_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            ctx.MusicDemandConnections[connectionId] = 0;
+    }
+
+    public void ReleaseMusicDemand(Guid broadcasterId, string connectionId)
+    {
+        if (_channels.TryGetValue(broadcasterId, out ChannelContext? ctx))
+            ctx.MusicDemandConnections.TryRemove(connectionId, out _);
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------

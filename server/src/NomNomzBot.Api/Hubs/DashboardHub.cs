@@ -77,7 +77,11 @@ public class DashboardHub : Hub<IDashboardClient>
         )
         {
             foreach ((string broadcasterId, IReadOnlyList<string> classes) in channels)
+            {
                 await RemoveFromChannelGroupsAsync(broadcasterId, classes);
+                if (Guid.TryParse(broadcasterId, out Guid tenantId))
+                    _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
+            }
         }
         await base.OnDisconnectedAsync(exception);
     }
@@ -152,6 +156,16 @@ public class DashboardHub : Hub<IDashboardClient>
             );
         channels[broadcasterId] = eventClasses;
 
+        // Fast music-poll cadence only while someone is actually subscribed to the music class for this
+        // channel (a re-join that drops the class, e.g. switching to a chat-only pane, releases it).
+        if (tenantId != Guid.Empty)
+        {
+            if (eventClasses.Contains(DashboardEventClasses.Music, StringComparer.Ordinal))
+                _registry.TouchMusicDemand(tenantId, Context.ConnectionId);
+            else
+                _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
+        }
+
         _logger.LogDebug(
             "Connection {C} joined channel {B} (classes: {Classes})",
             Context.ConnectionId,
@@ -190,6 +204,8 @@ public class DashboardHub : Hub<IDashboardClient>
         }
 
         await RemoveFromChannelGroupsAsync(broadcasterId, joinedClasses);
+        if (Guid.TryParse(broadcasterId, out Guid tenantId))
+            _registry.ReleaseMusicDemand(tenantId, Context.ConnectionId);
     }
 
     private async Task RemoveFromChannelGroupsAsync(

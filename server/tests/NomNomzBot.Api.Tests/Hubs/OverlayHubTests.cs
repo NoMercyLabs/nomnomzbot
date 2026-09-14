@@ -16,6 +16,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -72,7 +73,15 @@ public sealed class OverlayHubTests
         IGroupManager groups = Substitute.For<IGroupManager>();
         IWidgetService widgetService = Substitute.For<IWidgetService>();
 
-        OverlayHub hub = new(db, widgetService, tickets, new(), NullLogger<OverlayHub>.Instance)
+        IChannelRegistry channelRegistry = Substitute.For<IChannelRegistry>();
+        OverlayHub hub = new(
+            db,
+            widgetService,
+            tickets,
+            new(),
+            channelRegistry,
+            NullLogger<OverlayHub>.Instance
+        )
         {
             Context = context,
             Groups = groups,

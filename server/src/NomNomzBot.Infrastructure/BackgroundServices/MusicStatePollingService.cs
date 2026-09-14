@@ -34,22 +34,23 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// streamer's own phone/desktop app, a track ending naturally, or a manual seek.
 ///
 /// <para>
-/// <b>Cadence — flat 1s, not connection-aware.</b> The rails asked for a livelier ~5s cadence while a
-/// dashboard/overlay client is plausibly connected, backing off to ~30-60s otherwise, IF connection-awareness is
-/// cheap to detect via the hub group registry. It is not cheap here: the only connection registry is
-/// <c>DashboardHub</c>'s connection→channel map, which lives in <c>NomNomzBot.Api</c> — a project this
-/// (Infrastructure-layer) poller must not reference without inverting Clean Architecture's inward-only
-/// dependency rule. Exposing that registry through a new Application-layer seam just for this cadence hint is a
-/// bigger seam than the poller warrants (YAGNI) versus a single safety-first flat cadence. 1s is what "no more
-/// than 1 second of drift from the real Spotify state" (owner requirement) actually costs: a change the bot
-/// didn't cause (streamer pauses from their phone, a track ends, a manual seek) can only ever be as fresh as this
-/// tick, since it's the only thing that notices it. A flat per-channel 1s cadence is safe to keep simple here
-/// because the actual Spotify budget concern — it IS app-wide (per <c>client_id</c>, shared across every
-/// connected channel's token, rolling 30s window: developer.spotify.com/documentation/web-api/concepts/rate-
-/// limits) — is enforced once, centrally, at the HTTP layer
-/// (<see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>), not per caller. This
-/// poller does not need to reason about channel count itself; per-channel failures back off further below so a
-/// struggling channel doesn't hammer a dead token every second.
+/// <b>Cadence — 1s while it matters, 60s while it doesn't.</b> A channel is polled at the flat 1s cadence
+/// (<see cref="PollInterval"/> — "no more than 1 second of drift from the real Spotify state", owner
+/// requirement) exactly while it is live OR at least one consumer is actually connected and watching: a
+/// dashboard music panel subscribed to the <c>music</c> push class (<c>DashboardHub</c>), an overlay
+/// now-playing widget (<c>OverlayHub</c>), or a Stream Deck/Automation API client subscribed to
+/// <c>song.changed</c> (<c>AutomationStreamCoordinator</c>) — see <see cref="IChannelRegistry.HasMusicDemand"/>,
+/// updated directly by each of those (all three already sit outward of this Infrastructure-layer poller in
+/// Clean Architecture's dependency order, so none of them need a new seam to update the SAME Domain-level
+/// registry this poller already reads for <see cref="ChannelContext.IsLive"/>). Otherwise it coasts at
+/// <see cref="IdlePollInterval"/> — still catches an out-of-band change (phone, another app) within a minute,
+/// without spending the shared Spotify budget on a channel nobody is watching. The Spotify budget itself
+/// remains enforced once, centrally, at the HTTP layer
+/// (<see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>), split into a poll
+/// partition and an interactive (user-triggered) partition so a busy poller can never starve a real pause/
+/// skip/search — this poller tags every call it makes as background (<c>isBackgroundPoll: true</c>) so it
+/// only ever draws from its own partition. Per-channel failures back off further below so a struggling
+/// channel doesn't hammer a dead token every second.
 /// </para>
 ///
 /// <para>
@@ -73,6 +74,13 @@ public sealed class MusicStatePollingService : BackgroundService
     private static readonly TimeSpan BackoffBase = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan BackoffCap = TimeSpan.FromMinutes(5);
 
+    // The bare-minimum cadence for a channel nobody is watching right now: offline AND no dashboard music
+    // panel / overlay now-playing widget / Stream Deck song.changed subscriber currently connected
+    // (IChannelRegistry.HasMusicDemand). Still catches a state change from outside the bot (phone, another
+    // app) within a minute, without holding the full 1s-per-channel Spotify budget for a channel with nobody
+    // to show the answer to — see ResiliencePolicies.AddSpotifyResilienceHandler for the budget this frees.
+    private static readonly TimeSpan IdlePollInterval = TimeSpan.FromSeconds(60);
+
     // A "seek" is flagged when observed progress diverges from the time-elapsed-implied progress by more than
     // this, while track + play state are otherwise unchanged. At a 1s poll interval this only needs to absorb
     // ordinary network/scheduling jitter between ticks, not multi-second slack — a genuine seek is still many
@@ -92,17 +100,20 @@ public sealed class MusicStatePollingService : BackgroundService
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
     private readonly IMusicRealtimeSignal _realtime;
+    private readonly IChannelRegistry _channelRegistry;
     private readonly ILogger<MusicStatePollingService> _logger;
 
     private readonly ConcurrentDictionary<Guid, ChannelPlaybackSnapshot> _lastState = new();
     private readonly ConcurrentDictionary<Guid, ChannelBackoff> _backoff = new();
     private readonly ConcurrentDictionary<Guid, int> _consecutiveNullPolls = new();
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _lastPolledAt = new();
 
     public MusicStatePollingService(
         IServiceScopeFactory scopeFactory,
         IEventBus eventBus,
         TimeProvider timeProvider,
         IMusicRealtimeSignal realtime,
+        IChannelRegistry channelRegistry,
         ILogger<MusicStatePollingService> logger
     )
     {
@@ -110,14 +121,16 @@ public sealed class MusicStatePollingService : BackgroundService
         _eventBus = eventBus;
         _timeProvider = timeProvider;
         _realtime = realtime;
+        _channelRegistry = channelRegistry;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation(
-            "MusicStatePollingService starting (flat {IntervalSeconds}s cadence).",
-            PollInterval.TotalSeconds
+            "MusicStatePollingService starting ({FastSeconds}s while live/watched, {IdleSeconds}s otherwise).",
+            PollInterval.TotalSeconds,
+            IdlePollInterval.TotalSeconds
         );
 
         using PeriodicTimer timer = new(PollInterval, _timeProvider);
@@ -206,11 +219,17 @@ public sealed class MusicStatePollingService : BackgroundService
             )
                 continue; // Still cooling down after a recent failure — skip silently, no logspam.
 
+            if (!IsFastPollEligible(channelId) && !IsIdlePollDue(channelId, now))
+                continue; // Offline and nobody's watching — coast at IdlePollInterval instead of every tick.
+
+            _lastPolledAt[channelId] = now;
+
             try
             {
                 NowPlaying? nowPlaying = await musicService.GetNowPlayingAsync(
                     channelId.ToString(),
-                    cancellationToken
+                    cancellationToken,
+                    isBackgroundPoll: true
                 );
                 _backoff.TryRemove(channelId, out _);
                 await ProcessChannelStateAsync(channelId, nowPlaying, now, cancellationToken);
@@ -233,6 +252,24 @@ public sealed class MusicStatePollingService : BackgroundService
             }
         }
     }
+
+    /// <summary>
+    /// Fast (flat 1s) cadence applies while the channel is live, OR while at least one dashboard music
+    /// panel / overlay now-playing widget / Stream Deck song.changed subscriber is currently connected for
+    /// it (<see cref="IChannelRegistry.HasMusicDemand"/>). An unregistered channel (not yet seen by the
+    /// registry) defaults to fast — safer to over-poll a channel we know nothing about yet than to miss its
+    /// first observation.
+    /// </summary>
+    private bool IsFastPollEligible(Guid channelId)
+    {
+        ChannelContext? ctx = _channelRegistry.Get(channelId);
+        return ctx is null || ctx.IsLive || ctx.HasMusicDemand;
+    }
+
+    /// <summary>Whether an idle (not fast-eligible) channel's <see cref="IdlePollInterval"/> has elapsed.</summary>
+    private bool IsIdlePollDue(Guid channelId, DateTimeOffset now) =>
+        !_lastPolledAt.TryGetValue(channelId, out DateTimeOffset lastPolled)
+        || now - lastPolled >= IdlePollInterval;
 
     /// <summary>Every channel with an enabled, token-bearing connection to a <b>registered music provider</b>
     /// — the same connected-names ∩ registered-provider-keys eligibility

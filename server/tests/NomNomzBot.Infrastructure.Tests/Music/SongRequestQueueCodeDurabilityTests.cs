@@ -282,7 +282,8 @@ public sealed class SongRequestQueueCodeDurabilityTests
 
         public Task<TrackInfo?> GetCurrentTrackAsync(
             Guid broadcasterId,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            bool isBackgroundPoll = false
         ) => Task.FromResult<TrackInfo?>(null);
 
         public Task<bool> AddToQueueAsync(

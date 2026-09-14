@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Infrastructure.Platform.Resilience;
 using Polly.RateLimiting;
+using Polly.Timeout;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Resilience;
 
@@ -50,15 +51,26 @@ public sealed class SpotifyRateLimiterTests
         return provider.GetRequiredService<IHttpClientFactory>().CreateClient("spotify");
     }
 
-    /// <summary>PermitLimit (900) immediate + QueueLimit (50) queued = 950 requests the limiter admits without
-    /// rejecting. A caller count comfortably past that — proxying "many channels polling this one Spotify app
-    /// at once" — must see at least one request rejected by the limiter rather than every single one going
+    /// <summary>Builds a request tagged the way <c>SpotifyMusicProvider</c> tags a background poll, so the
+    /// pipeline's <see cref="RateLimiterStrategyOptions.RateLimiter"/> delegate routes it to the poll partition
+    /// instead of the (untagged-default) interactive one.</summary>
+    private static Task<HttpResponseMessage> SendPollAsync(HttpClient client, string url)
+    {
+        HttpRequestMessage request = new(HttpMethod.Get, url);
+        request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, true);
+        return client.SendAsync(request);
+    }
+
+    /// <summary>An untagged call (every plain <c>GetAsync</c>/<c>PostAsync</c> below) is routed to the
+    /// interactive partition by default — PermitLimit (270) immediate + QueueLimit (30) queued = 300 requests
+    /// admitted without rejecting. A caller count comfortably past that — proxying "many interactive callers at
+    /// once" — must see at least one request rejected by the limiter rather than every single one going
     /// straight through, which is exactly the unbounded behavior that shipped before this gate existed.</summary>
     [Fact]
     public async Task A_burst_far_past_the_combined_permit_and_queue_capacity_is_capped_not_unbounded()
     {
         using HttpClient client = NewClient();
-        const int burst = 1_200; // PermitLimit(900) + QueueLimit(50) = 950 admitted at most
+        const int burst = 1_200; // PermitLimit(270) + QueueLimit(30) = 300 admitted at most (interactive partition)
 
         Task<HttpResponseMessage>[] calls =
         [
@@ -76,7 +88,15 @@ public sealed class SpotifyRateLimiterTests
                 {
                     return await task;
                 }
+                // A request past capacity is rejected outright by the limiter; one that lands just inside the
+                // queue but never reaches the front before the outer per-call timeout (AddTimeout wrapping the
+                // rate limiter — see AddSpotifyResilienceHandler) times out instead. Both are "did not succeed
+                // under this burst", not a genuine failure of the burst itself.
                 catch (RateLimiterRejectedException)
+                {
+                    return null;
+                }
+                catch (TimeoutRejectedException)
                 {
                     return null;
                 }
@@ -120,19 +140,24 @@ public sealed class SpotifyRateLimiterTests
     }
 
     /// <summary>
-    /// The regression this test guards: MusicStatePollingService polls every connected channel once per
-    /// second, so a deployment's steady-state background demand alone is (channel count) requests/second — a
-    /// full 30s window's worth is (channel count × 30) requests. If the limiter's PermitLimit sits at or below
-    /// that number, the poller's own traffic permanently saturates the queue and an interactive pause/play
-    /// call — which shares this exact FIFO queue — waits behind the backlog for multiple seconds (confirmed
-    /// live against production: a POST .../music/pause took 9.3s end-to-end at PermitLimit=60 with 3
-    /// channels, whose 30s poll demand alone is 90).
+    /// The regression this test guards: MusicStatePollingService polls every fast-eligible connected channel
+    /// once per second, so a deployment's steady-state background demand alone is (channel count)
+    /// requests/second — a full 30s window's worth is (channel count × 30) requests. Before the poll/interactive
+    /// split, that traffic shared one FIFO queue with interactive calls, so a busy poller could permanently
+    /// saturate it and an interactive pause/play call would wait behind the backlog for multiple seconds
+    /// (confirmed live against production: a POST .../music/pause took 9.3s end-to-end behind a poller backlog).
+    /// The fix routes background-poll requests (tagged via <see cref="SpotifyRequestTags.IsBackgroundPoll"/>,
+    /// as every real poll request is — see <c>SpotifyMusicProvider.SendAsync</c>) to their OWN rate-limiter
+    /// partition, entirely separate from the interactive one.
     ///
-    /// Fires a realistic multi-channel poller's one-window worth of background load and the interactive call
-    /// CONCURRENTLY (not sequentially — the live bug is about contention while both are in flight at once, not
-    /// about the interactive call arriving after the backlog has already drained). The interactive call must
-    /// still land inside the FIRST rate-limiter segment (5s: Window(30s)/SegmentsPerWindow(6)) — proving it
-    /// was never stuck queued behind the FIFO backlog, not just "eventually succeeded".
+    /// Fires a realistic multi-channel poller's one-window worth of TAGGED background load and an untagged
+    /// interactive call CONCURRENTLY (not sequentially — the live bug is about contention while both are in
+    /// flight at once, not about the interactive call arriving after the backlog has already drained). The
+    /// interactive call must still land inside the FIRST rate-limiter segment (5s: Window(30s)/
+    /// SegmentsPerWindow(6)) — proving it was never stuck queued behind the poll partition's backlog, not just
+    /// "eventually succeeded". Some background calls may legitimately be rejected once the poll partition's own
+    /// (much smaller) capacity is exceeded — that partitions being fully separate from the interactive one is
+    /// exactly the point — but none of that contention may leak into the interactive call.
     /// </summary>
     [Fact]
     public async Task An_interactive_call_is_not_starved_by_a_realistic_pollers_concurrent_background_load()
@@ -146,7 +171,7 @@ public sealed class SpotifyRateLimiterTests
             .. Enumerable
                 .Range(0, pollerDemandPerWindow)
                 .Select(_ =>
-                    client.GetAsync("https://api.spotify.com/v1/me/player/currently-playing")
+                    SendPollAsync(client, "https://api.spotify.com/v1/me/player/currently-playing")
                 ),
         ];
 
@@ -158,7 +183,20 @@ public sealed class SpotifyRateLimiterTests
         using HttpResponseMessage interactive = await interactiveTask;
         stopwatch.Stop();
 
-        await Task.WhenAll(background); // drain — never leaves the handler's pending state dirty for other tests
+        // Drain the background batch — never leaves the handler's pending state dirty for other tests. Some
+        // of these may be legitimately rejected by the poll partition's own (much smaller) capacity; that's
+        // fine, that partition existing at all — separate from the interactive one — is the point.
+        await Task.WhenAll(
+            background.Select(async task =>
+            {
+                try
+                {
+                    using HttpResponseMessage response = await task;
+                }
+                catch (RateLimiterRejectedException) { }
+                catch (TimeoutRejectedException) { }
+            })
+        );
 
         interactive.StatusCode.Should().Be(HttpStatusCode.OK);
         stopwatch

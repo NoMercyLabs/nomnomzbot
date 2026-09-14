@@ -18,6 +18,7 @@ using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi.Stream;
 using NSubstitute;
 
@@ -185,6 +186,7 @@ public sealed class AutomationStreamCoordinatorTests
             )
         );
         FakeTimeProvider clock = new();
+        IChannelRegistry channelRegistry = Substitute.For<IChannelRegistry>();
 
         return new()
         {
@@ -192,6 +194,7 @@ public sealed class AutomationStreamCoordinatorTests
                 scopeFactory,
                 sessions,
                 profile,
+                channelRegistry,
                 clock,
                 NullLogger<AutomationStreamCoordinator>.Instance
             ),

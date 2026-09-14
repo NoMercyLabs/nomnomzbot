@@ -15,6 +15,7 @@ using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.AutomationApi.Stream;
 
@@ -44,9 +45,13 @@ public sealed class AutomationStreamCoordinator
     private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan AuthTimeout = TimeSpan.FromSeconds(10);
 
+    // The wire event key song.changed subscribers imply wanting fresh music state (SongChangedAutomationEventDescriptor).
+    private const string SongChangedEventName = "song.changed";
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IAutomationSessionRegistry _sessions;
     private readonly IDeploymentProfileService _profile;
+    private readonly IChannelRegistry _channelRegistry;
     private readonly TimeProvider _clock;
     private readonly ILogger<AutomationStreamCoordinator> _logger;
 
@@ -54,6 +59,7 @@ public sealed class AutomationStreamCoordinator
         IServiceScopeFactory scopeFactory,
         IAutomationSessionRegistry sessions,
         IDeploymentProfileService profile,
+        IChannelRegistry channelRegistry,
         TimeProvider clock,
         ILogger<AutomationStreamCoordinator> logger
     )
@@ -61,6 +67,7 @@ public sealed class AutomationStreamCoordinator
         _scopeFactory = scopeFactory;
         _sessions = sessions;
         _profile = profile;
+        _channelRegistry = channelRegistry;
         _clock = clock;
         _logger = logger;
     }
@@ -109,6 +116,7 @@ public sealed class AutomationStreamCoordinator
         finally
         {
             _sessions.Unregister(session.SessionId);
+            _channelRegistry.ReleaseMusicDemand(principal.BroadcasterId, session.SessionId);
         }
     }
 
@@ -274,6 +282,8 @@ public sealed class AutomationStreamCoordinator
         }
 
         session.Subscribe(patterns);
+        if (session.IsSubscribedTo(SongChangedEventName))
+            _channelRegistry.TouchMusicDemand(session.Principal.BroadcasterId, session.SessionId);
         await RespondOkAsync(connection, id, new { subscribed = patterns }, ct);
     }
 

@@ -136,6 +136,10 @@ public sealed class ChatDecorationRefreshServiceTests
         public ChannelContext? Get(Guid broadcasterId) =>
             all.FirstOrDefault(c => c.BroadcasterId == broadcasterId);
 
+        public void TouchMusicDemand(Guid broadcasterId, string connectionId) { }
+
+        public void ReleaseMusicDemand(Guid broadcasterId, string connectionId) { }
+
         public Task<ChannelContext> GetOrCreateAsync(
             Guid broadcasterId,
             string twitchChannelId,

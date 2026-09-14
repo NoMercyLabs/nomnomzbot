@@ -264,7 +264,8 @@ public sealed class MusicServiceProviderPreferenceTests
 
         public Task<TrackInfo?> GetCurrentTrackAsync(
             Guid broadcasterId,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            bool isBackgroundPoll = false
         ) => throw new NotSupportedException();
 
         public Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(

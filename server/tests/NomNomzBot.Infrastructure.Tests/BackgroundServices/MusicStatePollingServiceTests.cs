@@ -19,10 +19,12 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Music;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
 
@@ -473,11 +475,13 @@ public sealed class MusicStatePollingServiceTests
         FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         PollerScopeFactory scopes = new(db, music);
+        IChannelRegistry channelRegistry = Substitute.For<IChannelRegistry>();
         MusicStatePollingService sut = new(
             scopes,
             bus,
             clock,
             new MusicRealtimeSignal(),
+            channelRegistry,
             NullLogger<MusicStatePollingService>.Instance
         );
 
@@ -622,7 +626,8 @@ public sealed class MusicStatePollingServiceTests
 
         public Task<TrackInfo?> GetCurrentTrackAsync(
             Guid broadcasterId,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            bool isBackgroundPoll = false
         ) => throw new NotSupportedException();
 
         public Task<string?> GetEmbeddedPlaybackTokenAsync(
@@ -680,7 +685,8 @@ public sealed class MusicStatePollingServiceTests
 
         public Task<NowPlaying?> GetNowPlayingAsync(
             string broadcasterId,
-            CancellationToken cancellationToken = default
+            CancellationToken cancellationToken = default,
+            bool isBackgroundPoll = false
         )
         {
             Guid channelId = Guid.Parse(broadcasterId);

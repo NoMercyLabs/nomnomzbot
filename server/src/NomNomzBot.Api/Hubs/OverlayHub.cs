@@ -15,16 +15,23 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs;
 
 public class OverlayHub : Hub<IOverlayClient>
 {
+    // The widget subscription key WidgetNowPlayingHandler pushes under (WidgetAlertHandlers.cs) — a widget
+    // that never subscribed to it renders no music state, so its connection has nothing to gain from a fast
+    // poll cadence.
+    private const string NowPlayingEventKey = "now_playing";
+
     private readonly IApplicationDbContext _db;
     private readonly IWidgetService _widgetService;
     private readonly IOverlayTicketService _tickets;
     private readonly OverlayPresenceRegistry _presence;
+    private readonly IChannelRegistry _registry;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
@@ -32,6 +39,7 @@ public class OverlayHub : Hub<IOverlayClient>
         IWidgetService widgetService,
         IOverlayTicketService tickets,
         OverlayPresenceRegistry presence,
+        IChannelRegistry registry,
         ILogger<OverlayHub> logger
     )
     {
@@ -39,6 +47,7 @@ public class OverlayHub : Hub<IOverlayClient>
         _widgetService = widgetService;
         _tickets = tickets;
         _presence = presence;
+        _registry = registry;
         _logger = logger;
     }
 
@@ -67,6 +76,8 @@ public class OverlayHub : Hub<IOverlayClient>
     {
         foreach (string groupName in _presence.Drop(Context.ConnectionId))
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+        if (Context.Items["BroadcasterId"] is Guid broadcasterId)
+            _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -100,6 +111,11 @@ public class OverlayHub : Hub<IOverlayClient>
         if (widget is not null)
             await _widgetService.ClearRuntimeErrorAsync(broadcasterId.ToString(), widgetId);
 
+        // A now-playing widget just came alive on stream — keep the music poller at its fast cadence for
+        // this channel for as long as this connection is here (see IChannelRegistry.TouchMusicDemand).
+        if (widget?.IsEnabled == true && widget.EventSubscriptions.Contains(NowPlayingEventKey))
+            _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
+
         return new(true, null, widget?.Settings);
     }
 
@@ -110,6 +126,7 @@ public class OverlayHub : Hub<IOverlayClient>
         string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
         _presence.Detach(Context.ConnectionId, groupName);
+        _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
     }
 
     public Task WidgetReady(string widgetId)

@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Resilience;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -228,7 +229,8 @@ public sealed class SpotifyMusicProvider
 
     public async Task<TrackInfo?> GetCurrentTrackAsync(
         Guid broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool isBackgroundPoll = false
     )
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
@@ -242,7 +244,8 @@ public sealed class SpotifyMusicProvider
             $"{SpotifyApiBase}/me/player",
             token,
             broadcasterId,
-            cancellationToken
+            cancellationToken,
+            isBackgroundPoll
         );
         if (response is null || response.StatusCode == HttpStatusCode.NoContent)
             return null;
@@ -1677,11 +1680,13 @@ public sealed class SpotifyMusicProvider
         string url,
         string token,
         Guid broadcasterId,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool isBackgroundPoll = false
     )
     {
         HttpRequestMessage request = new(method, url);
         request.Headers.Authorization = new("Bearer", token);
+        request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
 
         try
         {
@@ -1699,6 +1704,7 @@ public sealed class SpotifyMusicProvider
                     // Retry once after backoff
                     request = new(method, url);
                     request.Headers.Authorization = new("Bearer", token);
+                    request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
                     response = await _http.SendAsync(request, cancellationToken);
                 }
             }

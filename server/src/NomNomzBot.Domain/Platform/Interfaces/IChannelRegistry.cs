@@ -76,6 +76,21 @@ public interface IChannelRegistry
     IReadOnlyCollection<ChannelContext> GetAll();
     IReadOnlyCollection<ChannelContext> GetLiveChannels();
     int Count { get; }
+
+    /// <summary>
+    /// Registers that <paramref name="connectionId"/> currently wants fresh music/now-playing data for
+    /// this channel — a connected dashboard music panel, overlay now-playing widget, or Stream Deck/
+    /// Automation API client. No-ops if the channel is not yet registered (nothing to poll for yet).
+    /// Call again on reconnect; a connection id already present is a safe no-op.
+    /// </summary>
+    void TouchMusicDemand(Guid broadcasterId, string connectionId);
+
+    /// <summary>
+    /// Withdraws one connection's music-demand registration (call on disconnect). No-ops if the channel
+    /// or connection id is not present. <see cref="ChannelContext.HasMusicDemand"/> only goes false once
+    /// every registered connection for that channel has been released.
+    /// </summary>
+    void ReleaseMusicDemand(Guid broadcasterId, string connectionId);
 }
 
 /// <summary>
@@ -125,6 +140,17 @@ public class ChannelContext
     public string? CurrentTitle { get; set; }
     public string? CurrentGame { get; set; }
     public DateTimeOffset? WentLiveAt { get; set; }
+
+    /// <summary>
+    /// Connection ids currently wanting fresh music/now-playing data for this channel (a connected
+    /// dashboard music panel, overlay now-playing widget, or Stream Deck/Automation API client).
+    /// Populated via <see cref="IChannelRegistry.TouchMusicDemand"/>/<see cref="IChannelRegistry.ReleaseMusicDemand"/>.
+    /// </summary>
+    public ConcurrentDictionary<string, byte> MusicDemandConnections { get; } = new();
+
+    /// <summary>Whether anyone is currently watching this channel's music state closely enough to need a
+    /// fast poll cadence — see <see cref="MusicDemandConnections"/>.</summary>
+    public bool HasMusicDemand => !MusicDemandConnections.IsEmpty;
 
     // Live concurrent viewer count from Helix Get Streams, kept fresh by StreamStatusPollingService (0 when offline).
     // The dashboard reads this so a live channel's viewer count is present from startup, without a per-request Helix call.

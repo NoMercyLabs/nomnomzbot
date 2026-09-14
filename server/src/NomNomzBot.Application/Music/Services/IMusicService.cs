@@ -95,10 +95,15 @@ public interface IMusicService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Get the currently playing track, if any.</summary>
+    /// <summary>
+    /// Get the currently playing track, if any. <paramref name="isBackgroundPoll"/> — see
+    /// <see cref="NomNomzBot.Domain.Music.Interfaces.IMusicProvider.GetCurrentTrackAsync"/> — is set only by
+    /// <c>MusicStatePollingService</c>'s own background freshness poll; every other caller leaves it false.
+    /// </summary>
     Task<NowPlaying?> GetNowPlayingAsync(
         string broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool isBackgroundPoll = false
     );
 
     /// <summary>

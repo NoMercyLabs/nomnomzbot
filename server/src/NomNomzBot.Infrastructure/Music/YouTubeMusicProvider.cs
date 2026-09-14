@@ -186,7 +186,8 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
 
     public Task<TrackInfo?> GetCurrentTrackAsync(
         Guid broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool isBackgroundPoll = false
     )
     {
         // §3.5.2: YouTube now-playing is reported by the browser-source IFrame player relayed over the

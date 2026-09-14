@@ -924,7 +924,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
     public async Task<NowPlaying?> GetNowPlayingAsync(
         string broadcasterId,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        bool isBackgroundPoll = false
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
@@ -934,7 +935,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null || !HasCapability(provider, MusicProviderCapabilities.NowPlaying))
             return null;
 
-        TrackInfo? track = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
+        TrackInfo? track = await provider.GetCurrentTrackAsync(
+            tenantId,
+            cancellationToken,
+            isBackgroundPoll
+        );
         if (track is null)
             return null;
 
@@ -1954,9 +1959,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 {
                     BroadcasterId = tenantId,
                     UserId = requesterUserId,
-                    RecordType = Domain.Music.ValueObjects.SongRequestHistory.RecordType,
+                    RecordType = SongRequestHistory.RecordType,
                     Data = System.Text.Json.JsonSerializer.Serialize(
-                        new Domain.Music.ValueObjects.SongRequestHistory(
+                        new SongRequestHistory(
                             trackInfo.TrackUri,
                             trackInfo.TrackName,
                             trackInfo.Artist,
