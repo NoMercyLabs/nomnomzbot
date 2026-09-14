@@ -39,8 +39,10 @@ import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
+import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
@@ -62,6 +64,8 @@ import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * S-ADMIN-7a: the support desk must render a found person's REAL cross-tenant state — the trust/heat numbers,
@@ -264,10 +268,92 @@ class AdminSupportPersonRenderTest {
     }
 }
 
+/**
+ * The tenant-content investigation surface: given a channel id and a justification, the controller loads that
+ * TENANT's own custom commands and pipelines from the support-desk endpoints — real rows returned by the fake,
+ * asserted by field, not merely "did not throw". Closing must clear the loaded state so a stale tenant's rows
+ * can never bleed into the next lookup.
+ */
+class AdminTenantContentControllerTest {
+    private fun controllerWith(
+        commands: List<CommandSummary>,
+        pipelines: List<PipelineSummary>,
+    ): AdminController =
+        AdminController(
+            api = FakeAdminApiForSupportTest(),
+            iamApi = FakeIamApiForSupportTest(),
+            platformAdminApi = FakePlatformAdminApiForSupportTest(),
+            supportApi = FakeSupportApi(
+                results = emptyList(),
+                person = SupportPersonView(userId = "unused", username = "u", displayName = "U", platform = "twitch"),
+                tenantCommands = commands,
+                tenantPipelines = pipelines,
+            ),
+        )
+
+    @Test
+    fun opening_a_tenant_loads_its_real_custom_commands_and_pipelines() = runTest {
+        val controller = controllerWith(
+            commands = listOf(
+                CommandSummary(id = "cmd-1", name = "!hug", tier = "template", useCount = 42),
+            ),
+            pipelines = listOf(
+                PipelineSummary(id = "pipe-1", name = "raid-hype", triggerCount = 7),
+            ),
+        )
+        controller.setTenantContentJustification("Ticket #9001 — investigating spam commands")
+
+        controller.openTenantContent("chan-1")
+
+        val state = controller.state.value
+        assertEquals("chan-1", state.tenantContentOpenFor)
+        assertEquals(listOf("!hug"), state.tenantCommands.map { it.name })
+        assertEquals(42L, state.tenantCommands.single().useCount)
+        assertEquals(listOf("raid-hype"), state.tenantPipelines.map { it.name })
+        assertEquals(7, state.tenantPipelines.single().triggerCount)
+        assertEquals(false, state.tenantContentLoading)
+        assertNull(state.tenantContentError)
+    }
+
+    @Test
+    fun closing_the_panel_clears_the_previously_loaded_tenants_rows() = runTest {
+        val controller = controllerWith(
+            commands = listOf(CommandSummary(id = "cmd-1", name = "!hug")),
+            pipelines = listOf(PipelineSummary(id = "pipe-1", name = "raid-hype")),
+        )
+        controller.setTenantContentJustification("Ticket #9001")
+        controller.openTenantContent("chan-1")
+
+        controller.closeTenantContent()
+
+        val state = controller.state.value
+        assertNull(state.tenantContentOpenFor)
+        assertEquals(emptyList(), state.tenantCommands)
+        assertEquals(emptyList(), state.tenantPipelines)
+    }
+
+    @Test
+    fun opening_without_a_justification_never_calls_the_backend() = runTest {
+        val controller = controllerWith(
+            commands = listOf(CommandSummary(id = "cmd-1", name = "!hug")),
+            pipelines = emptyList(),
+        )
+        // No setTenantContentJustification call — the reason field is left blank.
+
+        controller.openTenantContent("chan-1")
+
+        val state = controller.state.value
+        assertNull(state.tenantContentOpenFor)
+        assertEquals(emptyList(), state.tenantCommands)
+    }
+}
+
 private class FakeSupportApi(
     private val results: List<SupportPersonSearchResult>,
     private val person: SupportPersonView,
     private val history: List<SupportPersonHistoryEntry> = emptyList(),
+    private val tenantCommands: List<CommandSummary> = emptyList(),
+    private val tenantPipelines: List<PipelineSummary> = emptyList(),
 ) : AdminSupportApi {
     override suspend fun searchPeople(
         search: String,
@@ -289,6 +375,20 @@ private class FakeSupportApi(
         pageSize: Int,
     ): ApiResult<PaginatedEnvelope<SupportPersonHistoryEntry>> =
         ApiResult.Ok(PaginatedEnvelope(history))
+
+    override suspend fun getTenantCommands(
+        channelId: String,
+        justification: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<CommandSummary>> = ApiResult.Ok(PaginatedEnvelope(tenantCommands))
+
+    override suspend fun getTenantPipelines(
+        channelId: String,
+        justification: String,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<PipelineSummary>> = ApiResult.Ok(PaginatedEnvelope(tenantPipelines))
 }
 
 private class FakeAdminApiForSupportTest : AdminApi {

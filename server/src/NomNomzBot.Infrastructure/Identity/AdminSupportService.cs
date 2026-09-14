@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Billing;
@@ -18,10 +19,12 @@ using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Billing.Entities;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
+using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -522,6 +525,141 @@ public sealed class AdminSupportService(
             .Where(c => ids.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
     }
+
+    public async Task<Result<PagedList<CommandListItem>>> GetTenantCommandsAsync(
+        Guid actingPrincipalId,
+        Guid channelId,
+        string justification,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(justification))
+            return Result.Failure<PagedList<CommandListItem>>(
+                "A justification is required to browse a tenant's own commands.",
+                "VALIDATION_FAILED"
+            );
+
+        Result authorized = await RequireAsync(
+            actingPrincipalId,
+            justification,
+            $"tenant:{channelId}:commands",
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<PagedList<CommandListItem>>(null!);
+
+        if (!await ChannelExistsAsync(channelId, ct))
+            return Result.Failure<PagedList<CommandListItem>>("Unknown channel.", "NOT_FOUND");
+
+        // IgnoreQueryFilters: Command is ITenantScoped, and this desk's ambient tenant (set by
+        // TenantResolutionMiddleware from the JWT sub when no explicit channelId is on the route — this
+        // route deliberately carries none, same as every other support-desk endpoint) is the OPERATOR's own
+        // channel, not the tenant under investigation. Calling ICommandService.ListAsync here would silently
+        // filter the very tenant being investigated out of its own result. DeletedAt is re-applied by hand for
+        // the same reason. Only genuinely tenant-authored commands are shown — IsPlatform ones are the shared
+        // system commands, already visible (and editable) on the platform content-authoring plane.
+        IQueryable<Command> query = db
+            .Commands.IgnoreQueryFilters()
+            .Where(c => c.BroadcasterId == channelId && c.DeletedAt == null && !c.IsPlatform);
+
+        int total = await query.CountAsync(ct);
+        List<CommandListItem> items = await query
+            .OrderBy(c => c.Name)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(c => new CommandListItem(
+                c.Id,
+                c.Name,
+                c.Tier,
+                PermissionLevelNames.ToName(c.MinPermissionLevel),
+                c.IsEnabled,
+                c.PrefixMode,
+                c.CustomPrefix,
+                c.MatchMode,
+                c.MatchPattern,
+                c.CooldownSeconds,
+                c.UserCooldownSeconds,
+                c.CooldownPerUser,
+                c.Description,
+                c.Aliases,
+                c.UseCount,
+                c.CreatedAt,
+                c.TemplateResponse,
+                c.TemplateResponses,
+                c.PipelineId
+            ))
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<CommandListItem>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    public async Task<Result<PagedList<PipelineListItemDto>>> GetTenantPipelinesAsync(
+        Guid actingPrincipalId,
+        Guid channelId,
+        string justification,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(justification))
+            return Result.Failure<PagedList<PipelineListItemDto>>(
+                "A justification is required to browse a tenant's own pipelines.",
+                "VALIDATION_FAILED"
+            );
+
+        Result authorized = await RequireAsync(
+            actingPrincipalId,
+            justification,
+            $"tenant:{channelId}:pipelines",
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<PagedList<PipelineListItemDto>>(null!);
+
+        if (!await ChannelExistsAsync(channelId, ct))
+            return Result.Failure<PagedList<PipelineListItemDto>>("Unknown channel.", "NOT_FOUND");
+
+        // Same IgnoreQueryFilters reasoning as GetTenantCommandsAsync. PlatformSourceDefinitionId == null
+        // excludes pipelines instantiated from a platform content template — those are already visible on the
+        // content-authoring plane; only the tenant's own build is new surface here.
+        IQueryable<PipelineEntity> query = db
+            .Pipelines.IgnoreQueryFilters()
+            .Where(p =>
+                p.BroadcasterId == channelId
+                && p.DeletedAt == null
+                && p.PlatformSourceDefinitionId == null
+            );
+
+        int total = await query.CountAsync(ct);
+        List<PipelineEntity> pageRows = await query
+            .OrderBy(p => p.Name)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+
+        List<PipelineListItemDto> items = pageRows
+            .Select(p => new PipelineListItemDto(
+                p.Id,
+                p.Name,
+                p.Description,
+                p.IsEnabled,
+                p.TriggerCount,
+                p.LastTriggeredAt,
+                p.UpdatedAt,
+                PipelineParameterNames.Parse(p.ParameterNamesJson)
+            ))
+            .ToList();
+
+        return Result.Success(
+            new PagedList<PipelineListItemDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    private async Task<bool> ChannelExistsAsync(Guid channelId, CancellationToken ct) =>
+        await db.Channels.AnyAsync(c => c.Id == channelId, ct);
 
     /// <summary>The tenant's display name, or its id when the channel row is gone — never a blank label.</summary>
     private static string NameOf(Dictionary<Guid, string> names, Guid tenantId) =>

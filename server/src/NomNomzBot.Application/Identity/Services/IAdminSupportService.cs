@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 
@@ -58,6 +59,35 @@ public interface IAdminSupportService
     Task<Result<PagedList<SupportPersonHistoryEntryDto>>> GetPersonHistoryAsync(
         Guid actingPrincipalId,
         Guid subjectUserId,
+        string justification,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The custom (non-platform) commands a specific TENANT has authored for themselves — support/moderation/
+    /// abuse triage ("this tenant's chat is doing something weird, what commands do they even have"), distinct
+    /// from the platform content-authoring plane which only ever shows the shared system templates. Read-only:
+    /// this desk never edits a tenant's own content, only <c>content:*</c> does that for platform content.
+    /// Requires <c>user:support:view</c>; justification is mandatory and the channel id lands on the audit row.
+    /// </summary>
+    Task<Result<PagedList<CommandListItem>>> GetTenantCommandsAsync(
+        Guid actingPrincipalId,
+        Guid channelId,
+        string justification,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The custom (non-platform-sourced) pipelines a specific TENANT has built for themselves — same
+    /// investigation purpose and gate as <see cref="GetTenantCommandsAsync"/>. A pipeline instantiated from a
+    /// platform content definition is excluded (it is already visible, in template form, on the content-
+    /// authoring plane); only pipelines with no <c>PlatformSourceDefinitionId</c> are the tenant's own build.
+    /// </summary>
+    Task<Result<PagedList<PipelineListItemDto>>> GetTenantPipelinesAsync(
+        Guid actingPrincipalId,
+        Guid channelId,
         string justification,
         PaginationParams pagination,
         CancellationToken ct = default

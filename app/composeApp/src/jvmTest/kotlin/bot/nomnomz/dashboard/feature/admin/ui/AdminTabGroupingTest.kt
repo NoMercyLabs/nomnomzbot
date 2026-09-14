@@ -462,6 +462,10 @@ private class FakeAdminSupportApiForGroupingTest : AdminSupportApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getPersonHistory(subjectUserId: String, justification: String, page: Int, pageSize: Int) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getTenantCommands(channelId: String, justification: String, page: Int, pageSize: Int) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getTenantPipelines(channelId: String, justification: String, page: Int, pageSize: Int) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 /** Only present to flip [AdminController.trustSafetyAvailable] on — none of its methods are exercised by

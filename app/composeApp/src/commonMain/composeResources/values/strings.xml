@@ -3866,6 +3866,20 @@
     <string name="admin_tenant_close">Close</string>
     <string name="admin_tenant_impersonate">Impersonate owner</string>
     <string name="admin_tenant_empty">No tenants match.</string>
+    <string name="admin_tenant_view_content">View own content</string>
+    <string name="admin_tenant_content_title">%1$s — own content</string>
+    <string name="admin_tenant_content_desc">Read-only. Custom commands and pipelines this tenant built for themselves — never system content, and never edited from here.</string>
+    <string name="admin_tenant_content_justification">Reason for looking</string>
+    <string name="admin_tenant_content_load">Look</string>
+    <string name="admin_tenant_content_section_commands">Commands</string>
+    <string name="admin_tenant_content_section_pipelines">Pipelines</string>
+    <string name="admin_tenant_content_empty_commands">No custom commands.</string>
+    <string name="admin_tenant_content_empty_pipelines">No custom pipelines.</string>
+    <string name="admin_tenant_content_row_type">Command</string>
+    <string name="admin_tenant_content_pipeline_row_type">Pipeline</string>
+    <string name="admin_tenant_content_command_detail">%1$s · used %2$d times</string>
+    <string name="admin_tenant_content_pipeline_detail">%1$s trigger(s)</string>
+    <string name="admin_tenant_content_error">Could not load: %1$s</string>
     <!-- General write-action outcome (billing, IAM, grants, invoices, content, ops, trust &amp; safety, platform bot) -->
     <string name="admin_action_error">Action failed: %1$s</string>
     <!-- Audit -->

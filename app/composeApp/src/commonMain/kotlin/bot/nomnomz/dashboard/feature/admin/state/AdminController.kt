@@ -67,6 +67,8 @@ import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.network.CreateContentDefinitionBody
 import bot.nomnomz.dashboard.core.network.DraftContentVersionBody
 import bot.nomnomz.dashboard.core.network.AdminSupportApi
+import bot.nomnomz.dashboard.core.network.CommandSummary
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
@@ -211,6 +213,16 @@ data class AdminState(
     val tenantsLoading: Boolean = false,
     val tenantsError: String? = null,
     val selectedTenant: AdminTenantDetail? = null,
+    /** The mandatory, audited reason for browsing one tenant's own custom content (support desk key). */
+    val tenantContentJustification: String = "",
+    /** The broadcaster id whose own commands/pipelines are currently shown, or null when the panel is closed. */
+    val tenantContentOpenFor: String? = null,
+    val tenantContentLoading: Boolean = false,
+    val tenantContentError: String? = null,
+    /** The tenant's own custom (non-platform) commands — investigation-only, never edited from here. */
+    val tenantCommands: List<CommandSummary> = emptyList(),
+    /** The tenant's own custom (non-platform-sourced) pipelines — investigation-only, never edited from here. */
+    val tenantPipelines: List<PipelineSummary> = emptyList(),
     // ── Provider app credentials ──
     /** One row per provider the build supports; empty until the Providers tab is first opened. */
     val providerCredentials: List<ProviderCredential> = emptyList(),
@@ -988,6 +1000,50 @@ class AdminController(
             is ApiResult.Ok -> Unit
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
+    }
+
+    fun setTenantContentJustification(value: String) {
+        _state.value = _state.value.copy(tenantContentJustification = value)
+    }
+
+    /**
+     * The custom (non-platform) commands and (non-platform-sourced) pipelines this ONE tenant built for
+     * themselves — read-only investigation surface (support/moderation/abuse triage), gated on the same
+     * `user:support:view` key as the rest of the support desk. Never edits the tenant's own content: only
+     * the platform content-authoring plane (Content tab) writes anything.
+     */
+    suspend fun openTenantContent(broadcasterId: String) {
+        val api: AdminSupportApi = supportApi ?: return
+        val justification: String = _state.value.tenantContentJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(
+            tenantContentOpenFor = broadcasterId,
+            tenantContentLoading = true,
+            tenantContentError = null,
+            tenantCommands = emptyList(),
+            tenantPipelines = emptyList(),
+        )
+        val commandsResult = api.getTenantCommands(channelId = broadcasterId, justification = justification)
+        val pipelinesResult = api.getTenantPipelines(channelId = broadcasterId, justification = justification)
+
+        val commandsError: String? = (commandsResult as? ApiResult.Failure)?.error?.message
+        val pipelinesError: String? = (pipelinesResult as? ApiResult.Failure)?.error?.message
+        _state.value = _state.value.copy(
+            tenantCommands = (commandsResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
+            tenantPipelines = (pipelinesResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
+            tenantContentLoading = false,
+            tenantContentError = commandsError ?: pipelinesError,
+        )
+    }
+
+    fun closeTenantContent() {
+        _state.value = _state.value.copy(
+            tenantContentOpenFor = null,
+            tenantContentError = null,
+            tenantCommands = emptyList(),
+            tenantPipelines = emptyList(),
+        )
     }
 
     // ── Audit ─────────────────────────────────────────────────────────────────

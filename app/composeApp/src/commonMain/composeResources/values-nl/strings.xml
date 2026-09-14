@@ -3852,6 +3852,20 @@
     <string name="admin_tenant_close">Sluiten</string>
     <string name="admin_tenant_impersonate">Handel als eigenaar</string>
     <string name="admin_tenant_empty">Geen tenants gevonden.</string>
+    <string name="admin_tenant_view_content">Eigen inhoud bekijken</string>
+    <string name="admin_tenant_content_title">%1$s — eigen inhoud</string>
+    <string name="admin_tenant_content_desc">Alleen-lezen. Aangepaste commando's en pipelines die deze tenant zelf heeft gebouwd — nooit systeeminhoud, en hier nooit bewerkbaar.</string>
+    <string name="admin_tenant_content_justification">Reden om te kijken</string>
+    <string name="admin_tenant_content_load">Bekijken</string>
+    <string name="admin_tenant_content_section_commands">Commando's</string>
+    <string name="admin_tenant_content_section_pipelines">Pipelines</string>
+    <string name="admin_tenant_content_empty_commands">Geen aangepaste commando's.</string>
+    <string name="admin_tenant_content_empty_pipelines">Geen aangepaste pipelines.</string>
+    <string name="admin_tenant_content_row_type">Commando</string>
+    <string name="admin_tenant_content_pipeline_row_type">Pipeline</string>
+    <string name="admin_tenant_content_command_detail">%1$s · %2$d keer gebruikt</string>
+    <string name="admin_tenant_content_pipeline_detail">%1$s trigger(s)</string>
+    <string name="admin_tenant_content_error">Laden mislukt: %1$s</string>
     <!-- General write-action outcome (billing, IAM, grants, invoices, content, ops, trust &amp; safety, platform bot) -->
     <string name="admin_action_error">Actie mislukt: %1$s</string>
     <!-- Audit -->
