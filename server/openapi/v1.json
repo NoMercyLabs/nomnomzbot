@@ -22131,7 +22131,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfString"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfstring"
                 }
               }
             }
@@ -110349,38 +110349,6 @@
             "items": {
               "$ref": "#/components/schemas/VoiceTriggerDto"
             }
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseDtoOfString": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "type": [
-              "null",
-              "string"
-            ]
           },
           "message": {
             "type": [
