@@ -109,7 +109,8 @@ public sealed class UserProfileHydrationService : BackgroundService
             DateTime staleBefore = DateTime.UtcNow - RefreshAfter;
             List<User> pending = await db
                 .Users.Where(u =>
-                    u.TwitchUserId != ""
+                    u.TwitchUserId != null
+                    && u.TwitchUserId != ""
                     && (
                         u.ProfileImageUrl == null
                         || u.ProfileRefreshedAt == null

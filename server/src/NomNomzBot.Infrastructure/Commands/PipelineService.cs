@@ -396,6 +396,27 @@ public class PipelineService : IPipelineService
             return Result.Failure($"Pipeline '{id}' was not found.", "NOT_FOUND");
 
         Guid pipelineId = entity.Id;
+
+        // Deletes are soft (DeletedAt, not a real row removal — see the interceptor behind
+        // _db.Pipelines.Remove), so the DB's own ON DELETE SET NULL on Commands/EventResponses/Timers
+        // never fires: a hard delete would have cleared these automatically, a soft delete does not.
+        // Left unbound, a referencing Command/ChatTrigger/Timer/EventResponse silently stops doing
+        // anything the next time it fires — the caller loads a pipeline the query filter now hides and
+        // gets nothing back — instead of surfacing as broken. Clear every reference explicitly so the
+        // blast radius GetBlastRadiusAsync warns about is the blast radius that actually happens.
+        await _db
+            .Commands.Where(c => c.BroadcasterId == broadcaster && c.PipelineId == pipelineId)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.PipelineId, (Guid?)null), ct);
+        await _db
+            .ChatTriggers.Where(t => t.BroadcasterId == broadcaster && t.PipelineId == pipelineId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.PipelineId, (Guid?)null), ct);
+        await _db
+            .Timers.Where(t => t.BroadcasterId == broadcaster && t.PipelineId == pipelineId)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.PipelineId, (Guid?)null), ct);
+        await _db
+            .EventResponses.Where(r => r.BroadcasterId == broadcaster && r.PipelineId == pipelineId)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.PipelineId, (Guid?)null), ct);
+
         _db.Pipelines.Remove(entity);
         await _db.SaveChangesAsync(ct);
         await PublishConfigChangedAsync(broadcaster, pipelineId, "deleted", ct);
