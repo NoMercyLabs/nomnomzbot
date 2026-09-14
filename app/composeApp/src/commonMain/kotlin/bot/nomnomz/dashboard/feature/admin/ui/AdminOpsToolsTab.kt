@@ -135,6 +135,7 @@ private fun formatPercent(fraction: Double): String {
 internal fun EventSubHealthTab(state: AdminState, controller: AdminController) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
@@ -148,6 +149,11 @@ internal fun EventSubHealthTab(state: AdminState, controller: AdminController) {
             EmptyLine(stringResource(Res.string.admin_eventsub_health_empty))
         } else {
             state.eventSubHealth.forEach { tenant -> EventSubTenantCard(tenant) }
+            Pager(
+                page = state.eventSubHealthPage,
+                hasMore = state.eventSubHealthHasMore,
+                onPage = { page -> scope.launch { controller.loadEventSubHealth(page = page) } },
+            )
         }
     }
 }
@@ -245,6 +251,11 @@ internal fun WebhookDeliveriesTab(state: AdminState, controller: AdminController
                     }
                 }
             }
+            Pager(
+                page = state.webhookDeliveriesPage,
+                hasMore = state.webhookDeliveriesHasMore,
+                onPage = { page -> scope.launch { controller.loadWebhookDeliveries(page = page) } },
+            )
         }
     }
 
@@ -390,6 +401,11 @@ internal fun ScheduledJobsTab(state: AdminState, controller: AdminController) {
                     }
                 }
             }
+            Pager(
+                page = state.scheduledJobsPage,
+                hasMore = state.scheduledJobsHasMore,
+                onPage = { page -> scope.launch { controller.loadScheduledJobs(page = page) } },
+            )
         }
     }
 
@@ -500,6 +516,7 @@ private fun ScheduledJobRetryConfirmDialog(job: AdminScheduledJob, onDismiss: ()
 internal fun TenantUsageTab(state: AdminState, controller: AdminController) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
@@ -513,6 +530,11 @@ internal fun TenantUsageTab(state: AdminState, controller: AdminController) {
             EmptyLine(stringResource(Res.string.admin_tenant_usage_empty))
         } else {
             state.tenantUsage.forEach { usage -> TenantUsageCard(usage) }
+            Pager(
+                page = state.tenantUsagePage,
+                hasMore = state.tenantUsageHasMore,
+                onPage = { page -> scope.launch { controller.loadTenantUsage(page = page) } },
+            )
         }
     }
 }
@@ -618,6 +640,7 @@ private fun UsageCostLine(costMinorUnits: Long?, currency: String?) {
 internal fun ErrorBudgetTab(state: AdminState, controller: AdminController) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
@@ -631,6 +654,11 @@ internal fun ErrorBudgetTab(state: AdminState, controller: AdminController) {
             EmptyLine(stringResource(Res.string.admin_error_budget_empty))
         } else {
             state.errorBudget.forEach { budget -> ErrorBudgetCard(budget) }
+            Pager(
+                page = state.errorBudgetPage,
+                hasMore = state.errorBudgetHasMore,
+                onPage = { page -> scope.launch { controller.loadErrorBudget(page = page) } },
+            )
         }
     }
 }

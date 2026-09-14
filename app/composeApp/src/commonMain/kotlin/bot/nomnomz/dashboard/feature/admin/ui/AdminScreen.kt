@@ -68,6 +68,7 @@ import bot.nomnomz.dashboard.core.network.ProviderCredential
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
+import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -132,6 +133,8 @@ import nomnomzbot.composeapp.generated.resources.admin_invite_grants_founder
 import nomnomzbot.composeapp.generated.resources.admin_invite_no_expiry
 import nomnomzbot.composeapp.generated.resources.admin_invite_redemptions
 import nomnomzbot.composeapp.generated.resources.admin_invite_revoke
+import nomnomzbot.composeapp.generated.resources.admin_invite_revoke_confirm_body
+import nomnomzbot.composeapp.generated.resources.admin_invite_revoke_confirm_title
 import nomnomzbot.composeapp.generated.resources.admin_stats_active_channels
 import nomnomzbot.composeapp.generated.resources.admin_stats_events_today
 import nomnomzbot.composeapp.generated.resources.admin_stats_system_status
@@ -1030,7 +1033,7 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Pager(page: Int, hasMore: Boolean, onPage: (Int) -> Unit) {
+internal fun Pager(page: Int, hasMore: Boolean, onPage: (Int) -> Unit) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
@@ -1644,6 +1647,9 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
+    // Revoking an invite code stops it working immediately and cannot be undone — it goes through the
+    // same confirm step as every other irreversible action here, instead of firing on the first click.
+    var revokeInvite: InviteCode? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
@@ -1713,7 +1719,7 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
                                 GlyphButton(
                                     icon = TrashGlyph,
                                     label = stringResource(Res.string.admin_invite_revoke),
-                                    onClick = { scope.launch { controller.revokeInviteCode(invite.id) } },
+                                    onClick = { revokeInvite = invite },
                                     tint = tokens.destructive,
                                 )
                             }
@@ -1746,6 +1752,21 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
                 }
             }
         }
+    }
+
+    revokeInvite?.let { invite ->
+        ConfirmDialog(
+            title = stringResource(Res.string.admin_invite_revoke_confirm_title),
+            message = stringResource(Res.string.admin_invite_revoke_confirm_body, invite.code),
+            confirmLabel = stringResource(Res.string.admin_invite_revoke),
+            dismissLabel = stringResource(Res.string.admin_cancel),
+            destructive = true,
+            onConfirm = {
+                scope.launch { controller.revokeInviteCode(invite.id) }
+                revokeInvite = null
+            },
+            onDismiss = { revokeInvite = null },
+        )
     }
 }
 

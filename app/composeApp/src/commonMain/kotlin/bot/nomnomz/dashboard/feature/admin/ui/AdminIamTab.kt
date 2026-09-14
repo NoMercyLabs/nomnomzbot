@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
+import bot.nomnomz.dashboard.core.network.IamRoleAssignment
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import kotlinx.coroutines.launch
@@ -77,6 +78,8 @@ import nomnomzbot.composeapp.generated.resources.admin_iam_promote_title
 import nomnomzbot.composeapp.generated.resources.admin_iam_reactivate
 import nomnomzbot.composeapp.generated.resources.admin_iam_reason
 import nomnomzbot.composeapp.generated.resources.admin_iam_revoke
+import nomnomzbot.composeapp.generated.resources.admin_iam_revoke_confirm_body
+import nomnomzbot.composeapp.generated.resources.admin_iam_revoke_confirm_title
 import nomnomzbot.composeapp.generated.resources.admin_iam_role
 import nomnomzbot.composeapp.generated.resources.admin_iam_role_row_type
 import nomnomzbot.composeapp.generated.resources.admin_iam_roles_empty
@@ -105,6 +108,9 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
     var serviceOpen: Boolean by remember { mutableStateOf(false) }
     var assignFor: IamPrincipalSummary? by remember { mutableStateOf(null) }
     var deactivateFor: IamPrincipalSummary? by remember { mutableStateOf(null) }
+    // Revoking a role assignment removes access immediately — it goes through the same confirm step as
+    // deactivate, right below it, rather than firing on the first click (consequences must be visible).
+    var revokeFor: IamRoleAssignment? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
@@ -148,7 +154,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
                             onAssign = { assignFor = principal },
                             onDeactivate = { deactivateFor = principal },
                             onReactivate = { scope.launch { controller.reactivatePrincipal(principal.id) } },
-                            onRevoke = { assignmentId -> scope.launch { controller.revokeAssignment(assignmentId, null) } },
+                            onRevoke = { assignment -> revokeFor = assignment },
                             onEffective = { scope.launch { controller.loadEffectivePermissions(principal.id) } },
                         )
                         if (index < state.principals.lastIndex) Separator()
@@ -244,6 +250,21 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
         )
     }
 
+    revokeFor?.let { assignment ->
+        ConfirmDialog(
+            title = stringResource(Res.string.admin_iam_revoke_confirm_title),
+            message = stringResource(Res.string.admin_iam_revoke_confirm_body, assignment.roleName),
+            confirmLabel = stringResource(Res.string.admin_iam_revoke),
+            dismissLabel = stringResource(Res.string.admin_cancel),
+            destructive = true,
+            onConfirm = {
+                scope.launch { controller.revokeAssignment(assignment.id, null) }
+                revokeFor = null
+            },
+            onDismiss = { revokeFor = null },
+        )
+    }
+
     // The service-account key comes back exactly once — show it, let the operator copy, then clear it forever.
     state.issuedServiceAccountKey?.let { key ->
         ServiceAccountKeyDialog(key = key, onDismiss = { controller.dismissIssuedKey() })
@@ -257,7 +278,7 @@ private fun PrincipalRow(
     onAssign: () -> Unit,
     onDeactivate: () -> Unit,
     onReactivate: () -> Unit,
-    onRevoke: (String) -> Unit,
+    onRevoke: (IamRoleAssignment) -> Unit,
     onEffective: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -298,7 +319,7 @@ private fun PrincipalRow(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     Badge(variant = BadgeVariant.Outline) { Text(text = assignment.roleName, style = typography.xs) }
                     Spacer(modifier = Modifier.weight(1f))
-                    TextButton(onClick = { onRevoke(assignment.id) }) {
+                    TextButton(onClick = { onRevoke(assignment) }) {
                         Text(text = stringResource(Res.string.admin_iam_revoke), color = tokens.destructive, style = typography.xs)
                     }
                 }

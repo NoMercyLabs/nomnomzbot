@@ -226,10 +226,18 @@ data class AdminState(
     val eventSubHealth: List<AdminEventSubTenantHealth> = emptyList(),
     val eventSubHealthLoading: Boolean = false,
     val eventSubHealthError: String? = null,
+    /** 1-based page the EventSub health list is currently showing. */
+    val eventSubHealthPage: Int = 1,
+    /** Whether the server said there is a page after [eventSubHealthPage]. */
+    val eventSubHealthHasMore: Boolean = false,
     // ── Outbound webhook delivery log + replay (S-ADMIN-6a) ──
     val webhookDeliveries: List<AdminWebhookDelivery> = emptyList(),
     val webhookDeliveriesLoading: Boolean = false,
     val webhookDeliveriesError: String? = null,
+    /** 1-based page the webhook delivery log is currently showing. */
+    val webhookDeliveriesPage: Int = 1,
+    /** Whether the server said there is a page after [webhookDeliveriesPage]. */
+    val webhookDeliveriesHasMore: Boolean = false,
     /** The delivery a replay confirmation is currently open for, or null when no confirm dialog is showing —
      * what it will re-send (event type + target endpoint) comes straight off this row. */
     val replayPendingDeliveryId: Long? = null,
@@ -237,6 +245,10 @@ data class AdminState(
     val scheduledJobs: List<AdminScheduledJob> = emptyList(),
     val scheduledJobsLoading: Boolean = false,
     val scheduledJobsError: String? = null,
+    /** 1-based page the background job queue is currently showing. */
+    val scheduledJobsPage: Int = 1,
+    /** Whether the server said there is a page after [scheduledJobsPage]. */
+    val scheduledJobsHasMore: Boolean = false,
     /** The job a retry confirmation is currently open for, or null when no confirm dialog is showing — the
      * pipeline it will re-run comes straight off this row (consequences must be visible before it commits). */
     val retryPendingJobId: String? = null,
@@ -244,10 +256,18 @@ data class AdminState(
     val tenantUsage: List<AdminTenantUsage> = emptyList(),
     val tenantUsageLoading: Boolean = false,
     val tenantUsageError: String? = null,
+    /** 1-based page the per-tenant usage list is currently showing. */
+    val tenantUsagePage: Int = 1,
+    /** Whether the server said there is a page after [tenantUsagePage]. */
+    val tenantUsageHasMore: Boolean = false,
     // ── Error budget (S-ADMIN-6c) ──
     val errorBudget: List<AdminTenantErrorBudget> = emptyList(),
     val errorBudgetLoading: Boolean = false,
     val errorBudgetError: String? = null,
+    /** 1-based page the error budget list is currently showing. */
+    val errorBudgetPage: Int = 1,
+    /** Whether the server said there is a page after [errorBudgetPage]. */
+    val errorBudgetHasMore: Boolean = false,
     // ── Event-store replay (S-ADMIN-6c) ──
     val replayProjections: List<AdminReplayableProjection> = emptyList(),
     val replayProjectionsLoading: Boolean = false,
@@ -1498,12 +1518,22 @@ class AdminController(
 
     // ── EventSub subscription health (S-ADMIN-6a) ───────────────────────────────
 
-    /** Loads the REAL EventSub registry, grouped by tenant — never a fabricated list. */
-    suspend fun loadEventSubHealth() {
-        _state.value = _state.value.copy(eventSubHealthLoading = true, eventSubHealthError = null)
-        when (val result = api.getEventSubHealth()) {
+    /** Loads the REAL EventSub registry, grouped by tenant — never a fabricated list. [page] defaults to
+     * the page already showing, so a reload (e.g. after a write) stays where the operator was. */
+    suspend fun loadEventSubHealth(page: Int? = null) {
+        val effectivePage: Int = page ?: _state.value.eventSubHealthPage
+        _state.value = _state.value.copy(
+            eventSubHealthLoading = true,
+            eventSubHealthError = null,
+            eventSubHealthPage = effectivePage,
+        )
+        when (val result = api.getEventSubHealth(page = effectivePage)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(eventSubHealth = result.value.data, eventSubHealthLoading = false)
+                _state.value = _state.value.copy(
+                    eventSubHealth = result.value.data,
+                    eventSubHealthHasMore = result.value.hasMore,
+                    eventSubHealthLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(eventSubHealthLoading = false, eventSubHealthError = result.error.message)
         }
@@ -1511,11 +1541,20 @@ class AdminController(
 
     // ── Outbound webhook delivery log + replay (S-ADMIN-6a) ─────────────────────
 
-    suspend fun loadWebhookDeliveries() {
-        _state.value = _state.value.copy(webhookDeliveriesLoading = true, webhookDeliveriesError = null)
-        when (val result = api.getWebhookDeliveries()) {
+    suspend fun loadWebhookDeliveries(page: Int? = null) {
+        val effectivePage: Int = page ?: _state.value.webhookDeliveriesPage
+        _state.value = _state.value.copy(
+            webhookDeliveriesLoading = true,
+            webhookDeliveriesError = null,
+            webhookDeliveriesPage = effectivePage,
+        )
+        when (val result = api.getWebhookDeliveries(page = effectivePage)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(webhookDeliveries = result.value.data, webhookDeliveriesLoading = false)
+                _state.value = _state.value.copy(
+                    webhookDeliveries = result.value.data,
+                    webhookDeliveriesHasMore = result.value.hasMore,
+                    webhookDeliveriesLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(webhookDeliveriesLoading = false, webhookDeliveriesError = result.error.message)
         }
@@ -1546,11 +1585,20 @@ class AdminController(
     // ── Background job queue + retry (S-ADMIN-6b) ───────────────────────────────
 
     /** Loads the REAL background job queue — every `ScheduledPipelineTask` row, never a fabricated list. */
-    suspend fun loadScheduledJobs() {
-        _state.value = _state.value.copy(scheduledJobsLoading = true, scheduledJobsError = null)
-        when (val result = api.getScheduledJobs()) {
+    suspend fun loadScheduledJobs(page: Int? = null) {
+        val effectivePage: Int = page ?: _state.value.scheduledJobsPage
+        _state.value = _state.value.copy(
+            scheduledJobsLoading = true,
+            scheduledJobsError = null,
+            scheduledJobsPage = effectivePage,
+        )
+        when (val result = api.getScheduledJobs(page = effectivePage)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(scheduledJobs = result.value.data, scheduledJobsLoading = false)
+                _state.value = _state.value.copy(
+                    scheduledJobs = result.value.data,
+                    scheduledJobsHasMore = result.value.hasMore,
+                    scheduledJobsLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(scheduledJobsLoading = false, scheduledJobsError = result.error.message)
         }
@@ -1581,11 +1629,20 @@ class AdminController(
     // ── Per-tenant usage (S-ADMIN-6b) ───────────────────────────────────────────
 
     /** Loads per-tenant usage for each tenant's most recent metering period, computed from recorded usage. */
-    suspend fun loadTenantUsage() {
-        _state.value = _state.value.copy(tenantUsageLoading = true, tenantUsageError = null)
-        when (val result = api.getTenantUsage()) {
+    suspend fun loadTenantUsage(page: Int? = null) {
+        val effectivePage: Int = page ?: _state.value.tenantUsagePage
+        _state.value = _state.value.copy(
+            tenantUsageLoading = true,
+            tenantUsageError = null,
+            tenantUsagePage = effectivePage,
+        )
+        when (val result = api.getTenantUsage(page = effectivePage)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(tenantUsage = result.value.data, tenantUsageLoading = false)
+                _state.value = _state.value.copy(
+                    tenantUsage = result.value.data,
+                    tenantUsageHasMore = result.value.hasMore,
+                    tenantUsageLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(tenantUsageLoading = false, tenantUsageError = result.error.message)
         }
@@ -1595,11 +1652,20 @@ class AdminController(
 
     /** Loads the per-tenant error budget for the trailing 24h window, computed purely from real outbound
      * webhook delivery outcomes — never a fabricated percentage. */
-    suspend fun loadErrorBudget() {
-        _state.value = _state.value.copy(errorBudgetLoading = true, errorBudgetError = null)
-        when (val result = api.getErrorBudget()) {
+    suspend fun loadErrorBudget(page: Int? = null) {
+        val effectivePage: Int = page ?: _state.value.errorBudgetPage
+        _state.value = _state.value.copy(
+            errorBudgetLoading = true,
+            errorBudgetError = null,
+            errorBudgetPage = effectivePage,
+        )
+        when (val result = api.getErrorBudget(page = effectivePage)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(errorBudget = result.value.data, errorBudgetLoading = false)
+                _state.value = _state.value.copy(
+                    errorBudget = result.value.data,
+                    errorBudgetHasMore = result.value.hasMore,
+                    errorBudgetLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(errorBudgetLoading = false, errorBudgetError = result.error.message)
         }

@@ -3456,6 +3456,8 @@
     <string name="admin_invite_no_expiry">Geen vervaldatum</string>
     <string name="admin_invite_grants_founder">Geeft oprichtersbadge</string>
     <string name="admin_invite_revoke">Intrekken</string>
+    <string name="admin_invite_revoke_confirm_title">Uitnodigingscode intrekken?</string>
+    <string name="admin_invite_revoke_confirm_body">De code %1$s werkt meteen niet meer. Wie hem nog niet heeft ingewisseld, kan dat niet meer doen.</string>
     <string name="admin_invite_create">Uitnodigingscode aanmaken</string>
     <string name="admin_billing_empty">Nog geen uitnodigingscodes.</string>
     <string name="admin_tiers_heading">Abonnementen</string>
@@ -3555,6 +3557,8 @@
     <string name="admin_iam_create_service">Nieuw serviceaccount</string>
     <string name="admin_iam_no_assignments">Geen actieve rollen.</string>
     <string name="admin_iam_revoke">Intrekken</string>
+    <string name="admin_iam_revoke_confirm_title">Rol intrekken?</string>
+    <string name="admin_iam_revoke_confirm_body">Dit verwijdert de rol %1$s direct van deze principal. Ze verliezen meteen alle toegang die deze rol gaf.</string>
     <string name="admin_iam_deactivate">Deactiveren</string>
     <string name="admin_iam_reactivate">Heractiveren</string>
     <string name="admin_iam_effective">Effectieve rechten</string>

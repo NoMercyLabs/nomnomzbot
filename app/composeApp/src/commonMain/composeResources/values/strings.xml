@@ -3470,6 +3470,8 @@
     <string name="admin_invite_no_expiry">No expiry</string>
     <string name="admin_invite_grants_founder">Grants founder badge</string>
     <string name="admin_invite_revoke">Revoke</string>
+    <string name="admin_invite_revoke_confirm_title">Revoke invite code?</string>
+    <string name="admin_invite_revoke_confirm_body">The code %1$s stops working immediately. Anyone who has not redeemed it yet can no longer use it.</string>
     <string name="admin_invite_create">Create invite code</string>
     <string name="admin_billing_empty">No invite codes yet.</string>
     <string name="admin_tiers_heading">Plans</string>
@@ -3569,6 +3571,8 @@
     <string name="admin_iam_create_service">New service account</string>
     <string name="admin_iam_no_assignments">No active roles.</string>
     <string name="admin_iam_revoke">Revoke</string>
+    <string name="admin_iam_revoke_confirm_title">Revoke role?</string>
+    <string name="admin_iam_revoke_confirm_body">This immediately removes the %1$s role from this principal. They lose whatever access it granted right away.</string>
     <string name="admin_iam_deactivate">Deactivate</string>
     <string name="admin_iam_reactivate">Reactivate</string>
     <string name="admin_iam_effective">Effective permissions</string>
