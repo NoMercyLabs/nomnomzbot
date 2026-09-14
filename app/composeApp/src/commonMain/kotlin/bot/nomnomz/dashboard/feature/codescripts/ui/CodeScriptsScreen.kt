@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -306,9 +307,13 @@ private fun CreateScriptDialog(
                     value = source,
                     onValueChange = { source = it },
                     label = stringResource(Res.string.scripts_create_source),
-                    modifier = Modifier.fillMaxWidth(),
+                    // Bounded height + fillHeight: pasted source scrolls WITHIN the field (BasicTextField's
+                    // own cursor-follow behavior) instead of growing the dialog past the viewport and
+                    // carrying the Create/Cancel buttons out of reach — confirmed live on the deployed app.
+                    modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 3),
                     monospace = true,
                     minLines = 5,
+                    fillHeight = true,
                 )
             }
         },
