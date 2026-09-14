@@ -172,6 +172,10 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>

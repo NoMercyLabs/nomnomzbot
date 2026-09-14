@@ -47,6 +47,8 @@ public interface IApplicationDbContext
     DbSet<Redemption> Redemptions { get; }
     DbSet<RedemptionTimer> RedemptionTimers { get; }
     DbSet<ChatTrigger> ChatTriggers { get; }
+    DbSet<VoiceTrigger> VoiceTriggers { get; }
+    DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel> SharedBanTrustedChannels { get; }

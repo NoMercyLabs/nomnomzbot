@@ -93,6 +93,10 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>

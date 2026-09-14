@@ -2267,6 +2267,100 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("Timers");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("SpokenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StreamId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId");
+
+                    b.HasIndex("StreamId", "SpokenAt");
+
+                    b.ToTable("VoiceTranscriptSegments");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.VoiceTrigger", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("CooldownSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CurrentCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastFiredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StartingCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("StickerAssetId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Word")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "IsEnabled");
+
+                    b.ToTable("VoiceTriggers");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Community.Entities.ChatPoll", b =>
                 {
                     b.Property<Guid>("Id")
@@ -11847,6 +11941,36 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("Pipeline");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Stream.Entities.Stream", "Stream")
+                        .WithMany()
+                        .HasForeignKey("StreamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Stream");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.VoiceTrigger", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource", b =>

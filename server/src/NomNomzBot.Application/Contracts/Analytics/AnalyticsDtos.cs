@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Commands.Dtos;
+
 namespace NomNomzBot.Application.Contracts.Analytics;
 
 /// <summary>One day of the per-channel aggregate (analytics.md §4, schema M.8) — the chart/time-series row.</summary>
@@ -85,7 +87,8 @@ public sealed record StreamAnalyticsDto(
     int NewSubscribers,
     int CheersCount,
     long CommandsRun,
-    long RedemptionsCount
+    long RedemptionsCount,
+    IReadOnlyList<VoiceTranscriptSegmentDto> Transcript
 );
 
 /// <summary>A channel's top viewer over a range by the chosen metric (analytics.md §4) — not the economy board.</summary>

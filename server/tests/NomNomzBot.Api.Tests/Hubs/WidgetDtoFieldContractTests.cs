@@ -94,6 +94,9 @@ public sealed class WidgetDtoFieldContractTests
                 // supporter.tip/membership/merch/charity now route through the real
                 // SupporterWidgetEventHandler -> SupporterAlertPayload (S058b) — no more guessed shape.
                 typeof(SupporterAlertPayload),
+                // voice_trigger routes through the real VoiceTriggerWidgetEventHandler ->
+                // VoiceTriggerWidgetEventPayload (word/count/stickerImageUrl) — not a guessed shape.
+                typeof(Infrastructure.Widgets.EventHandlers.VoiceTriggerWidgetEventPayload),
             ]
         ),
         new(

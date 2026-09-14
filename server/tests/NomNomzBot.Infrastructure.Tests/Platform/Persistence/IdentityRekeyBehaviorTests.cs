@@ -64,6 +64,10 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
         public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -404,6 +408,10 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
         public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+            throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>

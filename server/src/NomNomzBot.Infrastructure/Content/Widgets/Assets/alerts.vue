@@ -9,6 +9,7 @@ const nnz = (window as any).NomNomz
 const ALL_EVENTS: string[] = [
   'follow', 'subscription', 'resub', 'gift', 'cheer', 'raid',
   'supporter.tip', 'supporter.membership', 'supporter.merch', 'supporter.charity',
+  'voice_trigger',
 ]
 
 interface AlertConfig {
@@ -31,7 +32,7 @@ const cfg = reactive<AlertConfig>({
   accentColor: '#9146ff',
 })
 
-interface AlertCard { title: string; detail: string }
+interface AlertCard { title: string; detail: string; imageUrl?: string }
 
 const queue: AlertCard[] = []
 const current = ref<AlertCard | null>(null)
@@ -86,6 +87,11 @@ function applyTemplate(type: string, d: any): string {
 }
 
 function cardFor(type: string, d: any): AlertCard | null {
+  // voice_trigger carries its own text + per-word sticker image (VoiceTriggerWidgetEventPayload) — it does
+  // not follow the {user}-shaped textTemplate other alert types use, since there is no "user" involved.
+  if (type === 'voice_trigger') {
+    return { title: (d.word || '') + ' (' + (d.count || 0) + ')', detail: '', imageUrl: d.stickerImageUrl || undefined }
+  }
   if (cfg.textTemplate) return { title: applyTemplate(type, d), detail: '' }
   const user: string = nameOf(type, d)
   switch (type) {
@@ -158,6 +164,7 @@ onUnmounted(() => {
 <template>
   <div class="nnz-alerts" :style="{ '--accent': cfg.accentColor }">
     <div v-if="current" :key="cardKey" class="card" :class="{ show: visible }">
+      <img v-if="current.imageUrl" class="sticker" :src="current.imageUrl" alt="" />
       <div class="title">{{ current.title }}</div>
       <div v-if="current.detail" class="detail">{{ current.detail }}</div>
     </div>
@@ -204,5 +211,12 @@ onUnmounted(() => {
   font-size: 17px;
   font-weight: 500;
   opacity: 0.92;
+}
+.sticker {
+  display: block;
+  max-height: 120px;
+  max-width: 100%;
+  margin: 0 auto 10px;
+  border-radius: 8px;
 }
 </style>

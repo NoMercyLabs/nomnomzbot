@@ -343,6 +343,48 @@ public sealed class ChannelAnalyticsServiceTests
     }
 
     [Fact]
+    public async Task GetStream_returns_the_transcript_chronologically_scoped_to_this_stream()
+    {
+        (ChannelAnalyticsService sut, AuthDbContext db) = Build();
+        db.Streams.Add(StreamRow("s-1", StreamStart, StreamEnd, peak: 42));
+        db.Streams.Add(
+            StreamRow("s-other", StreamStart.AddDays(-1), StreamStart.AddDays(-1).AddHours(2))
+        );
+        db.VoiceTranscriptSegments.AddRange(
+            new NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Channel,
+                StreamId = "s-1",
+                Text = "second line",
+                SpokenAt = StreamStart.AddMinutes(10).UtcDateTime,
+            },
+            new NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Channel,
+                StreamId = "s-1",
+                Text = "first line",
+                SpokenAt = StreamStart.AddMinutes(5).UtcDateTime,
+            },
+            // Belongs to a DIFFERENT stream — must never leak into s-1's transcript.
+            new NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Channel,
+                StreamId = "s-other",
+                Text = "wrong stream",
+                SpokenAt = StreamStart.AddMinutes(6).UtcDateTime,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        StreamAnalyticsDto stats = (await sut.GetStreamAsync(Channel, "s-1")).Value;
+
+        stats.Transcript.Select(t => t.Text).Should().Equal("first line", "second line");
+    }
+
+    [Fact]
     public async Task GetStream_on_a_live_stream_folds_up_to_now()
     {
         Microsoft.Extensions.Time.Testing.FakeTimeProvider clock = new(StreamStart.AddHours(1));

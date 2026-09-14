@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -260,6 +261,23 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
             ct
         );
 
+        // The full-transcript ask (owner, 2026-09-14): the voice-listener page's spoken-word transcript for
+        // THIS stream, chronological — read regardless of whether the stream is still live so the page shows
+        // whatever has been captured so far.
+        List<Domain.Commands.Entities.VoiceTranscriptSegment> transcriptRows = await db
+            .VoiceTranscriptSegments.Where(s =>
+                s.BroadcasterId == broadcasterId && s.StreamId == stream.Id
+            )
+            .OrderBy(s => s.SpokenAt)
+            .ToListAsync(ct);
+        List<VoiceTranscriptSegmentDto> transcript =
+        [
+            .. transcriptRows.Select(s => new VoiceTranscriptSegmentDto(
+                s.Text,
+                new DateTimeOffset(s.SpokenAt, TimeSpan.Zero)
+            )),
+        ];
+
         StreamAnalyticsDto dto = new(
             stream.Id,
             stream.Title,
@@ -274,7 +292,8 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
             eventCounts.GetValueOrDefault("channel.subscribe"),
             eventCounts.GetValueOrDefault("channel.cheer"),
             commandsRun,
-            eventCounts.GetValueOrDefault("channel.channel_points_custom_reward_redemption.add")
+            eventCounts.GetValueOrDefault("channel.channel_points_custom_reward_redemption.add"),
+            transcript
         );
         return Result.Success(dto);
     }

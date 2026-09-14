@@ -58,6 +58,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         SharedOption("events", "supporter.membership"),
         SharedOption("events", "supporter.merch"),
         SharedOption("events", "supporter.charity"),
+        SharedOption("events", "voice_trigger"),
     ];
 
     private static readonly IReadOnlyList<WidgetSettingsFieldOption> ProviderOptions =

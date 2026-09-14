@@ -283,6 +283,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChatTrigger> ChatTriggers =>
         Set<NomNomzBot.Domain.Commands.Entities.ChatTrigger>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+        Set<NomNomzBot.Domain.Commands.Entities.VoiceTrigger>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        Set<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>

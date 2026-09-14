@@ -329,6 +329,10 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
         throw new NotSupportedException();
     public DbSet<PickList> PickLists => Set<PickList>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+        Set<NomNomzBot.Domain.Commands.Entities.VoiceTrigger>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        Set<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>

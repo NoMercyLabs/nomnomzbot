@@ -53,6 +53,8 @@ public sealed class ActionDefinitionClassificationTests
         "eventresponses:write",
         "chattriggers:read",
         "chattriggers:write",
+        "voicetriggers:read",
+        "voicetriggers:write",
         "chatpolls:read",
         "chatpolls:write",
         "timers:read",

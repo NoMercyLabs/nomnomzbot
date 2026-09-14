@@ -59,6 +59,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<RedemptionTimer> RedemptionTimers => Set<RedemptionTimer>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
+    public DbSet<VoiceTrigger> VoiceTriggers => Set<VoiceTrigger>();
+    public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments => Set<VoiceTranscriptSegment>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>

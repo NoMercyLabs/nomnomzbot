@@ -106,6 +106,10 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+        Set<NomNomzBot.Domain.Commands.Entities.VoiceTrigger>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        Set<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment>();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         Set<NomNomzBot.Domain.PickLists.Entities.PickList>();
     public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
