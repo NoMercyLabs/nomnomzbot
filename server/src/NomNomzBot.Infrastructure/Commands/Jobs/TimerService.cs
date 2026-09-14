@@ -311,6 +311,10 @@ public sealed class TimerService : BackgroundService
         PipelineRequest request = new()
         {
             BroadcasterId = timer.BroadcasterId,
+            // Without PipelineId the engine can never load live PipelineStep rows for this run, so it
+            // falls back to its flat-only JSON path — a timer's bound pipeline would silently lose any
+            // block-kind step (if/switch/loop/random_branch/try/detached_step) it carries.
+            PipelineId = pipelineId,
             PipelineJson = graphJson,
             // A timer has no triggering chatter — the channel itself is the actor.
             TriggeredByUserId = channelCtx.TwitchChannelId,

@@ -1658,6 +1658,7 @@ public sealed class ChatMessageHandlerTests
         // does), so it must dispatch through the exact same bound-pipeline path as a "pipeline" command
         // rather than falling into the template/builtin branch (regression: 2026-09-08, the "code" tier had
         // no dispatch branch at all and fell straight through to the template fallback).
+        Guid boundPipelineId = Guid.CreateVersion7();
         ChannelContext ctx = NewChannelContext();
         ctx.Commands["runscript"] = new()
         {
@@ -1669,6 +1670,7 @@ public sealed class ChatMessageHandlerTests
             Tier = "code",
             PipelineGraphJson =
                 "{\"steps\":[{\"action\":{\"type\":\"run_code\",\"code_script_id\":\"abc\"}}]}",
+            PipelineId = boundPipelineId,
         };
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -1706,7 +1708,15 @@ public sealed class ChatMessageHandlerTests
 
         await pipeline
             .Received(1)
-            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+            .ExecuteAsync(
+                // PipelineId must travel alongside PipelineJson: without it PipelineEngine can never load
+                // this pipeline's live PipelineStep rows and falls back to its flat-only JSON path, silently
+                // dropping any block-kind step (if/switch/loop/random_branch/try/detached_step) the bound
+                // pipeline carries — the exact fast-path-vs-tree-engine divergence a chat-triggered command
+                // must never hit (the dashboard "run now" / automation API paths already set PipelineId).
+                Arg.Is<PipelineRequest>(r => r.PipelineId == boundPipelineId),
+                Arg.Any<CancellationToken>()
+            );
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>

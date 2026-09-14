@@ -232,6 +232,15 @@ public class CachedChatTrigger
     public required bool CaseSensitive { get; init; }
     public string? Response { get; init; }
     public string? PipelineGraphJson { get; init; }
+
+    /// <summary>
+    /// The bound <c>Pipeline</c> row's id, when set. Required so <see cref="PipelineGraphJson"/> is
+    /// dispatched through <c>PipelineEngine</c>'s tree walker (block-kind steps — <c>if</c>/<c>switch</c>/
+    /// <c>loop</c>/<c>random_branch</c>/<c>try</c>/<c>detached_step</c>) instead of silently falling back
+    /// to its flat-only JSON path, which has no block-kind handling at all.
+    /// </summary>
+    public Guid? PipelineId { get; init; }
+
     public required int CooldownSeconds { get; init; }
     public required int MinPermissionLevel { get; init; }
 
@@ -276,6 +285,14 @@ public class CachedCommand
     /// Null for template-tier commands.
     /// </summary>
     public string? PipelineGraphJson { get; init; }
+
+    /// <summary>
+    /// The bound <c>Pipeline</c> row's id, when set. Required so <see cref="PipelineGraphJson"/> is
+    /// dispatched through <c>PipelineEngine</c>'s tree walker (block-kind steps — <c>if</c>/<c>switch</c>/
+    /// <c>loop</c>/<c>random_branch</c>/<c>try</c>/<c>detached_step</c>) instead of silently falling back
+    /// to its flat-only JSON path, which has no block-kind handling at all.
+    /// </summary>
+    public Guid? PipelineId { get; init; }
 
     public string[] Aliases { get; init; } = [];
 

@@ -178,13 +178,18 @@ public sealed class TimerServiceTests
             .ExecuteAsync(
                 Arg.Is<PipelineRequest>(r =>
                     r.BroadcasterId == Channel
+                    // PipelineId must travel alongside PipelineJson: without it PipelineEngine can never
+                    // load this pipeline's live PipelineStep rows and falls back to its flat-only JSON
+                    // path, silently dropping any block-kind step (if/switch/loop/random_branch/try/
+                    // detached_step) a timer's bound pipeline carries.
+                    && r.PipelineId == PipelineId
                     && r.PipelineJson.Contains("shoutout")
                     && r.InitialVariables["timer.message"] == "alice"
                     && r.InitialVariables["timer.name"] == "auto-shoutout"
                 ),
                 Arg.Any<CancellationToken>()
             );
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
 
         Timer persisted = h.Db.Timers.Single(t => t.Id == timer.Id);
         persisted.NextMessageIndex.Should().Be(1, "the rotation advanced to the next entry");
@@ -220,7 +225,7 @@ public sealed class TimerServiceTests
         await h
             .Chat.Received(1)
             .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
     }
 
@@ -300,7 +305,7 @@ public sealed class TimerServiceTests
         await first
             .Chat.Received(1)
             .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
-        await secondChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await secondChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
         first.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
 
         // After the holder releases the lock and the timer's interval elapses, the OTHER instance
@@ -334,7 +339,7 @@ public sealed class TimerServiceTests
 
         await h.Service.TickAsync(CancellationToken.None);
 
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
         logger
             .DidNotReceive()
             .Log(
@@ -376,7 +381,7 @@ public sealed class TimerServiceTests
 
         await h.Service.TickAsync(CancellationToken.None);
 
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
     }
 
@@ -402,7 +407,7 @@ public sealed class TimerServiceTests
 
         await h.Service.TickAsync(CancellationToken.None);
 
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
     }
 
@@ -454,7 +459,7 @@ public sealed class TimerServiceTests
 
         await h.Service.TickAsync(CancellationToken.None);
 
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         h.Db.Timers.Single(t => t.Id == timer.Id).NextMessageIndex.Should().Be(0);
     }
 

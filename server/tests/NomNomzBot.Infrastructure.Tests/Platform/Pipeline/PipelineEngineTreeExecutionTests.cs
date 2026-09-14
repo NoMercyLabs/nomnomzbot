@@ -950,6 +950,87 @@ public sealed class PipelineEngineTreeExecutionTests
             .ContainSingle("the run breaks after the failing step, never reaching the second");
     }
 
+    [Fact]
+    public async Task Try_RunViaPipelineIdOmitted_LosesCatchSemantics_UnlikeTheTreeCapablePath()
+    {
+        // Pins the fast/simple-execution-path-vs-tree-engine divergence (owner punch list 2026-09-08
+        // §1): a caller that hands the engine only PipelineJson (no PipelineId) — the shape
+        // ChatMessageHandler/TimerService/RewardRedeemedHandler used to send before this fix — can never
+        // reach LoadStepRowsAsync, so ExecuteAsync falls back to ParseJson + RunStepsAsync (the flat
+        // path). That path has no BlockKind dispatch at all: it walks PipelineGraphBuilder's own wire
+        // shape as a flat list of leaves, so a try block's "then"/"else" children both run unconditionally
+        // in document order instead of being gated by success/failure — the exact same persisted pipeline
+        // that the tree-capable path (BuildRequest, which always sets PipelineId — see
+        // Try_FailingChildInsideTry_IsCaughtAndRunContinues) catches and continues past cleanly.
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep tryStep = NewStep(pipelineId, null, null, "try", "{}", 0);
+        PipelineStep failingBody = NewLeaf(
+            pipelineId,
+            tryStep.Id,
+            "then",
+            0,
+            "always_fail",
+            """{"type":"always_fail"}"""
+        );
+        PipelineStep catchLeaf = NewLeaf(
+            pipelineId,
+            tryStep.Id,
+            "else",
+            0,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"caught"}"""
+        );
+        PipelineStep afterTry = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"after"}"""
+        );
+
+        List<PipelineStep> steps = [tryStep, failingBody, catchLeaf, afterTry];
+        db.PipelineSteps.AddRange(steps);
+        await db.SaveChangesAsync();
+
+        // The tree-capable path: PipelineId set, engine loads the live rows and dispatches the try block
+        // through ExecuteTryAsync — the catch arm runs, the run completes.
+        PipelineEngine treeEngine = CreateEngine(db, [new AlwaysFailAction()]);
+        PipelineExecutionResult treeResult = await treeEngine.ExecuteAsync(
+            BuildRequest(pipelineId)
+        );
+        treeResult.Outcome.Should().Be(PipelineOutcome.Completed);
+
+        // The exact same persisted pipeline, dispatched the way a caller that omits PipelineId sends it
+        // (PipelineJson only — built by the SAME PipelineGraphBuilder every real caller uses for its
+        // graph cache). Without PipelineId the engine cannot load the rows, so it falls back to the flat
+        // JSON path and never reaches ExecuteTryAsync at all.
+        string graphJson = NomNomzBot.Infrastructure.Commands.PipelineGraphBuilder.BuildGraphJson(
+            steps
+        );
+        PipelineEngine flatEngine = CreateEngine(db, [new AlwaysFailAction()]);
+        PipelineExecutionResult flatResult = await flatEngine.ExecuteAsync(
+            new PipelineRequest
+            {
+                BroadcasterId = TestChannel,
+                PipelineId = null,
+                PipelineJson = graphJson,
+                TriggeredByUserId = "user1",
+                TriggeredByDisplayName = "TestUser",
+                MessageId = "msg1",
+                RawMessage = "",
+                InitialVariables = [],
+            }
+        );
+
+        // The failure inside the "then" branch is never caught outside the tree walker — it aborts the
+        // run instead of being handled by the "else" branch, diverging from the tree-capable outcome
+        // above for the identical persisted pipeline.
+        flatResult.Outcome.Should().NotBe(PipelineOutcome.Completed);
+    }
+
     // ─── break / continue (S-PIPE-TREE-d1, pipeline-control-flow.md D3) ────────
 
     [Fact]

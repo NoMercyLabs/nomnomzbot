@@ -122,6 +122,11 @@ public sealed class RewardRedeemedHandlerTests
             .ExecuteAsync(
                 Arg.Is<PipelineRequest>(r =>
                     r.BroadcasterId == Channel
+                    // PipelineId must travel alongside PipelineJson: without it PipelineEngine can never
+                    // load this pipeline's live PipelineStep rows and falls back to its flat-only JSON
+                    // path, silently dropping any block-kind step (if/switch/loop/random_branch/try/
+                    // detached_step) a reward's bound pipeline carries.
+                    && r.PipelineId == BoundPipelineId
                     && r.PipelineJson == graph
                     && r.RewardId == "tw-reward-1"
                     && r.RedemptionId == "redemption-1"
@@ -131,7 +136,7 @@ public sealed class RewardRedeemedHandlerTests
             );
         await h
             .Executor.DidNotReceiveWithAnyArgs()
-            .ExecuteAsync(default, default!, default, default, default!, default);
+            .ExecuteAsync(default, default!, default, default, default!);
     }
 
     [Fact]
@@ -153,7 +158,7 @@ public sealed class RewardRedeemedHandlerTests
 
         // No PipelineId / PipelineJson / Response → the shared executor runs the generic redemption event
         // response, keyed on the redemption topic; the pipeline engine is never invoked.
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         await h
             .Executor.Received(1)
             .ExecuteAsync(
@@ -202,9 +207,9 @@ public sealed class RewardRedeemedHandlerTests
 
         await h.Handler.HandleAsync(Redemption("tw-reward-3"));
 
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         await h
             .Executor.DidNotReceiveWithAnyArgs()
-            .ExecuteAsync(default, default!, default, default, default!, default);
+            .ExecuteAsync(default, default!, default, default, default!);
     }
 }

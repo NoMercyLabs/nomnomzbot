@@ -397,6 +397,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     )
                         ? Commands.PipelineGraphBuilder.BuildGraphJson(triggerSteps)
                         : trigger.Pipeline?.GraphJsonCache,
+                // Carried alongside the graph JSON so the engine dispatches block-kind steps (if/switch/
+                // loop/random_branch/try/detached_step) through its tree walker instead of its flat-only
+                // fallback — mirrors PipelineId below for commands.
+                PipelineId = trigger.PipelineId,
                 CooldownSeconds = trigger.CooldownSeconds,
                 MinPermissionLevel = trigger.MinPermissionLevel,
                 CompiledRegex = compiled,
@@ -497,6 +501,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     MinPermissionLevel = c.MinPermissionLevel,
                     Tier = c.Tier,
                     PipelineGraphJson = pipelineGraphJson,
+                    // Carried alongside the graph JSON so the engine dispatches block-kind steps (if/switch/
+                    // loop/random_branch/try/detached_step) through its tree walker instead of its flat-only
+                    // fallback — a chat-triggered command reaching PipelineEngine without this behaves
+                    // differently from the same pipeline run via the dashboard/automation API, which already
+                    // pass PipelineId.
+                    PipelineId = c.PipelineId,
                     Aliases = [.. c.Aliases],
                     PrefixMode = c.PrefixMode,
                     CustomPrefix = c.CustomPrefix,

@@ -117,6 +117,12 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         }
 
         string? pipelineJson = reward?.PipelineJson;
+        // Set only when pipelineJson below actually came from this bound pipeline's own graph — never for
+        // the inline reward.PipelineJson or the synthetic BuildResponsePipeline fallback, neither of which
+        // has real PipelineStep rows behind it. Required so the engine dispatches this reward's block-kind
+        // steps (if/switch/loop/random_branch/try/detached_step) through its tree walker instead of its
+        // flat-only JSON fallback.
+        Guid? pipelineId = null;
 
         // A reward can bind a SAVED pipeline (the reward analogue of a timer's PipelineId): load its compiled
         // graph and run that — the path a reward-triggered play_sound takes. Takes precedence over the inline
@@ -132,7 +138,10 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 .Select(p => p.GraphJsonCache)
                 .FirstOrDefaultAsync(cancellationToken);
             if (!string.IsNullOrEmpty(graphJson))
+            {
                 pipelineJson = graphJson;
+                pipelineId = boundPipelineId;
+            }
             else
                 _logger.LogWarning(
                     "Reward {RewardId} in {Channel} binds pipeline {PipelineId} with no executable graph — falling back",
@@ -173,6 +182,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 
         await ExecutePipelineAsync(
             broadcasterId,
+            pipelineId,
             pipelineJson,
             @event.UserId,
             @event.UserDisplayName,
@@ -194,6 +204,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 
     private async Task ExecutePipelineAsync(
         Guid broadcasterId,
+        Guid? pipelineId,
         string pipelineJson,
         string userId,
         string displayName,
@@ -210,6 +221,10 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 new()
                 {
                     BroadcasterId = broadcasterId,
+                    // Only set when pipelineJson came from a real bound Pipeline row (see the caller) — lets
+                    // the engine dispatch block-kind steps (if/switch/loop/random_branch/try/detached_step)
+                    // through its tree walker instead of its flat-only JSON fallback.
+                    PipelineId = pipelineId,
                     PipelineJson = pipelineJson,
                     TriggeredByUserId = userId,
                     TriggeredByDisplayName = displayName,

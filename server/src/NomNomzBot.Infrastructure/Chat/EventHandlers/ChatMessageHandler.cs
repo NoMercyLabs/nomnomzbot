@@ -423,6 +423,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 PipelineRequest request = new()
                 {
                     BroadcasterId = @event.BroadcasterId,
+                    // PipelineId lets the engine load live PipelineStep rows and dispatch block-kind steps
+                    // (if/switch/loop/random_branch/try/detached_step) through its tree walker — without it
+                    // the engine falls back to its flat-only JSON path, which has no block-kind handling at
+                    // all (the "fast path" vs. "tree engine" divergence).
+                    PipelineId = command.PipelineId,
                     PipelineJson = command.PipelineGraphJson,
                     TriggeredByUserId = @event.UserId,
                     TriggeredByDisplayName = @event.UserDisplayName,
@@ -1197,6 +1202,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 new()
                 {
                     BroadcasterId = @event.BroadcasterId,
+                    // See the command-execution PipelineRequest above: without PipelineId the engine can
+                    // never dispatch this trigger's block-kind steps through its tree walker.
+                    PipelineId = trigger.PipelineId,
                     PipelineJson = trigger.PipelineGraphJson,
                     TriggeredByUserId = @event.UserId,
                     TriggeredByDisplayName = @event.UserDisplayName,
