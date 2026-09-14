@@ -113,6 +113,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.ChannelBuiltinCommands),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.CommandCooldownStates),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.ChatTriggers),
+        Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.VoiceTriggers),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.Timers),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.EventResponses),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.Pipelines),
@@ -214,6 +215,7 @@ public static class ChannelBlastRadiusSources
         // Past stream sessions and the tenant's id sequence: real rows that die with the channel, but nothing
         // a streamer would look for under one of the six names. The remainder is where they belong.
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.Streams),
+        Of(BlastRadiusCategoryKeys.ChannelOther, db => db.VoiceTranscriptSegments),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.TenantSequences),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.ChannelEvents),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.ComplianceAuditLogs),

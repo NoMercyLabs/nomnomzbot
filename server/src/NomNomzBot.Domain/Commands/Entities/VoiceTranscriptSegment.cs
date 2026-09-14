@@ -24,7 +24,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// A report that arrives while the channel has no live stream is dropped (nothing to attribute it to) rather
 /// than stored orphaned.
 /// </summary>
-public class VoiceTranscriptSegment : BaseEntity
+public class VoiceTranscriptSegment : BaseEntity, ITenantScoped
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
