@@ -45,6 +45,10 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
                 <span class="sr-only">Run and test</span>
             </button>
+            <button type="button" class="activity-item" data-view="history" id="historyActivityItem" title="History (Ctrl+Shift+H)" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3.5 2"/><path d="M4.5 9A7.5 7.5 0 1 1 5 15"/><path d="M3 5v4h4"/></svg>
+                <span class="sr-only">History</span>
+            </button>
             <button type="button" class="activity-item" data-view="bundle" title="Bundle">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21 4 16.5v-9z"/><path d="M4 7.5 12 12l8-4.5"/><path d="M12 12v9"/></svg>
                 <span class="sr-only">Bundle</span>
@@ -85,8 +89,33 @@
                 <div class="view-body">
                     <p class="view-note" id="runNote"></p>
                     <button type="button" class="btn btn-block" id="runTest">Run in sandbox</button>
-                    <p class="view-hint">Runs what is in the editor right now, with sample events. Nothing is published and your live channel is never touched.</p>
+                    <p class="view-hint" id="runSandboxHint">Runs what is in the editor right now, with sample events. Nothing is published and your live channel is never touched.</p>
                     <div class="fire-bar" id="fireBar" hidden></div>
+
+                    <!-- Code-script dry run (S-CODE-COLLAPSE): sample variables/args against the backend sandbox.
+                         Effects are captured, never performed; the live channel is never touched. Hidden unless
+                         the host opened this editor with a test-run capability (code scripts, not widgets). -->
+                    <div class="test-run" id="testRun" hidden>
+                        <label class="field-label" for="testRunVars">Variables (one key=value per line)</label>
+                        <textarea class="field field-mono" id="testRunVars" rows="4"></textarea>
+                        <label class="field-label" for="testRunArgs">Arguments (space-separated)</label>
+                        <input type="text" class="field" id="testRunArgs">
+                        <button type="button" class="btn btn-block" id="testRunButton">Run test</button>
+                        <p class="test-run-status" id="testRunStatus" hidden></p>
+                        <pre class="test-run-result" id="testRunResult" hidden></pre>
+                    </div>
+                </div>
+            </section>
+
+            <section class="view" data-view="history" id="historyView" hidden>
+                <div class="view-head">
+                    <h2 class="section-label">History</h2>
+                </div>
+                <div class="view-body">
+                    <p class="view-hint">Every saved version, newest first. Publish any past version to make it the served one again; the current live version cannot be deleted.</p>
+                    <ul class="history-list" id="historyList"></ul>
+                    <p class="view-note" id="historyStatus" hidden></p>
+                    <button type="button" class="btn btn-block" id="historyLoadMore" hidden>Load more</button>
                 </div>
             </section>
 

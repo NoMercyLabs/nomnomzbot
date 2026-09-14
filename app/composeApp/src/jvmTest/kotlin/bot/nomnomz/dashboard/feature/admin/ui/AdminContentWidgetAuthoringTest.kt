@@ -27,6 +27,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.AdminApi
@@ -390,6 +392,8 @@ private class FakeProjectEditorIOForWidgetTest : ProjectEditorIO {
         language: String,
         sdkTypes: String,
         eventSubscriptions: List<String>,
+        history: EditorHistory?,
+        testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         invoked = true

@@ -47,12 +47,26 @@ private const val MESSAGE_OPEN: String = "nnz:editor:open"
 private const val MESSAGE_SAVE: String = "nnz:editor:save"
 private const val MESSAGE_COMPILED: String = "nnz:editor:compiled"
 private const val MESSAGE_CLOSE: String = "nnz:editor:close"
+private const val MESSAGE_HISTORY_LOAD_MORE: String = "nnz:editor:historyLoadMore"
+private const val MESSAGE_HISTORY_ROLLBACK: String = "nnz:editor:historyRollback"
+private const val MESSAGE_HISTORY_DELETE: String = "nnz:editor:historyDelete"
+private const val MESSAGE_HISTORY_PAGE: String = "nnz:editor:historyPage"
+private const val MESSAGE_HISTORY_ERROR: String = "nnz:editor:historyError"
+private const val MESSAGE_TEST_RUN: String = "nnz:editor:testRun"
+private const val MESSAGE_TEST_RUN_RESULT: String = "nnz:editor:testRunResult"
 
 private val editorJson: Json = Json { ignoreUnknownKeys = true }
 
-// What [editorMessageJson] reduces a same-origin editor message to. `files` is populated on save only.
+// What [editorMessageJson] reduces a same-origin editor message to. `files` is populated on save only;
+// `versionId` on a history rollback/delete request; `variables`/`args` on a test-run request.
 @Serializable
-private data class EditorMessage(val type: String, val files: Map<String, String> = emptyMap())
+private data class EditorMessage(
+    val type: String,
+    val files: Map<String, String> = emptyMap(),
+    val versionId: String = "",
+    val variables: Map<String, String> = emptyMap(),
+    val args: List<String> = emptyList(),
+)
 
 actual class ProjectEditor : ProjectEditorIO {
     actual override suspend fun editAndCompile(
@@ -62,6 +76,8 @@ actual class ProjectEditor : ProjectEditorIO {
         language: String,
         sdkTypes: String,
         eventSubscriptions: List<String>,
+        history: EditorHistory?,
+        testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         // Subscribed before the frame exists: the page posts `ready` as soon as its module runs, which can
@@ -86,12 +102,20 @@ actual class ProjectEditor : ProjectEditorIO {
                     MESSAGE_READY ->
                         postToEditor(
                             frame,
-                            openMessage(title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions),
+                            openMessage(title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun),
                         )
                     MESSAGE_SAVE -> {
                         val feedback: CompileFeedback = compile(message.files)
                         postToEditor(frame, compiledMessage(feedback))
                     }
+                    MESSAGE_HISTORY_LOAD_MORE ->
+                        postHistoryOutcome(frame, history?.loadMore?.invoke())
+                    MESSAGE_HISTORY_ROLLBACK ->
+                        postHistoryOutcome(frame, history?.rollback?.invoke(message.versionId))
+                    MESSAGE_HISTORY_DELETE ->
+                        postHistoryOutcome(frame, history?.delete?.invoke(message.versionId))
+                    MESSAGE_TEST_RUN ->
+                        postTestRunOutcome(frame, testRun?.run?.invoke(message.variables, message.args))
                     MESSAGE_CLOSE -> return
                 }
             }
@@ -103,6 +127,25 @@ actual class ProjectEditor : ProjectEditorIO {
     }
 }
 
+// Reduces one [EditorOutcome] of a history action to the editor's `historyPage` / `historyError` reply. A null
+// outcome (the caller passed no [EditorHistory], which the editor should never be able to trigger) is treated
+// as a failure rather than silently ignored, so a protocol mismatch is visible instead of a hung "Loading…" row.
+private fun postHistoryOutcome(frame: JsAny, outcome: EditorOutcome<EditorVersionsPage>?) {
+    when (outcome) {
+        is EditorOutcome.Ok -> postToEditor(frame, historyPageMessage(outcome.value))
+        is EditorOutcome.Failed -> postToEditor(frame, historyErrorMessage(outcome.message))
+        null -> postToEditor(frame, historyErrorMessage("History is not available for this project."))
+    }
+}
+
+private fun postTestRunOutcome(frame: JsAny, outcome: EditorOutcome<EditorTestRunResult>?) {
+    when (outcome) {
+        is EditorOutcome.Ok -> postToEditor(frame, testRunResultMessage(outcome.value))
+        is EditorOutcome.Failed -> postToEditor(frame, testRunFailureMessage(outcome.message))
+        null -> postToEditor(frame, testRunFailureMessage("Test run is not available for this project."))
+    }
+}
+
 private fun openMessage(
     title: String,
     files: Map<String, String>,
@@ -110,6 +153,8 @@ private fun openMessage(
     language: String,
     sdkTypes: String,
     eventSubscriptions: List<String>,
+    history: EditorHistory?,
+    testRun: EditorTestRun?,
 ): String =
     editorJson.encodeToString(
         JsonObject.serializer(),
@@ -133,8 +178,83 @@ private fun openMessage(
                         "eventSubscriptions",
                         JsonArray(eventSubscriptions.map { event -> JsonPrimitive(event) }),
                     )
+                    // History / test-run panels are opt-in per caller (S-CODE-COLLAPSE) — the editor shows
+                    // neither activity item when the corresponding field is absent.
+                    if (history != null) put("history", historyPageJson(history.initialVersions, history.initialHasMore))
+                    put("testRunEnabled", testRun != null)
                 },
             )
+        },
+    )
+
+private fun historyPageJson(versions: List<EditorVersionSummary>, hasMore: Boolean): JsonObject =
+    buildJsonObject {
+        put(
+            "versions",
+            JsonArray(
+                versions.map { version ->
+                    buildJsonObject {
+                        put("id", version.id)
+                        put("version", version.version)
+                        put("validationStatus", version.validationStatus)
+                        put("isCurrent", version.isCurrent)
+                    }
+                },
+            ),
+        )
+        put("hasMore", hasMore)
+    }
+
+private fun historyPageMessage(page: EditorVersionsPage): String =
+    editorJson.encodeToString(
+        JsonObject.serializer(),
+        buildJsonObject {
+            put("type", MESSAGE_HISTORY_PAGE)
+            put("payload", historyPageJson(page.versions, page.hasMore))
+        },
+    )
+
+private fun historyErrorMessage(message: String): String =
+    editorJson.encodeToString(
+        JsonObject.serializer(),
+        buildJsonObject {
+            put("type", MESSAGE_HISTORY_ERROR)
+            put("message", message)
+        },
+    )
+
+private fun testRunResultMessage(result: EditorTestRunResult): String =
+    editorJson.encodeToString(
+        JsonObject.serializer(),
+        buildJsonObject {
+            put("type", MESSAGE_TEST_RUN_RESULT)
+            put("ok", true)
+            put("success", result.success)
+            put("durationMs", result.durationMs)
+            put("hostCallCount", result.hostCallCount)
+            put("error", result.error)
+            put("chatOutput", JsonArray(result.chatOutput.map { line -> JsonPrimitive(line) }))
+            put(
+                "effects",
+                JsonArray(
+                    result.effects.map { effect ->
+                        buildJsonObject {
+                            put("name", effect.name)
+                            put("argsPreview", effect.argsPreview)
+                        }
+                    },
+                ),
+            )
+        },
+    )
+
+private fun testRunFailureMessage(message: String): String =
+    editorJson.encodeToString(
+        JsonObject.serializer(),
+        buildJsonObject {
+            put("type", MESSAGE_TEST_RUN_RESULT)
+            put("ok", false)
+            put("message", message)
         },
     )
 
@@ -203,6 +323,10 @@ private fun editorMessageJson(origin: String, data: JsAny?): String =
             var type = data ? data.type : null;
             if (typeof type !== 'string' || type.lastIndexOf('nnz:editor:', 0) !== 0) { return ''; }
             var files = (type === 'nnz:editor:save' && data.files) ? data.files : {};
-            return JSON.stringify({ type: type, files: files });
+            var versionId = (type === 'nnz:editor:historyRollback' || type === 'nnz:editor:historyDelete')
+                ? String(data.versionId || '') : '';
+            var variables = (type === 'nnz:editor:testRun' && data.variables) ? data.variables : {};
+            var args = (type === 'nnz:editor:testRun' && Array.isArray(data.args)) ? data.args : [];
+            return JSON.stringify({ type: type, files: files, versionId: versionId, variables: variables, args: args });
         }"""
     )

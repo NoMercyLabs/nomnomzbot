@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
@@ -691,6 +693,8 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         language: String,
         sdkTypes: String,
         eventSubscriptions: List<String>,
+        history: EditorHistory?,
+        testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         openedTitle = title

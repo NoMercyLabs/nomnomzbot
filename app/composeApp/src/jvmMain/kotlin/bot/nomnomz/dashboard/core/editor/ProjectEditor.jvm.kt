@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.core.editor
 import java.awt.BorderLayout
 import java.awt.Color
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.Frame
 import java.awt.event.WindowAdapter
@@ -27,7 +28,9 @@ import javax.swing.JOptionPane
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JSplitPane
+import javax.swing.JTabbedPane
 import javax.swing.JTextArea
+import javax.swing.JTextField
 import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
 import javax.swing.SwingUtilities
@@ -53,6 +56,8 @@ actual class ProjectEditor : ProjectEditorIO {
         language: String,
         sdkTypes: String,
         eventSubscriptions: List<String>,
+        history: EditorHistory?,
+        testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) =
         withContext(Dispatchers.IO) {
@@ -60,7 +65,7 @@ actual class ProjectEditor : ProjectEditorIO {
             val ui: Array<ProjectEditorDialog?> = arrayOfNulls(1)
 
             SwingUtilities.invokeLater {
-                ui[0] = buildProjectEditorDialog(title, initialFiles, entryPath, language, signals)
+                ui[0] = buildProjectEditorDialog(title, initialFiles, entryPath, language, history, testRun, signals)
             }
 
             try {
@@ -69,6 +74,22 @@ actual class ProjectEditor : ProjectEditorIO {
                         is ProjectEditorSignal.Compile -> {
                             val feedback: CompileFeedback = compile(signal.files)
                             SwingUtilities.invokeLater { ui[0]?.showResult(feedback) }
+                        }
+                        is ProjectEditorSignal.HistoryLoadMore -> {
+                            val outcome: EditorOutcome<EditorVersionsPage>? = history?.loadMore?.invoke()
+                            SwingUtilities.invokeLater { ui[0]?.showHistory(outcome) }
+                        }
+                        is ProjectEditorSignal.HistoryRollback -> {
+                            val outcome: EditorOutcome<EditorVersionsPage>? = history?.rollback?.invoke(signal.versionId)
+                            SwingUtilities.invokeLater { ui[0]?.showHistory(outcome) }
+                        }
+                        is ProjectEditorSignal.HistoryDelete -> {
+                            val outcome: EditorOutcome<EditorVersionsPage>? = history?.delete?.invoke(signal.versionId)
+                            SwingUtilities.invokeLater { ui[0]?.showHistory(outcome) }
+                        }
+                        is ProjectEditorSignal.RunTest -> {
+                            val outcome: EditorOutcome<EditorTestRunResult>? = testRun?.run?.invoke(signal.variables, signal.args)
+                            SwingUtilities.invokeLater { ui[0]?.showTestRunResult(outcome) }
                         }
                         ProjectEditorSignal.Close -> break
                     }
@@ -84,6 +105,18 @@ private sealed interface ProjectEditorSignal {
     /** "Save & Compile" pressed with the editor's current full [files] map. */
     class Compile(val files: Map<String, String>) : ProjectEditorSignal
 
+    /** The History tab's "Load more" was pressed. */
+    data object HistoryLoadMore : ProjectEditorSignal
+
+    /** The History tab's "Publish" was pressed on one row. */
+    class HistoryRollback(val versionId: String) : ProjectEditorSignal
+
+    /** The History tab's delete action was pressed on one row. */
+    class HistoryDelete(val versionId: String) : ProjectEditorSignal
+
+    /** The Test run tab's "Run" was pressed with its current variables/args fields. */
+    class RunTest(val variables: Map<String, String>, val args: List<String>) : ProjectEditorSignal
+
     /** The editor was closed (Close button, window-X, or Esc). */
     data object Close : ProjectEditorSignal
 }
@@ -97,6 +130,8 @@ private class ProjectEditorDialog(
     private val area: JTextArea,
     private val saveButton: JButton,
     private val resultLabel: JLabel,
+    private val historyPanel: HistoryPanel?,
+    private val testRunPanel: TestRunPanel?,
     initialFiles: Map<String, String>,
     entryPath: String,
 ) {
@@ -155,6 +190,16 @@ private class ProjectEditorDialog(
         if (dialog.isDisplayable) dialog.dispose()
     }
 
+    /** Render one [EditorOutcome] of a History action — a [null] outcome means no [EditorHistory] was wired. */
+    fun showHistory(outcome: EditorOutcome<EditorVersionsPage>?) {
+        historyPanel?.render(outcome)
+    }
+
+    /** Render one [EditorOutcome] of a Test run — a [null] outcome means no [EditorTestRun] was wired. */
+    fun showTestRunResult(outcome: EditorOutcome<EditorTestRunResult>?) {
+        testRunPanel?.render(outcome)
+    }
+
     // Flush the text area into the OLD active file, switch, and load the new active file's content.
     private fun select(path: String) {
         state.select(path, area.text)
@@ -182,12 +227,18 @@ private class ProjectEditorDialog(
 }
 
 // Builds and shows the non-modal multi-file editor dialog on the EDT, wiring its buttons/keystrokes to publish
-// [ProjectEditorSignal]s. [language] is surfaced in the window title (the Swing text area has no highlighting to configure).
+// [ProjectEditorSignal]s. [language] is surfaced in the window title (the Swing text area has no highlighting to
+// configure). [history] and [testRun] add a "History" / "Test run" tab alongside the code split when non-null —
+// the desktop counterpart of the web editor's History / Run & test side views (S-CODE-COLLAPSE); the tab bar IS
+// this dialog's existing pattern for combining the editor with auxiliary panels (it already separated file
+// management from Save & Compile as two regions of one window).
 private fun buildProjectEditorDialog(
     title: String,
     initialFiles: Map<String, String>,
     entryPath: String,
     language: String,
+    history: EditorHistory?,
+    testRun: EditorTestRun?,
     signals: Channel<ProjectEditorSignal>,
 ): ProjectEditorDialog {
     val heading: String =
@@ -215,8 +266,23 @@ private fun buildProjectEditorDialog(
     val renameButton = JButton("Rename")
     val deleteButton = JButton("Delete")
 
+    val historyPanel: HistoryPanel? =
+        if (history == null) null
+        else
+            HistoryPanel(
+                onLoadMore = { signals.trySend(ProjectEditorSignal.HistoryLoadMore) },
+                onRollback = { versionId -> signals.trySend(ProjectEditorSignal.HistoryRollback(versionId)) },
+                onDelete = { versionId -> signals.trySend(ProjectEditorSignal.HistoryDelete(versionId)) },
+            ).apply { render(EditorOutcome.Ok(EditorVersionsPage(history.initialVersions, history.initialHasMore))) }
+
+    val testRunPanel: TestRunPanel? =
+        if (testRun == null) null
+        else TestRunPanel(onRun = { variables, args -> signals.trySend(ProjectEditorSignal.RunTest(variables, args)) })
+
     val handle =
-        ProjectEditorDialog(dialog, fileList, listModel, area, saveButton, resultLabel, initialFiles, entryPath)
+        ProjectEditorDialog(
+            dialog, fileList, listModel, area, saveButton, resultLabel, historyPanel, testRunPanel, initialFiles, entryPath,
+        )
 
     val requestCompile: () -> Unit = {
         handle.markCompiling()
@@ -264,6 +330,13 @@ private fun buildProjectEditorDialog(
             dividerLocation = 240
         }
 
+    val tabs =
+        JTabbedPane().apply {
+            addTab("Code", split)
+            historyPanel?.let { addTab("History", it.component) }
+            testRunPanel?.let { addTab("Test run", it.component) }
+        }
+
     val bottom =
         JPanel().apply {
             add(resultLabel)
@@ -272,7 +345,7 @@ private fun buildProjectEditorDialog(
         }
 
     dialog.layout = BorderLayout()
-    dialog.add(split, BorderLayout.CENTER)
+    dialog.add(tabs, BorderLayout.CENTER)
     dialog.add(bottom, BorderLayout.SOUTH)
     dialog.preferredSize = Dimension(1040, 680)
     dialog.pack()
@@ -281,3 +354,148 @@ private fun buildProjectEditorDialog(
     area.requestFocusInWindow()
     return handle
 }
+
+// ── History tab ──────────────────────────────────────────────────────────────
+
+// The desktop "History" tab: a vertical list of version rows (number, validation status, a "current" badge),
+// each with Publish/Delete buttons except the currently-published row (mirrors the web editor's History view
+// and the pre-collapse Compose version-history card this replaces). Rebuilt wholesale on every [render] — the
+// list is short (paged, a handful of rows per page) so there is nothing to gain from incremental patching.
+private class HistoryPanel(
+    private val onLoadMore: () -> Unit,
+    private val onRollback: (versionId: String) -> Unit,
+    private val onDelete: (versionId: String) -> Unit,
+) {
+    private val rows: JPanel = JPanel().apply { layout = javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS) }
+    private val statusLabel: JLabel = JLabel(" ")
+    private val loadMoreButton: JButton = JButton("Load more").apply { isVisible = false }
+
+    val component: JComponent =
+        JPanel(BorderLayout()).apply {
+            add(JScrollPane(rows), BorderLayout.CENTER)
+            add(
+                JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+                    add(statusLabel)
+                    add(loadMoreButton)
+                },
+                BorderLayout.SOUTH,
+            )
+        }
+
+    init {
+        loadMoreButton.addActionListener { onLoadMore() }
+    }
+
+    fun render(outcome: EditorOutcome<EditorVersionsPage>?) {
+        when (outcome) {
+            is EditorOutcome.Ok -> renderPage(outcome.value)
+            is EditorOutcome.Failed -> statusLabel.text = outcome.message
+            null -> statusLabel.text = "History is not available for this project."
+        }
+    }
+
+    private fun renderPage(page: EditorVersionsPage) {
+        statusLabel.text = if (page.versions.isEmpty()) "No saved versions yet." else " "
+        loadMoreButton.isVisible = page.hasMore
+        rows.removeAll()
+        for (version in page.versions) {
+            rows.add(versionRow(version))
+        }
+        rows.revalidate()
+        rows.repaint()
+    }
+
+    private fun versionRow(version: EditorVersionSummary): JComponent {
+        val current: String = if (version.isCurrent) " (current)" else ""
+        val label = JLabel("v${version.version} — ${version.validationStatus}$current")
+        val row = JPanel(FlowLayout(FlowLayout.LEFT)).apply { add(label) }
+        if (!version.isCurrent) {
+            val publish = JButton("Publish").apply { addActionListener { onRollback(version.id) } }
+            val delete = JButton("Delete").apply { addActionListener { onDelete(version.id) } }
+            row.add(publish)
+            row.add(delete)
+        }
+        return row
+    }
+}
+
+// ── Test run tab ─────────────────────────────────────────────────────────────
+
+// The desktop "Test run" tab: sample variables (`key=value` per line) + space-separated args, a Run button, and
+// a read-only result area — the dry-run panel moved off the pre-collapse Compose page. Effects are captured by
+// the backend sandbox, never performed.
+private class TestRunPanel(onRun: (variables: Map<String, String>, args: List<String>) -> Unit) {
+    private val variablesArea: JTextArea = JTextArea(6, 40).apply { font = Font(Font.MONOSPACED, Font.PLAIN, 12) }
+    private val argsField: JTextField = JTextField(40)
+    private val runButton: JButton = JButton("Run in sandbox")
+    private val resultArea: JTextArea =
+        JTextArea(12, 40).apply {
+            font = Font(Font.MONOSPACED, Font.PLAIN, 12)
+            isEditable = false
+            lineWrap = true
+        }
+
+    val component: JComponent =
+        JPanel(BorderLayout()).apply {
+            val form =
+                JPanel().apply {
+                    layout = javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS)
+                    add(JLabel("Variables (key=value per line)").apply { alignmentX = JComponent.LEFT_ALIGNMENT })
+                    add(JScrollPane(variablesArea).apply { alignmentX = JComponent.LEFT_ALIGNMENT })
+                    add(JLabel("Args (space-separated)").apply { alignmentX = JComponent.LEFT_ALIGNMENT })
+                    add(argsField.apply { alignmentX = JComponent.LEFT_ALIGNMENT })
+                    add(JPanel(FlowLayout(FlowLayout.LEFT)).apply { add(runButton) })
+                }
+            add(form, BorderLayout.NORTH)
+            add(JScrollPane(resultArea), BorderLayout.CENTER)
+        }
+
+    init {
+        runButton.addActionListener {
+            runButton.isEnabled = false
+            runButton.text = "Running…"
+            resultArea.text = ""
+            onRun(parseTestRunVariables(variablesArea.text), parseTestRunArgs(argsField.text))
+        }
+    }
+
+    fun render(outcome: EditorOutcome<EditorTestRunResult>?) {
+        runButton.isEnabled = true
+        runButton.text = "Run in sandbox"
+        resultArea.text =
+            when (outcome) {
+                is EditorOutcome.Ok -> formatTestRunResult(outcome.value)
+                is EditorOutcome.Failed -> "Failed: ${outcome.message}"
+                null -> "Test run is not available for this project."
+            }
+    }
+}
+
+private fun formatTestRunResult(result: EditorTestRunResult): String {
+    val header: String =
+        (if (result.success) "OK" else "FAILED") + " — ${result.durationMs}ms, ${result.hostCallCount} host calls"
+    val error: String = result.error?.takeIf { it.isNotBlank() }?.let { "\nError: $it" } ?: ""
+    val chat: String =
+        if (result.chatOutput.isEmpty()) "\n\nChat output: (none)"
+        else "\n\nChat output:\n" + result.chatOutput.joinToString("\n")
+    val effects: String =
+        if (result.effects.isEmpty()) "\n\nCaptured effects: (none)"
+        else "\n\nCaptured effects:\n" + result.effects.joinToString("\n") { "${it.name}  ${it.argsPreview}" }
+    return header + error + chat + effects
+}
+
+// Parses the variables text area (one `key=value` per line); blank lines and lines without `=` are skipped.
+private fun parseTestRunVariables(text: String): Map<String, String> =
+    text.lineSequence()
+        .mapNotNull { line ->
+            val trimmed: String = line.trim()
+            if (trimmed.isEmpty() || !trimmed.contains('=')) return@mapNotNull null
+            val key: String = trimmed.substringBefore('=').trim()
+            val value: String = trimmed.substringAfter('=').trim()
+            if (key.isEmpty()) null else key to value
+        }
+        .toMap()
+
+// Parses the args field into positional arguments, split on any run of whitespace.
+private fun parseTestRunArgs(text: String): List<String> =
+    text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }

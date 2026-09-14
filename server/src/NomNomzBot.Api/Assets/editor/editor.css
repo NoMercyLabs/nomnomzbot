@@ -806,3 +806,74 @@ body {
 .boot[data-error="true"] {
     color: var(--danger);
 }
+
+/* ── History + Test run (S-CODE-COLLAPSE) ─────────────────────────────── */
+
+.field-label {
+    display: block;
+    margin: var(--s2) 0 var(--s1);
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.field-mono {
+    font-family: var(--font-code);
+    resize: vertical;
+}
+
+.test-run {
+    margin-top: var(--s3);
+    padding-top: var(--s3);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.test-run-status {
+    margin: var(--s2) 0 0;
+    font-size: 12px;
+}
+
+.test-run-status[data-ok="false"] {
+    color: var(--danger);
+}
+
+.test-run-result {
+    margin: var(--s2) 0 0;
+    padding: var(--s2) var(--s3);
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font: 400 11px var(--font-code);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.history-list {
+    margin: var(--s2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.history-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s2) 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.history-row:last-child {
+    border-bottom: none;
+}
+
+.history-row-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.history-row-current {
+    color: var(--accent);
+    font-weight: 600;
+}

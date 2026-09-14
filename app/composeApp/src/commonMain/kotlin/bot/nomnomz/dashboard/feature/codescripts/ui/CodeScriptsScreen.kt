@@ -11,7 +11,6 @@
 package bot.nomnomz.dashboard.feature.codescripts.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,38 +30,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.FileTree
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
-import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
-import bot.nomnomz.dashboard.core.designsystem.component.ResizableSplit
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CodeGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
-import bot.nomnomz.dashboard.core.network.CodeScriptVersion
-import bot.nomnomz.dashboard.core.network.ProjectDto
-import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsController
 import bot.nomnomz.dashboard.feature.codescripts.state.CodeScriptsState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -70,10 +58,8 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.scripts_action_error
-import nomnomzbot.composeapp.generated.resources.scripts_effect_row_type
+import nomnomzbot.composeapp.generated.resources.scripts_editor_compiled
 import nomnomzbot.composeapp.generated.resources.scripts_row_type
-import nomnomzbot.composeapp.generated.resources.scripts_close_editor
 import nomnomzbot.composeapp.generated.resources.scripts_create_confirm
 import nomnomzbot.composeapp.generated.resources.scripts_create_description
 import nomnomzbot.composeapp.generated.resources.scripts_create_dismiss
@@ -85,48 +71,16 @@ import nomnomzbot.composeapp.generated.resources.scripts_delete_cancel
 import nomnomzbot.composeapp.generated.resources.scripts_delete_confirm
 import nomnomzbot.composeapp.generated.resources.scripts_delete_message
 import nomnomzbot.composeapp.generated.resources.scripts_delete_title
-import nomnomzbot.composeapp.generated.resources.scripts_editor_compiled
-import nomnomzbot.composeapp.generated.resources.scripts_editor_edit_code
-import nomnomzbot.composeapp.generated.resources.scripts_editor_open_hint
 import nomnomzbot.composeapp.generated.resources.scripts_editor_source_label
 import nomnomzbot.composeapp.generated.resources.scripts_empty
 import nomnomzbot.composeapp.generated.resources.scripts_error
 import nomnomzbot.composeapp.generated.resources.scripts_list_add
 import nomnomzbot.composeapp.generated.resources.scripts_loading
+import nomnomzbot.composeapp.generated.resources.scripts_opening
 import nomnomzbot.composeapp.generated.resources.scripts_retry
 import nomnomzbot.composeapp.generated.resources.scripts_status_label
 import nomnomzbot.composeapp.generated.resources.scripts_subtitle
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_args_label
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_chat_empty
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_chat_heading
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_effects_empty
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_effects_heading
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_error
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_failed
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_meta
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_ok
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_run
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_running
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_subtitle
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_title
-import nomnomzbot.composeapp.generated.resources.scripts_testrun_vars_label
-import nomnomzbot.composeapp.generated.resources.scripts_version_delete
-import nomnomzbot.composeapp.generated.resources.scripts_version_delete_cancel
-import nomnomzbot.composeapp.generated.resources.scripts_version_delete_confirm
-import nomnomzbot.composeapp.generated.resources.scripts_version_delete_message
-import nomnomzbot.composeapp.generated.resources.scripts_version_delete_title
 import nomnomzbot.composeapp.generated.resources.scripts_version_label
-import nomnomzbot.composeapp.generated.resources.scripts_versions_current
-import nomnomzbot.composeapp.generated.resources.scripts_versions_empty
-import nomnomzbot.composeapp.generated.resources.scripts_versions_load_more
-import nomnomzbot.composeapp.generated.resources.scripts_versions_loading_more
-import nomnomzbot.composeapp.generated.resources.scripts_versions_publish
-import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_cancel
-import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_confirm
-import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_message
-import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_title
-import nomnomzbot.composeapp.generated.resources.scripts_versions_subtitle
-import nomnomzbot.composeapp.generated.resources.scripts_versions_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import org.jetbrains.compose.resources.stringResource
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
@@ -134,10 +88,12 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
 import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
-// The Code Scripts page: a list of versioned Lua scripts on the left (or in the main column) and an inline
-// editor when one is open. The editor is a plain multi-line Textarea — no syntax highlighting
-// dependency; the monospace font gives enough visual structure. All backend ops go through
-// [CodeScriptsController]; the page reacts to [CodeScriptsState] only.
+// The Code Scripts page. Opening a script goes STRAIGHT into the real Monaco editor (S-CODE-COLLAPSE) — there is
+// no separate read-only detail page to click through first, and no separate "Edit code" step: the file tree,
+// version history, and dry-run panel all live INSIDE that editor now (its own side views), not here. This screen
+// therefore only ever renders the list (Loading / Empty / Error / Ready) plus a brief placeholder for the moment
+// [CodeScriptsController.openAndEdit] is fetching the script before the editor actually mounts. All backend ops
+// go through [CodeScriptsController]; this page reacts to [CodeScriptsState] only.
 @Composable
 fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) {
     val state: CodeScriptsState by controller.state.collectAsStateWithLifecycle()
@@ -148,9 +104,10 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
 
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.CodeScripts)
 
-    // The inline success message the project editor shows on a clean save — resolved here (a Composable) and
-    // threaded into the controller's compile callback (the controller has no access to Compose resources).
+    // The inline success message the shared project editor shows on a clean save — resolved here (a Composable)
+    // and threaded into the controller's compile callback (the controller has no access to Compose resources).
     val compiledMessage: String = stringResource(Res.string.scripts_editor_compiled)
+    val rowTypeLabel: String = stringResource(Res.string.scripts_row_type)
 
     var showCreate: Boolean by remember { mutableStateOf(false) }
     var pendingDelete: CodeScriptSummary? by remember { mutableStateOf(null) }
@@ -161,101 +118,51 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
         modifier = Modifier.fillMaxSize().padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        // Page header is shared between list and editor — always visible.
-        when (val current: CodeScriptsState = state) {
-            is CodeScriptsState.Editing -> {
-                val editingDisplayName: String =
-                    resolveRowLabel(
-                        primary = current.detail.name,
-                        typeLabel = stringResource(Res.string.scripts_row_type),
-                        discriminatorSource = current.detail.id,
-                    )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                        Text(text = editingDisplayName, style = typography.xl2, color = tokens.foreground)
-                        current.detail.description?.let {
-                            Text(text = it, style = typography.sm, color = tokens.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                    GlyphButton(
-                        icon = CloseGlyph,
-                        label = stringResource(Res.string.scripts_close_editor),
-                        onClick = { controller.close() },
-                    )
-                }
-                // Write failures announce on the shell-level feedback toast (CodeScriptsController.failWrite).
-                ProjectView(
-                    project = current.project,
-                    selectedPath = current.selectedPath,
-                    detail = current.detail,
-                    versions = current.versions,
-                    versionsHasMore = current.versionsHasMore,
-                    versionsLoadingMore = current.versionsLoadingMore,
-                    manage = manage,
-                    testRunning = current.testRunning,
-                    testResult = current.testResult,
-                    testError = current.testError,
-                    onSelectFile = { controller.selectFile(it) },
-                    onEditCode = {
-                        scope.launch { controller.editCode(current.detail.id, compiledMessage, editingDisplayName) }
-                    },
-                    onTestRun = { variables, args -> scope.launch { controller.testRun(current.detail.id, variables, args) } },
-                    onRollback = { versionId -> scope.launch { controller.rollback(current.detail.id, versionId) } },
-                    onDeleteVersion = { versionId -> scope.launch { controller.deleteVersion(current.detail.id, versionId) } },
-                    onLoadMoreVersions = { scope.launch { controller.loadMoreVersions(current.detail.id) } },
+        PageHeader(title = stringResource(Res.string.shell_nav_code_scripts), subtitle = stringResource(Res.string.scripts_subtitle)) {
+            ManageGate(manage) { enabled ->
+                GlyphButton(
+                    icon = AddGlyph,
+                    label = stringResource(Res.string.scripts_list_add),
+                    onClick = { showCreate = true },
+                    enabled = enabled,
                 )
             }
-            else -> {
-                PageHeader(title = stringResource(Res.string.shell_nav_code_scripts), subtitle = stringResource(Res.string.scripts_subtitle)) {
-                    ManageGate(manage) { enabled ->
-                        GlyphButton(
-                            icon = AddGlyph,
-                            label = stringResource(Res.string.scripts_list_add),
-                            onClick = { showCreate = true },
-                            enabled = enabled,
-                        )
-                    }
-                }
-                // Write failures announce on the shell-level feedback toast (CodeScriptsController.failWrite).
-                Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    when (current) {
-                        is CodeScriptsState.Loading -> CenteredMessage(stringResource(Res.string.scripts_loading))
-                        is CodeScriptsState.Empty -> CenteredMessage(stringResource(Res.string.scripts_empty))
-                        is CodeScriptsState.Error ->
-                            ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
-                        is CodeScriptsState.Ready ->
-                            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                itemsIndexed(current.scripts, key = { _, script -> script.id }) { index, script ->
-                                    ScriptRow(
-                                        script = script,
-                                        manage = manage,
-                                        onOpen = { scope.launch { controller.open(script.id) } },
-                                        onToggle = { scope.launch { controller.setEnabled(script.id, !script.isEnabled) } },
-                                        onDelete = { pendingDelete = script },
-                                    )
-                                    if (index < current.scripts.lastIndex) {
-                                        Separator()
-                                    }
-                                }
+        }
+        // Write failures announce on the shell-level feedback toast (CodeScriptsController.failWrite).
+        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            when (val current: CodeScriptsState = state) {
+                is CodeScriptsState.Loading -> CenteredMessage(stringResource(Res.string.scripts_loading))
+                is CodeScriptsState.Empty -> CenteredMessage(stringResource(Res.string.scripts_empty))
+                is CodeScriptsState.Error ->
+                    ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
+                // The real work happens in the editor overlay (web) / its own window (desktop) that
+                // [CodeScriptsController.openAndEdit] launches — this is only the brief gap before it mounts.
+                is CodeScriptsState.Editing -> CenteredMessage(stringResource(Res.string.scripts_opening))
+                is CodeScriptsState.Ready ->
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(current.scripts, key = { _, script -> script.id }) { index, script ->
+                            ScriptRow(
+                                script = script,
+                                manage = manage,
+                                rowTypeLabel = rowTypeLabel,
+                                onOpen = { displayName ->
+                                    scope.launch { controller.openAndEdit(script.id, compiledMessage, displayName) }
+                                },
+                                onToggle = { scope.launch { controller.setEnabled(script.id, !script.isEnabled) } },
+                                onDelete = { pendingDelete = script },
+                            )
+                            if (index < current.scripts.lastIndex) {
+                                Separator()
                             }
-                        is CodeScriptsState.Editing -> Unit // handled above
+                        }
                     }
-                }
             }
         }
     }
 
     pendingDelete?.let { script ->
         val deleteDisplayName: String =
-            resolveRowLabel(
-                primary = script.name,
-                typeLabel = stringResource(Res.string.scripts_row_type),
-                discriminatorSource = script.id,
-            )
+            resolveRowLabel(primary = script.name, typeLabel = rowTypeLabel, discriminatorSource = script.id)
         // Fetched fresh per row (never cached or guessed) — the counted blast radius the confirm MUST show
         // before the destructive save can proceed (S-CONSEQ).
         var blastRadius: BlastRadiusLoadState by remember(script.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
@@ -292,13 +199,17 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
 private fun ScriptRow(
     script: CodeScriptSummary,
     manage: ManageDecision,
-    onOpen: () -> Unit,
+    rowTypeLabel: String,
+    onOpen: (displayName: String) -> Unit,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+
+    val rowDisplayName: String =
+        resolveRowLabel(primary = script.name, typeLabel = rowTypeLabel, discriminatorSource = script.id)
 
     Column(
         modifier = Modifier
@@ -312,12 +223,6 @@ private fun ScriptRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                val rowDisplayName: String =
-                    resolveRowLabel(
-                        primary = script.name,
-                        typeLabel = stringResource(Res.string.scripts_row_type),
-                        discriminatorSource = script.id,
-                    )
                 Text(text = rowDisplayName, style = typography.base, color = tokens.cardForeground)
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     script.currentVersion?.let {
@@ -342,7 +247,7 @@ private fun ScriptRow(
                 GlyphButton(
                     icon = EditLineGlyph,
                     label = stringResource(Res.string.scripts_editor_source_label),
-                    onClick = onOpen,
+                    onClick = { onOpen(rowDisplayName) },
                     enabled = enabled,
                     tint = tokens.primary,
                 )
@@ -366,416 +271,6 @@ private fun ScriptRow(
         }
     }
 }
-
-// The in-page project view: the script's `src/` tree on the left (design-system FileTree) and a read-only
-// preview of the selected file on the right, in a draggable ResizableSplit. Actual editing happens in the shared
-// multi-file project editor, launched with "Edit & compile" — which round-trips the whole project to the backend
-// (validate + compile + publish).
-@Composable
-private fun ProjectView(
-    project: ProjectDto,
-    selectedPath: String,
-    detail: CodeScriptDetail,
-    versions: List<CodeScriptVersion>,
-    versionsHasMore: Boolean,
-    versionsLoadingMore: Boolean,
-    manage: ManageDecision,
-    testRunning: Boolean,
-    testResult: TestRunResult?,
-    testError: String?,
-    onSelectFile: (String) -> Unit,
-    onEditCode: () -> Unit,
-    onTestRun: (variables: Map<String, String>, args: List<String>) -> Unit,
-    onRollback: (versionId: String) -> Unit,
-    onDeleteVersion: (versionId: String) -> Unit,
-    onLoadMoreVersions: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-            ManageGate(manage) { enabled ->
-                GlyphButton(
-                    icon = CodeGlyph,
-                    label = stringResource(Res.string.scripts_editor_edit_code),
-                    onClick = onEditCode,
-                    enabled = enabled,
-                )
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            ResizableSplit(
-                modifier = Modifier.fillMaxSize(),
-                left = {
-                    FileTree(
-                        paths = project.files.keys,
-                        selectedPath = selectedPath,
-                        onSelect = onSelectFile,
-                        modifier = Modifier.fillMaxSize().padding(spacing.s2),
-                    )
-                },
-                right = {
-                    // Read-only preview of the selected file. Editing happens in the shared CodeMirror project
-                    // editor — the very same overlay Widgets uses — so clicking the preview (or the hint above it)
-                    // opens it, making this pane a gateway into the real editor rather than a dead read-only box.
-                    Column(
-                        modifier =
-                            Modifier.fillMaxSize().let {
-                                if (manage.isAllowed) it.clickable(onClick = onEditCode) else it
-                            },
-                        verticalArrangement = Arrangement.spacedBy(spacing.s1),
-                    ) {
-                        if (manage.isAllowed) {
-                            Text(
-                                text = stringResource(Res.string.scripts_editor_open_hint),
-                                style = typography.xs,
-                                color = tokens.primary,
-                                modifier = Modifier.padding(horizontal = spacing.s3, vertical = spacing.s2),
-                            )
-                        }
-                        Textarea(
-                            value = project.files[selectedPath] ?: "",
-                            onValueChange = {},
-                            label = selectedPath,
-                            modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = spacing.s3),
-                            enabled = false,
-                            monospace = true,
-                            fillHeight = true,
-                        )
-                    }
-                },
-            )
-        }
-
-        // Validation errors from the current version, if any.
-        detail.currentVersion?.validationErrors?.takeIf { it.isNotEmpty() }?.let { errors ->
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                errors.take(5).forEach { error ->
-                    Text(
-                        text = "[${error.line}:${error.column}] ${error.message}",
-                        style = typography.xs,
-                        color = tokens.destructive,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-
-        VersionHistorySection(
-            versions = versions,
-            currentVersionId = detail.currentVersionId,
-            hasMore = versionsHasMore,
-            loadingMore = versionsLoadingMore,
-            manage = manage,
-            onRollback = onRollback,
-            onDelete = onDeleteVersion,
-            onLoadMore = onLoadMoreVersions,
-        )
-
-        TestRunSection(
-            manage = manage,
-            running = testRunning,
-            result = testResult,
-            error = testError,
-            onRun = onTestRun,
-        )
-    }
-}
-
-// The append-only version history + rollback list: every past version newest-first, each with its number,
-// validation status, and timestamp. The version currently served is badged and its rollback control is inert;
-// every other row offers "Publish this version" (a rollback re-publishes it as active), gated behind the page's
-// manage floor. This is the safety net for a bad save — a Save & Compile republishes live, and this is the way back.
-@Composable
-private fun VersionHistorySection(
-    versions: List<CodeScriptVersion>,
-    currentVersionId: String?,
-    hasMore: Boolean,
-    loadingMore: Boolean,
-    manage: ManageDecision,
-    onRollback: (versionId: String) -> Unit,
-    onDelete: (versionId: String) -> Unit,
-    onLoadMore: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var pendingRollback: CodeScriptVersion? by remember { mutableStateOf(null) }
-    var pendingDelete: CodeScriptVersion? by remember { mutableStateOf(null) }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = stringResource(Res.string.scripts_versions_title), style = typography.lg, color = tokens.cardForeground)
-                Text(text = stringResource(Res.string.scripts_versions_subtitle), style = typography.sm, color = tokens.mutedForeground)
-            }
-
-            if (versions.isEmpty()) {
-                Text(text = stringResource(Res.string.scripts_versions_empty), style = typography.xs, color = tokens.mutedForeground)
-            } else {
-                versions.forEachIndexed { index, version ->
-                    if (index > 0) {
-                        Separator()
-                    }
-                    val isCurrent: Boolean = currentVersionId != null && version.id == currentVersionId
-                    val publishLabel: String = stringResource(Res.string.scripts_versions_publish, version.version)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = stringResource(Res.string.scripts_version_label, version.version),
-                                    style = typography.sm,
-                                    color = tokens.cardForeground,
-                                )
-                                if (isCurrent) {
-                                    Text(
-                                        text = stringResource(Res.string.scripts_versions_current),
-                                        style = typography.xs,
-                                        color = tokens.primary,
-                                    )
-                                }
-                            }
-                            Text(
-                                text = stringResource(Res.string.scripts_status_label, version.validationStatus),
-                                style = typography.xs,
-                                color = when (version.validationStatus.lowercase()) {
-                                    "valid" -> tokens.primary
-                                    "invalid", "error" -> tokens.destructive
-                                    else -> tokens.mutedForeground
-                                },
-                            )
-                        }
-                        if (!isCurrent) {
-                            ManageGate(manage) { enabled ->
-                                TextButton(onClick = { pendingRollback = version }, enabled = enabled) {
-                                    Text(
-                                        text = publishLabel,
-                                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                                    )
-                                }
-                            }
-                            // The published version can never be deleted (backend-enforced too) — no delete
-                            // control on that row, matching the rollback control's own isCurrent gate above.
-                            ManageGate(manage) { enabled ->
-                                GlyphButton(
-                                    icon = TrashGlyph,
-                                    label = stringResource(Res.string.scripts_version_delete),
-                                    onClick = { pendingDelete = version },
-                                    enabled = enabled,
-                                    tint = tokens.destructive,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (hasMore) {
-                    TextButton(onClick = onLoadMore, enabled = !loadingMore) {
-                        Text(
-                            text = stringResource(
-                                if (loadingMore) Res.string.scripts_versions_loading_more
-                                else Res.string.scripts_versions_load_more,
-                            ),
-                            color = tokens.primary,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    pendingDelete?.let { version ->
-        ConfirmDialog(
-            title = stringResource(Res.string.scripts_version_delete_title),
-            message = stringResource(Res.string.scripts_version_delete_message, version.version),
-            confirmLabel = stringResource(Res.string.scripts_version_delete_confirm),
-            dismissLabel = stringResource(Res.string.scripts_version_delete_cancel),
-            onConfirm = {
-                val target: CodeScriptVersion = version
-                pendingDelete = null
-                onDelete(target.id)
-            },
-            onDismiss = { pendingDelete = null },
-        )
-    }
-
-    pendingRollback?.let { version ->
-        ConfirmDialog(
-            title = stringResource(Res.string.scripts_versions_rollback_title),
-            message = stringResource(Res.string.scripts_versions_rollback_message, version.version),
-            confirmLabel = stringResource(Res.string.scripts_versions_rollback_confirm),
-            dismissLabel = stringResource(Res.string.scripts_versions_rollback_cancel),
-            onConfirm = {
-                val target: CodeScriptVersion = version
-                pendingRollback = null
-                onRollback(target.id)
-            },
-            onDismiss = { pendingRollback = null },
-        )
-    }
-}
-
-// The dry-run panel: a few sample inputs (variables as key=value lines, space-separated args) + a Run button that
-// calls the backend test-run in CAPTURE mode, then shows the captured chat output + captured effects (or the
-// failure reason). Nothing the script does here reaches a real surface.
-@Composable
-private fun TestRunSection(
-    manage: ManageDecision,
-    running: Boolean,
-    result: TestRunResult?,
-    error: String?,
-    onRun: (variables: Map<String, String>, args: List<String>) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var varsText: String by remember { mutableStateOf("") }
-    var argsText: String by remember { mutableStateOf("") }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s3),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = stringResource(Res.string.scripts_testrun_title), style = typography.lg, color = tokens.cardForeground)
-                Text(text = stringResource(Res.string.scripts_testrun_subtitle), style = typography.sm, color = tokens.mutedForeground)
-            }
-
-            Textarea(
-                value = varsText,
-                onValueChange = { varsText = it },
-                label = stringResource(Res.string.scripts_testrun_vars_label),
-                modifier = Modifier.fillMaxWidth(),
-                monospace = true,
-                minLines = 3,
-            )
-            AppTextField(
-                value = argsText,
-                onValueChange = { argsText = it },
-                label = stringResource(Res.string.scripts_testrun_args_label),
-                isError = false,
-                errorText = null,
-            )
-
-            ManageGate(manage) { enabled ->
-                Button(
-                    onClick = { onRun(parseVariables(varsText), parseArgs(argsText)) },
-                    enabled = enabled && !running,
-                ) {
-                    Text(
-                        if (running) stringResource(Res.string.scripts_testrun_running)
-                        else stringResource(Res.string.scripts_testrun_run)
-                    )
-                }
-            }
-
-            // The dry-run's own outcome — a diagnostic reading tied to this panel, not a write action — stays
-            // visible in place rather than floating away as a toast.
-            error?.let { InlineError(message = stringResource(Res.string.scripts_testrun_error, it)) }
-
-            result?.let { TestRunResultView(it) }
-        }
-    }
-}
-
-@Composable
-private fun TestRunResultView(result: TestRunResult) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text =
-                    if (result.success) stringResource(Res.string.scripts_testrun_ok)
-                    else stringResource(Res.string.scripts_testrun_failed),
-                style = typography.sm,
-                color = if (result.success) tokens.primary else tokens.destructive,
-            )
-            Text(
-                text = stringResource(Res.string.scripts_testrun_meta, result.durationMs, result.hostCallCount),
-                style = typography.xs,
-                color = tokens.mutedForeground,
-            )
-        }
-        result.error?.takeIf { it.isNotBlank() }?.let {
-            Text(text = it, style = typography.xs, color = tokens.destructive)
-        }
-
-        Separator()
-
-        Text(text = stringResource(Res.string.scripts_testrun_chat_heading), style = typography.sm, color = tokens.cardForeground)
-        if (result.chatOutput.isEmpty()) {
-            Text(text = stringResource(Res.string.scripts_testrun_chat_empty), style = typography.xs, color = tokens.mutedForeground)
-        } else {
-            result.chatOutput.forEach { line ->
-                Text(text = line, style = typography.sm, color = tokens.foreground)
-            }
-        }
-
-        Separator()
-
-        Text(text = stringResource(Res.string.scripts_testrun_effects_heading), style = typography.sm, color = tokens.cardForeground)
-        if (result.capturedEffects.isEmpty()) {
-            Text(text = stringResource(Res.string.scripts_testrun_effects_empty), style = typography.xs, color = tokens.mutedForeground)
-        } else {
-            result.capturedEffects.forEach { effect ->
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                    val effectDisplayName: String =
-                        resolveRowLabel(
-                            primary = effect.name,
-                            typeLabel = stringResource(Res.string.scripts_effect_row_type),
-                            discriminatorSource = effect.argsPreview,
-                        )
-                    Text(text = effectDisplayName, style = typography.sm, color = tokens.foreground)
-                    if (effect.argsPreview.isNotBlank()) {
-                        Text(
-                            text = effect.argsPreview,
-                            style = typography.xs,
-                            color = tokens.mutedForeground,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// Parse the variables textarea (one `key=value` per line) into a map; blank lines and lines without `=` are skipped.
-private fun parseVariables(text: String): Map<String, String> =
-    text.lineSequence()
-        .mapNotNull { line ->
-            val trimmed: String = line.trim()
-            if (trimmed.isEmpty() || !trimmed.contains('=')) return@mapNotNull null
-            val key: String = trimmed.substringBefore('=').trim()
-            val value: String = trimmed.substringAfter('=').trim()
-            if (key.isEmpty()) null else key to value
-        }
-        .toMap()
-
-// Parse the args field into positional arguments, split on any run of whitespace.
-private fun parseArgs(text: String): List<String> =
-    text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
 
 @Composable
 private fun CreateScriptDialog(

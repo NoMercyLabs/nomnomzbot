@@ -46,6 +46,11 @@ interface ProjectEditorIO {
      * over scanning the source text for `.on('x')` calls, so the bar can't silently drift from what the widget
      * really receives; it falls back to the source scan only when this list is empty (a brand-new custom widget
      * that has not saved any declared subscriptions yet — S062 tracks making that list itself editable).
+     *
+     * [history] drives an in-editor "History" side view (version list, rollback, delete) when non-null
+     * (S-CODE-COLLAPSE) — the collapsed replacement for a separate pre-editor version-history page/dialog.
+     * [testRun] drives an in-editor dry-run panel folded into the existing Run & test side view when
+     * non-null. Both default to null (no panel) for callers with nothing to show there.
      */
     suspend fun editAndCompile(
         title: String,
@@ -54,6 +59,8 @@ interface ProjectEditorIO {
         language: String,
         sdkTypes: String = "",
         eventSubscriptions: List<String> = emptyList(),
+        history: EditorHistory? = null,
+        testRun: EditorTestRun? = null,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }
@@ -68,6 +75,8 @@ expect class ProjectEditor() : ProjectEditorIO {
         language: String,
         sdkTypes: String,
         eventSubscriptions: List<String>,
+        history: EditorHistory?,
+        testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }

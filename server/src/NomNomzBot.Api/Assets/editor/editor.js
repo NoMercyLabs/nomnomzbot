@@ -25,6 +25,16 @@ const HOST_MESSAGE = Object.freeze({
     save: 'nnz:editor:save',
     compiled: 'nnz:editor:compiled',
     close: 'nnz:editor:close',
+    // S-CODE-COLLAPSE: the History side view (version list, publish, delete) and the Test run panel folded
+    // into Run & test — both optional, declared by the host per project (see `open()`'s `history` /
+    // `testRunEnabled` payload fields).
+    historyLoadMore: 'nnz:editor:historyLoadMore',
+    historyRollback: 'nnz:editor:historyRollback',
+    historyDelete: 'nnz:editor:historyDelete',
+    historyPage: 'nnz:editor:historyPage',
+    historyError: 'nnz:editor:historyError',
+    testRun: 'nnz:editor:testRun',
+    testRunResult: 'nnz:editor:testRunResult',
 });
 
 // Pinned, and single-sourced: the AMD loader, the module root and the stylesheet must never drift apart.
@@ -84,6 +94,17 @@ const dom = {
     activityProblemBadge: document.getElementById('activityProblemBadge'),
     runTest: document.getElementById('runTest'),
     runNote: document.getElementById('runNote'),
+    runSandboxHint: document.getElementById('runSandboxHint'),
+    testRun: document.getElementById('testRun'),
+    testRunVars: document.getElementById('testRunVars'),
+    testRunArgs: document.getElementById('testRunArgs'),
+    testRunButton: document.getElementById('testRunButton'),
+    testRunStatus: document.getElementById('testRunStatus'),
+    testRunResult: document.getElementById('testRunResult'),
+    historyActivityItem: document.getElementById('historyActivityItem'),
+    historyList: document.getElementById('historyList'),
+    historyStatus: document.getElementById('historyStatus'),
+    historyLoadMore: document.getElementById('historyLoadMore'),
     bundleMeta: document.getElementById('bundleMeta'),
     theme: document.getElementById('theme'),
     paletteBackdrop: document.getElementById('paletteBackdrop'),
@@ -804,7 +825,15 @@ function commands() {
         { label: 'Toggle word wrap', detail: '', run: toggleWrap },
         { label: 'Toggle minimap', detail: '', run: toggleMinimap },
         ...THEMES.map((theme) => ({ label: `Theme: ${theme.label}`, detail: theme.id, run: () => applyTheme(theme.id) })),
-        ...['explorer', 'search', 'problems', 'run', 'bundle'].map((view) => ({
+        ...[
+            'explorer',
+            'search',
+            'problems',
+            'run',
+            // Only offered once the host actually wired an EditorHistory — matches the hidden activity item.
+            ...(dom.historyActivityItem.hidden ? [] : ['history']),
+            'bundle',
+        ].map((view) => ({
             label: `View: ${view[0].toUpperCase()}${view.slice(1)}`,
             detail: '',
             run: () => showView(view),
@@ -931,6 +960,160 @@ function showCompileResult({ ok, message }) {
     dom.save.textContent = 'Save & Compile';
 }
 
+// ── History (S-CODE-COLLAPSE) ────────────────────────────────────────────
+
+// Shows/hides the History activity item and renders its first page, or leaves it hidden entirely when the host
+// opened this editor without an [EditorHistory] wired (e.g. a widget, which has its own separate version-history
+// dialog outside the editor). `history` is `{ versions, hasMore }`, the same shape [renderHistoryPage] consumes.
+function initHistory(history) {
+    dom.historyActivityItem.hidden = !history;
+    if (history) renderHistoryPage(history);
+}
+
+function requestHistoryLoadMore() {
+    dom.historyLoadMore.disabled = true;
+    dom.historyStatus.hidden = true;
+    postToHost({ type: HOST_MESSAGE.historyLoadMore });
+}
+
+function requestHistoryRollback(versionId) {
+    postToHost({ type: HOST_MESSAGE.historyRollback, versionId });
+}
+
+function requestHistoryDelete(versionId) {
+    if (!window.confirm('Delete this saved version? This cannot be undone.')) return;
+    postToHost({ type: HOST_MESSAGE.historyDelete, versionId });
+}
+
+// Renders one full page — `{ versions, hasMore }` — replacing whatever was shown before (the host always sends
+// the FULL list so far, matching [CodeScriptsController]'s own accumulate-on-load-more behavior).
+function renderHistoryPage(page) {
+    dom.historyLoadMore.disabled = false;
+    dom.historyStatus.hidden = true;
+    dom.historyLoadMore.hidden = !page.hasMore;
+    dom.historyList.replaceChildren(
+        ...(page.versions.length === 0
+            ? [emptyHistoryRow()]
+            : page.versions.map((version) => historyRow(version))),
+    );
+}
+
+function emptyHistoryRow() {
+    const item = document.createElement('li');
+    item.className = 'view-hint';
+    item.textContent = 'No saved versions yet.';
+    return item;
+}
+
+function historyRow(version) {
+    const item = document.createElement('li');
+    item.className = 'history-row';
+
+    const label = document.createElement('span');
+    label.className = 'history-row-label';
+    label.textContent = `v${version.version} — ${version.validationStatus}`;
+    if (version.isCurrent) {
+        const current = document.createElement('span');
+        current.className = 'history-row-current';
+        current.textContent = ' (current)';
+        label.append(current);
+    }
+    item.append(label);
+
+    // The currently-published version can't be rolled back onto itself or deleted (backend-enforced too).
+    if (!version.isCurrent) {
+        const publish = document.createElement('button');
+        publish.type = 'button';
+        publish.className = 'btn btn-quiet';
+        publish.textContent = 'Publish';
+        publish.addEventListener('click', () => requestHistoryRollback(version.id));
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-quiet';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', () => requestHistoryDelete(version.id));
+
+        item.append(publish, remove);
+    }
+    return item;
+}
+
+function showHistoryError(message) {
+    dom.historyLoadMore.disabled = false;
+    dom.historyStatus.hidden = false;
+    dom.historyStatus.textContent = message || 'That action failed.';
+}
+
+// ── Test run (S-CODE-COLLAPSE) ───────────────────────────────────────────
+
+// Shows/hides the Test run panel folded into Run & test. Hidden for anything without an [EditorTestRun] wired
+// (widgets, which use the Run view's live iframe preview + fire bar instead — mutually exclusive with this).
+function initTestRun(enabled) {
+    dom.testRun.hidden = !enabled;
+    if (enabled) {
+        // The widget-only sandbox preview controls have nothing to drive for a code script (no DOM to render).
+        dom.runTest.hidden = true;
+        dom.runSandboxHint.hidden = true;
+        dom.fireBar.hidden = true;
+    }
+}
+
+function parseTestRunVariables(text) {
+    const variables = {};
+    for (const rawLine of text.split('\n')) {
+        const line = rawLine.trim();
+        if (!line || !line.includes('=')) continue;
+        const key = line.slice(0, line.indexOf('=')).trim();
+        const value = line.slice(line.indexOf('=') + 1).trim();
+        if (key) variables[key] = value;
+    }
+    return variables;
+}
+
+function parseTestRunArgs(text) {
+    return text.trim().length === 0 ? [] : text.trim().split(/\s+/);
+}
+
+function requestTestRun() {
+    dom.testRunButton.disabled = true;
+    dom.testRunButton.textContent = 'Running…';
+    dom.testRunStatus.hidden = true;
+    dom.testRunResult.hidden = true;
+    postToHost({
+        type: HOST_MESSAGE.testRun,
+        variables: parseTestRunVariables(dom.testRunVars.value),
+        args: parseTestRunArgs(dom.testRunArgs.value),
+    });
+}
+
+function showTestRunResult(data) {
+    dom.testRunButton.disabled = false;
+    dom.testRunButton.textContent = 'Run test';
+
+    if (!data.ok) {
+        dom.testRunStatus.hidden = false;
+        dom.testRunStatus.dataset.ok = 'false';
+        dom.testRunStatus.textContent = data.message || 'Test run failed.';
+        dom.testRunResult.hidden = true;
+        return;
+    }
+
+    dom.testRunStatus.hidden = false;
+    dom.testRunStatus.dataset.ok = String(Boolean(data.success));
+    dom.testRunStatus.textContent = data.success
+        ? `Success — ${data.durationMs}ms, ${data.hostCallCount} host call(s)`
+        : `Failed${data.error ? `: ${data.error}` : ''}`;
+
+    const chat = data.chatOutput.length === 0 ? 'Chat output: (none)' : `Chat output:\n${data.chatOutput.join('\n')}`;
+    const effects =
+        data.effects.length === 0
+            ? 'Captured effects: (none)'
+            : `Captured effects:\n${data.effects.map((effect) => `${effect.name}  ${effect.argsPreview}`).join('\n')}`;
+    dom.testRunResult.hidden = false;
+    dom.testRunResult.textContent = `${chat}\n\n${effects}`;
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 
 async function open(payload) {
@@ -990,6 +1173,9 @@ async function open(payload) {
             ? 'This project runs in the bot sandbox, so there is nothing to render. Save & Compile validates it.'
             : 'Renders the current editor contents. Fire an event below to drive it.';
 
+    initHistory(payload.history ?? null);
+    initTestRun(Boolean(payload.testRunEnabled));
+
     dom.boot.hidden = true;
     dom.shell.hidden = false;
     state.editor.focus();
@@ -1031,6 +1217,8 @@ function wireChrome() {
     dom.minimap.addEventListener('click', toggleMinimap);
     dom.theme.addEventListener('click', () => openPalette('commands'));
     dom.runTest.addEventListener('click', runSandbox);
+    dom.testRunButton.addEventListener('click', requestTestRun);
+    dom.historyLoadMore.addEventListener('click', requestHistoryLoadMore);
 
     for (const button of dom.activity.querySelectorAll('.activity-item')) {
         button.addEventListener('click', () => showView(button.dataset.view));
@@ -1087,6 +1275,9 @@ function wireChrome() {
         } else if (meta && event.shiftKey && event.key.toLowerCase() === 'd') {
             event.preventDefault();
             showView('run');
+        } else if (meta && event.shiftKey && event.key.toLowerCase() === 'h' && !dom.historyActivityItem.hidden) {
+            event.preventDefault();
+            showView('history');
         }
     });
 }
@@ -1119,6 +1310,12 @@ window.addEventListener('message', (event) => {
         });
     } else if (data?.type === HOST_MESSAGE.compiled) {
         showCompileResult(data);
+    } else if (data?.type === HOST_MESSAGE.historyPage) {
+        renderHistoryPage(data.payload);
+    } else if (data?.type === HOST_MESSAGE.historyError) {
+        showHistoryError(data.message);
+    } else if (data?.type === HOST_MESSAGE.testRunResult) {
+        showTestRunResult(data);
     }
 });
 

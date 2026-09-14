@@ -11,6 +11,13 @@
 package bot.nomnomz.dashboard.feature.codescripts.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorOutcome
+import bot.nomnomz.dashboard.core.editor.EditorTestRun
+import bot.nomnomz.dashboard.core.editor.EditorTestRunEffect
+import bot.nomnomz.dashboard.core.editor.EditorTestRunResult
+import bot.nomnomz.dashboard.core.editor.EditorVersionSummary
+import bot.nomnomz.dashboard.core.editor.EditorVersionsPage
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
@@ -118,7 +125,6 @@ class CodeScriptsController(
                 scripts = scripts,
                 detail = detail,
                 project = project,
-                selectedPath = project.manifest.entry,
                 versions = versionsPage?.data ?: emptyList(),
                 versionsPage = 1,
                 versionsHasMore = versionsPage?.hasMore ?: false,
@@ -187,14 +193,6 @@ class CodeScriptsController(
         }
     }
 
-    /** Select a file in the open project's tree (drives the in-page preview pane). */
-    fun selectFile(path: String) {
-        val current: CodeScriptsState = _state.value
-        if (current is CodeScriptsState.Editing) {
-            _state.value = current.copy(selectedPath = path)
-        }
-    }
-
     /** Close the editor, returning to the list. */
     fun close() {
         val current: CodeScriptsState = _state.value
@@ -206,14 +204,22 @@ class CodeScriptsController(
     }
 
     /**
-     * Open the shared multi-file project editor on the currently-open script, seeded with its project. Each
-     * "Save & Compile" sends the whole project to [CodeScriptsApi.putProject] (validate + compile + publish),
-     * surfacing the outcome inline: [compiledMessage] on success, the backend's real reason on failure. Reloads
-     * the detail + list when the editor closes. [displayName] is the caller's already-resolved, never-blank
-     * editor title (see [bot.nomnomz.dashboard.core.designsystem.resolveRowLabel]) — this controller has no
-     * Composable context to resolve a localized fallback itself.
+     * Open the shared multi-file project editor DIRECTLY on script [id] — the collapsed replacement for the old
+     * list -> read-only detail page -> "Edit code" hop (S-CODE-COLLAPSE): the operator lands in the real Monaco
+     * editor the moment they open a script. Fetches the detail + project + first version-history page (same as
+     * the old [open]), then launches the editor seeded with it, wiring its in-editor History and Test run side
+     * views to this controller's own version/rollback/delete/test-run logic so both stay reachable WITHOUT a
+     * separate page. Each "Save & Compile" sends the whole project to [CodeScriptsApi.putProject]
+     * (validate + compile + publish), surfacing the outcome inline: [compiledMessage] on success, the backend's
+     * real reason on failure. Reloads the list when the editor closes, returning to it (never back into a
+     * stale "Editing" page). A failure surfaces over the kept list without opening the editor.
+     *
+     * [displayName] is the caller's already-resolved, never-blank editor title (see
+     * [bot.nomnomz.dashboard.core.designsystem.resolveRowLabel]) — this controller has no Composable context to
+     * resolve a localized fallback itself.
      */
-    suspend fun editCode(id: String, compiledMessage: String, displayName: String) {
+    suspend fun openAndEdit(id: String, compiledMessage: String, displayName: String) {
+        open(id)
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
         val project: ProjectDto = current.project
@@ -230,13 +236,76 @@ class CodeScriptsController(
             // The script-context nnz.d.ts drives `nnz.` autocomplete + diagnostics in the web editor; a fetch
             // failure degrades to a plain editor rather than blocking editing.
             sdkTypes = fetchSdkTypes("script"),
+            history = buildEditorHistory(id, current),
+            testRun = buildEditorTestRun(id),
             compile = { editedFiles -> saveProjectFeedback(id, editedFiles, project, compiledMessage) },
         )
-        // Reload so the version number / validation status reflects the newly-published version, and refresh the
-        // list underneath the editor.
-        open(id)
-        loadListSilent()
+        // The editor closed — back to the list, refreshed so the row reflects the newly-published version.
+        load()
     }
+
+    // Seeds the editor's History side view from the page already loaded by [open], and wires its load-more /
+    // rollback / delete actions back onto this controller's own methods (single-sourced — no separate API
+    // calling logic for the in-editor panel). A write failure already announces on the shell-level feedback
+    // toast (see [failWrite]), matching the rest of this controller, so a "refresh from current state" is
+    // always the right outcome here, success or not.
+    private fun buildEditorHistory(id: String, editing: CodeScriptsState.Editing): EditorHistory =
+        EditorHistory(
+            initialVersions = editing.versions.toEditorSummaries(editing.detail.currentVersionId),
+            initialHasMore = editing.versionsHasMore,
+            loadMore = {
+                loadMoreVersions(id)
+                editorVersionsOutcome(id)
+            },
+            rollback = { versionId ->
+                rollback(id, versionId)
+                editorVersionsOutcome(id)
+            },
+            delete = { versionId ->
+                deleteVersion(id, versionId)
+                editorVersionsOutcome(id)
+            },
+        )
+
+    private fun editorVersionsOutcome(id: String): EditorOutcome<EditorVersionsPage> {
+        val current: CodeScriptsState = _state.value
+        if (current !is CodeScriptsState.Editing || current.detail.id != id) {
+            return EditorOutcome.Failed("The editor session ended.")
+        }
+        return EditorOutcome.Ok(
+            EditorVersionsPage(
+                versions = current.versions.toEditorSummaries(current.detail.currentVersionId),
+                hasMore = current.versionsHasMore,
+            ),
+        )
+    }
+
+    // Wires the editor's Test run panel onto this controller's own [testRun] — the same dry-run logic already
+    // exercised directly (see CodeScriptsControllerTestRunTest), read back off state instead of duplicated here.
+    private fun buildEditorTestRun(id: String): EditorTestRun =
+        EditorTestRun { variables, args ->
+            testRun(id, variables, args)
+            val current: CodeScriptsState = _state.value
+            val error: String? = (current as? CodeScriptsState.Editing)?.testError
+            val result: TestRunResult? = (current as? CodeScriptsState.Editing)?.testResult
+            when {
+                current !is CodeScriptsState.Editing || current.detail.id != id ->
+                    EditorOutcome.Failed("The editor session ended.")
+                error != null -> EditorOutcome.Failed(error)
+                result != null ->
+                    EditorOutcome.Ok(
+                        EditorTestRunResult(
+                            success = result.success,
+                            durationMs = result.durationMs,
+                            hostCallCount = result.hostCallCount,
+                            error = result.error,
+                            chatOutput = result.chatOutput,
+                            effects = result.capturedEffects.map { effect -> EditorTestRunEffect(effect.name, effect.argsPreview) },
+                        ),
+                    )
+                else -> EditorOutcome.Failed("No result.")
+            }
+        }
 
     /**
      * Dry-run the open script's current version with sample [variables] + [args]. Effects are captured, never
@@ -353,6 +422,18 @@ class CodeScriptsController(
     }
 }
 
+// Maps the network version list onto the platform-agnostic [EditorVersionSummary] the in-editor History view
+// renders — "current" is [currentVersionId], not a field on the version row itself.
+private fun List<CodeScriptVersion>.toEditorSummaries(currentVersionId: String?): List<EditorVersionSummary> =
+    map { version ->
+        EditorVersionSummary(
+            id = version.id,
+            version = version.version,
+            validationStatus = version.validationStatus,
+            isCurrent = currentVersionId != null && version.id == currentVersionId,
+        )
+    }
+
 /** The Code Scripts page render state. */
 sealed interface CodeScriptsState {
     data object Loading : CodeScriptsState
@@ -366,15 +447,16 @@ sealed interface CodeScriptsState {
     ) : CodeScriptsState
 
     /**
-     * The project view is open for [detail]. [project] is the script's `src/` file set + manifest; [selectedPath]
-     * is the file shown in the in-page preview pane (the tree drives it). The actual editing happens in the shared
-     * multi-file project editor launched from this view.
+     * The shared multi-file project editor is open (or opening) for [detail] — [openAndEdit]'s working state
+     * while [project] and the version history below feed the editor's History / Test run side views
+     * (S-CODE-COLLAPSE). There is no separate Compose rendering for this state: the editor itself, a full-screen
+     * overlay (web) / its own window (desktop), IS what the operator sees; [CodeScriptsScreen] renders only a
+     * brief "opening…" placeholder for the moment between [open] and the editor actually mounting.
      */
     data class Editing(
         val scripts: List<CodeScriptSummary>,
         val detail: CodeScriptDetail,
         val project: ProjectDto,
-        val selectedPath: String,
         /** The script's version history loaded so far (newest first) — backs the rollback list. */
         val versions: List<CodeScriptVersion> = emptyList(),
         /** The last version-history page fetched (1-based) — [loadMoreVersions] fetches [versionsPage] + 1. */
