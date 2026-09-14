@@ -99,7 +99,11 @@ fun Toast(
             color = colors.content,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(end = spacing.s1),
+            // Without a weight, this Text measures against the Row's full available width before its
+            // sibling is placed — a long message (e.g. a raw backend error) then pushes the dismiss
+            // control past the Row's clipped bounds, making it invisible and unclickable. Weighting it
+            // reserves room for the dismiss control up front so it always stays on-screen.
+            modifier = Modifier.weight(1f, fill = false).padding(end = spacing.s1),
         )
         Text(
             text = dismissLabel,
