@@ -345,7 +345,7 @@ class CodeScriptsController(
     /** Create a new script (a single-source project the backend scaffolds). Reloads the list on success. */
     suspend fun create(name: String, description: String?, sourceCode: String) {
         when (
-            val result: ApiResult<CodeScriptSummary> =
+            val result: ApiResult<CodeScriptDetail> =
                 api.create(CreateScriptBody(name, description?.takeIf { it.isNotBlank() }, sourceCode))
         ) {
             is ApiResult.Ok -> load()

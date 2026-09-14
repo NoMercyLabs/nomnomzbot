@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
@@ -206,8 +207,14 @@ class CommandsController(
      */
     suspend fun createCodeScript(name: String): CodeScriptSummary? {
         val api: CodeScriptsApi = codeScriptsApi ?: return null
-        return when (val result: ApiResult<CodeScriptSummary> = api.create(CreateScriptBody(name = name, sourceCode = ""))) {
-            is ApiResult.Ok -> result.value
+        return when (val result: ApiResult<CodeScriptDetail> = api.create(CreateScriptBody(name = name, sourceCode = ""))) {
+            is ApiResult.Ok ->
+                CodeScriptSummary(
+                    id = result.value.id,
+                    name = result.value.name,
+                    description = result.value.description,
+                    isEnabled = result.value.isEnabled,
+                )
             is ApiResult.Failure -> {
                 failWrite(result.error.message)
                 null

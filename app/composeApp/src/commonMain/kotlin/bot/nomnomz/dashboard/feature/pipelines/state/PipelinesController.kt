@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
@@ -200,7 +201,7 @@ class PipelinesController(
      */
     suspend fun createCodeScript(name: String): PickerOption? {
         val api: CodeScriptsApi = codeScriptsApi ?: return null
-        return when (val result: ApiResult<CodeScriptSummary> = api.create(CreateScriptBody(name = name, sourceCode = ""))) {
+        return when (val result: ApiResult<CodeScriptDetail> = api.create(CreateScriptBody(name = name, sourceCode = ""))) {
             is ApiResult.Ok -> labeledOption(result.value.id, result.value.name, "Code script")
             is ApiResult.Failure -> null
         }

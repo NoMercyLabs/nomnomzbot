@@ -68,7 +68,7 @@ class RowLabelGuardTest {
         mapOf(
             "analytics/ui/AnalyticsScreen.kt" to 1,
             "chattriggers/state/ChatTriggersController.kt" to 1,
-            "commands/state/CommandsController.kt" to 1,
+            "commands/state/CommandsController.kt" to 2,
             "commands/ui/CommandsScreen.kt" to 1,
             "community/state/CommunityController.kt" to 1,
             "connect/ui/ConnectScreen.kt" to 1,

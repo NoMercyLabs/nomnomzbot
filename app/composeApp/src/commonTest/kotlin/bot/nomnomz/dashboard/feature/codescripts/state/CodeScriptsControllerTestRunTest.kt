@@ -127,7 +127,7 @@ class CodeScriptsControllerTestRunTest {
             return testRunResult
         }
 
-        override suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptSummary> = ApiResult.Ok(summary)
+        override suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptDetail> = ApiResult.Ok(detail)
 
         override suspend fun createVersion(id: String, body: CreateVersionBody): ApiResult<CodeScriptVersion> =
             ApiResult.Ok(CodeScriptVersion())

@@ -764,9 +764,11 @@ private class RecordingCodeScriptsApi : bot.nomnomz.dashboard.core.network.CodeS
 
     override suspend fun create(
         body: bot.nomnomz.dashboard.core.network.CreateScriptBody
-    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptSummary> {
+    ): ApiResult<bot.nomnomz.dashboard.core.network.CodeScriptDetail> {
         lastCreatedName = body.name
-        return ApiResult.Ok(bot.nomnomz.dashboard.core.network.CodeScriptSummary(id = "script-new-1", name = body.name))
+        return ApiResult.Ok(
+            bot.nomnomz.dashboard.core.network.CodeScriptDetail(id = "script-new-1", name = body.name, language = "typescript"),
+        )
     }
 
     override suspend fun createVersion(

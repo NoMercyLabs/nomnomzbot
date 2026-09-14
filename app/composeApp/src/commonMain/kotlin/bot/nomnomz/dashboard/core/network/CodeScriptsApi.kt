@@ -36,7 +36,7 @@ import kotlinx.serialization.Serializable
 interface CodeScriptsApi {
     suspend fun list(): ApiResult<List<CodeScriptSummary>>
     suspend fun get(id: String): ApiResult<CodeScriptDetail>
-    suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptSummary>
+    suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptDetail>
     suspend fun createVersion(id: String, body: CreateVersionBody): ApiResult<CodeScriptVersion>
 
     /** Load the script's multi-file project (its `src/` file set + manifest) for the editor to open. */
@@ -90,7 +90,7 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
     override suspend fun get(id: String): ApiResult<CodeScriptDetail> =
         client.getEnvelope("api/v1/code-scripts/$id")
 
-    override suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptSummary> =
+    override suspend fun create(body: CreateScriptBody): ApiResult<CodeScriptDetail> =
         client.postEnvelope("api/v1/code-scripts", body)
 
     override suspend fun createVersion(id: String, body: CreateVersionBody): ApiResult<CodeScriptVersion> =
