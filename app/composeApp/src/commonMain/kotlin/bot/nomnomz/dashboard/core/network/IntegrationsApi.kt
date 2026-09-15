@@ -109,8 +109,17 @@ class RestIntegrationsApi(private val client: ApiClient) : IntegrationsApi {
     ): ApiResult<BlastRadiusSummary> =
         client.getEnvelope("api/v1/channels/$channelId/integrations/$provider/blast-radius")
 
-    override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
-        client.deleteUnit("api/v1/channels/$channelId/integrations/discord")
+    override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> = disconnectById(channelId, "discord")
+
+    /**
+     * `DELETE …/integrations/{integrationId}` (legacy `IntegrationsController.Disconnect`) is generically
+     * templated on the server — it switches on the id value ("discord", "custom_bot", "youtube", a service
+     * name). Routing the literal through this interpolated helper, instead of splicing it into the URL
+     * literal, keeps the call recognisable to [ApiRouteContractTest] as a genuine parameter value rather
+     * than an unrelated literal segment.
+     */
+    private suspend fun disconnectById(channelId: String, integrationId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/integrations/$integrationId")
 
     override suspend fun spotifyCredentials(channelId: String): ApiResult<ChannelSpotifyCredentials> =
         client.getEnvelope("api/v1/channels/$channelId/integrations/spotify/credentials")

@@ -63,18 +63,49 @@ class ApiRouteContractTest {
      * per-provider on the server (`…/setup/credentials/twitch`, `…/spotify`, …) while the client builds the
      * one URL by interpolating the provider. Segment COUNT and every literal segment must still agree, so a
      * wrong or missing segment fails.
+     *
+     * The reverse direction is NOT symmetric: a spec `{}` (a real path parameter) only matches a client
+     * `{}` (a real interpolation) — never a client literal. Letting a bare spec `{}` match any client
+     * literal is the hole this asymmetry closes: `…/sound-clips/stop` (a client literal, no parameter
+     * involved) must not pass just because a parameterised sibling `…/sound-clips/{}` exists in the spec.
      */
     private fun matches(clientPath: String, specPath: String): Boolean {
         val a: List<String> = clientPath.split('/')
         val b: List<String> = specPath.split('/')
         if (a.size != b.size) return false
-        return a.indices.all { i -> a[i] == b[i] || a[i] == "{}" || b[i] == "{}" }
+        return a.indices.all { i -> a[i] == b[i] || a[i] == "{}" }
     }
 
     // Empty, and it must stay that way. The one entry that lived here — POST users/{}/export — was a
     // control that 404'd on every click while reading as success; it now calls the compliance plane's
     // real export. A new entry here is a shipped dead button, not a tolerated exception.
     private val knownDeadRoutes: Set<String> = emptySet()
+
+    /**
+     * Regression for the guard hole proven live by commit 13906b7f: a client literal segment
+     * (`…/sound-clips/stop`) must NOT match a spec that only declares a parameterised sibling
+     * (`…/sound-clips/{}`) — the `{}` there is a real path parameter, not a wildcard for any literal.
+     * The per-provider case (`…/setup/credentials/{}` client interpolation vs. `…/setup/credentials/twitch`
+     * spec literal) must keep matching — that asymmetry is intentional and stays.
+     */
+    @Test
+    fun spec_parameter_does_not_swallow_an_unrelated_client_literal() {
+        val stopClient = normalise("api/v1/sound-clips/stop")
+        val soundClipsParamSpec = normalise("api/v1/sound-clips/{id}")
+        if (matches(stopClient, soundClipsParamSpec))
+            fail(
+                "\"$stopClient\" matched spec \"$soundClipsParamSpec\" — a spec parameter must not swallow " +
+                    "an unrelated client literal."
+            )
+
+        val credentialsClient = normalise("api/v1/setup/credentials/\$provider")
+        val credentialsSpec = normalise("api/v1/setup/credentials/twitch")
+        if (!matches(credentialsClient, credentialsSpec))
+            fail(
+                "\"$credentialsClient\" did not match spec \"$credentialsSpec\" — a client interpolation " +
+                    "must still match a per-provider spec literal."
+            )
+    }
 
     @Test
     fun every_client_rest_url_matches_a_route_the_api_serves() {
