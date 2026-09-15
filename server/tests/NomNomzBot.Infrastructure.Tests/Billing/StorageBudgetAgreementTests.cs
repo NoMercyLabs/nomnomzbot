@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -60,7 +61,8 @@ public sealed class StorageBudgetAgreementTests
             new FakeOverlayNotifier(),
             new FakeChannelRegistry(),
             quota,
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            new FakeOverlayPresenceRegistry()
         );
         ChannelAssetService assets = new(
             db,
@@ -389,6 +391,14 @@ public sealed class StorageBudgetAgreementTests
             bool all,
             CancellationToken ct = default
         ) => Task.CompletedTask;
+    }
+
+    /// <summary>Storage-budget scenarios never exercise Stop; presence is irrelevant here.</summary>
+    private sealed class FakeOverlayPresenceRegistry : IOverlayPresenceRegistry
+    {
+        public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) => false;
+
+        public bool IsOverlayConnected(Guid broadcasterId) => false;
     }
 
     private sealed class FakeChannelRegistry : IChannelRegistry

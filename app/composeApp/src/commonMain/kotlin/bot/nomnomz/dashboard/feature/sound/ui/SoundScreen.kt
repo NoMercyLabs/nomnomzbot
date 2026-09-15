@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -105,6 +106,7 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_preview_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_preview_overlay_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_retry
 import nomnomzbot.composeapp.generated.resources.sound_clips_size_kb
+import nomnomzbot.composeapp.generated.resources.sound_clips_stop_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_upload_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_upload_hint
 import nomnomzbot.composeapp.generated.resources.sound_clips_volume_pct
@@ -142,6 +144,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     manage = manage,
                     isUploading = isUploading,
                     onUpload = { scope.launch { controller.uploadClip() } },
+                    onStopAll = { scope.launch { controller.stopAll() } },
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
@@ -153,6 +156,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     manage = manage,
                     isUploading = isUploading,
                     onUpload = { scope.launch { controller.uploadClip() } },
+                    onStopAll = { scope.launch { controller.stopAll() } },
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
@@ -214,6 +218,7 @@ private fun ClipList(
     manage: ManageDecision,
     isUploading: Boolean,
     onUpload: () -> Unit,
+    onStopAll: () -> Unit,
     onEdit: (SoundClip) -> Unit,
     onDelete: (SoundClip) -> Unit,
     onPreview: (SoundClip) -> Unit,
@@ -232,8 +237,15 @@ private fun ClipList(
             subtitle = stringResource(Res.string.sound_clips_upload_hint),
         ) {
             ManageGate(decision = manage) { enabled ->
-                Button(onClick = onUpload, enabled = enabled && !isUploading) {
-                    Text(text = stringResource(Res.string.sound_clips_upload_action))
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    // Stop is a sibling action, never the primary: outline, not filled — Upload stays the
+                    // one primary action in this group (sleak: one primary action per group).
+                    Button(onClick = onStopAll, enabled = enabled, variant = ButtonVariant.Outline) {
+                        Text(text = stringResource(Res.string.sound_clips_stop_action))
+                    }
+                    Button(onClick = onUpload, enabled = enabled && !isUploading) {
+                        Text(text = stringResource(Res.string.sound_clips_upload_action))
+                    }
                 }
             }
         }

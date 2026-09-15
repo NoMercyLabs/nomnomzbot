@@ -181,13 +181,31 @@ public sealed class OverlaySdkController : ControllerBase
           // (a server-rendered audio URL); client_edge TTS arrives as TtsSpeak (browser speechSynthesis,
           // no audio bytes). Widgets that want to react visually still get the raw events via on(...).
           var soundHandles = {}; // handle -> HTMLAudioElement, for StopSound(handle) / StopSound(all)
+          // S-OBS-06: a clip started with no handle is the single "current" unhandled clip — starting another
+          // one always stops it first, so sound clips can no longer stack and play concurrently. A handle is
+          // its own independent slot (stopped only by its own handle, or by StopSound(all)).
+          var currentSound = null;
 
           function playSound(payload) {
+            if (payload.handle) {
+              var existingHandled = soundHandles[payload.handle];
+              if (existingHandled) existingHandled.pause();
+            } else if (currentSound) {
+              currentSound.pause();
+            }
+
             var el = document.createElement("audio");
             el.src = payload.playbackUrl;
             el.volume = Math.max(0, Math.min(100, Number(payload.volume) || 100)) / 100;
-            if (payload.handle) soundHandles[payload.handle] = el;
-            el.addEventListener("ended", function () { if (payload.handle) delete soundHandles[payload.handle]; });
+            if (payload.handle) {
+              soundHandles[payload.handle] = el;
+              el.addEventListener("ended", function () {
+                if (soundHandles[payload.handle] === el) delete soundHandles[payload.handle];
+              });
+            } else {
+              currentSound = el;
+              el.addEventListener("ended", function () { if (currentSound === el) currentSound = null; });
+            }
             el.play().catch(function (e) { report("audio playback blocked: " + ((e && e.message) || e)); });
           }
 
@@ -247,11 +265,16 @@ public sealed class OverlaySdkController : ControllerBase
 
           function stopSound(payload) {
             if (payload.all) {
+              if (currentSound) { currentSound.pause(); currentSound = null; }
               Object.keys(soundHandles).forEach(function (h) { soundHandles[h].pause(); delete soundHandles[h]; });
               return;
             }
-            var el = payload.handle && soundHandles[payload.handle];
-            if (el) { el.pause(); delete soundHandles[payload.handle]; }
+            if (payload.handle) {
+              var el = soundHandles[payload.handle];
+              if (el) { el.pause(); delete soundHandles[payload.handle]; }
+              return;
+            }
+            if (currentSound) { currentSound.pause(); currentSound = null; }
           }
 
           // Cached browser voice list — some browsers populate it async via voiceschanged, so a lookup right

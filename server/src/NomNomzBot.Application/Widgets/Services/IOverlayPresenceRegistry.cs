@@ -21,4 +21,12 @@ public interface IOverlayPresenceRegistry
 {
     /// <summary>True when at least one live overlay connection has joined <paramref name="widgetId"/>.</summary>
     bool IsWidgetAttached(Guid broadcasterId, Guid widgetId);
+
+    /// <summary>
+    /// True when at least one browser source is currently connected to the channel's overlay at all — every
+    /// overlay connection joins this broadcaster-wide group on connect, regardless of which widget(s) it
+    /// later attaches to. Used by anything that pushes to the shared overlay bus (e.g. sound-clip stop) and
+    /// has no single widget to check.
+    /// </summary>
+    bool IsOverlayConnected(Guid broadcasterId);
 }

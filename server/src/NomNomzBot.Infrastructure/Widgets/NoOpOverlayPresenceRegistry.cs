@@ -23,4 +23,6 @@ namespace NomNomzBot.Infrastructure.Widgets;
 internal sealed class NoOpOverlayPresenceRegistry : IOverlayPresenceRegistry
 {
     public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) => false;
+
+    public bool IsOverlayConnected(Guid broadcasterId) => false;
 }

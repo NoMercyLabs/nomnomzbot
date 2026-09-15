@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Infrastructure.Sound;
@@ -76,7 +77,8 @@ public sealed class SoundClipServiceUploadLimitTests
             Substitute.For<ISoundClipOverlayNotifier>(),
             Substitute.For<IChannelRegistry>(),
             quota,
-            Substitute.For<IPipelineStepReferenceScanner>()
+            Substitute.For<IPipelineStepReferenceScanner>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
         return (service, db, store);
     }

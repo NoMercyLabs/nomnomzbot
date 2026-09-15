@@ -112,6 +112,8 @@ public sealed class AlertQueueServiceTests
         public bool Attached { get; set; }
 
         public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) => Attached;
+
+        public bool IsOverlayConnected(Guid broadcasterId) => Attached;
     }
 
     [Fact]

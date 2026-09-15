@@ -78,6 +78,14 @@ public interface ISoundClipService
 
     /// <summary>Sends an immediate <c>PlaySound</c> to the overlay for dashboard preview / test.</summary>
     Task<Result> PreviewAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Stops all sound-clip playback on this channel's overlay right now (S-OBS-06) — the dashboard's Stop
+    /// control and the equivalent of the <c>stop_sound</c> pipeline action's "all" mode. Fails with
+    /// <c>NOT_ATTACHED</c> when no overlay is currently connected, rather than reporting a silent no-op as
+    /// success.
+    /// </summary>
+    Task<Result> StopAsync(Guid broadcasterId, CancellationToken ct = default);
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────

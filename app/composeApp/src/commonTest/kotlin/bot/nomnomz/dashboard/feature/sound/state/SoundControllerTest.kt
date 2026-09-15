@@ -28,6 +28,8 @@ import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_sent
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_failed
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_sent
 
 // S104-PREVIEW-ON-OVERLAY: proves the sound library's "Preview on overlay" action actually calls the real
 // backend endpoint (POST /sound-clips/{id}/preview, which pushes a PlaySound event to the connected OBS
@@ -70,6 +72,46 @@ class SoundControllerTest {
         assertEquals(Res.string.feedback_sound_clip_preview_overlay_failed, feedback.only.label)
         assertEquals(listOf<Any>("Sound clip not found or disabled."), feedback.only.formatArgs)
     }
+
+    // S-OBS-06: the dashboard's Stop control must call the real backend endpoint (POST /sound-clips/stop),
+    // which pushes StopSound(all) to the connected overlay via SignalR — proving it is wired, not a no-op.
+    @Test
+    fun stopAll_calls_the_real_backend_stop_endpoint() = runTest {
+        val api = FakeSoundApi()
+        val controller = soundController(api = api)
+
+        controller.stopAll()
+
+        assertEquals(1, api.stopCallCount)
+    }
+
+    @Test
+    fun a_successful_stop_announces_success_on_the_frame() = runTest {
+        val feedback = RecordingFeedback()
+        val api = FakeSoundApi()
+        val controller = soundController(api = api, feedback = feedback)
+
+        controller.stopAll()
+
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_sound_clip_stop_sent, feedback.only.label)
+    }
+
+    @Test
+    fun a_stop_with_no_overlay_attached_announces_an_error_carrying_the_backend_detail() = runTest {
+        val feedback = RecordingFeedback()
+        val api =
+            FakeSoundApi(
+                stopFailure = ApiError(409, "NOT_ATTACHED", "No overlay is connected on this channel."),
+            )
+        val controller = soundController(api = api, feedback = feedback)
+
+        controller.stopAll()
+
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(Res.string.feedback_sound_clip_stop_failed, feedback.only.label)
+        assertEquals(listOf<Any>("No overlay is connected on this channel."), feedback.only.formatArgs)
+    }
 }
 
 private fun soundController(
@@ -87,8 +129,12 @@ private object StubAudioFilePicker : AudioFilePickerIO {
 }
 
 /** A fake [SoundApi] that records every clip id sent to the real overlay-preview endpoint. */
-private class FakeSoundApi(private val previewFailure: ApiError? = null) : SoundApi {
+private class FakeSoundApi(
+    private val previewFailure: ApiError? = null,
+    private val stopFailure: ApiError? = null,
+) : SoundApi {
     val previewedClipIds: MutableList<String> = mutableListOf()
+    var stopCallCount: Int = 0
 
     override suspend fun list(): ApiResult<List<SoundClip>> = ApiResult.Ok(emptyList())
 
@@ -101,6 +147,12 @@ private class FakeSoundApi(private val previewFailure: ApiError? = null) : Sound
     override suspend fun preview(id: String): ApiResult<Unit> {
         previewedClipIds += id
         previewFailure?.let { return ApiResult.Failure(it) }
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun stop(): ApiResult<Unit> {
+        stopCallCount += 1
+        stopFailure?.let { return ApiResult.Failure(it) }
         return ApiResult.Ok(Unit)
     }
 

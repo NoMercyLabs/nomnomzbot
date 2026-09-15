@@ -59,9 +59,17 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     public static string GroupName(Guid broadcasterId, string widgetId) =>
         $"widget-{broadcasterId}-{widgetId}";
 
-    public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId)
+    /// <summary>The broadcaster-wide group every overlay connection joins on connect (<c>OverlayHub.OnConnectedAsync</c>).</summary>
+    public static string OverlayGroupName(Guid broadcasterId) => $"overlay-{broadcasterId}";
+
+    public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) =>
+        IsGroupAttached(GroupName(broadcasterId, widgetId.ToString()));
+
+    public bool IsOverlayConnected(Guid broadcasterId) =>
+        IsGroupAttached(OverlayGroupName(broadcasterId));
+
+    private bool IsGroupAttached(string groupName)
     {
-        string groupName = GroupName(broadcasterId, widgetId.ToString());
         foreach (ConcurrentDictionary<string, byte> groups in _connectionWidgets.Values)
             if (groups.ContainsKey(groupName))
                 return true;

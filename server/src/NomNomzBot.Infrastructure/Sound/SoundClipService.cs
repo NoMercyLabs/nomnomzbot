@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -45,6 +46,7 @@ internal sealed class SoundClipService : ISoundClipService
     private readonly IChannelRegistry _registry;
     private readonly IResourceQuotaService _quota;
     private readonly IPipelineStepReferenceScanner _stepReferences;
+    private readonly IOverlayPresenceRegistry _presence;
 
     public SoundClipService(
         IApplicationDbContext db,
@@ -52,7 +54,8 @@ internal sealed class SoundClipService : ISoundClipService
         ISoundClipOverlayNotifier overlay,
         IChannelRegistry registry,
         IResourceQuotaService quota,
-        IPipelineStepReferenceScanner stepReferences
+        IPipelineStepReferenceScanner stepReferences,
+        IOverlayPresenceRegistry presence
     )
     {
         _db = db;
@@ -61,6 +64,7 @@ internal sealed class SoundClipService : ISoundClipService
         _registry = registry;
         _quota = quota;
         _stepReferences = stepReferences;
+        _presence = presence;
     }
 
     public async Task<Result<PagedList<SoundClipDto>>> ListAsync(
@@ -406,6 +410,26 @@ internal sealed class SoundClipService : ISoundClipService
             return Result.Failure(resolveResult.ErrorMessage, resolveResult.ErrorCode);
 
         await _overlay.PlaySoundAsync(broadcasterId, resolveResult.Value, ct);
+        return Result.Success();
+    }
+
+    public Task<Result> StopAsync(Guid broadcasterId, CancellationToken ct = default)
+    {
+        // Overlay-only output needs a presence check: a stop pushed to nobody must not read as success.
+        if (!_presence.IsOverlayConnected(broadcasterId))
+            return Task.FromResult(
+                Result.Failure(
+                    "No overlay is connected on this channel — there is nothing to stop.",
+                    "NOT_ATTACHED"
+                )
+            );
+
+        return StopAttachedAsync(broadcasterId, ct);
+    }
+
+    private async Task<Result> StopAttachedAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        await _overlay.StopSoundAsync(broadcasterId, handle: null, all: true, ct);
         return Result.Success();
     }
 

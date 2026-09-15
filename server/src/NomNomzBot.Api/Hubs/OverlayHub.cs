@@ -67,7 +67,12 @@ public class OverlayHub : Hub<IOverlayClient>
         Context.Items["BroadcasterId"] = broadcasterId.Value;
         // All overlay connections for a broadcaster share the overlay group so sound play/stop
         // signals (and future broadcaster-wide overlay events) reach every browser source.
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"overlay-{broadcasterId}");
+        string overlayGroup = OverlayPresenceRegistry.OverlayGroupName(broadcasterId.Value);
+        await Groups.AddToGroupAsync(Context.ConnectionId, overlayGroup);
+        // Tracked in the same presence registry as widget attachment, so IOverlayPresenceRegistry can
+        // answer "is any browser source connected at all" for features (sound-clip stop) that push to the
+        // shared bus rather than one specific widget.
+        _presence.Attach(Context.ConnectionId, overlayGroup);
         _logger.LogDebug("Overlay connected for channel {B}", broadcasterId);
         await base.OnConnectedAsync();
     }

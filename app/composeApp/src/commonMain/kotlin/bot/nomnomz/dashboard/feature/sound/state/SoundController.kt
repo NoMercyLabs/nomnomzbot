@@ -28,6 +28,8 @@ import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_ove
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_saved
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_failed
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_uploaded
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
@@ -128,6 +130,16 @@ class SoundController(
             is ApiResult.Ok -> feedback.success(Res.string.feedback_sound_clip_preview_overlay_sent)
             is ApiResult.Failure ->
                 feedback.error(Res.string.feedback_sound_clip_preview_overlay_failed, result.error.message)
+        }
+    }
+
+    // Stops whatever is currently playing on the connected overlay (S-OBS-06). A DISTINCT action from
+    // [previewOnOverlay]: this always targets everything currently audible on stream, not one clip.
+    suspend fun stopAll() {
+        when (val result: ApiResult<Unit> = soundApi.stop()) {
+            is ApiResult.Ok -> feedback.success(Res.string.feedback_sound_clip_stop_sent)
+            is ApiResult.Failure ->
+                feedback.error(Res.string.feedback_sound_clip_stop_failed, result.error.message)
         }
     }
 

@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 //   PUT    /api/v1/sound-clips/{id}           →  StatusResponseDto<SoundClipDto>
 //   DELETE /api/v1/sound-clips/{id}           →  204
 //   POST   /api/v1/sound-clips/{id}/preview   →  204  (pushes PlaySound to overlay)
+//   POST   /api/v1/sound-clips/stop           →  200/409  (pushes StopSound(all) to overlay; 409 = not attached)
 interface SoundApi {
     /** The channel's sound clips, alphabetically by name slug. */
     suspend fun list(): ApiResult<List<SoundClip>>
@@ -43,6 +44,12 @@ interface SoundApi {
 
     /** Preview a clip on the overlay (pushes PlaySound via SignalR). */
     suspend fun preview(id: String): ApiResult<Unit>
+
+    /**
+     * Stop all sound-clip playback on the connected overlay right now (S-OBS-06). Fails when no overlay is
+     * currently connected — there is nothing to stop.
+     */
+    suspend fun stop(): ApiResult<Unit>
 
     /**
      * Upload a new audio [file] as multipart/form-data. [name] is the pipeline-action slug; [displayName] is
@@ -81,6 +88,8 @@ class RestSoundApi(private val client: ApiClient) : SoundApi {
 
     override suspend fun preview(id: String): ApiResult<Unit> =
         client.postUnit("api/v1/sound-clips/$id/preview", Unit)
+
+    override suspend fun stop(): ApiResult<Unit> = client.postUnit("api/v1/sound-clips/stop", Unit)
 
     override suspend fun upload(
         name: String,

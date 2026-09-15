@@ -3919,6 +3919,7 @@
     <string name="sound_clips_action_error">%1$s</string>
     <string name="sound_clips_preview_action">Preview %1$s</string>
     <string name="sound_clips_preview_overlay_action">Preview %1$s on overlay</string>
+    <string name="sound_clips_stop_action">Stop all playback</string>
     <string name="sound_clips_edit_action">Edit %1$s</string>
     <string name="sound_clips_delete_action">Delete %1$s</string>
     <string name="sound_clips_delete_title">Delete clip?</string>
@@ -3949,6 +3950,8 @@
     <string name="feedback_sound_clip_save_failed">Couldn't save the clip: %1$s</string>
     <string name="feedback_sound_clip_preview_overlay_sent">Sent to the overlay</string>
     <string name="feedback_sound_clip_preview_overlay_failed">Couldn't preview on the overlay: %1$s</string>
+    <string name="feedback_sound_clip_stop_sent">Stopped playback on the overlay</string>
+    <string name="feedback_sound_clip_stop_failed">Couldn't stop playback: %1$s</string>
     <string name="sound_clips_upload_action">Upload Clip</string>
     <string name="sound_clips_upload_hint">MP3, WAV or OGG, up to 10 MB per clip</string>
     <string name="feedback_sound_clip_uploaded">Clip uploaded.</string>

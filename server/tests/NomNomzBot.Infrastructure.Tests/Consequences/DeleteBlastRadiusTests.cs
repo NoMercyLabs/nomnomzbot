@@ -108,7 +108,8 @@ public class DeleteBlastRadiusTests
             Substitute.For<ISoundClipOverlayNotifier>(),
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IResourceQuotaService>(),
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 
     private static WidgetService NewWidgets(BlastRadiusTestDbContext db) =>

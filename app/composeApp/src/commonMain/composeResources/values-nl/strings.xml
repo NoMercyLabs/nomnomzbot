@@ -3903,6 +3903,7 @@
     <string name="sound_clips_action_error">%1$s</string>
     <string name="sound_clips_preview_action">Voorbeeld %1$s</string>
     <string name="sound_clips_preview_overlay_action">%1$s tonen op overlay</string>
+    <string name="sound_clips_stop_action">Alle afspelen stoppen</string>
     <string name="sound_clips_edit_action">%1$s bewerken</string>
     <string name="sound_clips_delete_action">%1$s verwijderen</string>
     <string name="sound_clips_delete_title">Fragment verwijderen?</string>
@@ -3933,6 +3934,8 @@
     <string name="feedback_sound_clip_save_failed">Kon het fragment niet opslaan: %1$s</string>
     <string name="feedback_sound_clip_preview_overlay_sent">Verzonden naar de overlay</string>
     <string name="feedback_sound_clip_preview_overlay_failed">Kon niet tonen op de overlay: %1$s</string>
+    <string name="feedback_sound_clip_stop_sent">Afspelen op de overlay gestopt</string>
+    <string name="feedback_sound_clip_stop_failed">Kon het afspelen niet stoppen: %1$s</string>
     <string name="sound_clips_upload_action">Fragment uploaden</string>
     <string name="sound_clips_upload_hint">MP3, WAV of OGG, max. 10 MB per fragment</string>
     <string name="feedback_sound_clip_uploaded">Fragment geüpload.</string>

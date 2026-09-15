@@ -13,6 +13,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Sound.Entities;
@@ -48,7 +49,8 @@ public sealed class SoundClipServiceResolveForPlaybackTests
             Substitute.For<ISoundClipOverlayNotifier>(),
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IResourceQuotaService>(),
-            Substitute.For<IPipelineStepReferenceScanner>()
+            Substitute.For<IPipelineStepReferenceScanner>(),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
         return (service, db);
     }

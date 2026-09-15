@@ -250,6 +250,27 @@ public sealed class SoundClipsController : BaseController
             : BadRequest(new StatusResponseDto<object> { Message = result.ErrorMessage });
     }
 
+    // ── POST /sound-clips/stop ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Stop all sound-clip playback on this channel's overlay right now (S-OBS-06). Gated by the same action
+    /// key as play/preview. A 409 means no overlay is currently connected — nothing to stop.
+    /// </summary>
+    [HttpPost("stop")]
+    [RequireAction("sounds:write")]
+    [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Stop(CancellationToken ct)
+    {
+        if (!TryGetIds(out Guid broadcasterId, out Guid _))
+            return Unauthorized();
+
+        Result result = await _service.StopAsync(broadcasterId, ct);
+        return result.IsSuccess
+            ? Ok(new StatusResponseDto<bool> { Data = true })
+            : Conflict(new StatusResponseDto<object> { Message = result.ErrorMessage });
+    }
+
     // ── GET /sound-clips/stream/{*storageKey} ────────────────────────────────
     // Serves the clip audio file for overlay playback. Anonymous — the overlay has no JWT;
     // the storage key is opaque and per-broadcaster (no cross-channel disclosure risk).
