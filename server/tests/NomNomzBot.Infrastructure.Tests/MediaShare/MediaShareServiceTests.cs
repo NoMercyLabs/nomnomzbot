@@ -37,6 +37,7 @@ namespace NomNomzBot.Infrastructure.Tests.MediaShare;
 public sealed class MediaShareServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192d000-0000-7000-8000-00000000c001");
+    private static readonly Guid ChannelB = Guid.Parse("0192d000-0000-7000-8000-00000000c002");
     private static readonly Guid Viewer = Guid.Parse("0192d000-0000-7000-8000-00000000a001");
     private static readonly Guid Mod = Guid.Parse("0192d000-0000-7000-8000-00000000a0f0");
 
@@ -141,13 +142,14 @@ public sealed class MediaShareServiceTests
         long? entryCost = null,
         int maxQueue = 20,
         int cooldown = 0,
-        string? eligibilityJson = null
+        string? eligibilityJson = null,
+        Guid? broadcasterId = null
     )
     {
         db.MediaShareConfigs.Add(
             new()
             {
-                BroadcasterId = Channel,
+                BroadcasterId = broadcasterId ?? Channel,
                 IsEnabled = enabled,
                 RequireApproval = requireApproval,
                 MaxDurationSeconds = maxDuration,
@@ -413,6 +415,60 @@ public sealed class MediaShareServiceTests
 
         Result<MediaShareRequestDto?> afterPlayed = await h.Sut.GetNextAsync(Channel);
         afterPlayed.Value!.Id.Should().Be(second.Value.Id);
+    }
+
+    [Fact]
+    public async Task Play_RemovesItemFromTheApprovedLane_LeavesOtherTenantsQueueUntouched_EmitsPlaybackChangedEvent()
+    {
+        Harness h = Build();
+        SeedConfig(h.Db, requireApproval: false, cooldown: 0);
+        SeedConfig(h.Db, requireApproval: false, cooldown: 0, broadcasterId: ChannelB);
+
+        Result<MediaShareRequestDto> itemA = await h.Sut.SubmitAsync(Channel, Viewer, Req());
+        Result<MediaShareRequestDto> itemB = await h.Sut.SubmitAsync(ChannelB, Viewer, Req());
+
+        // The overlay/player dequeues the next approved item for tenant A — it flips to Playing.
+        Result<MediaShareRequestDto?> dequeued = await h.Sut.GetNextAsync(Channel);
+        dequeued.Value!.Id.Should().Be(itemA.Value.Id);
+        dequeued.Value.Status.Should().Be(MediaShareStatus.Playing);
+
+        // Playback finishes — the item is marked played.
+        Result<MediaShareRequestDto> played = await h.Sut.MarkPlayedAsync(Channel, itemA.Value.Id);
+        played.IsSuccess.Should().BeTrue();
+        played.Value.Status.Should().Be(MediaShareStatus.Played);
+        played.Value.QueuePosition.Should().BeNull();
+
+        // Tenant A's approved lane (the moderation/approval queue) no longer carries the played item.
+        Result<PagedList<MediaShareRequestDto>> approvedLaneA = await h.Sut.GetQueueAsync(
+            Channel,
+            new("approved"),
+            new()
+        );
+        approvedLaneA.Value.Items.Should().NotContain(r => r.Id == itemA.Value.Id);
+
+        // Tenant B's queue never saw tenant A's write.
+        Result<PagedList<MediaShareRequestDto>> approvedLaneB = await h.Sut.GetQueueAsync(
+            ChannelB,
+            new("approved"),
+            new()
+        );
+        approvedLaneB.Value.Items.Should().ContainSingle(r => r.Id == itemB.Value.Id);
+
+        // The played item survives in the "played" history lane rather than being hard-deleted.
+        Result<PagedList<MediaShareRequestDto>> playedLaneA = await h.Sut.GetQueueAsync(
+            Channel,
+            new("played"),
+            new()
+        );
+        playedLaneA.Value.Items.Should().ContainSingle(r => r.Id == itemA.Value.Id);
+
+        h.Bus.Published.OfType<MediaSharePlaybackChangedEvent>()
+            .Should()
+            .ContainSingle(e =>
+                e.BroadcasterId == Channel
+                && e.RequestId == itemA.Value.Id
+                && e.Status == MediaShareStatus.Played
+            );
     }
 
     [Fact]

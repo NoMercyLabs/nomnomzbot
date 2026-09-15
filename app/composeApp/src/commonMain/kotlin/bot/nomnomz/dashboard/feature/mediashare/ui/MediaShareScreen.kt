@@ -289,7 +289,8 @@ private fun QueueRow(
 
     val isPending: Boolean = request.status == "pending"
     val isApproved: Boolean = request.status == "approved"
-    val actionable: Boolean = isPending || isApproved
+    val actionable: Boolean = mediaShareRowIsActionable(request.status)
+    val showsMarkPlayed: Boolean = mediaShareRowShowsMarkPlayed(request.status)
     val position: Int? = request.queuePosition
     val displayTitle: String =
         resolveRowLabel(
@@ -337,21 +338,24 @@ private fun QueueRow(
 
         if (actionable) {
             // Reorder within the lane: up decrements, down increments the 0-based queue position.
-            ManageGate(decision = moderate) { enabled ->
-                GlyphButton(
-                    icon = ArrowUpGlyph,
-                    label = stringResource(Res.string.mediashare_move_up),
-                    onClick = { position?.let { onReorder(request.id, it - 1) } },
-                    enabled = enabled && position != null && !isFirst,
-                )
-            }
-            ManageGate(decision = moderate) { enabled ->
-                GlyphButton(
-                    icon = ArrowDownGlyph,
-                    label = stringResource(Res.string.mediashare_move_down),
-                    onClick = { position?.let { onReorder(request.id, it + 1) } },
-                    enabled = enabled && position != null && !isLast,
-                )
+            // Approved-only — a playing item's position no longer drives play order.
+            if (isApproved) {
+                ManageGate(decision = moderate) { enabled ->
+                    GlyphButton(
+                        icon = ArrowUpGlyph,
+                        label = stringResource(Res.string.mediashare_move_up),
+                        onClick = { position?.let { onReorder(request.id, it - 1) } },
+                        enabled = enabled && position != null && !isFirst,
+                    )
+                }
+                ManageGate(decision = moderate) { enabled ->
+                    GlyphButton(
+                        icon = ArrowDownGlyph,
+                        label = stringResource(Res.string.mediashare_move_down),
+                        onClick = { position?.let { onReorder(request.id, it + 1) } },
+                        enabled = enabled && position != null && !isLast,
+                    )
+                }
             }
             ManageGate(decision = moderate) { enabled ->
                 Button(
@@ -380,7 +384,7 @@ private fun QueueRow(
                     }
                 }
             }
-            if (isApproved) {
+            if (showsMarkPlayed) {
                 ManageGate(decision = moderate) { enabled ->
                     Button(onClick = { onMarkPlayed(request.id) }, size = ButtonSize.Sm, enabled = enabled) {
                         Text(text = stringResource(Res.string.mediashare_mark_played))
@@ -525,6 +529,19 @@ private fun statusBadgeVariant(status: String): BadgeVariant =
         "played", "skipped" -> BadgeVariant.Secondary
         else -> BadgeVariant.Outline
     }
+
+/**
+ * Whether a queue row still needs a moderator action. Includes "playing" — a clip the overlay/player has
+ * dequeued but not yet reported finished — so it never becomes a dead end with no button to resolve it
+ * (S-OBS-09: a "playing" item was previously actionable=false, so once dequeued via GetNext it had no
+ * skip/mark-played button and lingered in the queue forever).
+ */
+internal fun mediaShareRowIsActionable(status: String): Boolean =
+    status == "pending" || status == "approved" || status == "playing"
+
+/** Whether the "Mark played" button shows for this row — approved (never dequeued) or playing (mid-play). */
+internal fun mediaShareRowShowsMarkPlayed(status: String): Boolean =
+    status == "approved" || status == "playing"
 
 private fun formatMmSs(totalSeconds: Int): String {
     val minutes: Int = totalSeconds / 60
