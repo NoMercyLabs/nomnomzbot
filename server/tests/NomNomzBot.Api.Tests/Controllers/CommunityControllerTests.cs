@@ -466,4 +466,61 @@ public sealed class CommunityControllerTests
             .Should()
             .BeTrue();
     }
+
+    /// <summary>
+    /// S-OBS-05: the Moderation page's ban list must be scoped to the channel the caller resolved (the
+    /// active channel-switch selection), never bleed in another tenant's rows. Two channels each carry
+    /// their own "ban:" <see cref="ConfigEntity"/> row; resolving channel A's bans must return exactly A's
+    /// entry and never B's — proving <see cref="CommunityController.GetBans"/>'s explicit
+    /// <c>BroadcasterId == broadcasterId</c> filter actually holds end-to-end (this endpoint had zero
+    /// direct test coverage before this slice).
+    /// </summary>
+    [Fact]
+    public async Task GetBans_returns_only_the_resolved_tenants_ban_not_another_channels()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+
+        Guid channelA = Guid.CreateVersion7();
+        Guid channelB = Guid.CreateVersion7();
+
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = channelA,
+                Key = "ban:twitch-a-target",
+                Value = BanEntryJson("twitch-a-target", "banned_in_a"),
+            }
+        );
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = channelB,
+                Key = "ban:twitch-b-target",
+                Value = BanEntryJson("twitch-b-target", "banned_in_b"),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.GetBans(
+            channelA.ToString(),
+            new() { Take = 25 },
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        PaginatedResponse<CommunityController.BannedUserDto> body =
+            (PaginatedResponse<CommunityController.BannedUserDto>)((OkObjectResult)result).Value!;
+
+        // The consequence of correct tenant scoping: channel A's ban shows, channel B's never does — a
+        // reversed BroadcasterId or a missing filter would leak B's row into A's list (or vice versa).
+        body.Data.Select(b => b.Id).Should().BeEquivalentTo(["twitch-a-target"]);
+        body.Data.Should().NotContain(b => b.Id == "twitch-b-target");
+    }
+
+    private static string BanEntryJson(string userId, string bannedBy) =>
+        $$"""
+            {"userId":"{{userId}}","username":"{{userId}}","displayName":"{{userId}}","profileImageUrl":null,"reason":"spamming","bannedBy":"{{bannedBy}}","bannedAt":"2026-09-01T00:00:00Z"}
+            """;
 }
