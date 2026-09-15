@@ -204,6 +204,16 @@ public class ChannelContext
     public ConcurrentDictionary<string, byte> DisabledBuiltins { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Per-channel "speak with TTS" toggle for built-ins that support it (S-OBS-12, e.g. <c>!quote</c>):
+    /// keys are the builtin's bare catalog key (lowercase, no leading "!") for every builtin whose
+    /// <c>ChannelBuiltinCommand.OverridesJson</c> carries <c>{ "speakWithTts": true }</c>. Absence = off (the
+    /// default) — the built-in posts to chat only, mirroring <see cref="DisabledBuiltins"/>'s presence-flag
+    /// shape. Populated by <c>ChannelRegistry</c> alongside the builtin toggles.
+    /// </summary>
+    public ConcurrentDictionary<string, byte> BuiltinTtsEnabled { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     // Per-channel active pipelines: key = executionId
     public ConcurrentDictionary<string, CancellationTokenSource> ActivePipelines { get; } = new();
 

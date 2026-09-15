@@ -89,8 +89,35 @@ public sealed class BuiltinsController : BaseController
         );
         return ResultResponse(result);
     }
+
+    /// <summary>
+    /// Enables or disables the channel's "speak with TTS" option for a built-in that supports it (S-OBS-12,
+    /// e.g. <c>!quote</c>) — default off. When on, the built-in also queues its reply text through the TTS
+    /// service; when off, nothing reaches TTS.
+    /// </summary>
+    [RequireAction("commands:write")]
+    [HttpPut("{builtinKey}/tts")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetSpeakWithTts(
+        string channelId,
+        string builtinKey,
+        [FromBody] SetBuiltinSpeakWithTtsRequest body,
+        CancellationToken ct
+    )
+    {
+        Result result = await _builtins.SetSpeakWithTtsAsync(
+            channelId,
+            builtinKey,
+            body.Enabled,
+            ct
+        );
+        return ResultResponse(result);
+    }
 }
 
 public sealed record SetBuiltinEnabledRequest(bool Enabled);
 
 public sealed record SetBuiltinResponseOverrideRequest(string? Template);
+
+public sealed record SetBuiltinSpeakWithTtsRequest(bool Enabled);

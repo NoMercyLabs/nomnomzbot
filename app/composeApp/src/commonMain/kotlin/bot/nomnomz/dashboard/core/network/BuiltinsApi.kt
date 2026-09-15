@@ -22,6 +22,8 @@ import kotlinx.serialization.Serializable
 //   PUT   /api/v1/channels/{channelId}/builtins/{key}/response → StatusResponseDto<Unit> (S-OWN09: set/clear
 //         the per-channel response-template override — the precedence-ladder write path
 //         IBuiltinResponseComposer already reads, generalized across every built-in)
+//   PUT   /api/v1/channels/{channelId}/builtins/{key}/tts      → StatusResponseDto<Unit> (S-OBS-12: toggle
+//         the per-channel "speak with TTS" option for a built-in that supports it, e.g. !quote)
 interface BuiltinsApi {
     /** Lists all platform-defined built-in commands for the channel, with their enabled state. */
     suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>>
@@ -35,6 +37,12 @@ interface BuiltinsApi {
      * fallback.
      */
     suspend fun setResponseOverride(channelId: String, builtinKey: String, template: String?): ApiResult<Unit>
+
+    /**
+     * Enable or disable the channel's "speak with TTS" option for a built-in that supports it (S-OBS-12,
+     * e.g. "quote"). Off by default — the built-in posts to chat only until this is turned on.
+     */
+    suspend fun setSpeakWithTts(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit>
 }
 
 class RestBuiltinsApi(private val client: ApiClient) : BuiltinsApi {
@@ -62,12 +70,23 @@ class RestBuiltinsApi(private val client: ApiClient) : BuiltinsApi {
             "api/v1/channels/$channelId/builtins/$builtinKey/response",
             SetBuiltinResponseOverrideBody(template),
         )
+
+    override suspend fun setSpeakWithTts(
+        channelId: String,
+        builtinKey: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/builtins/$builtinKey/tts",
+            SetBuiltinSpeakWithTtsBody(enabled),
+        )
 }
 
 /**
  * A platform-defined built-in command (backend `BuiltinCommandDto`): what it is ([builtinKey] / [name]),
- * whether it is enabled for this channel ([isEnabled]), its defaults, and its per-channel response-template
- * override ([responseOverride]) if one is set (S-OWN09).
+ * whether it is enabled for this channel ([isEnabled]), its defaults, its per-channel response-template
+ * override ([responseOverride]) if one is set (S-OWN09), and its "speak with TTS" toggle ([speakWithTts],
+ * S-OBS-12, default off).
  */
 @Serializable
 data class BuiltinCommand(
@@ -77,6 +96,7 @@ data class BuiltinCommand(
     val defaultCooldownSeconds: Int = 0,
     val defaultMinPermissionLevel: String = "Everyone",
     val responseOverride: String? = null,
+    val speakWithTts: Boolean = false,
 )
 
 /** Toggle request body (backend `SetBuiltinEnabledRequest`). */
@@ -86,3 +106,7 @@ private data class SetBuiltinEnabledBody(val enabled: Boolean)
 /** Response-override request body (backend `SetBuiltinResponseOverrideRequest`). */
 @Serializable
 private data class SetBuiltinResponseOverrideBody(val template: String?)
+
+/** Speak-with-TTS request body (backend `SetBuiltinSpeakWithTtsRequest`). */
+@Serializable
+private data class SetBuiltinSpeakWithTtsBody(val enabled: Boolean)

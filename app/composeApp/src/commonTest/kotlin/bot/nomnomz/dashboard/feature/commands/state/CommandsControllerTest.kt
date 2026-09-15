@@ -293,6 +293,32 @@ class CommandsControllerTest {
     }
 
     @Test
+    fun setBuiltinSpeakWithTts_sends_the_channel_key_and_enabled_flag_for_the_active_channel() = runTest {
+        val builtinsApi = FakeBuiltinsApi()
+        val feedback = RecordingFeedback()
+        val controller = makeController(builtinsApi = builtinsApi, feedback = feedback)
+        controller.load()
+
+        controller.setBuiltinSpeakWithTts("quote", true)
+
+        assertEquals("ch1", builtinsApi.lastSpeakWithTtsChannel)
+        assertEquals("quote", builtinsApi.lastSpeakWithTtsKey)
+        assertEquals(true, builtinsApi.lastSpeakWithTtsEnabled)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+    }
+
+    @Test
+    fun setBuiltinSpeakWithTts_off_sends_false() = runTest {
+        val builtinsApi = FakeBuiltinsApi()
+        val controller = makeController(builtinsApi = builtinsApi)
+        controller.load()
+
+        controller.setBuiltinSpeakWithTts("quote", false)
+
+        assertEquals(false, builtinsApi.lastSpeakWithTtsEnabled)
+    }
+
+    @Test
     fun a_failed_write_announces_an_error_carrying_the_backend_detail() = runTest {
         val feedback = RecordingFeedback()
         val commandsApi =
@@ -633,6 +659,9 @@ private class FakeBuiltinsApi : BuiltinsApi {
     var lastResponseOverrideChannel: String? = null
     var lastResponseOverrideKey: String? = null
     var lastResponseOverrideTemplate: String? = null
+    var lastSpeakWithTtsChannel: String? = null
+    var lastSpeakWithTtsKey: String? = null
+    var lastSpeakWithTtsEnabled: Boolean? = null
 
     override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> =
         ApiResult.Ok(emptyList())
@@ -651,6 +680,17 @@ private class FakeBuiltinsApi : BuiltinsApi {
         lastResponseOverrideChannel = channelId
         lastResponseOverrideKey = builtinKey
         lastResponseOverrideTemplate = template
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun setSpeakWithTts(
+        channelId: String,
+        builtinKey: String,
+        enabled: Boolean,
+    ): ApiResult<Unit> {
+        lastSpeakWithTtsChannel = channelId
+        lastSpeakWithTtsKey = builtinKey
+        lastSpeakWithTtsEnabled = enabled
         return ApiResult.Ok(Unit)
     }
 }

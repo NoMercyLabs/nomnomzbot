@@ -325,6 +325,8 @@ private class FakeBuiltinsApi(private val builtins: List<BuiltinCommand> = empty
         builtinKey: String,
         template: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun setSpeakWithTts(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 }
 
 private class FakePickListsApi : PickListsApi {

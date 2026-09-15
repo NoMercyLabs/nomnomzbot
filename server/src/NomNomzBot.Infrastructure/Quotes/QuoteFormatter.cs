@@ -31,4 +31,13 @@ public static class QuoteFormatter
 
         return line;
     }
+
+    /// <summary>
+    /// Renders the quote's spoken form for TTS (S-OBS-12): <c>"{author} said: {text}"</c> when attributed,
+    /// else just the text — no numbering or game context, since neither reads naturally aloud.
+    /// </summary>
+    public static string FormatSpoken(QuoteDto quote) =>
+        string.IsNullOrWhiteSpace(quote.QuotedDisplayName)
+            ? quote.Text
+            : $"{quote.QuotedDisplayName} said: {quote.Text}";
 }

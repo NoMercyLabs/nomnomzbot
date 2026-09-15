@@ -454,6 +454,8 @@
     <string name="commands_builtins_toggle">%1$s in-/uitschakelen</string>
     <string name="commands_builtin_edit_response">Reactie van %1$s bewerken</string>
     <string name="commands_builtin_response_customized">Aangepaste reactie</string>
+    <string name="commands_builtin_speak_with_tts_toggle">%1$s met TTS uitspreken</string>
+    <string name="commands_builtin_speak_with_tts_label">TTS</string>
     <string name="commands_builtin_response_dialog_title">Reactie van %1$s bewerken</string>
     <string name="commands_builtin_response_dialog_hint">Overschrijft de persoonlijkheidstoon-tekst voor deze systeemopdracht. Laat leeg voor de standaardtekst.</string>
     <string name="commands_builtin_response_dialog_field_label">Reactietekst</string>
@@ -4502,6 +4504,7 @@
     <string name="mediashare_empty">Geen clips in de wachtrij.</string>
     <string name="mediashare_action_error">Actie mislukt: %1$s</string>
     <string name="mediashare_queue_title">Wachtrij</string>
+    <string name="mediashare_filter_active">Actief</string>
     <string name="mediashare_filter_all">Alle</string>
     <string name="mediashare_filter_pending">In afwachting</string>
     <string name="mediashare_filter_approved">Goedgekeurd</string>

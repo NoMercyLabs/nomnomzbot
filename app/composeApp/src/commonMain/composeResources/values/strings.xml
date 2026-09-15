@@ -457,6 +457,8 @@
     <string name="commands_builtins_toggle">Toggle %1$s</string>
     <string name="commands_builtin_edit_response">Edit %1$s's response</string>
     <string name="commands_builtin_response_customized">Custom response</string>
+    <string name="commands_builtin_speak_with_tts_toggle">Speak %1$s with TTS</string>
+    <string name="commands_builtin_speak_with_tts_label">TTS</string>
     <string name="commands_builtin_response_dialog_title">Edit %1$s's response</string>
     <string name="commands_builtin_response_dialog_hint">Overrides the personality-tone phrasing for this built-in. Leave blank to use the default.</string>
     <string name="commands_builtin_response_dialog_field_label">Response text</string>
@@ -4518,6 +4520,7 @@
     <string name="mediashare_empty">No clips in the queue.</string>
     <string name="mediashare_action_error">Action failed: %1$s</string>
     <string name="mediashare_queue_title">Queue</string>
+    <string name="mediashare_filter_active">Active</string>
     <string name="mediashare_filter_all">All</string>
     <string name="mediashare_filter_pending">Pending</string>
     <string name="mediashare_filter_approved">Approved</string>

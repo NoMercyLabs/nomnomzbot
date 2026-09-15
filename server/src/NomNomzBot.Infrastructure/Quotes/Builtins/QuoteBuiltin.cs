@@ -11,6 +11,7 @@
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Quotes.Dtos;
@@ -41,12 +42,19 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     private readonly IQuoteService _quotes;
     private readonly IUserService _users;
     private readonly IRoleResolver _roles;
+    private readonly ITtsDispatchService _tts;
 
-    public QuoteBuiltin(IQuoteService quotes, IUserService users, IRoleResolver roles)
+    public QuoteBuiltin(
+        IQuoteService quotes,
+        IUserService users,
+        IRoleResolver roles,
+        ITtsDispatchService tts
+    )
     {
         _quotes = quotes;
         _users = users;
         _roles = roles;
+        _tts = tts;
     }
 
     public string BuiltinKey => "quote";
@@ -85,12 +93,47 @@ public sealed class QuoteBuiltin : IBuiltinCommand
             : await _quotes.GetAsync(context.BroadcasterId, number.Value, ct);
 
         if (result.IsSuccess)
+        {
+            // Best-effort: a disabled channel / no overlay-voice / over-cap TTS gate must never affect the
+            // chat reply, which always posts regardless of whether the TTS dispatch succeeded.
+            if (context.SpeakWithTts)
+                await SpeakAsync(context, result.Value, ct);
+
             return Result.Success(QuoteFormatter.Format(result.Value));
+        }
 
         // A miss is never silence — distinguish "no quotes yet" from "that number doesn't exist".
         return Result.Success(
             number is null ? "There are no quotes yet." : $"I couldn't find quote #{number.Value}."
         );
+    }
+
+    /// <summary>
+    /// Fires the channel's opt-in "speak quotes with TTS" setting (S-OBS-12) through the shared TTS
+    /// orchestrator, speaking as the channel/bot voice with the channel's default TTS voice. A failure here
+    /// (TTS disabled, no resolvable voice, over cap) is swallowed — the caller already posted the quote to
+    /// chat and this is a silent best-effort speak, never a claim that TTS spoke.
+    /// </summary>
+    private async Task SpeakAsync(
+        BuiltinCommandContext context,
+        QuoteDto quote,
+        CancellationToken ct
+    )
+    {
+        TtsSpeakRequest request = new(
+            BroadcasterId: context.BroadcasterId,
+            RequestedByUserId: Guid.Empty,
+            RequestedByTwitchUserId: string.Empty,
+            RequestedByDisplayName: string.Empty,
+            Text: QuoteFormatter.FormatSpoken(quote),
+            VoiceIdOverride: null,
+            BitsAmount: 0,
+            CommunityStanding: "everyone",
+            SourceMessageId: context.MessageId,
+            StreamId: null
+        );
+
+        await _tts.RequestSpeakAsync(request, ct);
     }
 
     /// <summary>

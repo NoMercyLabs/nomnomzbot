@@ -155,6 +155,107 @@ public sealed class BuiltinCommandServiceTests
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
+    // ─── SetSpeakWithTtsAsync (S-OBS-12) ─────────────────────────────────────────
+
+    [Fact]
+    public async Task SetSpeakWithTts_persists_and_round_trips_through_ListAsync()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, IChannelRegistry registry) = Build();
+
+        Result setResult = await sut.SetSpeakWithTtsAsync(Channel.ToString(), OrdinaryKey, true);
+        setResult.IsSuccess.Should().BeTrue();
+
+        ChannelBuiltinCommand row = await db.ChannelBuiltinCommands.SingleAsync(c =>
+            c.BroadcasterId == Channel && c.BuiltinKey == OrdinaryKey
+        );
+        row.OverridesJson.Should().Contain("speakWithTts");
+        row.IsEnabled.Should()
+            .BeTrue("a fresh TTS-override row must not silently disable the built-in");
+
+        IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
+        listed.Single(d => d.BuiltinKey == OrdinaryKey).SpeakWithTts.Should().BeTrue();
+
+        // Invalidates the in-memory registry cache so a running ChatMessageHandler picks up the new flag.
+        await registry.Received(1).InvalidateBuiltinsAsync(Channel, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SetSpeakWithTts_false_clears_a_stored_flag()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+
+        (await sut.SetSpeakWithTtsAsync(Channel.ToString(), OrdinaryKey, true))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.SetSpeakWithTtsAsync(Channel.ToString(), OrdinaryKey, false))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        ChannelBuiltinCommand row = await db.ChannelBuiltinCommands.SingleAsync(c =>
+            c.BroadcasterId == Channel && c.BuiltinKey == OrdinaryKey
+        );
+        row.OverridesJson.Should().BeNull();
+
+        IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
+        listed.Single(d => d.BuiltinKey == OrdinaryKey).SpeakWithTts.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SetSpeakWithTts_coexists_with_an_existing_response_override_on_the_same_row()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+
+        (
+            await sut.SetResponseOverrideAsync(
+                Channel.ToString(),
+                OrdinaryKey,
+                "grass, {{user.name}}"
+            )
+        )
+            .IsSuccess.Should()
+            .BeTrue();
+        (await sut.SetSpeakWithTtsAsync(Channel.ToString(), OrdinaryKey, true))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        // Setting the TTS flag must NOT wipe out the previously stored response override — the read-merge-write
+        // fix this slice makes to the OverridesJson blob.
+        ChannelBuiltinCommand row = await db.ChannelBuiltinCommands.SingleAsync(c =>
+            c.BroadcasterId == Channel && c.BuiltinKey == OrdinaryKey
+        );
+        row.OverridesJson.Should().Contain("grass, {{user.name}}");
+        row.OverridesJson.Should().Contain("speakWithTts");
+
+        IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
+        BuiltinCommandDto dto = listed.Single(d => d.BuiltinKey == OrdinaryKey);
+        dto.ResponseOverride.Should().Be("grass, {{user.name}}");
+        dto.SpeakWithTts.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SetSpeakWithTts_on_a_reserved_builtin_fails_and_persists_nothing()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+
+        Result result = await sut.SetSpeakWithTtsAsync(Channel.ToString(), ReservedKey, true);
+
+        result.IsFailure.Should().BeTrue();
+        (await db.ChannelBuiltinCommands.AnyAsync(c => c.BuiltinKey == ReservedKey))
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task SetSpeakWithTts_on_an_unknown_key_fails_with_NOT_FOUND()
+    {
+        (BuiltinCommandService sut, _, _) = Build();
+
+        Result result = await sut.SetSpeakWithTtsAsync(Channel.ToString(), "unknown", true);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
     private sealed class FakeBuiltinCommand : IBuiltinCommand
     {
         public FakeBuiltinCommand(string builtinKey, bool reserved)

@@ -74,12 +74,12 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                         || !toggles.TryGetValue(cmd.BuiltinKey, out ChannelBuiltinCommand? toggle)
                         || toggle.IsEnabled;
 
-                    string? responseOverride = toggles.TryGetValue(
+                    (string? responseOverride, bool speakWithTts) = toggles.TryGetValue(
                         cmd.BuiltinKey,
                         out ChannelBuiltinCommand? row
                     )
-                        ? ParseResponseOverride(row.OverridesJson)
-                        : null;
+                        ? ParseOverrides(row.OverridesJson)
+                        : (null, false);
 
                     return new BuiltinCommandDto(
                         cmd.BuiltinKey,
@@ -87,7 +87,8 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                         isEnabled,
                         cmd.DefaultCooldownSeconds,
                         PermissionLevelNames.ToName(cmd.DefaultMinPermissionLevel),
-                        responseOverride
+                        responseOverride,
+                        speakWithTts
                     );
                 }),
         ];
@@ -173,19 +174,17 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                 "VALIDATION_FAILED"
             );
 
-        // Blank clears the override — the built-in falls back to the tone template, then its neutral string.
-        string? normalized = string.IsNullOrWhiteSpace(template) ? null : template.Trim();
-        string? overridesJson = normalized is null
-            ? null
-            : JsonSerializer.Serialize(
-                new BuiltinOverridesPayload(normalized),
-                OverridesJsonOptions
-            );
-
         ChannelBuiltinCommand? existing = await _db.ChannelBuiltinCommands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcaster && c.BuiltinKey == builtinKey,
             ct
         );
+
+        // Blank clears the override — the built-in falls back to the tone template, then its neutral string.
+        // Read-merge-write: the OverridesJson blob also carries the independent speakWithTts flag (S-OBS-12),
+        // so writing one field must never stomp the other.
+        string? normalized = string.IsNullOrWhiteSpace(template) ? null : template.Trim();
+        (_, bool existingSpeakWithTts) = ParseOverrides(existing?.OverridesJson);
+        string? overridesJson = SerializeOverrides(normalized, existingSpeakWithTts);
 
         if (existing is null)
         {
@@ -222,32 +221,125 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         return Result.Success();
     }
 
-    /// <summary>Mirrors the <c>{ "responseTemplate": "..." }</c> shape the channel registry parses.</summary>
-    private static string? ParseResponseOverride(string? overridesJson)
+    /// <summary>
+    /// Sets the channel's per-command "speak with TTS" override for a built-in (S-OBS-12) — same
+    /// <c>OverridesJson</c> blob as <see cref="SetResponseOverrideAsync"/>, read-merged so setting one field
+    /// never clears the other.
+    /// </summary>
+    public async Task<Result> SetSpeakWithTtsAsync(
+        string broadcasterId,
+        string builtinKey,
+        bool enabled,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
+        IBuiltinCommand? command = _catalog.Get(builtinKey);
+        if (command is null)
+            return Result.Failure($"Unknown built-in command '{builtinKey}'.", "NOT_FOUND");
+
+        if (command.IsReserved)
+            return Result.Failure(
+                $"'{builtinKey}' is a reserved data-rights command — it does not support TTS.",
+                "VALIDATION_FAILED"
+            );
+
+        ChannelBuiltinCommand? existing = await _db.ChannelBuiltinCommands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcaster && c.BuiltinKey == builtinKey,
+            ct
+        );
+
+        (string? existingTemplate, _) = ParseOverrides(existing?.OverridesJson);
+        string? overridesJson = SerializeOverrides(existingTemplate, enabled);
+
+        if (existing is null)
+        {
+            if (overridesJson is null)
+                return Result.Success(); // Turning TTS off with no row and no template — nothing to store.
+
+            _db.ChannelBuiltinCommands.Add(
+                new()
+                {
+                    BroadcasterId = broadcaster,
+                    BuiltinKey = builtinKey,
+                    IsEnabled = true,
+                    OverridesJson = overridesJson,
+                }
+            );
+        }
+        else
+        {
+            existing.OverridesJson = overridesJson;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await _registry.InvalidateBuiltinsAsync(broadcaster, ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                Domain = "builtins",
+                EntityId = builtinKey,
+                Action = "speak_with_tts_set",
+            },
+            ct
+        );
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Parses the full <c>OverridesJson</c> blob — <c>{ "responseTemplate": "...", "speakWithTts": true }</c>
+    /// — into its two independent fields. Malformed JSON, a missing object, or an absent/blank/non-string
+    /// <c>responseTemplate</c> reads as "no override"/off, the same tolerance the channel registry loader uses.
+    /// </summary>
+    private static (string? ResponseTemplate, bool SpeakWithTts) ParseOverrides(
+        string? overridesJson
+    )
     {
         if (string.IsNullOrWhiteSpace(overridesJson))
-            return null;
+            return (null, false);
 
         try
         {
             using JsonDocument doc = JsonDocument.Parse(overridesJson);
-            if (
-                doc.RootElement.ValueKind == JsonValueKind.Object
-                && doc.RootElement.TryGetProperty("responseTemplate", out JsonElement value)
-                && value.ValueKind == JsonValueKind.String
-            )
-            {
-                string? parsed = value.GetString();
-                return string.IsNullOrWhiteSpace(parsed) ? null : parsed;
-            }
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return (null, false);
+
+            string? template =
+                doc.RootElement.TryGetProperty("responseTemplate", out JsonElement templateValue)
+                && templateValue.ValueKind == JsonValueKind.String
+                    ? templateValue.GetString()
+                    : null;
+
+            bool speakWithTts =
+                doc.RootElement.TryGetProperty("speakWithTts", out JsonElement ttsValue)
+                && ttsValue.ValueKind == JsonValueKind.True;
+
+            return (string.IsNullOrWhiteSpace(template) ? null : template, speakWithTts);
         }
         catch (JsonException)
         {
             // Malformed override — treat as absent, same tolerance as the channel registry loader.
+            return (null, false);
         }
-
-        return null;
     }
 
-    private sealed record BuiltinOverridesPayload(string ResponseTemplate);
+    /// <summary>
+    /// Serializes the merged overrides blob, omitting a null/false field so an unused setting never persists
+    /// noise. Returns null (clear the row's blob entirely) when both fields are at their default.
+    /// </summary>
+    private static string? SerializeOverrides(string? responseTemplate, bool speakWithTts)
+    {
+        if (responseTemplate is null && !speakWithTts)
+            return null;
+
+        return JsonSerializer.Serialize(
+            new BuiltinOverridesPayload(responseTemplate, speakWithTts ? true : null),
+            OverridesJsonOptions
+        );
+    }
+
+    private sealed record BuiltinOverridesPayload(string? ResponseTemplate, bool? SpeakWithTts);
 }

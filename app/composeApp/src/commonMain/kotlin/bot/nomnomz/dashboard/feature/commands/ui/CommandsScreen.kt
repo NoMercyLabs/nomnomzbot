@@ -108,6 +108,8 @@ import nomnomzbot.composeapp.generated.resources.commands_builtin_row_type
 import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
 import nomnomzbot.composeapp.generated.resources.commands_builtin_edit_response
 import nomnomzbot.composeapp.generated.resources.commands_builtin_response_customized
+import nomnomzbot.composeapp.generated.resources.commands_builtin_speak_with_tts_label
+import nomnomzbot.composeapp.generated.resources.commands_builtin_speak_with_tts_toggle
 import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_title
 import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_hint
 import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_field_label
@@ -238,6 +240,9 @@ fun CommandsScreen(
                     onSetBuiltinResponseOverride = { builtinKey, template ->
                         scope.launch { controller.setBuiltinResponseOverride(builtinKey, template) }
                     },
+                    onSetBuiltinSpeakWithTts = { builtinKey, enabled ->
+                        scope.launch { controller.setBuiltinSpeakWithTts(builtinKey, enabled) }
+                    },
                 )
             is CommandsState.Ready ->
                 ManagedContent(
@@ -257,6 +262,9 @@ fun CommandsScreen(
                     },
                     onSetBuiltinResponseOverride = { builtinKey, template ->
                         scope.launch { controller.setBuiltinResponseOverride(builtinKey, template) }
+                    },
+                    onSetBuiltinSpeakWithTts = { builtinKey, enabled ->
+                        scope.launch { controller.setBuiltinSpeakWithTts(builtinKey, enabled) }
                     },
                 )
         }
@@ -343,6 +351,7 @@ private fun ManagedContent(
     onDelete: (CommandSummary) -> Unit,
     onToggleBuiltin: (builtinKey: String, Boolean) -> Unit,
     onSetBuiltinResponseOverride: (builtinKey: String, template: String) -> Unit,
+    onSetBuiltinSpeakWithTts: (builtinKey: String, Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -482,6 +491,9 @@ private fun ManagedContent(
                             onSetResponseOverride = { template ->
                                 onSetBuiltinResponseOverride(builtin.builtinKey, template)
                             },
+                            onSetSpeakWithTts = { enabled ->
+                                onSetBuiltinSpeakWithTts(builtin.builtinKey, enabled)
+                            },
                         )
                         if (index < filteredBuiltins.lastIndex) {
                             Separator()
@@ -593,6 +605,7 @@ private fun BuiltinTableRow(
     manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
     onSetResponseOverride: (template: String) -> Unit,
+    onSetSpeakWithTts: (Boolean) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -606,6 +619,8 @@ private fun BuiltinTableRow(
     val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtinDisplayName)
     val editResponseLabel: String =
         stringResource(Res.string.commands_builtin_edit_response, builtinDisplayName)
+    val speakWithTtsLabel: String =
+        stringResource(Res.string.commands_builtin_speak_with_tts_toggle, builtinDisplayName)
 
     var editingResponse: Boolean by remember { mutableStateOf(false) }
 
@@ -637,6 +652,21 @@ private fun BuiltinTableRow(
                 label = editResponseLabel,
                 onClick = { editingResponse = true },
                 enabled = enabled,
+            )
+        }
+        // "Speak quotes with TTS" (S-OBS-12) — a neutral, opt-in setting alongside the enable switch, not a
+        // second primary action; it never carries the accent that a page's one primary task would.
+        Text(
+            text = stringResource(Res.string.commands_builtin_speak_with_tts_label),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = builtin.speakWithTts,
+                onCheckedChange = onSetSpeakWithTts,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = speakWithTtsLabel },
             )
         }
         ManageGate(decision = manage) { enabled ->

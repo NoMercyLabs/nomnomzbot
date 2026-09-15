@@ -336,6 +336,15 @@ class CommandsController(
     }
 
     /**
+     * Enable or disable a built-in command's "speak with TTS" option (S-OBS-12, e.g. "quote") — off by
+     * default. Reloads on success.
+     */
+    suspend fun setBuiltinSpeakWithTts(builtinKey: String, enabled: Boolean) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(builtinsApi.setSpeakWithTts(channel, builtinKey, enabled))
+    }
+
+    /**
      * Subscribe to [hubEvents] so the use-count column updates in real-time:
      * - [HubEvent.CommandExecuted]: if the command ran successfully, finds the matching [CommandSummary] by
      *   name (strips the leading `!`) and increments its [CommandSummary.useCount] by 1.

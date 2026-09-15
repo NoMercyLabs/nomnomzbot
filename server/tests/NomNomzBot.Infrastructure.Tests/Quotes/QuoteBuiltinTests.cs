@@ -13,6 +13,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Quotes.Dtos;
@@ -49,7 +50,8 @@ public sealed class QuoteBuiltinTests
     private static QuoteBuiltin NewBuiltin(
         IQuoteService quotes,
         bool mayWrite = true,
-        bool mayDelete = true
+        bool mayDelete = true,
+        ITtsDispatchService? tts = null
     )
     {
         IUserService users = Substitute.For<IUserService>();
@@ -81,7 +83,27 @@ public sealed class QuoteBuiltinTests
             )
             .Returns(Result.Success(mayDelete));
 
-        return new(quotes, users, roles);
+        return new(quotes, users, roles, tts ?? NewPassingTtsDispatch());
+    }
+
+    /// <summary>A TTS dispatch mock that always reports success, for tests not exercising the TTS path itself.</summary>
+    private static ITtsDispatchService NewPassingTtsDispatch()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "voice-1",
+                        "test",
+                        10,
+                        500,
+                        null
+                    )
+                )
+            );
+        return tts;
     }
 
     private static async Task<Guid> SeedChannelAsync(QuoteSqliteTestDatabase database)
@@ -106,7 +128,8 @@ public sealed class QuoteBuiltinTests
         Guid broadcasterId,
         string args,
         string? replyBody = null,
-        string? replyUser = null
+        string? replyUser = null,
+        bool speakWithTts = false
     ) =>
         new()
         {
@@ -117,6 +140,7 @@ public sealed class QuoteBuiltinTests
             Args = args,
             ReplyParentMessageBody = replyBody,
             ReplyParentUserName = replyUser,
+            SpeakWithTts = speakWithTts,
         };
 
     private static UserDto UserDtoFor(Guid id) =>
@@ -238,6 +262,93 @@ public sealed class QuoteBuiltinTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be("There are no quotes yet.");
+    }
+
+    // ─── Speak with TTS (S-OBS-12) ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task Quote_WithSpeakWithTtsOn_QueuesTheQuoteToTts_AndStillPostsToChat()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(
+            channel,
+            new("blame the lag", "Stoney_Eagle", "Just Chatting", null, null)
+        );
+
+        ITtsDispatchService tts = NewPassingTtsDispatch();
+        QuoteBuiltin builtin = NewBuiltin(quotes, tts: tts);
+
+        Result<string> result = await builtin.ExecuteAsync(
+            Context(channel, "1", speakWithTts: true)
+        );
+
+        // Chat still gets the normal formatted reply …
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("#1: \"blame the lag\" — Stoney_Eagle (Just Chatting)");
+        // … AND the credited, un-numbered text was actually queued to the TTS orchestrator.
+        await tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.BroadcasterId == channel && r.Text == "Stoney_Eagle said: blame the lag"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Quote_WithSpeakWithTtsOff_NeverQueuesToTts()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(channel, new("only one", null, null, null, null));
+
+        ITtsDispatchService tts = NewPassingTtsDispatch();
+        QuoteBuiltin builtin = NewBuiltin(quotes, tts: tts);
+
+        // The default: SpeakWithTts = false.
+        Result<string> result = await builtin.ExecuteAsync(Context(channel, "1"));
+
+        result.IsSuccess.Should().BeTrue();
+        await tts.DidNotReceive()
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Quote_WithSpeakWithTtsOn_ButDispatchFails_StillPostsTheNormalChatReply()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(channel, new("no overlay attached", null, null, null, null));
+
+        // Simulates the real failure modes (TTS disabled, no overlay/voice attached, over cap) — the
+        // dispatch orchestrator fails closed and nothing is claimed as "spoken".
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TtsDispatchOutcome>(
+                    "TTS is disabled for this channel.",
+                    "TTS_DISABLED"
+                )
+            );
+        QuoteBuiltin builtin = NewBuiltin(quotes, tts: tts);
+
+        Result<string> result = await builtin.ExecuteAsync(
+            Context(channel, "1", speakWithTts: true)
+        );
+
+        // The chat reply is completely unaffected by the TTS failure.
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("#1: \"no overlay attached\"");
     }
 
     // ─── Add ─────────────────────────────────────────────────────────────────

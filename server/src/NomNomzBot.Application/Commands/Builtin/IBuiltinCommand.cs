@@ -92,5 +92,15 @@ public sealed class BuiltinCommandContext
     /// </summary>
     public string Personality { get; init; } = PersonalityTone.Informative;
 
+    /// <summary>
+    /// The channel's per-command "speak with TTS" override, parsed from
+    /// <c>ChannelBuiltinCommand.OverridesJson</c> by the chat handler (default off). A built-in that supports
+    /// TTS (e.g. <c>!quote</c>, S-OBS-12) reads this to decide whether to also queue its reply through
+    /// <c>ITtsDispatchService</c> — never claim it "spoke" when this is false, and never let a TTS failure
+    /// (disabled channel, no overlay/voice) affect the chat reply. Populated by the handler — a built-in only
+    /// reads it.
+    /// </summary>
+    public bool SpeakWithTts { get; init; }
+
     public CancellationToken CancellationToken { get; init; }
 }

@@ -294,6 +294,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
                     commandName
                 ),
+                SpeakWithTts = ctx.BuiltinTtsEnabled.ContainsKey(commandName),
                 CancellationToken = cancellationToken,
             };
 
@@ -492,6 +493,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
                             commandName
                         ),
+                        SpeakWithTts = ctx.BuiltinTtsEnabled.ContainsKey(commandName),
                         CancellationToken = cancellationToken,
                     };
 

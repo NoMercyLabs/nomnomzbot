@@ -45,6 +45,19 @@ public interface IBuiltinCommandService
         string? template,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Enables or disables the channel's "speak with TTS" option for a built-in that supports it (S-OBS-12,
+    /// e.g. <c>!quote</c>) — stored alongside <see cref="SetResponseOverrideAsync"/>'s response-template
+    /// override in the same <c>ChannelBuiltinCommand.OverridesJson</c> blob, merged so setting one never
+    /// clears the other. Default off: the built-in posts to chat only until explicitly turned on.
+    /// </summary>
+    Task<Result> SetSpeakWithTtsAsync(
+        string broadcasterId,
+        string builtinKey,
+        bool enabled,
+        CancellationToken ct = default
+    );
 }
 
 public sealed record BuiltinCommandDto(
@@ -53,5 +66,6 @@ public sealed record BuiltinCommandDto(
     bool IsEnabled,
     int DefaultCooldownSeconds,
     string DefaultMinPermissionLevel,
-    string? ResponseOverride
+    string? ResponseOverride,
+    bool SpeakWithTts
 );
