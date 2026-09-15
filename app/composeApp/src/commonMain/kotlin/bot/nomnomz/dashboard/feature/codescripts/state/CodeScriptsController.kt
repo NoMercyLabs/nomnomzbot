@@ -39,6 +39,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.scripts_action_error
+import nomnomzbot.composeapp.generated.resources.scripts_editor_compiled
+import nomnomzbot.composeapp.generated.resources.scripts_row_type
+import org.jetbrains.compose.resources.getString
 
 // The Code Scripts page's state-holder. Lists all scripts, opens a project view for one (its `src/` file set +
 // manifest), and drives create / enable-toggle / delete. Editing a script's code opens the shared multi-file
@@ -71,12 +74,29 @@ class CodeScriptsController(
         pendingOpenId = scriptId
     }
 
-    /** Load (or reload) the full script list — or, if [requestOpen] left a pending script id, open it instead. */
+    /**
+     * Load (or reload) the full script list — or, if [requestOpen] left a pending script id, open THAT script's
+     * editor directly (the same landing [openAndEdit] gives a clicked row — never just the read-only [open] state,
+     * which would strand the deep-link on the "Opening…" placeholder forever, see [CodeScriptsState.Editing]'s
+     * kdoc). A pending id that fails to load (unknown/deleted script) surfaces as [CodeScriptsState.Error] via
+     * [open]'s own [failWrite], never a stuck placeholder.
+     */
     suspend fun load() {
         val pending: String? = pendingOpenId
         if (pending != null) {
             pendingOpenId = null
             open(pending)
+            val opened: CodeScriptsState = _state.value
+            if (opened is CodeScriptsState.Editing && opened.detail.id == pending) {
+                val rowTypeLabel: String = getString(Res.string.scripts_row_type)
+                val displayName: String =
+                    resolveRowLabel(
+                        primary = opened.detail.name,
+                        typeLabel = rowTypeLabel,
+                        discriminatorSource = opened.detail.id,
+                    )
+                editOpenedScriptIfStillOpen(pending, getString(Res.string.scripts_editor_compiled), displayName)
+            }
             return
         }
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
