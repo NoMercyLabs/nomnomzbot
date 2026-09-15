@@ -900,9 +900,6 @@ survive independently as the queue is worked top to bottom.
   command prefix.
 - **S-OBS-09** played clips linger in the approval/media queue instead of being removed once played.
   Done-when: a clip leaves the queue after it has been played.
-- **S-OBS-10** the code-scripts intermediate landing page is pointless — it should navigate straight to
-  the script editor instead of an in-between page. Done-when: opening code scripts goes directly to the
-  editor (this dovetails with the just-shipped Monaco-class editor work, S-CODE-EDITOR).
 - **S-OBS-11** replying to a chat message with `!quote` should create a credited quote from the message
   being replied to (quote text + author credited), not just log the invoking user's own line. Done-when:
   `!quote` as a reply captures the replied-to message and credits its author.
