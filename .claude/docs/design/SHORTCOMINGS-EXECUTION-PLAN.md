@@ -885,9 +885,6 @@ survive independently as the queue is worked top to bottom.
   and the dedicated Song-Request page is nearly empty and serves no purpose as currently split. Decide
   the model (likely: Song-Request page owns the SR UI, Music page stays playback/queue-management only)
   and move UI to match. Done-when: each page has one clear, non-overlapping purpose.
-- **S-OBS-05** moderation page is not channel-scoped — it shows bans across ALL channels instead of the
-  currently-selected channel, making per-channel ban management impractical for a mod-of-many. Done-when:
-  the moderation page respects the active channel-switch context like every other tenant-scoped page.
 - **S-OBS-06** soundclips have no single-playback enforcement or stop control — multiple clips can play
   concurrently and none can be stopped once started. Done-when: starting a new clip stops any clip
   already playing, and a stop control exists.
@@ -903,9 +900,10 @@ survive independently as the queue is worked top to bottom.
 - **S-OBS-11** replying to a chat message with `!quote` should create a credited quote from the message
   being replied to (quote text + author credited), not just log the invoking user's own line. Done-when:
   `!quote` as a reply captures the replied-to message and credits its author.
-- **S-OBS-12** `!quote N` is broken — it should quote the Nth message in that channel's chat history, but
-  currently does not work at all. Done-when: `!quote N` returns and stores the actual Nth prior chat
-  message.
+- **S-OBS-12** (owner clarified 2026-09-15) `!quote N` already reads stored quote #N (spec quotes.md D2,
+  `QuoteBuiltinTests` green). Remaining ask: posting it in chat gets a per-channel toggleable TTS option
+  (speak the quote too). Owner removes his own custom `!quote` command so it cannot interfere.
+  Done-when: with the toggle on, `!quote N` posts the quote AND queues it to TTS; toggle off → chat only.
 
 ---
 
