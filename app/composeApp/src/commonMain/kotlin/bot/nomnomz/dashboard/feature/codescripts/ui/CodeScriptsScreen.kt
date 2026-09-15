@@ -91,10 +91,12 @@ import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Code Scripts page. Opening a script goes STRAIGHT into the real Monaco editor (S-CODE-COLLAPSE) — there is
 // no separate read-only detail page to click through first, and no separate "Edit code" step: the file tree,
-// version history, and dry-run panel all live INSIDE that editor now (its own side views), not here. This screen
+// version history, and dry-run panel all live INSIDE that editor now (its own side views), not here. Creating a
+// new script lands there too (S-OBS-10): confirming the create dialog opens that script's editor directly, so
+// there is never a trip back through the plain list to click the new row's own edit action. This screen
 // therefore only ever renders the list (Loading / Empty / Error / Ready) plus a brief placeholder for the moment
-// [CodeScriptsController.openAndEdit] is fetching the script before the editor actually mounts. All backend ops
-// go through [CodeScriptsController]; this page reacts to [CodeScriptsState] only.
+// [CodeScriptsController.openAndEdit] / [CodeScriptsController.create] is fetching the script before the editor
+// actually mounts. All backend ops go through [CodeScriptsController]; this page reacts to [CodeScriptsState] only.
 @Composable
 fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) {
     val state: CodeScriptsState by controller.state.collectAsStateWithLifecycle()
@@ -189,7 +191,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
         CreateScriptDialog(
             onConfirm = { name, description, source ->
                 showCreate = false
-                scope.launch { controller.create(name, description, source) }
+                scope.launch { controller.create(name, description, source, compiledMessage, rowTypeLabel) }
             },
             onDismiss = { showCreate = false },
         )

@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.editor.EditorVersionsPage
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
@@ -220,6 +221,14 @@ class CodeScriptsController(
      */
     suspend fun openAndEdit(id: String, compiledMessage: String, displayName: String) {
         open(id)
+        editOpenedScriptIfStillOpen(id, compiledMessage, displayName)
+    }
+
+    // Shared by [openAndEdit] (an existing row's own "edit" action) and [create] (S-OBS-10: creating a script
+    // must land in its editor directly, the same way opening one already does — never back on the plain list
+    // waiting for a second click). Assumes [open] (or [create]'s own fetch-then-open) already put [id]'s detail
+    // + project into [CodeScriptsState.Editing]; a no-op if that didn't happen (e.g. the fetch itself failed).
+    private suspend fun editOpenedScriptIfStillOpen(id: String, compiledMessage: String, displayName: String) {
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
         val project: ProjectDto = current.project
@@ -342,13 +351,31 @@ class CodeScriptsController(
         }
     }
 
-    /** Create a new script (a single-source project the backend scaffolds). Reloads the list on success. */
-    suspend fun create(name: String, description: String?, sourceCode: String) {
+    /**
+     * Create a new script (a single-source project the backend scaffolds) and land directly in its editor
+     * (S-OBS-10) — the same no-extra-hop behavior [openAndEdit] already gives an existing row's "edit" action.
+     * There is no intermediate trip back to the plain list to click the new row: [compiledMessage] and
+     * [rowTypeLabel] are the same caller-resolved strings [CodeScriptsScreen] already threads into
+     * [openAndEdit], since this controller has no Composable context to resolve them itself. A failed create
+     * surfaces over the kept list without ever opening the editor.
+     */
+    suspend fun create(
+        name: String,
+        description: String?,
+        sourceCode: String,
+        compiledMessage: String,
+        rowTypeLabel: String,
+    ) {
         when (
             val result: ApiResult<CodeScriptDetail> =
                 api.create(CreateScriptBody(name, description?.takeIf { it.isNotBlank() }, sourceCode))
         ) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                val displayName: String =
+                    resolveRowLabel(primary = result.value.name, typeLabel = rowTypeLabel, discriminatorSource = result.value.id)
+                open(result.value.id)
+                editOpenedScriptIfStillOpen(result.value.id, compiledMessage, displayName)
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
