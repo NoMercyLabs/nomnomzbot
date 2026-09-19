@@ -54,10 +54,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
 // Proves the Home page state machine the screen renders: resolve the active channel, then surface the live
@@ -101,6 +103,53 @@ class HomeControllerTest {
         assertEquals(1000, stats.followerCount)
         assertEquals("Live now", stats.streamTitle)
         assertEquals(3720, stats.uptime)
+    }
+
+    // S-OBS-01: a re-load must never silently swap the previous fetch's numbers for the new ones with no
+    // visible marker while the fetch is in flight — that is the stale-then-fresh flash the owner reported.
+    // This proves the fix: the moment a second [HomeController.load] starts, the Ready state it's still
+    // showing (the OLD numbers, kept on screen so there's no blank flash) is marked [isRefreshing] = true,
+    // and it clears back to false only once the fresh data has actually landed.
+    @Test
+    fun load_marks_the_existing_ready_state_as_refreshing_while_a_reload_is_in_flight() = runTest {
+        val channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+        val controller =
+            HomeController(
+                channelsApi = channelsApi,
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats(viewerCount = 42))),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
+                integrationsApi = FakeIntegrationsApi(),
+            )
+
+        // First load: no gate, resolves immediately and populates the Ready state.
+        controller.load()
+        val firstReady: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertEquals(false, firstReady.isRefreshing)
+        assertEquals(42, firstReady.stats.viewerCount)
+
+        // A reload (re-mount, retry, hub-triggered refresh) parks on a fresh deferred so this test controls
+        // exactly when the channel resolve call returns.
+        val gate = CompletableDeferred<Unit>()
+        channelsApi.gate = gate
+        val job = launch { controller.load() }
+        runCurrent() // advance the test dispatcher so [job] actually runs up to its suspension on [gate]
+
+        // Mid-flight: the previous Ready state's numbers are still on screen — no blank flash — but MUST be
+        // marked refreshing, never shown as confirmed-fresh truth while the new fetch is still in the air.
+        val midFlight: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertTrue(midFlight.isRefreshing)
+        assertEquals(42, midFlight.stats.viewerCount)
+
+        gate.complete(Unit)
+        job.join()
+
+        val finalReady: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertEquals(false, finalReady.isRefreshing)
     }
 
     @Test
@@ -939,8 +988,17 @@ class HomeControllerTest {
         )
 }
 
-private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
-    override suspend fun primaryChannel(): ApiResult<ChannelSummary> = result
+private class FakeChannelsApi(
+    private val result: ApiResult<ChannelSummary>,
+    // Settable per-call so a test can let the FIRST load() through immediately, then park the SECOND on a
+    // fresh deferred to observe the controller's state WHILE that reload is in flight (the suspension point
+    // [HomeController.load] hits right after it marks the existing Ready state refreshing).
+    var gate: CompletableDeferred<Unit>? = null,
+) : ChannelsApi {
+    override suspend fun primaryChannel(): ApiResult<ChannelSummary> {
+        gate?.await()
+        return result
+    }
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
 

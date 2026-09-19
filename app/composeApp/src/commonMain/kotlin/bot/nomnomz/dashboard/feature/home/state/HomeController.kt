@@ -109,9 +109,15 @@ class HomeController(
 
     /** Resolve the active channel, then load its live snapshot, stream info, and recent activity. */
     suspend fun load() {
-        // Only show the full-page loading state on first load; a refetch after a mutation keeps
-        // the current content on screen (no flash) and swaps it when the new data arrives.
-        if (_state.value !is HomeState.Ready) _state.value = HomeState.Loading
+        // Only show the full-page loading state on first load; a refetch (re-mount, mutation, retry) keeps the
+        // current content on screen (no blank flash) but marks it [HomeState.Ready.isRefreshing] so the screen
+        // can show a subtle "refreshing" cue — the old data is visibly NOT yet confirmed fresh, closing the
+        // silent stale-then-fresh flash (S-OBS-01): without this flag a re-mount (e.g. navigating back to Home)
+        // re-showed the LAST fetch's numbers as if they were current truth for the whole time the new fetch
+        // was in flight, with no way to tell they might already be wrong.
+        val previous: HomeState = _state.value
+        _state.value =
+            if (previous is HomeState.Ready) previous.copy(isRefreshing = true) else HomeState.Loading
 
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
@@ -607,6 +613,13 @@ sealed interface HomeState {
         val streamError: String? = null,
         /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
         val replayStatus: Map<String, ReplayStatus> = emptyMap(),
+        /**
+         * True from the moment a re-[HomeController.load] starts until it resolves — the rest of this state is
+         * the PREVIOUS fetch's data, kept on screen (no blank flash) but not yet confirmed current. The screen
+         * renders a subtle cue while this holds so the operator never mistakes possibly-stale numbers for a
+         * freshly-confirmed read (S-OBS-01: no silent stale-then-fresh swap).
+         */
+        val isRefreshing: Boolean = false,
     ) : HomeState
 
     data class Error(val detail: String) : HomeState

@@ -64,6 +64,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.SpinnerSize
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
@@ -269,6 +271,7 @@ fun HomeScreen(
                     firstRunSteps = current.firstRunSteps,
                     streamError = current.streamError,
                     replayStatus = current.replayStatus,
+                    isRefreshing = current.isRefreshing,
                     liveOpsController = liveOpsController,
                     chatPollsController = chatPollsController,
                     heldActionKeys = heldActionKeys,
@@ -324,6 +327,7 @@ private fun ReadyContent(
     firstRunSteps: List<FirstRunStep>,
     streamError: String?,
     replayStatus: Map<String, ReplayStatus>,
+    isRefreshing: Boolean,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
     heldActionKeys: Set<String>,
@@ -336,6 +340,7 @@ private fun ReadyContent(
     onNavigate: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
     val scope = rememberCoroutineScope()
     val liveOpsState: LiveOpsState by liveOpsController.state.collectAsStateWithLifecycle()
     val ready: LiveOpsState.Ready? = liveOpsState as? LiveOpsState.Ready
@@ -375,6 +380,15 @@ private fun ReadyContent(
         PageHeader(
             title = stringResource(Res.string.shell_nav_dashboard),
             subtitle = stringResource(Res.string.home_subtitle),
+            // A subtle, neutral cue — never full accent (sleak: accent is scarce, spent on the primary
+            // action, not a background refresh) — that a reload is in flight while the numbers below are
+            // still the PREVIOUS fetch's. Absent once the refresh resolves; never shown for the first load
+            // (that renders HomeState.Loading instead, full-page).
+            trailing = if (isRefreshing) {
+                { Spinner(size = SpinnerSize.Sm, color = tokens.mutedForeground) }
+            } else {
+                null
+            },
         )
 
         StatTilesRow(stats = stats)
