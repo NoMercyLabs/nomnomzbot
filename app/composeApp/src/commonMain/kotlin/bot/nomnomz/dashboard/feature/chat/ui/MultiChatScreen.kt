@@ -56,6 +56,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ShieldModeToggle
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.theme.accessibleAccentPair
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -164,6 +165,10 @@ private fun ReadyContent(
     // channelId -> display name, so each feed line can be tagged with its source channel.
     val nameByChannel: Map<String, String> =
         ready.watched.associate { it.id to (it.displayName.ifBlank { it.login }) }
+    // channelId -> that broadcaster's own Twitch chat color (owner report: multi-chat channel badges
+    // showed no color at all — every channel tag rendered in the same neutral Secondary fill regardless
+    // of whose channel it was). Null until the server has synced a given channel's color.
+    val colorByChannel: Map<String, String?> = ready.watched.associate { it.id to it.chatColor }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -199,6 +204,7 @@ private fun ReadyContent(
                 MergedFeed(
                     messages = ready.messages,
                     nameByChannel = nameByChannel,
+                    colorByChannel = colorByChannel,
                     manage = manage,
                     onDelete = onDelete,
                     onTimeout = onTimeout,
@@ -364,6 +370,7 @@ private fun ChannelPicker(
 private fun MergedFeed(
     messages: List<ChatMessage>,
     nameByChannel: Map<String, String>,
+    colorByChannel: Map<String, String?>,
     manage: ManageDecision,
     onDelete: (channelId: String, messageId: String) -> Unit,
     onTimeout: (channelId: String, userId: String) -> Unit,
@@ -388,6 +395,7 @@ private fun MergedFeed(
                 MultiChatRow(
                     message = msg,
                     channelName = nameByChannel[msg.channelId],
+                    channelChatColor = colorByChannel[msg.channelId],
                     manage = manage,
                     onDelete = onDelete,
                     onTimeout = onTimeout,
@@ -407,6 +415,7 @@ private fun MergedFeed(
 private fun MultiChatRow(
     message: ChatMessage,
     channelName: String?,
+    channelChatColor: String?,
     manage: ManageDecision,
     onDelete: (channelId: String, messageId: String) -> Unit,
     onTimeout: (channelId: String, userId: String) -> Unit,
@@ -418,6 +427,12 @@ private fun MultiChatRow(
 
     val name: String = chatterName(message)
     val nameColor: Color = message.color?.toComposeColor() ?: tokens.mutedForeground
+    // Tint the channel tag with THAT broadcaster's own Twitch chat color (owner report: every channel
+    // badge rendered in the same neutral fill, never the color that actually distinguishes the channel
+    // it merges lines from) — the SAME contrast-correction step the app-wide dynamic accent uses
+    // (Tokens.withAccent), reused here per-channel instead of app-wide (Tokens.accessibleAccentPair).
+    // Falls back to the ordinary Secondary fill when this channel's color hasn't synced yet.
+    val channelTint: Pair<Color, Color>? = channelChatColor?.let { tokens.accessibleAccentPair(it) }
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s2),
@@ -428,7 +443,11 @@ private fun MultiChatRow(
             Text(text = time, style = typography.xs, color = tokens.mutedForeground, maxLines = 1)
         }
         channelName?.let { cn ->
-            Badge(variant = BadgeVariant.Secondary) {
+            Badge(
+                variant = BadgeVariant.Secondary,
+                containerColor = channelTint?.first,
+                contentColor = channelTint?.second,
+            ) {
                 Text(text = cn, style = typography.xs, maxLines = 1)
             }
         }

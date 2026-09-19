@@ -160,8 +160,7 @@ internal val DarkTokens: Tokens = Tokens(
  */
 internal fun Tokens.withAccent(hexColor: String): Tokens {
     val raw: Color = parseHexColor(hexColor) ?: return this
-    val accessibleAccent: Color = raw.ensureContrastAgainst(background, foreground, 4.5)
-    val onAccent: Color = accessibleAccent.bestForeground()
+    val (accessibleAccent: Color, onAccent: Color) = accessibleAccentPair(hexColor) ?: return this
     val sidebarForeground: Color = oklch(0.985, 0.0, 0.0)
     val sidebarAccentColor: Color =
         raw.ensureContrastWith(sidebarForeground, oklch(0.205, 0.0, 0.0), 4.5)
@@ -184,6 +183,21 @@ internal fun Tokens.withAccent(hexColor: String): Tokens {
         sidebarAccentForeground = foreground,
         sidebarRing = accessibleAccent,
     )
+}
+
+/**
+ * Derives an accessible (container, content) color pair from an arbitrary [hexColor] against this
+ * [Tokens]' background/foreground — the SAME contrast-correction step [withAccent] applies to the
+ * app-wide accent (raw color pulled toward the foreground until it clears 4.5:1 against the canvas,
+ * then paired with whichever near-white/near-black foreground reads best on it). Any element that
+ * needs to wear someone else's raw chat-color hex (a broadcaster's per-channel badge, e.g., as
+ * opposed to the signed-in user's own app-wide accent) reuses this instead of a second hand-rolled
+ * version. Returns null when [hexColor] is malformed.
+ */
+internal fun Tokens.accessibleAccentPair(hexColor: String): Pair<Color, Color>? {
+    val raw: Color = parseHexColor(hexColor) ?: return null
+    val accessibleAccent: Color = raw.ensureContrastAgainst(background, foreground, 4.5)
+    return accessibleAccent to accessibleAccent.bestForeground()
 }
 
 private fun Color.ensureContrastWith(other: Color, toward: Color, minimum: Double): Color {

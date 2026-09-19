@@ -78,6 +78,30 @@ class DarkTokensTest {
         assertContrastAtLeast(accented.primaryForeground, accented.primary, 4.5)
     }
 
+    // S-OBS-02: multi-chat's per-channel badge tint reuses this SAME contrast-correction step
+    // ([withAccent] above), just scoped to one channel's own hex instead of the whole app-wide accent
+    // — [MultiChatScreen]'s MultiChatRow calls [Tokens.accessibleAccentPair] directly per channel.
+    @Test
+    fun two_channels_with_different_chat_colors_derive_two_different_accessible_tints() {
+        val redChannelTint: Pair<Color, Color>? = DarkTokens.accessibleAccentPair("#FF0000")
+        val blueChannelTint: Pair<Color, Color>? = DarkTokens.accessibleAccentPair("#0000FF")
+
+        assertNotEquals(null, redChannelTint)
+        assertNotEquals(null, blueChannelTint)
+        // Each channel's own color drives its own tint — never the same fixed default for both.
+        assertNotEquals(redChannelTint!!.first, blueChannelTint!!.first)
+        assertNotEquals(DarkTokens.secondary, redChannelTint.first)
+        assertNotEquals(DarkTokens.secondary, blueChannelTint.first)
+        // The badge text stays readable against its own channel's tinted container.
+        assertContrastAtLeast(redChannelTint.second, redChannelTint.first, 4.5)
+        assertContrastAtLeast(blueChannelTint.second, blueChannelTint.first, 4.5)
+    }
+
+    @Test
+    fun a_malformed_channel_chat_color_derives_no_tint_rather_than_a_wrong_one() {
+        assertEquals(null, DarkTokens.accessibleAccentPair("not-a-color"))
+    }
+
     private fun assertContrastAtLeast(foreground: Color, background: Color, minimum: Double) {
         val foregroundLuminance: Double = relativeLuminance(foreground)
         val backgroundLuminance: Double = relativeLuminance(background)

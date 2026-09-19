@@ -72,6 +72,13 @@ private fun resolveBadgeColors(variant: BadgeVariant, tokens: Tokens): BadgeColo
  * the badge becomes a **selectable picker/toggle** and mirrors [TabsTrigger] styling (raised
  * background when on, bordered ghost when off) instead of the loud Default primary fill.
  * For page-level tab rows prefer [TabsList] + [TabsTrigger] directly.
+ *
+ * [containerColor]/[contentColor] override the variant's resolved fill — for the rare case a badge
+ * must carry a subject-specific color computed outside the closed variant palette (e.g. a
+ * broadcaster's own Twitch chat color on a per-channel tag, via [bot.nomnomz.dashboard.core.designsystem.theme.accessibleAccentPair])
+ * rather than one of the four fixed [BadgeVariant] fills. Both null (the default) keeps the
+ * variant's own colors untouched; passing one without the other still resolves the outline/border
+ * from [variant] as normal.
  */
 @Composable
 fun Badge(
@@ -79,6 +86,8 @@ fun Badge(
     variant: BadgeVariant = BadgeVariant.Default,
     selected: Boolean? = null,
     enabled: Boolean = true,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
     onClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -113,6 +122,11 @@ fun Badge(
             shape = RoundedCornerShape(tokens.radius.sm)
         }
     }
+    val resolvedColors: BadgeColors =
+        colors.copy(
+            container = containerColor ?: colors.container,
+            content = contentColor ?: colors.content,
+        )
 
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
 
@@ -129,19 +143,19 @@ fun Badge(
         else Modifier
 
     CompositionLocalProvider(
-        LocalTextStyle provides textStyle.copy(color = colors.content),
-        LocalContentColor provides colors.content,
+        LocalTextStyle provides textStyle.copy(color = resolvedColors.content),
+        LocalContentColor provides resolvedColors.content,
     ) {
         Row(
             modifier =
                 modifier
                     .then(
-                        if (colors.border != Color.Transparent)
-                            Modifier.border(BadgeBorderWidth, colors.border, shape)
+                        if (resolvedColors.border != Color.Transparent)
+                            Modifier.border(BadgeBorderWidth, resolvedColors.border, shape)
                         else Modifier
                     )
                     .clip(shape)
-                    .background(colors.container)
+                    .background(resolvedColors.container)
                     .then(clickModifier)
                     .padding(horizontal = horizontalPadding, vertical = verticalPadding),
             horizontalArrangement = Arrangement.spacedBy(spacing.s1, Alignment.CenterHorizontally),
