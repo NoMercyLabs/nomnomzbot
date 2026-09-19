@@ -74,6 +74,7 @@ public static class FirstPartyWidgetCatalogue
                 ["events"] = new List<string>(SupporterAndTwitchEvents),
                 ["textTemplate"] = "",
                 ["durationMs"] = 6000,
+                ["stickerDurationMs"] = 6000,
                 ["minBits"] = 0,
                 ["minGiftCount"] = 0,
                 ["minAmount"] = 0,

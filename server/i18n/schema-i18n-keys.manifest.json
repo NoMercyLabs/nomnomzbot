@@ -460,6 +460,7 @@
     "widget.alerts.minAmount.label",
     "widget.alerts.minBits.label",
     "widget.alerts.minGiftCount.label",
+    "widget.alerts.stickerDurationMs.label",
     "widget.alerts.textTemplate.help",
     "widget.alerts.textTemplate.label",
     "widget.chat_box.accentColor.label",

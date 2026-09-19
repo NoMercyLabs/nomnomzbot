@@ -4615,6 +4615,7 @@
     <string name="widget_alerts_textTemplate_label">Tekstsjabloon</string>
     <string name="widget_alerts_textTemplate_help">Optionele overschrijving; leeg gebruikt de ingebouwde tekst.</string>
     <string name="widget_alerts_durationMs_label">Weergavetijd (ms)</string>
+    <string name="widget_alerts_stickerDurationMs_label">Weergavetijd sticker (ms)</string>
     <string name="widget_alerts_minBits_label">Minimum bits</string>
     <string name="widget_alerts_minGiftCount_label">Minimum aantal gift-subs</string>
     <string name="widget_alerts_minAmount_label">Minimumbedrag van supporter</string>

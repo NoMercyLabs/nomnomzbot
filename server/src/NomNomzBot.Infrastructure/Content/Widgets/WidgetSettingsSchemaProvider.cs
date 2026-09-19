@@ -101,6 +101,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Multi(d, "events", Content, EventOptions),
                 Text(d, "textTemplate", Content, help: true),
                 NumberField(d, "durationMs", Behaviour, min: 0, step: 100),
+                NumberField(d, "stickerDurationMs", Behaviour, min: 0, step: 100),
                 NumberField(d, "minBits", Behaviour, min: 0),
                 NumberField(d, "minGiftCount", Behaviour, min: 0),
                 NumberField(d, "minAmount", Behaviour, min: 0),

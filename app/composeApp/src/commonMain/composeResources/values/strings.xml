@@ -4631,6 +4631,7 @@
     <string name="widget_alerts_textTemplate_label">Text template</string>
     <string name="widget_alerts_textTemplate_help">Optional override; blank uses the built-in copy.</string>
     <string name="widget_alerts_durationMs_label">On-screen time (ms)</string>
+    <string name="widget_alerts_stickerDurationMs_label">Sticker on-screen time (ms)</string>
     <string name="widget_alerts_minBits_label">Minimum bits</string>
     <string name="widget_alerts_minGiftCount_label">Minimum gift count</string>
     <string name="widget_alerts_minAmount_label">Minimum supporter amount</string>

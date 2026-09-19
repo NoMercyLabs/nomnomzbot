@@ -16,6 +16,7 @@ interface AlertConfig {
   events: string[]
   textTemplate: string
   durationMs: number
+  stickerDurationMs: number
   minBits: number
   minGiftCount: number
   minAmount: number
@@ -26,6 +27,7 @@ const cfg = reactive<AlertConfig>({
   events: ALL_EVENTS.slice(),
   textTemplate: '',
   durationMs: 6000,
+  stickerDurationMs: 6000,
   minBits: 0,
   minGiftCount: 0,
   minAmount: 0,
@@ -38,7 +40,22 @@ const queue: AlertCard[] = []
 const current = ref<AlertCard | null>(null)
 const visible = ref<boolean>(false)
 const cardKey = ref<number>(0)
+// Sticker cards (current.value.imageUrl set) get a random on-canvas spot per occurrence, re-rolled every time;
+// non-sticker cards keep the shared fixed top-12%-center placement. cardLeftPct/cardTopPct are the card's CSS
+// left/top as viewport percentages, clamped by margins sized to the card's own worst-case footprint so it can
+// never clip off an edge: the .card rule caps width at 70vw, so a 35% (half-width) left/right margin always
+// keeps the full width on-screen; the tallest sticker card (120px image + title/detail + padding) is far under
+// 12% of a typical stream-canvas height, so a 12% top/bottom margin covers it with room to spare.
+const cardLeftPct = ref<number>(50)
+const cardTopPct = ref<number>(12)
+const CARD_LEFT_RIGHT_MARGIN_PCT = 35
+const CARD_TOP_BOTTOM_MARGIN_PCT = 12
 let timer: number | undefined
+
+function randomizeCardPosition(): void {
+  cardLeftPct.value = CARD_LEFT_RIGHT_MARGIN_PCT + Math.random() * (100 - 2 * CARD_LEFT_RIGHT_MARGIN_PCT)
+  cardTopPct.value = CARD_TOP_BOTTOM_MARGIN_PCT + Math.random() * (100 - 2 * CARD_TOP_BOTTOM_MARGIN_PCT)
+}
 
 function tierText(tier: string | undefined): string {
   if (tier === '2000') return 'Tier 2'
@@ -123,13 +140,15 @@ function showNext(): void {
   const next: AlertCard | undefined = queue.shift()
   if (!next) { current.value = null; return }
   current.value = next
+  if (next.imageUrl) randomizeCardPosition()
   cardKey.value += 1
   visible.value = false
   requestAnimationFrame(() => { visible.value = true })
+  const holdMs: number = next.imageUrl ? cfg.stickerDurationMs : cfg.durationMs
   timer = window.setTimeout(() => {
     visible.value = false
     window.setTimeout(showNext, 400)
-  }, Math.max(1000, cfg.durationMs))
+  }, Math.max(1000, holdMs))
 }
 
 const handlers: Record<string, (d: any) => void> = {}
@@ -142,6 +161,7 @@ onMounted(() => {
     if (Array.isArray(s.events)) cfg.events = s.events.slice()
     if (typeof s.textTemplate === 'string') cfg.textTemplate = s.textTemplate
     if (isFinite(Number(s.durationMs))) cfg.durationMs = Number(s.durationMs)
+    if (isFinite(Number(s.stickerDurationMs))) cfg.stickerDurationMs = Number(s.stickerDurationMs)
     if (isFinite(Number(s.minBits))) cfg.minBits = Number(s.minBits)
     if (isFinite(Number(s.minGiftCount))) cfg.minGiftCount = Number(s.minGiftCount)
     if (isFinite(Number(s.minAmount))) cfg.minAmount = Number(s.minAmount)
@@ -163,7 +183,15 @@ onUnmounted(() => {
 
 <template>
   <div class="nnz-alerts" :style="{ '--accent': cfg.accentColor }">
-    <div v-if="current" :key="cardKey" class="card" :class="{ show: visible }">
+    <div
+      v-if="current"
+      :key="cardKey"
+      class="card"
+      :class="{ show: visible, sticker_card: !!current.imageUrl }"
+      :style="current.imageUrl
+        ? { left: cardLeftPct + '%', top: cardTopPct + '%', transform: visible ? 'translate(-50%, 0) scale(1)' : 'translate(-50%, -18px) scale(0.96)' }
+        : undefined"
+    >
       <img v-if="current.imageUrl" class="sticker" :src="current.imageUrl" alt="" />
       <div class="title">{{ current.title }}</div>
       <div v-if="current.detail" class="detail">{{ current.detail }}</div>
@@ -174,13 +202,15 @@ onUnmounted(() => {
 <style scoped>
 .nnz-alerts {
   position: fixed;
-  top: 12%;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
   pointer-events: none;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 .card {
+  position: fixed;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
   min-width: 280px;
   max-width: 70vw;
   padding: 20px 36px;
@@ -199,6 +229,9 @@ onUnmounted(() => {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+/* Sticker cards (.sticker_card) get their left/top/transform from the inline :style binding above
+   (cardLeftPct/cardTopPct, randomized per occurrence) instead of this fixed top-12%-center rule; the inline
+   style takes precedence over these class rules regardless of specificity, so opacity still flips via .show. */
 .title {
   font-size: 27px;
   font-weight: 800;
