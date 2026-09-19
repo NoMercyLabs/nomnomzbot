@@ -126,6 +126,13 @@ function cardFor(type: string, d: any): AlertCard | null {
   }
 }
 
+// Whether this event type is in the streamer's configured event list (the "events" schema field) — the
+// per-type on/off gate. This was called but never defined (a real, pre-existing bug: every alert event
+// hit this line and threw, so no card was ever queued regardless of `cfg.events`).
+function enabled(type: string): boolean {
+  return cfg.events.includes(type)
+}
+
 function handle(type: string, data: any): void {
   const d: any = data || {}
   if (!enabled(type) || !passesThreshold(type, d)) return

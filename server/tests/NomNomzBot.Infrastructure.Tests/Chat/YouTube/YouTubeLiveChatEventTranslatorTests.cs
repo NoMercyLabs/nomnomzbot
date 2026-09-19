@@ -24,9 +24,9 @@ namespace NomNomzBot.Infrastructure.Tests.Chat.YouTube;
 /// EventSub / Kick's webhook ingest publish for the equivalent concept (supporter-events.md §4.1), with
 /// the actual field values carried over — not merely "an event was raised".
 ///
-/// S-YT-STICKER-IMAGE — also proves a <c>superStickerEvent</c>'s sticker id is resolved to its real image
-/// URL through <see cref="IYouTubeSuperStickerImageResolver"/>, and that every other event type (including
-/// a Super Chat, which has no sticker) carries a null <c>ImageUrl</c>.
+/// S-YT-STICKER-IMAGE — also proves a <c>superStickerEvent</c>'s sticker id is resolved to OUR OWN channel
+/// asset URL through <see cref="IYouTubeSuperStickerAssetResolver"/> — never the raw CDN URL — and that
+/// every other event type (including a Super Chat, which has no sticker) carries a null <c>ImageUrl</c>.
 /// </summary>
 public sealed class YouTubeLiveChatEventTranslatorTests
 {
@@ -34,12 +34,12 @@ public sealed class YouTubeLiveChatEventTranslatorTests
     private static readonly DateTimeOffset PublishedAt = new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero);
 
     /// <summary>A resolver that never resolves — the default for tests where sticker images are irrelevant.</summary>
-    private static IYouTubeSuperStickerImageResolver NoImages()
+    private static IYouTubeSuperStickerAssetResolver NoImages()
     {
-        IYouTubeSuperStickerImageResolver resolver =
-            Substitute.For<IYouTubeSuperStickerImageResolver>();
+        IYouTubeSuperStickerAssetResolver resolver =
+            Substitute.For<IYouTubeSuperStickerAssetResolver>();
         resolver
-            .ResolveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ResolveAssetUrlAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((string?)null);
         return resolver;
     }
@@ -130,7 +130,7 @@ public sealed class YouTubeLiveChatEventTranslatorTests
     }
 
     [Fact]
-    public async Task A_super_sticker_carries_the_resolved_image_url_from_its_sticker_id()
+    public async Task A_super_sticker_carries_the_resolved_OWN_asset_url_from_its_sticker_id()
     {
         YouTubeLiveChatMessage message = Message(
             "superStickerEvent",
@@ -143,11 +143,13 @@ public sealed class YouTubeLiveChatEventTranslatorTests
                 Tier: 1
             )
         );
-        IYouTubeSuperStickerImageResolver resolver =
-            Substitute.For<IYouTubeSuperStickerImageResolver>();
+        IYouTubeSuperStickerAssetResolver resolver =
+            Substitute.For<IYouTubeSuperStickerAssetResolver>();
         resolver
-            .ResolveAsync("sticker-42", Arg.Any<CancellationToken>())
-            .Returns("https://lh3.googleusercontent.com/sticker-42.png");
+            .ResolveAssetUrlAsync(TenantId, "sticker-42", Arg.Any<CancellationToken>())
+            .Returns(
+                "/api/v1/assets/file/0199b000-0000-7000-8000-0000000000d1/yt-sticker-sticker-42?v=1"
+            );
 
         IProviderScopedEvent? result = await YouTubeLiveChatEventTranslator.TranslateAsync(
             message,
@@ -156,7 +158,15 @@ public sealed class YouTubeLiveChatEventTranslatorTests
         );
 
         CheerEvent cheer = result.Should().BeOfType<CheerEvent>().Subject;
-        cheer.ImageUrl.Should().Be("https://lh3.googleusercontent.com/sticker-42.png");
+        cheer
+            .ImageUrl.Should()
+            .Be(
+                "/api/v1/assets/file/0199b000-0000-7000-8000-0000000000d1/yt-sticker-sticker-42?v=1"
+            )
+            .And.NotContain(
+                "googleusercontent.com",
+                "the alert must carry OUR OWN asset URL, never Google's raw CDN URL"
+            );
     }
 
     [Fact]

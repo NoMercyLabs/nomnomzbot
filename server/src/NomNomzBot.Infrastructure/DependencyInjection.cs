@@ -1302,6 +1302,18 @@ public static class DependencyInjection
             Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver,
             Chat.YouTube.YouTubeSuperStickerImageResolver
         >();
+        // Stickers are just custom image assets — never surface the raw googleusercontent.com CDN URL from
+        // the CSV above. On first sight of a (channel, stickerId), this downloads that CDN image once and
+        // stores it through the SAME asset-upload path an operator's own upload takes (IChannelAssetService
+        // — content-sniffed, size-capped, quota-checked), the same shape a Voice Trigger's StickerAssetId
+        // already takes. Scoped: it uses the scoped asset service/DbContext. The cross-tick memo of already-
+        // resolved (channel, stickerId) → OUR asset URL lives separately in the singleton cache below, so a
+        // fresh per-tick scope never forgets what was already downloaded.
+        services.AddSingleton<Chat.YouTube.YouTubeSuperStickerAssetCache>();
+        services.AddScoped<
+            Application.Contracts.YouTube.IYouTubeSuperStickerAssetResolver,
+            Chat.YouTube.YouTubeSuperStickerAssetResolver
+        >();
 
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the

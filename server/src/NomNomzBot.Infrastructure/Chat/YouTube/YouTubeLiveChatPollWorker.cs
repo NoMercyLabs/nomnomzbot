@@ -503,8 +503,8 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         IChannelRegistry registry = services.GetRequiredService<IChannelRegistry>();
         NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard selfEchoGuard =
             services.GetRequiredService<NomNomzBot.Application.Contracts.Chat.IBotSelfEchoGuard>();
-        IYouTubeSuperStickerImageResolver stickerImageResolver =
-            services.GetRequiredService<IYouTubeSuperStickerImageResolver>();
+        IYouTubeSuperStickerAssetResolver stickerAssetResolver =
+            services.GetRequiredService<IYouTubeSuperStickerAssetResolver>();
         // Blacklisted chatters (J.12) are dropped HERE, before the bus fan-out.
         ConcurrentDictionary<string, string>? standings = registry
             .Get(state.TenantId)
@@ -571,7 +571,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                 await YouTubeLiveChatEventTranslator.TranslateAsync(
                     message,
                     state.TenantId,
-                    stickerImageResolver,
+                    stickerAssetResolver,
                     ct
                 ) is
                 { } supporterEvent

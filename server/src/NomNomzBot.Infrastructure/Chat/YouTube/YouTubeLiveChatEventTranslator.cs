@@ -37,15 +37,16 @@ public static class YouTubeLiveChatEventTranslator
     private const ulong MicrosPerMinorUnit = 10_000;
 
     /// <summary>
-    /// <paramref name="stickerImageResolver"/> resolves a <c>superStickerEvent</c>'s sticker id to its real
-    /// CDN image (the <c>liveChatMessages</c> API never returns one — see
-    /// <see cref="Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver"/>). It is only ever
+    /// <paramref name="stickerAssetResolver"/> resolves a <c>superStickerEvent</c>'s sticker id to OUR OWN
+    /// channel asset URL — never the raw CDN URL (stickers are just custom image assets, the same shape a
+    /// Voice Trigger's <c>StickerAssetId</c> already takes; see
+    /// <see cref="Application.Contracts.YouTube.IYouTubeSuperStickerAssetResolver"/>). It is only ever
     /// consulted for that one branch; every other translation is pure.
     /// </summary>
     public static async Task<IProviderScopedEvent?> TranslateAsync(
         YouTubeLiveChatMessage message,
         Guid tenantId,
-        Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver stickerImageResolver,
+        Application.Contracts.YouTube.IYouTubeSuperStickerAssetResolver stickerAssetResolver,
         CancellationToken cancellationToken = default
     ) =>
         message.SnippetType switch
@@ -73,7 +74,8 @@ public static class YouTubeLiveChatEventTranslator
                     Bits = (int)(superSticker.AmountMicros / MicrosPerMinorUnit),
                     Message = superSticker.AltText,
                     IsAnonymous = false,
-                    ImageUrl = await stickerImageResolver.ResolveAsync(
+                    ImageUrl = await stickerAssetResolver.ResolveAssetUrlAsync(
+                        tenantId,
                         superSticker.StickerId,
                         cancellationToken
                     ),
