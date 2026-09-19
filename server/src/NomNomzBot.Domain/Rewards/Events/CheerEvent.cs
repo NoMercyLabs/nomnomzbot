@@ -28,4 +28,11 @@ public sealed class CheerEvent : DomainEventBase, IProviderScopedEvent
     public required int Bits { get; init; }
     public required string Message { get; init; }
     public required bool IsAnonymous { get; init; }
+
+    /// <summary>
+    /// The alert's decorative image, when the source event has one — YouTube Super Stickers only
+    /// (resolved from the sticker id via <c>IYouTubeSuperStickerImageResolver</c>, supporter-events.md §4.1).
+    /// Twitch/Kick cheers never set this: bits/Kicks carry no image concept.
+    /// </summary>
+    public string? ImageUrl { get; init; }
 }

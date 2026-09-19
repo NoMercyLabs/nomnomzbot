@@ -93,7 +93,8 @@ public record CheerAlertDto(
     string DisplayName,
     int Bits,
     string Message,
-    bool Anonymous
+    bool Anonymous,
+    string? ImageUrl = null
 )
 {
     /// <summary>Canonical subject name — see the vocabulary note above.</summary>

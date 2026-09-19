@@ -1294,6 +1294,15 @@ public static class DependencyInjection
         // insert-returned resource id, so the platform ledgers every ban it issues. Scoped: DbContext.
         services.AddScoped<IYouTubeLiveChatBanLedger, YouTubeLiveChatBanLedger>();
 
+        // Super Sticker id → image URL (S-YT-STICKER-IMAGE): the liveChatMessages API never returns an
+        // image URL, so this fetches Google's static reference CSV once and answers from memory — same
+        // shape as the 7TV paint catalogue above. Singleton: holds its own in-memory cache.
+        services.AddHttpClient(Chat.YouTube.YouTubeSuperStickerHttpClient.Name);
+        services.AddSingleton<
+            Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver,
+            Chat.YouTube.YouTubeSuperStickerImageResolver
+        >();
+
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the
         // I<X>Service convention and are bound scoped by AddServicesByConvention above. The dispatcher + gateway

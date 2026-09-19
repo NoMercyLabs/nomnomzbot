@@ -36,7 +36,18 @@ public static class YouTubeLiveChatEventTranslator
     /// <summary>Amount-in-micros to minor currency units (cents): 1,000,000 micros == 1 major unit == 100 minor units.</summary>
     private const ulong MicrosPerMinorUnit = 10_000;
 
-    public static IProviderScopedEvent? Translate(YouTubeLiveChatMessage message, Guid tenantId) =>
+    /// <summary>
+    /// <paramref name="stickerImageResolver"/> resolves a <c>superStickerEvent</c>'s sticker id to its real
+    /// CDN image (the <c>liveChatMessages</c> API never returns one — see
+    /// <see cref="Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver"/>). It is only ever
+    /// consulted for that one branch; every other translation is pure.
+    /// </summary>
+    public static async Task<IProviderScopedEvent?> TranslateAsync(
+        YouTubeLiveChatMessage message,
+        Guid tenantId,
+        Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver stickerImageResolver,
+        CancellationToken cancellationToken = default
+    ) =>
         message.SnippetType switch
         {
             "superChatEvent" when message.SuperChatDetails is { } superChat => new CheerEvent
@@ -62,6 +73,10 @@ public static class YouTubeLiveChatEventTranslator
                     Bits = (int)(superSticker.AmountMicros / MicrosPerMinorUnit),
                     Message = superSticker.AltText,
                     IsAnonymous = false,
+                    ImageUrl = await stickerImageResolver.ResolveAsync(
+                        superSticker.StickerId,
+                        cancellationToken
+                    ),
                 },
 
             "newSponsorEvent" when message.NewSponsorDetails is { } newSponsor =>

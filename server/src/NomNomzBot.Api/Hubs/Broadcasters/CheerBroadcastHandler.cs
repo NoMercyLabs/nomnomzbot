@@ -51,7 +51,8 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
             @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName,
             @event.Bits,
             @event.Message,
-            @event.IsAnonymous
+            @event.IsAnonymous,
+            @event.ImageUrl
         );
 
         await _notifier.NotifyChannelAsync(

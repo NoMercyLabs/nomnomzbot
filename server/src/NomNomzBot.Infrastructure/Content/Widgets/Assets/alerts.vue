@@ -99,7 +99,7 @@ function cardFor(type: string, d: any): AlertCard | null {
     case 'subscription': return { title: user + ' just subscribed!', detail: tierText(d.tier) }
     case 'resub': return { title: user + ' resubscribed!', detail: (d.months || 0) + ' months ' + tierText(d.tier) }
     case 'gift': return { title: user + ' gifted ' + (d.count || 1) + ' sub' + (Number(d.count) === 1 ? '' : 's') + '!', detail: tierText(d.tier) }
-    case 'cheer': return { title: user + ' cheered ' + (d.bits || 0) + ' bits!', detail: '' }
+    case 'cheer': return { title: user + ' cheered ' + (d.bits || 0) + ' bits!', detail: '', imageUrl: d.imageUrl || undefined }
     case 'raid': return { title: user + ' is raiding!', detail: (d.viewerCount || 0) + ' viewers incoming' }
     case 'supporter.tip': return { title: user + ' tipped ' + money(d), detail: d.messageText || '' }
     case 'supporter.membership': return { title: user + ' joined as a member!', detail: (tierText(d.tier) + (d.quantity ? ' · ' + d.quantity + ' mo' : '')).trim() }

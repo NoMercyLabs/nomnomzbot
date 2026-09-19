@@ -352,6 +352,92 @@ public sealed class SubscriptionCheerRaidBroadcastTests
     }
 
     [Fact]
+    public async Task Cheer_with_a_sticker_image_url_carries_it_through_to_the_dashboard_dto()
+    {
+        // S-YT-STICKER-IMAGE — a YouTube Super Sticker's resolved image survives CheerEvent → CheerAlertDto.
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        Guid channel = Guid.CreateVersion7();
+        CheerBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Provider = "youtube",
+                UserId = "u1",
+                UserDisplayName = "Sticker Fan",
+                Bits = 200,
+                Message = ":heart:",
+                IsAnonymous = false,
+                ImageUrl = "https://lh3.googleusercontent.com/sticker-42.png",
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "cheer",
+                Arg.Is<object>(data =>
+                    data is CheerAlertDto
+                    && ((CheerAlertDto)data).ImageUrl
+                        == "https://lh3.googleusercontent.com/sticker-42.png"
+                ),
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "Sticker Fan"
+            );
+    }
+
+    [Fact]
+    public async Task Cheer_with_no_image_url_carries_a_null_image_through_no_regression()
+    {
+        // A Twitch/Kick cheer never sets ImageUrl — proves the new field does not break the existing shape.
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        Guid channel = Guid.CreateVersion7();
+        CheerBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserDisplayName = "Cheerer",
+                Bits = 100,
+                Message = "pog",
+                IsAnonymous = false,
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "cheer",
+                Arg.Is<object>(data =>
+                    data is CheerAlertDto && ((CheerAlertDto)data).ImageUrl == null
+                ),
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "Cheerer"
+            );
+    }
+
+    [Fact]
     public async Task Raid_reaches_the_dashboard_and_the_overlay_feed()
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
