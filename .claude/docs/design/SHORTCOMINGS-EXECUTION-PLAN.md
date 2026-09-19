@@ -895,8 +895,6 @@ survive independently as the queue is worked top to bottom.
   moderator approval queue `!media` uses, and be playable directly in that queue for review. Done-when:
   a plain clip link posted in chat appears in the approval queue, playable inline, without needing the
   command prefix.
-- **S-OBS-09** played clips linger in the approval/media queue instead of being removed once played.
-  Done-when: a clip leaves the queue after it has been played.
 - **S-OBS-11** replying to a chat message with `!quote` should create a credited quote from the message
   being replied to (quote text + author credited), not just log the invoking user's own line. Done-when:
   `!quote` as a reply captures the replied-to message and credits its author.
