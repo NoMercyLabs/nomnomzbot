@@ -573,6 +573,7 @@ class AppGraph {
         SongRequestsController(
             channelsApi = channelsApi,
             songRequestsApi = songRequestsApi,
+            baseUrlProvider = sessionStore::baseUrl,
             feedback = feedbackController,
         )
 
@@ -802,7 +803,6 @@ class AppGraph {
             channelsApi = channelsApi,
             musicApi = musicApi,
             integrationsApi = integrationsApi,
-            baseUrlProvider = sessionStore::baseUrl,
             feedback = feedbackController,
         )
 

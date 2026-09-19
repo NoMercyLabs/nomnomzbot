@@ -2596,6 +2596,7 @@
     <string name="music_seek_back_description">Seek back 10 seconds</string>
     <string name="music_seek_forward_description">Seek forward 10 seconds</string>
     <string name="music_skip">Skip</string>
+    <string name="music_manage_song_requests">Manage song requests →</string>
     <string name="music_queue_label">Up next</string>
     <string name="music_queue_empty">The queue is empty.</string>
     <string name="music_position">%1$d</string>
@@ -4540,6 +4541,7 @@
     <string name="mediashare_skip">Skip</string>
     <string name="mediashare_move_up">Move up</string>
     <string name="mediashare_move_down">Move down</string>
+    <string name="mediashare_play">Play</string>
     <string name="mediashare_reject_title">Reject clip?</string>
     <string name="mediashare_reject_message">Reject "%1$s"? It will be removed from the queue.</string>
     <string name="mediashare_reject_confirm">Reject</string>

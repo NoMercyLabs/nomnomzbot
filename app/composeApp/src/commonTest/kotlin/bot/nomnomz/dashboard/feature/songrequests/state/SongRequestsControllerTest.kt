@@ -14,10 +14,14 @@ import bot.nomnomz.dashboard.core.feedback.FeedbackKind
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlockTrackBody
+import bot.nomnomz.dashboard.core.network.BlockedTrack
+import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.MusicConfig
+import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
@@ -26,6 +30,7 @@ import bot.nomnomz.dashboard.core.realtime.HubMusicState
 import bot.nomnomz.dashboard.core.realtime.HubMusicTrack
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -33,10 +38,15 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-// Proves the Song Requests page state machine the screen renders: resolve the active channel, surface the real
-// queue (empty as Empty, a failure of either step as Error), and drive the supported playback controls. The
-// screen is a pure projection of this, so testing it proves the page shows the real music queue (no fabricated
-// tracks), controls it through the real backend routes, reloads on a successful control, and degrades cleanly.
+// Proves the Song Requests page state machine the screen renders: resolve the active channel, surface the
+// real queue AND every song-request-specific management capability (config, blocked-track list, SR-page
+// share link) — empty queue as Ready with an empty list, a failure as Error. The screen is a pure projection
+// of this, so testing it proves the page shows the real music queue (no fabricated tracks), controls it
+// through the real backend routes, reloads on a successful control, and degrades cleanly.
+//
+// S-OBS-04: addToQueue()/blockTrack()/unblockTrack()/loadBlockedTracks() and the shareLink/tokenUrl on load
+// moved HERE from MusicController — Music only reads the same backend queue to know what's now playing; this
+// controller is the one that owns viewing and mutating the queue's membership and its rules.
 class SongRequestsControllerTest {
 
     @Test
@@ -237,7 +247,7 @@ class SongRequestsControllerTest {
             SongRequestsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 songRequestsApi,
-                feedback,
+                feedback = feedback,
             )
 
         controller.load()
@@ -275,7 +285,7 @@ class SongRequestsControllerTest {
             SongRequestsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 songRequestsApi,
-                feedback,
+                feedback = feedback,
             )
 
         controller.load()
@@ -342,6 +352,142 @@ class SongRequestsControllerTest {
         // Only the initial load ever read the queue — no fan-out from the redundant pushes.
         assertEquals(1, songRequestsApi.queueCalls)
     }
+
+    // S067f/S-OBS-04 — the dashboard must hand the streamer a working, copyable `/sr/{token}` URL, not a bare
+    // token string. Proves the displayed URL is built from the REAL resolved backend origin plus the REAL
+    // token and that a successful rotate replaces it with a URL carrying the new token.
+    @Test
+    fun load_builds_the_token_url_from_the_real_origin_and_token_and_rotate_updates_it() = runTest {
+        val songRequestsApi =
+            FakeSongRequestsApi(
+                queueResults = listOf(ApiResult.Ok(emptyList())),
+                srPageTokenResult = ApiResult.Ok("abc123"),
+                rotateSrPageTokenResult = ApiResult.Ok("newtoken456"),
+            )
+        val controller =
+            SongRequestsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1", login = "streamerlogin"))),
+                songRequestsApi = songRequestsApi,
+                baseUrlProvider = { "https://dev.nomnomz.bot" },
+            )
+
+        controller.load()
+
+        val ready: SongRequestsState.Ready = assertNotNull(controller.state.value as? SongRequestsState.Ready)
+        assertEquals("abc123", ready.srPageToken)
+        assertEquals("https://dev.nomnomz.bot/sr/abc123", ready.tokenUrl)
+        assertEquals("https://dev.nomnomz.bot/sr/@streamerlogin", ready.shareLink)
+
+        controller.rotateSrPageToken()
+
+        val afterRotate: SongRequestsState.Ready = assertNotNull(controller.state.value as? SongRequestsState.Ready)
+        assertEquals("newtoken456", afterRotate.srPageToken)
+        assertEquals("https://dev.nomnomz.bot/sr/newtoken456", afterRotate.tokenUrl)
+    }
+
+    @Test
+    fun add_to_queue_posts_the_query_and_requester_then_reloads() = runTest {
+        val before = emptyList<QueuedSong>()
+        val after = listOf(QueuedSong(position = 0, trackName = "Sandstorm", requestedBy = "viewer1"))
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.addToQueue("Sandstorm", "viewer1")
+
+        assertEquals(listOf("ch1" to MusicSongRequestBody("Sandstorm", "viewer1")), songRequestsApi.addToQueueCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("Sandstorm"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+    }
+
+    @Test
+    fun load_surfaces_the_blocked_track_page_on_the_ready_state() = runTest {
+        val blocked =
+            BlockedTrackPage(
+                data =
+                    listOf(
+                        BlockedTrack(
+                            id = "bt1",
+                            provider = "spotify",
+                            trackUri = "spotify:track:abc",
+                            title = "Baby Shark",
+                            reason = "never again",
+                            createdAt = "2026-07-18T12:00:00Z",
+                        )
+                    ),
+                total = 1,
+                hasMore = false,
+            )
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())), blockedResult = ApiResult.Ok(blocked))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+
+        val ready: SongRequestsState.Ready = assertNotNull(controller.state.value as? SongRequestsState.Ready)
+        assertEquals(listOf("Baby Shark"), ready.blockedTracks.map { it.title })
+        assertEquals("spotify:track:abc", ready.blockedTracks[0].trackUri)
+        assertEquals(1, ready.blockedTotal)
+        assertEquals(1, ready.blockedPage)
+        assertEquals(listOf(1), songRequestsApi.blockedReads)
+    }
+
+    @Test
+    fun block_track_posts_the_exact_body_and_rereads_the_blocked_list() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(ApiResult.Ok(emptyList()))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+        songRequestsApi.blockedReads.clear()
+
+        controller.blockTrack(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = "no")
+
+        assertEquals(
+            listOf(BlockTrackBody(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = "no")),
+            songRequestsApi.blockCalls,
+        )
+        assertEquals(listOf(1), songRequestsApi.blockedReads)
+    }
+
+    @Test
+    fun unblock_deletes_by_id_and_rereads_the_current_page() = runTest {
+        val songRequestsApi = FakeSongRequestsApi(ApiResult.Ok(emptyList()))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+        songRequestsApi.blockedReads.clear()
+
+        controller.unblockTrack("bt1")
+
+        assertEquals(listOf("bt1"), songRequestsApi.unblockCalls)
+        assertEquals(listOf(1), songRequestsApi.blockedReads)
+    }
+
+    @Test
+    fun load_blocked_tracks_pages_the_list() = runTest {
+        val page2 =
+            BlockedTrackPage(
+                data = listOf(BlockedTrack(id = "bt26", provider = "youtube", trackUri = "yt:v:x", title = "Song 26")),
+                total = 26,
+                hasMore = false,
+            )
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(emptyList())), blockedResult = ApiResult.Ok(page2))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+        controller.load()
+
+        controller.loadBlockedTracks(2)
+
+        val state: SongRequestsState.Ready = controller.state.value as SongRequestsState.Ready
+        assertEquals(listOf(1, 2), songRequestsApi.blockedReads)
+        assertEquals(2, state.blockedPage)
+        assertEquals(listOf("Song 26"), state.blockedTracks.map { it.title })
+        assertEquals(26, state.blockedTotal)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -367,6 +513,11 @@ private class FakeSongRequestsApi(
     private val queueResults: List<ApiResult<List<QueuedSong>>>,
     // The default-OK result every control (skip/pause/resume/remove) returns unless a test overrides it.
     private val controlResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val srPageTokenResult: ApiResult<String> = ApiResult.Ok(""),
+    private val rotateSrPageTokenResult: ApiResult<String> = ApiResult.Ok(""),
+    private val blockedResult: ApiResult<BlockedTrackPage> = ApiResult.Ok(BlockedTrackPage()),
+    private val blockResult: ApiResult<BlockedTrack> = ApiResult.Ok(BlockedTrack()),
+    private val unblockResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : SongRequestsApi {
     // Single-result convenience for the read-only tests (one queue() result, controls unused).
     constructor(result: ApiResult<List<QueuedSong>>) : this(queueResults = listOf(result))
@@ -380,6 +531,10 @@ private class FakeSongRequestsApi(
     val removeCalls: MutableList<Pair<String, Int>> = mutableListOf()
     val promoteCalls: MutableList<Pair<String, Int>> = mutableListOf()
     val banCalls: MutableList<Pair<String, Int>> = mutableListOf()
+    val addToQueueCalls: MutableList<Pair<String, MusicSongRequestBody>> = mutableListOf()
+    val blockedReads: MutableList<Int> = mutableListOf()
+    val blockCalls: MutableList<BlockTrackBody> = mutableListOf()
+    val unblockCalls: MutableList<String> = mutableListOf()
 
     override suspend fun queue(channelId: String): ApiResult<List<QueuedSong>> {
         // Walk through the configured sequence; the last entry repeats once the script runs out.
@@ -408,6 +563,11 @@ private class FakeSongRequestsApi(
         return controlResult
     }
 
+    override suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit> {
+        addToQueueCalls.add(channelId to body)
+        return controlResult
+    }
+
     override suspend fun promote(channelId: String, position: Int): ApiResult<Unit> {
         promoteCalls.add(channelId to position)
         return controlResult
@@ -423,7 +583,22 @@ private class FakeSongRequestsApi(
     override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
         ApiResult.Ok(MusicConfig())
 
-    override suspend fun srPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+    override suspend fun srPageToken(channelId: String): ApiResult<String> = srPageTokenResult
 
-    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = rotateSrPageTokenResult
+
+    override suspend fun blockedTracks(channelId: String, page: Int, take: Int): ApiResult<BlockedTrackPage> {
+        blockedReads.add(page)
+        return blockedResult
+    }
+
+    override suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack> {
+        blockCalls.add(body)
+        return blockResult
+    }
+
+    override suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit> {
+        unblockCalls.add(blockedTrackId)
+        return unblockResult
+    }
 }

@@ -48,10 +48,15 @@ import kotlinx.coroutines.test.runTest
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Music page state machine the screen renders: resolve the active channel, surface the real
-// now-playing track AND the upcoming queue (nothing playing and nothing queued as Empty, a failure of either
-// step as Error), and drive the supported playback controls. The screen is a pure projection of this, so
-// testing it proves the page shows the real playback (no fabricated tracks), controls it through the real
-// backend routes, reloads on a successful control so both halves re-project, and degrades cleanly.
+// now-playing track (nothing playing and nothing queued as Empty, a failure of either step as Error), and
+// drive the supported transport/remote controls. The screen is a pure projection of this, so testing it
+// proves the page shows the real playback (no fabricated tracks), controls it through the real backend
+// routes, reloads on a successful control, and degrades cleanly.
+//
+// S-OBS-04: remove()/addToQueue()/blockTrack()/unblockTrack()/loadBlockedTracks()/rotateSrPageToken() moved
+// to SongRequestsController (SongRequestsControllerTest) — the request queue, its blocked-track list, and its
+// SR-page share link are the Song Requests page's concern, not Music's. This class covers only what
+// MusicController still owns: the now-playing snapshot and the transport/remote controls.
 class MusicControllerTest {
 
     // S003b — the state holder must expose the SAME dead-token signal the Integrations card reads
@@ -101,7 +106,7 @@ class MusicControllerTest {
     }
 
     @Test
-    fun load_surfaces_the_now_playing_track_and_queue_on_success() = runTest {
+    fun load_surfaces_the_now_playing_track_on_success() = runTest {
         val controller =
             MusicController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
@@ -120,17 +125,9 @@ class MusicControllerTest {
                                     requestedBy = "Stoney_Eagle",
                                     provider = "spotify",
                                 ),
-                            queue =
-                                listOf(
-                                    MusicTrack(
-                                        position = 0,
-                                        trackName = "Sandstorm",
-                                        artist = "Darude",
-                                        durationMs = 233_000,
-                                        requestedBy = "viewer1",
-                                    ),
-                                    MusicTrack(position = 1, trackName = "Africa", artist = "Toto"),
-                                ),
+                            // The queue is bundled in the same backend read but is the Song Requests page's
+                            // concern (SongRequestsControllerTest) — Music never stores or renders it.
+                            queue = listOf(MusicTrack(position = 0, trackName = "Sandstorm", artist = "Darude")),
                         )
                     )
                 ),
@@ -151,12 +148,6 @@ class MusicControllerTest {
         assertTrue(nowPlaying.isPlaying)
         assertEquals("spotify", nowPlaying.provider)
         assertEquals("Stoney_Eagle", nowPlaying.requestedBy)
-
-        // The queue half projects the upcoming tracks in order.
-        assertEquals(2, ready.queue.size)
-        assertEquals("Sandstorm", ready.queue[0].trackName)
-        assertEquals("viewer1", ready.queue[0].requestedBy)
-        assertEquals(1, ready.queue[1].position)
     }
 
     @Test
@@ -180,7 +171,6 @@ class MusicControllerTest {
         val state: MusicState = controller.state.value
         assertTrue(state is MusicState.Ready)
         assertEquals("Solo Track", (state as MusicState.Ready).nowPlaying?.trackName)
-        assertTrue(state.queue.isEmpty())
     }
 
     @Test
@@ -283,47 +273,13 @@ class MusicControllerTest {
         assertEquals(listOf("ch1"), musicApi.skipCalls)
         val state: MusicState = controller.state.value
         assertTrue(state is MusicState.Ready)
-        // The skipped-to track is now playing and the queue advanced.
+        // The skipped-to track is now playing.
         assertEquals("B", (state as MusicState.Ready).nowPlaying?.trackName)
-        assertTrue(state.queue.isEmpty())
-    }
-
-    @Test
-    fun remove_deletes_the_position_then_reloads_the_remaining_queue() = runTest {
-        val before =
-            MusicSnapshot(
-                nowPlaying = NowPlaying(trackName = "NP", isPlaying = true, provider = "spotify"),
-                queue =
-                    listOf(
-                        MusicTrack(position = 0, trackName = "A"),
-                        MusicTrack(position = 1, trackName = "B"),
-                    ),
-            )
-        val after =
-            MusicSnapshot(
-                nowPlaying = NowPlaying(trackName = "NP", isPlaying = true, provider = "spotify"),
-                queue = listOf(MusicTrack(position = 0, trackName = "A")),
-            )
-        val musicApi = FakeMusicApi(snapshots = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
-
-        controller.load()
-        controller.remove(1)
-
-        // The remove hit the real route with the resolved channel + the zero-based position.
-        assertEquals(listOf("ch1" to 1), musicApi.removeCalls)
-        val state: MusicState = controller.state.value
-        assertTrue(state is MusicState.Ready)
-        assertEquals(listOf("A"), (state as MusicState.Ready).queue.map { it.trackName })
     }
 
     @Test
     fun a_failed_control_surfaces_the_error_and_keeps_the_snapshot() = runTest {
-        val snapshot =
-            MusicSnapshot(
-                nowPlaying = NowPlaying(trackName = "A", isPlaying = true, provider = "spotify"),
-                queue = listOf(MusicTrack(position = 0, trackName = "Q1")),
-            )
+        val snapshot = MusicSnapshot(nowPlaying = NowPlaying(trackName = "A", isPlaying = true, provider = "spotify"))
         val musicApi =
             FakeMusicApi(
                 snapshots = listOf(ApiResult.Ok(snapshot)),
@@ -345,7 +301,6 @@ class MusicControllerTest {
         assertTrue(state is MusicState.Ready)
         // The snapshot is untouched and the failure announces on the shell-level feedback toast.
         assertEquals("A", (state as MusicState.Ready).nowPlaying?.trackName)
-        assertEquals(listOf("Q1"), state.queue.map { it.trackName })
         assertEquals(FeedbackKind.Error, feedback.only.kind)
         assertEquals(listOf<Any>("No active music provider."), feedback.only.formatArgs)
         // Only the initial load read the snapshot; the failed control did not trigger a reload.
@@ -381,39 +336,6 @@ class MusicControllerTest {
             assertNotNull((controller.state.value as MusicState.Ready).nowPlaying)
         assertTrue(nowPlaying.shuffleState)
         assertEquals("track", nowPlaying.repeatState)
-    }
-
-    // S067f — the dashboard must hand the streamer a working, copyable `/sr/{token}` URL, not a bare token
-    // string. Proves the displayed URL is built from the REAL resolved backend origin plus the REAL token
-    // (never a hardcoded scheme/host) and that a successful rotate replaces it with a URL carrying the new
-    // token — not just a silent backend change with no updated UI feedback.
-    @Test
-    fun load_builds_the_token_url_from_the_real_origin_and_token_and_rotate_updates_it() = runTest {
-        val musicApi =
-            FakeMusicApi(
-                snapshots =
-                    listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A", provider = "spotify")))),
-                srPageTokenResult = ApiResult.Ok("abc123"),
-                rotateSrPageTokenResult = ApiResult.Ok("newtoken456"),
-            )
-        val controller =
-            MusicController(
-                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1", login = "streamerlogin"))),
-                musicApi = musicApi,
-                baseUrlProvider = { "https://dev.nomnomz.bot" },
-            )
-
-        controller.load()
-
-        val ready: MusicState.Ready = assertNotNull(controller.state.value as? MusicState.Ready)
-        assertEquals("abc123", ready.srPageToken)
-        assertEquals("https://dev.nomnomz.bot/sr/abc123", ready.tokenUrl)
-
-        controller.rotateSrPageToken()
-
-        val afterRotate: MusicState.Ready = assertNotNull(controller.state.value as? MusicState.Ready)
-        assertEquals("newtoken456", afterRotate.srPageToken)
-        assertEquals("https://dev.nomnomz.bot/sr/newtoken456", afterRotate.tokenUrl)
     }
 
     @Test
@@ -458,127 +380,6 @@ class MusicControllerTest {
 
         assertEquals(listOf("ch1" to "context"), musicApi.repeatCalls)
         assertEquals(2, musicApi.queueCalls)
-    }
-
-    @Test
-    fun load_surfaces_the_blocked_track_page_on_the_ready_state() = runTest {
-        val blocked =
-            BlockedTrackPage(
-                data =
-                    listOf(
-                        BlockedTrack(
-                            id = "bt1",
-                            provider = "spotify",
-                            trackUri = "spotify:track:abc",
-                            title = "Baby Shark",
-                            reason = "never again",
-                            createdAt = "2026-07-18T12:00:00Z",
-                        )
-                    ),
-                total = 1,
-                hasMore = false,
-            )
-        val musicApi =
-            FakeMusicApi(
-                snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
-                blockedResult = ApiResult.Ok(blocked),
-            )
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
-
-        controller.load()
-
-        val state: MusicState = controller.state.value
-        assertTrue(state is MusicState.Ready)
-        val ready: MusicState.Ready = state as MusicState.Ready
-        // The blocked page projects verbatim: rows, count, and paging signals.
-        assertEquals(listOf("Baby Shark"), ready.blockedTracks.map { it.title })
-        assertEquals("spotify:track:abc", ready.blockedTracks[0].trackUri)
-        assertEquals("never again", ready.blockedTracks[0].reason)
-        assertEquals(1, ready.blockedTotal)
-        assertEquals(1, ready.blockedPage)
-        assertFalse(ready.blockedHasMore)
-        assertEquals(listOf(1), musicApi.blockedReads)
-    }
-
-    @Test
-    fun block_track_posts_the_exact_body_and_rereads_the_blocked_list() = runTest {
-        val musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A"))))
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
-        controller.load()
-        musicApi.blockedReads.clear()
-
-        controller.blockTrack(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = "no")
-
-        // The create carried the exact request body, and the current page re-read so the new row appears.
-        assertEquals(
-            listOf(BlockTrackBody(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = "no")),
-            musicApi.blockCalls,
-        )
-        assertEquals(listOf(1), musicApi.blockedReads)
-    }
-
-    @Test
-    fun a_failed_block_surfaces_the_error_and_keeps_the_rows() = runTest {
-        val musicApi =
-            FakeMusicApi(
-                snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
-                blockResult = ApiResult.Failure(ApiError(409, "TRACK_BLOCKED", "Track is already blocked.")),
-            )
-        val feedback = RecordingFeedback()
-        val controller =
-            MusicController(
-                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                musicApi,
-                feedback = feedback,
-            )
-        controller.load()
-        musicApi.blockedReads.clear()
-
-        controller.blockTrack(provider = "spotify", trackUri = "spotify:track:abc", title = "Baby Shark", reason = null)
-
-        // The 409 announces on the shell-level feedback toast; nothing re-read, so the rows stay put.
-        assertEquals(FeedbackKind.Error, feedback.only.kind)
-        assertEquals(listOf<Any>("Track is already blocked."), feedback.only.formatArgs)
-        assertTrue(musicApi.blockedReads.isEmpty())
-    }
-
-    @Test
-    fun unblock_deletes_by_id_and_rereads_the_current_page() = runTest {
-        val musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A"))))
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
-        controller.load()
-        musicApi.blockedReads.clear()
-
-        controller.unblockTrack("bt1")
-
-        assertEquals(listOf("bt1"), musicApi.unblockCalls)
-        assertEquals(listOf(1), musicApi.blockedReads)
-    }
-
-    @Test
-    fun load_blocked_tracks_pages_the_list() = runTest {
-        val page2 =
-            BlockedTrackPage(
-                data = listOf(BlockedTrack(id = "bt26", provider = "youtube", trackUri = "yt:v:x", title = "Song 26")),
-                total = 26,
-                hasMore = false,
-            )
-        val musicApi =
-            FakeMusicApi(
-                snapshots = listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A")))),
-                blockedResult = ApiResult.Ok(page2),
-            )
-        val controller = MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
-        controller.load()
-
-        controller.loadBlockedTracks(2)
-
-        val state: MusicState.Ready = controller.state.value as MusicState.Ready
-        // The pager read page 2 and the Ready state now carries that page + its position.
-        assertEquals(listOf(1, 2), musicApi.blockedReads)
-        assertEquals(2, state.blockedPage)
-        assertEquals(listOf("Song 26"), state.blockedTracks.map { it.title })
-        assertEquals(26, state.blockedTotal)
     }
 
     @Test

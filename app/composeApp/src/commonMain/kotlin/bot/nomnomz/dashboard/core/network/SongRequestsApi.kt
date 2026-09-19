@@ -20,6 +20,7 @@ import kotlinx.serialization.Serializable
 //
 // Backend routes (MusicController):
 //   GET    /api/v1/channels/{channelId}/music/queue               →  StatusResponseDto<MusicQueueDto>
+//   POST   /api/v1/channels/{channelId}/music/queue                →  StatusResponseDto<object>
 //   POST   /api/v1/channels/{channelId}/music/skip                →  StatusResponseDto<object>
 //   POST   /api/v1/channels/{channelId}/music/pause               →  StatusResponseDto<object>
 //   POST   /api/v1/channels/{channelId}/music/resume              →  StatusResponseDto<object>
@@ -30,6 +31,13 @@ import kotlinx.serialization.Serializable
 //   PUT    /api/v1/channels/{channelId}/music/config              →  StatusResponseDto<MusicConfigDto>
 //   GET    /api/v1/channels/{channelId}/music/sr-page-token       →  StatusResponseDto<string>
 //   POST   /api/v1/channels/{channelId}/music/sr-page-token/rotate →  StatusResponseDto<string>
+//   GET    /api/v1/channels/{channelId}/music/blocked-tracks       →  PaginatedResponse<BlockedTrackDto>
+//   POST   /api/v1/channels/{channelId}/music/blocked-tracks       →  StatusResponseDto<BlockedTrackDto>
+//   DELETE /api/v1/channels/{channelId}/music/blocked-tracks/{id}  →  204 No Content
+//
+// This is the SAME backend queue the Music page's transport controls reload after a play/pause/skip — Song
+// Requests is the page that owns VIEWING and MUTATING its membership (add/remove/promote/ban) and its rules
+// (config, blocked list, SR-page share link); Music only reads it to know what's now playing.
 interface SongRequestsApi {
     /** The channel's upcoming song-request queue (the wrapper's `queue` list; now-playing is read elsewhere). */
     suspend fun queue(channelId: String): ApiResult<List<QueuedSong>>
@@ -45,6 +53,9 @@ interface SongRequestsApi {
 
     /** Remove one queued song by its zero-based [position] (the [QueuedSong.position]). */
     suspend fun remove(channelId: String, position: Int): ApiResult<Unit>
+
+    /** Add a song to the queue by search [query], attributed to [requestedBy] (a manual/DJ addition). */
+    suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit>
 
     /** Move the queued song at [position] to the front of the queue — play it next. */
     suspend fun promote(channelId: String, position: Int): ApiResult<Unit>
@@ -63,6 +74,15 @@ interface SongRequestsApi {
 
     /** Rotate the SR-page token — the old share link stops working immediately. */
     suspend fun rotateSrPageToken(channelId: String): ApiResult<String>
+
+    /** One page of the channel's blocked song-request tracks (the legacy `!bansong` list). */
+    suspend fun blockedTracks(channelId: String, page: Int = 1, take: Int = 25): ApiResult<BlockedTrackPage>
+
+    /** Block a track from song requests. Returns the created entry. */
+    suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack>
+
+    /** Unblock a previously blocked track by its [blockedTrackId]. */
+    suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit>
 }
 
 class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
@@ -91,6 +111,9 @@ class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
     override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/music/queue/$position")
 
+    override suspend fun addToQueue(channelId: String, body: MusicSongRequestBody): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/queue", body)
+
     override suspend fun promote(channelId: String, position: Int): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/music/queue/$position/promote")
 
@@ -108,6 +131,18 @@ class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
 
     override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> =
         client.postEnvelope("api/v1/channels/$channelId/music/sr-page-token/rotate", Unit)
+
+    // The list is a PaginatedResponse (flat `{ data, total, hasMore, ... }`) — getDirect reads the whole body,
+    // same as the Music page's own blocked-track read (this is the same backend list).
+    override suspend fun blockedTracks(channelId: String, page: Int, take: Int): ApiResult<BlockedTrackPage> =
+        client.getDirect("api/v1/channels/$channelId/music/blocked-tracks?page=$page&take=$take")
+
+    // The create echoes the new entry in a StatusResponseDto<BlockedTrackDto> envelope — postEnvelope unwraps it.
+    override suspend fun blockTrack(channelId: String, body: BlockTrackBody): ApiResult<BlockedTrack> =
+        client.postEnvelope("api/v1/channels/$channelId/music/blocked-tracks", body)
+
+    override suspend fun unblockTrack(channelId: String, blockedTrackId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/music/blocked-tracks/$blockedTrackId")
 }
 
 /**

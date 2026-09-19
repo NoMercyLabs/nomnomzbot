@@ -657,6 +657,7 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                     onNavigateToIntegrations = { onNavigate(ShellRoute.Integrations) },
+                    onNavigateToSongRequests = { onNavigate(ShellRoute.SongRequests) },
                 )
             ShellRoute.SoundClips ->
                 SoundScreen(controller = graph.soundController, role = role)
@@ -748,7 +749,12 @@ private fun ShellContent(
                 )
             ShellRoute.Vts -> VtsScreen(controller = graph.vtsController, role = role)
             ShellRoute.Automation -> AutomationScreen(controller = graph.automationController, role = role)
-            ShellRoute.MediaShare -> MediaShareScreen(controller = graph.mediaShareController, role = role)
+            ShellRoute.MediaShare ->
+                MediaShareScreen(
+                    controller = graph.mediaShareController,
+                    role = role,
+                    hubEvents = graph.dashboardHubClient.events,
+                )
             ShellRoute.Bundles -> BundlesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
             ShellRoute.Admin -> AdminScreen(controller = graph.adminController)

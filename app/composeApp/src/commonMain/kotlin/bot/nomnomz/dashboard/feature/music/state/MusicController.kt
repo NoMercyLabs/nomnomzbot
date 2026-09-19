@@ -13,9 +13,6 @@ package bot.nomnomz.dashboard.feature.music.state
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
-import bot.nomnomz.dashboard.core.network.BlockTrackBody
-import bot.nomnomz.dashboard.core.network.BlockedTrack
-import bot.nomnomz.dashboard.core.network.BlockedTrackPage
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
@@ -23,11 +20,9 @@ import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.MusicApi
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicSnapshot
-import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
-import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,12 +39,19 @@ import nomnomzbot.composeapp.generated.resources.music_action_error
 private const val TrackEndResyncAttempts = 3
 private const val TrackEndResyncRetryDelayMs = 1_500L
 
-// The Music page's state-holder — the channel's live playback, made controllable. Resolves the active channel,
-// loads its real now-playing + queue from the backend (the connected music provider; no fabricated tracks),
-// and drives the supported playback controls: play (resume) / pause / skip, plus removing a queued song by
-// position. The screen renders [state]; a retry / reconnect calls [load] again. A control hits the backend and
-// reloads on success so the now-playing and queue both re-project; on failure the snapshot stays put and the
-// error surfaces on the Ready state. Play vs pause is one control driven by the now-playing isPlaying flag.
+// The Music page's state-holder — the channel's live playback/transport, made controllable. Resolves the
+// active channel, reads its real now-playing snapshot from the backend (the connected music provider; no
+// fabricated tracks), and drives the supported transport controls: play (resume) / pause / seek / skip, plus
+// the Spotify-specific remote controls (shuffle/repeat/devices/playlists). The screen renders [state]; a retry
+// calls [load] again. A control hits the backend and reloads on success so the now-playing re-projects; on
+// failure the snapshot stays put and the error surfaces on the shell feedback toast. Play vs pause is one
+// control driven by the now-playing isPlaying flag.
+//
+// The upcoming song-request QUEUE (add / remove / promote / ban), the SR config, and the SR-page share link
+// are ALL owned by the Song Requests page (`SongRequestsController`) — Music and Song Requests read the same
+// backend queue (`GET .../music/queue`), so rendering it here too would duplicate the same list under a
+// second, out-of-sync set of controls. This screen offers a link over to Song Requests instead of a second
+// projection of it (frontend-ia.md: Music = playback/transport, Song Requests = the request queue + its rules).
 class MusicController(
     private val channelsApi: ChannelsApi,
     private val musicApi: MusicApi,
@@ -59,20 +61,17 @@ class MusicController(
     // Defaults to a no-signal stub for callers (and older tests) that don't exercise the reauth path — it
     // reports every provider healthy rather than failing the whole load over an untested dependency.
     private val integrationsApi: IntegrationsApi = NoSignalIntegrationsApi,
-    // The active backend origin, read live so the pretty share link (`{origin}/sr/@name`) matches whatever host
-    // served the dashboard. Null (the default, e.g. in tests) simply omits the absolute link.
-    private val baseUrlProvider: () -> String? = { null },
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<MusicState> = MutableStateFlow(MusicState.Loading)
 
-    /** The page render state: loading / ready (now-playing + queue) / empty / error. */
+    /** The page render state: loading / ready (now-playing + remote controls) / empty / error. */
     val state: StateFlow<MusicState> = _state.asStateFlow()
 
     // The channel the loaded snapshot belongs to, kept so controls target the same channel without re-resolving.
     private var channelId: String? = null
 
-    /** Resolve the active channel, then load its now-playing track and upcoming queue. */
+    /** Resolve the active channel, then load its now-playing track. */
     suspend fun load() {
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
@@ -98,16 +97,11 @@ class MusicController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Config is resilient — a failure degrades to null; the playback controls still render.
+        // Config is resilient — a failure degrades to null; the playback controls still render. Music never
+        // renders the SR config itself (that's the Song Requests page's job), but a missing config is still
+        // one of the signals for whether the page has anything real to show at all (see the Empty check below).
         val config: MusicConfig? =
             when (val result: ApiResult<MusicConfig> = musicApi.config(channel.id)) {
-                is ApiResult.Failure -> null
-                is ApiResult.Ok -> result.value
-            }
-
-        // SR-page token is also resilient — null if the backend doesn't have one minted yet or returns error.
-        val srToken: String? =
-            when (val result: ApiResult<String> = musicApi.srPageToken(channel.id)) {
                 is ApiResult.Failure -> null
                 is ApiResult.Ok -> result.value
             }
@@ -125,27 +119,6 @@ class MusicController(
                 is ApiResult.Ok -> result.value
             }
 
-        // Blocked tracks are resilient too — a failure degrades to an empty page (the section shows empty).
-        // A reload keeps the page the operator was on so an unblock doesn't jump back to page 1.
-        val blockedPage: Int = (_state.value as? MusicState.Ready)?.blockedPage ?: 1
-        val blocked: BlockedTrackPage =
-            when (val result: ApiResult<BlockedTrackPage> = musicApi.blockedTracks(channel.id, page = blockedPage)) {
-                is ApiResult.Failure -> BlockedTrackPage()
-                is ApiResult.Ok -> result.value
-            }
-
-        // The pretty, human-shareable SR link — `{origin}/sr/@{login}` — resolvable by the public by-channel
-        // route (@ + case tolerant). Only built when both the origin and the channel login are known.
-        val shareLink: String? =
-            baseUrlProvider()?.trimEnd('/')?.takeIf { it.isNotBlank() }?.let { origin ->
-                channel.login.takeIf { it.isNotBlank() }?.let { login -> "$origin/sr/@$login" }
-            }
-
-        // The literal token-backed SR link — `{origin}/sr/{token}` — the URL the raw token actually resolves
-        // to on the public route. Built purely from the resolved origin + the real token (never a hardcoded
-        // scheme/host); null when either is unknown.
-        val tokenUrl: String? = buildTokenUrl(baseUrlProvider(), srToken)
-
         // S003b — the Spotify grant's live auth health, from the same unified status the Integrations card
         // reads. A failure degrades to "healthy" (false) rather than falsely alarming the streamer over an
         // unrelated network hiccup on this read.
@@ -161,92 +134,11 @@ class MusicController(
             } else {
                 MusicState.Ready(
                     nowPlaying = snapshot.nowPlaying,
-                    queue = snapshot.queue,
-                    srPageToken = srToken,
-                    shareLink = shareLink,
-                    tokenUrl = tokenUrl,
                     devices = devices,
                     playlists = playlists,
-                    blockedTracks = blocked.data,
-                    blockedPage = blockedPage,
-                    blockedTotal = blocked.total,
-                    blockedHasMore = blocked.hasMore,
                     spotifyNeedsReauth = spotifyNeedsReauth,
                 )
             }
-    }
-
-    /**
-     * Load one [page] of the blocked-track list into the Ready state (the pager's prev/next). A failure
-     * announces on the shell-level feedback toast; the current rows stay put.
-     */
-    suspend fun loadBlockedTracks(page: Int) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<BlockedTrackPage> = musicApi.blockedTracks(channel, page = page)) {
-            is ApiResult.Failure -> feedback.error(Res.string.music_action_error, result.error.message)
-            is ApiResult.Ok -> {
-                val current: MusicState = _state.value
-                if (current is MusicState.Ready) {
-                    _state.value =
-                        current.copy(
-                            blockedTracks = result.value.data,
-                            blockedPage = page,
-                            blockedTotal = result.value.total,
-                            blockedHasMore = result.value.hasMore,
-                        )
-                }
-            }
-        }
-    }
-
-    /**
-     * Block a track from song requests. On success the blocked list re-reads (the new entry appears where the
-     * server sorted it); on failure — including TRACK_BLOCKED when it is already on the list — the error
-     * surfaces on the Ready state and the rows stay put.
-     */
-    suspend fun blockTrack(provider: String, trackUri: String, title: String, reason: String?) {
-        val channel: String = channelId ?: return
-        val body = BlockTrackBody(provider = provider, trackUri = trackUri, title = title, reason = reason)
-        when (val result: ApiResult<BlockedTrack> = musicApi.blockTrack(channel, body)) {
-            is ApiResult.Failure -> feedback.error(Res.string.music_action_error, result.error.message)
-            is ApiResult.Ok -> loadBlockedTracks((_state.value as? MusicState.Ready)?.blockedPage ?: 1)
-        }
-    }
-
-    /**
-     * Unblock (remove) a blocked track by its id. Re-reads the current page on success so the row drops off;
-     * surfaces the error on the Ready state on failure. The screen gates this behind a confirmation.
-     */
-    suspend fun unblockTrack(blockedTrackId: String) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<Unit> = musicApi.unblockTrack(channel, blockedTrackId)) {
-            is ApiResult.Failure -> feedback.error(Res.string.music_action_error, result.error.message)
-            is ApiResult.Ok -> loadBlockedTracks((_state.value as? MusicState.Ready)?.blockedPage ?: 1)
-        }
-    }
-
-    /**
-     * Add a song to the queue by search [query], attributed to [requestedBy]. Reloads on success so the new
-     * entry appears; surfaces the error without clearing the current queue on failure.
-     */
-    suspend fun addToQueue(query: String, requestedBy: String) {
-        val channel: String = channelId ?: return
-        control { musicApi.addToQueue(channel, MusicSongRequestBody(query, requestedBy)) }
-    }
-
-    /** Rotate the SR-page token. The new token replaces the old on the Ready state. */
-    suspend fun rotateSrPageToken() {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<String> = musicApi.rotateSrPageToken(channel)) {
-            is ApiResult.Failure -> feedback.error(Res.string.music_action_error, result.error.message)
-            is ApiResult.Ok -> {
-                val current: MusicState = _state.value
-                if (current is MusicState.Ready) {
-                    _state.value =
-                        current.copy(srPageToken = result.value, tokenUrl = buildTokenUrl(baseUrlProvider(), result.value))
-                }
-            }
-        }
     }
 
     /** Seek to [positionMs] in the current track. */
@@ -347,14 +239,6 @@ class MusicController(
     /** Skip the current track. Reloads the snapshot on success; surfaces the error on the Ready state. */
     suspend fun skip() = control { channel -> musicApi.skip(channel) }
 
-    /**
-     * Remove the queued song at [position] (a [MusicTrack.position]). On success the snapshot reloads so the
-     * removed song drops off; on failure the current snapshot stays put and the error surfaces on the Ready
-     * state. The screen gates this destructive action behind a confirmation, so it only runs on a confirmed
-     * click.
-     */
-    suspend fun remove(position: Int) = control { channel -> musicApi.remove(channel, position) }
-
     // The shared control flow: run [action] against the resolved channel; reload the snapshot on success, or
     // keep the current one and surface the failure on the Ready state. No channel resolved yet → no-op.
     private suspend fun control(action: suspend (channel: String) -> ApiResult<Unit>) {
@@ -367,44 +251,22 @@ class MusicController(
     }
 }
 
-// The literal token-backed SR link (`{origin}/sr/{token}`) — the URL the raw token itself resolves to on the
-// public route. Built purely from the resolved backend origin and the real token; null when either is missing
-// (never a hardcoded scheme/host).
-private fun buildTokenUrl(baseUrl: String?, token: String?): String? {
-    val origin: String = baseUrl?.trimEnd('/')?.takeIf { it.isNotBlank() } ?: return null
-    val safeToken: String = token?.takeIf { it.isNotBlank() } ?: return null
-    return "$origin/sr/$safeToken"
-}
-
 /** The Music page render state. */
 sealed interface MusicState {
     data object Loading : MusicState
 
     /**
-     * The live playback snapshot: the [nowPlaying] track (null when nothing is playing) and the upcoming
-     * [queue]. A failed control announces on the shell-level feedback toast rather than a field here — see
-     * [MusicController.control]. The screen drives play/pause from [NowPlaying.isPlaying] and offers a
-     * per-track remove on the queue. SR config lives on the Song Requests page (`SongRequestsController`), not
-     * here — Music is the playback/transport/library area home (frontend-ia.md). [srPageToken] is the minted
-     * SR-page shareable token (null if not yet minted or the endpoint is down).
+     * The live playback snapshot: the [nowPlaying] track (null when nothing is playing), plus the Spotify
+     * remote-control surface ([devices], [playlists]). A failed control announces on the shell-level feedback
+     * toast rather than a field here — see [MusicController.control]. The screen drives play/pause from
+     * [NowPlaying.isPlaying]. The upcoming request QUEUE, the SR config, and the SR-page share link live on
+     * the Song Requests page (`SongRequestsController`) — Music is the playback/transport/provider-connection
+     * home (frontend-ia.md); it links over to Song Requests rather than re-projecting the same queue.
      */
     data class Ready(
         val nowPlaying: NowPlaying?,
-        val queue: List<MusicTrack>,
-        val srPageToken: String? = null,
-        // The absolute, human-friendly public SR link (`{origin}/sr/@name`); null when the origin/login is unknown.
-        val shareLink: String? = null,
-        // The absolute, literal token-backed public SR link (`{origin}/sr/{token}`); null when the origin/token
-        // is unknown. This is the URL the raw token actually resolves to — shown with its own copy affordance
-        // alongside the pretty [shareLink] so a streamer without a resolvable login still gets a working link.
-        val tokenUrl: String? = null,
         val devices: List<MusicDevice> = emptyList(),
         val playlists: List<MusicPlaylist> = emptyList(),
-        // The blocked song-request tracks — one page of rows plus the paging signals the section's pager needs.
-        val blockedTracks: List<BlockedTrack> = emptyList(),
-        val blockedPage: Int = 1,
-        val blockedTotal: Int = 0,
-        val blockedHasMore: Boolean = false,
         // S003b — true when the active Spotify grant is dead (a live call came back 401). The screen shows a
         // reconnect notice; a healthy or non-Spotify provider (or a read failure) reports false.
         val spotifyNeedsReauth: Boolean = false,

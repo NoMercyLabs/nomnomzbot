@@ -53,24 +53,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
-import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
-import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.network.BlockedTrack
 import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
-import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.feature.music.state.MusicController
 import bot.nomnomz.dashboard.feature.music.state.MusicState
@@ -90,46 +81,19 @@ import nomnomzbot.composeapp.generated.resources.music_now_playing_description
 import nomnomzbot.composeapp.generated.resources.music_now_playing_label
 import nomnomzbot.composeapp.generated.resources.music_pause
 import nomnomzbot.composeapp.generated.resources.music_play
-import nomnomzbot.composeapp.generated.resources.music_position
 import nomnomzbot.composeapp.generated.resources.music_progress
 import nomnomzbot.composeapp.generated.resources.music_provider
 import nomnomzbot.composeapp.generated.resources.music_seek_back
 import nomnomzbot.composeapp.generated.resources.music_seek_back_description
 import nomnomzbot.composeapp.generated.resources.music_seek_forward
 import nomnomzbot.composeapp.generated.resources.music_seek_forward_description
-import nomnomzbot.composeapp.generated.resources.music_queue_empty
-import nomnomzbot.composeapp.generated.resources.music_queue_label
-import nomnomzbot.composeapp.generated.resources.music_remove_action
-import nomnomzbot.composeapp.generated.resources.music_remove_confirm
-import nomnomzbot.composeapp.generated.resources.music_remove_dismiss
-import nomnomzbot.composeapp.generated.resources.music_remove_message
-import nomnomzbot.composeapp.generated.resources.music_remove_title
 import nomnomzbot.composeapp.generated.resources.music_playing_from_provider
 import nomnomzbot.composeapp.generated.resources.music_requested_by
 import nomnomzbot.composeapp.generated.resources.music_unknown_provider
 import nomnomzbot.composeapp.generated.resources.music_retry
-import nomnomzbot.composeapp.generated.resources.music_row_description
 import nomnomzbot.composeapp.generated.resources.music_skip
-import nomnomzbot.composeapp.generated.resources.music_unknown_requester
 import nomnomzbot.composeapp.generated.resources.music_unknown_track
-import nomnomzbot.composeapp.generated.resources.music_add_title
-import nomnomzbot.composeapp.generated.resources.music_add_query
-import nomnomzbot.composeapp.generated.resources.music_add_requested_by
-import nomnomzbot.composeapp.generated.resources.music_add_action
-import nomnomzbot.composeapp.generated.resources.music_block_provider_spotify
-import nomnomzbot.composeapp.generated.resources.music_block_provider_youtube
-import nomnomzbot.composeapp.generated.resources.music_token_title
-import nomnomzbot.composeapp.generated.resources.music_share_link_copied
-import nomnomzbot.composeapp.generated.resources.music_share_link_copy
-import nomnomzbot.composeapp.generated.resources.music_share_link_value
-import nomnomzbot.composeapp.generated.resources.music_token_value
-import nomnomzbot.composeapp.generated.resources.music_token_link_value
-import nomnomzbot.composeapp.generated.resources.music_token_link_copy
-import nomnomzbot.composeapp.generated.resources.music_token_rotate
-import nomnomzbot.composeapp.generated.resources.music_token_rotate_title
-import nomnomzbot.composeapp.generated.resources.music_token_rotate_message
-import nomnomzbot.composeapp.generated.resources.music_token_rotate_confirm
-import nomnomzbot.composeapp.generated.resources.music_token_rotate_dismiss
+import nomnomzbot.composeapp.generated.resources.music_manage_song_requests
 import nomnomzbot.composeapp.generated.resources.music_remote_title
 import nomnomzbot.composeapp.generated.resources.music_shuffle_label
 import nomnomzbot.composeapp.generated.resources.music_repeat_off
@@ -140,36 +104,19 @@ import nomnomzbot.composeapp.generated.resources.music_device_transfer
 import nomnomzbot.composeapp.generated.resources.music_playlists_title
 import nomnomzbot.composeapp.generated.resources.music_playlist_play
 import nomnomzbot.composeapp.generated.resources.music_blocked_by_provider
-import nomnomzbot.composeapp.generated.resources.music_blocked_title
-import nomnomzbot.composeapp.generated.resources.music_blocked_empty
-import nomnomzbot.composeapp.generated.resources.music_blocked_reason
-import nomnomzbot.composeapp.generated.resources.music_blocked_date
-import nomnomzbot.composeapp.generated.resources.music_blocked_count
-import nomnomzbot.composeapp.generated.resources.music_blocked_prev
-import nomnomzbot.composeapp.generated.resources.music_blocked_next
-import nomnomzbot.composeapp.generated.resources.music_blocked_unblock
-import nomnomzbot.composeapp.generated.resources.music_blocked_unblock_title
-import nomnomzbot.composeapp.generated.resources.music_blocked_unblock_message
-import nomnomzbot.composeapp.generated.resources.music_blocked_unblock_confirm
-import nomnomzbot.composeapp.generated.resources.music_blocked_unblock_dismiss
-import nomnomzbot.composeapp.generated.resources.music_block_form_title
-import nomnomzbot.composeapp.generated.resources.music_block_provider
-import nomnomzbot.composeapp.generated.resources.music_block_uri
-import nomnomzbot.composeapp.generated.resources.music_block_track_title
-import nomnomzbot.composeapp.generated.resources.music_block_reason
-import nomnomzbot.composeapp.generated.resources.music_block_action
 import nomnomzbot.composeapp.generated.resources.shell_nav_music
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.compose.resources.stringResource
 
-// The Music page: the channel's live playback, made controllable — every track is real data from
-// [MusicController] (the backend sources now-playing + the queue from the connected music provider). The
+// The Music page: the channel's live playback/transport, made controllable — every track is real data from
+// [MusicController] (the backend sources the now-playing snapshot from the connected music provider). The
 // screen is a pure projection of the controller's state; it loads on first composition and offers a retry on
 // failure. The now-playing card shows the current track with its progress and provider, and a control row
-// drives playback (Play/Pause toggles on the live isPlaying flag; Skip advances). Each queued track carries a
-// Remove affordance that only runs once confirmed in the shared ConfirmDialog (the controller reloads on
-// success, so the now-playing and queue both re-project).
+// drives playback (Play/Pause toggles on the live isPlaying flag; Skip advances) plus the Spotify-specific
+// remote controls (shuffle/repeat/devices/playlists). The upcoming request queue, its config, and its share
+// link are owned by the Song Requests page — this screen links over to it instead of re-rendering the same
+// queue under a second set of controls (S-OBS-04).
 @Composable
 fun MusicScreen(
     controller: MusicController,
@@ -178,6 +125,9 @@ fun MusicScreen(
     // S003b — where the reconnect notice's action sends the streamer; defaults to a no-op so screens/tests
     // that don't wire shell navigation still compile.
     onNavigateToIntegrations: () -> Unit = {},
+    // The request queue, its SR config, and its share link are owned by the Song Requests page — this link
+    // sends the streamer there instead of re-rendering a second copy of the same queue here.
+    onNavigateToSongRequests: () -> Unit = {},
 ) {
     val state: MusicState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -203,36 +153,21 @@ fun MusicScreen(
             is MusicState.Ready ->
                 ReadyContent(
                     nowPlaying = current.nowPlaying,
-                    queue = current.queue,
-                    srPageToken = current.srPageToken,
-                    shareLink = current.shareLink,
-                    tokenUrl = current.tokenUrl,
                     devices = current.devices,
                     playlists = current.playlists,
-                    blockedTracks = current.blockedTracks,
-                    blockedPage = current.blockedPage,
-                    blockedTotal = current.blockedTotal,
-                    blockedHasMore = current.blockedHasMore,
                     manage = manage,
                     onPlay = { scope.launch { controller.resume() } },
                     onPause = { scope.launch { controller.pause() } },
                     onSeek = { positionMs -> scope.launch { controller.seek(positionMs) } },
                     onSkip = { scope.launch { controller.skip() } },
                     onTrackEndReached = { scope.launch { controller.onPredictedTrackEndReached() } },
-                    onRemove = { position -> scope.launch { controller.remove(position) } },
-                    onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
-                    onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
                     onSetShuffle = { enabled -> scope.launch { controller.setShuffle(enabled) } },
                     onSetRepeat = { mode -> scope.launch { controller.setRepeat(mode) } },
                     onTransfer = { deviceId -> scope.launch { controller.transferPlayback(deviceId, play = true) } },
                     onPlayPlaylist = { uri -> scope.launch { controller.playContext(uri) } },
-                    onBlockTrack = { provider, trackUri, title, reason ->
-                        scope.launch { controller.blockTrack(provider, trackUri, title, reason) }
-                    },
-                    onUnblockTrack = { id -> scope.launch { controller.unblockTrack(id) } },
-                    onBlockedPage = { page -> scope.launch { controller.loadBlockedTracks(page) } },
                     spotifyNeedsReauth = current.spotifyNeedsReauth,
                     onReconnectSpotify = onNavigateToIntegrations,
+                    onNavigateToSongRequests = onNavigateToSongRequests,
                 )
         }
     }
@@ -241,42 +176,23 @@ fun MusicScreen(
 @Composable
 private fun ReadyContent(
     nowPlaying: NowPlaying?,
-    queue: List<MusicTrack>,
-    srPageToken: String?,
-    shareLink: String?,
-    tokenUrl: String?,
     devices: List<MusicDevice>,
     playlists: List<MusicPlaylist>,
-    blockedTracks: List<BlockedTrack>,
-    blockedPage: Int,
-    blockedTotal: Int,
-    blockedHasMore: Boolean,
     manage: ManageDecision,
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onSeek: (positionMs: Int) -> Unit,
     onSkip: () -> Unit,
     onTrackEndReached: () -> Unit,
-    onRemove: (position: Int) -> Unit,
-    onAddToQueue: (query: String, requestedBy: String) -> Unit,
-    onRotateToken: () -> Unit,
     onSetShuffle: (Boolean) -> Unit,
     onSetRepeat: (String) -> Unit,
     onTransfer: (deviceId: String) -> Unit,
     onPlayPlaylist: (uri: String) -> Unit,
-    onBlockTrack: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
-    onUnblockTrack: (blockedTrackId: String) -> Unit,
-    onBlockedPage: (page: Int) -> Unit,
     spotifyNeedsReauth: Boolean = false,
     onReconnectSpotify: () -> Unit = {},
+    onNavigateToSongRequests: () -> Unit = {},
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var pendingRemoval: MusicTrack? by remember { mutableStateOf(null) }
-    var pendingRotate: Boolean by remember { mutableStateOf(false) }
-    var pendingUnblock: BlockedTrack? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
@@ -303,47 +219,10 @@ private fun ReadyContent(
             )
         }
 
-        Text(
-            text = stringResource(Res.string.music_queue_label),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-            modifier = Modifier.padding(horizontal = spacing.s1),
-        )
-
-        if (queue.isEmpty()) {
-            Text(
-                text = stringResource(Res.string.music_queue_empty),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                modifier = Modifier.padding(horizontal = spacing.s1),
-            )
-        } else {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    queue.forEachIndexed { index, track ->
-                        QueueRow(track = track, manage = manage, onRemove = { pendingRemoval = track })
-                        if (index < queue.lastIndex) {
-                            Separator()
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── Add to queue ──────────────────────────────────────────────────
-        Separator()
-        AddToQueueSection(manage = manage, onAdd = onAddToQueue)
-
-        // ── SR-page token + shareable link ────────────────────────────────
-        if (srPageToken != null) {
-            Separator()
-            SrTokenSection(
-                token = srPageToken,
-                shareLink = shareLink,
-                tokenUrl = tokenUrl,
-                manage = manage,
-                onRotate = { pendingRotate = true },
-            )
+        // The request queue (add/remove/promote/ban), its config, and its share link are owned by the Song
+        // Requests page — this is a link over to that page, not a second projection of the same queue.
+        TextButton(onClick = onNavigateToSongRequests) {
+            Text(text = stringResource(Res.string.music_manage_song_requests))
         }
 
         // ── Remote controls (shuffle / repeat / devices / playlists) ──────
@@ -364,66 +243,6 @@ private fun ReadyContent(
                 onPlayPlaylist = onPlayPlaylist,
             )
         }
-
-        // ── Blocked songs (the legacy `!bansong` list) ────────────────────
-        Separator()
-        BlockedTracksSection(
-            blockedTracks = blockedTracks,
-            blockedPage = blockedPage,
-            blockedTotal = blockedTotal,
-            blockedHasMore = blockedHasMore,
-            manage = manage,
-            onBlockTrack = onBlockTrack,
-            onUnblock = { track -> pendingUnblock = track },
-            onPage = onBlockedPage,
-        )
-    }
-
-    pendingRemoval?.let { track ->
-        val title: String = track.trackName.takeIf { it.isNotBlank() } ?: track.artist
-        ConfirmDialog(
-            title = stringResource(Res.string.music_remove_title),
-            message = stringResource(Res.string.music_remove_message, title),
-            confirmLabel = stringResource(Res.string.music_remove_confirm),
-            dismissLabel = stringResource(Res.string.music_remove_dismiss),
-            destructive = true,
-            onConfirm = {
-                onRemove(track.position)
-                pendingRemoval = null
-            },
-            onDismiss = { pendingRemoval = null },
-        )
-    }
-
-    pendingUnblock?.let { track ->
-        val title: String = track.title.takeIf { it.isNotBlank() } ?: track.trackUri
-        ConfirmDialog(
-            title = stringResource(Res.string.music_blocked_unblock_title),
-            message = stringResource(Res.string.music_blocked_unblock_message, title),
-            confirmLabel = stringResource(Res.string.music_blocked_unblock_confirm),
-            dismissLabel = stringResource(Res.string.music_blocked_unblock_dismiss),
-            destructive = true,
-            onConfirm = {
-                onUnblockTrack(track.id)
-                pendingUnblock = null
-            },
-            onDismiss = { pendingUnblock = null },
-        )
-    }
-
-    if (pendingRotate) {
-        ConfirmDialog(
-            title = stringResource(Res.string.music_token_rotate_title),
-            message = stringResource(Res.string.music_token_rotate_message),
-            confirmLabel = stringResource(Res.string.music_token_rotate_confirm),
-            dismissLabel = stringResource(Res.string.music_token_rotate_dismiss),
-            destructive = true,
-            onConfirm = {
-                pendingRotate = false
-                onRotateToken()
-            },
-            onDismiss = { pendingRotate = false },
-        )
     }
 }
 
@@ -729,77 +548,6 @@ private fun AlbumArt(title: String, imageUrl: String?) {
 }
 
 @Composable
-private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val title: String = track.trackName.takeIf { it.isNotBlank() } ?: track.artist
-    val requester: String =
-        track.requestedBy?.takeIf { it.isNotBlank() }
-            ?: stringResource(Res.string.music_unknown_requester)
-    val positionLabel: String = stringResource(Res.string.music_position, track.position + 1)
-    val requestedLabel: String = stringResource(Res.string.music_requested_by, requester)
-    val rowDescription: String =
-        stringResource(Res.string.music_row_description, positionLabel, title, requester)
-    val removeLabel: String = stringResource(Res.string.music_remove_action, title)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Badge(
-            label = positionLabel,
-            background = tokens.secondary,
-            foreground = tokens.secondaryForeground,
-        )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                // One node for screen readers: "1, Track Title, requested by Stoney_Eagle".
-                .clearAndSetSemantics { contentDescription = rowDescription },
-            verticalArrangement = Arrangement.spacedBy(spacing.s1),
-        ) {
-            Text(
-                text = title,
-                style = typography.base,
-                color = tokens.cardForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (track.artist.isNotBlank()) {
-                Text(
-                    text = track.artist,
-                    style = typography.sm,
-                    color = tokens.mutedForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Text(
-            text = requestedLabel,
-            style = typography.xs,
-            color = tokens.mutedForeground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                icon = TrashGlyph,
-                label = removeLabel,
-                onClick = onRemove,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
-        }
-    }
-}
-
-@Composable
 private fun Badge(
     label: String,
     background: Color,
@@ -816,119 +564,6 @@ private fun Badge(
             .padding(horizontal = spacing.s2, vertical = spacing.s1),
     ) {
         Text(text = label, style = typography.xs, color = foreground, maxLines = 1)
-    }
-}
-
-// ── Add to queue ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun AddToQueueSection(manage: ManageDecision, onAdd: (query: String, requestedBy: String) -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var query: String by remember { mutableStateOf("") }
-    var requestedBy: String by remember { mutableStateOf("") }
-    val canAdd: Boolean = query.isNotBlank() && requestedBy.isNotBlank()
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        Text(text = stringResource(Res.string.music_add_title), style = typography.base, color = tokens.cardForeground)
-        AppTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = stringResource(Res.string.music_add_query),
-            isError = false,
-            errorText = null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        AppTextField(
-            value = requestedBy,
-            onValueChange = { requestedBy = it },
-            label = stringResource(Res.string.music_add_requested_by),
-            isError = false,
-            errorText = null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        ManageGate(decision = manage) { enabled ->
-            Button(
-                onClick = {
-                    onAdd(query, requestedBy)
-                    query = ""
-                    requestedBy = ""
-                },
-                enabled = enabled && canAdd,
-            ) {
-                Text(text = stringResource(Res.string.music_add_action))
-            }
-        }
-    }
-}
-
-// ── SR page token ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun SrTokenSection(
-    token: String,
-    shareLink: String?,
-    tokenUrl: String?,
-    manage: ManageDecision,
-    onRotate: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        Text(text = stringResource(Res.string.music_token_title), style = typography.base, color = tokens.cardForeground)
-        // The pretty, say-it-on-stream link (`/sr/@name`) — offered first with a one-click copy when known.
-        if (!shareLink.isNullOrBlank()) {
-            Text(
-                text = stringResource(Res.string.music_share_link_value, shareLink),
-                style = typography.sm,
-                color = tokens.cardForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            CopyLinkButton(
-                url = shareLink,
-                copyLabel = stringResource(Res.string.music_share_link_copy),
-                copiedLabel = stringResource(Res.string.music_share_link_copied),
-            )
-        }
-        // The literal token-backed link (`/sr/{token}`) — always resolvable once the backend origin is known,
-        // shown with its own copy button so a streamer without a login-based pretty link still gets a working
-        // one-click URL to hand to viewers. Falls back to the bare token string only when the origin is unknown.
-        if (!tokenUrl.isNullOrBlank()) {
-            Text(
-                text = stringResource(Res.string.music_token_link_value, tokenUrl),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            CopyLinkButton(
-                url = tokenUrl,
-                copyLabel = stringResource(Res.string.music_token_link_copy),
-                copiedLabel = stringResource(Res.string.music_share_link_copied),
-            )
-        } else {
-            Text(
-                text = stringResource(Res.string.music_token_value, token),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                icon = RefreshGlyph,
-                label = stringResource(Res.string.music_token_rotate),
-                onClick = onRotate,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
-        }
     }
 }
 
@@ -1052,238 +687,6 @@ private fun RemoteControlsSection(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-// ── Blocked songs ────────────────────────────────────────────────────────────
-
-// The channel's blocked song-request list: a paged table of every banned track (title, provider, URI, reason,
-// blocked date) with a per-row unblock (confirmed in the shared dialog) and a small block-a-track form. All
-// mutations sit behind the page's single manage gate — a caller below the floor sees the list but every
-// unblock/block control renders disabled with the gate's reason tooltip.
-@Composable
-private fun BlockedTracksSection(
-    blockedTracks: List<BlockedTrack>,
-    blockedPage: Int,
-    blockedTotal: Int,
-    blockedHasMore: Boolean,
-    manage: ManageDecision,
-    onBlockTrack: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
-    onUnblock: (BlockedTrack) -> Unit,
-    onPage: (page: Int) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = stringResource(Res.string.music_blocked_title),
-                style = typography.base,
-                color = tokens.cardForeground,
-            )
-            Text(
-                text = stringResource(Res.string.music_blocked_count, blockedTotal),
-                style = typography.xs,
-                color = tokens.mutedForeground,
-            )
-        }
-
-        if (blockedTracks.isEmpty()) {
-            Text(
-                text = stringResource(Res.string.music_blocked_empty),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                modifier = Modifier.padding(horizontal = spacing.s1),
-            )
-        } else {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column {
-                    blockedTracks.forEachIndexed { index, track ->
-                        BlockedTrackRow(track = track, manage = manage, onUnblock = { onUnblock(track) })
-                        if (index < blockedTracks.lastIndex) {
-                            Separator()
-                        }
-                    }
-                }
-            }
-        }
-
-        // Pager — previous/next only when there is somewhere to go; the total header shows where you are.
-        if (blockedPage > 1 || blockedHasMore) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                TextButton(onClick = { onPage(blockedPage - 1) }, enabled = blockedPage > 1) {
-                    Text(text = stringResource(Res.string.music_blocked_prev), maxLines = 1)
-                }
-                TextButton(onClick = { onPage(blockedPage + 1) }, enabled = blockedHasMore) {
-                    Text(text = stringResource(Res.string.music_blocked_next), maxLines = 1)
-                }
-            }
-        }
-
-        BlockTrackForm(manage = manage, onBlock = onBlockTrack)
-    }
-}
-
-@Composable
-private fun BlockedTrackRow(track: BlockedTrack, manage: ManageDecision, onUnblock: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val title: String = track.title.takeIf { it.isNotBlank() } ?: track.trackUri
-    val unblockLabel: String = stringResource(Res.string.music_blocked_unblock, title)
-    // createdAt is an ISO-8601 instant; the date part is all the row needs.
-    val blockedDate: String = track.createdAt.take(10)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Badge(
-            label = stringResource(Res.string.music_provider, track.provider),
-            background = tokens.secondary,
-            foreground = tokens.secondaryForeground,
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(spacing.s1),
-        ) {
-            Text(
-                text = title,
-                style = typography.base,
-                color = tokens.cardForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = track.trackUri,
-                style = typography.xs,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            track.reason?.takeIf { it.isNotBlank() }?.let { reason ->
-                Text(
-                    text = stringResource(Res.string.music_blocked_reason, reason),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        if (blockedDate.isNotBlank()) {
-            Text(
-                text = stringResource(Res.string.music_blocked_date, blockedDate),
-                style = typography.xs,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-            )
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                icon = TrashGlyph,
-                label = unblockLabel,
-                onClick = onUnblock,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
-        }
-    }
-}
-
-@Composable
-private fun BlockTrackForm(
-    manage: ManageDecision,
-    onBlock: (provider: String, trackUri: String, title: String, reason: String?) -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var provider: String by remember { mutableStateOf("spotify") }
-    var trackUri: String by remember { mutableStateOf("") }
-    var title: String by remember { mutableStateOf("") }
-    var reason: String by remember { mutableStateOf("") }
-    val canBlock: Boolean = trackUri.isNotBlank() && title.isNotBlank()
-
-    val providerOptions: List<Pair<String, String>> = listOf(
-        "spotify" to stringResource(Res.string.music_block_provider_spotify),
-        "youtube" to stringResource(Res.string.music_block_provider_youtube),
-    )
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        Text(
-            text = stringResource(Res.string.music_block_form_title),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-            Text(
-                text = stringResource(Res.string.music_block_provider),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-            TabsList {
-                providerOptions.forEach { (key, label) ->
-                    ManageGate(decision = manage) { gateEnabled ->
-                        TabsTrigger(
-                            selected = provider == key,
-                            onClick = { provider = key },
-                            enabled = gateEnabled,
-                        ) {
-                            Text(label, maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-        AppTextField(
-            value = trackUri,
-            onValueChange = { trackUri = it },
-            label = stringResource(Res.string.music_block_uri),
-            isError = false,
-            errorText = null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        AppTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = stringResource(Res.string.music_block_track_title),
-            isError = false,
-            errorText = null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        AppTextField(
-            value = reason,
-            onValueChange = { reason = it },
-            label = stringResource(Res.string.music_block_reason),
-            isError = false,
-            errorText = null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        ManageGate(decision = manage) { enabled ->
-            Button(
-                onClick = {
-                    onBlock(provider, trackUri, title, reason.takeIf { it.isNotBlank() })
-                    trackUri = ""
-                    title = ""
-                    reason = ""
-                },
-                enabled = enabled && canBlock,
-            ) {
-                Text(text = stringResource(Res.string.music_block_action))
             }
         }
     }

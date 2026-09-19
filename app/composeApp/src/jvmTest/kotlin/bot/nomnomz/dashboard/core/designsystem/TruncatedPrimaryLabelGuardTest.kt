@@ -63,7 +63,9 @@ class TruncatedPrimaryLabelGuardTest {
             "liveops/ui/ScheduleScreen.kt" to 1,
             "mediashare/ui/MediaShareScreen.kt" to 1,
             "moderation/ui/ModerationScreen.kt" to 6,
-            "music/ui/MusicScreen.kt" to 7,
+            // S-OBS-04: the request queue's blocked-track section (trackUri + reason, both secondary
+            // reference text) moved to Song Requests — Music kept only its own now-playing card sites.
+            "music/ui/MusicScreen.kt" to 3,
             "participant/ui/ParticipantShell.kt" to 1,
             // Fixed in a separate, already-committed slice (tree-editor containment/depth); this is its
             // own remaining secondary count, tracked here rather than left to drift unnoticed.
@@ -73,7 +75,9 @@ class TruncatedPrimaryLabelGuardTest {
             "roles/ui/RolesScreen.kt" to 2,
             "settings/ui/SettingsScreen.kt" to 2,
             "shell/ui/ShellScreen.kt" to 1,
-            "songrequests/ui/SongRequestsScreen.kt" to 2,
+            // S-OBS-04: +2 for the blocked-track row's trackUri + reason, moved here from Music along
+            // with the rest of the blocked-track list (secondary reference text, not a row's own name).
+            "songrequests/ui/SongRequestsScreen.kt" to 4,
             "sound/ui/SoundScreen.kt" to 1,
             "supporters/ui/SupportersScreen.kt" to 1,
             "tts/ui/TtsScreen.kt" to 1,

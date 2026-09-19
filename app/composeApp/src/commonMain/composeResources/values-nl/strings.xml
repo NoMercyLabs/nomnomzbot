@@ -2591,6 +2591,7 @@
     <string name="music_seek_back_description">10 seconden terugspoelen</string>
     <string name="music_seek_forward_description">10 seconden vooruitspoelen</string>
     <string name="music_skip">Overslaan</string>
+    <string name="music_manage_song_requests">Verzoeknummers beheren →</string>
     <string name="music_queue_label">Hierna</string>
     <string name="music_queue_empty">De wachtrij is leeg.</string>
     <string name="music_position">%1$d</string>
@@ -4524,6 +4525,7 @@
     <string name="mediashare_skip">Overslaan</string>
     <string name="mediashare_move_up">Omhoog</string>
     <string name="mediashare_move_down">Omlaag</string>
+    <string name="mediashare_play">Afspelen</string>
     <string name="mediashare_reject_title">Clip afwijzen?</string>
     <string name="mediashare_reject_message">"%1$s" afwijzen? De clip wordt uit de wachtrij verwijderd.</string>
     <string name="mediashare_reject_confirm">Afwijzen</string>
