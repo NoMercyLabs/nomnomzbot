@@ -788,6 +788,9 @@ public sealed class YouTubeLiveChatPollWorkerTests
         // The publisher's blacklist gate (J.12) resolves the registry; an empty one = nobody blacklisted.
         services.AddSingleton(NSubstitute.Substitute.For<IChannelRegistry>());
         services.AddSingleton<IBotSelfEchoGuard>(selfEchoGuard ?? new FakeBotSelfEchoGuard());
+        // Sticker-image resolution (S-YT-STICKER-IMAGE) is irrelevant to this worker-seam suite — a no-op
+        // stand-in keeps every existing case's DI intact without pulling in the asset-upload machinery.
+        services.AddSingleton<IYouTubeSuperStickerAssetResolver>(new NoOpStickerAssetResolver());
         ServiceProvider provider = services.BuildServiceProvider();
 
         YouTubeLiveChatPollWorker worker = new(
@@ -921,6 +924,19 @@ public sealed class YouTubeLiveChatPollWorkerTests
             Guid broadcasterId,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(token);
+    }
+
+    /// <summary>
+    /// This worker-seam suite proves chat-message publishing, not sticker images (S-YT-STICKER-IMAGE
+    /// covers that separately) — a stand-in that never resolves keeps the DI graph complete.
+    /// </summary>
+    private sealed class NoOpStickerAssetResolver : IYouTubeSuperStickerAssetResolver
+    {
+        public Task<string?> ResolveAssetUrlAsync(
+            Guid broadcasterId,
+            string stickerId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult<string?>(null);
     }
 
     /// <summary>
