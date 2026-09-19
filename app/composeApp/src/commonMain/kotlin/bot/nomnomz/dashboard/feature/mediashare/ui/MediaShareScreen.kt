@@ -31,6 +31,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -93,6 +95,7 @@ import nomnomzbot.composeapp.generated.resources.mediashare_max_duration
 import nomnomzbot.composeapp.generated.resources.mediashare_max_queue
 import nomnomzbot.composeapp.generated.resources.mediashare_move_down
 import nomnomzbot.composeapp.generated.resources.mediashare_move_up
+import nomnomzbot.composeapp.generated.resources.mediashare_play
 import nomnomzbot.composeapp.generated.resources.mediashare_queue_title
 import nomnomzbot.composeapp.generated.resources.mediashare_reject
 import nomnomzbot.composeapp.generated.resources.mediashare_reject_confirm
@@ -131,10 +134,18 @@ fun MediaShareScreen(
     controller: MediaShareController,
     role: ManagementRole?,
     hubEvents: SharedFlow<HubEvent>? = null,
+    // Opens a queue row's real clip URL — defaults to the platform browser (LocalUriHandler, the same seam
+    // OAuthLauncher/LinkedText use); a test injects a recording lambda instead so it can prove the CORRECT
+    // row's own sourceUrl was opened, not always the first (S-OBS-07). No first-party WebView/iframe primitive
+    // exists in this design system across desktop-JVM + wasmJs, so embedding a player inline isn't practical
+    // here — opening the real clip externally is the reachable, cross-platform "watchable" fix for this slice.
+    onOpenMedia: ((String) -> Unit)? = null,
 ) {
     val state: MediaShareUiState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
+    val uriHandler = LocalUriHandler.current
+    val openMedia: (String) -> Unit = onOpenMedia ?: { url -> uriHandler.openUri(url) }
 
     // Queue moderate actions gate at the page's Moderator floor; the config write gates one rung up at Editor.
     val moderate: ManageDecision = rememberManageDecision(role, ShellRoute.MediaShare)
@@ -178,6 +189,7 @@ fun MediaShareScreen(
                         onReject = { request -> pendingReject = request },
                         onSkip = { request -> pendingSkip = request },
                         onReorder = { id, position -> scope.launch { controller.reorder(id, position) } },
+                        onOpen = openMedia,
                     )
 
                     ConfigCard(
@@ -252,6 +264,7 @@ private fun QueueCard(
     onReject: (MediaShareRequest) -> Unit,
     onSkip: (MediaShareRequest) -> Unit,
     onReorder: (id: String, position: Int) -> Unit,
+    onOpen: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -277,6 +290,7 @@ private fun QueueCard(
                         onReject = onReject,
                         onSkip = onSkip,
                         onReorder = onReorder,
+                        onOpen = onOpen,
                     )
                     if (index < queue.lastIndex) Separator()
                 }
@@ -296,6 +310,7 @@ private fun QueueRow(
     onReject: (MediaShareRequest) -> Unit,
     onSkip: (MediaShareRequest) -> Unit,
     onReorder: (id: String, position: Int) -> Unit,
+    onOpen: (String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -349,6 +364,16 @@ private fun QueueRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+
+        // Opens the clip's real URL (S-OBS-07) — read-only, so it's available to anyone who can see this page,
+        // not gated behind the moderate floor like the write actions below. Disabled when a row somehow has no
+        // URL (shouldn't happen for a real submission, but never wire a click to an empty string).
+        GlyphButton(
+            icon = PlayCircleGlyph,
+            label = stringResource(Res.string.mediashare_play),
+            onClick = { onOpen(request.sourceUrl) },
+            enabled = request.sourceUrl.isNotBlank(),
+        )
 
         if (actionable) {
             // Reorder within the lane: up decrements, down increments the 0-based queue position.
