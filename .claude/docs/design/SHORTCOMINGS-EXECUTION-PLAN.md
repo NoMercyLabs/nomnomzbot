@@ -900,10 +900,6 @@ survive independently as the queue is worked top to bottom.
 - **S-OBS-11** replying to a chat message with `!quote` should create a credited quote from the message
   being replied to (quote text + author credited), not just log the invoking user's own line. Done-when:
   `!quote` as a reply captures the replied-to message and credits its author.
-- **S-OBS-12** (owner clarified 2026-09-15) `!quote N` already reads stored quote #N (spec quotes.md D2,
-  `QuoteBuiltinTests` green). Remaining ask: posting it in chat gets a per-channel toggleable TTS option
-  (speak the quote too). Owner removes his own custom `!quote` command so it cannot interfere.
-  Done-when: with the toggle on, `!quote N` posts the quote AND queues it to TTS; toggle off → chat only.
 
 ---
 
