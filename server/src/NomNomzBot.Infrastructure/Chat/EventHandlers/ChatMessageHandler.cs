@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -26,6 +27,7 @@ using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.MediaShare.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Commands.Events;
@@ -188,6 +190,18 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             {
                 await FireSoundTriggerAsync(soundTrigger, @event, cancellationToken);
                 return;
+            }
+
+            // Passive Twitch clip link (S-OBS-08, media-share.md): a bare clip URL posted without the
+            // !media prefix goes through the exact same submit path the built-in uses, so it lands in the
+            // same moderator approval queue under the identical config gates (enabled/approval/allowed
+            // source/cooldown/queue length). A `!media <url>` message never reaches this branch — it is
+            // dispatched as a command above, so the two paths are mutually exclusive by construction.
+            if (channelCtx is not null)
+            {
+                string? clipUrl = ExtractTwitchClipUrl(text);
+                if (clipUrl is not null)
+                    await SubmitPassiveClipLinkAsync(@event, clipUrl, cancellationToken);
             }
 
             // Ordinary chat line — the keyword chat-trigger surface ("someone says X → the bot reacts").
@@ -1120,6 +1134,69 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 ex,
                 "Sound trigger {ClipId} failed in {Channel}",
                 trigger.ClipId,
+                @event.BroadcasterId
+            );
+        }
+    }
+
+    // A Twitch clip URL matched anywhere in the message — clips.twitch.tv/<slug>, or (m./www.)twitch.tv/
+    // [<channel>/]clip/<slug> — mirroring MediaSourceResolver.TwitchClipPattern (media-share.md D2) so the
+    // passive scan recognizes exactly the same set of URLs !media itself accepts. Whole-URL capture (not
+    // just the slug) so the submitted SourceUrl is a real, resolvable link rather than the raw chat line.
+    private static readonly Regex TwitchClipUrlPattern = new(
+        @"(?:https?://)?(?:clips\.twitch\.tv/[A-Za-z0-9_-]+|(?:m\.|www\.)?twitch\.tv/(?:\w+/)?clip/[A-Za-z0-9_-]+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// Extracts the first Twitch clip URL found anywhere in an ordinary chat line — not the whole message
+    /// (a chatter saying "check this out https://clips.twitch.tv/xyz" still submits, matching how !media's
+    /// own resolver already extracts a clip slug from anywhere within the string it's given). Null when no
+    /// clip URL is present.
+    /// </summary>
+    private static string? ExtractTwitchClipUrl(string text)
+    {
+        Match m = TwitchClipUrlPattern.Match(text);
+        return m.Success ? m.Value : null;
+    }
+
+    /// <summary>
+    /// Passive clip-link auto-submit (S-OBS-08): routes a bare clip URL through the exact same
+    /// <see cref="IMediaShareService.SubmitAsync"/> call the <c>!media</c> built-in uses, so it lands in the
+    /// same moderator approval queue under the identical config gates. Unlike !media (an explicit ask that
+    /// replies with the outcome), this is a silent background scan — a rejection (disabled, cooldown, queue
+    /// full, disallowed source) never notices the chatter and never reaches the chat hot path.
+    /// </summary>
+    private async Task SubmitPassiveClipLinkAsync(
+        ChatMessageReceivedEvent @event,
+        string clipUrl,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IUserService users = scope.ServiceProvider.GetRequiredService<IUserService>();
+            Result<UserDto> caller = await users.GetOrCreateAsync(
+                @event.UserId,
+                @event.UserLogin,
+                @event.UserDisplayName,
+                @event.Provider,
+                ct
+            );
+            if (caller.IsFailure || !Guid.TryParse(caller.Value.Id, out Guid viewerUserId))
+                return;
+
+            IMediaShareService media =
+                scope.ServiceProvider.GetRequiredService<IMediaShareService>();
+            await media.SubmitAsync(@event.BroadcasterId, viewerUserId, new(clipUrl), ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Passive clip-link submit failed for {User} in {Channel}",
+                @event.UserDisplayName,
                 @event.BroadcasterId
             );
         }
