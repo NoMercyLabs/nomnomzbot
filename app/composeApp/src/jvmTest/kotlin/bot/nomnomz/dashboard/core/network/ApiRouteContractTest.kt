@@ -25,7 +25,10 @@ import kotlin.test.fail
  * regenerated snapshot; this test is that diff made permanent.
  *
  * STRUCTURAL by design — it scans the client sources for URL literals rather than listing them, so a route
- * added tomorrow is covered without anyone remembering to add it here.
+ * added tomorrow is covered without anyone remembering to add it here. The scan covers every production
+ * (`*Main`) source set, not just `core/network` — `OAuthLauncher.jvm.kt`, `OAuthLauncher.wasmJs.kt`, and
+ * `TwitchAppCredentialsController.kt` build request/redirect URLs with a leading slash outside that
+ * package, and were invisible to the original directory-scoped, no-leading-slash scan.
  */
 class ApiRouteContractTest {
 
@@ -33,13 +36,18 @@ class ApiRouteContractTest {
      * `client.getEnvelope("api/v1/channels/$channelId/trust/policy")` → `api/v1/channels/{}/trust/policy`.
      * Kotlin interpolations (`$id`, `${'$'}{x.y}`) become `{}`, matching how the spec templates its own
      * parameters, so the comparison is about the literal segments — which is exactly where typos live.
+     *
+     * The leading slash is optional: `core/network` clients build paths without one
+     * (`"api/v1/channels/…"`), while `OAuthLauncher`/`TwitchAppCredentialsController` build full
+     * request/redirect URLs with one (`"/api/v1/auth/twitch"`) — both are the same route.
      */
-    private val urlLiteral: Regex = Regex(""""(api/v1/[^"]*)"""")
+    private val urlLiteral: Regex = Regex(""""(/?api/v1/[^"]*)"""")
     private val interpolation: Regex = Regex("""\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*""")
 
     private fun normalise(raw: String): String =
         interpolation
             .replace(raw, "{}")
+            .removePrefix("/")
             // The spec templates the version segment; the client hardcodes v1.
             .replaceFirst("api/v1/", "api/v{}/")
             .let { path -> Regex("""\{[^}]*}""").replace(path, "{}") }
@@ -107,6 +115,28 @@ class ApiRouteContractTest {
             )
     }
 
+    /**
+     * `OAuthLauncher.jvm.kt`/`.wasmJs.kt` and `TwitchAppCredentialsController.kt` build URLs as
+     * `"/api/v1/auth/twitch"` (leading slash) while `core/network` clients build `"api/v1/…"` (none) — both
+     * name the same route, so normalisation must collapse them to the identical string. Regression for the
+     * original regex (`"(api/v1/…)"`), which anchored on a quote immediately followed by `api`, so a
+     * leading-slash literal never matched at all and those three files were silently unchecked.
+     */
+    @Test
+    fun leading_slash_literal_normalises_the_same_as_no_leading_slash() {
+        val withSlash: String = normalise("/api/v1/auth/twitch")
+        val withoutSlash: String = normalise("api/v1/auth/twitch")
+        if (withSlash != withoutSlash)
+            fail(
+                "\"/api/v1/auth/twitch\" normalised to \"$withSlash\" but \"api/v1/auth/twitch\" " +
+                    "normalised to \"$withoutSlash\" — they name the same route and must match."
+            )
+
+        val matched: Boolean = urlLiteral.containsMatchIn("\"/api/v1/auth/twitch/bot\"")
+        if (!matched)
+            fail("urlLiteral did not match a leading-slash literal — the scan would silently skip it.")
+    }
+
     @Test
     fun every_client_rest_url_matches_a_route_the_api_serves() {
         val specPaths: List<String> =
@@ -116,12 +146,11 @@ class ApiRouteContractTest {
                 .keys
                 .map { path -> normalise(path.removePrefix("/")) }
 
-        val networkDir = File(sourceRoot(), "commonMain/kotlin/bot/nomnomz/dashboard/core/network")
         val offenders: MutableList<String> = mutableListOf()
         var checked = 0
 
-        networkDir
-            .walkTopDown()
+        mainSourceDirs()
+            .flatMap { dir -> dir.walkTopDown() }
             .filter { file -> file.isFile && file.extension == "kt" }
             .forEach { file ->
                 urlLiteral.findAll(file.readText()).forEach { match ->
@@ -167,4 +196,17 @@ class ApiRouteContractTest {
         }
         fail("Could not locate app/composeApp/src from ${System.getProperty("user.dir")}")
     }
+
+    /**
+     * Every production Kotlin source set (`commonMain`, `jvmMain`, `wasmJsMain`, …) — `*Test` source sets are
+     * excluded because their fixtures build fake URLs on purpose. Route literals live outside `core/network`
+     * too: `OAuthLauncher.jvm.kt`/`OAuthLauncher.wasmJs.kt` build the platform-specific authorize redirect,
+     * and `TwitchAppCredentialsController.kt` builds the redirect URL shown to the user — both are real
+     * requests the API must actually serve.
+     */
+    private fun mainSourceDirs(): List<File> =
+        sourceRoot()
+            .listFiles { file -> file.isDirectory && file.name.endsWith("Main") }
+            ?.toList()
+            ?: fail("Could not list source sets under ${sourceRoot()}")
 }
