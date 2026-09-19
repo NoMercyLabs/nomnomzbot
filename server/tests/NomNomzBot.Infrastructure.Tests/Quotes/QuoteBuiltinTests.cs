@@ -351,6 +351,82 @@ public sealed class QuoteBuiltinTests
         result.Value.Should().Be("#1: \"no overlay attached\"");
     }
 
+    /// <summary>
+    /// S-OBS-11 regression guard: a bare <c>!quote</c> (no sub-verb, no number) sent as a chat REPLY must not
+    /// silently answer with a random existing quote and ignore the reply — it must capture the REPLIED-TO
+    /// message's text and credit its REAL author, exactly like <c>!quote add</c> with no text does.
+    /// </summary>
+    [Fact]
+    public async Task Quote_AsReplyWithNoArgs_CreatesACreditedQuoteFromTheRepliedToMessage()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true);
+
+        // The invoker ("viewer", per Context()) replies to "aaoa_"'s message "get rekt" with bare `!quote`.
+        Result<string> reply = await builtin.ExecuteAsync(
+            Context(channel, string.Empty, replyBody: "get rekt", replyUser: "aaoa_")
+        );
+
+        reply.Value.Should().Be("Added #1: \"get rekt\" — aaoa_");
+        Result<QuoteDto> stored = await quotes.GetAsync(channel, 1);
+        stored.IsSuccess.Should().BeTrue();
+        stored.Value.Text.Should().Be("get rekt");
+        stored.Value.QuotedDisplayName.Should().Be("aaoa_");
+    }
+
+    /// <summary>
+    /// A NUMBERED read (<c>!quote &lt;n&gt;</c>) sent as a reply is unambiguous read intent — the reply
+    /// context must never hijack it into an add. Only a bare, argument-less <c>!quote</c> is reinterpreted.
+    /// </summary>
+    [Fact]
+    public async Task Quote_WithNumber_AsReply_StillReadsThatQuote_IgnoringTheReplyContext()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(channel, new("only one", null, null, null, null));
+        QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true);
+
+        Result<string> result = await builtin.ExecuteAsync(
+            Context(channel, "1", replyBody: "unrelated reply text", replyUser: "someone")
+        );
+
+        result.Value.Should().Be("#1: \"only one\"");
+        // Nothing new was written — the library still holds exactly the one seeded quote.
+        Result<QuoteDto> second = await quotes.GetAsync(channel, 2);
+        second.IsFailure.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Without write permission, a bare reply-`!quote` degrades to the normal Everyone-level read rather than
+    /// surfacing a permission error for what looks like a plain read command.
+    /// </summary>
+    [Fact]
+    public async Task Quote_AsReplyWithNoArgs_WithoutWritePermission_FallsBackToANormalRead()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(channel, new("only one", null, null, null, null));
+        QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: false);
+
+        Result<string> result = await builtin.ExecuteAsync(
+            Context(channel, string.Empty, replyBody: "get rekt", replyUser: "aaoa_")
+        );
+
+        result.Value.Should().Be("#1: \"only one\"");
+        Result<QuoteDto> second = await quotes.GetAsync(channel, 2);
+        second.IsFailure.Should().BeTrue();
+    }
+
     // ─── Add ─────────────────────────────────────────────────────────────────
 
     [Fact]

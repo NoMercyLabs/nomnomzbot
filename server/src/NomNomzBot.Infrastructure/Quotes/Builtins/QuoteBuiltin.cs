@@ -24,7 +24,12 @@ namespace NomNomzBot.Infrastructure.Quotes.Builtins;
 /// everyone; the mutating sub-commands gate on the SAME capability keys the REST surface uses, so chat is a
 /// second surface and never a bypass:
 /// <list type="bullet">
-///   <item><c>!quote</c> → a random quote; <c>!quote &lt;n&gt;</c> → that quote (Everyone).</item>
+///   <item><c>!quote</c> → a random quote; <c>!quote &lt;n&gt;</c> → that quote (Everyone). A BARE
+///   <c>!quote</c> (no verb, no number) sent as a chat REPLY is instead treated as <c>!quote add</c> with no
+///   text — it captures the replied-to message and credits its real author, gated on <c>quotes:write</c> the
+///   same as an explicit <c>add</c>; an unpermitted caller degrades to the normal random read rather than
+///   seeing an "add quotes" permission error for what looks like a plain read command. A NUMBERED read
+///   (<c>!quote &lt;n&gt;</c>) sent as a reply is unambiguous read intent and is never reinterpreted.</item>
 ///   <item><c>!quote add &lt;text&gt;</c> → a new quote (<c>quotes:write</c>). Used as a REPLY with no text it
 ///   captures the replied-to message and attributes it to that user — the natural way to quote someone.</item>
 ///   <item><c>!quote edit|update &lt;n&gt; &lt;text&gt;</c> → re-body a quote, keeping its attribution
@@ -70,14 +75,44 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     {
         (string verb, string rest) = SplitVerb(context.Args);
 
+        // A bare `!quote` (no verb at all — not even a number) sent as a chat REPLY has unambiguous intent:
+        // quote the message being replied to, not answer with an unrelated random quote. A NUMBERED read
+        // (`!quote <n>`) is never reinterpreted this way — only the fully argument-less form is.
+        bool bareWithReplyTarget =
+            verb.Length == 0 && !string.IsNullOrWhiteSpace(context.ReplyParentMessageBody);
+
         return verb switch
         {
             "add" => await AddAsync(context, rest, ct),
             "edit" or "update" => await EditAsync(context, rest, ct),
             "del" or "delete" or "remove" => await DeleteAsync(context, rest, ct),
-            // Anything else (empty, a number, or a stray word) is a read — a number posts that quote, else random.
+            _ when bareWithReplyTarget => await AddFromBareReplyOrReadAsync(context, ct),
+            // Anything else (empty with no reply, a number, or a stray word) is a read — a number posts
+            // that quote, else random.
             _ => await ReadAsync(context, ct),
         };
+    }
+
+    /// <summary>
+    /// The bare-`!quote`-as-reply case (root cause of S-OBS-11: replying with plain <c>!quote</c> used to fall
+    /// straight into <see cref="ReadAsync"/> and answer with an unrelated random quote, ignoring the reply
+    /// entirely — never crediting the replied-to author). Gates on the SAME <c>quotes:write</c> capability
+    /// <see cref="AddAsync"/> requires, since this silently performs an add; an unpermitted caller degrades to
+    /// the ordinary Everyone-level read rather than surfacing an "add quotes" permission error for what reads
+    /// in chat as a plain lookup command.
+    /// </summary>
+    private async Task<Result<string>> AddFromBareReplyOrReadAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    )
+    {
+        // Reuses the SAME AuthorizeAsync seam AddAsync uses — one authorization mechanism, not a parallel
+        // capability check. A denial here is a graceful degrade (silently fall back to the normal read), so
+        // the failure's error message is deliberately discarded rather than surfaced.
+        Result<Guid> invoker = await AuthorizeAsync(context, WriteCapability, "add quotes", ct);
+        return invoker.IsSuccess
+            ? await AddAsAuthorizedAsync(context, string.Empty, invoker.Value, ct)
+            : await ReadAsync(context, ct);
     }
 
     /// <summary><c>!quote</c> / <c>!quote &lt;n&gt;</c> — always replies, even when the quote/library is absent.</summary>
@@ -147,9 +182,24 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     )
     {
         Result<Guid> invoker = await AuthorizeAsync(context, WriteCapability, "add quotes", ct);
-        if (invoker.IsFailure)
-            return Result.Success(invoker.ErrorMessage!);
+        return invoker.IsFailure
+            ? Result.Success(invoker.ErrorMessage!)
+            : await AddAsAuthorizedAsync(context, rest, invoker.Value, ct);
+    }
 
+    /// <summary>
+    /// The add itself, once a caller has already cleared <c>quotes:write</c> — split out from
+    /// <see cref="AddAsync"/> so the bare-`!quote`-as-reply path (<see cref="AddFromBareReplyOrReadAsync"/>)
+    /// can reuse the SAME <see cref="AuthorizeAsync"/> call it already made for its routing decision, instead
+    /// of resolving and checking the invoker's capability a second time.
+    /// </summary>
+    private async Task<Result<string>> AddAsAuthorizedAsync(
+        BuiltinCommandContext context,
+        string rest,
+        Guid invokerId,
+        CancellationToken ct
+    )
+    {
         string? replyBody = context.ReplyParentMessageBody?.Trim();
         bool captureReply = !string.IsNullOrWhiteSpace(replyBody);
 
@@ -164,7 +214,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
 
         Result<QuoteDto> added = await _quotes.AddAsync(
             context.BroadcasterId,
-            new(text, attribution, null, null, invoker.Value),
+            new(text, attribution, null, null, invokerId),
             ct
         );
 
