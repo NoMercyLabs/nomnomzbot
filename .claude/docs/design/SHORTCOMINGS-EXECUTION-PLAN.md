@@ -874,10 +874,6 @@ survive independently as the queue is worked top to bottom.
   replaces it a moment later, showing wrong data briefly before the correct data appears. Done-when:
   either the cache is never shown when a fresher fetch is already in flight, or the UI clearly marks
   cached data as loading/stale until the real response lands — no silent wrong-then-right flash.
-- **S-OBS-02** multi-chat channel badges don't show the broadcaster's own Twitch chat-color per channel
-  (the dashboard's dynamic accent already derives from chat color elsewhere — reuse that mechanism).
-  Done-when: each channel's badge in the combined multi-chat view is tinted with that broadcaster's
-  real chat color.
 - **S-OBS-03** no single place for server errors — errors need to surface both (a) in one consistent
   place (top-of-page banner or snackbar) AND (b) inline at the exact control/location that caused them.
   Done-when: every server error the dashboard receives does both, consistently, everywhere.
@@ -891,10 +887,6 @@ survive independently as the queue is worked top to bottom.
 - **S-OBS-07** media page's `!media <url>` command works but the resulting media has no click-to-open
   popup, no on-page player, and no overlay-widget playback — it's captured but never actually watchable
   from the dashboard. Done-when: a `!media` result can be opened/played from the dashboard or an overlay.
-- **S-OBS-08** bare Twitch clip links (no `!media` prefix) in chat should auto-enqueue into the same
-  moderator approval queue `!media` uses, and be playable directly in that queue for review. Done-when:
-  a plain clip link posted in chat appears in the approval queue, playable inline, without needing the
-  command prefix.
 
 ---
 
