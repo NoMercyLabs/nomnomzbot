@@ -17,7 +17,9 @@ import bot.nomnomz.dashboard.core.network.MediaShareApi
 import bot.nomnomz.dashboard.core.network.MediaShareConfig
 import bot.nomnomz.dashboard.core.network.MediaShareRequest
 import bot.nomnomz.dashboard.core.network.UpdateMediaShareConfigBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
@@ -40,21 +42,21 @@ class MediaShareController(
     /** The page render state: loading / ready (queue + config) / error. */
     val state: StateFlow<MediaShareUiState> = _state.asStateFlow()
 
-    // The active lane filter (null = whole queue). Kept so a write re-reads the same lane the mod is viewing.
-    private var statusFilter: String? = null
+    // The active lane filter. Kept so a write, or a hub-pushed reload, re-reads the same lane the mod is viewing.
+    private var lane: MediaShareLane = MediaShareLane.Active
 
     /** Read the whole queue (fatal on failure) + the config (best-effort → a default on failure). */
     suspend fun load() {
         if (_state.value !is MediaShareUiState.Ready) _state.value = MediaShareUiState.Loading
-        statusFilter = null
+        lane = MediaShareLane.Active
 
         val queue: List<MediaShareRequest> =
-            when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(null)) {
+            when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(lane.serverStatus)) {
                 is ApiResult.Failure -> {
                     _state.value = MediaShareUiState.Error(result.error.message)
                     return
                 }
-                is ApiResult.Ok -> result.value
+                is ApiResult.Ok -> lane.applyTo(result.value)
             }
 
         // The config is a convenience panel — a failure just falls back to defaults so the queue still renders.
@@ -64,17 +66,31 @@ class MediaShareController(
                 is ApiResult.Failure -> MediaShareConfig()
             }
 
-        _state.value = MediaShareUiState.Ready(queue = queue, config = config, statusFilter = null)
+        _state.value = MediaShareUiState.Ready(queue = queue, config = config, lane = lane)
     }
 
-    /** Re-read the queue in the [status] lane (null = all), keeping the current config. */
-    suspend fun setStatusFilter(status: String?) {
+    /** Re-read the queue in the [newLane], keeping the current config. */
+    suspend fun setStatusFilter(newLane: MediaShareLane) {
         val current: MediaShareUiState.Ready = _state.value as? MediaShareUiState.Ready ?: return
-        statusFilter = status
+        lane = newLane
 
-        when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(status)) {
-            is ApiResult.Ok -> _state.value = current.copy(queue = result.value, statusFilter = status)
+        when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(newLane.serverStatus)) {
+            is ApiResult.Ok -> _state.value = current.copy(queue = newLane.applyTo(result.value), lane = newLane)
             is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
+    /**
+     * Subscribe to [hubEvents] so the queue refreshes when another mod (or the overlay/player) changes a clip's
+     * playback state — a `media_share_playback_changed` [HubEvent.ChannelEvent] pushed by the backend whenever
+     * approve/skip/played/reject/reorder moves an item, so a played clip drops out of THIS session's Active lane
+     * without waiting for a manual reload (S-OBS-09b).
+     */
+    suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
+        hubEvents.collect { evt ->
+            if (evt is HubEvent.ChannelEvent && evt.event.type == "media_share_playback_changed") {
+                refreshQueue()
+            }
         }
     }
 
@@ -128,8 +144,8 @@ class MediaShareController(
 
     private suspend fun refreshQueue() {
         val previous: MediaShareUiState.Ready = _state.value as? MediaShareUiState.Ready ?: return
-        when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(statusFilter)) {
-            is ApiResult.Ok -> _state.value = previous.copy(queue = result.value)
+        when (val result: ApiResult<List<MediaShareRequest>> = mediaShareApi.queue(lane.serverStatus)) {
+            is ApiResult.Ok -> _state.value = previous.copy(queue = lane.applyTo(result.value))
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
@@ -141,18 +157,49 @@ class MediaShareController(
     }
 }
 
+/**
+ * The queue lane a mod is viewing. [Active] is the default (S-OBS-09b) — pending/approved/playing only, so a
+ * played or rejected clip drops out of view the instant it leaves that set, instead of lingering forever in an
+ * unfiltered list. [All] is the one lane that still shows every status (incl. rejected/skipped) as history;
+ * [Pending]/[Approved]/[Played] mirror one backend status each.
+ */
+enum class MediaShareLane {
+    Active,
+    All,
+    Pending,
+    Approved,
+    Played,
+    ;
+
+    /** The `?status=` query value the backend understands — null for [Active]/[All] (both fetch everything, then
+     * [Active] filters client-side; the backend has no combined "not played/rejected" filter to ask for). */
+    val serverStatus: String?
+        get() = when (this) {
+            Pending -> "pending"
+            Approved -> "approved"
+            Played -> "played"
+            Active, All -> null
+        }
+
+    /** Applies this lane's client-side narrowing to a freshly-fetched queue. Only [Active] narrows; every other
+     * lane already got exactly its rows from the backend (or, for [All], wants every row unfiltered). */
+    fun applyTo(queue: List<MediaShareRequest>): List<MediaShareRequest> =
+        if (this == Active) queue.filter { it.status == "pending" || it.status == "approved" || it.status == "playing" }
+        else queue
+}
+
 /** The Media-Share page render state. */
 sealed interface MediaShareUiState {
     data object Loading : MediaShareUiState
 
     /**
-     * The channel's clip [queue] in the active [statusFilter] lane (null = all) and its [config]. A failed write
-     * announces on the shell-level feedback toast rather than a field here — see [MediaShareController.failWrite].
+     * The channel's clip [queue] in the active [lane] and its [config]. A failed write announces on the
+     * shell-level feedback toast rather than a field here — see [MediaShareController.failWrite].
      */
     data class Ready(
         val queue: List<MediaShareRequest>,
         val config: MediaShareConfig,
-        val statusFilter: String? = null,
+        val lane: MediaShareLane = MediaShareLane.Active,
     ) : MediaShareUiState
 
     data class Error(val detail: String) : MediaShareUiState

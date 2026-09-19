@@ -61,12 +61,15 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.MediaShareConfig
 import bot.nomnomz.dashboard.core.network.MediaShareRequest
+import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.mediashare.state.MediaShareController
+import bot.nomnomz.dashboard.feature.mediashare.state.MediaShareLane
 import bot.nomnomz.dashboard.feature.mediashare.state.MediaShareUiState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.mediashare_allow_twitch_clips
@@ -79,6 +82,7 @@ import nomnomzbot.composeapp.generated.resources.mediashare_empty
 import nomnomzbot.composeapp.generated.resources.mediashare_enabled
 import nomnomzbot.composeapp.generated.resources.mediashare_entry_cost
 import nomnomzbot.composeapp.generated.resources.mediashare_error
+import nomnomzbot.composeapp.generated.resources.mediashare_filter_active
 import nomnomzbot.composeapp.generated.resources.mediashare_filter_all
 import nomnomzbot.composeapp.generated.resources.mediashare_filter_approved
 import nomnomzbot.composeapp.generated.resources.mediashare_filter_pending
@@ -123,7 +127,11 @@ import org.jetbrains.compose.resources.stringResource
 // manage floor; the config write gates one rung higher, at Editor. Viewers submit clips via the `!media <url>`
 // chat command or a channel-point redeem — never from this page (the config card notes this).
 @Composable
-fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
+fun MediaShareScreen(
+    controller: MediaShareController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: MediaShareUiState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -136,6 +144,11 @@ fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
     var pendingSkip: MediaShareRequest? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
+    // A played/skipped/reorder change pushed by another mod or the overlay reaches THIS session too
+    // (S-OBS-09b) — without this the queue only ever refreshed after this session's own write.
+    if (hubEvents != null) {
+        LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when (val current: MediaShareUiState = state) {
@@ -153,8 +166,8 @@ fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
                     )
 
                     StatusFilterRow(
-                        selected = current.statusFilter,
-                        onSelect = { status -> scope.launch { controller.setStatusFilter(status) } },
+                        selected = current.lane,
+                        onSelect = { lane -> scope.launch { controller.setStatusFilter(lane) } },
                     )
 
                     QueueCard(
@@ -210,12 +223,13 @@ fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
 // ── queue ─────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StatusFilterRow(selected: String?, onSelect: (String?) -> Unit) {
+private fun StatusFilterRow(selected: MediaShareLane, onSelect: (MediaShareLane) -> Unit) {
     TabsList {
-        FilterSegment(label = stringResource(Res.string.mediashare_filter_all), active = selected == null, onClick = { onSelect(null) })
-        FilterSegment(label = stringResource(Res.string.mediashare_filter_pending), active = selected == "pending", onClick = { onSelect("pending") })
-        FilterSegment(label = stringResource(Res.string.mediashare_filter_approved), active = selected == "approved", onClick = { onSelect("approved") })
-        FilterSegment(label = stringResource(Res.string.mediashare_filter_played), active = selected == "played", onClick = { onSelect("played") })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_active), active = selected == MediaShareLane.Active, onClick = { onSelect(MediaShareLane.Active) })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_all), active = selected == MediaShareLane.All, onClick = { onSelect(MediaShareLane.All) })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_pending), active = selected == MediaShareLane.Pending, onClick = { onSelect(MediaShareLane.Pending) })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_approved), active = selected == MediaShareLane.Approved, onClick = { onSelect(MediaShareLane.Approved) })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_played), active = selected == MediaShareLane.Played, onClick = { onSelect(MediaShareLane.Played) })
     }
 }
 
