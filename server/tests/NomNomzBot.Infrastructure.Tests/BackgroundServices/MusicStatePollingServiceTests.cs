@@ -434,7 +434,11 @@ public sealed class MusicStatePollingServiceTests
         FakeMusicService MusicService,
         FakeTimeProvider Clock,
         RecordingHandover Handover
-    ) Build(IReadOnlyList<Guid> connectedChannels, IReadOnlyList<Guid>? needsReauth = null)
+    ) Build(
+        IReadOnlyList<Guid> connectedChannels,
+        IReadOnlyList<Guid>? needsReauth = null,
+        bool? watched = true
+    )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         foreach (Guid channelId in connectedChannels)
@@ -475,7 +479,16 @@ public sealed class MusicStatePollingServiceTests
         FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
         PollerScopeFactory scopes = new(db, music);
+        // Which cadence tier the channel sits in: true = known and live (full speed when playing), false =
+        // known but offline with nobody watching (idle tier), null = the registry has not seen it yet.
+        // Defaulting to true is the production shape; a bare substitute returns null for every Get, which is
+        // the "not seen yet" tier and would make most of these tests measure the wrong thing.
         IChannelRegistry channelRegistry = Substitute.For<IChannelRegistry>();
+        channelRegistry
+            .Get(Arg.Any<Guid>())
+            .Returns(call =>
+                watched is null ? null : Context(call.Arg<Guid>(), isLive: watched.Value)
+            );
         MusicStatePollingService sut = new(
             scopes,
             bus,
@@ -486,6 +499,129 @@ public sealed class MusicStatePollingServiceTests
 
         return (sut, bus, music, clock, scopes.Handover);
     }
+
+    /// <summary>
+    /// The 429 story, as a test. A live channel with a SILENT player answered 204 "nothing playing" on every
+    /// 1s tick, and on the hosted profile that idle traffic is spent out of the same app-wide Spotify budget a
+    /// playing channel needs — 2348 of 3776 calls (62%) were 204 and 948 (25%) came back 429 on the deployed
+    /// box, 2026-09-21. A watched-but-silent channel must therefore coast at the quiet cadence, not full speed.
+    /// </summary>
+    [Fact]
+    public async Task A_watched_channel_with_nothing_playing_stops_burning_the_budget_every_tick()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus _,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: false, progressMs: 0));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        music.Calls.Should().HaveCount(1, "the first observation always happens");
+
+        // Four 1s ticks that previously each cost a Spotify call.
+        for (int tick = 0; tick < 4; tick++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        }
+
+        music.Calls.Should().HaveCount(1, "a silent player is not worth a call every second");
+
+        clock.Advance(TimeSpan.FromSeconds(1)); // 5s since the last poll — quiet cadence elapsed.
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().HaveCount(2, "it must still be polled, just five times less often");
+    }
+
+    /// <summary>A channel that IS playing keeps full cadence — the overlay's responsiveness is the whole point,
+    /// and it is the idle traffic, never the useful traffic, that was starving the budget.</summary>
+    [Fact]
+    public async Task A_channel_that_is_actually_playing_keeps_the_full_cadence()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus _,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        for (int tick = 0; tick < 3; tick++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        }
+
+        music.Calls.Should().HaveCount(4, "every second, while there is something to report");
+    }
+
+    /// <summary>Nobody live and nobody watching: the slowest tier, unchanged.</summary>
+    [Fact]
+    public async Task An_unwatched_channel_coasts_at_the_idle_cadence()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus _,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA], watched: false);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        clock.Advance(TimeSpan.FromSeconds(30));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music
+            .Calls.Should()
+            .HaveCount(1, "offline with no viewer of the answer — 30s is not due yet");
+
+        clock.Advance(TimeSpan.FromSeconds(30)); // 60s total.
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().HaveCount(2);
+    }
+
+    /// <summary>A channel the registry has not seen yet sits at the quiet cadence, not full speed: after a
+    /// restart EVERY channel is briefly unknown, and defaulting those to 1s put the whole fleet on the fast
+    /// tier at exactly the moment the budget is most contended.</summary>
+    [Fact]
+    public async Task An_unregistered_channel_does_not_default_to_the_fastest_cadence()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus _,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover _
+        ) = Build([ChannelA], watched: null);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().HaveCount(1, "an unknown channel must not hold a full 1s share");
+
+        clock.Advance(TimeSpan.FromSeconds(4)); // 5s since the last poll.
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().HaveCount(2, "but it is still observed promptly");
+    }
+
+    private static ChannelContext Context(Guid channelId, bool isLive) =>
+        new()
+        {
+            BroadcasterId = channelId,
+            TwitchChannelId = channelId.ToString("N"),
+            ChannelName = "poller-test",
+            IsLive = isLive,
+        };
 
     private static NowPlaying NowPlayingState(
         string trackName,

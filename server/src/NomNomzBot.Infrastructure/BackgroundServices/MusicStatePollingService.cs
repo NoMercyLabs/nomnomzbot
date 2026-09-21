@@ -80,6 +80,15 @@ public sealed class MusicStatePollingService : BackgroundService
     // to show the answer to — see ResiliencePolicies.AddSpotifyResilienceHandler for the budget this frees.
     private static readonly TimeSpan IdlePollInterval = TimeSpan.FromSeconds(60);
 
+    // The cadence for a WATCHED channel whose player is not actually playing anything. Being watched is not the
+    // same as having something to report: a live channel with the music paused answered 204 "nothing playing" on
+    // every one of its 1s ticks, and that is where the Spotify budget went — 2348 of 3776 calls in one 30-minute
+    // run (62%) returned 204, while 948 (25%) came back 429 because of the volume (measured on the deployed box
+    // 2026-09-21). Spotify's limit is per-app, so on the hosted profile every channel's idle polling is spent
+    // out of the SAME budget a playing channel needs. Polling a silent player five times slower costs at most
+    // this long to notice playback starting, and hands that budget back to the channels actually playing.
+    private static readonly TimeSpan QuietPollInterval = TimeSpan.FromSeconds(5);
+
     // A "seek" is flagged when observed progress diverges from the time-elapsed-implied progress by more than
     // this, while track + play state are otherwise unchanged. At a 1s poll interval this only needs to absorb
     // ordinary network/scheduling jitter between ticks, not multi-second slack — a genuine seek is still many
@@ -208,8 +217,8 @@ public sealed class MusicStatePollingService : BackgroundService
             )
                 continue; // Still cooling down after a recent failure — skip silently, no logspam.
 
-            if (!IsFastPollEligible(channelId) && !IsIdlePollDue(channelId, now))
-                continue; // Offline and nobody's watching — coast at IdlePollInterval instead of every tick.
+            if (!IsPollDue(channelId, now))
+                continue; // Not due at this channel's own cadence — see CadenceFor.
 
             _lastPolledAt[channelId] = now;
 
@@ -242,23 +251,37 @@ public sealed class MusicStatePollingService : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Fast (flat 1s) cadence applies while the channel is live, OR while at least one dashboard music
-    /// panel / overlay now-playing widget / Stream Deck song.changed subscriber is currently connected for
-    /// it (<see cref="IChannelRegistry.HasMusicDemand"/>). An unregistered channel (not yet seen by the
-    /// registry) defaults to fast — safer to over-poll a channel we know nothing about yet than to miss its
-    /// first observation.
-    /// </summary>
-    private bool IsFastPollEligible(Guid channelId)
+    /// <summary>Whether this channel's own cadence has elapsed since it was last polled.</summary>
+    private bool IsPollDue(Guid channelId, DateTimeOffset now)
     {
-        ChannelContext? ctx = _channelRegistry.Get(channelId);
-        return ctx is null || ctx.IsLive || ctx.HasMusicDemand;
+        TimeSpan cadence = CadenceFor(channelId);
+        return cadence <= PollInterval
+            || !_lastPolledAt.TryGetValue(channelId, out DateTimeOffset lastPolled)
+            || now - lastPolled >= cadence;
     }
 
-    /// <summary>Whether an idle (not fast-eligible) channel's <see cref="IdlePollInterval"/> has elapsed.</summary>
-    private bool IsIdlePollDue(Guid channelId, DateTimeOffset now) =>
-        !_lastPolledAt.TryGetValue(channelId, out DateTimeOffset lastPolled)
-        || now - lastPolled >= IdlePollInterval;
+    /// <summary>
+    /// How often to poll this channel, by how much its answer is worth right now. Full <see cref="PollInterval"/>
+    /// speed is reserved for a channel that is BOTH watched — live, or a dashboard music panel / overlay
+    /// now-playing widget / Stream Deck song.changed subscriber connected
+    /// (<see cref="IChannelRegistry.HasMusicDemand"/>) — AND actually playing something. Watched but silent drops
+    /// to <see cref="QuietPollInterval"/>, unwatched to <see cref="IdlePollInterval"/>. A channel the registry has
+    /// not seen yet sits at the quiet cadence: fast enough to pick up its first observation promptly, without an
+    /// unknown channel holding a full 1s-per-tick share of the app-wide Spotify budget indefinitely.
+    /// </summary>
+    private TimeSpan CadenceFor(Guid channelId)
+    {
+        ChannelContext? ctx = _channelRegistry.Get(channelId);
+        if (ctx is null)
+            return QuietPollInterval;
+        if (!ctx.IsLive && !ctx.HasMusicDemand)
+            return IdlePollInterval;
+        return IsActivelyPlaying(channelId) ? PollInterval : QuietPollInterval;
+    }
+
+    /// <summary>Whether the last observation for this channel had the player actually playing.</summary>
+    private bool IsActivelyPlaying(Guid channelId) =>
+        _lastState.TryGetValue(channelId, out ChannelPlaybackSnapshot? last) && last.IsPlaying;
 
     /// <summary>Every channel with an enabled, token-bearing connection to a <b>registered music provider</b>
     /// — the same connected-names ∩ registered-provider-keys eligibility
