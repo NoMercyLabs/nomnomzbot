@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -36,6 +37,16 @@ namespace NomNomzBot.Api.Controllers;
 [EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class VoiceListenerPageController : ControllerBase
 {
+    // The listener is deliberately a single-file page, so authorize its one inline script with a fresh nonce
+    // instead of weakening script-src with 'unsafe-inline'. SecurityHeadersMiddleware exempts this exact route
+    // from the dashboard policy so the two policies do not intersect and reject the nonce-bearing script.
+    private static string ContentSecurityPolicy(string nonce) =>
+        "default-src 'none'; "
+        + $"script-src 'self' 'nonce-{nonce}'; "
+        + "style-src 'self' 'unsafe-inline'; "
+        + "connect-src 'self'; "
+        + "base-uri 'none'; object-src 'none'; form-action 'none'";
+
     private const string PageTemplate = """
         <!doctype html>
         <html lang="en">
@@ -67,7 +78,7 @@ public sealed class VoiceListenerPageController : ControllerBase
           <div id="warn" class="warn"></div>
           <p class="hint">This page listens for your defined trigger words using Chrome's free, built-in speech recognition and reports a hit to NomNomzBot. Nothing you say is sent anywhere except a short match check against your own trigger words. Closing this tab stops voice triggers from firing until you reopen it.</p>
         </div>
-        <script>
+        <script nonce="__NONCE__">
         (function () {
           "use strict";
           var token = __TOKEN_JSON__;
@@ -154,10 +165,14 @@ public sealed class VoiceListenerPageController : ControllerBase
     [HttpGet]
     public IActionResult Get([FromQuery] string? token)
     {
+        string nonce = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
         string tokenJson = token is null
             ? "null"
             : System.Text.Json.JsonSerializer.Serialize(token);
-        string html = PageTemplate.Replace("__TOKEN_JSON__", tokenJson);
+        string html = PageTemplate
+            .Replace("__NONCE__", nonce)
+            .Replace("__TOKEN_JSON__", tokenJson);
+        Response.Headers["Content-Security-Policy"] = ContentSecurityPolicy(nonce);
         return Content(html, "text/html; charset=utf-8");
     }
 }

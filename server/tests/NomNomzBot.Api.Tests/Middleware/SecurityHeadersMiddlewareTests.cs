@@ -107,6 +107,28 @@ public class SecurityHeadersMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_VoiceListenerPath_DoesNotOverrideItsNonceCsp()
+    {
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/voice-listener");
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Headers.Should().NotContainKey("Content-Security-Policy");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_SimilarlyNamedVoiceListenerPath_StillSetsDashboardCsp()
+    {
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/voice-listener-preview");
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Headers.Should().ContainKey("Content-Security-Policy");
+    }
+
+    [Fact]
     public async Task InvokeAsync_EditorPath_AllowsInlineScriptForTheGeneratedPreviewDocument()
     {
         // The editor's live preview hands a client-built document to a `srcdoc` iframe, and a srcdoc

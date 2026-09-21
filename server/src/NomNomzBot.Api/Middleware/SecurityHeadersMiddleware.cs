@@ -24,10 +24,9 @@ namespace NomNomzBot.Api.Middleware;
 /// <item><description>A <c>Content-Security-Policy</c> on every path EXCEPT the JSON/API/hub/health/
 /// automation surfaces and the paths that already own their CSP: the overlay/widget host
 /// (<c>OverlayHostController</c> emits a strict per-widget nonce policy via a <c>&lt;meta http-equiv&gt;</c>
-/// tag), the OBS bridge page (<c>ObsBridgeHostController</c>, same per-response nonce pattern — its one
-/// inline &lt;script&gt; was being flatly blocked by this middleware's stricter header before it got its own
-/// policy), and Scalar's interactive docs (its own inline bootstrap script would be blocked by this policy's
-/// <c>script-src</c>). <c>/editor</c> gets its own near-identical policy — see
+/// tag), the OBS bridge and voice-listener pages (both use the same per-response nonce pattern — their inline
+/// scripts would be flatly blocked by this middleware's stricter header), and Scalar's interactive docs (its
+/// own inline bootstrap script would be blocked by this policy's <c>script-src</c>). <c>/editor</c> gets its own near-identical policy — see
 /// <c>EditorContentSecurityPolicy</c>. Every remaining path is either the Compose/Wasm dashboard shell (<c>index.html</c> /
 /// its static assets) or the SPA fallback, which needs <c>wasm-unsafe-eval</c> for the Kotlin/Wasm runtime
 /// plus the CDN hosts the in-app code editor dynamically imports (esm.sh for React/Vue/CodeMirror/
@@ -86,6 +85,8 @@ public sealed class SecurityHeadersMiddleware
 
     private const string EditorPathPrefix = "/editor";
 
+    private const string VoiceListenerPath = "/voice-listener";
+
     private const string HstsHeaderValue = "max-age=31536000; includeSubDomains";
 
     // Paths that are never the dashboard document: JSON API, SignalR hubs, the raw-WebSocket automation
@@ -99,8 +100,8 @@ public sealed class SecurityHeadersMiddleware
     ];
 
     // Paths that manage their own Content-Security-Policy and must not receive the dashboard's HTML CSP on top
-    // of it: the overlay/widget host and the OBS bridge page (both emit a strict per-response nonce policy via
-    // <meta http-equiv> — a second, stricter header here would intersect with it and still block their one
+    // of it: the overlay/widget host, OBS bridge, and voice-listener pages (each emits a strict per-response
+    // nonce policy — a second, stricter header here would intersect with it and still block their one
     // legitimately-inline, nonce-carrying <script>) and Scalar's docs UI.
     private static readonly string[] SelfManagedCspPathPrefixes =
     [
@@ -147,6 +148,12 @@ public sealed class SecurityHeadersMiddleware
             if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return null;
         }
+
+        if (
+            value.Equals(VoiceListenerPath, StringComparison.OrdinalIgnoreCase)
+            || value.Equals($"{VoiceListenerPath}/", StringComparison.OrdinalIgnoreCase)
+        )
+            return null;
 
         foreach (string prefix in SelfManagedCspPathPrefixes)
         {
