@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Net;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,15 @@ public static class SpotifyRequestTags
     public static readonly HttpRequestOptionsKey<bool> IsBackgroundPoll = new(
         "spotify.isBackgroundPoll"
     );
+
+    /// <summary>
+    /// The channel this request is made on behalf of, which IS its rate-limit partition: Spotify meters per
+    /// app (client_id), and every channel must register its own Spotify app — <c>ChannelCredentialsResolver</c>
+    /// fails a Spotify resolve outright rather than falling back to an app-level credential — so one channel is
+    /// exactly one app is exactly one real budget. Absent means "no channel in particular", which shares a
+    /// single fallback partition.
+    /// </summary>
+    public static readonly HttpRequestOptionsKey<Guid> BroadcasterId = new("spotify.broadcasterId");
 }
 
 /// <summary>
@@ -358,30 +368,29 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddSpotifyResilienceHandler(this IHttpClientBuilder builder)
     {
-        // One pair of limiters for the whole app (the client_id-scoped budget IS app-wide, never per-request) —
-        // declared once here rather than inside the pipeline factory below so a rebuilt pipeline (DI reload,
-        // test host restart) never accidentally mints a second, un-coordinated pair against the same real
-        // Spotify budget. See the doc comment below for why the budget is split and how it's sized.
-        SlidingWindowRateLimiter pollLimiter = new(
-            new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = 180,
-                Window = TimeSpan.FromSeconds(30),
-                SegmentsPerWindow = 6,
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 20,
-            }
-        );
-        SlidingWindowRateLimiter interactiveLimiter = new(
-            new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = 270,
-                Window = TimeSpan.FromSeconds(30),
-                SegmentsPerWindow = 6,
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 30,
-            }
-        );
+        // ONE PAIR OF LIMITERS PER CHANNEL, not per process. Spotify meters per app (client_id) and every
+        // channel registers its own Spotify app — ChannelCredentialsResolver refuses a Spotify resolve rather
+        // than falling back to an app-level credential — so two channels share no real budget whatsoever.
+        // A single process-wide pair therefore throttled channels against each other for nothing: one
+        // streamer's poller could queue another streamer's pause behind it while both apps sat well inside
+        // their own limits. Partitioned by broadcaster, each channel is metered only against the budget it
+        // actually owns. Held in a dictionary declared once here rather than inside the pipeline factory so a
+        // rebuilt pipeline (DI reload, test host restart) never mints a second, un-coordinated set for a
+        // channel. See the doc comment below for why each channel's budget is split in two and how it's sized.
+        ConcurrentDictionary<Guid, SlidingWindowRateLimiter> pollLimiters = new();
+        ConcurrentDictionary<Guid, SlidingWindowRateLimiter> interactiveLimiters = new();
+
+        static SlidingWindowRateLimiter NewLimiter(int permitLimit, int queueLimit) =>
+            new(
+                new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = permitLimit,
+                    Window = TimeSpan.FromSeconds(30),
+                    SegmentsPerWindow = 6,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = queueLimit,
+                }
+            );
 
         builder.AddResilienceHandler(
             "spotify-resilience",
@@ -424,16 +433,23 @@ public static class ResiliencePolicies
                     {
                         RateLimiter = args =>
                         {
+                            HttpRequestMessage? request = args.Context.GetRequestMessage();
                             bool isBackgroundPoll =
-                                args.Context.GetRequestMessage()
-                                    ?.Options.TryGetValue(
-                                        SpotifyRequestTags.IsBackgroundPoll,
-                                        out bool tagged
-                                    ) == true
+                                request?.Options.TryGetValue(
+                                    SpotifyRequestTags.IsBackgroundPoll,
+                                    out bool tagged
+                                ) == true
                                 && tagged;
+                            Guid partition =
+                                request?.Options.TryGetValue(
+                                    SpotifyRequestTags.BroadcasterId,
+                                    out Guid broadcasterId
+                                ) == true
+                                    ? broadcasterId
+                                    : Guid.Empty;
                             RateLimiter limiter = isBackgroundPoll
-                                ? pollLimiter
-                                : interactiveLimiter;
+                                ? pollLimiters.GetOrAdd(partition, _ => NewLimiter(180, 20))
+                                : interactiveLimiters.GetOrAdd(partition, _ => NewLimiter(270, 30));
                             return limiter.AcquireAsync(1, args.Context.CancellationToken);
                         },
                     }

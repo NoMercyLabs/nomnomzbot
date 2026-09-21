@@ -1687,6 +1687,7 @@ public sealed class SpotifyMusicProvider
         HttpRequestMessage request = new(method, url);
         request.Headers.Authorization = new("Bearer", token);
         request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
+        request.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
 
         try
         {
@@ -1705,6 +1706,7 @@ public sealed class SpotifyMusicProvider
                     request = new(method, url);
                     request.Headers.Authorization = new("Bearer", token);
                     request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
+                    request.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
                     response = await _http.SendAsync(request, cancellationToken);
                 }
             }

@@ -61,6 +61,19 @@ public sealed class SpotifyRateLimiterTests
         return client.SendAsync(request);
     }
 
+    /// <summary>A background poll attributed to a specific channel — the partition key the limiter meters on.</summary>
+    private static Task<HttpResponseMessage> SendPollAsync(
+        HttpClient client,
+        string url,
+        Guid broadcasterId
+    )
+    {
+        HttpRequestMessage request = new(HttpMethod.Get, url);
+        request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, true);
+        request.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
+        return client.SendAsync(request);
+    }
+
     /// <summary>An untagged call (every plain <c>GetAsync</c>/<c>PostAsync</c> below) is routed to the
     /// interactive partition by default — PermitLimit (270) immediate + QueueLimit (30) queued = 300 requests
     /// admitted without rejecting. A caller count comfortably past that — proxying "many interactive callers at
@@ -207,5 +220,81 @@ public sealed class SpotifyRateLimiterTests
                     + "realistic poller's full-window background load is concurrently in flight — queueing "
                     + "behind that load past one segment is the exact regression this test exists to catch"
             );
+    }
+
+    /// <summary>
+    /// Spotify meters per app (client_id) and every channel registers its OWN Spotify app —
+    /// <c>ChannelCredentialsResolver</c> refuses a Spotify resolve rather than falling back to an app-level
+    /// credential (confirmed on the deployed box 2026-09-21: two channels, two distinct client ids). Two
+    /// channels therefore share no real budget, and one must never be able to exhaust the other's. Before the
+    /// limiter was partitioned there was a single process-wide pair of buckets, so a burst from one channel
+    /// starved every other channel's calls for nothing.
+    /// </summary>
+    [Fact]
+    public async Task One_channels_burst_never_starves_another_channels_calls()
+    {
+        using HttpClient client = NewClient();
+        Guid noisy = Guid.Parse("0192a000-0000-7000-8000-00000000be01");
+        Guid quiet = Guid.Parse("0192a000-0000-7000-8000-00000000be02");
+
+        // Far past one partition's poll capacity (PermitLimit 180 + QueueLimit 20 = 200).
+        Task<HttpResponseMessage?>[] flood =
+        [
+            .. Enumerable
+                .Range(0, 1_000)
+                .Select(_ =>
+                    Swallow(SendPollAsync(client, "https://api.spotify.com/v1/me/player", noisy))
+                ),
+        ];
+
+        HttpResponseMessage? neighbour = await Swallow(
+            SendPollAsync(client, "https://api.spotify.com/v1/me/player", quiet)
+        );
+
+        neighbour
+            .Should()
+            .NotBeNull(
+                "the quiet channel meters against its own Spotify app, so a neighbour's flood is none of its business"
+            );
+
+        await Task.WhenAll(flood);
+    }
+
+    /// <summary>The partitioning must not disable the ceiling: one channel's own burst is still capped.</summary>
+    [Fact]
+    public async Task A_single_channels_own_burst_is_still_capped_within_its_partition()
+    {
+        using HttpClient client = NewClient();
+        Guid channel = Guid.Parse("0192a000-0000-7000-8000-00000000be03");
+
+        HttpResponseMessage?[] results = await Task.WhenAll(
+            Enumerable
+                .Range(0, 1_000)
+                .Select(_ =>
+                    Swallow(SendPollAsync(client, "https://api.spotify.com/v1/me/player", channel))
+                )
+        );
+
+        results
+            .Count(r => r is null)
+            .Should()
+            .BeGreaterThan(0, "a partition is still a ceiling, not an exemption");
+    }
+
+    /// <summary>Awaits a call, turning "the limiter said no" into null rather than an exception.</summary>
+    private static async Task<HttpResponseMessage?> Swallow(Task<HttpResponseMessage> call)
+    {
+        try
+        {
+            return await call;
+        }
+        catch (RateLimiterRejectedException)
+        {
+            return null;
+        }
+        catch (TimeoutRejectedException)
+        {
+            return null;
+        }
     }
 }
