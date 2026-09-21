@@ -14,7 +14,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
@@ -99,7 +98,6 @@ public sealed class MusicStatePollingService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
-    private readonly IMusicRealtimeSignal _realtime;
     private readonly IChannelRegistry _channelRegistry;
     private readonly ILogger<MusicStatePollingService> _logger;
 
@@ -112,7 +110,6 @@ public sealed class MusicStatePollingService : BackgroundService
         IServiceScopeFactory scopeFactory,
         IEventBus eventBus,
         TimeProvider timeProvider,
-        IMusicRealtimeSignal realtime,
         IChannelRegistry channelRegistry,
         ILogger<MusicStatePollingService> logger
     )
@@ -120,7 +117,6 @@ public sealed class MusicStatePollingService : BackgroundService
         _scopeFactory = scopeFactory;
         _eventBus = eventBus;
         _timeProvider = timeProvider;
-        _realtime = realtime;
         _channelRegistry = channelRegistry;
         _logger = logger;
     }
@@ -156,25 +152,18 @@ public sealed class MusicStatePollingService : BackgroundService
                 _logger.LogError(ex, "MusicStatePollingService: tick failed");
             }
 
-            // Whichever comes first: the 1s floor, or a provider's realtime transport saying playback just
-            // changed. The nudge is what closes the gap the owner sees on the overlay — a track change used
-            // to wait out a full poll interval plus the widget's own interpolation before it showed.
-            Task nudge = _realtime.WaitForNudgeAsync(stoppingToken);
-            Task winner;
+            // The timer returns false only when it is disposed or the token fired — either way, stop.
+            bool ticked;
             try
             {
-                winner = await Task.WhenAny(tick, nudge);
+                ticked = await tick;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 return;
             }
 
-            if (winner != tick)
-                continue; // Nudged: poll now, and leave the timer armed for its own tick.
-
-            // The timer returns false only when it is disposed or the token fired — either way, stop.
-            if (!await tick)
+            if (!ticked)
                 return;
 
             tick = timer.WaitForNextTickAsync(stoppingToken).AsTask();

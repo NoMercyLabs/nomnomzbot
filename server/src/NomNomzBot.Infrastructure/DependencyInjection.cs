@@ -373,13 +373,6 @@ public static class DependencyInjection
         // channel) so Pause/Play/the play-pause toggle can publish their state-changed event immediately
         // off a known-fresh snapshot instead of a second live provider round trip in the critical path.
         services.AddSingleton<INowPlayingCache, NowPlayingCache>();
-        // Singleton: a provider's realtime transport and the poller are both long-lived, and the whole
-        // point is that a nudge raised by one is seen by the other.
-        services.AddSingleton<MusicRealtimeSignal>();
-        services.AddSingleton<IMusicRealtimeSignal>(sp =>
-            sp.GetRequiredService<MusicRealtimeSignal>()
-        );
-
         // S001b — durable mirror of the fair queue (write-through on every mutation) + the once-at-startup
         // restore that replays it back into the (freshly empty) singleton store above before any live
         // traffic can reach it.
@@ -397,13 +390,6 @@ public static class DependencyInjection
         // the dashboard/overlay/StreamDeck now-playing surfaces only ever update on a bot-caused mutation and
         // otherwise go stale indefinitely (BackgroundServices/MusicStatePollingService.cs).
         services.AddHostedService<MusicStatePollingService>();
-        // Push, not poll (S-MUSIC-1): Spotify's own realtime dealer socket (wss://dealer.spotify.com/),
-        // reverse-engineered from the legacy reference implementation — publishes PlaybackStateChangedEvent
-        // the instant a PLAYER_STATE_CHANGED frame lands, closing the gap the flat 1s poll above leaves on
-        // the overlay. MusicStatePollingService (registered just above) is unconditionally the fallback: this
-        // service only ever ADDS a connection for a channel it can authenticate as Spotify, never gates the
-        // poller. Reuses the same IWebSocketChannelFactory singleton wired for Twitch's EventSub transport.
-        services.AddHostedService<Music.Realtime.SpotifyDealerHostedService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();

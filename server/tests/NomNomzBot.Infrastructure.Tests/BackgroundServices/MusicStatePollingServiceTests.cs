@@ -480,7 +480,6 @@ public sealed class MusicStatePollingServiceTests
             scopes,
             bus,
             clock,
-            new MusicRealtimeSignal(),
             channelRegistry,
             NullLogger<MusicStatePollingService>.Instance
         );
