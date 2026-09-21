@@ -83,30 +83,25 @@ public sealed class SecurityHeadersMiddleware
         + "worker-src 'self' blob:; "
         + "base-uri 'self'; object-src 'none'; frame-ancestors 'self'";
 
-    private const string EditorPathPrefix = "/editor";
-
-    private const string VoiceListenerPath = "/voice-listener";
+    private const string EditorPathBase = "/editor";
 
     private const string HstsHeaderValue = "max-age=31536000; includeSubDomains";
 
     // Paths that are never the dashboard document: JSON API, SignalR hubs, the raw-WebSocket automation
-    // stream, and the health probes. These never receive the dashboard's HTML CSP.
-    private static readonly string[] NonHtmlPathPrefixes =
-    [
-        "/api",
-        "/hubs",
-        "/automation",
-        "/health",
-    ];
+    // stream, and the health probes. These never receive the dashboard's HTML CSP. Matched by whole path
+    // SEGMENT, so a same-prefixed sibling such as /api-docs is still treated as a document.
+    private static readonly string[] NonHtmlPathBases = ["/api", "/hubs", "/automation", "/health"];
 
     // Paths that manage their own Content-Security-Policy and must not receive the dashboard's HTML CSP on top
     // of it: the overlay/widget host, OBS bridge, and voice-listener pages (each emits a strict per-response
     // nonce policy — a second, stricter header here would intersect with it and still block their one
-    // legitimately-inline, nonce-carrying <script>) and Scalar's docs UI.
-    private static readonly string[] SelfManagedCspPathPrefixes =
+    // legitimately-inline, nonce-carrying <script>) and Scalar's docs UI. Segment-matched for the same reason
+    // as above: /voice-listener owns its policy, a hypothetical /voice-listener-preview does not.
+    private static readonly string[] SelfManagedCspPathBases =
     [
         "/overlay",
         "/obs-bridge",
+        "/voice-listener",
         "/scalar",
     ];
 
@@ -142,27 +137,22 @@ public sealed class SecurityHeadersMiddleware
     /// <summary>The policy this request's path should carry, or <c>null</c> when it must carry none.</summary>
     private static string? ResolveContentSecurityPolicy(PathString path)
     {
-        string value = path.Value ?? string.Empty;
-        foreach (string prefix in NonHtmlPathPrefixes)
-        {
-            if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                return null;
-        }
-
-        if (
-            value.Equals(VoiceListenerPath, StringComparison.OrdinalIgnoreCase)
-            || value.Equals($"{VoiceListenerPath}/", StringComparison.OrdinalIgnoreCase)
-        )
+        if (MatchesAny(path, NonHtmlPathBases) || MatchesAny(path, SelfManagedCspPathBases))
             return null;
 
-        foreach (string prefix in SelfManagedCspPathPrefixes)
-        {
-            if (value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                return null;
-        }
-
-        return value.StartsWith(EditorPathPrefix, StringComparison.OrdinalIgnoreCase)
+        return path.StartsWithSegments(EditorPathBase, StringComparison.OrdinalIgnoreCase)
             ? EditorContentSecurityPolicy
             : DashboardContentSecurityPolicy;
+    }
+
+    private static bool MatchesAny(PathString path, string[] bases)
+    {
+        foreach (string candidate in bases)
+        {
+            if (path.StartsWithSegments(candidate, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }

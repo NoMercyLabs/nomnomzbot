@@ -50,7 +50,34 @@ public sealed class VoiceListenerPageControllerTests
             .NotBe(firstNonce, "a fresh nonce must be generated for every response");
     }
 
-    private static (VoiceListenerPageController Controller, DefaultHttpContext Context) CreateController()
+    [Fact]
+    public void Get_ForbidsFramingSoTheListenerTokenCannotBeClickjacked()
+    {
+        (VoiceListenerPageController controller, DefaultHttpContext context) = CreateController();
+
+        controller.Get("listener-token");
+
+        string policy = context.Response.Headers["Content-Security-Policy"].ToString();
+        DirectiveOf(policy, "frame-ancestors").Should().Be("frame-ancestors 'none'");
+    }
+
+    [Fact]
+    public void Get_ReGrantsTheMicrophoneTheBaselineHeadersSwitchOff()
+    {
+        (VoiceListenerPageController controller, DefaultHttpContext context) = CreateController();
+        context.Response.Headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+
+        controller.Get("listener-token");
+
+        string policy = context.Response.Headers["Permissions-Policy"].ToString();
+        policy.Should().Contain("microphone=(self)", "speech recognition cannot start without it");
+        policy.Should().Contain("geolocation=()").And.Contain("camera=()");
+    }
+
+    private static (
+        VoiceListenerPageController Controller,
+        DefaultHttpContext Context
+    ) CreateController()
     {
         DefaultHttpContext context = new();
         VoiceListenerPageController controller = new()
@@ -62,7 +89,7 @@ public sealed class VoiceListenerPageControllerTests
 
     private static string ExtractNonce(string policy)
     {
-        Match match = Regex.Match(policy, @"script-src 'self' 'nonce-([^']+)'");
+        Match match = Regex.Match(policy, "script-src 'self' 'nonce-([^']+)'");
         return match.Success ? match.Groups[1].Value : string.Empty;
     }
 

@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.RateLimiting;
 
 namespace NomNomzBot.Api.Controllers;
 
@@ -34,18 +35,28 @@ namespace NomNomzBot.Api.Controllers;
 [Route("voice-listener")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
-[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
+[EnableRateLimiting(RateLimitPolicyNames.Anonymous)]
 public sealed class VoiceListenerPageController : ControllerBase
 {
     // The listener is deliberately a single-file page, so authorize its one inline script with a fresh nonce
-    // instead of weakening script-src with 'unsafe-inline'. SecurityHeadersMiddleware exempts this exact route
-    // from the dashboard policy so the two policies do not intersect and reject the nonce-bearing script.
+    // instead of weakening script-src with 'unsafe-inline'. SecurityHeadersMiddleware exempts this route from
+    // the dashboard policy so the two do not intersect and reject the nonce-bearing script — which also means
+    // this policy has to carry frame-ancestors itself: the page holds a live overlay token and must never be
+    // framed (it is a real browser tab by design, never an OBS browser source).
     private static string ContentSecurityPolicy(string nonce) =>
         "default-src 'none'; "
         + $"script-src 'self' 'nonce-{nonce}'; "
         + "style-src 'self' 'unsafe-inline'; "
         + "connect-src 'self'; "
-        + "base-uri 'none'; object-src 'none'; form-action 'none'";
+        + "base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'none'";
+
+    // The API's baseline response headers (Program.cs) disable the microphone on EVERY response
+    // (microphone=()), which silently kills the one thing this page exists to do: webkitSpeechRecognition
+    // needs mic permission, and under an empty allowlist Chrome refuses it before the permission prompt ever
+    // appears — the page loads, the script runs, and it just reports "Microphone access was blocked".
+    // So re-grant the microphone to THIS origin only, for this one response, and keep the other two features
+    // switched off exactly as the baseline has them.
+    private const string PermissionsPolicy = "geolocation=(), microphone=(self), camera=()";
 
     private const string PageTemplate = """
         <!doctype html>
@@ -169,10 +180,9 @@ public sealed class VoiceListenerPageController : ControllerBase
         string tokenJson = token is null
             ? "null"
             : System.Text.Json.JsonSerializer.Serialize(token);
-        string html = PageTemplate
-            .Replace("__NONCE__", nonce)
-            .Replace("__TOKEN_JSON__", tokenJson);
+        string html = PageTemplate.Replace("__NONCE__", nonce).Replace("__TOKEN_JSON__", tokenJson);
         Response.Headers["Content-Security-Policy"] = ContentSecurityPolicy(nonce);
+        Response.Headers["Permissions-Policy"] = PermissionsPolicy;
         return Content(html, "text/html; charset=utf-8");
     }
 }

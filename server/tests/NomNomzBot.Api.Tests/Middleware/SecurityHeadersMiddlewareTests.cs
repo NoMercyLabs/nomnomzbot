@@ -32,13 +32,18 @@ public class SecurityHeadersMiddlewareTests
 
     private static DefaultHttpContext CreateContext(string path, bool isHttps = true)
     {
-        DefaultHttpContext context = new();
-        context.Request.Path = path;
-        context.Request.Scheme = isHttps ? "https" : "http";
         // A host is required: the public-origin resolution falls back to the loopback default when the
         // request carries none, and HSTS is correctly withheld from a loopback origin.
-        context.Request.Host = new("dash.example.test");
-        context.Response.Body = new MemoryStream();
+        DefaultHttpContext context = new()
+        {
+            Request =
+            {
+                Path = path,
+                Scheme = isHttps ? "https" : "http",
+                Host = new("dash.example.test"),
+            },
+            Response = { Body = new MemoryStream() },
+        };
         return context;
     }
 
@@ -111,6 +116,28 @@ public class SecurityHeadersMiddlewareTests
     {
         SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
         DefaultHttpContext context = CreateContext("/voice-listener");
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Headers.Should().NotContainKey("Content-Security-Policy");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_SimilarlyNamedSelfManagedPath_StillSetsDashboardCsp()
+    {
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/overlay-preview");
+
+        await middleware.InvokeAsync(context);
+
+        context.Response.Headers.Should().ContainKey("Content-Security-Policy");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_NestedSelfManagedPath_DoesNotOverrideItsOwnCsp()
+    {
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/overlay/sdk.js");
 
         await middleware.InvokeAsync(context);
 
