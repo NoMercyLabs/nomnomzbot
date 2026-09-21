@@ -764,8 +764,10 @@ try
     // Must run before UseStaticFiles so the wasm/js/css bytes it writes are compressed on the way out.
     app.UseResponseCompression();
 
-    FileExtensionContentTypeProvider staticContentTypes = new();
-    staticContentTypes.Mappings[".wasm"] = "application/wasm";
+    FileExtensionContentTypeProvider staticContentTypes = new()
+    {
+        Mappings = { [".wasm"] = "application/wasm" },
+    };
     app.UseStaticFiles(
         new StaticFileOptions
         {
@@ -776,22 +778,29 @@ try
             // the public dashboard bundle.
             ServeUnknownFileTypes = true,
             DefaultContentType = "application/octet-stream",
-            // Make a plain reload ALWAYS serve the current build — no manual hard-refresh, ever. The Kotlin/Wasm
-            // entry point (composeApp.js) and index.html keep stable names across builds, so they are `no-store`
-            // (never cached, always re-fetched). Every OTHER asset — the large content-named `.wasm` modules, the
-            // `.cvr` i18n string tables, source maps — is `no-cache, must-revalidate`: the browser may store it but
-            // MUST revalidate against the ETag (which ASP.NET sets from mtime+length) before use. So a normal reload
-            // revalidates each asset → a 304 (tiny) when unchanged, fresh bytes when the deploy changed it. This
-            // closes the stale-Wasm hole: previously non-entry assets had no Cache-Control, so the browser
-            // heuristic-cached them and could run an old `.wasm` even after `composeApp.js` had refreshed.
+            // Make a plain reload ALWAYS serve the current build — no manual hard-refresh, ever — WITHOUT paying a
+            // revalidation round trip per asset. Three tiers (owner report 2026-09-21: a cold dashboard load pulled
+            // ~62 MB through the Cloudflare tunnel and stalled past the boot watchdog, because every asset was
+            // `no-cache` and therefore private to the browser — the edge cached nothing, `cf-cache-status: DYNAMIC`):
+            //
+            //   entry points  composeApp.js / index.html keep stable names across builds → `no-store`, so the build
+            //                 the browser runs is always the deployed one.
+            //   immutable     content-addressed `.wasm` modules and the font faces. A `.wasm` name carries its own
+            //                 content hash, and a font face's bytes never change under the same name — a different
+            //                 face is a different file. These are the bulk (~35 MB of fonts alone), so they get a
+            //                 year and `immutable`: no revalidation, and `public` lets the CDN serve them from the
+            //                 edge instead of reaching back through the tunnel.
+            //   revalidated   everything else in the bundle (drawables, `.cvr` i18n tables, source maps) DOES change
+            //                 with a build under a stable name, so it stays must-revalidate — but now `public`, so
+            //                 the edge may hold it and answer with a 304 rather than forwarding to origin.
+            //
+            // Fonts are deliberately in the immutable tier, not the revalidated one: they are why a cold load was
+            // 62 MB, and a font swap ships as a new filename.
             OnPrepareResponse = ctx =>
             {
-                bool isEntryPoint =
-                    ctx.File.Name.Equals("composeApp.js", StringComparison.OrdinalIgnoreCase)
-                    || ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
-                ctx.Context.Response.Headers.CacheControl = isEntryPoint
-                    ? "no-store, no-cache, must-revalidate"
-                    : "no-cache, must-revalidate";
+                ctx.Context.Response.Headers.CacheControl = StaticAssetCachePolicy.For(
+                    ctx.File.Name
+                );
             },
         }
     );
