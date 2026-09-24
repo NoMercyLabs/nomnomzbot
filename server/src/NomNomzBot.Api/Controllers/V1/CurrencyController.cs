@@ -15,6 +15,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 
@@ -31,9 +32,13 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class CurrencyController(
     ICurrencyConfigService config,
     ICurrencyAccountService accounts,
+    IActionAuthorizationService authorization,
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>The Gate-2 action a caller must hold to send from a wallet that is not their own.</summary>
+    public const string MoveOthersMoneyAction = "economy:account:adjust";
+
     public record FreezeBody(bool Frozen);
 
     /// <summary>Read the channel's currency configuration.</summary>
@@ -226,7 +231,11 @@ public class CurrencyController(
         );
     }
 
-    /// <summary>Transfer currency between viewers, binding the acting sender to the authenticated caller.</summary>
+    /// <summary>
+    /// Transfer currency between viewers. The actor is always the authenticated caller. The sender is the
+    /// caller's own wallet unless the caller holds <see cref="MoveOthersMoneyAction"/>; only then may the body
+    /// name another viewer as the source (self-or-Gate-2).
+    /// </summary>
     [HttpPost("transfer")]
     [RequireAction("economy:transfer:write")]
     public async Task<IActionResult> Transfer(
@@ -239,8 +248,28 @@ public class CurrencyController(
             return BadRequestResponse("Invalid channel id.");
         if (!TryGetCaller(out Guid caller))
             return UnauthenticatedResponse();
+        if (
+            command.FromViewerUserId != caller
+            && !await CanMoveOthersMoneyAsync(caller, broadcasterId, ct)
+        )
+            return UnauthorizedResponse();
         TransferCommand bound = command with { ActorUserId = caller };
         return ResultResponse(await accounts.TransferAsync(broadcasterId, bound, ct));
+    }
+
+    private async Task<bool> CanMoveOthersMoneyAsync(
+        Guid caller,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<bool> authorized = await authorization.AuthorizeActionAsync(
+            caller,
+            broadcasterId,
+            MoveOthersMoneyAction,
+            ct
+        );
+        return authorized is { IsSuccess: true, Value: true };
     }
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NSubstitute;
@@ -35,13 +36,22 @@ public sealed class CurrencyControllerTests
         CurrencyController Controller,
         ICurrencyConfigService Config,
         ICurrencyAccountService Accounts
-    ) Build()
+    ) Build(bool callerMayMoveOthersMoney = false)
     {
         ICurrencyConfigService config = Substitute.For<ICurrencyConfigService>();
         ICurrencyAccountService accounts = Substitute.For<ICurrencyAccountService>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new(config, accounts, user), config, accounts);
+        IActionAuthorizationService authorization = Substitute.For<IActionAuthorizationService>();
+        authorization
+            .AuthorizeActionAsync(
+                Caller,
+                Channel,
+                CurrencyController.MoveOthersMoneyAction,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(callerMayMoveOthersMoney));
+        return (new(config, accounts, authorization, user), config, accounts);
     }
 
     private static CurrencyLedgerEntryDto Entry() =>
@@ -121,22 +131,72 @@ public sealed class CurrencyControllerTests
     }
 
     [Fact]
-    public async Task Transfer_stamps_the_actor_from_the_caller()
+    public async Task Transfer_from_own_wallet_binds_sender_and_actor_to_the_caller()
     {
         (CurrencyController controller, _, ICurrencyAccountService accounts) = Build();
         accounts
             .TransferAsync(Channel, Arg.Any<TransferCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TransferResultDto(Entry(), Entry())));
-        TransferCommand spoofedBody = new(RouteViewer, Spoofed, 25, "gift", Spoofed);
+        TransferCommand body = new(Caller, RouteViewer, 25, "gift", Spoofed);
 
-        IActionResult result = await controller.Transfer(Channel.ToString(), spoofedBody, default);
+        IActionResult result = await controller.Transfer(Channel.ToString(), body, default);
 
         result.Should().BeOfType<OkObjectResult>();
         await accounts
             .Received(1)
             .TransferAsync(
                 Channel,
-                Arg.Is<TransferCommand>(c => c.ActorUserId == Caller),
+                Arg.Is<TransferCommand>(c =>
+                    c.FromViewerUserId == Caller
+                    && c.ToViewerUserId == RouteViewer
+                    && c.ActorUserId == Caller
+                    && c.Amount == 25
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Transfer_from_another_wallet_is_refused_for_a_plain_viewer()
+    {
+        (CurrencyController controller, _, ICurrencyAccountService accounts) = Build(
+            callerMayMoveOthersMoney: false
+        );
+        TransferCommand body = new(Spoofed, RouteViewer, 25, "drain", null);
+
+        IActionResult result = await controller.Transfer(Channel.ToString(), body, default);
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(403);
+        await accounts
+            .DidNotReceive()
+            .TransferAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<TransferCommand>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Transfer_from_another_wallet_is_allowed_when_the_caller_may_adjust_wallets()
+    {
+        (CurrencyController controller, _, ICurrencyAccountService accounts) = Build(
+            callerMayMoveOthersMoney: true
+        );
+        accounts
+            .TransferAsync(Channel, Arg.Any<TransferCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TransferResultDto(Entry(), Entry())));
+        TransferCommand body = new(Spoofed, RouteViewer, 25, "move", null);
+
+        IActionResult result = await controller.Transfer(Channel.ToString(), body, default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        await accounts
+            .Received(1)
+            .TransferAsync(
+                Channel,
+                Arg.Is<TransferCommand>(c =>
+                    c.FromViewerUserId == Spoofed && c.ActorUserId == Caller
+                ),
                 Arg.Any<CancellationToken>()
             );
     }

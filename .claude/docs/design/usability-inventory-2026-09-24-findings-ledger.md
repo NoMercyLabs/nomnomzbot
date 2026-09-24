@@ -92,7 +92,7 @@ endpoints, and the onboarding friction walk.
 
 ## L3 · Viewer (participant)
 
-- [ ] `SEC` srv CurrencyAccountService.cs:206-240 + CurrencyController.cs:230-243 + ActionDefinitionSeeder.cs:518 — transfer debits `FromViewerUserId` from the body, never compared to the caller; Everyone → any viewer drains any wallet — sender = caller. **VERIFIED**
+- [x] `SEC` srv CurrencyController.cs — transfer sender = caller unless the caller holds `economy:account:adjust` (self-or-Gate-2). Fixed.
 - [ ] `SEC` EconomyLeaderboardsController.cs:109-133 + EconomyLeaderboardService.cs:213 — opt-in/out take any `viewerUserId`.
 - [ ] `SEC` GamesController.cs:91-112 — game history open to Everyone, `playerUserId` a filter.
 - [ ] `SEC` MusicController.cs:171-196 + PublicSongRequestController.cs:93-97 → MusicService.cs:517-524 — dashboard + public SR skip min-trust + requester id; public cap keyed on typed name.

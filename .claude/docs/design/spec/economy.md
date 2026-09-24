@@ -582,7 +582,7 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 | GET | `/accounts/{viewerUserId}/ledger` | `PageRequestDto` | `PaginatedResponse<CurrencyLedgerEntryDto>` | community / Moderator · `economy:ledger:read` (self-or-Gate-2) |
 | POST | `/accounts/{viewerUserId}/adjust` | `AdminAdjustCommand` | `StatusResponseDto<CurrencyLedgerEntryDto>` | management / Broadcaster · `economy:account:adjust` |
 | POST | `/accounts/{viewerUserId}/freeze` | `{ bool frozen }` | `StatusResponseDto<CurrencyAccountDto>` | management / Moderator · `economy:account:freeze` |
-| POST | `/transfer` | `TransferCommand` | `StatusResponseDto<TransferResultDto>` | management / Broadcaster · `economy:transfer:write` |
+| POST | `/transfer` | `TransferCommand` | `StatusResponseDto<TransferResultDto>` | community / Everyone · `economy:transfer:write` (sender = caller; naming another sender needs `economy:account:adjust`, self-or-Gate-2) |
 
 ### CatalogController — `.../economy/catalog`
 
