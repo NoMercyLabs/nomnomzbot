@@ -292,10 +292,10 @@ public sealed class SongRequestQueueCodeDurabilityTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(true);
 
-        public Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+        public Task<IReadOnlyList<TrackInfo>?> GetQueueAsync(
             Guid broadcasterId,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult<IReadOnlyList<TrackInfo>>([]);
+        ) => Task.FromResult<IReadOnlyList<TrackInfo>?>([]);
 
         public Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();

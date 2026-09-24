@@ -553,17 +553,17 @@ public sealed class SpotifyMusicProvider
     /// including anything the streamer queued by hand from the Spotify app itself, which our own fair
     /// queue never sees. <c>currently_playing</c> is dropped: <see cref="GetCurrentTrackAsync"/> already
     /// covers that case for the caller's duplicate check. A dead token, no active device, or any
-    /// non-success response is treated the same as "can't answer" — an empty list, never an exception —
-    /// so a duplicate check built on this never blocks a song request on a transient Spotify outage.
+    /// non-success response is "can't answer" — null, never an exception, and never an empty list, which
+    /// would read as "the streamer emptied the queue".
     /// </summary>
-    public async Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+    public async Task<IReadOnlyList<TrackInfo>?> GetQueueAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken = default
     )
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
-            return [];
+            return null;
 
         HttpResponseMessage? response = await SendAsync(
             HttpMethod.Get,
@@ -573,7 +573,7 @@ public sealed class SpotifyMusicProvider
             cancellationToken
         );
         if (response is null || !response.IsSuccessStatusCode)
-            return [];
+            return null;
 
         SpotifyQueueResponse? json = await ReadJsonSafeAsync<SpotifyQueueResponse>(
             response,
@@ -581,7 +581,7 @@ public sealed class SpotifyMusicProvider
             cancellationToken
         );
         if (json?.Queue is null)
-            return [];
+            return null;
 
         return json.Queue.Where(t => t is not null).Select(t => MapToTrackInfo(t!)).ToList();
     }

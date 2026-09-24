@@ -1781,13 +1781,27 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return;
 
-        // Never two of ours at the provider — that is the invariant the whole fair queue rests on. Callers
-        // that fire on a cadence (the playback poller's recovery tick) can therefore call this freely.
-        if (_queueStore.GetInFlight(broadcasterId) is not null)
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        if (queue is null)
             return;
 
-        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
-        SongRequestEntry? next = queue?.Peek();
+        // Never two of ours at the provider — that is the invariant the whole fair queue rests on. Callers
+        // that fire on a cadence (the playback poller's recovery tick) can therefore call this freely. The
+        // one way past it is proof the in-flight request is gone from the provider for good.
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        if (
+            inFlight is not null
+            && !await ReleaseIfLostAtProviderAsync(
+                tenantId,
+                broadcasterId,
+                queue,
+                inFlight,
+                cancellationToken
+            )
+        )
+            return;
+
+        SongRequestEntry? next = queue.Peek();
         if (next is null)
             return;
 
@@ -1836,8 +1850,76 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // Persist the in-flight flag immediately — without this a restart right after hand-over forgets
         // that `next` was already pushed to the provider and re-hands it over a second time
         // (S-SR-INFLIGHT-DURABLE).
-        await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
     }
+
+    /// <summary>
+    /// The in-flight request only ever leaves by being seen to play (SongRequestQueueReconciler). One the
+    /// streamer deletes from the Spotify app's queue never plays, so without this the whole queue waited on
+    /// it forever with nothing on screen saying why — live 2026-09-24. Dropped only on proof: the provider
+    /// answered, returned a list short enough to be complete, the request is not in it, and it is not the
+    /// track playing now. Any doubt keeps the request, because a false drop costs a viewer their song.
+    /// </summary>
+    private async Task<bool> ReleaseIfLostAtProviderAsync(
+        Guid tenantId,
+        string broadcasterId,
+        FairQueue<SongRequestEntry> queue,
+        SongRequestEntry inFlight,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!_queueStore.IsInFlightCheckDue(broadcasterId))
+            return false;
+
+        IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
+        if (provider is null)
+            return false;
+
+        IReadOnlyList<TrackInfo>? providerQueue = await provider.GetQueueAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (
+            providerQueue is null
+            || providerQueue.Count >= ProviderQueueLookAhead
+            || providerQueue.Any(t => IsSameTrack(t.TrackUri, inFlight.TrackUri))
+        )
+            return false;
+
+        TrackInfo? current = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
+        if (IsSameTrack(current?.TrackUri, inFlight.TrackUri))
+            return false;
+
+        queue.RemoveFirst(e => ReferenceEquals(e, inFlight));
+        _queueStore.SetInFlight(broadcasterId, null);
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
+        await RefundIfPaidAsync(tenantId, inFlight, cancellationToken);
+        await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+
+        _logger.LogWarning(
+            "Song request '{Track}' for {BroadcasterId} is no longer at the provider and was never seen playing — dropped so the queue can move on.",
+            inFlight.TrackName,
+            broadcasterId
+        );
+        await _eventBus.PublishAsync(
+            new SongRequestLostAtProviderEvent
+            {
+                BroadcasterId = tenantId,
+                TrackUri = inFlight.TrackUri,
+                TrackName = inFlight.TrackName,
+                RequestedBy = inFlight.RequestedBy,
+            },
+            cancellationToken
+        );
+        return true;
+    }
+
+    // Spotify's GET /me/player/queue returns a bounded look-ahead, not the whole queue. A list that long
+    // may have cut the in-flight request off the end, so its absence from it proves nothing.
+    private const int ProviderQueueLookAhead = 20;
+
+    private static bool IsSameTrack(string? a, string? b) =>
+        string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Takes one rejected entry back out of the fair queue and returns the caller's failure —
     /// only that entry, never the requester's other pending requests.</summary>
@@ -1902,14 +1984,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // The provider's OWN queue, not our fair queue's view of it — catches a track the streamer queued
         // by hand from the Spotify app itself, or one our in-memory fair queue lost track of (e.g. after a
         // restart), that the checks above never see. Best-effort by contract (GetQueueAsync never throws;
-        // an unanswerable read returns empty), so a provider outage falls through to the gates below
+        // an unanswerable read returns null), so a provider outage falls through to the gates below
         // instead of blocking every request.
-        IReadOnlyList<TrackInfo> providerQueue = await provider.GetQueueAsync(
+        IReadOnlyList<TrackInfo>? providerQueue = await provider.GetQueueAsync(
             tenantId,
             cancellationToken
         );
         if (
-            providerQueue.Any(t =>
+            providerQueue is not null
+            && providerQueue.Any(t =>
                 string.Equals(t.TrackUri, trackInfo.TrackUri, StringComparison.OrdinalIgnoreCase)
             )
         )

@@ -228,14 +228,14 @@ public interface IMusicProvider
 
     /// <summary>
     /// The tracks sitting in the provider's OWN player queue right now — not our fair queue's view of
-    /// what it has pushed, the provider's live truth. A provider without a real external queue (YouTube
-    /// plays through our own browser-source player; there is nothing provider-side to read back) returns
-    /// an empty list. Best-effort like <see cref="GetCurrentTrackAsync"/>: an unanswerable read (no
-    /// token, no device, provider error) returns an empty list rather than throwing, since a duplicate
-    /// check that can't read the provider's queue must fall back to the caller's own admission gates
-    /// instead of blocking song requests on a transient provider outage.
+    /// what it has pushed, the provider's live truth. Null means "cannot tell" — an unanswerable read (no
+    /// token, no device, provider error), or a provider with no real external queue at all (YouTube plays
+    /// through our own browser-source player; there is nothing provider-side to read back). Null is kept
+    /// distinct from an empty list because the song-request queue acts on absence: a request missing from
+    /// a queue the provider actually returned was removed by the streamer, while a failed read proves
+    /// nothing and must never drop a viewer's request.
     /// </summary>
-    Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+    Task<IReadOnlyList<TrackInfo>?> GetQueueAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken = default
     );

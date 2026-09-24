@@ -69,6 +69,14 @@ public interface ISongRequestQueueStore
     void SetInFlight(string broadcasterId, SongRequestEntry? entry);
 
     /// <summary>
+    /// Whether the in-flight request is due a check that it is still at the provider: first one
+    /// <see cref="SongRequestQueueStore.InFlightCheckInterval"/> after it was handed over, then once per
+    /// interval after that. The grace keeps a request that was only just pushed from being judged before
+    /// the provider shows it; the spacing keeps the check from costing a provider call on every 1s poll tick.
+    /// </summary>
+    bool IsInFlightCheckDue(string broadcasterId);
+
+    /// <summary>
     /// Replays a persisted queue back into memory at startup (S001b), in the exact order it was
     /// persisted. Only meant to be called once per channel, before any live traffic reaches it —
     /// <see cref="FairQueue{T}.Enqueue"/> derives rank purely from insertion order, so replaying the
@@ -92,8 +100,20 @@ public interface ISongRequestQueueStore
 /// <inheritdoc cref="ISongRequestQueueStore"/>
 public sealed class SongRequestQueueStore : ISongRequestQueueStore
 {
+    internal static readonly TimeSpan InFlightCheckInterval = TimeSpan.FromSeconds(30);
+
     private readonly ConcurrentDictionary<string, FairQueue<SongRequestEntry>> _queues = new();
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlight = new();
+    private readonly ConcurrentDictionary<
+        string,
+        (SongRequestEntry Entry, DateTimeOffset NextCheckAt)
+    > _inFlightChecks = new();
+    private readonly TimeProvider _timeProvider;
+
+    public SongRequestQueueStore(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public FairQueue<SongRequestEntry> GetOrCreate(string broadcasterId) =>
         _queues.GetOrAdd(broadcasterId, static _ => new());
@@ -107,10 +127,38 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     public void SetInFlight(string broadcasterId, SongRequestEntry? entry)
     {
         if (entry is null)
+        {
             _inFlight.TryRemove(broadcasterId, out _);
+            _inFlightChecks.TryRemove(broadcasterId, out _);
+        }
         else
+        {
             _inFlight[broadcasterId] = entry;
+            ScheduleNextCheck(broadcasterId, entry);
+        }
     }
+
+    public bool IsInFlightCheckDue(string broadcasterId)
+    {
+        SongRequestEntry? inFlight = GetInFlight(broadcasterId);
+        if (inFlight is null)
+            return false;
+
+        bool scheduled =
+            _inFlightChecks.TryGetValue(
+                broadcasterId,
+                out (SongRequestEntry Entry, DateTimeOffset NextCheckAt) schedule
+            ) && ReferenceEquals(schedule.Entry, inFlight);
+
+        if (scheduled && _timeProvider.GetUtcNow() < schedule.NextCheckAt)
+            return false;
+
+        ScheduleNextCheck(broadcasterId, inFlight);
+        return scheduled;
+    }
+
+    private void ScheduleNextCheck(string broadcasterId, SongRequestEntry entry) =>
+        _inFlightChecks[broadcasterId] = (entry, _timeProvider.GetUtcNow() + InFlightCheckInterval);
 
     /// <summary>
     /// REPLACES the channel's queue with the persisted set — it must never append.
