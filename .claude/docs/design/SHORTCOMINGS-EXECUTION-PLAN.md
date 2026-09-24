@@ -732,7 +732,21 @@ broken.
 | old-bot behaviour only from generic blocks | (standing rule) | verified against the spec |
 | stream-facing first (commands + overlays) | (ordering) | in force |
 
-**Phases 0-S, 0 and 1 are EMPTY — all closed.** The queue is: DO NEXT, then Phase 2 onward.
+**2026-09-24 — the queue is re-based on `usability-inventory-2026-09-24-audit-scope-and-plan.md`
+(V·A1–A6, B1–B8, Part C).** Owner: "I thought we were done with the todo's but there is so much more."
+Eleven lanes, every "whole platform" claim re-read at the lines, live box checked. Part C of that doc
+is the ORDER: Tier 0 security (wallet transfer open to any viewer, cross-channel pipeline execution,
+hub join without Gate-2, widget token = whole channel, web setup never finalises) → Tier 1 runtime
+(403 EventSub storm root cause, blue/green tug-of-war, Spotify 429 self-feed, Polly noise, scopes
+required at ENABLE time) → Tier 2 "silently never worked" (AutoMod key contract, unban-approve,
+store purchases, watch-time earning, typed pipeline params, widget settings push, double alerts) →
+Tier 3 the owner's flows (impersonation, moderator-of-many, viewer) → Tier 4 form infrastructure incl.
+the standing **A6 no-hoops rule (every picker creates inline)** and A5 dead links. Work Part C top to
+bottom before anything below this line except the Tier-0 items already here. Corrections to this
+file from that audit: line 1193's "public /sr/ page correct" is WRONG (unbuilt); S072 "no doc drift"
+is wrong for Event Responses/Alerts placement and the Commands floor.
+
+**Phases 0-S, 0 and 1 are EMPTY — all closed.** The queue is: the V·Part C tiers above, then Phase 2 onward.
 
 **Rules that now bind every future slice** (learned the hard way, each cost rework):
 1. A guard that checks only a hand-written list is not a guard — enumerate from the real source.
