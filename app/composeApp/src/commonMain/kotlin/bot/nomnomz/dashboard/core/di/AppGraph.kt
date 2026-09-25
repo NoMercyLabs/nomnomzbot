@@ -242,6 +242,8 @@ import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
 import bot.nomnomz.dashboard.feature.liveops.state.ScheduleController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
+import bot.nomnomz.dashboard.feature.setup.state.SetupFinishPendingStore
+import bot.nomnomz.dashboard.feature.setup.state.SetupFinishStore
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
 // F7: one HttpClient, one ConnectionStore), wired by explicit constructor injection. Koin replaces
@@ -426,6 +428,12 @@ class AppGraph {
             diagnosticsApi = twitchDiagnosticsApi,
         )
 
+    // The non-secret "setup finish pending" record custody — written by SetupController.finish() BEFORE the
+    // streamer OAuth redirect (which tears the page down on web before anything after it could run) and
+    // resolved at next app boot by App.kt via resumePendingSetupFinish (after the session is confirmed
+    // established). Shared between the controller and the boot-time resume — one custody instance.
+    val setupFinishStore: SetupFinishStore = SetupFinishPendingStore()
+
     // The first-run setup wizard's holder. On "continue to sign-in" it hands back to the connect
     // controller's streamer OAuth (signInStreamer), which establishes the session and advances the gate.
     val setupController: SetupController =
@@ -436,6 +444,7 @@ class AppGraph {
             channelsApi = channelsApi,
             channelSettingsApi = channelSettingsApi,
             onReadyToSignIn = connectController::signInStreamer,
+            pendingFinishStore = setupFinishStore,
         )
 
     val integrationsController: IntegrationsController =

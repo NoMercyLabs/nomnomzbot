@@ -14,16 +14,13 @@ import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BotAuthApi
-import bot.nomnomz.dashboard.core.network.ChannelBasics
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
-import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.DeviceBotPoll
 import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.SetupStep
 import bot.nomnomz.dashboard.core.network.SetupWizard
 import bot.nomnomz.dashboard.core.network.SystemApi
-import bot.nomnomz.dashboard.core.network.UpdateBasicsBody
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,8 +51,16 @@ class SetupController(
     private val channelsApi: ChannelsApi,
     private val channelSettingsApi: ChannelSettingsApi,
     // Hand off to the streamer OAuth once setup is ready. Returns true when the session was established
-    // (the gate advances to the shell); false leaves the wizard up with [SetupError.SignIn] surfaced.
+    // (the gate advances to the shell); false leaves the wizard up with [SetupError.SignIn] surfaced. On
+    // web this NEVER returns for a real redirect (the page navigates away) — [finish] persists a
+    // [SetupFinishPending] record to [pendingFinishStore] BEFORE calling this, precisely so the work that
+    // would otherwise run after this call still happens (resumed at next app boot via
+    // [resumePendingSetupFinish] — App.kt, after the session is confirmed established).
     private val onReadyToSignIn: suspend () -> Boolean,
+    // The non-secret "setup finish pending" record custody (web survives the full-page OAuth redirect via
+    // this; desktop resolves it in-process on the same call, but still writes/clears it for consistency —
+    // one code path, not two).
+    private val pendingFinishStore: SetupFinishStore = SetupFinishPendingStore(),
 ) {
     private val _state: MutableStateFlow<SetupState> = MutableStateFlow(SetupState.Loading)
 
@@ -252,19 +257,47 @@ class SetupController(
      * Setup is ready (Twitch app + platform bot configured): run the streamer OAuth, and on success mark
      * setup complete. The gate advances to the shell inside [onReadyToSignIn]; a failure surfaces
      * [SetupError.SignIn] and leaves the wizard up.
+     *
+     * The non-secret basics are persisted to [pendingFinishStore] BEFORE [onReadyToSignIn] runs — on web
+     * that call navigates the whole page away, tearing this controller down before anything after it could
+     * execute, so completeSetup() and the channel basics write would silently never happen (the bug this
+     * closes: `system.setup_complete` stays unset and the typed prefix/locale/timezone/bot-line-prefix are
+     * lost). The persisted record lets [resumePendingSetupFinish] finish the job once the session returns
+     * (App.kt, at next boot). When [onReadyToSignIn] DOES return in-process (desktop, or a web launcher that
+     * happens to return), the record is resolved right here instead of waiting for a reload that may never
+     * come — one code path (via [applyBasics]), not two.
      */
     suspend fun finish() {
         val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
         if (!current.ready) return
         _state.value = current.copy(busy = SIGNING_IN, error = null)
 
+        pendingFinishStore.write(
+            SetupFinishPending(
+                prefix = basics.prefix,
+                locale = basics.locale,
+                timezone = basics.timezone,
+                botLinePrefix = basics.botLinePrefix,
+                platformBotConnected = current.platformBotConnected,
+            ),
+        )
+
         val signedIn: Boolean = onReadyToSignIn()
         if (!signedIn) {
             _state.value = current.copy(busy = null, error = SetupError.SignIn)
             return
         }
-        // The streamer session is live; finalize setup so the credential endpoints lock to admins.
-        systemApi.completeSetup()
+
+        // The streamer session is live in-process; finalize setup so the credential endpoints lock to
+        // admins. A failure here is real — never ignored (CLAUDE.md: never swallow a Result) — and the
+        // pending record stays in place so a later resume can retry.
+        when (val completeResult: ApiResult<Unit> = systemApi.completeSetup()) {
+            is ApiResult.Failure -> {
+                _state.value = current.copy(busy = null, error = SetupError.Complete(completeResult.error.message))
+                return
+            }
+            is ApiResult.Ok -> Unit
+        }
         // Persist the onboarding basics to the streamer's now-onboarded channel. Setup itself is already
         // finalized at this point (never blocked on this write), but a rejected/failed write is a real
         // failure the operator must see and can retry from — never swallowed. On success, S070 clears busy
@@ -273,9 +306,10 @@ class SetupController(
         applyBasics()
     }
 
-    // Resolve the signed-in streamer's channel and PUT the collected basics. A blank prefix falls back to the
-    // conventional "!" so onboarding never persists an empty (match-everything) prefix; blank locale/timezone
-    // are sent as null (leave unchanged).
+    // Resolve the signed-in streamer's channel and PUT the collected basics via the shared [applySetupBasics]
+    // (also used by [resumePendingSetupFinish] — one definition, never duplicated). A blank prefix falls back
+    // to the conventional "!" so onboarding never persists an empty (match-everything) prefix; blank
+    // locale/timezone are sent as null (leave unchanged).
     //
     // The bot-line marker (D5: "the bot types as the streamer's own account with a user-defined line prefix"
     // until a dedicated bot account connects) is a SEPARATE field from the command prefix above — it must
@@ -286,34 +320,28 @@ class SetupController(
     //
     // S070: neither failure path here is silent — a channel that can't be resolved, or a rejected write,
     // surfaces the backend's real error message via [SetupError.Basics] rather than leaving the operator with
-    // no feedback (or a state that only LOOKS like it succeeded).
+    // no feedback (or a state that only LOOKS like it succeeded). On success, the pending record is cleared —
+    // it is ONLY cleared once completeSetup() AND this write have both succeeded.
     private suspend fun applyBasics() {
         val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
 
-        val channel: ChannelSummary =
-            when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
-                is ApiResult.Failure -> {
-                    _state.value = current.copy(busy = null, error = SetupError.Basics(result.error.message))
-                    return
-                }
-                is ApiResult.Ok -> result.value
-            }
-        val prefix: String = basics.prefix.trim().ifEmpty { "!" }
-        val platformBotConnected: Boolean = (_state.value as? SetupState.Steps)?.platformBotConnected == true
-        val result: ApiResult<ChannelBasics> =
-            channelSettingsApi.updateBasics(
-                channel.id,
-                UpdateBasicsBody(
-                    prefix = prefix,
-                    locale = basics.locale.trim().ifEmpty { null },
-                    timezone = basics.timezone.trim().ifEmpty { null },
-                    botLinePrefix = if (platformBotConnected) null else basics.botLinePrefix.trim(),
-                ),
+        val result: ApiResult<Unit> =
+            applySetupBasics(
+                channelsApi = channelsApi,
+                channelSettingsApi = channelSettingsApi,
+                prefix = basics.prefix,
+                locale = basics.locale,
+                timezone = basics.timezone,
+                botLinePrefix = basics.botLinePrefix,
+                platformBotConnected = current.platformBotConnected,
             )
 
         when (result) {
             is ApiResult.Failure -> _state.value = current.copy(busy = null, error = SetupError.Basics(result.error.message))
-            is ApiResult.Ok -> _state.value = current.copy(busy = null, error = null)
+            is ApiResult.Ok -> {
+                pendingFinishStore.write(null)
+                _state.value = current.copy(busy = null, error = null)
+            }
         }
     }
 
@@ -476,6 +504,9 @@ sealed interface SetupError {
 
     /** The final streamer sign-in failed. */
     data object SignIn : SetupError
+
+    /** The post-sign-in `completeSetup()` call failed (the credential endpoints stay open to anonymous). */
+    data class Complete(val detail: String) : SetupError
 
     /** Persisting the review step's onboarding basics (prefix/locale/timezone/bot-line-prefix) failed. */
     data class Basics(val detail: String) : SetupError

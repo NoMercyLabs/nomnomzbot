@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.feature.setup.state
 
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BotAuthApi
@@ -37,7 +39,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 
 // Proves the first-run setup wizard's state machine — the behavior the screen renders and the credential
 // saves the user drives. These assert the resulting STATE (the steps rendered from the backend, the ready
@@ -53,8 +58,9 @@ class SetupControllerTest {
         channelsApi: ChannelsApi = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
         settingsApi: FakeSetupChannelSettingsApi = FakeSetupChannelSettingsApi(),
         onReadyToSignIn: suspend () -> Boolean = { true },
+        pendingFinishStore: FakeSetupFinishStore = FakeSetupFinishStore(),
     ): SetupController =
-        SetupController(api, launcher, botAuthApi, channelsApi, settingsApi, onReadyToSignIn)
+        SetupController(api, launcher, botAuthApi, channelsApi, settingsApi, onReadyToSignIn, pendingFinishStore)
 
     @Test
     fun finish_applies_the_collected_basics_to_the_channel_after_signin() = runTest {
@@ -671,6 +677,166 @@ class SetupControllerTest {
         assertTrue(signedIn)
         assertTrue(api.setupCompleted)
     }
+
+    // ── Web-redirect setup finish (the bug this closes) ─────────────────────────
+    //
+    // On web, onReadyToSignIn() never returns for a real redirect — the whole page navigates away and the
+    // controller is torn down mid-call. finish() must persist the non-secret basics to the pending-finish
+    // store BEFORE handing off, so nothing is lost; resumePendingSetupFinish() (called at next app boot,
+    // after the session is confirmed established) then finishes completeSetup() + the basics write.
+
+    @Test
+    fun finish_on_a_launcher_that_never_returns_leaves_a_pending_record_with_no_secrets() = runTest {
+        // Models the web redirect: onReadyToSignIn() suspends forever (the page navigates away and never
+        // comes back in-process) — proven here with an uncompleted CompletableDeferred rather than actually
+        // hanging the test.
+        val neverReturns: suspend () -> Boolean = { CompletableDeferred<Boolean>().await() }
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val store = FakeSetupFinishStore()
+        val controller = controller(api, onReadyToSignIn = neverReturns, pendingFinishStore = store)
+        controller.load()
+
+        controller.onBasicsChange(SetupBasics(prefix = "?", locale = "nl", timezone = "Europe/Amsterdam", botLinePrefix = "*"))
+        val finishJob = launch { controller.finish() }
+        yield() // let finish() run up to (and suspend inside) onReadyToSignIn()
+
+        // The record survived the still-suspended call — no reliance on finish() ever returning.
+        val pending: SetupFinishPending? = store.pending
+        assertEquals("?", pending?.prefix)
+        assertEquals("nl", pending?.locale)
+        assertEquals("Europe/Amsterdam", pending?.timezone)
+        assertEquals("*", pending?.botLinePrefix)
+        // completeSetup() must NOT have run yet — that only happens once the session actually returns.
+        assertFalse(api.setupCompleted)
+
+        finishJob.cancel()
+    }
+
+    @Test
+    fun resume_with_a_pending_record_completes_setup_then_applies_the_basics_then_clears_the_record() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val channels = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+        val store =
+            FakeSetupFinishStore(
+                initial =
+                    SetupFinishPending(
+                        prefix = "?",
+                        locale = "nl",
+                        timezone = "Europe/Amsterdam",
+                        botLinePrefix = "*",
+                        platformBotConnected = false,
+                    ),
+            )
+        val feedback = RecordingFeedback()
+
+        resumePendingSetupFinish(store, api, channels, settings, feedback)
+
+        assertTrue(api.setupCompleted)
+        assertEquals("ch1", settings.lastBasicsChannelId)
+        assertEquals("?", settings.lastBasics?.prefix)
+        assertEquals("nl", settings.lastBasics?.locale)
+        assertEquals("Europe/Amsterdam", settings.lastBasics?.timezone)
+        assertEquals("*", settings.lastBasics?.botLinePrefix)
+        // Both steps succeeded ⇒ the record is gone (never retried again).
+        assertNull(store.pending)
+        assertTrue(feedback.messages.isEmpty())
+    }
+
+    @Test
+    fun resume_where_the_basics_write_fails_keeps_the_record_and_surfaces_the_error() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings =
+            FakeSetupChannelSettingsApi(
+                updateBasicsResult = ApiResult.Failure(ApiError(422, "INVALID_TIMEZONE", "Unknown timezone")),
+            )
+        val channels = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+        val record =
+            SetupFinishPending(
+                prefix = "!", locale = "", timezone = "Not/AZone", botLinePrefix = "", platformBotConnected = false,
+            )
+        val store = FakeSetupFinishStore(initial = record)
+        val feedback = RecordingFeedback()
+
+        resumePendingSetupFinish(store, api, channels, settings, feedback)
+
+        // completeSetup() DID succeed (never re-run once done)...
+        assertTrue(api.setupCompleted)
+        // ...but the basics write failed, so the record is kept for the next retry...
+        assertEquals(record, store.pending)
+        // ...and the real backend error is surfaced, never swallowed.
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals("Unknown timezone", feedback.only.formatArgs.single())
+    }
+
+    @Test
+    fun resume_where_complete_setup_fails_keeps_the_record_and_never_attempts_the_basics_write() = runTest {
+        val api =
+            FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true, completeSetupResult = ApiResult.Failure(ApiError(503, "DOWN", "backend unreachable")))
+        val settings = FakeSetupChannelSettingsApi()
+        val channels = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+        val record =
+            SetupFinishPending(prefix = "!", locale = "", timezone = "", botLinePrefix = "", platformBotConnected = false)
+        val store = FakeSetupFinishStore(initial = record)
+        val feedback = RecordingFeedback()
+
+        resumePendingSetupFinish(store, api, channels, settings, feedback)
+
+        assertNull(settings.lastBasicsChannelId) // never attempted — completeSetup() must run first
+        assertEquals(record, store.pending)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+    }
+
+    @Test
+    fun resume_with_no_pending_record_does_nothing() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val channels = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+        val feedback = RecordingFeedback()
+
+        resumePendingSetupFinish(FakeSetupFinishStore(), api, channels, settings, feedback)
+
+        assertFalse(api.setupCompleted)
+        assertNull(settings.lastBasicsChannelId)
+        assertTrue(feedback.messages.isEmpty())
+    }
+
+    // ── Desktop / in-process finish: completeSetup() failure must surface, not be ignored ───────────────
+
+    @Test
+    fun finish_surfaces_an_error_and_keeps_the_pending_record_when_complete_setup_fails() = runTest {
+        val api =
+            FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true, completeSetupResult = ApiResult.Failure(ApiError(503, "DOWN", "backend unreachable")))
+        val settings = FakeSetupChannelSettingsApi()
+        val store = FakeSetupFinishStore()
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true }, pendingFinishStore = store)
+        controller.load()
+
+        controller.onBasicsChange(SetupBasics(prefix = "!", timezone = "Europe/Amsterdam"))
+        controller.finish()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertEquals(SetupError.Complete("backend unreachable"), steps.error)
+        // The basics write must never even have been attempted — completeSetup() failed first.
+        assertNull(settings.lastBasicsChannelId)
+        // The record survives so a later resume (or a retry) can pick this up.
+        assertEquals("!", store.pending?.prefix)
+        assertEquals("Europe/Amsterdam", store.pending?.timezone)
+    }
+
+    @Test
+    fun finish_clears_the_pending_record_once_complete_setup_and_the_basics_write_both_succeed() = runTest {
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val store = FakeSetupFinishStore()
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true }, pendingFinishStore = store)
+        controller.load()
+
+        controller.onBasicsChange(SetupBasics(prefix = "!", timezone = "Europe/Amsterdam"))
+        controller.finish()
+
+        assertNull(store.pending)
+    }
 }
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────
@@ -745,6 +911,9 @@ internal class FakeSystemApi(
     private val wizard: SetupWizard,
     private val ready: Boolean,
     private val botOAuthUrl: String = "https://id.twitch.tv/authorize?bot",
+    // Lets a test model a rejected/failed completeSetup() call — the S070-style guard this file's
+    // "completeSetup() failure must surface" tests exercise, rather than that Result being ignored.
+    private val completeSetupResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : SystemApi {
     // Let a test model the backend changing between the initial load and the post-action reload, so the
     // re-read (not an optimistic flip) is what advances the step + ready gate.
@@ -797,8 +966,9 @@ internal class FakeSystemApi(
     }
 
     override suspend fun completeSetup(): ApiResult<Unit> {
+        if (completeSetupResult is ApiResult.Failure) return completeSetupResult
         setupCompleted = true
-        return ApiResult.Ok(Unit)
+        return completeSetupResult
     }
 
     override suspend fun pronouns(): ApiResult<List<bot.nomnomz.dashboard.core.network.PronounOption>> = ApiResult.Ok(emptyList())
@@ -862,6 +1032,20 @@ internal class FakeSetupChannelSettingsApi(
                 timezone = body.timezone,
             )
         )
+    }
+}
+
+// An in-memory [SetupFinishStore] fake: read()/write() over a plain field, so a test can assert exactly
+// what finish() persisted (or that resumePendingSetupFinish() cleared it) without touching real file/
+// localStorage I/O.
+internal class FakeSetupFinishStore(initial: SetupFinishPending? = null) : SetupFinishStore {
+    var pending: SetupFinishPending? = initial
+        private set
+
+    override fun read(): SetupFinishPending? = pending
+
+    override fun write(pending: SetupFinishPending?) {
+        this.pending = pending
     }
 }
 

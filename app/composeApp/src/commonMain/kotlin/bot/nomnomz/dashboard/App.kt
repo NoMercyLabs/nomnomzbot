@@ -42,6 +42,7 @@ import bot.nomnomz.dashboard.feature.connect.ui.UnreachableScreen
 import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyle
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
+import bot.nomnomz.dashboard.feature.setup.state.resumePendingSetupFinish
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
@@ -182,6 +183,25 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         LaunchedEffect(destination) {
             if (destination == Destination.Shell) {
                 routeStore.disconnectRequests.collect { graph.connectController.logout() }
+            }
+        }
+
+        // Resolve a setup-finish record left behind by SetupController.finish() when the streamer OAuth
+        // redirect tore the wizard down before it could run completeSetup()/applyBasics() itself (the web
+        // bug: a full-page redirect navigates away, so nothing after that call ever ran). Runs once the
+        // session is CONFIRMED established (phase == Connected) — never earlier, since both calls need an
+        // authenticated caller. A no-op when no record is pending (the common case). Re-arms on every fresh
+        // Connected transition (e.g. a later sign-out/sign-in cycle), which is safe: the read is cheap and
+        // the store only ever holds a record right after a setup finish.
+        LaunchedEffect(phase) {
+            if (phase == SessionPhase.Connected) {
+                resumePendingSetupFinish(
+                    pendingStore = graph.setupFinishStore,
+                    systemApi = graph.systemApi,
+                    channelsApi = graph.channelsApi,
+                    channelSettingsApi = graph.channelSettingsApi,
+                    feedback = graph.feedbackController,
+                )
             }
         }
 
