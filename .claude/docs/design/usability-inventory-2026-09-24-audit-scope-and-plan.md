@@ -455,6 +455,9 @@ Source: `usability-inventory-2026-09-26-admin-and-authoring.md` (both passes). R
 A1. Desktop editor parity: the desktop code/widget editor is a plain Swing text area
     (ProjectEditor.jvm.kt:42-50); give it the same Monaco editor as web (embedded browser view), with the
     same types, diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
+    Owner decision 2026-09-26: NO embedded Chromium (CEF/KCEF). Use each OS's native web view (WebView2 on
+    Windows, WKWebView on macOS, WebKitGTK on Linux), as other desktop products do. An external editor is
+    rejected: too slow for a rapid-fire broadcaster edit tool.
 A2. SDK guidance in the editor: wire `GET /sdk/event-catalog` (SdkController.cs, zero callers) into a
     docs panel — browse events and API, real sample payloads, "insert handler", hover docs, snippets.
     Done-when: a new user finds and uses an event without leaving the editor.
