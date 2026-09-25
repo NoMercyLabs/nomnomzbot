@@ -440,6 +440,32 @@ public sealed class MusicStatePollingServiceTests
         bool? watched = true
     )
     {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover handover,
+            RegisteredSpotifyStub _
+        ) = BuildWithProvider(connectedChannels, needsReauth, watched);
+        return (sut, bus, music, clock, handover);
+    }
+
+    /// <summary>Same as <see cref="Build"/>, but also hands back the registered provider stub so a test can
+    /// drive <see cref="RegisteredSpotifyStub.CoolingUntil"/> — every other test uses <see cref="Build"/>.</summary>
+    private static (
+        MusicStatePollingService Sut,
+        RecordingEventBus Bus,
+        FakeMusicService MusicService,
+        FakeTimeProvider Clock,
+        RecordingHandover Handover,
+        RegisteredSpotifyStub Provider
+    ) BuildWithProvider(
+        IReadOnlyList<Guid> connectedChannels,
+        IReadOnlyList<Guid>? needsReauth = null,
+        bool? watched = true
+    )
+    {
         MusicTestDbContext db = MusicTestDbContext.New();
         foreach (Guid channelId in connectedChannels)
         {
@@ -477,8 +503,9 @@ public sealed class MusicStatePollingServiceTests
         RecordingEventBus bus = new();
         FakeMusicService music = new();
         FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        RegisteredSpotifyStub provider = new();
 
-        PollerScopeFactory scopes = new(db, music);
+        PollerScopeFactory scopes = new(db, music, provider);
         // Which cadence tier the channel sits in: true = known and live (full speed when playing), false =
         // known but offline with nobody watching (idle tier), null = the registry has not seen it yet.
         // Defaulting to true is the production shape; a bare substitute returns null for every Get, which is
@@ -497,7 +524,82 @@ public sealed class MusicStatePollingServiceTests
             NullLogger<MusicStatePollingService>.Instance
         );
 
-        return (sut, bus, music, clock, scopes.Handover);
+        return (sut, bus, music, clock, scopes.Handover, provider);
+    }
+
+    /// <summary>
+    /// V-B5.1: the frozen-queue bug. A channel cooling down after a 429 (<see cref="IMusicProvider.TryGetCoolingUntil"/>)
+    /// must be skipped outright — no <c>GetNowPlayingAsync</c> call (it would just be rejected again), no
+    /// publish (a 429 is never "nothing playing"), and no recovery handover (it would only draw another call).
+    /// Before this gate, a rate-limited channel's null response was read as "player stopped": backoff was
+    /// cleared, IsPlaying:false was published, and the recovery handover ran every tick regardless.
+    /// </summary>
+    [Fact]
+    public async Task A_cooling_channel_is_skipped_entirely_no_call_no_publish_no_handover()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover handover,
+            RegisteredSpotifyStub provider
+        ) = BuildWithProvider([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        // Establish a baseline observation first, same as a real channel would have before ever hitting 429.
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        music.Calls.Should().HaveCount(1);
+        int handoverCallsBeforeCooling = handover.Calls.Count;
+
+        provider.CoolingUntil = clock.GetUtcNow() + TimeSpan.FromSeconds(30);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().HaveCount(1, "a cooling channel must not draw another Spotify call");
+        handover
+            .Calls.Should()
+            .HaveCount(
+                handoverCallsBeforeCooling,
+                "the recovery handover must not run while cooling"
+            );
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .HaveCount(
+                1,
+                "cooling must never publish a state change — it is not a real observation"
+            );
+    }
+
+    /// <summary>The other half: once the cooldown deadline passes, polling resumes normally.</summary>
+    [Fact]
+    public async Task Polling_resumes_once_the_cooldown_deadline_passes()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus _,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingHandover handover,
+            RegisteredSpotifyStub provider
+        ) = BuildWithProvider([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        provider.CoolingUntil = clock.GetUtcNow() + TimeSpan.FromSeconds(2);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        music.Calls.Should().HaveCount(1, "still cooling");
+
+        clock.Advance(TimeSpan.FromSeconds(2)); // past the deadline
+        // Natural progression over the elapsed 3s (1s + 2s) — keeps this a "nothing changed" observation so
+        // the assertion below is purely about the poll/handover resuming, not about seek-drift detection.
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 4_000));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().HaveCount(2, "the cooldown cleared, so polling resumes");
+        handover.Calls.Should().Contain(ChannelA.ToString());
     }
 
     /// <summary>
@@ -653,17 +755,20 @@ public sealed class MusicStatePollingServiceTests
     private sealed class PollerScopeFactory(
         IApplicationDbContext db,
         IMusicService musicService,
+        RegisteredSpotifyStub? provider = null,
         RecordingHandover? handover = null
     ) : IServiceScopeFactory
     {
         public RecordingHandover Handover { get; } = handover ?? new RecordingHandover();
+        private readonly RegisteredSpotifyStub _provider = provider ?? new RegisteredSpotifyStub();
 
-        public IServiceScope CreateScope() => new Scope(db, musicService, Handover);
+        public IServiceScope CreateScope() => new Scope(db, musicService, Handover, _provider);
 
         private sealed class Scope(
             IApplicationDbContext db,
             IMusicService musicService,
-            ISongRequestHandover handover
+            ISongRequestHandover handover,
+            RegisteredSpotifyStub provider
         ) : IServiceScope, IServiceProvider
         {
             public IServiceProvider ServiceProvider => this;
@@ -677,7 +782,7 @@ public sealed class MusicStatePollingServiceTests
                 if (serviceType == typeof(ISongRequestHandover))
                     return handover;
                 if (serviceType == typeof(IEnumerable<IMusicProvider>))
-                    return new List<IMusicProvider> { new RegisteredSpotifyStub() };
+                    return new List<IMusicProvider> { provider };
                 return null;
             }
 
@@ -704,10 +809,25 @@ public sealed class MusicStatePollingServiceTests
     /// reads <see cref="IMusicProvider.Provider"/>; every other member is unreachable from it.</summary>
     private sealed class RegisteredSpotifyStub : IMusicProvider
     {
+        /// <summary>When set, <see cref="TryGetCoolingUntil"/> reports the channel cooling until this
+        /// deadline — lets a test drive the poller's cooldown-skip path without a real Spotify 429.</summary>
+        public DateTimeOffset? CoolingUntil { get; set; }
+
         public string Provider => "spotify";
 
         public MusicProviderCapabilities Capabilities =>
             MusicProviderCapabilities.NowPlaying | MusicProviderCapabilities.PlaybackControl;
+
+        public bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until)
+        {
+            if (CoolingUntil is { } deadline)
+            {
+                until = deadline;
+                return true;
+            }
+            until = default;
+            return false;
+        }
 
         public Task PlayAsync(Guid broadcasterId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();

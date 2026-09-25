@@ -361,7 +361,8 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
     private readonly List<(
         Func<HttpRequestMessage, bool> Matches,
         HttpStatusCode Status,
-        string? Json
+        string? Json,
+        IReadOnlyDictionary<string, string>? Headers
     )> _routes = [];
 
     public List<string> RequestUrls { get; } = [];
@@ -373,7 +374,17 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
         Func<HttpRequestMessage, bool> matches,
         HttpStatusCode status,
         string? json = null
-    ) => _routes.Add((matches, status, json));
+    ) => _routes.Add((matches, status, json, null));
+
+    /// <summary>Same as <see cref="RespondWhen(Func{HttpRequestMessage,bool},HttpStatusCode,string?)"/>, but
+    /// also sets response headers (e.g. <c>Retry-After</c> on a 429) — needed for a caller that inspects the
+    /// header, not just the status.</summary>
+    public void RespondWhen(
+        Func<HttpRequestMessage, bool> matches,
+        HttpStatusCode status,
+        IReadOnlyDictionary<string, string> headers,
+        string? json = null
+    ) => _routes.Add((matches, status, json, headers));
 
     /// <summary>Drops every previously-registered route (requests already recorded are kept) — for a test
     /// that simulates a connection RECOVERING mid-test (e.g. a later call succeeding after an earlier one
@@ -394,7 +405,12 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
         );
 
         foreach (
-            (Func<HttpRequestMessage, bool> matches, HttpStatusCode status, string? json) in _routes
+            (
+                Func<HttpRequestMessage, bool> matches,
+                HttpStatusCode status,
+                string? json,
+                IReadOnlyDictionary<string, string>? headers
+            ) in _routes
         )
         {
             if (!matches(request))
@@ -403,6 +419,11 @@ internal sealed class RecordingHttpHandler : HttpMessageHandler
             HttpResponseMessage response = new(status);
             if (json is not null)
                 response.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            if (headers is not null)
+            {
+                foreach ((string name, string value) in headers)
+                    response.Headers.TryAddWithoutValidation(name, value);
+            }
             return response;
         }
 

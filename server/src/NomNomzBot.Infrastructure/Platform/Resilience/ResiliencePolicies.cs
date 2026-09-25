@@ -61,6 +61,10 @@ public static class ResiliencePolicies
         HttpStatusCode.BadGateway,
     ];
 
+    /// <summary>The floor for a 429 retry delay, regardless of what <c>Retry-After</c> says (including a
+    /// literal 0). See <see cref="AddSpotifyResilienceHandler"/>'s retry <c>DelayGenerator</c>.</summary>
+    private static readonly TimeSpan MinRetryAfterDelay = TimeSpan.FromSeconds(1);
+
     /// <summary>
     /// Adds Twitch Helix API resilience: 3 retries (transient 5xx only) with exponential backoff + jitter,
     /// a per-request timeout, and a circuit breaker that publishes <see cref="TwitchHelixCircuitOpenedEvent"/>
@@ -455,7 +459,10 @@ public static class ResiliencePolicies
                     }
                 );
 
-                // Retry: 2 attempts, exponential backoff starting at 1s, jitter
+                // Retry: 2 attempts, exponential backoff starting at 1s, jitter. This is the ONLY layer that
+                // retries a Spotify 429 — SpotifyMusicProvider.SendAsync used to retry it a second time on top
+                // of this, so a single rate-limited poll could cost up to 3 real Spotify calls; that manual
+                // retry is gone (SpotifyMusicProvider now only records the cooldown, never retries).
                 pipeline.AddRetry(
                     new HttpRetryStrategyOptions
                     {
@@ -471,22 +478,33 @@ public static class ResiliencePolicies
                                     || status == HttpStatusCode.ServiceUnavailable
                             );
                         },
-                        // Honor Retry-After header from Spotify 429 responses
+                        // Honor Retry-After from a Spotify 429, floored at MinRetryAfterDelay: Spotify has been
+                        // observed sending "Retry-After: 0" under load, which — unfloored — retried
+                        // immediately, twice, on every rate-limited poll (verified live: FailureCount never
+                        // moved because each 429 "succeeded" on its zero-delay retry, so the queue looked
+                        // healthy while it was actually spinning). A missing/unparseable header falls back to
+                        // the same floor rather than Polly's default exponential delay, since a provider that
+                        // just said "too many requests" should never be retried at the FASTEST backoff tier.
                         DelayGenerator = args =>
                         {
                             if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
                             {
+                                int retryAfter = MinRetryAfterDelay.Seconds;
                                 if (
                                     args.Outcome.Result.Headers.TryGetValues(
                                         "Retry-After",
                                         out IEnumerable<string>? values
-                                    ) && int.TryParse(values.FirstOrDefault(), out int retryAfter)
+                                    ) && int.TryParse(values.FirstOrDefault(), out int headerValue)
                                 )
                                 {
-                                    return ValueTask.FromResult<TimeSpan?>(
-                                        TimeSpan.FromSeconds(retryAfter)
-                                    );
+                                    retryAfter = headerValue;
                                 }
+
+                                return ValueTask.FromResult<TimeSpan?>(
+                                    TimeSpan.FromSeconds(
+                                        Math.Max(retryAfter, MinRetryAfterDelay.Seconds)
+                                    )
+                                );
                             }
                             return ValueTask.FromResult<TimeSpan?>(null); // use default backoff
                         },
@@ -496,7 +514,11 @@ public static class ResiliencePolicies
                 // Per-request timeout: 8s
                 pipeline.AddTimeout(TimeSpan.FromSeconds(8));
 
-                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s
+                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s. 429 counts as a
+                // failure here (unlike the Twitch/emote/alejo breakers above): those only see genuine outage
+                // signals (5xx/network), but a channel being rate-limited by Spotify IS a real degraded state
+                // for that partition, and the breaker opening surfaces it the same way an outage would rather
+                // than silently absorbing hundreds of 429s as "healthy".
                 pipeline.AddCircuitBreaker(
                     new HttpCircuitBreakerStrategyOptions
                     {
@@ -508,6 +530,8 @@ public static class ResiliencePolicies
                             ValueTask.FromResult(
                                 args.Outcome.Result?.StatusCode
                                     >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Result?.StatusCode
+                                        == HttpStatusCode.TooManyRequests
                                     || args.Outcome.Exception is HttpRequestException
                             ),
                     }

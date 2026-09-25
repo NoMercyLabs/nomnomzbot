@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -76,6 +77,17 @@ public sealed class SpotifyMusicProvider
     private const int ContainsIdsPerRequest = 50; // GET /me/tracks/contains hard cap per live reference
     private const int SavedTracksPerPage = 50; // GET /me/tracks limit hard cap per live reference
 
+    /// <summary>Floor applied to a missing/zero/unparseable <c>Retry-After</c> when recording a cooldown —
+    /// mirrors <c>ResiliencePolicies.MinRetryAfterDelay</c> (a rate limit must never be treated as "clear
+    /// again instantly").</summary>
+    private static readonly TimeSpan MinCooldown = TimeSpan.FromSeconds(1);
+
+    /// <summary>Per-channel "don't call Spotify again until" deadline, set from a 429's <c>Retry-After</c>
+    /// once Polly's own retries (<see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>)
+    /// are exhausted. Read by <see cref="TryGetCoolingUntil"/> so <c>MusicStatePollingService</c> can skip a
+    /// cooling channel outright instead of drawing (and losing) another call.</summary>
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _coolingUntil = new();
+
     private readonly IApplicationDbContext _db;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISystemCredentialsProvider _credentials;
@@ -116,6 +128,47 @@ public sealed class SpotifyMusicProvider
     }
 
     public string Provider => ProviderName;
+
+    /// <inheritdoc />
+    public bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until)
+    {
+        if (
+            _coolingUntil.TryGetValue(broadcasterId, out DateTimeOffset deadline)
+            && deadline > _timeProvider.GetUtcNow()
+        )
+        {
+            until = deadline;
+            return true;
+        }
+
+        until = default;
+        _coolingUntil.TryRemove(broadcasterId, out _);
+        return false;
+    }
+
+    /// <summary>Records that this channel just got rate-limited (after Polly's own retries were exhausted —
+    /// see <see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>), floored at
+    /// <see cref="MinCooldown"/> so a missing/zero <c>Retry-After</c> never reads as "clear immediately".</summary>
+    private void RecordRateLimit(Guid broadcasterId, HttpResponseMessage response)
+    {
+        TimeSpan retryAfter = MinCooldown;
+        if (
+            response.Headers.TryGetValues("Retry-After", out IEnumerable<string>? values)
+            && int.TryParse(values.FirstOrDefault(), out int seconds)
+            && seconds > 0
+        )
+        {
+            retryAfter = TimeSpan.FromSeconds(Math.Max(seconds, (int)MinCooldown.TotalSeconds));
+        }
+
+        DateTimeOffset until = _timeProvider.GetUtcNow() + retryAfter;
+        _coolingUntil[broadcasterId] = until;
+        _logger.LogWarning(
+            "Spotify rate limited broadcaster {BroadcasterId}, cooling until {Until:O}",
+            broadcasterId,
+            until
+        );
+    }
 
     /// <summary>
     /// The full §3.5 Spotify set (music-sr.md line 324): complete remote transport plus the
@@ -1691,25 +1744,15 @@ public sealed class SpotifyMusicProvider
 
         try
         {
+            // 429 is retried by Polly, inside the resilience handler on this same "spotify" HttpClient
+            // (AddSpotifyResilienceHandler), honoring Retry-After with a floor and a capped attempt count —
+            // this is the ONLY retry a 429 gets. A response that is STILL 429 here means every retry was
+            // exhausted, so the channel is recorded as cooling rather than retried a second time on top of
+            // Polly's own (that double-retry, on a Retry-After Spotify sometimes sends as literally "0", is
+            // what let a rate-limited channel's poll cost up to 3 real calls with FailureCount never moving).
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
-
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            {
-                if (
-                    response.Headers.TryGetValues("Retry-After", out IEnumerable<string>? values)
-                    && int.TryParse(values.First(), out int retryAfter)
-                )
-                {
-                    _logger.LogWarning("Spotify rate limited, retry-after={Seconds}s", retryAfter);
-                    await Task.Delay(TimeSpan.FromSeconds(retryAfter), cancellationToken);
-                    // Retry once after backoff
-                    request = new(method, url);
-                    request.Headers.Authorization = new("Bearer", token);
-                    request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
-                    request.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
-                    response = await _http.SendAsync(request, cancellationToken);
-                }
-            }
+                RecordRateLimit(broadcasterId, response);
 
             // Buffer up front so ClassifyAuthAsync's own body read (403 premium-vs-forbidden
             // disambiguation) never disturbs the caller's own subsequent read of the same response.
@@ -1799,6 +1842,12 @@ public sealed class SpotifyMusicProvider
         {
             HttpRequestMessage req = new(m, u);
             req.Headers.Authorization = new("Bearer", token);
+            // Every outbound Spotify request must carry its channel, or it falls into the shared
+            // Guid.Empty fallback partition in AddSpotifyResilienceHandler's per-channel rate limiter —
+            // this call previously did not, so every play/pause/skip/seek/shuffle/repeat/transfer/
+            // queue-add write shared one budget across every channel instead of each channel's own.
+            req.Options.Set(SpotifyRequestTags.IsBackgroundPoll, false);
+            req.Options.Set(SpotifyRequestTags.BroadcasterId, broadcasterId);
             if (b is not null)
                 req.Content = JsonContent.Create(b);
             else if (m != HttpMethod.Get)
@@ -1825,6 +1874,9 @@ public sealed class SpotifyMusicProvider
             _logger.LogError(ex, "Spotify player command failed: {Method} {Url}", method, url);
             return null;
         }
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+            RecordRateLimit(broadcasterId, response);
 
         if (
             response.StatusCode == HttpStatusCode.Forbidden

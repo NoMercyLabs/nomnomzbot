@@ -297,4 +297,87 @@ public sealed class SpotifyRateLimiterTests
             return null;
         }
     }
+
+    /// <summary>Always answers 429 with a caller-supplied <c>Retry-After</c>, counting every attempt Polly
+    /// makes (the initial send plus every retry) — isolates the retry strategy's own delay/attempt-cap
+    /// behavior from the rate limiter covered above.</summary>
+    private sealed class AlwaysTooManyRequestsHandler(string retryAfter) : HttpMessageHandler
+    {
+        public int AttemptCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            AttemptCount++;
+            HttpResponseMessage response = new(HttpStatusCode.TooManyRequests);
+            response.Headers.TryAddWithoutValidation("Retry-After", retryAfter);
+            return Task.FromResult(response);
+        }
+    }
+
+    private static HttpClient NewClient(HttpMessageHandler handler)
+    {
+        ServiceCollection services = new();
+        services
+            .AddHttpClient("spotify")
+            .ConfigurePrimaryHttpMessageHandler(() => handler)
+            .AddSpotifyResilienceHandler();
+        ServiceProvider provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<IHttpClientFactory>().CreateClient("spotify");
+    }
+
+    /// <summary>
+    /// The exact live defect: Spotify answering 429 with <c>Retry-After: 0</c> must never be retried
+    /// immediately — the retry has to wait at least the floor (1s) before firing again. Proven by wall-clock
+    /// timing over the REAL production pipeline (<see cref="ResiliencePolicies.AddSpotifyResilienceHandler"/>),
+    /// not a re-implementation of its delay math.
+    /// </summary>
+    [Fact]
+    public async Task A_429_with_retry_after_zero_is_never_retried_immediately()
+    {
+        AlwaysTooManyRequestsHandler handler = new("0");
+        using HttpClient client = NewClient(handler);
+
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using HttpResponseMessage response = await client.GetAsync(
+            "https://api.spotify.com/v1/me/player"
+        );
+        stopwatch.Stop();
+
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        handler
+            .AttemptCount.Should()
+            .Be(3, "MaxRetryAttempts=2 caps this at 1 initial + 2 retries");
+        stopwatch
+            .Elapsed.Should()
+            .BeGreaterThanOrEqualTo(
+                TimeSpan.FromSeconds(2).Subtract(TimeSpan.FromMilliseconds(200)),
+                "each of the 2 retries must wait at least the 1s floor even though Retry-After said 0 — "
+                    + "an unfloored delay is exactly what turned one rate-limited poll into a zero-delay loop"
+            );
+    }
+
+    /// <summary>A genuine Retry-After above the floor is honored, not overridden down to the floor.</summary>
+    [Fact]
+    public async Task A_real_retry_after_above_the_floor_is_honored()
+    {
+        AlwaysTooManyRequestsHandler handler = new("1"); // 1s — at the floor, not below it, keeps the test fast.
+        using HttpClient client = NewClient(handler);
+
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using HttpResponseMessage response = await client.GetAsync(
+            "https://api.spotify.com/v1/me/player"
+        );
+        stopwatch.Stop();
+
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        handler.AttemptCount.Should().Be(3);
+        stopwatch
+            .Elapsed.Should()
+            .BeGreaterThanOrEqualTo(
+                TimeSpan.FromSeconds(2).Subtract(TimeSpan.FromMilliseconds(200))
+            );
+    }
 }

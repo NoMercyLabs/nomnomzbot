@@ -191,10 +191,8 @@ public sealed class MusicStatePollingService : BackgroundService
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();
         ISongRequestHandover handover =
             scope.ServiceProvider.GetRequiredService<ISongRequestHandover>();
-        List<string> providerKeys =
-        [
-            .. scope.ServiceProvider.GetServices<IMusicProvider>().Select(p => p.Provider),
-        ];
+        List<IMusicProvider> providers = [.. scope.ServiceProvider.GetServices<IMusicProvider>()];
+        List<string> providerKeys = [.. providers.Select(p => p.Provider)];
 
         List<Guid> channelIds = await LoadConnectedChannelsAsync(
             db,
@@ -219,6 +217,20 @@ public sealed class MusicStatePollingService : BackgroundService
 
             if (!IsPollDue(channelId, now))
                 continue; // Not due at this channel's own cadence — see CadenceFor.
+
+            // Cooling after a provider rate-limited this channel (IMusicProvider.TryGetCoolingUntil): skip
+            // the call outright, and skip the recovery handover too — both would just draw another call the
+            // provider is already refusing. Deliberately NOT routed through ProcessChannelStateAsync/
+            // RecordFailure: a 429 is not "nothing playing" (must never publish IsPlaying=false) and not a
+            // provider error to back off on top of (the provider's own Retry-After already IS the backoff).
+            // _lastPolledAt is intentionally left untouched so polling resumes at the channel's normal
+            // cadence — not a fresh full cadence wait — the instant the cooldown clears.
+            if (
+                providers.Any(p =>
+                    p.TryGetCoolingUntil(channelId, out DateTimeOffset until) && until > now
+                )
+            )
+                continue;
 
             _lastPolledAt[channelId] = now;
 

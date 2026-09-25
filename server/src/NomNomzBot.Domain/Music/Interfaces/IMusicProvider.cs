@@ -252,6 +252,22 @@ public interface IMusicProvider
         Guid broadcasterId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// True while this channel is cooling down after this provider rate-limited it (a 429 that survived
+    /// every retry), with <paramref name="until"/> set to when polling may resume. Extends, rather than
+    /// replaces, the existing null/"cannot tell" contract on members like <see cref="GetCurrentTrackAsync"/>:
+    /// a background poller checks this BEFORE calling in, so a channel serving out a cooldown is skipped
+    /// outright instead of drawing another call that would just be rejected again, and the poller never has
+    /// to guess a 429 apart from a genuine "nothing playing" null. Default false/no-op for a provider that
+    /// never rate-limits (or self-throttles some other way) — only a provider that tracks its own cooldowns
+    /// (Spotify) needs to override this.
+    /// </summary>
+    bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until)
+    {
+        until = default;
+        return false;
+    }
 }
 
 public class TrackInfo
