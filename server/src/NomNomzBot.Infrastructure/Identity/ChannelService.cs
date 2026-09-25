@@ -172,7 +172,6 @@ public class ChannelService : IChannelService
                 c.IsLive,
                 "broadcaster",
                 null,
-                c.OverlayToken,
                 c.Provider,
                 c.User.Color
             ))
@@ -225,7 +224,6 @@ public class ChannelService : IChannelService
                 c.IsLive,
                 c.OwnerUserId == userGuid ? "broadcaster" : "moderator",
                 null,
-                c.OverlayToken,
                 c.Provider,
                 c.User.Color
             ))
@@ -716,8 +714,8 @@ public class ChannelService : IChannelService
         new(
             c.Id.ToString(),
             c.Name,
-            c.User?.DisplayName ?? c.Name,
-            c.User?.ProfileImageUrl,
+            c.User.DisplayName,
+            c.User.ProfileImageUrl,
             c.IsLive,
             c.IsOnboarded,
             c.Title,

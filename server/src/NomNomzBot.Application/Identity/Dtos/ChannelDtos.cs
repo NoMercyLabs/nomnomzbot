@@ -43,7 +43,6 @@ public sealed record ChannelSummaryDto(
     bool IsLive,
     string Role,
     int? ViewerCount,
-    string? OverlayToken,
     string Provider,
     string? ChatColor = null
 );

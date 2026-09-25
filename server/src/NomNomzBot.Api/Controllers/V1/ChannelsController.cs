@@ -298,7 +298,6 @@ public class ChannelsController : BaseController
             false,
             "moderator",
             null,
-            null,
             AuthEnums.Platform.Twitch
         );
         return Ok(new StatusResponseDto<ChannelSummaryDto> { Data = summary });

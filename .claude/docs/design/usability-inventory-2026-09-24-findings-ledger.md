@@ -72,7 +72,7 @@ endpoints, and the onboarding friction walk.
 - [ ] `TRUTH` srv Application/Identity/Dtos/ChannelDtos.cs:38-49 — no onboarded/bot-installed flag → full sidebar with inert pages — flag + badge + explain/disable.
 - [ ] `PERF` ChannelsController.cs:84-99 + ChannelsApi.kt:77 (47 callers) — every `GET /channels` = Helix call + writes, per navigation — cache per user; `primaryChannel` reads the roster.
 - [ ] `PAGE` ChannelsController.cs:88,184,246 — first 100 moderated channels only; Helix failure → empty (:185-187, switcher :79).
-- [ ] `SEC` ChannelService.cs:228 — roster returns `OverlayToken` to every non-owner — drop from DTO.
+- [x] `SEC` ChannelService.cs:228 — roster returns `OverlayToken` to every non-owner — drop from DTO.
 - [ ] ChannelService.cs:203 — roster built through the tenant filter → differs by active channel.
 - [ ] ChannelSwitcherController.load() with a suspended/deleted pinned channel → roster 403 → stuck Error (adds to S074).
 - [ ] `RESULT` ChannelsController.cs:284-291 — `SetManagementRoleAsync` Result ignored → 200 "moderator" on failure.
