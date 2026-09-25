@@ -134,7 +134,7 @@ endpoints, and the onboarding friction walk.
 ## L4 · Shell, navigation, settings, onboarding (first round; uncapped sweep owed)
 
 - [ ] SettingsScreen.kt:314-379 — outer Column does not scroll; stream-info Box `weight(1f)`; nine cards below cut off (Bot account, Permissions, Billing, Journal unreachable). **VERIFIED**
-- [ ] `SEC` SetupController.kt:256-273 + wasmJsMain OAuthLauncher.wasmJs.kt:48-50 — web `finish()` navigates away; `completeSetup()`/`applyBasics()` never run → basics lost, `setup_complete` never set, SystemController.cs:312/351/447 stay writable without login; desktop ignores the completeSetup Result. **VERIFIED (server side)**
+- [x] `SEC` SetupController.kt:256-273 + wasmJsMain OAuthLauncher.wasmJs.kt:48-50 — web `finish()` navigates away; `completeSetup()`/`applyBasics()` never run → basics lost, `setup_complete` never set, SystemController.cs:312/351/447 stay writable without login; desktop ignores the completeSetup Result. **VERIFIED (server side)**
 - [ ] SetupController.kt:290-317 + App.kt:157 — desktop gate switches before `applyBasics` finishes; `SetupError.Basics` renders on an unmounted wizard.
 - [ ] App.kt:182-186 + RouteStore.wasmJs.kt:71-72 — browser Back on the first shell entry logs out, no confirm.
 - [ ] ShellScreen.kt:349-350 + RouteStore.wasmJs.kt:41-46 — coerced route pushes history → Back loops; no "no access" notice.
@@ -175,7 +175,7 @@ endpoints, and the onboarding friction walk.
 - [ ] CommandService.cs:83-97,200-215 — regex not compile-checked (ChatTriggerService.cs:208-221 does); bad pattern logged and skipped (ChannelRegistry.cs:496-503); client only checks blank (CommandsScreen.kt:828); no tester; no capture groups as args (ChatMessageHandler.cs:611-614).
 - [ ] ChatMessageHandler.cs:416-425,~481-487 — missing/disabled pipeline → warning + no reply; no save-time rule.
 - [ ] CommandService.cs:284-285 — PipelineId cannot be cleared (timers/triggers/responses accept Guid.Empty, TimerManagementService.cs:234-236).
-- [ ] `SEC` CommandService.cs:160,285 + ChatTriggerService.cs:92,130 + ChannelRegistry.cs:564-565 — PipelineId never checked against the channel; steps loaded by id outside any tenant → another channel's pipeline runs if its GUID is known (TimerService.cs:275-277 filters correctly). **VERIFIED**
+- [x] `SEC` CommandService.cs:160,285 + ChatTriggerService.cs:92,130 + ChannelRegistry.cs:564-565 — PipelineId never checked against the channel; steps loaded by id outside any tenant → another channel's pipeline runs if its GUID is known (TimerService.cs:275-277 filters correctly). **VERIFIED**
 - [ ] ChatMessageHandler.cs:1048-1053,1368 — trigger permission and `user.role` use badges only; commands use effective role (:335,:433) → permitted/badge-less Editors refused.
 - [ ] IChannelRegistry.cs:168 + ChatMessageHandler.cs:1050-1073 — triggers in a ConcurrentDictionary, first match wins → random on overlap; no priority.
 - [ ] ChannelRegistry.cs:354-363 — trigger bound to a disabled pipeline still runs (commands check :448-451).
@@ -320,7 +320,7 @@ endpoints, and the onboarding friction walk.
 - [ ] `DEAD` EventResponseOverlayNotifierAdapter.cs:51 — "overlay" response type sends `event_response` nobody listens to; AlertsController.kt:199 cannot pick it.
 - [ ] OverlayHostController.cs:73-75 — widgetId compared as raw Guid → ULID shows "not live" (bundle route accepts both).
 - [ ] OverlayHostController.cs:144,150,198-211 — `style-src` lacks https: (Google Fonts blocked); `font-src` lacks 'self'; vanilla page no CSP.
-- [ ] `SEC` WidgetService.cs:1556-1573,1175-1177 + OverlayHub.cs:89-96 — per-widget token resolves to the whole channel.
+- [x] `SEC` WidgetService.cs:1556-1573,1175-1177 + OverlayHub.cs:89-96 — per-widget token resolves to the whole channel.
 - [ ] `RAW` WidgetSettingsSchemaProvider.cs:115 resetCadence, :177 provider, :205 rewards JSON, :213 countdown ISO, :229-230 custom_data source/field, :116/200 colours JSON.
 - [ ] countdown_timer.vue:52-53 — duration mode restarts on every reload; no start/pause from the dashboard.
 - [ ] editor.js:1204,1259 — close/Esc with no unsaved-changes check; no dirty tracking.
@@ -408,7 +408,7 @@ endpoints, and the onboarding friction walk.
 
 Path 1 — self-host lite
 - [ ] DEPLOY.md:65-105 vs README.md:311-313 — two different "run it yourself" stories: `deploy.sh desktop` (needs .NET SDK) vs `dotnet run` (README says it needs `docker compose up -d postgres redis`, which contradicts SelfHostLite-on-SQLite) — one quickstart; cross-link; fix the README claim.
-- [ ] app/feature/setup/state/SetupController.kt:36-44, 266-274 + ConnectController.kt:568 — web `finish()`: OAuth navigates away, `completeSetup()`/`applyBasics()` never run → basics (:459-464) lost, `setup_complete` never set, credential endpoints stay open (duplicate of L4 #2, root-caused here) — persist "finish" intent before the redirect; resume after reload.
+- [x] app/feature/setup/state/SetupController.kt:36-44, 266-274 + ConnectController.kt:568 — web `finish()`: OAuth navigates away, `completeSetup()`/`applyBasics()` never run → basics (:459-464) lost, `setup_complete` never set, credential endpoints stay open (duplicate of L4 #2, root-caused here) — persist "finish" intent before the redirect; resume after reload.
 - [ ] `FEEDBACK` SetupController.kt:176-199, 212-249 — bot device-code step: expired / denied / error collapse into one generic "Bot authorization failed: <token>" (:242-249); no countdown toward `expiresIn` — distinct copy per DEVICE_EXPIRED/DENIED/ERROR; visible countdown.
 - [ ] `TRUTH` SetupController.kt:122-136 — two "bot account" concepts at once: a `botUsername` text field on the twitch_app step and a device-code OAuth on `platform_bot`, relation never explained; skipping consequence ("bot posts AS YOU with a prefix", D5, CLAUDE.md:659-672) only inferable from code (:301-312) — one concept; say the consequence on the step.
 - [ ] SetupController.kt:79-84, 320-322 — wizard state in memory; web reload loses it (compounds the redirect drop; L4 already lists it).
