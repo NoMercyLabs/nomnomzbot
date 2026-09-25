@@ -240,6 +240,16 @@ public sealed class RewardServiceUpdateTests
             twitchRewardId: "tw-external-1"
         );
         Guid pipelineId = Guid.Parse("0192a000-0000-7000-8000-00000000d103");
+        db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = Channel,
+                Name = "bot-local pipeline",
+                TriggerKind = "reward",
+            }
+        );
+        await db.SaveChangesAsync();
 
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
@@ -254,6 +264,35 @@ public sealed class RewardServiceUpdateTests
         await points
             .DidNotReceiveWithAnyArgs()
             .UpdateCustomRewardAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_pipeline_id_from_another_channel_and_leaves_the_reward_unchanged()
+    {
+        (RewardService sut, AuthDbContext db, _) = Build(manageable: true, twitchRewardId: null);
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "reward",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { PipelineId = foreignPipelineId }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.PipelineId.Should().BeNull();
     }
 
     [Fact]

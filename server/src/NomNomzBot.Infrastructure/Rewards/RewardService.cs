@@ -18,6 +18,7 @@ using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.Rewards;
 
@@ -68,6 +69,14 @@ public class RewardService : IRewardService
 
         if (!channel)
             return Errors.ChannelNotFound<RewardDetail>(broadcasterId);
+
+        Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+            broadcaster,
+            request.PipelineId,
+            cancellationToken
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<RewardDetail>();
 
         // Twitch has no server-side uniqueness on reward titles — creating a second "BSOD"-titled reward
         // would just duplicate it (and burn the streamer's channel-point economy). Check the LIVE Twitch
@@ -221,6 +230,17 @@ public class RewardService : IRewardService
                 "This reward was created outside the bot and is read-only; convert it to bot-controlled first.",
                 "FORBIDDEN"
             );
+
+        if (request.PipelineId.HasValue)
+        {
+            Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+                broadcaster,
+                request.PipelineId.Value,
+                cancellationToken
+            );
+            if (pipelineOk.IsFailure)
+                return pipelineOk.ToTyped<RewardDetail>();
+        }
 
         // Helix first, then the local copy — so a Twitch refusal never leaves the dashboard showing state
         // that is not live on Twitch. IsPaused syncs locally too, so the paused/resumed transition source

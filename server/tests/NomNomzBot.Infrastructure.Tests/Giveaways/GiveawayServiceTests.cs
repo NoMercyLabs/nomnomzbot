@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -202,6 +203,88 @@ public sealed class GiveawayServiceTests
 
         opened.IsFailure.Should().BeTrue();
         opened.ErrorCode.Should().Be("GIVEAWAY_ALREADY_ACTIVE");
+    }
+
+    // ─── Pipeline ownership: a request must not bind a pipeline id from another channel ──
+
+    [Fact]
+    public async Task Create_refuses_a_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        Harness harness = Build();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        harness.Db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "giveaway",
+            }
+        );
+        await harness.Db.SaveChangesAsync();
+
+        Result<GiveawayDto> created = await harness.Service.CreateAsync(
+            Tenant,
+            new(
+                "Steal",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!steal",
+                PrizeMode: GiveawayPrizeMode.Pipeline,
+                PrizePipelineId: foreignPipelineId
+            ),
+            CancellationToken.None
+        );
+
+        created.IsFailure.Should().BeTrue();
+        created.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        (await harness.Db.Giveaways.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_pipeline_id_from_another_channel_and_leaves_the_giveaway_unchanged()
+    {
+        Harness harness = Build();
+        Result<GiveawayDto> created = await harness.Service.CreateAsync(
+            Tenant,
+            new("Draft", GiveawayEntryMode.Keyword, Keyword: "!draft"),
+            CancellationToken.None
+        );
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        harness.Db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "giveaway",
+            }
+        );
+        await harness.Db.SaveChangesAsync();
+
+        Result<GiveawayDto> updated = await harness.Service.UpdateAsync(
+            Tenant,
+            created.Value.Id,
+            new(
+                "Draft",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!draft",
+                PrizeMode: GiveawayPrizeMode.Pipeline,
+                PrizePipelineId: foreignPipelineId
+            ),
+            CancellationToken.None
+        );
+
+        updated.IsFailure.Should().BeTrue();
+        updated.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        Result<GiveawayDto> fetched = await harness.Service.GetAsync(
+            Tenant,
+            created.Value.Id,
+            CancellationToken.None
+        );
+        fetched.Value.PrizePipelineId.Should().BeNull();
     }
 
     [Fact]

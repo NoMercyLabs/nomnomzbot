@@ -170,6 +170,14 @@ public class TimerManagementService : ITimerManagementService
         if (helperOk.IsFailure)
             return helperOk.ToTyped<TimerDto>();
 
+        Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+            broadcaster,
+            request.PipelineId,
+            cancellationToken
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<TimerDto>();
+
         DomainTimer timer = new()
         {
             BroadcasterId = broadcaster,
@@ -232,8 +240,17 @@ public class TimerManagementService : ITimerManagementService
         // sentinel convention RewardService uses — a null pipelineId is dropped by the client's explicitNulls=false
         // serializer, so "clear" cannot ride a null and needs the empty sentinel instead).
         if (request.PipelineId.HasValue)
+        {
+            Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+                broadcaster,
+                request.PipelineId.Value,
+                cancellationToken
+            );
+            if (pipelineOk.IsFailure)
+                return pipelineOk.ToTyped<TimerDto>();
             timer.PipelineId =
                 request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
+        }
         if (request.IntervalMinutes.HasValue)
             timer.IntervalMinutes = request.IntervalMinutes.Value;
         if (request.MinChatActivity.HasValue)

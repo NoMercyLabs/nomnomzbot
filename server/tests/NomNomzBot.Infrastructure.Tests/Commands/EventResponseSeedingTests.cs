@@ -262,6 +262,45 @@ public sealed class EventResponseSeedingTests
         follow.Message.Should().BeNull();
     }
 
+    // ─── Pipeline ownership: a request must not bind a pipeline id from another channel ──
+
+    [Fact]
+    public async Task Upsert_refuses_a_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        (
+            EventResponseService service,
+            EventResponseDefaultsSeeder seeder,
+            SupporterTestDbContext db
+        ) = Build();
+        await seeder.SeedAsync(Tenant);
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new Pipeline
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "event_response",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<EventResponseDto> result = await service.UpsertAsync(
+            Tenant.ToString(),
+            "channel.follow",
+            new UpdateEventResponseDto { ResponseType = "pipeline", PipelineId = foreignPipelineId }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        EventResponse unchanged = await db.EventResponses.SingleAsync(r =>
+            r.EventType == "channel.follow"
+        );
+        unchanged.PipelineId.Should().BeNull();
+        unchanged.ResponseType.Should().Be("chat_message");
+    }
+
     [Fact]
     public async Task A_fully_seeded_channel_gets_nothing_new_on_a_second_seeder_pass()
     {

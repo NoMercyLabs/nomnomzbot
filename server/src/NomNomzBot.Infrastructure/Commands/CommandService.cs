@@ -136,6 +136,14 @@ public class CommandService : ICommandService
         if (variationsOk.IsFailure)
             return variationsOk.ToTyped<CommandDto>();
 
+        Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+            broadcaster,
+            request.PipelineId,
+            cancellationToken
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<CommandDto>();
+
         // A rung the ladder does not know is refused, never coerced. Silently falling back to Everyone
         // would hand a broadcaster-only command to the whole chat on a typo.
         int? minLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
@@ -282,7 +290,16 @@ public class CommandService : ICommandService
             command.TemplateResponses = request.TemplateResponses;
         }
         if (request.PipelineId.HasValue)
+        {
+            Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+                broadcaster,
+                request.PipelineId.Value,
+                cancellationToken
+            );
+            if (pipelineOk.IsFailure)
+                return pipelineOk.ToTyped<CommandDto>();
             command.PipelineId = request.PipelineId.Value;
+        }
         if (request.CooldownSeconds.HasValue)
             command.CooldownSeconds = request.CooldownSeconds.Value;
         if (request.UserCooldownSeconds.HasValue)

@@ -121,11 +121,22 @@ public sealed class ChatTriggerServiceTests
     [Fact]
     public async Task Update_clears_a_bound_pipeline_via_the_empty_guid_sentinel()
     {
-        (ChatTriggerService service, _, _) = Build();
+        (ChatTriggerService service, AuthDbContext db, _) = Build();
+        Guid pipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = Tenant,
+                Name = "combo pipeline",
+                TriggerKind = "chat_trigger",
+            }
+        );
+        await db.SaveChangesAsync();
         Guid id = (
             await service.CreateAsync(
                 Tenant.ToString(),
-                new() { Pattern = "combo", PipelineId = Guid.NewGuid() }
+                new() { Pattern = "combo", PipelineId = pipelineId }
             )
         )
             .Value
@@ -143,6 +154,72 @@ public sealed class ChatTriggerServiceTests
         updated.IsSuccess.Should().BeTrue();
         updated.Value.PipelineId.Should().BeNull("the empty sentinel unbinds the pipeline");
         updated.Value.Response.Should().Be("back to text");
+    }
+
+    [Fact]
+    public async Task Create_refuses_a_pipeline_id_from_another_channel()
+    {
+        (ChatTriggerService service, AuthDbContext db, IChannelRegistry registry) = Build();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "chat_trigger",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<ChatTriggerDto> created = await service.CreateAsync(
+            Tenant.ToString(),
+            new() { Pattern = "steal", PipelineId = foreignPipelineId }
+        );
+
+        created.IsFailure.Should().BeTrue();
+        created.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        (await db.ChatTriggers.CountAsync()).Should().Be(0);
+        await registry
+            .DidNotReceiveWithAnyArgs()
+            .InvalidateChatTriggersAsync(default, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_pipeline_id_from_another_channel()
+    {
+        (ChatTriggerService service, AuthDbContext db, _) = Build();
+        Guid id = (
+            await service.CreateAsync(
+                Tenant.ToString(),
+                new() { Pattern = "hello", Response = "hi!" }
+            )
+        )
+            .Value
+            .Id;
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "chat_trigger",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<ChatTriggerDto> updated = await service.UpdateAsync(
+            Tenant.ToString(),
+            id,
+            new() { PipelineId = foreignPipelineId }
+        );
+
+        updated.IsFailure.Should().BeTrue();
+        updated.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        (await db.ChatTriggers.FirstAsync(t => t.Id == id)).PipelineId.Should().BeNull();
     }
 
     [Fact]

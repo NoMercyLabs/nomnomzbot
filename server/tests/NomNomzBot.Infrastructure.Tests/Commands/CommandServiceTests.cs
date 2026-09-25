@@ -392,6 +392,91 @@ public sealed class CommandServiceTests
             .ContainSingle(e => e.EntityId == created.Id.ToString() && e.Action == "updated");
     }
 
+    // ─── Pipeline ownership: a request must not bind a pipeline id from another channel ──
+
+    [Fact]
+    public async Task Create_refuses_a_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        CommandsTestDbContext db = NewDb();
+        RecordingEventBus bus = new();
+        CommandService sut = new(
+            db,
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IChannelRegistry>(),
+            bus,
+            Billing.TestQuota.Unlimited(),
+            new TemplateHelperValidator()
+        );
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "command",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<CommandDto> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new()
+            {
+                Name = "steal",
+                TemplateResponse = "hi",
+                PipelineId = foreignPipelineId,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_pipeline_id_from_another_channel_and_leaves_the_command_unchanged()
+    {
+        CommandsTestDbContext db = NewDb();
+        RecordingEventBus bus = new();
+        CommandService sut = new(
+            db,
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IChannelRegistry>(),
+            bus,
+            Billing.TestQuota.Unlimited(),
+            new TemplateHelperValidator()
+        );
+        CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req("pipefix"))).Value;
+        bus.Published.Clear();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "command",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<CommandDto> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            "pipefix",
+            new() { PipelineId = foreignPipelineId }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        bus.Published.Should().BeEmpty();
+        CommandDto unchanged = (await sut.GetAsync(Channel.ToString(), "pipefix")).Value;
+        unchanged.Id.Should().Be(created.Id);
+        unchanged.PipelineId.Should().BeNull();
+    }
+
     [Fact]
     public async Task Update_RenamingToAnExistingCommandsName_FailsAndLeavesBothCommandsUnchanged()
     {

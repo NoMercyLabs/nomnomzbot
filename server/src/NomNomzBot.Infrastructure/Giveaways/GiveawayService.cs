@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Analytics;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.Giveaways;
 
@@ -86,6 +87,14 @@ public sealed class GiveawayService : IGiveawayService
         if (validation.IsFailure)
             return Result.Failure<GiveawayDto>(validation.ErrorMessage!, validation.ErrorCode);
 
+        Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+            broadcasterId,
+            request.PrizePipelineId,
+            ct
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<GiveawayDto>();
+
         Giveaway giveaway = new() { BroadcasterId = broadcasterId };
         Apply(giveaway, request);
         await _db.Giveaways.AddAsync(giveaway, ct);
@@ -112,6 +121,14 @@ public sealed class GiveawayService : IGiveawayService
         Result validation = Validate(request);
         if (validation.IsFailure)
             return Result.Failure<GiveawayDto>(validation.ErrorMessage!, validation.ErrorCode);
+
+        Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+            broadcasterId,
+            request.PrizePipelineId,
+            ct
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<GiveawayDto>();
 
         Apply(giveaway, request);
         await _db.SaveChangesAsync(ct);

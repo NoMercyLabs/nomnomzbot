@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Domain.Economy.Events;
@@ -116,6 +117,78 @@ public sealed class CatalogServiceTests
         );
 
         dup.ErrorCode.Should().Be("ALREADY_EXISTS");
+    }
+
+    [Fact]
+    public async Task Create_refuses_a_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CatalogService sut, EventStoreTestDbContext db, _) = New(database);
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "catalog_item",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<CatalogItemDto> result = await sut.CreateItemAsync(
+            Channel,
+            new(
+                "Steal",
+                null,
+                "pipeline",
+                10,
+                null,
+                true,
+                "Everyone",
+                foreignPipelineId,
+                0,
+                false,
+                null,
+                null,
+                0
+            )
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        (await db.CatalogItems.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_pipeline_id_from_another_channel_and_leaves_the_item_unchanged()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CatalogService sut, EventStoreTestDbContext db, _) = New(database);
+        Guid item = await CreateAsync(sut, name: "Sound Alert");
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "catalog_item",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<CatalogItemDto> result = await sut.UpdateItemAsync(
+            Channel,
+            item,
+            new(null, null, null, null, null, null, foreignPipelineId, null, null, null, null, null)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        (await sut.GetItemAsync(Channel, item)).Value.PipelineId.Should().BeNull();
     }
 
     [Fact]

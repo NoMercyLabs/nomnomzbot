@@ -120,6 +120,17 @@ public class EventResponseService : IEventResponseService
         if (helperOk.IsFailure)
             return helperOk.ToTyped<EventResponseDto>();
 
+        if (request.PipelineId.HasValue)
+        {
+            Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
+                broadcaster,
+                request.PipelineId.Value,
+                cancellationToken
+            );
+            if (pipelineOk.IsFailure)
+                return pipelineOk.ToTyped<EventResponseDto>();
+        }
+
         // Rows are a fixed, seeded catalogue (EventResponseDefaultsSeeder seeds one disabled row per
         // catalog event type for every channel) — never user-created and never soft-deleted, so this is a
         // plain tenant-filtered lookup; there is no restore path and no per-channel enable cap

@@ -309,6 +309,46 @@ public sealed class RewardServiceCreateTests
     }
 
     [Fact]
+    public async Task CreateAsync_refuses_a_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "reward",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<RewardDetail> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new()
+            {
+                Title = "Steal",
+                Cost = 100,
+                PipelineId = foreignPipelineId,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        db.Rewards.Should().BeEmpty();
+        await points
+            .DidNotReceiveWithAnyArgs()
+            .GetCustomRewardsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task CreateAsync_fails_closed_without_inserting_when_twitch_refuses_the_create()
     {
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();

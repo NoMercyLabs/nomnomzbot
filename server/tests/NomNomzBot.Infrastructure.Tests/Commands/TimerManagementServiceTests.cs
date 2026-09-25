@@ -29,9 +29,24 @@ public sealed class TimerManagementServiceTests
 
     private static (TimerManagementService Sut, RecordingEventBus Bus) Build()
     {
+        (TimerManagementService sut, RecordingEventBus bus, CommandsTestDbContext _) =
+            BuildWithDb();
+        return (sut, bus);
+    }
+
+    private static (
+        TimerManagementService Sut,
+        RecordingEventBus Bus,
+        CommandsTestDbContext Db
+    ) BuildWithDb()
+    {
         CommandsTestDbContext db = CommandsTestDbContext.New();
         RecordingEventBus bus = new();
-        return (new(db, bus, Billing.TestQuota.Unlimited(), new TemplateHelperValidator()), bus);
+        return (
+            new(db, bus, Billing.TestQuota.Unlimited(), new TemplateHelperValidator()),
+            bus,
+            db
+        );
     }
 
     private static CreateTimerDto Req(string name = "greeting") =>
@@ -169,5 +184,73 @@ public sealed class TimerManagementServiceTests
 
         result.IsSuccess.Should().BeFalse();
         bus.Published.Should().BeEmpty();
+    }
+
+    // ─── Pipeline ownership: a request must not bind a pipeline id from another channel ──
+
+    [Fact]
+    public async Task Create_refuses_a_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        (TimerManagementService sut, RecordingEventBus bus, CommandsTestDbContext db) =
+            BuildWithDb();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "timer",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<TimerDto> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new()
+            {
+                Name = "steal",
+                Messages = ["hi"],
+                PipelineId = foreignPipelineId,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_pipeline_id_from_another_channel_and_leaves_the_timer_unchanged()
+    {
+        (TimerManagementService sut, RecordingEventBus bus, CommandsTestDbContext db) =
+            BuildWithDb();
+        TimerDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
+        bus.Published.Clear();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "timer",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<TimerDto> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            created.Id,
+            new() { PipelineId = foreignPipelineId }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        bus.Published.Should().BeEmpty();
+        TimerDto unchanged = (await sut.GetAsync(Channel.ToString(), created.Id)).Value;
+        unchanged.PipelineId.Should().BeNull();
     }
 }

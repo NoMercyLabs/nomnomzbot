@@ -322,7 +322,12 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.EventResponse>();
         modelBuilder.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
-        modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Pipeline>();
+        modelBuilder.Entity<NomNomzBot.Domain.Commands.Entities.Pipeline>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Channel);
+            e.Ignore(p => p.Steps);
+        });
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.BillingTier>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.TierLimit>();
         modelBuilder.Ignore<NomNomzBot.Domain.Billing.Entities.Subscription>();
@@ -492,7 +497,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>

@@ -139,6 +139,13 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(c => c.Channel);
         });
 
+        b.Entity<Pipeline>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Channel);
+            e.Ignore(p => p.Steps);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -155,6 +162,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         typeof(Channel),
         typeof(NomNomzBot.Domain.Platform.Entities.Record),
         typeof(User),
+        typeof(Pipeline),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -312,7 +320,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
-    public DbSet<Pipeline> Pipelines => throw new NotSupportedException();
+    public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();

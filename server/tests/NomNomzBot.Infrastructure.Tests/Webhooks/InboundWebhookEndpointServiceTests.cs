@@ -223,6 +223,69 @@ public sealed class InboundWebhookEndpointServiceTests
     }
 
     [Fact]
+    public async Task Create_refuses_a_target_pipeline_id_from_another_channel_and_persists_nothing()
+    {
+        (InboundWebhookEndpointService sut, AuthDbContext db, _, RecordingEventBus bus) = Build();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "webhook",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<InboundWebhookEndpointDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            Req() with
+            {
+                TargetPipelineId = foreignPipelineId,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        db.InboundWebhookEndpoints.Should().BeEmpty();
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Update_refuses_a_target_pipeline_id_from_another_channel_and_leaves_the_endpoint_unchanged()
+    {
+        (InboundWebhookEndpointService sut, AuthDbContext db, _, RecordingEventBus bus) = Build();
+        InboundWebhookEndpointDto created = (await sut.CreateAsync(Channel, Actor, Req())).Value;
+        bus.Published.Clear();
+        Guid otherChannel = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new()
+            {
+                Id = foreignPipelineId,
+                BroadcasterId = otherChannel,
+                Name = "someone else's pipeline",
+                TriggerKind = "webhook",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<InboundWebhookEndpointDto> result = await sut.UpdateAsync(
+            Channel,
+            created.Id,
+            new() { TargetPipelineId = foreignPipelineId }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
+        bus.Published.Should().BeEmpty();
+        db.InboundWebhookEndpoints.Single().TargetPipelineId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Delete_soft_deletes_the_endpoint()
     {
         (InboundWebhookEndpointService sut, _, _, RecordingEventBus bus) = Build();

@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.Webhooks;
 
@@ -94,6 +95,14 @@ public sealed class InboundWebhookEndpointService(
                 "VALIDATION_FAILED"
             );
 
+        Result pipelineOk = await db.EnsurePipelineInChannelAsync(
+            broadcasterId,
+            request.TargetPipelineId,
+            ct
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<InboundWebhookEndpointDto>();
+
         DateTime now = clock.GetUtcNow().UtcDateTime;
         InboundWebhookEndpoint endpoint = new()
         {
@@ -132,7 +141,16 @@ public sealed class InboundWebhookEndpointService(
         if (request.Name is not null)
             endpoint.Name = request.Name;
         if (request.TargetPipelineId is not null)
+        {
+            Result pipelineOk = await db.EnsurePipelineInChannelAsync(
+                broadcasterId,
+                request.TargetPipelineId,
+                ct
+            );
+            if (pipelineOk.IsFailure)
+                return pipelineOk.ToTyped<InboundWebhookEndpointDto>();
             endpoint.TargetPipelineId = request.TargetPipelineId;
+        }
         if (request.TargetEventType is not null)
             endpoint.TargetEventType = request.TargetEventType;
         if (request.GenericConfig is not null)

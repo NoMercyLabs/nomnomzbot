@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Economy.Events;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.Economy;
 
@@ -105,6 +106,14 @@ public sealed class CatalogService(
                 "ALREADY_EXISTS"
             );
 
+        Result pipelineOk = await db.EnsurePipelineInChannelAsync(
+            broadcasterId,
+            request.PipelineId,
+            ct
+        );
+        if (pipelineOk.IsFailure)
+            return pipelineOk.ToTyped<CatalogItemDto>();
+
         CatalogItem item = new()
         {
             BroadcasterId = broadcasterId,
@@ -177,7 +186,16 @@ public sealed class CatalogService(
         if (request.Permission is not null)
             item.Permission = request.Permission;
         if (request.PipelineId is not null)
+        {
+            Result pipelineOk = await db.EnsurePipelineInChannelAsync(
+                broadcasterId,
+                request.PipelineId,
+                ct
+            );
+            if (pipelineOk.IsFailure)
+                return pipelineOk.ToTyped<CatalogItemDto>();
             item.PipelineId = request.PipelineId;
+        }
         if (request.CooldownSeconds is { } cooldown)
             item.CooldownSeconds = cooldown;
         if (request.CooldownPerUser is { } perUser)
