@@ -450,6 +450,29 @@ worked" beat everything. Each line is one slice; delete it from the tracker when
 12. V-A2.1 promote un-onboarded tenant on owner login + backfill 17 rows; V-B6.1 PlatformConnection
     written on every login + backfill.
 
+**Tier 1b — admin plane + authoring (owner priority 2026-09-26)**
+Source: `usability-inventory-2026-09-26-admin-and-authoring.md` (both passes). Runs right after Tier 1.
+A1. Desktop editor parity: the desktop code/widget editor is a plain Swing text area
+    (ProjectEditor.jvm.kt:42-50); give it the same Monaco editor as web (embedded browser view), with the
+    same types, diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
+A2. SDK guidance in the editor: wire `GET /sdk/event-catalog` (SdkController.cs, zero callers) into a
+    docs panel — browse events and API, real sample payloads, "insert handler", hover docs, snippets.
+    Done-when: a new user finds and uses an event without leaving the editor.
+A3. Generic platform content: open `PlatformContentKinds` (PlatformContentDefinition.cs:61-69) to timers,
+    quotes/picklists, reward presets, sound clips and event responses, on the one existing
+    author → publish → install flow. Done-when: the admin can author and publish each kind. (Opus: schema)
+A4. Platform defaults editable at runtime: event-response defaults, builtin replies, action/permission
+    floors (`ActionDefinition` is already a table), TTS voices — admin API + admin UI + blast radius,
+    tenants keep their overrides. Done-when: no platform default needs a code change and a redeploy.
+A5. Template updates reach tenants: platform content is copied at install and never updated
+    (PlatformContentDefinition.cs:17-20). Show "update available" per installed copy; the admin can push
+    with a blast-radius preview; a tenant's edits are never overwritten silently.
+A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:1533-1554); trace
+    save → runtime reader for billing, spam defense and trust-safety (owed by the audit).
+A7. GDPR admin console: list and monitor export/erasure requests (GdprController.cs) platform-wide.
+A8. Publish the SDK types as a versioned npm package built by CI from `SdkTypeEmitter` output.
+Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, automation/IPC keys tab.
+
 **Tier 2 — features that silently never worked (fix or remove the control)**
 13. V-B4.2 AutoMod rule key contract (one shared set + round-trip test). 14. V-B4.1 unban-approve `confirm`.
 15. V-B3.1 catalog purchase runs the item pipeline (refund on failure). 16. V-B3.2 watch-time earning
