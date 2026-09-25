@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Controllers;
@@ -20,9 +21,10 @@ namespace NomNomzBot.Api.Controllers;
 /// Exchanges an overlay browser-source token for a short-lived, single-use ticket (S035 item 3, U·B5/B7). The
 /// overlay SDK sends the token in a header here — a plain HTTP request CAN carry custom headers, unlike the
 /// WebSocket upgrade OBS browser sources use — and only the resulting ticket ever appears on the
-/// <c>/hubs/overlay</c> query string. The token resolves via <see cref="IWidgetService.ResolveBroadcasterIdByOverlayTokenAsync"/>
-/// — a widget's own <c>OverlayToken</c> (audit B5, the per-widget page's normal case), its still-live
-/// <c>PreviousOverlayToken</c> during a rotation grace window, or (legacy) the channel-wide <c>Channel.OverlayToken</c>.
+/// <c>/hubs/overlay</c> query string. The token resolves via <see cref="IWidgetService.ResolveOverlayScopeAsync"/>
+/// — a widget's own <c>OverlayToken</c> (audit B5, the per-widget page's normal case; also confines the minted
+/// ticket to that widget, audit S-OVERLAY-1), its still-live <c>PreviousOverlayToken</c> during a rotation grace
+/// window, or (legacy) the channel-wide <c>Channel.OverlayToken</c>.
 /// Anonymous (the token itself is the credential) but throttled per token so a leaked token, or a runaway
 /// source, cannot hammer this endpoint unbounded.
 /// </summary>
@@ -60,14 +62,14 @@ public sealed class OverlayTicketController : ControllerBase
         if (!_throttle.TryAcquire(token))
             return StatusCode(StatusCodes.Status429TooManyRequests);
 
-        Guid? broadcasterId = await _widgetService.ResolveBroadcasterIdByOverlayTokenAsync(
+        OverlayTokenScope? scope = await _widgetService.ResolveOverlayScopeAsync(
             token,
             cancellationToken
         );
-        if (broadcasterId is null)
+        if (scope is null)
             return Unauthorized();
 
-        string ticket = _tickets.IssueTicket(broadcasterId.Value);
+        string ticket = _tickets.IssueTicket(scope);
         return Ok(new { ticket });
     }
 }

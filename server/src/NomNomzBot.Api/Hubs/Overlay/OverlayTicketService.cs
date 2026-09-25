@@ -10,6 +10,7 @@
 
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Api.Hubs.Overlay;
 
@@ -24,36 +25,44 @@ public sealed class OverlayTicketService : IOverlayTicketService
 
     private readonly ConcurrentDictionary<
         string,
-        (Guid BroadcasterId, DateTimeOffset ExpiresAt)
+        (OverlayTokenScope Scope, DateTimeOffset ExpiresAt)
     > _tickets = new(StringComparer.Ordinal);
     private readonly TimeProvider _timeProvider;
 
     public OverlayTicketService(TimeProvider timeProvider) => _timeProvider = timeProvider;
 
-    public string IssueTicket(Guid broadcasterId)
+    public string IssueTicket(OverlayTokenScope scope)
     {
         PruneExpired();
         string ticket = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        _tickets[ticket] = (broadcasterId, _timeProvider.GetUtcNow() + TicketLifetime);
+        _tickets[ticket] = (scope, _timeProvider.GetUtcNow() + TicketLifetime);
         return ticket;
     }
 
-    public Guid? RedeemTicket(string? ticket)
+    public OverlayTokenScope? RedeemTicket(string? ticket)
     {
         if (string.IsNullOrWhiteSpace(ticket))
             return null;
 
-        if (!_tickets.TryRemove(ticket, out (Guid BroadcasterId, DateTimeOffset ExpiresAt) entry))
+        if (
+            !_tickets.TryRemove(
+                ticket,
+                out (OverlayTokenScope Scope, DateTimeOffset ExpiresAt) entry
+            )
+        )
             return null;
 
-        return entry.ExpiresAt >= _timeProvider.GetUtcNow() ? entry.BroadcasterId : null;
+        return entry.ExpiresAt >= _timeProvider.GetUtcNow() ? entry.Scope : null;
     }
 
     private void PruneExpired()
     {
         DateTimeOffset now = _timeProvider.GetUtcNow();
         foreach (
-            KeyValuePair<string, (Guid BroadcasterId, DateTimeOffset ExpiresAt)> entry in _tickets
+            KeyValuePair<
+                string,
+                (OverlayTokenScope Scope, DateTimeOffset ExpiresAt)
+            > entry in _tickets
         )
             if (entry.Value.ExpiresAt < now)
                 _tickets.TryRemove(entry.Key, out _);

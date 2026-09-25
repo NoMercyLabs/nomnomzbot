@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Widgets.Dtos;
+
 namespace NomNomzBot.Api.Hubs.Overlay;
 
 /// <summary>
@@ -20,11 +22,12 @@ namespace NomNomzBot.Api.Hubs.Overlay;
 /// </summary>
 public interface IOverlayTicketService
 {
-    /// <summary>Mints a ticket bound to <paramref name="broadcasterId"/>. Never fails — the caller already
-    /// validated the long-lived overlay token before calling this.</summary>
-    string IssueTicket(Guid broadcasterId);
+    /// <summary>Mints a ticket bound to <paramref name="scope"/> (audit S-OVERLAY-1: a widget-scoped overlay
+    /// token must carry its widget confinement through the ticket onto the resulting hub connection). Never
+    /// fails — the caller already validated the long-lived overlay token before calling this.</summary>
+    string IssueTicket(OverlayTokenScope scope);
 
-    /// <summary>Redeems (and burns) a ticket. Returns the bound broadcaster id, or <c>null</c> when the
-    /// ticket is missing, unknown, expired, or already used.</summary>
-    Guid? RedeemTicket(string? ticket);
+    /// <summary>Redeems (and burns) a ticket. Returns the bound scope, or <c>null</c> when the ticket is
+    /// missing, unknown, expired, or already used.</summary>
+    OverlayTokenScope? RedeemTicket(string? ticket);
 }

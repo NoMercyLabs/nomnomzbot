@@ -305,7 +305,20 @@ public interface IWidgetService
     /// <summary>
     /// Resolves an overlay browser-source token — a widget's own <c>OverlayToken</c>, its still-live
     /// <c>PreviousOverlayToken</c> during a rotation grace window, or (legacy) the channel-wide
+    /// <c>Channels.OverlayToken</c> — to the <see cref="OverlayTokenScope"/> it authenticates. Null when the
+    /// token matches nothing live. See <see cref="ResolveBroadcasterIdByOverlayTokenAsync"/> for callers that
+    /// only need the channel.
+    /// </summary>
+    Task<OverlayTokenScope?> ResolveOverlayScopeAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Resolves an overlay browser-source token — a widget's own <c>OverlayToken</c>, its still-live
+    /// <c>PreviousOverlayToken</c> during a rotation grace window, or (legacy) the channel-wide
     /// <c>Channels.OverlayToken</c> — to the channel it authenticates. Null when the token matches nothing live.
+    /// Thin convenience over <see cref="ResolveOverlayScopeAsync"/> for callers that never need the widget id.
     /// </summary>
     Task<Guid?> ResolveBroadcasterIdByOverlayTokenAsync(
         string overlayToken,

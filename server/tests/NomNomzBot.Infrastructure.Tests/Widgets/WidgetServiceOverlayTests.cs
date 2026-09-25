@@ -243,6 +243,92 @@ public sealed class WidgetServiceOverlayTests
         result.Value.Widgets.Should().BeEmpty();
     }
 
+    /// <summary>Audit S-OVERLAY-1: a widget's OWN overlay token must expose only that widget's manifest
+    /// entry — the actual leak this slice closes was one widget's token unlocking the whole channel.</summary>
+    [Fact]
+    public async Task Manifest_via_a_widgets_own_token_contains_only_that_widget()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        Guid widgetA = Guid.CreateVersion7();
+        Guid widgetB = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedWidgetAsync(database, channel, widgetA);
+        await SeedWidgetAsync(database, channel, widgetB);
+        await ActivateAsync(database, channel, widgetA, bundle: "A", hash: "hashA");
+        await ActivateAsync(database, channel, widgetB, bundle: "B", hash: "hashB");
+
+        string widgetAToken;
+        await using (WidgetTestDbContext db = database.NewContext())
+            widgetAToken = (await db.Widgets.SingleAsync(w => w.Id == widgetA)).OverlayToken;
+
+        await using WidgetTestDbContext read = database.NewContext();
+        WidgetService service = NewService(read, BuildReturning("x", "y"));
+        Result<OverlayManifest> result = await service.GetOverlayManifestAsync(widgetAToken);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Widgets.Should().ContainSingle().Which.WidgetId.Should().Be(widgetA);
+    }
+
+    /// <summary>The channel-wide token remains the "see everything" case — proves the fix did not
+    /// accidentally narrow it too.</summary>
+    [Fact]
+    public async Task Manifest_via_the_channel_wide_token_contains_every_eligible_widget()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        Guid widgetA = Guid.CreateVersion7();
+        Guid widgetB = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedWidgetAsync(database, channel, widgetA);
+        await SeedWidgetAsync(database, channel, widgetB);
+        await ActivateAsync(database, channel, widgetA, bundle: "A", hash: "hashA");
+        await ActivateAsync(database, channel, widgetB, bundle: "B", hash: "hashB");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, BuildReturning("x", "y"));
+        Result<OverlayManifest> result = await service.GetOverlayManifestAsync("tok");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Widgets.Select(w => w.WidgetId).Should().BeEquivalentTo([widgetA, widgetB]);
+    }
+
+    /// <summary>A widget-scoped token may only ever fetch its OWN bundle, not a sibling widget's — the same
+    /// confinement the manifest gets, enforced independently on the bundle route.</summary>
+    [Fact]
+    public async Task Bundle_via_a_widgets_own_token_fails_for_a_sibling_widget()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        Guid widgetA = Guid.CreateVersion7();
+        Guid widgetB = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedWidgetAsync(database, channel, widgetA);
+        await SeedWidgetAsync(database, channel, widgetB);
+        await ActivateAsync(database, channel, widgetA, bundle: "A", hash: "hashA");
+        await ActivateAsync(database, channel, widgetB, bundle: "B", hash: "hashB");
+
+        string widgetAToken;
+        await using (WidgetTestDbContext db = database.NewContext())
+            widgetAToken = (await db.Widgets.SingleAsync(w => w.Id == widgetA)).OverlayToken;
+
+        await using WidgetTestDbContext read = database.NewContext();
+        WidgetService service = NewService(read, BuildReturning("x", "y"));
+
+        Result<OverlayBundle> ownBundle = await service.GetOverlayBundleAsync(
+            widgetAToken,
+            widgetA.ToString()
+        );
+        ownBundle.IsSuccess.Should().BeTrue(ownBundle.ErrorMessage);
+
+        Result<OverlayBundle> siblingBundle = await service.GetOverlayBundleAsync(
+            widgetAToken,
+            widgetB.ToString()
+        );
+        siblingBundle.IsFailure.Should().BeTrue();
+        siblingBundle.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
     [Fact]
     public async Task Manifest_fails_for_an_unknown_token()
     {

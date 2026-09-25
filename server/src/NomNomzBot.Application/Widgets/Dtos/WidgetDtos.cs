@@ -121,6 +121,15 @@ public sealed record OverlayWidgetEntry(
 public sealed record OverlayBundle(string Content, string Framework, string ContentHash);
 
 /// <summary>
+/// What an overlay browser-source token actually authenticates: always a channel, and — when the token is a
+/// widget's OWN <c>OverlayToken</c> (or its still-grace-windowed <c>PreviousOverlayToken</c>) rather than the
+/// legacy channel-wide <c>Channel.OverlayToken</c> — the single widget it was minted for. A null
+/// <see cref="WidgetId"/> means the token is channel-wide and may see every widget; a non-null one confines the
+/// caller to that widget alone (the fix for one leaked widget token unlocking the whole channel's manifest).
+/// </summary>
+public sealed record OverlayTokenScope(Guid BroadcasterId, Guid? WidgetId);
+
+/// <summary>
 /// The current playback state for an overlay token's channel, field-for-field identical to the
 /// <c>now_playing</c> widget event payload (<c>WidgetNowPlayingHandler</c>) — a <c>now_playing</c> widget fetches
 /// this once on mount so it can render the real current track immediately instead of waiting for the next

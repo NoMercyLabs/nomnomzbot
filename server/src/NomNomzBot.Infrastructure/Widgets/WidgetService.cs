@@ -1088,16 +1088,27 @@ public class WidgetService : IWidgetService
         );
     }
 
-    /// <summary>Resolves an overlay token to the channel it authenticates — a widget's own token, its
+    /// <summary>Resolves an overlay token to the scope it authenticates — a widget's own token, its
     /// still-grace-windowed previous token, or (legacy) the channel-wide token. See
-    /// <see cref="ResolveChannelByOverlayTokenAsync"/> for the shared lookup every token-gated overlay read uses.</summary>
+    /// <see cref="ResolveOverlayTokenScopeAsync"/> for the shared lookup every token-gated overlay read uses.</summary>
+    public Task<OverlayTokenScope?> ResolveOverlayScopeAsync(
+        string overlayToken,
+        CancellationToken cancellationToken = default
+    ) => ResolveOverlayTokenScopeAsync(overlayToken, cancellationToken);
+
+    /// <summary>Resolves an overlay token to the channel it authenticates — a widget's own token, its
+    /// still-grace-windowed previous token, or (legacy) the channel-wide token. Thin convenience over
+    /// <see cref="ResolveOverlayScopeAsync"/> for callers that never need the widget id.</summary>
     public async Task<Guid?> ResolveBroadcasterIdByOverlayTokenAsync(
         string overlayToken,
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        return channel?.Id;
+        OverlayTokenScope? scope = await ResolveOverlayTokenScopeAsync(
+            overlayToken,
+            cancellationToken
+        );
+        return scope?.BroadcasterId;
     }
 
     public async Task<Result> RecordRuntimeErrorAsync(
@@ -1161,8 +1172,11 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        if (channel is null)
+        OverlayTokenScope? scope = await ResolveOverlayTokenScopeAsync(
+            overlayToken,
+            cancellationToken
+        );
+        if (scope is null)
             return Result.Failure<OverlayManifest>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
@@ -1170,14 +1184,16 @@ public class WidgetService : IWidgetService
 
         // The overlay is anonymous (token-authed, no JWT tenant), so CurrentBroadcasterId is empty and the tenant
         // query filter would hide every row — bypass the filters and scope to the resolved channel + not-deleted
-        // explicitly. Only enabled widgets with an active, successfully-built version are served.
+        // explicitly. Only enabled widgets with an active, successfully-built version are served. A widget-scoped
+        // token (audit S-OVERLAY-1) additionally narrows to that ONE widget — never the whole channel's manifest.
         List<Widget> widgets = await _db
             .Widgets.IgnoreQueryFilters()
             .Where(w =>
-                w.BroadcasterId == channel.Id
+                w.BroadcasterId == scope.BroadcasterId
                 && w.DeletedAt == null
                 && w.IsEnabled
                 && w.ActiveVersionId != null
+                && (scope.WidgetId == null || w.Id == scope.WidgetId)
             )
             .OrderBy(w => w.Name)
             .ToListAsync(cancellationToken);
@@ -1212,7 +1228,9 @@ public class WidgetService : IWidgetService
             );
         }
 
-        return Result.Success(new OverlayManifest(channel.Id, GenerateCspNonce(), entries));
+        return Result.Success(
+            new OverlayManifest(scope.BroadcasterId, GenerateCspNonce(), entries)
+        );
     }
 
     public async Task<Result<string>> GetSpotifyPlaybackTokenAsync(
@@ -1220,15 +1238,18 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        if (channel is null)
+        Guid? broadcasterId = await ResolveBroadcasterIdByOverlayTokenAsync(
+            overlayToken,
+            cancellationToken
+        );
+        if (broadcasterId is null)
             return Result.Failure<string>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
             );
 
         return await _musicService.GetEmbeddedPlaybackTokenAsync(
-            channel.Id.ToString(),
+            broadcasterId.Value.ToString(),
             cancellationToken
         );
     }
@@ -1238,15 +1259,18 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        if (channel is null)
+        Guid? broadcasterId = await ResolveBroadcasterIdByOverlayTokenAsync(
+            overlayToken,
+            cancellationToken
+        );
+        if (broadcasterId is null)
             return Result.Failure<OverlayNowPlayingSnapshot?>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
             );
 
         NowPlaying? nowPlaying = await _musicService.GetNowPlayingAsync(
-            channel.Id.ToString(),
+            broadcasterId.Value.ToString(),
             cancellationToken
         );
         if (nowPlaying is null)
@@ -1274,14 +1298,17 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        if (channel is null)
+        Guid? broadcasterId = await ResolveBroadcasterIdByOverlayTokenAsync(
+            overlayToken,
+            cancellationToken
+        );
+        if (broadcasterId is null)
             return Result.Failure<string?>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
             );
 
-        string? value = await _scriptStorage.GetAsync(channel.Id, key, cancellationToken);
+        string? value = await _scriptStorage.GetAsync(broadcasterId.Value, key, cancellationToken);
         return Result.Success(value);
     }
 
@@ -1290,15 +1317,18 @@ public class WidgetService : IWidgetService
         CancellationToken cancellationToken = default
     )
     {
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        if (channel is null)
+        Guid? broadcasterId = await ResolveBroadcasterIdByOverlayTokenAsync(
+            overlayToken,
+            cancellationToken
+        );
+        if (broadcasterId is null)
             return Result.Failure<IReadOnlyList<MusicQueueItem>>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
             );
 
         MusicQueue queue = await _musicService.GetQueueAsync(
-            channel.Id.ToString(),
+            broadcasterId.Value.ToString(),
             cancellationToken
         );
         return Result.Success(queue.Queue);
@@ -1313,19 +1343,27 @@ public class WidgetService : IWidgetService
         if (!TryDecodeWidgetId(widgetId, out Guid widgetGuid))
             return Errors.NotFound<OverlayBundle>("Widget", widgetId);
 
-        Channel? channel = await ResolveChannelByOverlayTokenAsync(overlayToken, cancellationToken);
-        if (channel is null)
+        OverlayTokenScope? scope = await ResolveOverlayTokenScopeAsync(
+            overlayToken,
+            cancellationToken
+        );
+        if (scope is null)
             return Result.Failure<OverlayBundle>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
             );
+
+        // A widget-scoped token may only ever fetch its OWN bundle — never another widget's, even inside the
+        // same channel (audit S-OVERLAY-1).
+        if (scope.WidgetId is { } scopedWidgetId && scopedWidgetId != widgetGuid)
+            return Errors.NotFound<OverlayBundle>("Widget", widgetId);
 
         Widget? widget = await _db
             .Widgets.IgnoreQueryFilters()
             .FirstOrDefaultAsync(
                 w =>
                     w.Id == widgetGuid
-                    && w.BroadcasterId == channel.Id
+                    && w.BroadcasterId == scope.BroadcasterId
                     && w.DeletedAt == null
                     && w.IsEnabled
                     && w.ActiveVersionId != null,
@@ -1542,9 +1580,10 @@ public class WidgetService : IWidgetService
     /// exchange) shares: try the token as a widget's own <see cref="Widget.OverlayToken"/>, then as a
     /// still-grace-windowed <see cref="Widget.PreviousOverlayToken"/>, then (legacy full-manifest path, and any
     /// caller still using the channel-wide token directly) as <see cref="Channel.OverlayToken"/>. A widget-matched
-    /// token always resolves to that widget's OWN channel — rotating widget A's token can never affect widget B.
+    /// token scopes to that widget's OWN channel AND that widget alone — rotating widget A's token can never
+    /// affect widget B, and widget A's token can never see widget B's manifest entry either.
     /// </summary>
-    private async Task<Channel?> ResolveChannelByOverlayTokenAsync(
+    private async Task<OverlayTokenScope?> ResolveOverlayTokenScopeAsync(
         string overlayToken,
         CancellationToken cancellationToken
     )
@@ -1570,12 +1609,13 @@ public class WidgetService : IWidgetService
                 cancellationToken
             );
         if (widget is not null)
-            return widget.Channel;
+            return new OverlayTokenScope(widget.Channel.Id, widget.Id);
 
-        return await _db.Channels.FirstOrDefaultAsync(
+        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
             c => c.OverlayToken == overlayToken,
             cancellationToken
         );
+        return channel is null ? null : new OverlayTokenScope(channel.Id, null);
     }
 
     private WidgetDetail ToDetail(Widget w, int? currentGalleryRevision = null)

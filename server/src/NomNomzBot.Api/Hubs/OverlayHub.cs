@@ -14,6 +14,7 @@ using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -57,23 +58,26 @@ public class OverlayHub : Hub<IOverlayClient>
         // for a short-lived, single-use ticket via POST /overlay/ticket (header, not query string) first, and
         // only that ticket appears here.
         string? ticket = Context.GetHttpContext()?.Request.Query["ticket"].ToString();
-        Guid? broadcasterId = _tickets.RedeemTicket(ticket);
-        if (broadcasterId is null)
+        OverlayTokenScope? scope = _tickets.RedeemTicket(ticket);
+        if (scope is null)
         {
             Context.Abort();
             return;
         }
 
-        Context.Items["BroadcasterId"] = broadcasterId.Value;
+        Context.Items["BroadcasterId"] = scope.BroadcasterId;
+        // A widget-scoped ticket (audit S-OVERLAY-1: one widget's leaked token must never unlock another
+        // widget on the same connection) confines every later JoinWidget call to exactly this widget.
+        Context.Items["WidgetId"] = scope.WidgetId;
         // All overlay connections for a broadcaster share the overlay group so sound play/stop
         // signals (and future broadcaster-wide overlay events) reach every browser source.
-        string overlayGroup = OverlayPresenceRegistry.OverlayGroupName(broadcasterId.Value);
+        string overlayGroup = OverlayPresenceRegistry.OverlayGroupName(scope.BroadcasterId);
         await Groups.AddToGroupAsync(Context.ConnectionId, overlayGroup);
         // Tracked in the same presence registry as widget attachment, so IOverlayPresenceRegistry can
         // answer "is any browser source connected at all" for features (sound-clip stop) that push to the
         // shared bus rather than one specific widget.
         _presence.Attach(Context.ConnectionId, overlayGroup);
-        _logger.LogDebug("Overlay connected for channel {B}", broadcasterId);
+        _logger.LogDebug("Overlay connected for channel {B}", scope.BroadcasterId);
         await base.OnConnectedAsync();
     }
 
@@ -90,6 +94,18 @@ public class OverlayHub : Hub<IOverlayClient>
     {
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return new(false, "Not authenticated", null);
+
+        // A widget-scoped connection (audit S-OVERLAY-1) may only ever join its OWN widget — never another
+        // one on the same channel, even though the broadcaster id matches. Channel-wide connections (the
+        // WidgetId scope item is null) keep joining any widget id, as before.
+        if (
+            Context.Items["WidgetId"] is Guid scopedWidgetId
+            && (
+                !Guid.TryParse(widgetId, out Guid requestedWidgetId)
+                || requestedWidgetId != scopedWidgetId
+            )
+        )
+            return new(false, "This overlay token is scoped to a different widget", null);
 
         string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);

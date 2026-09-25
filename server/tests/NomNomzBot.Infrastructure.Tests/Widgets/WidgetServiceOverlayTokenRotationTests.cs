@@ -195,6 +195,68 @@ public sealed class WidgetServiceOverlayTokenRotationTests
             .Be(channel);
     }
 
+    /// <summary>Audit S-OVERLAY-1: the retired token, while still inside its grace window, resolves to the
+    /// SAME single-widget scope as before rotation — a browser source mid-reload during a rotation must not
+    /// suddenly see the whole channel's manifest.</summary>
+    [Fact]
+    public async Task Previous_token_within_grace_resolves_to_the_same_single_widget_scope()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        FakeTimeProvider clock = new(new(2026, 9, 12, 12, 0, 0, TimeSpan.Zero));
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Widget widget = await SeedWidgetAsync(database, channel, "Alerts");
+        string oldToken = widget.OverlayToken;
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, clock);
+            Result<WidgetTokenRotationResult> rotate = await service.RotateOverlayTokenAsync(
+                channel.ToString(),
+                widget.Id.ToString()
+            );
+            rotate.IsSuccess.Should().BeTrue(rotate.ErrorMessage);
+        }
+
+        await using WidgetTestDbContext read = database.NewContext();
+        WidgetService reader = NewService(read, clock);
+
+        OverlayTokenScope? scope = await reader.ResolveOverlayScopeAsync(oldToken);
+        scope.Should().NotBeNull();
+        scope!.BroadcasterId.Should().Be(channel);
+        scope.WidgetId.Should().Be(widget.Id);
+    }
+
+    /// <summary>Past the grace window the retired token resolves to nothing at all — not even a narrowed
+    /// scope — proving expiry genuinely revokes it rather than merely widening it.</summary>
+    [Fact]
+    public async Task Previous_token_past_grace_resolves_to_no_scope()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        FakeTimeProvider clock = new(new(2026, 9, 12, 12, 0, 0, TimeSpan.Zero));
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Widget widget = await SeedWidgetAsync(database, channel, "Alerts");
+        string oldToken = widget.OverlayToken;
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, clock);
+            Result<WidgetTokenRotationResult> rotate = await service.RotateOverlayTokenAsync(
+                channel.ToString(),
+                widget.Id.ToString()
+            );
+            rotate.IsSuccess.Should().BeTrue(rotate.ErrorMessage);
+        }
+
+        clock.Advance(TimeSpan.FromMinutes(16));
+        await using WidgetTestDbContext read = database.NewContext();
+        WidgetService reader = NewService(read, clock);
+
+        OverlayTokenScope? scope = await reader.ResolveOverlayScopeAsync(oldToken);
+        scope.Should().BeNull();
+    }
+
     [Fact]
     public async Task Rotate_fails_NOT_FOUND_for_an_unknown_widget()
     {

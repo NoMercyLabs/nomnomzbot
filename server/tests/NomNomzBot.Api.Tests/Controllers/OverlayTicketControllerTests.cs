@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NSubstitute;
 
@@ -48,13 +49,11 @@ public sealed class OverlayTicketControllerTests
     public async Task A_valid_token_issues_a_ticket_the_hub_can_redeem()
     {
         Guid broadcasterId = Guid.NewGuid();
+        OverlayTokenScope scope = new(broadcasterId, null);
         IWidgetService widgetService = Substitute.For<IWidgetService>();
         widgetService
-            .ResolveBroadcasterIdByOverlayTokenAsync(
-                "the-real-overlay-token",
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(broadcasterId);
+            .ResolveOverlayScopeAsync("the-real-overlay-token", Arg.Any<CancellationToken>())
+            .Returns(scope);
 
         OverlayTicketService tickets = new(new FakeTimeProvider());
         OverlayConnectionThrottle throttle = new(new FakeTimeProvider());
@@ -69,7 +68,7 @@ public sealed class OverlayTicketControllerTests
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         string ticket = (string)ok.Value!.GetType().GetProperty("ticket")!.GetValue(ok.Value)!;
-        tickets.RedeemTicket(ticket).Should().Be(broadcasterId);
+        tickets.RedeemTicket(ticket).Should().Be(scope);
     }
 
     [Fact]
@@ -95,11 +94,8 @@ public sealed class OverlayTicketControllerTests
     {
         IWidgetService widgetService = Substitute.For<IWidgetService>();
         widgetService
-            .ResolveBroadcasterIdByOverlayTokenAsync(
-                "not-a-real-token",
-                Arg.Any<CancellationToken>()
-            )
-            .Returns((Guid?)null);
+            .ResolveOverlayScopeAsync("not-a-real-token", Arg.Any<CancellationToken>())
+            .Returns((OverlayTokenScope?)null);
 
         OverlayTicketService tickets = new(new FakeTimeProvider());
         OverlayConnectionThrottle throttle = new(new FakeTimeProvider());
@@ -121,8 +117,8 @@ public sealed class OverlayTicketControllerTests
         Guid broadcasterId = Guid.NewGuid();
         IWidgetService widgetService = Substitute.For<IWidgetService>();
         widgetService
-            .ResolveBroadcasterIdByOverlayTokenAsync("hammered-token", Arg.Any<CancellationToken>())
-            .Returns(broadcasterId);
+            .ResolveOverlayScopeAsync("hammered-token", Arg.Any<CancellationToken>())
+            .Returns(new OverlayTokenScope(broadcasterId, null));
 
         OverlayTicketService tickets = new(new FakeTimeProvider());
         OverlayConnectionThrottle throttle = new(new FakeTimeProvider());
@@ -145,5 +141,38 @@ public sealed class OverlayTicketControllerTests
             .BeOfType<StatusCodeResult>()
             .Which.StatusCode.Should()
             .Be(StatusCodes.Status429TooManyRequests);
+    }
+
+    /// <summary>Audit S-OVERLAY-1: a widget's own overlay token must carry its widget confinement all the
+    /// way through the ticket, so the resulting hub connection is scoped to that widget alone — not the
+    /// whole channel.</summary>
+    [Fact]
+    public async Task A_widget_scoped_token_issues_a_ticket_that_redeems_to_the_same_widget_id()
+    {
+        Guid broadcasterId = Guid.NewGuid();
+        Guid widgetId = Guid.NewGuid();
+        OverlayTokenScope scope = new(broadcasterId, widgetId);
+        IWidgetService widgetService = Substitute.For<IWidgetService>();
+        widgetService
+            .ResolveOverlayScopeAsync("widget-own-token", Arg.Any<CancellationToken>())
+            .Returns(scope);
+
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        OverlayConnectionThrottle throttle = new(new FakeTimeProvider());
+        Api.Controllers.OverlayTicketController controller = Build(
+            widgetService,
+            tickets,
+            throttle,
+            "widget-own-token"
+        );
+
+        IActionResult result = await controller.IssueTicket(CancellationToken.None);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        string ticket = (string)ok.Value!.GetType().GetProperty("ticket")!.GetValue(ok.Value)!;
+        OverlayTokenScope? redeemed = tickets.RedeemTicket(ticket);
+        redeemed.Should().NotBeNull();
+        redeemed!.BroadcasterId.Should().Be(broadcasterId);
+        redeemed.WidgetId.Should().Be(widgetId);
     }
 }

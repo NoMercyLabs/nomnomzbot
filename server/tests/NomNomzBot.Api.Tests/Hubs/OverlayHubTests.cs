@@ -15,6 +15,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NSubstitute;
@@ -96,7 +97,7 @@ public sealed class OverlayHubTests
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
         OverlayTicketService tickets = new(new FakeTimeProvider());
-        string ticket = tickets.IssueTicket(Broadcaster);
+        string ticket = tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null));
         Fixture f = Build(db, tickets, ticket);
 
         await f.Hub.OnConnectedAsync();
@@ -140,7 +141,7 @@ public sealed class OverlayHubTests
         // connection attempt, not standing access like the old long-lived token-in-the-URL did.
         using WidgetTestDbContext db = WidgetTestDbContext.New();
         OverlayTicketService tickets = new(new FakeTimeProvider());
-        string ticket = tickets.IssueTicket(Broadcaster);
+        string ticket = tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null));
         Fixture first = Build(db, tickets, ticket, connectionId: "conn-1");
         await first.Hub.OnConnectedAsync();
 
@@ -161,7 +162,7 @@ public sealed class OverlayHubTests
     {
         FakeTimeProvider clock = new();
         OverlayTicketService tickets = new(clock);
-        string ticket = tickets.IssueTicket(Broadcaster);
+        string ticket = tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null));
         clock.Advance(TimeSpan.FromSeconds(31)); // past the 30s ticket lifetime
 
         using WidgetTestDbContext db = WidgetTestDbContext.New();
@@ -222,7 +223,11 @@ public sealed class OverlayHubTests
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();
         OverlayTicketService tickets = new(new FakeTimeProvider());
-        Fixture f = Build(db, tickets, ticket: tickets.IssueTicket(Broadcaster));
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null))
+        );
         await f.Hub.OnConnectedAsync();
 
         Guid widgetA = Guid.NewGuid();
@@ -260,7 +265,7 @@ public sealed class OverlayHubTests
         Fixture f = Build(
             db,
             tickets,
-            ticket: tickets.IssueTicket(Broadcaster),
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null)),
             connectionId: "multi-widget-conn"
         );
         await f.Hub.OnConnectedAsync();
@@ -303,7 +308,7 @@ public sealed class OverlayHubTests
         Fixture f = Build(
             db,
             tickets,
-            ticket: tickets.IssueTicket(Broadcaster),
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null)),
             connectionId: "leave-one-conn"
         );
         await f.Hub.OnConnectedAsync();
@@ -331,5 +336,84 @@ public sealed class OverlayHubTests
                 $"widget-{Broadcaster}-{widgetA}",
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    // ── Audit S-OVERLAY-1: a widget-scoped token must never unlock another widget ──────────────────
+
+    [Fact]
+    public async Task A_widget_scoped_connection_can_join_its_own_widget()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Guid widgetId = Guid.NewGuid();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, widgetId))
+        );
+        await f.Hub.OnConnectedAsync();
+
+        JoinWidgetResponse join = await f.Hub.JoinWidget(widgetId.ToString());
+
+        join.Success.Should().BeTrue();
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync(
+                "obs-conn",
+                $"widget-{Broadcaster}-{widgetId}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_widget_scoped_connection_cannot_join_a_different_widget()
+    {
+        // The actual bug this slice fixes: one widget's leaked overlay token used to unlock every widget's
+        // manifest AND hub group on the same channel. Prove the connection refuses to join a widget id other
+        // than the one its ticket was scoped to, and joins NO group for the attempt.
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Guid ownWidgetId = Guid.NewGuid();
+        Guid otherWidgetId = Guid.NewGuid();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, ownWidgetId))
+        );
+        await f.Hub.OnConnectedAsync();
+
+        JoinWidgetResponse join = await f.Hub.JoinWidget(otherWidgetId.ToString());
+
+        join.Success.Should().BeFalse();
+        join.Error.Should().NotBeNullOrWhiteSpace();
+        await f
+            .Groups.DidNotReceive()
+            .AddToGroupAsync(
+                "obs-conn",
+                $"widget-{Broadcaster}-{otherWidgetId}",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_channel_scoped_connection_may_join_any_widget()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, null))
+        );
+        await f.Hub.OnConnectedAsync();
+
+        Guid widgetA = Guid.NewGuid();
+        Guid widgetB = Guid.NewGuid();
+
+        JoinWidgetResponse joinA = await f.Hub.JoinWidget(widgetA.ToString());
+        JoinWidgetResponse joinB = await f.Hub.JoinWidget(widgetB.ToString());
+
+        joinA.Success.Should().BeTrue();
+        joinB.Success.Should().BeTrue();
     }
 }
