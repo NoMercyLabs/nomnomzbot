@@ -683,13 +683,25 @@ public sealed class TwitchEventSubHostedService
             ? EventSubTokenOwnerKind.Broadcaster
             : EventSubTokenOwnerKind.Bot;
 
-        // A topic that failed on a missing scope is NOT re-POSTed until the owner's grant actually changes:
-        // blind retries hammer Twitch with guaranteed 403s every reconcile and flood the journal with no-op
-        // failed→failed status events. The stored grant set (IntegrationConnection.Scopes) is kept truthful
-        // on every token store/refresh, so the moment a re-grant lands the next reconcile passes this gate
-        // and the create proceeds — self-healing, no manual retry needed.
+        // A topic that failed on a missing scope, or on Twitch's other terminal 403 ("subscription missing
+        // proper authorization"), is NOT re-POSTed until the owner's grant actually changes: blind retries
+        // hammer Twitch with guaranteed 403s every reconcile and flood the journal with no-op failed→failed
+        // status events (this is what kept a dead session's welcome re-subscribing forever — twitch-eventsub
+        // §7 hardening). The stored grant set (IntegrationConnection.Scopes) is kept truthful on every token
+        // store/refresh, so the moment a re-grant lands the next reconcile passes this gate and the create
+        // proceeds — self-healing, no manual retry needed.
+        //
+        // A named missing scope is checked precisely against the live grant set (self-heals the instant that
+        // exact scope appears). The unnamed "missing proper authorization" failure names no scope, so it is
+        // gated on a fingerprint of the whole grant set recorded at failure time instead — any re-grant
+        // (add or remove) is enough to unblock a retry.
+        //
+        // An UNKNOWN grant set (no IntegrationConnection row at all) never blocks here — same as the named-scope
+        // branch below — the create is left to attempt and fail on its own (typically NoToken), which is the
+        // truthful failure for "not connected", not a fabricated scope gate.
         string? blockedScope = ExtractMissingScopeFromMessage(row.LastError);
-        if (row.Status == "failed" && blockedScope is not null)
+        bool authorizationBlocked = blockedScope is null && IsMissingAuthorizationMessage(row.LastError);
+        if (row.Status == "failed" && (blockedScope is not null || authorizationBlocked))
         {
             List<string>? granted = await GetOwnerGrantedScopesAsync(
                 db,
@@ -697,14 +709,28 @@ public sealed class TwitchEventSubHostedService
                 tokenOwner,
                 ct
             );
-            if (
-                granted is not null
-                && !granted.Contains(blockedScope, StringComparer.OrdinalIgnoreCase)
-            )
-                return Result.Failure<EventSubSubscriptionDto>(
-                    row.LastError!,
-                    TwitchErrorCodes.MissingScope
-                );
+            if (blockedScope is not null)
+            {
+                if (
+                    granted is not null
+                    && !granted.Contains(blockedScope, StringComparer.OrdinalIgnoreCase)
+                )
+                    return Result.Failure<EventSubSubscriptionDto>(
+                        row.LastError!,
+                        TwitchErrorCodes.MissingScope
+                    );
+            }
+            else if (granted is not null)
+            {
+                string recordedFingerprint =
+                    ExtractAuthorizationGrantFingerprint(row.LastError) ?? "unknown";
+                string currentFingerprint = GrantFingerprint(granted);
+                if (string.Equals(recordedFingerprint, currentFingerprint, StringComparison.Ordinal))
+                    return Result.Failure<EventSubSubscriptionDto>(
+                        row.LastError!,
+                        TwitchErrorCodes.Unauthorized
+                    );
+            }
         }
 
         // Create at Twitch via the transport (idempotent at our layer; Twitch 409 on an exact duplicate).
@@ -754,8 +780,10 @@ public sealed class TwitchEventSubHostedService
             //    so the reconcile retries. (Per-broadcaster sessions removed the old cost-cap 429: a broadcaster's
             //    topics are cost-0 on their OWN per-user-token budget, so a 429 is always transient rate-limiting,
             //    never a permanent cost exhaustion — the previous "deferred / park for the conduit" was obsolete.)
-            //  - otherwise → "failed" (keeps the 403 missing-scope path below intact).
+            //  - otherwise → "failed" (keeps the 403 missing-scope / authorization paths below intact).
             string? missingScope = ExtractMissingScope(created.ErrorDetail);
+            bool authorizationFailure =
+                missingScope is null && IsMissingAuthorizationMessage(created.ErrorDetail);
             string? previousError = row.LastError;
             row.Status = created.ErrorCode switch
             {
@@ -764,10 +792,25 @@ public sealed class TwitchEventSubHostedService
                 _ => "failed",
             };
             // A missing-scope failure stores the parseable scope message so the pre-create gate above holds
-            // the topic until the grant changes; anything else keeps Twitch's error message.
-            row.LastError = missingScope is not null
-                ? $"Missing required scope {missingScope}"
-                : created.ErrorMessage;
+            // the topic until the grant changes. An unnamed authorization failure stores Twitch's own message
+            // plus the grant-set fingerprint at the moment of failure, so the gate can tell a stale retry
+            // (same grants) apart from a genuine re-grant attempt (different grants). Anything else keeps
+            // Twitch's error message as-is.
+            if (missingScope is not null)
+                row.LastError = $"Missing required scope {missingScope}";
+            else if (authorizationFailure)
+            {
+                List<string>? grantedAtFailure = await GetOwnerGrantedScopesAsync(
+                    db,
+                    broadcasterId,
+                    tokenOwner,
+                    ct
+                );
+                row.LastError =
+                    $"{created.ErrorDetail} [grants:{GrantFingerprint(grantedAtFailure)}]";
+            }
+            else
+                row.LastError = created.ErrorMessage;
             await db.SaveChangesAsync(ct);
 
             // Journal / log / notify only an actual TRANSITION. A reconcile re-hitting the same failure is a
@@ -812,6 +855,28 @@ public sealed class TwitchEventSubHostedService
                             ServiceName = "twitch",
                             Reason = "missing_scope",
                             MissingScope = missingScope,
+                        },
+                        ct
+                    );
+                }
+                // "subscription missing proper authorization" is Twitch's OTHER terminal 403 for a create —
+                // it names no specific scope (unlike the branch above), so it is surfaced as a plain
+                // unauthorized re-grant prompt instead of a scope gap. Same one-shot-per-transition rule.
+                else if (authorizationFailure)
+                {
+                    _logger.LogWarning(
+                        "EventSub subscription {EventType} for {BroadcasterId} blocked: missing proper authorization",
+                        eventType,
+                        broadcasterId
+                    );
+                    await _eventBus.PublishAsync(
+                        new TwitchHelixReauthRequiredEvent
+                        {
+                            BroadcasterId = broadcasterId,
+                            Provider = "twitch",
+                            ServiceName = "twitch",
+                            Reason = "unauthorized",
+                            MissingScope = null,
                         },
                         ct
                     );
@@ -1306,12 +1371,21 @@ public sealed class TwitchEventSubHostedService
                 .FirstOrDefaultAsync(ct);
     }
 
-    // Twitch 403 body for a missing scope: {"error":"Forbidden","status":403,"message":"Missing required scope channel:read:hype_train"}
-    // Returns the scope token, or null when the body doesn't match.
+    // Twitch's 403 body for a missing scope is {"error":"Forbidden","status":403,"message":"Missing required
+    // scope channel:read:hype_train"} — but TwitchHelixTransport.SafeReadBodyAsync already reduces that to the
+    // plain "message" text before it ever reaches here (created.ErrorDetail IS the message, not the envelope),
+    // so parsing errorDetail as JSON here always threw JsonException and silently returned null — the pre-create
+    // scope gate below never actually fired. Treat errorDetail as the plain message first; only fall back to a
+    // JSON parse in case a future transport passes the raw envelope through unreduced.
     private static string? ExtractMissingScope(string? errorDetail)
     {
         if (string.IsNullOrWhiteSpace(errorDetail))
             return null;
+
+        string? fromPlainText = ExtractMissingScopeFromMessage(errorDetail);
+        if (fromPlainText is not null)
+            return fromPlainText;
+
         try
         {
             JsonDocument doc = JsonDocument.Parse(errorDetail);
@@ -1320,7 +1394,7 @@ public sealed class TwitchEventSubHostedService
         }
         catch (JsonException)
         {
-            // not a JSON body — ignore
+            // not a JSON body either — genuinely not a missing-scope failure
         }
         return null;
     }
@@ -1335,6 +1409,39 @@ public sealed class TwitchEventSubHostedService
         )
             return null;
         return message["Missing required scope ".Length..].Trim();
+    }
+
+    // Twitch's other terminal 403 for a create: no named scope, just "subscription missing proper
+    // authorization" — happens when the token itself lost the grant Twitch expects for the subscription type,
+    // not a single identifiable scope.
+    private static bool IsMissingAuthorizationMessage(string? message) =>
+        message is not null
+        && message.Contains("missing proper authorization", StringComparison.OrdinalIgnoreCase);
+
+    // A stable, order-independent fingerprint of a grant set — used to tell "the owner re-granted since this
+    // authorization failure was recorded" apart from "still the same grants, don't re-POST yet". "unknown" is
+    // reserved for a null grant set so it is never confused with a real (possibly empty) scope list.
+    private static string GrantFingerprint(List<string>? scopes) =>
+        scopes is null
+            ? "unknown"
+            : string.Join(
+                ',',
+                scopes.Select(s => s.ToLowerInvariant()).OrderBy(s => s, StringComparer.Ordinal)
+            );
+
+    // Recovers the fingerprint embedded in an authorization-failure LastError by ExtractMissingScope's sibling
+    // write path above ("... [grants:<fingerprint>]"), so the pre-create gate can compare it to the live grant
+    // set without re-deriving the message text.
+    private static string? ExtractAuthorizationGrantFingerprint(string? message)
+    {
+        if (message is null)
+            return null;
+        int start = message.IndexOf("[grants:", StringComparison.Ordinal);
+        if (start < 0)
+            return null;
+        int contentStart = start + "[grants:".Length;
+        int end = message.IndexOf(']', contentStart);
+        return end < 0 ? null : message[contentStart..end];
     }
 
     private static EventSubSubscriptionDto ToDto(EventSubSubscription row) =>

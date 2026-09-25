@@ -401,12 +401,16 @@ public sealed class TwitchEventSubReconnectTests
         // The stored LastError is what the pre-create gate parses on the next pass — it must carry the scope,
         // not just Twitch's generic "request failed" message.
         Guid tenant = Guid.CreateVersion7();
+        // TwitchHelixTransport.SafeReadBodyAsync reduces the Twitch error envelope to just its "message" field
+        // before ErrorDetail ever reaches the caller — the fake must produce that same plain-text shape, not
+        // the raw JSON envelope, or it proves nothing about the real path (this fake used to feed raw JSON,
+        // which masked ExtractMissingScope silently returning null against the real transport's output).
         RecordingEventSubTransport transport = new(
             onCreate: (_, _) =>
                 Result.Failure<TwitchSubscriptionResult>(
                     "Twitch request failed (403).",
                     TwitchErrorCodes.TwitchError,
-                    """{"error":"Forbidden","status":403,"message":"Missing required scope moderator:read:followers"}"""
+                    "Missing required scope moderator:read:followers"
                 )
         );
         (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
@@ -448,6 +452,140 @@ public sealed class TwitchEventSubReconnectTests
         await bus.Received(1)
             .PublishAsync(
                 Arg.Any<Domain.Twitch.Events.EventSubSubscriptionStatusChangedEvent>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_403_missing_proper_authorization_failure_is_terminal_and_stores_a_grant_fingerprint()
+    {
+        // Twitch's OTHER terminal 403 for a create names no scope at all ("subscription missing proper
+        // authorization") — it must be classified terminal the same as a named missing scope, not re-POSTed
+        // forever because ExtractMissingScope never matches it.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>(
+                    "Twitch request failed (403).",
+                    TwitchErrorCodes.TwitchError,
+                    "subscription missing proper authorization"
+                )
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        SeedConnection(db, tenant, scopes: ["user:read:email"]);
+        db.SaveChanges();
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+
+        EventSubSubscription row = await db.EventSubSubscriptions.SingleAsync(s =>
+            s.BroadcasterId == tenant
+        );
+        row.Status.Should().Be("failed");
+        row.LastError.Should().Contain("subscription missing proper authorization");
+        row.LastError.Should().Contain("[grants:");
+
+        // The very next pass is held by the gate — the create is never re-attempted while the grant set
+        // (user:read:email only) stays unchanged.
+        await service.SubscribeAsync(tenant, "channel.follow");
+        transport.CreatedTypes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_retries_an_authorization_blocked_topic_once_the_grant_set_changes()
+    {
+        // The grant-fingerprint self-heal: an unnamed authorization failure cannot be checked against a single
+        // scope, so it is gated on the whole grant set changing — any re-grant (add or remove) is enough.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        Seed(db, tenant, "channel.follow", version: "2", status: "failed");
+        EventSubSubscription seeded = db.EventSubSubscriptions.Single();
+        seeded.LastError = "subscription missing proper authorization [grants:user:read:email]";
+        SeedConnection(db, tenant, scopes: ["user:read:email", "moderator:read:followers"]);
+        db.SaveChanges();
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be("enabled");
+        transport.CreatedTypes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task An_unknown_grant_set_does_not_silently_block_an_authorization_failure_gate()
+    {
+        // No IntegrationConnection row at all ⇒ the grant set is unknown, not empty. The gate must not
+        // fabricate a block on unknown knowledge — same convention as the named-scope branch — so the create
+        // is left to attempt and fail truthfully on its own.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        Seed(db, tenant, "channel.follow", version: "2", status: "failed");
+        EventSubSubscription seeded = db.EventSubSubscriptions.Single();
+        seeded.LastError = "subscription missing proper authorization [grants:unknown]";
+        db.SaveChanges();
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+
+        transport.CreatedTypes.Should().ContainSingle("an unknown grant set must not silently pass the gate");
+    }
+
+    [Fact]
+    public async Task One_reauth_event_is_published_across_N_welcomes_not_N_for_a_missing_scope_failure()
+    {
+        // The reconcile-driven re-POST used to publish TwitchHelixReauthRequiredEvent on every welcome that
+        // re-hit the same 403 — once per welcome, forever. Only the FIRST discovery is a transition worth
+        // publishing.
+        Guid tenant = Guid.CreateVersion7();
+        IEventBus bus = Substitute.For<IEventBus>();
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>(
+                    "Twitch request failed (403).",
+                    TwitchErrorCodes.TwitchError,
+                    "Missing required scope moderator:read:followers"
+                )
+        );
+        (TwitchEventSubHostedService service, _) = Build(transport, bus);
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+        await service.SubscribeAsync(tenant, "channel.follow");
+        await service.SubscribeAsync(tenant, "channel.follow");
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Any<Domain.Twitch.Events.TwitchHelixReauthRequiredEvent>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task One_reauth_event_is_published_across_N_welcomes_not_N_for_an_authorization_failure()
+    {
+        Guid tenant = Guid.CreateVersion7();
+        IEventBus bus = Substitute.For<IEventBus>();
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>(
+                    "Twitch request failed (403).",
+                    TwitchErrorCodes.TwitchError,
+                    "subscription missing proper authorization"
+                )
+        );
+        (TwitchEventSubHostedService service, _) = Build(transport, bus);
+
+        await service.SubscribeAsync(tenant, "channel.follow");
+        await service.SubscribeAsync(tenant, "channel.follow");
+        await service.SubscribeAsync(tenant, "channel.follow");
+
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Any<Domain.Twitch.Events.TwitchHelixReauthRequiredEvent>(),
                 Arg.Any<CancellationToken>()
             );
     }
