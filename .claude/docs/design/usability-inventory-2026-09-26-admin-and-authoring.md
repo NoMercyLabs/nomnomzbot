@@ -196,3 +196,103 @@ Legend: (a) global/default backend layer · (b) admin API · (c) admin UI · (d)
   installs — the "blast radius" confirm step implies live push, but the propagation mechanism itself
   (does it edit tenant rows, or just the source template tenants copy from going forward) was not read
   line-by-line.
+
+---
+
+## Second pass — 2026-09-26
+
+Answers the "owed" item above, adds the desktop-editor finding as VERIFIED, and completes the family
+matrix for Task 1 (economy, moderation, quotes/timers/rewards/sound clips, TTS, music, EventSub,
+billing, trust/safety, GDPR, automation/IPC, feature content kinds).
+
+### Desktop editor gap — now VERIFIED
+
+`app/composeApp/src/jvmMain/kotlin/bot/nomnomz/dashboard/core/editor/ProjectEditor.jvm.kt:42-50` opens
+a plain Swing `JTextArea` in a dialog for desktop code/widget editing — no TypeScript language
+service, no live preview, no fire bar. Web (`ProjectEditor.wasmJs.kt`, per Part 1 above) mounts the
+real Monaco-in-iframe editor. The owner's binding requirement is that desktop and web are the same
+universal client (CLAUDE.md "Frontend Architecture") — this is a direct violation, not a nice-to-have.
+Desktop authors get a strictly worse tool for the exact same feature.
+
+### Platform-content propagation — answered
+
+`PlatformContentDefinition.cs:17-20` doc comment: platform content is "NOT `ITenantScoped`... a
+tenant's own row... carries a nullable provenance pointer back to the version it was installed from,
+never a live FK to this row." This confirms install-time copy, not live push — publishing a new
+platform-content version does **not** change any tenant who already installed an earlier version;
+they stay on their copy until they re-install/update. `PlatformContentKinds.cs:61-69` also confirms
+the closed kind set is exactly `command`/`widget`/`pipeline`/`code_script` — no `timer`, `quote`,
+`reward`, `sound_clip`, or `event_response` kind exists, so those families can never get a
+platform-authored template even once this system is fully built out.
+
+### Completed family matrix
+
+Legend unchanged: (a) global/default layer · (b) admin API · (c) admin UI · (d) push/override ·
+(e) truthful state.
+
+| Feature family | a | b | c | d | e |
+|---|---|---|---|---|---|
+| Billing tiers / plans | yes — `AdminBillingController.cs:47` tiers CRUD | yes, same file | yes `AdminBillingTierSection.kt` | yes, grant/revoke per channel (`:126-144`) | not traced this pass |
+| Spam-defense defaults | yes — `AdminSpamDefenseController.cs:48` `GET defaults`, `:66` `PUT defaults` | yes | yes `AdminSpamDefaultsTab.kt` | global write, no visible per-tenant override endpoint in this controller | not traced this pass |
+| Trust & safety (cross-tenant blocks) | yes — `AdminTrustSafetyController.cs:141-200` network-blocks preview/create/list/lift | yes | yes `AdminTrustSafetyTab.kt` | yes, blast-radius preview before block (`:141`) | not traced this pass |
+| GDPR data ops | yes — `GdprController.cs:60-186` export/erasure-preview/erasure/opt-out/requests/consents | yes, same controller | **no admin UI tab found** (grep of `feature/admin/ui` file list, no `AdminGdpr*.kt`) — this is a caller-scoped (per-user) surface today, not an admin ops console | n/a | **`c` missing** — a real backend GDPR pipeline with no platform-admin console to run/monitor it |
+| Automation/IPC keys | yes — `IpcDevModeController.cs:53-75`, `AutomationTokensController.cs`, `AutomationPairingController.cs` | yes | not confirmed — no matching `Admin*.kt` file found in the admin tab list (`AdminOpsToolsTab.kt` is the closest candidate, not opened this pass) | n/a | not traced |
+| Economy (currency/games/catalog) | **missing** — `CatalogController.cs:31`, `CurrencyController.cs:29`, `GamesController.cs:31` are all `channels/{channelId}/economy/...`; only per-channel seed found is `EarningRuleSeedOnOnboardingHandler.cs` (fires at onboarding, per channel, not a global admin-editable table) | missing | missing | n/a | none found |
+| Quotes | **missing** — `QuotesController.cs:30` is `api/v1/quotes` but tenant-scoped via the resolved channel, no platform-default quote pack found | missing | missing | n/a | none found |
+| Timers | **missing** — `TimersController.cs:24` is `channels/{channelId}/timers`, no global timer-template layer found | missing | missing | n/a | none found |
+| Channel-point reward presets | **missing** — `RewardsController.cs:29` is `channels/{channelId}/rewards`; no `RewardPreset`/`RewardTemplate` type found anywhere in the repo (searched both `Domain` and `Api` by name) | missing | missing | n/a | none found |
+| Sound clips | **missing** — `SoundClipsController.cs:27` is `api/v1/sound-clips` but per-channel; no global sound-clip library/seed found | missing | missing | n/a | none found |
+| TTS provider config (Azure/ElevenLabs) | yes as env-config only — `Azure:Tts:ApiKey`/`ElevenLabs:ApiKey` in `appsettings.json` (see CLAUDE.md env table); `TtsConfigController.cs` exists but is channel-scoped credential passthrough, not a platform default | missing (no controller writes the platform-level provider key at runtime) | missing | n/a | none found — this is deploy-time config, not a runtime admin surface, consistent with other secrets |
+| Music/song-request defaults (limits, blocklists) | **missing** — `MusicController.cs:29` is `channels/{channelId}/music`; no platform-wide default limits/blocklist table found | missing | missing | n/a | none found |
+| OBS/VTS control-plane presets | **missing** — `ObsController.cs`/`VtsController.cs` both channel-scoped by naming convention (not opened line-by-line this pass); no preset/template layer found by grep | missing | missing | n/a | none found |
+| Announcements/notifications to tenants | not found — no controller name matched `Announce`/`Notif` + `Admin` in `Controllers/V1`; searched by `ls | grep -i -E "announce|notif"` against the full controller list, zero hits | missing | missing | n/a | none found |
+
+Net picture for Task 1: the **billing / trust-safety / spam-defense / feature-flag / platform-content**
+families are genuinely well-built admin surfaces with real API + UI + push mechanisms. Every
+**channel-content family that a streamer authors day to day** — economy, quotes, timers, reward
+presets, sound clips, music limits, control-plane presets — has **no global layer at all**: not
+seed-only like TTS voices or `ActionDefinition` (Part 2 above), but **completely absent**, so the
+owner cannot set a platform-wide default or template for any of them today. That is a bigger gap than
+Part 1's "four seed-only families" framing suggested — it's not four gaps, it's most of the
+day-to-day feature surface.
+
+### New findings
+
+- [ ] `PAGE` `app/composeApp/src/jvmMain/kotlin/bot/nomnomz/dashboard/core/editor/ProjectEditor.jvm.kt:42-50` — desktop code/widget editor is a plain Swing `JTextArea`, no language service, no live preview, no fire bar, versus web's full Monaco. Violates the "desktop + web same universal client" rule. **VERIFIED**.
+- [ ] `RESULT` `server/src/NomNomzBot.Domain/PlatformContent/Entities/PlatformContentDefinition.cs:61-69` — `PlatformContentKinds` is closed to `command`/`widget`/`pipeline`/`code_script`; there is no platform-content kind for timers, quotes, reward presets, sound clips, or event responses, so those families cannot get a platform-authored template even after the seed-only gaps in Part 2 are fixed. **VERIFIED**.
+- [ ] `RESULT` no global/admin layer exists for economy (`CatalogController.cs:31`, `CurrencyController.cs:29`, `GamesController.cs:31`), quotes (`QuotesController.cs:30`), timers (`TimersController.cs:24`), channel-point reward presets (`RewardsController.cs:29`, no `RewardPreset` type anywhere in repo), sound clips (`SoundClipsController.cs:27`), or music/song-request defaults (`MusicController.cs:29`) — all are per-channel-only routes with no matching admin controller. **VERIFIED** by route-prefix reads on each controller and a repo-wide grep for preset/template types.
+- [ ] `RESULT` `server/src/NomNomzBot.Api/Controllers/V1/GdprController.cs:60-186` — a real, complete GDPR pipeline (export, erasure preview/execute, opt-out, requests, consents) exists as a per-caller self-service API, but no admin console tab was found to run or monitor GDPR requests platform-wide (grep of the admin UI file list found no `AdminGdpr*.kt`). **VERIFIED** absence by file-list grep; not independently confirmed there is no other UI entry point.
+- [ ] `RESULT` `server/src/NomNomzBot.Api/Controllers/V1/AutomationTokensController.cs`, `AutomationPairingController.cs`, `IpcDevModeController.cs:53-75` exist with real key-issuing APIs, but no matching `Admin*.kt` UI file was found — `AdminOpsToolsTab.kt` is the closest candidate and was not opened this pass to confirm it covers these. Flagged as unconfirmed, not filed as a hard gap.
+- [ ] `RAW` no controller name in `Controllers/V1` matches announcements/notifications-to-tenants (`ls Controllers/V1 | grep -i -E "announce|notif"` = zero hits). Either this feature doesn't exist yet or it's implemented under a name this grep missed — needs a second grep pass (e.g. "broadcast", "banner") before treating as confirmed-missing.
+
+### Revised remediation order (small vertical slices, most-unblocking first)
+
+1. **Desktop editor parity** — swap the Swing `JTextArea` dialog for the same Monaco-in-iframe/WebView
+   pattern web uses. Where: `ProjectEditor.jvm.kt`. Done-when: a desktop user editing a code script or
+   widget gets autocomplete, live TS diagnostics, and multi-file — same as web, same SDK types endpoint.
+2. **Wire the event catalog into the editor** (unchanged from Part 1, item 1) — `SdkController.cs:59`
+   already returns the data; add a docs/events side panel to `editor.js`/`index.html`.
+3. **GDPR admin console** — a read-only-first admin tab listing open `GdprController.cs` requests
+   (`GET requests`) with drill-down (`GET requests/{id}`), reusing the existing API. Where: new
+   `AdminGdprTab.kt` beside `AdminTrustSafetyTab.kt`. Done-when: an admin can see and act on every open
+   erasure/export request without a DB query.
+4. **Channel-point reward presets** — the cheapest of the missing day-to-day families to close because
+   `RewardsController.cs` already has the per-channel CRUD shape to copy from; add a
+   `RewardPresetController` (admin-authored, channel-installable) following the `PlatformContentDefinition`
+   pattern but as a new kind, or a lighter parallel table if extending the closed enum is unwanted.
+   Done-when: an admin can publish a reward preset and a streamer can install it into their channel.
+5. **Decide the fate of the four Part-2 seed-only families** (event-response defaults, TTS voices,
+   `ActionDefinition`, builtins) — unchanged from Part 1's items 4–5; still the next-cheapest wins
+   because the DB shape already exists for two of them.
+6. **Publish the SDK types as an npm package** (unchanged from Part 1, item 2) — lower urgency than the
+   above since the in-editor path already works; matters for external tooling, not for today's authors.
+
+### Owed / not checked (this pass)
+
+- Billing tier / spam-defense truth (e): API + UI both confirmed to exist, but the save→read-back round
+  trip was not traced hop-by-hop this pass.
+- `AdminOpsToolsTab.kt` was not opened — automation/IPC key admin UI coverage is inferred, not confirmed.
+- Announcements/notifications-to-tenants: only one grep pattern tried; needs a second pass with
+  "broadcast"/"banner"/"message-tenants" before calling it confirmed-absent.
+- `ObsController.cs`/`VtsController.cs` scoping was inferred from filename convention (every sibling
+  controller in the same folder is channel-scoped), not read line-by-line.
