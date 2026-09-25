@@ -606,7 +606,7 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 | GET | `/` | — | `StatusResponseDto<IReadOnlyList<GameConfigDto>>` | community / Everyone · `economy:games:read` |
 | PUT | `/` | `UpsertGameConfigRequest` | `StatusResponseDto<GameConfigDto>` | management / Broadcaster · `economy:games:write` |
 | POST | `/{gameConfigId}/play` | `PlayGameRequest` | `StatusResponseDto<GamePlayResultDto>` | community / Everyone · `economy:games:play` (`GameConfig.Permission` CommunityStanding, default Everyone; +18 gate via IAgeConsentService if `Requires18Plus`) |
-| GET | `/history` | `GameHistoryFilter`+`PageRequestDto` | `PaginatedResponse<GamePlayDto>` | management / Moderator · `economy:games:history:read` |
+| GET | `/history` | `GameHistoryFilter`+`PageRequestDto` | `PaginatedResponse<GamePlayDto>` | community / Everyone · `economy:games:history:read` (self-or-Gate-2: own plays only unless the caller holds `economy:ledger:read`) |
 | GET | `/consent/{viewerUserId}` | — | `StatusResponseDto<bool>` | community / Moderator · `economy:consent:read` (self-or-Gate-2) |
 | POST | `/consent` | `GrantAgeConsentRequest` | `StatusResponseDto<AgeConsentDto>` | community / Everyone · `economy:consent:write` (self-or-Gate-2) |
 | DELETE | `/consent/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Moderator · `economy:consent:revoke` (self-or-Gate-2) |
@@ -633,8 +633,8 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 | PUT | `/configs` | `UpsertLeaderboardConfigRequest` | `StatusResponseDto<LeaderboardConfigDto>` | management / Broadcaster · `economy:leaderboards:config:write` |
 | DELETE | `/configs/{configId}` | — | `StatusResponseDto<object>` | management / Broadcaster · `economy:leaderboards:config:delete` |
 | GET | `/{configId}` | `?top=` | `StatusResponseDto<IReadOnlyList<LeaderboardEntryDto>>` | community / Everyone · `economy:leaderboards:read` (Everyone if `IsPublic`, else Moderator) |
-| POST | `/opt-out/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Everyone · `economy:leaderboards:opt-out` (self-or-Gate-2) |
-| POST | `/opt-in/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Everyone · `economy:leaderboards:opt-in` (self-or-Gate-2) |
+| POST | `/opt-out/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Everyone · `economy:leaderboards:opt-out` (self-or-Gate-2: another viewer needs `economy:leaderboards:config:write`) |
+| POST | `/opt-in/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Everyone · `economy:leaderboards:opt-in` (self-or-Gate-2: another viewer needs `economy:leaderboards:config:write`) |
 
 ---
 

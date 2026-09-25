@@ -13,7 +13,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Consequences;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 
@@ -27,8 +30,15 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Route("api/v{version:apiVersion}/channels/{channelId}/economy/leaderboards")]
 [Authorize]
 [Tags("Economy — Leaderboards")]
-public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboards) : BaseController
+public class EconomyLeaderboardsController(
+    IEconomyLeaderboardService leaderboards,
+    IActionAuthorizationService authorization,
+    ICurrentUserService currentUser
+) : BaseController
 {
+    /// <summary>The Gate-2 action a caller must hold to opt another viewer in or out.</summary>
+    public const string ManageOthersConsentAction = "economy:leaderboards:config:write";
+
     /// <summary>List the channel's leaderboard configurations.</summary>
     [HttpGet("configs")]
     [RequireAction("economy:leaderboards:config:read")]
@@ -116,6 +126,8 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
+        if (!await CanToggleAsync(broadcasterId, viewerUserId, ct))
+            return UnauthorizedResponse();
         return ResultResponse(await leaderboards.OptOutAsync(broadcasterId, viewerUserId, ct));
     }
 
@@ -130,6 +142,28 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
+        if (!await CanToggleAsync(broadcasterId, viewerUserId, ct))
+            return UnauthorizedResponse();
         return ResultResponse(await leaderboards.OptInAsync(broadcasterId, viewerUserId, ct));
+    }
+
+    /// <summary>Self-or-Gate-2: the viewer themselves, or a caller holding <see cref="ManageOthersConsentAction"/>.</summary>
+    private async Task<bool> CanToggleAsync(
+        Guid broadcasterId,
+        Guid viewerUserId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(currentUser.UserId, out Guid caller))
+            return false;
+        if (caller == viewerUserId)
+            return true;
+        Result<bool> authorized = await authorization.AuthorizeActionAsync(
+            caller,
+            broadcasterId,
+            ManageOthersConsentAction,
+            ct
+        );
+        return authorized is { IsSuccess: true, Value: true };
     }
 }

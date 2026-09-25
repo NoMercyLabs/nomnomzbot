@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -37,14 +38,100 @@ public sealed class GamesControllerTests
         IGameService Games,
         IAgeConsentService Age,
         IRoleResolver Roles
-    ) Build()
+    ) Build(bool callerMayReadOthers = false)
     {
         IGameService games = Substitute.For<IGameService>();
         IAgeConsentService age = Substitute.For<IAgeConsentService>();
         IRoleResolver roles = Substitute.For<IRoleResolver>();
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Caller.ToString());
-        return (new(games, age, roles, user), games, age, roles);
+        IActionAuthorizationService authorization = Substitute.For<IActionAuthorizationService>();
+        authorization
+            .AuthorizeActionAsync(
+                Caller,
+                Channel,
+                GamesController.ReadOthersHistoryAction,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(callerMayReadOthers));
+        games
+            .GetGameHistoryAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<GameHistoryFilter>(),
+                Arg.Any<PaginationParams>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new PagedList<GamePlayDto>([], 0, 1, 25)));
+        return (new(games, age, roles, authorization, user), games, age, roles);
+    }
+
+    [Fact]
+    public async Task History_without_a_player_filter_is_scoped_to_the_caller_for_a_plain_viewer()
+    {
+        (GamesController controller, IGameService games, _, _) = Build();
+
+        IActionResult result = await controller.GetHistory(
+            Channel.ToString(),
+            new GameHistoryFilter(null, null, null),
+            new PageRequestDto(),
+            default
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        await games
+            .Received(1)
+            .GetGameHistoryAsync(
+                Channel,
+                Arg.Is<GameHistoryFilter>(f => f.PlayerUserId == Caller),
+                Arg.Any<PaginationParams>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task History_of_another_player_is_refused_for_a_plain_viewer()
+    {
+        (GamesController controller, IGameService games, _, _) = Build();
+
+        IActionResult result = await controller.GetHistory(
+            Channel.ToString(),
+            new GameHistoryFilter(null, Spoofed, null),
+            new PageRequestDto(),
+            default
+        );
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(403);
+        await games
+            .DidNotReceive()
+            .GetGameHistoryAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<GameHistoryFilter>(),
+                Arg.Any<PaginationParams>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task History_stays_channel_wide_for_a_caller_who_may_read_the_ledger()
+    {
+        (GamesController controller, IGameService games, _, _) = Build(callerMayReadOthers: true);
+
+        IActionResult result = await controller.GetHistory(
+            Channel.ToString(),
+            new GameHistoryFilter(null, null, null),
+            new PageRequestDto(),
+            default
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        await games
+            .Received(1)
+            .GetGameHistoryAsync(
+                Channel,
+                Arg.Is<GameHistoryFilter>(f => f.PlayerUserId == null),
+                Arg.Any<PaginationParams>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

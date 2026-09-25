@@ -93,8 +93,8 @@ endpoints, and the onboarding friction walk.
 ## L3 · Viewer (participant)
 
 - [x] `SEC` srv CurrencyController.cs — transfer sender = caller unless the caller holds `economy:account:adjust` (self-or-Gate-2). Fixed.
-- [ ] `SEC` EconomyLeaderboardsController.cs:109-133 + EconomyLeaderboardService.cs:213 — opt-in/out take any `viewerUserId`.
-- [ ] `SEC` GamesController.cs:91-112 — game history open to Everyone, `playerUserId` a filter.
+- [x] `SEC` EconomyLeaderboardsController.cs — opt-in/out self-only unless the caller holds `economy:leaderboards:config:write`. Fixed.
+- [x] `SEC` GamesController.cs — game history scoped to the caller unless the caller holds `economy:ledger:read`. Fixed.
 - [ ] `SEC` MusicController.cs:171-196 + PublicSongRequestController.cs:93-97 → MusicService.cs:517-524 — dashboard + public SR skip min-trust + requester id; public cap keyed on typed name.
 - [ ] `FEEDBACK` ParticipantController.kt:129 — viewer home calls `/dashboard/{id}/stats` (Moderator) → 403 text as home — public channel-summary endpoint.
 - [ ] EconomyApi.kt:229-251 + ParticipantController.kt:206 — Leaderboards page first calls `leaderboards/configs` (Moderator) → 403.

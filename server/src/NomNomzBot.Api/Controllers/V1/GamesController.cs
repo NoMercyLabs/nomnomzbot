@@ -35,9 +35,13 @@ public class GamesController(
     IGameService games,
     IAgeConsentService ageConsent,
     IRoleResolver roles,
+    IActionAuthorizationService authorization,
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>The Gate-2 action a caller must hold to read other viewers' plays.</summary>
+    public const string ReadOthersHistoryAction = "economy:ledger:read";
+
     /// <summary>List the channel's mini-game configurations.</summary>
     [HttpGet]
     [RequireAction("economy:games:read")]
@@ -88,7 +92,10 @@ public class GamesController(
         return ResultResponse(await games.PlayAsync(broadcasterId, bound, ct));
     }
 
-    /// <summary>Page through the channel's game-play history, filtered.</summary>
+    /// <summary>
+    /// Page through game-play history (self-or-Gate-2). A caller holding <see cref="ReadOthersHistoryAction"/>
+    /// reads the whole channel or any player; everyone else reads only their own plays.
+    /// </summary>
     [HttpGet("history")]
     [RequireAction("economy:games:history:read")]
     [ProducesResponseType<PaginatedResponse<GamePlayDto>>(StatusCodes.Status200OK)]
@@ -101,10 +108,22 @@ public class GamesController(
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
+        if (!TryGetCaller(out Guid caller))
+            return UnauthenticatedResponse();
+        GameHistoryFilter scoped = filter;
+        if (
+            filter.PlayerUserId != caller
+            && !await CanReadOthersHistoryAsync(caller, broadcasterId, ct)
+        )
+        {
+            if (filter.PlayerUserId is not null)
+                return UnauthorizedResponse();
+            scoped = filter with { PlayerUserId = caller };
+        }
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<GamePlayDto>> result = await games.GetGameHistoryAsync(
             broadcasterId,
-            filter,
+            scoped,
             pagination,
             ct
         );
@@ -163,6 +182,21 @@ public class GamesController(
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
         return ResultResponse(await ageConsent.RevokeAsync(broadcasterId, viewerUserId, ct));
+    }
+
+    private async Task<bool> CanReadOthersHistoryAsync(
+        Guid caller,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<bool> authorized = await authorization.AuthorizeActionAsync(
+            caller,
+            broadcasterId,
+            ReadOthersHistoryAction,
+            ct
+        );
+        return authorized is { IsSuccess: true, Value: true };
     }
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);
