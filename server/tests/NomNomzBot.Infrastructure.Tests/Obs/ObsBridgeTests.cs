@@ -146,7 +146,7 @@ public sealed class ObsBridgeTests
             {
                 pushedCommand = ci.ArgAt<Guid>(1);
                 // The bridge acks out-of-band, like the hub would — the raw wire shape.
-                commands.Complete(pushedCommand, new(true, """{ "ok": true }""", null));
+                commands.Complete(Channel, pushedCommand, new(true, """{ "ok": true }""", null));
                 return Task.CompletedTask;
             });
 
@@ -168,7 +168,23 @@ public sealed class ObsBridgeTests
                 Arg.Any<CancellationToken>()
             );
         // A duplicate ack for a settled id is a no-op (idempotent CommandId).
-        commands.Complete(pushedCommand, new(false, null, "late")).Should().BeFalse();
+        commands.Complete(Channel, pushedCommand, new(false, null, "late")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task An_ack_from_another_channels_bridge_never_settles_the_command()
+    {
+        ObsBridgeCommandBook commands = new();
+        Guid commandId = Guid.CreateVersion7();
+        Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-00000000beef");
+        Task<ObsBridgeAck> answer = commands.BeginAsync(Channel, commandId);
+
+        bool forged = commands.Complete(otherChannel, commandId, new(true, "{}", null));
+
+        forged.Should().BeFalse();
+        answer.IsCompleted.Should().BeFalse();
+        commands.Complete(Channel, commandId, new(true, "{}", null)).Should().BeTrue();
+        (await answer).Ok.Should().BeTrue();
     }
 
     [Fact]

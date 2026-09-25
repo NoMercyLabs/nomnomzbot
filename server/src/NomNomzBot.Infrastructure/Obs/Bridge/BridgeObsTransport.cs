@@ -109,7 +109,7 @@ public sealed class BridgeObsTransport : IObsTransport
                 "OBS_BRIDGE_OFFLINE"
             );
 
-        Task<ObsBridgeAck> ack = _commands.BeginAsync(commandId);
+        Task<ObsBridgeAck> ack = _commands.BeginAsync(broadcasterId, commandId);
         try
         {
             await _pusher.PushExecuteAsync(leader, commandId, payload, ct);

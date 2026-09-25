@@ -298,7 +298,7 @@ endpoints, and the onboarding friction walk.
 - [ ] MediaShareScreen.kt:495-498 — non-numeric → 0 → generic validation error (MediaShareService.cs:438-447), field not highlighted; EligibilityJson enforced (:92) but not in DTO/UI.
 - [ ] MediaShareService.cs:141-182 — cost charged before SaveChanges, no refund on failure; queue count (:119-133) not atomic.
 - [ ] `RAW` VtsActions.cs:131 model, :193 expression are Text though inventory exists (:155 uses ResourceId).
-- [ ] `SEC` OBSRelayHub.cs:127-133 — `AckCommand` completes any commandId from any bridge — scope to the bridge's channel.
+- [x] `SEC` OBSRelayHub.cs:127-133 — `AckCommand` completes any commandId from any bridge — scope to the bridge's channel.
 - [x] Clean: sound clips invalidate trigger cache on write; preview checks presence.
 
 ## L9 · Widgets, overlays, alerts, bundles, assets (first round; per-.vue uncapped owed)

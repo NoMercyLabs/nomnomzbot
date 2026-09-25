@@ -126,9 +126,9 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
     /// <summary>The bridge answers one pushed command: same id, the raw outcome — OBS or VTS alike.</summary>
     public Task AckCommand(Guid commandId, bool ok, string? responseDataJson, string? error)
     {
-        if (!ConnectionChannels.ContainsKey(Context.ConnectionId))
+        if (!ConnectionChannels.TryGetValue(Context.ConnectionId, out Guid broadcasterId))
             return Task.CompletedTask; // never authenticated — ignore
-        _commands.Complete(commandId, new(ok, responseDataJson, error));
+        _commands.Complete(broadcasterId, commandId, new(ok, responseDataJson, error));
         return Task.CompletedTask;
     }
 

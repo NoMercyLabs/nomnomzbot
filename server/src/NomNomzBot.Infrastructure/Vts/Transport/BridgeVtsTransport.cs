@@ -70,7 +70,7 @@ public sealed class BridgeVtsTransport : IVtsTransport
             WireJson
         );
 
-        Task<ObsBridgeAck> ack = _commands.BeginAsync(commandId);
+        Task<ObsBridgeAck> ack = _commands.BeginAsync(broadcasterId, commandId);
         try
         {
             await _pusher.PushExecuteAsync(leader, commandId, payload, ct);
