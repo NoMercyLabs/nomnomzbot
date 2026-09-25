@@ -501,6 +501,31 @@ public sealed class PipelineEngineTreeExecutionTests
         result.StepLogs[0].Output.Should().Be("marker=innermost");
     }
 
+    [Fact]
+    public async Task Steps_of_a_pipeline_owned_by_another_channel_never_run()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+        Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000e2");
+        PipelineStep foreign = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"foreign"}"""
+        );
+        foreign.BroadcasterId = otherChannel;
+        db.PipelineSteps.Add(foreign);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, []);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.StepsExecuted.Should().Be(0);
+        result.StepLogs.Should().BeEmpty();
+    }
+
     // ─── switch / switch_case ───────────────────────────────────────────────
 
     [Fact]

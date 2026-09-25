@@ -201,7 +201,7 @@ public sealed class PipelineEngine : IPipelineEngine
 
         if (request.PipelineId.HasValue)
         {
-            treeRows = await LoadStepRowsAsync(request.PipelineId.Value, ct);
+            treeRows = await LoadStepRowsAsync(request.BroadcasterId, request.PipelineId.Value, ct);
             if (treeRows.Count > 0)
             {
                 isTreeRun = treeRows.Any(r =>
@@ -473,7 +473,11 @@ public sealed class PipelineEngine : IPipelineEngine
             };
         }
 
-        List<PipelineStep> rows = await LoadStepRowsAsync(runState.PipelineId, ct);
+        List<PipelineStep> rows = await LoadStepRowsAsync(
+            runState.BroadcasterId,
+            runState.PipelineId,
+            ct
+        );
 
         Dictionary<string, string> variables =
             JsonSerializer.Deserialize<Dictionary<string, string>>(runState.VariablesJson, JsonOpts)
@@ -986,17 +990,21 @@ public sealed class PipelineEngine : IPipelineEngine
     // ─── Step resolution helpers ─────────────────────────────────────────────
 
     /// <summary>
-    /// Loads every enabled <see cref="PipelineStep"/> row for a pipeline (any depth), with its
-    /// condition-tree rows, ordered by <c>Order</c>. The caller decides tree-vs-flat from the shape
+    /// Loads every enabled <see cref="PipelineStep"/> row for a pipeline (any depth) in the running
+    /// channel, with its condition-tree rows, ordered by <c>Order</c>. The channel filter is explicit because
+    /// background runs have no ambient tenant. The caller decides tree-vs-flat from the shape
     /// (<see cref="PipelineStep.BlockKind"/>/<see cref="PipelineStep.ParentStepId"/>).
     /// </summary>
     private async Task<List<PipelineStep>> LoadStepRowsAsync(
+        Guid broadcasterId,
         Guid pipelineId,
         CancellationToken ct
     ) =>
         await _db
             .PipelineSteps.Include(s => s.Conditions)
-            .Where(s => s.PipelineId == pipelineId && s.IsEnabled)
+            .Where(s =>
+                s.PipelineId == pipelineId && s.BroadcasterId == broadcasterId && s.IsEnabled
+            )
             .OrderBy(s => s.Order)
             .ToListAsync(ct);
 
@@ -1198,7 +1206,11 @@ public sealed class PipelineEngine : IPipelineEngine
             }
         }
 
-        List<PipelineStep> rows = await LoadStepRowsAsync(targetPipelineId, ct);
+        List<PipelineStep> rows = await LoadStepRowsAsync(
+            callerCtx.BroadcasterId,
+            targetPipelineId,
+            ct
+        );
         if (rows.Count == 0)
             return Result.Success<string?>(null);
 

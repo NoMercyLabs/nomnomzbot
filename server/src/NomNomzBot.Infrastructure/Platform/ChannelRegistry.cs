@@ -358,6 +358,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         Dictionary<Guid, List<Domain.Commands.Entities.PipelineStep>> triggerStepsByPipeline =
             await LoadStepsByPipelineAsync(
                 db,
+                ctx.BroadcasterId,
                 triggers.Where(t => t.PipelineId.HasValue).Select(t => t.PipelineId!.Value),
                 ct
             );
@@ -460,6 +461,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         Dictionary<Guid, List<Domain.Commands.Entities.PipelineStep>> commandStepsByPipeline =
             await LoadStepsByPipelineAsync(
                 db,
+                ctx.BroadcasterId,
                 rows.Where(r => r.PipelineId.HasValue).Select(r => r.PipelineId!.Value),
                 ct
             );
@@ -553,6 +555,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         Dictionary<Guid, List<Domain.Commands.Entities.PipelineStep>>
     > LoadStepsByPipelineAsync(
         IApplicationDbContext db,
+        Guid broadcasterId,
         IEnumerable<Guid> pipelineIds,
         CancellationToken ct
     )
@@ -561,8 +564,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         if (ids.Count == 0)
             return [];
 
+        // The channel filter is explicit: a cache load runs outside any request tenant, so a foreign
+        // pipeline id bound to this channel's command must never pull that channel's steps.
         List<Domain.Commands.Entities.PipelineStep> steps = await db
-            .PipelineSteps.Where(s => ids.Contains(s.PipelineId))
+            .PipelineSteps.Where(s =>
+                s.BroadcasterId == broadcasterId && ids.Contains(s.PipelineId)
+            )
             .Include(s => s.Conditions)
             .OrderBy(s => s.Order)
             .ToListAsync(ct);
