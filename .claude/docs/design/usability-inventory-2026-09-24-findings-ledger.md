@@ -321,6 +321,7 @@ endpoints, and the onboarding friction walk.
 - [ ] OverlayHostController.cs:73-75 — widgetId compared as raw Guid → ULID shows "not live" (bundle route accepts both).
 - [ ] OverlayHostController.cs:144,150,198-211 — `style-src` lacks https: (Google Fonts blocked); `font-src` lacks 'self'; vanilla page no CSP.
 - [x] `SEC` WidgetService.cs:1556-1573,1175-1177 + OverlayHub.cs:89-96 — per-widget token resolves to the whole channel.
+- [ ] `SEC` `PERF` OverlayHub.cs:74 + OverlayEventFeedHook.cs:51 + DashboardBroadcastHandler.cs:145 + ChatModerationBroadcastHandlers.cs:58 — every browser source joins `overlay-{channel}` and gets the whole generic feed (every public journaled event, every chat message, mod events) regardless of its subscriptions; a widget-token connection still receives the channel's full feed — keep only sound/TTS/retract channel-wide, route the rest through subscriptions, never join widget-scoped connections to the feed. **VERIFIED**
 - [ ] `RAW` WidgetSettingsSchemaProvider.cs:115 resetCadence, :177 provider, :205 rewards JSON, :213 countdown ISO, :229-230 custom_data source/field, :116/200 colours JSON.
 - [ ] countdown_timer.vue:52-53 — duration mode restarts on every reload; no start/pause from the dashboard.
 - [ ] editor.js:1204,1259 — close/Esc with no unsaved-changes check; no dirty tracking.
