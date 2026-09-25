@@ -15,6 +15,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -53,12 +54,22 @@ public sealed class DashboardEventClassTests
         context.ConnectionId.Returns(connectionId);
 
         IGroupManager groups = Substitute.For<IGroupManager>();
+        // These tests cover group bookkeeping, so the caller holds every class's read right.
+        IActionAuthorizationService authorization = Substitute.For<IActionAuthorizationService>();
+        authorization
+            .AuthorizeActionAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(true));
         DashboardHub hub = new(
             Substitute.For<IChannelRegistry>(),
             NullLogger<DashboardHub>.Instance,
             Substitute.For<IChatProvider>(),
             access,
-            Substitute.For<IActionAuthorizationService>(),
+            authorization,
             Substitute.For<IOperatorChatSender>()
         )
         {

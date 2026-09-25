@@ -61,7 +61,7 @@ endpoints, and the onboarding friction walk.
 - [ ] AuthService.cs:369-382, 492-500 — any login with no owned channel INSTALLS the bot on that user's own channel unasked (onboarded, mod-join, defaults, 74 topics) — separate sign-in from install.
 - [ ] `DEAD` srv Domain/Identity/Events/PermissionChangedEvent.cs:15 — never published; `ManagementRoleChangedEvent`/`PermitGranted`/`PermitRevoked` unhandled → live re-resolve (ShellScreen.kt:380) dead — bridge; target the user.
 - [ ] srv Api/Hubs/Broadcasters/RoleBroadcastHandlers.cs:170-220 — `channel.moderator.remove` only logs; no grant on `.add` — set/remove TwitchBadge memberships + push.
-- [ ] `SEC` srv Api/Hubs/DashboardHub.cs:128 — `JoinChannel` Gate 1 only → any user joins any channel's moderation class — Gate-2 per class. **VERIFIED**
+- [x] `SEC` srv Api/Hubs/DashboardHub.cs:128 — `JoinChannel` Gate 1 only → any user joins any channel's moderation class — Gate-2 per class. **VERIFIED**
 - [ ] app/core/realtime/DashboardHubClient.kt:431-432 — join without invocationId; denial dropped; shows Connected — tracked invocation.
 - [ ] `TRUTH` srv ChannelService.cs:201-205, 226 — roster ignores ChannelMemberships; role hardcoded broadcaster/moderator; Editors/LeadMods/permits invisible; no-membership channels say "moderator" — union memberships + permits; real role.
 - [ ] ChannelsController.cs:126 vs ChannelService.cs:204 — lazy grant filters `IsOnboarded`, roster does not → listed with no membership, listed twice (ShellScreen.kt:883) — grant on any moderated tenant; dedupe.

@@ -27,6 +27,21 @@ public static class DashboardEventClasses
 
     public static readonly IReadOnlyList<string> All = [Chat, Activity, LiveOps, Music, Moderation];
 
+    /// <summary>
+    /// The Gate-2 read action a caller must hold to receive a class's pushes — the same right that guards the
+    /// matching REST reads, so the live feed never shows more than the page would.
+    /// </summary>
+    public static string ReadActionFor(string eventClass) =>
+        eventClass switch
+        {
+            Chat => "chat:read",
+            Activity => "dashboard:read",
+            LiveOps => "live-ops:polls:read",
+            Music => "music:config:read",
+            Moderation => "moderation:read",
+            _ => throw new ArgumentOutOfRangeException(nameof(eventClass), eventClass, null),
+        };
+
     public static bool IsValid(string eventClass) =>
         All.Contains(eventClass, StringComparer.Ordinal);
 

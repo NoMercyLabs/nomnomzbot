@@ -201,6 +201,49 @@ public sealed class DashboardHubAuthorizationTests
     // ── Multi-channel watch (a moderator monitoring several channels in one session) ──────────────
 
     [Fact]
+    public async Task Joining_without_any_read_right_joins_only_the_base_group()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: false, connectionId: "conn-viewer");
+
+        JoinChannelResponse response = await f.Hub.JoinChannel(Channel.ToString());
+
+        response.Success.Should().BeTrue();
+        response.GrantedClasses.Should().BeEmpty();
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync("conn-viewer", $"channel-{Channel}", Arg.Any<CancellationToken>());
+        await f
+            .Groups.DidNotReceive()
+            .AddToGroupAsync(
+                "conn-viewer",
+                Arg.Is<string>(g => g.StartsWith($"channel-{Channel}:")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Joining_receives_only_the_classes_whose_read_right_the_caller_holds()
+    {
+        Fixture f = Build(entryAllowed: true, gate2Allows: false, connectionId: "conn-vip");
+        f.Gate2.AuthorizeActionAsync(Caller, Channel, "chat:read", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(true));
+
+        JoinChannelResponse response = await f.Hub.JoinChannel(Channel.ToString());
+
+        response.GrantedClasses.Should().Equal("chat");
+        await f
+            .Groups.Received(1)
+            .AddToGroupAsync("conn-vip", $"channel-{Channel}:chat", Arg.Any<CancellationToken>());
+        await f
+            .Groups.DidNotReceive()
+            .AddToGroupAsync(
+                "conn-vip",
+                $"channel-{Channel}:moderation",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Joining_multiple_channels_adds_the_connection_to_every_channel_group()
     {
         Fixture f = Build(entryAllowed: true, gate2Allows: true, connectionId: "conn-multi-join");

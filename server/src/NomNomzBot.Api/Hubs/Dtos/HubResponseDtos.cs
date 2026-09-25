@@ -197,7 +197,16 @@ public record OBSConnectedDto(string BroadcasterId, string Version);
 
 // ─── Hub response DTOs ────────────────────────────────────────────────────────
 
-public record JoinChannelResponse(bool Success, string? Error, StreamStatusDto? StreamStatus);
+/// <summary>
+/// Outcome of a channel join. <see cref="GrantedClasses"/> lists the push classes the caller actually receives —
+/// a class whose read right the caller lacks is left out rather than failing the whole join.
+/// </summary>
+public record JoinChannelResponse(
+    bool Success,
+    string? Error,
+    StreamStatusDto? StreamStatus,
+    IReadOnlyList<string>? GrantedClasses = null
+);
 
 public record SendMessageResponse(bool Success, string? Error, string? MessageId);
 

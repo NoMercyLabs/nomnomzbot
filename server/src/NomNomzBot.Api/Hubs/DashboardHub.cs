@@ -131,6 +131,7 @@ public class DashboardHub : Hub<IDashboardClient>
         ChannelContext? ctx = Guid.TryParse(broadcasterId, out Guid tenantId)
             ? _registry.Get(tenantId)
             : null;
+        eventClasses = await GrantedClassesAsync(userId, tenantId, eventClasses);
 
         ConcurrentDictionary<string, IReadOnlyList<string>> channels = _connectionChannels.GetOrAdd(
             Context.ConnectionId,
@@ -184,7 +185,30 @@ public class DashboardHub : Hub<IDashboardClient>
                 )
                 : new StreamStatusDto(false, null, null, null, null);
 
-        return new(true, null, status);
+        return new(true, null, status, eventClasses);
+    }
+
+    /// <summary>Gate 2 per class: keeps only the classes whose read action the caller holds in this channel.</summary>
+    private async Task<IReadOnlyList<string>> GrantedClassesAsync(
+        string userId,
+        Guid tenantId,
+        IReadOnlyList<string> requested
+    )
+    {
+        if (tenantId == Guid.Empty || !Guid.TryParse(userId, out Guid callerId))
+            return [];
+        List<string> granted = [];
+        foreach (string eventClass in requested)
+        {
+            Result<bool> allowed = await _authorization.AuthorizeActionAsync(
+                callerId,
+                tenantId,
+                DashboardEventClasses.ReadActionFor(eventClass)
+            );
+            if (allowed is { IsSuccess: true, Value: true })
+                granted.Add(eventClass);
+        }
+        return granted;
     }
 
     public async Task LeaveChannel(string broadcasterId)
