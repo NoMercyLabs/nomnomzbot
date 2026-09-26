@@ -344,6 +344,9 @@ class ApiContractTest {
             ActionDefault.serializer() to "ActionDefaultDto",
             SetActionDefaultRequest.serializer() to "SetActionDefaultRequest",
             PlatformDefaultBlastRadius.serializer() to "PlatformDefaultBlastRadiusDto",
+            EventResponseDefault.serializer() to "EventResponseDefaultDto",
+            EventResponseDefaultChange.serializer() to "EventResponseDefaultChange",
+            SetEventResponseDefaultRequest.serializer() to "SetEventResponseDefaultRequest",
         )
 
     @Test

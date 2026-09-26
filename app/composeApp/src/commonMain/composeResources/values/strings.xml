@@ -5639,4 +5639,15 @@
     <string name="platform_defaults_saved">Saved. %1$d channel(s) follow the new default.</string>
     <string name="platform_defaults_stale">The number of changed channels moved. Check the new count and save again.</string>
     <string name="platform_defaults_error">Could not update platform defaults: %1$s</string>
+    <string name="platform_defaults_section_event_responses">Event responses</string>
+    <string name="platform_defaults_event_on">On: %1$s</string>
+    <string name="platform_defaults_event_off">Off</string>
+    <string name="platform_defaults_event_counts">%1$d channel(s) follow this default, %2$d answer with their own response</string>
+    <string name="platform_defaults_event_edit_title">Default response to %1$s</string>
+    <string name="platform_defaults_event_enabled">Respond in chat</string>
+    <string name="platform_defaults_event_message">Message</string>
+    <string name="platform_defaults_event_variables">Variables: %1$s</string>
+    <string name="platform_defaults_event_message_required">A response that is on needs a message.</string>
+    <string name="platform_defaults_check_impact">Check impact</string>
+    <string name="platform_defaults_check_first">Check the impact to see which channels this changes.</string>
 </resources>

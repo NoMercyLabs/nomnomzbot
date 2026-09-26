@@ -58,6 +58,32 @@ data class SetActionDefaultRequest(
     val confirmDanger: Boolean,
 )
 
+/**
+ * One event type's platform default (backend `EventResponseDefaultDto`): whether channels that never saved their
+ * own response answer, with which chat message, the variables the event fills, and how many channels follow it.
+ */
+@Serializable
+data class EventResponseDefault(
+    val eventType: String,
+    val isEnabled: Boolean = false,
+    val message: String? = null,
+    val variables: List<String> = emptyList(),
+    val channelsFollowing: Int = 0,
+    val channelsWithOwnResponse: Int = 0,
+)
+
+/** A proposed event-response default — the preview body (backend `EventResponseDefaultChange`). */
+@Serializable
+data class EventResponseDefaultChange(val isEnabled: Boolean, val message: String?)
+
+/** Saves an event-response default (backend `SetEventResponseDefaultRequest`). */
+@Serializable
+data class SetEventResponseDefaultRequest(
+    val isEnabled: Boolean,
+    val message: String?,
+    val confirmedChannelsAffected: Int,
+)
+
 interface PlatformDefaultsApi {
     suspend fun actionDefaults(): ApiResult<List<ActionDefault>>
 
@@ -66,6 +92,18 @@ interface PlatformDefaultsApi {
 
     /** Applies the change and returns the row the server read back after saving. */
     suspend fun setActionDefault(actionKey: String, body: SetActionDefaultRequest): ApiResult<ActionDefault>
+
+    suspend fun eventResponseDefaults(): ApiResult<List<EventResponseDefault>>
+
+    suspend fun previewEventResponseDefault(
+        eventType: String,
+        change: EventResponseDefaultChange,
+    ): ApiResult<PlatformDefaultBlastRadius>
+
+    suspend fun setEventResponseDefault(
+        eventType: String,
+        body: SetEventResponseDefaultRequest,
+    ): ApiResult<EventResponseDefault>
 }
 
 class RestPlatformDefaultsApi(private val client: ApiClient) : PlatformDefaultsApi {
@@ -87,4 +125,22 @@ class RestPlatformDefaultsApi(private val client: ApiClient) : PlatformDefaultsA
         body: SetActionDefaultRequest,
     ): ApiResult<ActionDefault> =
         client.putEnvelope("api/v1/admin/platform-defaults/actions/${actionKey.encodeQuery()}", body)
+
+    override suspend fun eventResponseDefaults(): ApiResult<List<EventResponseDefault>> =
+        client.getEnvelope("api/v1/admin/platform-defaults/event-responses")
+
+    override suspend fun previewEventResponseDefault(
+        eventType: String,
+        change: EventResponseDefaultChange,
+    ): ApiResult<PlatformDefaultBlastRadius> =
+        client.postEnvelope(
+            "api/v1/admin/platform-defaults/event-responses/${eventType.encodeQuery()}/blast-radius",
+            change,
+        )
+
+    override suspend fun setEventResponseDefault(
+        eventType: String,
+        body: SetEventResponseDefaultRequest,
+    ): ApiResult<EventResponseDefault> =
+        client.putEnvelope("api/v1/admin/platform-defaults/event-responses/${eventType.encodeQuery()}", body)
 }

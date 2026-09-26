@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.admin.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -28,6 +29,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ActionDangerTier
 import bot.nomnomz.dashboard.core.network.ActionDefault
+import bot.nomnomz.dashboard.core.network.EventResponseDefault
 import bot.nomnomz.dashboard.feature.admin.state.FakePlatformDefaultsApi
 import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import kotlinx.coroutines.test.runTest
@@ -133,6 +135,51 @@ class AdminPlatformDefaultsTabTest {
             waitForIdle()
             onNode(hasText("Apply to 3 channel(s)") and hasClickAction()).assertIsEnabled()
             assertTrue(api.saves.isEmpty())
+        }
+    }
+
+    @Test
+    fun an_event_default_shows_its_count_only_after_check_impact_and_apply_sends_it() {
+        val follow = EventResponseDefault(
+            eventType = "channel.follow",
+            isEnabled = true,
+            message = "Welcome {user}!",
+            variables = listOf("user"),
+            channelsFollowing = 4,
+            channelsWithOwnResponse = 2,
+        )
+        val api = FakePlatformDefaultsApi(emptyList(), events = listOf(follow))
+        val controller = PlatformDefaultsController(api)
+        runTest {
+            controller.loadEventResponseDefaults()
+            controller.openEventEdit("channel.follow")
+        }
+
+        runComposeUiTest {
+            setContent { English { EventResponseDefaultsSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+
+            onNodeWithText("4 channel(s) follow this default, 2 answer with their own response").assertExists()
+            onNodeWithText("Check the impact to see which channels this changes.").assertExists()
+            onNode(hasText("Apply to 0 channel(s)") and hasClickAction()).assertIsNotEnabled()
+            assertTrue(api.eventPreviews.isEmpty(), "opening the editor previews nothing")
+        }
+
+        runTest {
+            controller.editEventMessage("Thanks {user}!")
+            controller.previewEventEdit()
+        }
+        runComposeUiTest {
+            setContent { English { EventResponseDefaultsSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+
+            onNodeWithText("This changes 4 channel(s) right now, including: alpha, bravo.").assertExists()
+            onNodeWithText("2 channel(s) keep their own setting.").assertExists()
+            onNode(hasText("Apply to 4 channel(s)") and hasClickAction()).performClick()
+            waitForIdle()
+
+            assertEquals(4, api.eventSaves.single().second.confirmedChannelsAffected)
+            assertEquals("Thanks {user}!", api.eventSaves.single().second.message)
         }
     }
 }

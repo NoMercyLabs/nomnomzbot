@@ -5612,4 +5612,15 @@
     <string name="platform_defaults_saved">Opgeslagen. %1$d kanaal/kanalen volgen de nieuwe standaard.</string>
     <string name="platform_defaults_stale">Het aantal veranderde kanalen is gewijzigd. Controleer het nieuwe aantal en sla opnieuw op.</string>
     <string name="platform_defaults_error">Platformstandaarden bijwerken mislukt: %1$s</string>
+    <string name="platform_defaults_section_event_responses">Eventreacties</string>
+    <string name="platform_defaults_event_on">Aan: %1$s</string>
+    <string name="platform_defaults_event_off">Uit</string>
+    <string name="platform_defaults_event_counts">%1$d kanaal/kanalen volgen deze standaard, %2$d reageren met een eigen reactie</string>
+    <string name="platform_defaults_event_edit_title">Standaardreactie op %1$s</string>
+    <string name="platform_defaults_event_enabled">Reageren in de chat</string>
+    <string name="platform_defaults_event_message">Bericht</string>
+    <string name="platform_defaults_event_variables">Variabelen: %1$s</string>
+    <string name="platform_defaults_event_message_required">Een reactie die aan staat heeft een bericht nodig.</string>
+    <string name="platform_defaults_check_impact">Impact bekijken</string>
+    <string name="platform_defaults_check_first">Bekijk de impact om te zien welke kanalen dit verandert.</string>
 </resources>
