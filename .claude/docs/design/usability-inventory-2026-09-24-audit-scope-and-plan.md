@@ -452,6 +452,15 @@ worked" beat everything. Each line is one slice; delete it from the tracker when
 
 **Tier 1b — admin plane + authoring (owner priority 2026-09-26)**
 Source: `usability-inventory-2026-09-26-admin-and-authoring.md` (both passes). Runs right after Tier 1.
+A0. Actionable errors everywhere (owner rule 2026-09-26): one action-required inbox fed by EVERY
+    subsystem through a generic producer contract (today only dead tokens, held chat, unmanaged rewards
+    feed ActionRequiredInboxService). Add producers: refused EventSub topics / missing scopes, Spotify and
+    other integrations needing reauth, bot not modded, widget compile failures, webhook delivery failures,
+    song requests lost at the provider, setup-finish pending failures, DECRYPT_FAILED connections. Live push
+    over the dashboard hub. Shell frame shows the inbox on every page (outside the page view); every item
+    deep-links to where it is fixed; Home shows all items grouped by severity at the top of the main view.
+    Titles/messages are resource keys, never backend English. Done-when: every actionable failure the bot
+    detects appears in the frame within seconds, and following it lands on the fix.
 A1. Desktop editor parity: the desktop code/widget editor is a plain Swing text area
     (ProjectEditor.jvm.kt:42-50); give it the same Monaco editor as web (embedded browser view), with the
     same types, diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
