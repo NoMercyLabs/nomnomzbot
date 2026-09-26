@@ -65,6 +65,21 @@ public static class ResiliencePolicies
     /// literal 0). See <see cref="AddSpotifyResilienceHandler"/>'s retry <c>DelayGenerator</c>.</summary>
     private static readonly TimeSpan MinRetryAfterDelay = TimeSpan.FromSeconds(1);
 
+    /// <summary>The longest <c>Retry-After</c> worth waiting out inside one request. Anything longer is handed back
+    /// as the 429 so the provider starts the channel's cooling window; waiting it out inline would outlast the
+    /// pipeline's total timeout and surface as a timeout instead, and cooling would never start.</summary>
+    private static readonly TimeSpan MaxInlineRetryAfter = TimeSpan.FromSeconds(2);
+
+    private static TimeSpan SpotifyRetryAfter(HttpResponseMessage response)
+    {
+        int seconds =
+            response.Headers.TryGetValues("Retry-After", out IEnumerable<string>? values)
+            && int.TryParse(values.FirstOrDefault(), out int headerValue)
+                ? headerValue
+                : 0;
+        return TimeSpan.FromSeconds(Math.Max(seconds, MinRetryAfterDelay.Seconds));
+    }
+
     /// <summary>
     /// Adds Twitch Helix API resilience: 3 retries (transient 5xx only) with exponential backoff + jitter,
     /// a per-request timeout, and a circuit breaker that publishes <see cref="TwitchHelixCircuitOpenedEvent"/>
@@ -472,10 +487,13 @@ public static class ResiliencePolicies
                         Delay = TimeSpan.FromSeconds(1),
                         ShouldHandle = args =>
                         {
-                            HttpStatusCode? status = args.Outcome.Result?.StatusCode;
-                            return ValueTask.FromResult(
+                            HttpResponseMessage? response = args.Outcome.Result;
+                            HttpStatusCode? status = response?.StatusCode;
+                            bool shortRateLimit =
                                 status == HttpStatusCode.TooManyRequests
-                                    || status == HttpStatusCode.ServiceUnavailable
+                                && SpotifyRetryAfter(response!) <= MaxInlineRetryAfter;
+                            return ValueTask.FromResult(
+                                shortRateLimit || status == HttpStatusCode.ServiceUnavailable
                             );
                         },
                         // Honor Retry-After from a Spotify 429, floored at MinRetryAfterDelay: Spotify has been
@@ -488,24 +506,9 @@ public static class ResiliencePolicies
                         DelayGenerator = args =>
                         {
                             if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
-                            {
-                                int retryAfter = MinRetryAfterDelay.Seconds;
-                                if (
-                                    args.Outcome.Result.Headers.TryGetValues(
-                                        "Retry-After",
-                                        out IEnumerable<string>? values
-                                    ) && int.TryParse(values.FirstOrDefault(), out int headerValue)
-                                )
-                                {
-                                    retryAfter = headerValue;
-                                }
-
                                 return ValueTask.FromResult<TimeSpan?>(
-                                    TimeSpan.FromSeconds(
-                                        Math.Max(retryAfter, MinRetryAfterDelay.Seconds)
-                                    )
+                                    SpotifyRetryAfter(args.Outcome.Result)
                                 );
-                            }
                             return ValueTask.FromResult<TimeSpan?>(null); // use default backoff
                         },
                     }
@@ -514,11 +517,10 @@ public static class ResiliencePolicies
                 // Per-request timeout: 8s
                 pipeline.AddTimeout(TimeSpan.FromSeconds(8));
 
-                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s. 429 counts as a
-                // failure here (unlike the Twitch/emote/alejo breakers above): those only see genuine outage
-                // signals (5xx/network), but a channel being rate-limited by Spotify IS a real degraded state
-                // for that partition, and the breaker opening surfaces it the same way an outage would rather
-                // than silently absorbing hundreds of 429s as "healthy".
+                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s. Outage signals only
+                // (5xx/network). This breaker is shared by every channel while each channel has its own Spotify
+                // app and budget, so a 429 must NOT count here: one throttled channel would switch Spotify off
+                // for all. A 429 is handled per channel by the provider's cooling window instead.
                 pipeline.AddCircuitBreaker(
                     new HttpCircuitBreakerStrategyOptions
                     {
@@ -530,8 +532,6 @@ public static class ResiliencePolicies
                             ValueTask.FromResult(
                                 args.Outcome.Result?.StatusCode
                                     >= HttpStatusCode.InternalServerError
-                                    || args.Outcome.Result?.StatusCode
-                                        == HttpStatusCode.TooManyRequests
                                     || args.Outcome.Exception is HttpRequestException
                             ),
                     }

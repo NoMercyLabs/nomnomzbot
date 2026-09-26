@@ -380,4 +380,61 @@ public sealed class SpotifyRateLimiterTests
                 TimeSpan.FromSeconds(2).Subtract(TimeSpan.FromMilliseconds(200))
             );
     }
+
+    /// <summary>Answers 429 with a long Retry-After for the first <c>rateLimited</c> calls, then 200.</summary>
+    private sealed class RateLimitedThenOkHandler(int rateLimited) : HttpMessageHandler
+    {
+        public int AttemptCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            AttemptCount++;
+            if (AttemptCount > rateLimited)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            HttpResponseMessage response = new(HttpStatusCode.TooManyRequests);
+            response.Headers.TryAddWithoutValidation("Retry-After", "30");
+            return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public async Task A_long_retry_after_is_handed_back_at_once_so_the_channel_can_cool()
+    {
+        AlwaysTooManyRequestsHandler handler = new("30");
+        using HttpClient client = NewClient(handler);
+
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using HttpResponseMessage response = await client.GetAsync(
+            "https://api.spotify.com/v1/me/player"
+        );
+        stopwatch.Stop();
+
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter!.Delta.Should().Be(TimeSpan.FromSeconds(30));
+        handler.AttemptCount.Should().Be(1);
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task Rate_limits_never_open_the_breaker_shared_by_every_channel()
+    {
+        RateLimitedThenOkHandler handler = new(rateLimited: 6);
+        using HttpClient client = NewClient(handler);
+
+        for (int i = 0; i < 6; i++)
+        {
+            using HttpResponseMessage limited = await client.GetAsync(
+                "https://api.spotify.com/v1/me/player"
+            );
+            limited.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        }
+        using HttpResponseMessage next = await client.GetAsync(
+            "https://api.spotify.com/v1/me/player"
+        );
+
+        next.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }
