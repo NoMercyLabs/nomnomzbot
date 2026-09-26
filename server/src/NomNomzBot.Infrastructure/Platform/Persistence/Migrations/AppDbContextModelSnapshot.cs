@@ -4798,6 +4798,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<int?>("PlatformDefaultLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("PlatformDefaultSetAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PlatformDefaultSetByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 

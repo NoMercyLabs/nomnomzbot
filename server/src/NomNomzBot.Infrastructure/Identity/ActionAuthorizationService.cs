@@ -125,7 +125,7 @@ public sealed class ActionAuthorizationService(
                     a.ActionKey,
                     a.Plane,
                     a.Description,
-                    a.DefaultLevel,
+                    ActionLevelPolicy.DefaultLevel(a),
                     a.FloorLevel,
                     a.FloorTier,
                     a.IsGrantableViaPermit,
@@ -226,7 +226,7 @@ public sealed class ActionAuthorizationService(
                 ActionDefinitionId = action.Id,
                 ActionKey = actionKey,
                 OldLevel = oldLevel,
-                NewEffectiveLevel = action.DefaultLevel,
+                NewEffectiveLevel = ActionLevelPolicy.DefaultLevel(action),
                 SetByUserId = setByUserId,
             },
             cancellationToken

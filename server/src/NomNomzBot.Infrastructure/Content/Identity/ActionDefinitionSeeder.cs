@@ -69,7 +69,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
             {
                 // The catalogue is authoritative: re-sync plane/floor/tier so a CORRECTED default (e.g. a key that
                 // should be Moderator-floored rather than Everyone) takes effect on existing installs, not only on
-                // a fresh DB. Channel-specific customisations live in ChannelActionOverrides and are untouched.
+                // a fresh DB. Channel-specific customisations live in ChannelActionOverrides and are untouched,
+                // and so is the platform admin's runtime default (PlatformDefaultLevel): the seeder owns only the
+                // SHIPPED default, so an admin edit survives every redeploy.
                 row.Plane = seed.Plane;
                 row.DefaultLevel = seed.DefaultLevel;
                 row.FloorLevel = seed.FloorLevel;

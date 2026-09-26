@@ -83,6 +83,8 @@ public sealed class IamCatalogSeeder : ISeeder
         // Re-connecting/replacing the shared platform bot (S-BOT-PLATFORM-UI) — platform-wide by nature
         // (every channel without its own custom bot resolves through this identity), so its own key.
         (IamPermissionKeys.PlatformBotManage, IamCategory.Iam, true),
+        // Platform defaults (A4) — one edit moves every channel that has no setting of its own.
+        (IamPermissionKeys.PlatformDefaultsManage, IamCategory.Content, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -115,6 +117,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantErase,
                 IamPermissionKeys.UserSupportView,
                 IamPermissionKeys.TrustSafetyReview,
+                IamPermissionKeys.PlatformDefaultsManage,
             ]
         ),
         (

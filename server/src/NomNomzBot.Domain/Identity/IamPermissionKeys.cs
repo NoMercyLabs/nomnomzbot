@@ -106,6 +106,11 @@ public static class IamPermissionKeys
     // resolves to — so it carries its own key, always audited, always preview-before-execute.
     public const string PlatformBotManage = "platform:bot:manage";
 
+    // Platform defaults (plan item A4): the runtime-editable defaults every channel without its own setting
+    // follows — Gate-2 action levels, event-response defaults, built-in reply texts and the TTS voice catalogue.
+    // One change moves every non-overridden channel at once, so it is its own audited key.
+    public const string PlatformDefaultsManage = "platform:defaults:manage";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -135,5 +140,6 @@ public static class IamPermissionKeys
         TrustSafetyReview,
         NetworkBlockManage,
         PlatformBotManage,
+        PlatformDefaultsManage,
     };
 }

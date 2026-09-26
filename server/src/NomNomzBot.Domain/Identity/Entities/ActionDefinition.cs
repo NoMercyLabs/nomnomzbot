@@ -20,6 +20,12 @@ namespace NomNomzBot.Domain.Identity.Entities;
 /// (Critical/Tos/Low); <c>IsGrantableViaPermit</c> gates whether it may be delegated to an individual via
 /// <c>!permit</c> (default-deny). GLOBAL (no tenant) — distinct from the pipeline
 /// <c>NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition</c>.
+/// <para>
+/// <c>DefaultLevel</c> is the SHIPPED default — the seeder owns it and re-syncs it on every deploy.
+/// <c>PlatformDefaultLevel</c> is the platform admin's runtime replacement for it (never below the floor);
+/// the seeder never writes it, so an admin edit survives every redeploy. A channel's own
+/// <c>ChannelActionOverride</c> still wins over both.
+/// </para>
 /// </summary>
 public class ActionDefinition : BaseEntity
 {
@@ -31,4 +37,13 @@ public class ActionDefinition : BaseEntity
     public DangerTier FloorTier { get; set; }
     public bool IsGrantableViaPermit { get; set; }
     public string? Description { get; set; }
+
+    /// <summary>The platform admin's default, replacing <see cref="DefaultLevel"/> for every channel without an override; null = the shipped default.</summary>
+    public int? PlatformDefaultLevel { get; set; }
+
+    /// <summary>The platform operator who last set <see cref="PlatformDefaultLevel"/>.</summary>
+    public Guid? PlatformDefaultSetByUserId { get; set; }
+
+    /// <summary>When <see cref="PlatformDefaultLevel"/> was last set or cleared.</summary>
+    public DateTime? PlatformDefaultSetAt { get; set; }
 }
