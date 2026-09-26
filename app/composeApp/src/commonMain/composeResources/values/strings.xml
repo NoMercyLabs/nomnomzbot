@@ -3782,10 +3782,10 @@
     <string name="platform_templates_browse">Browse templates</string>
     <string name="platform_templates_title">Install a template</string>
     <string name="platform_templates_description">Templates come from the platform team. Installing one copies it into this channel, and you can change your copy afterwards.</string>
-    <string name="platform_templates_loading">Loading templates…</string>
+    <string name="platform_templates_loading">Loading templatesâ€¦</string>
     <string name="platform_templates_empty">No templates are available for this page yet.</string>
     <string name="platform_templates_install">Install</string>
-    <string name="platform_templates_installing">Installing…</string>
+    <string name="platform_templates_installing">Installingâ€¦</string>
     <string name="platform_templates_pick_pipeline">Pipeline to run</string>
     <string name="platform_templates_choose_pipeline">Choose one of your pipelines</string>
     <string name="platform_templates_cancel">Cancel</string>
