@@ -3769,6 +3769,8 @@
     <string name="admin_content_kind_code_script">Codescript</string>
     <string name="admin_content_kind_event_response">Evenement reactie</string>
     <string name="admin_content_kind_timer">Timer</string>
+    <string name="admin_content_kind_reward">Kanaalpuntenbeloning</string>
+    <string name="rewards_template_creates">Maakt de beloning %1$s (%2$d punten) aan op het Twitch-kanaal. Heeft het kanaal al een beloning met die titel, dan wordt de installatie geweigerd.</string>
     <string name="admin_content_timer_pipeline_only_hint">Zonder berichten voert deze timer alleen een pipeline uit. Het kanaal kiest een van zijn eigen pipelines bij het installeren van het sjabloon.</string>
     <string name="timers_template_adds">Voegt een nieuwe timer toe met de naam %1$s. Heeft dit kanaal al een timer met die naam, dan krijgt de kopie een nummer.</string>
     <string name="admin_content_event_type_label">Evenement</string>

@@ -101,6 +101,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_kind_command
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_event_response
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_pipeline
+import nomnomzbot.composeapp.generated.resources.admin_content_kind_reward
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_timer
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_widget
 import nomnomzbot.composeapp.generated.resources.admin_content_list_title
@@ -355,9 +356,11 @@ private fun CreateDefinitionDialog(
     var codeScriptPayloadJson: String by remember { mutableStateOf("") }
     var eventResponsePayload: EventResponseTemplatePayload by remember { mutableStateOf(EventResponseTemplatePayload()) }
     var timerFields: TimerTemplateFields by remember { mutableStateOf(TimerTemplateFields()) }
+    var rewardFields: RewardTemplateFields by remember { mutableStateOf(RewardTemplateFields()) }
 
     val payloadValid: Boolean =
         when (kind) {
+            PlatformContentAuthoringKinds.Reward -> rewardFields.isComplete()
             PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.isComplete()
             PlatformContentAuthoringKinds.Timer -> timerFields.isComplete()
             PlatformContentAuthoringKinds.Widget -> widgetFields.sourceCode.isNotBlank()
@@ -377,6 +380,7 @@ private fun CreateDefinitionDialog(
         val codeScriptLabel: String = kindCodeScriptLabel()
         val eventResponseLabel: String = kindEventResponseLabel()
         val timerLabel: String = kindTimerLabel()
+        val rewardLabel: String = kindRewardLabel()
         RadioGroup(
             options = PlatformContentAuthoringKinds.All,
             selected = kind,
@@ -388,6 +392,7 @@ private fun CreateDefinitionDialog(
                     PlatformContentAuthoringKinds.CodeScript -> codeScriptLabel
                     PlatformContentAuthoringKinds.EventResponse -> eventResponseLabel
                     PlatformContentAuthoringKinds.Timer -> timerLabel
+                    PlatformContentAuthoringKinds.Reward -> rewardLabel
                     else -> commandLabel
                 }
             },
@@ -426,6 +431,8 @@ private fun CreateDefinitionDialog(
                 )
             PlatformContentAuthoringKinds.Timer ->
                 TimerPayloadEditor(fields = timerFields, onFieldsChange = { timerFields = it })
+            PlatformContentAuthoringKinds.Reward ->
+                RewardPayloadEditor(fields = rewardFields, onFieldsChange = { rewardFields = it })
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -443,6 +450,7 @@ private fun CreateDefinitionDialog(
                         when (kind) {
                             PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.toPayloadJson()
                             PlatformContentAuthoringKinds.Timer -> timerFields.toPayloadJson()
+                            PlatformContentAuthoringKinds.Reward -> rewardFields.toPayloadJson()
                             PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
                             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
                             PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson
@@ -476,6 +484,9 @@ private fun kindEventResponseLabel(): String = stringResource(Res.string.admin_c
 @Composable
 private fun kindTimerLabel(): String = stringResource(Res.string.admin_content_kind_timer)
 
+@Composable
+private fun kindRewardLabel(): String = stringResource(Res.string.admin_content_kind_reward)
+
 /** Resolves [kind]'s display label using the SAME per-kind strings the create/draft dialogs' radio group
  * uses — the single source of truth for "the actual kind" a definitions-list row or header names (fixes the
  * definitions-list header that used to always read "Command" regardless of the rows actually shown). An
@@ -490,6 +501,7 @@ private fun kindLabel(kind: String): String =
         PlatformContentAuthoringKinds.Command -> kindCommandLabel()
         PlatformContentAuthoringKinds.EventResponse -> kindEventResponseLabel()
         PlatformContentAuthoringKinds.Timer -> kindTimerLabel()
+        PlatformContentAuthoringKinds.Reward -> kindRewardLabel()
         else -> kind
     }
 
@@ -682,6 +694,10 @@ private fun DraftVersionDialog(
     val isCodeScript: Boolean = kind == PlatformContentAuthoringKinds.CodeScript
     val isEventResponse: Boolean = kind == PlatformContentAuthoringKinds.EventResponse
     val isTimer: Boolean = kind == PlatformContentAuthoringKinds.Timer
+    val isReward: Boolean = kind == PlatformContentAuthoringKinds.Reward
+    var rewardFields: RewardTemplateFields by remember {
+        mutableStateOf(if (isReward) RewardTemplateFields.fromPayloadJson(initialPayload) else RewardTemplateFields())
+    }
     var timerFields: TimerTemplateFields by remember {
         mutableStateOf(if (isTimer) TimerTemplateFields.fromPayloadJson(initialPayload) else TimerTemplateFields())
     }
@@ -701,6 +717,7 @@ private fun DraftVersionDialog(
             isCodeScript -> codeScriptPayloadJson.isNotBlank()
             isEventResponse -> eventResponsePayload.isComplete()
             isTimer -> timerFields.isComplete()
+            isReward -> rewardFields.isComplete()
             else -> payloadJson.isNotBlank()
         }
 
@@ -719,6 +736,7 @@ private fun DraftVersionDialog(
                     onPayloadChange = { eventResponsePayload = it },
                 )
             isTimer -> TimerPayloadEditor(fields = timerFields, onFieldsChange = { timerFields = it })
+            isReward -> RewardPayloadEditor(fields = rewardFields, onFieldsChange = { rewardFields = it })
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -739,6 +757,7 @@ private fun DraftVersionDialog(
                             isCodeScript -> codeScriptPayloadJson
                             isEventResponse -> eventResponsePayload.toPayloadJson()
                             isTimer -> timerFields.toPayloadJson()
+                            isReward -> rewardFields.toPayloadJson()
                             else -> payloadJson
                         }
                     onDraft(resolvedPayload)

@@ -3785,6 +3785,8 @@
     <string name="admin_content_kind_code_script">Code script</string>
     <string name="admin_content_kind_event_response">Event response</string>
     <string name="admin_content_kind_timer">Timer</string>
+    <string name="admin_content_kind_reward">Channel-point reward</string>
+    <string name="rewards_template_creates">Creates the reward %1$s (%2$d points) on the Twitch channel. If the channel already has a reward with that title, the install is refused.</string>
     <string name="admin_content_timer_pipeline_only_hint">With no messages, this timer only runs a pipeline. The channel picks one of its own pipelines when it installs the template.</string>
     <string name="timers_template_adds">Adds a new timer named %1$s. If this channel already has a timer with that name, the copy gets a number.</string>
     <string name="admin_content_event_type_label">Event</string>

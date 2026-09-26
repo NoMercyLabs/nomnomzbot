@@ -194,7 +194,7 @@ class RewardsHelperPickerTest {
     @Test
     fun the_reward_response_field_offers_the_helper_picker_in_the_event_response_context() = runTest {
         val helpers = RecordingHelpersApi()
-        val controller = RewardsController(StubChannelsApi(), StubRewardsApi(), StubPipelinesApi)
+        val controller = RewardsController(StubChannelsApi(), StubRewardsApi(), StubPipelinesApi, NoRewardTemplatesApi)
         controller.load()
 
         runComposeUiTest {
@@ -256,4 +256,19 @@ private fun WithLifecycle(content: @androidx.compose.runtime.Composable () -> Un
     ) {
         content()
     }
+}
+
+private object NoRewardTemplatesApi : bot.nomnomz.dashboard.core.network.PlatformTemplatesApi {
+    override suspend fun list(
+        channelId: String,
+        kind: String,
+    ): bot.nomnomz.dashboard.core.network.ApiResult<List<bot.nomnomz.dashboard.core.network.PlatformTemplate>> =
+        bot.nomnomz.dashboard.core.network.ApiResult.Ok(emptyList())
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody,
+    ): bot.nomnomz.dashboard.core.network.ApiResult<bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate> =
+        error("not used")
 }

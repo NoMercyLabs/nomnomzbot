@@ -21,6 +21,7 @@ import kotlinx.serialization.json.Json
 object PlatformTemplateKinds {
     const val EventResponse: String = "event_response"
     const val Timer: String = "timer"
+    const val Reward: String = "reward"
 }
 
 /** An `event_response` template (backend `EventResponseTemplatePayload`). */
@@ -56,6 +57,22 @@ data class TimerTemplatePayload(
     val runsPipelineOnly: Boolean get() = messages.isEmpty()
 }
 
+/** A `reward` template (backend `RewardTemplatePayload`): a channel-point reward definition. Install creates it on
+ * the installing channel's Twitch; a pipeline to run on redemption is optional and picked at install time. */
+@Serializable
+data class RewardTemplatePayload(
+    val title: String = "",
+    val cost: Int = 0,
+    val prompt: String? = null,
+    val response: String? = null,
+    val isUserInputRequired: Boolean = false,
+    val backgroundColor: String? = null,
+    val maxPerStream: Int? = null,
+    val maxPerUserPerStream: Int? = null,
+    val globalCooldownSeconds: Int? = null,
+    val timerDurationSeconds: Int? = null,
+)
+
 /** The one JSON configuration every template payload is read and written with. */
 val PlatformTemplateJson: Json = Json {
     ignoreUnknownKeys = true
@@ -72,3 +89,7 @@ fun PlatformTemplate.eventResponsePayload(): EventResponseTemplatePayload? =
 /** Reads a `timer` payload; null when the JSON is not that shape. */
 fun PlatformTemplate.timerPayload(): TimerTemplatePayload? =
     runCatching { PlatformTemplateJson.decodeFromString(TimerTemplatePayload.serializer(), payloadJson) }.getOrNull()
+
+/** Reads a `reward` payload; null when the JSON is not that shape. */
+fun PlatformTemplate.rewardPayload(): RewardTemplatePayload? =
+    runCatching { PlatformTemplateJson.decodeFromString(RewardTemplatePayload.serializer(), payloadJson) }.getOrNull()

@@ -16,10 +16,15 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
 import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RedemptionTimer
 import bot.nomnomz.dashboard.core.network.RewardSummary
@@ -37,6 +42,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import nomnomzbot.composeapp.generated.resources.rewards_action_error
 
 // The Rewards page's state-holder (frontend-ia.md §3 — the channel's channel-point rewards). Resolves the active
@@ -47,6 +53,7 @@ class RewardsController(
     private val channelsApi: ChannelsApi,
     private val rewardsApi: RewardsApi,
     private val pipelinesApi: PipelinesApi,
+    private val platformTemplatesApi: PlatformTemplatesApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<RewardsState> = MutableStateFlow(RewardsState.Loading)
@@ -394,6 +401,30 @@ class RewardsController(
             redemptions = current.redemptions.filterNot { it.redemptionId == event.redemptionId }
         )
     }
+
+    /** The published platform reward templates this channel can install. */
+    suspend fun templates(): ApiResult<List<PlatformTemplate>> {
+        val channel: String = channelId ?: return noChannel()
+        return platformTemplatesApi.list(channel, PlatformTemplateKinds.Reward)
+    }
+
+    /**
+     * Installs [template] as a new reward — created on the channel's Twitch by the server — optionally running
+     * [pipelineId] on redemption. Reloads the list and confirms on success; the dialog shows a refusal.
+     */
+    suspend fun installTemplate(template: PlatformTemplate, pipelineId: String?): ApiResult<InstalledPlatformTemplate> {
+        val channel: String = channelId ?: return noChannel()
+        val installed: ApiResult<InstalledPlatformTemplate> =
+            platformTemplatesApi.install(channel, template.definitionId, InstallPlatformTemplateBody(pipelineId))
+        if (installed is ApiResult.Ok) {
+            feedback.success(Res.string.platform_templates_installed)
+            load()
+        }
+        return installed
+    }
+
+    private fun noChannel(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without
     // losing it (failure) — so a failed toggle/delete leaves the page intact with a visible reason.

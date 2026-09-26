@@ -110,8 +110,9 @@ object PlatformContentAuthoringKinds {
     const val CodeScript: String = "code_script"
     const val EventResponse: String = PlatformTemplateKinds.EventResponse
     const val Timer: String = PlatformTemplateKinds.Timer
+    const val Reward: String = PlatformTemplateKinds.Reward
 
-    val All: List<String> = listOf(Command, Widget, Pipeline, CodeScript, EventResponse, Timer)
+    val All: List<String> = listOf(Command, Widget, Pipeline, CodeScript, EventResponse, Timer, Reward)
 }
 
 // ─── Request bodies ────────────────────────────────────────────────────────────────────────────

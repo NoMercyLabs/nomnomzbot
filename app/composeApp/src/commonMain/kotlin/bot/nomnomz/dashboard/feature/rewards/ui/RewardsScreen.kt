@@ -57,6 +57,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.network.rewardPayload
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
+import nomnomzbot.composeapp.generated.resources.platform_templates_browse
+import nomnomzbot.composeapp.generated.resources.rewards_template_creates
 import bot.nomnomz.dashboard.core.designsystem.component.ScrollArea
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
@@ -189,6 +194,7 @@ fun RewardsScreen(
     // = edit). The delete-confirm target is the reward pending confirmation, or null when none.
     var editor: RewardEditor? by remember { mutableStateOf(null) }
     var pendingDelete: RewardSummary? by remember { mutableStateOf(null) }
+    var browsingTemplates: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {
@@ -227,6 +233,7 @@ fun RewardsScreen(
                     edit = edit,
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
+                    onBrowseTemplates = { browsingTemplates = true },
                     onSync = { scope.launch { controller.sync() } },
                     onImport = { scope.launch { controller.import() } },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
@@ -252,6 +259,7 @@ fun RewardsScreen(
                     edit = edit,
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
+                    onBrowseTemplates = { browsingTemplates = true },
                     onSync = { scope.launch { controller.sync() } },
                     onImport = { scope.launch { controller.import() } },
                     onEdit = { reward -> editor = RewardEditor.edit(reward) },
@@ -278,6 +286,20 @@ fun RewardsScreen(
                     },
                 )
         }
+    }
+
+    if (browsingTemplates) {
+        PlatformTemplatesDialog(
+            loadTemplates = { controller.templates() },
+            install = { template, pipelineId -> controller.installTemplate(template, pipelineId) },
+            onInstalled = { browsingTemplates = false },
+            onDismiss = { browsingTemplates = false },
+            consequence = { template ->
+                template.rewardPayload()?.let { stringResource(Res.string.rewards_template_creates, it.title, it.cost) }
+            },
+            pipelines = (state as? RewardsState.Ready)?.pipelines ?: emptyList(),
+            pipelineUse = { TemplatePipelineUse.Optional },
+        )
     }
 
     editor?.let { open ->
@@ -372,6 +394,7 @@ private fun ManagedContent(
     edit: ManageDecision,
     lifecycle: ManageDecision,
     onNew: () -> Unit,
+    onBrowseTemplates: () -> Unit,
     onSync: () -> Unit,
     onImport: () -> Unit,
     onEdit: (RewardSummary) -> Unit,
@@ -389,7 +412,13 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         // Creating/syncing/importing rewards are Broadcaster-only lifecycle actions — New + Sync + Import gate on [lifecycle].
-        Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync, onImport = onImport)
+        Header(
+            lifecycle = lifecycle,
+            onNew = onNew,
+            onBrowseTemplates = onBrowseTemplates,
+            onSync = onSync,
+            onImport = onImport,
+        )
         loadWarning?.let { InlineError(message = stringResource(Res.string.rewards_load_warning, it)) }
 
         if (rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty()) {
@@ -421,11 +450,13 @@ enum class TimerAction { Pause, Resume, Complete, Cancel }
 private fun Header(
     lifecycle: ManageDecision,
     onNew: () -> Unit,
+    onBrowseTemplates: () -> Unit,
     onSync: () -> Unit,
     onImport: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
+    val templatesLabel: String = stringResource(Res.string.platform_templates_browse)
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
     val importLabel: String = stringResource(Res.string.rewards_import_action)
 
@@ -444,7 +475,7 @@ private fun Header(
                     horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                     verticalArrangement = Arrangement.spacedBy(spacing.s2),
                 ) {
-                    RewardHeaderActions(enabled, syncLabel, importLabel, newLabel, onSync, onImport, onNew)
+                    RewardHeaderActions(enabled, syncLabel, importLabel, templatesLabel, newLabel, onSync, onImport, onBrowseTemplates, onNew)
                 }
             }
         }
@@ -459,7 +490,7 @@ private fun Header(
                     horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    RewardHeaderActions(enabled, syncLabel, importLabel, newLabel, onSync, onImport, onNew)
+                    RewardHeaderActions(enabled, syncLabel, importLabel, templatesLabel, newLabel, onSync, onImport, onBrowseTemplates, onNew)
                 }
             }
         }
@@ -473,9 +504,11 @@ private fun RewardHeaderActions(
     enabled: Boolean,
     syncLabel: String,
     importLabel: String,
+    templatesLabel: String,
     newLabel: String,
     onSync: () -> Unit,
     onImport: () -> Unit,
+    onBrowseTemplates: () -> Unit,
     onNew: () -> Unit,
 ) {
     Button(
@@ -493,6 +526,14 @@ private fun RewardHeaderActions(
         modifier = Modifier.semantics { contentDescription = importLabel },
     ) {
         Text(text = importLabel, maxLines = 1)
+    }
+    Button(
+        onClick = onBrowseTemplates,
+        enabled = enabled,
+        variant = ButtonVariant.Outline,
+        modifier = Modifier.semantics { contentDescription = templatesLabel },
+    ) {
+        Text(text = templatesLabel, maxLines = 1)
     }
     Button(
         onClick = onNew,

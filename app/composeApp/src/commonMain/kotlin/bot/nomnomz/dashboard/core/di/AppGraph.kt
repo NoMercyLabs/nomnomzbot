@@ -580,6 +580,7 @@ class AppGraph {
             channelsApi = channelsApi,
             rewardsApi = rewardsApi,
             pipelinesApi = pipelinesApi,
+            platformTemplatesApi = platformTemplatesApi,
             feedback = feedbackController,
         )
 

@@ -20,6 +20,12 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
@@ -43,6 +49,68 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 // removed row), and a failed write keeps the list and surfaces its reason. The screen is a pure projection of
 // this, so testing it proves the page shows real rewards (no fabricated lists) and degrades cleanly.
 class RewardsControllerTest {
+
+    @Test
+    fun templates_lists_the_reward_kind_for_the_loaded_channel() = runTest {
+        val templatesApi = RecordingRewardTemplatesApi()
+        val controller =
+            makeRewardsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingRewardsApi(ApiResult.Ok(emptyList())),
+                platformTemplatesApi = templatesApi,
+            )
+        controller.load()
+
+        val result: ApiResult<List<PlatformTemplate>> = controller.templates()
+
+        assertEquals("def-reward", (result as ApiResult.Ok).value.single().definitionId)
+        assertEquals("ch1" to "reward", templatesApi.lastListed)
+    }
+
+    @Test
+    fun installTemplate_installs_into_the_channel_then_reloads_the_rewards_and_confirms() = runTest {
+        val templatesApi = RecordingRewardTemplatesApi()
+        val rewardsApi = RecordingRewardsApi(ApiResult.Ok(emptyList()))
+        val feedback = RecordingFeedback()
+        val controller =
+            makeRewardsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                rewardsApi,
+                feedback,
+                templatesApi,
+            )
+        controller.load()
+
+        val result: ApiResult<InstalledPlatformTemplate> =
+            controller.installTemplate(HydrateRewardTemplate, "pipe-5")
+
+        assertEquals("r9", (result as ApiResult.Ok).value.entityId)
+        assertEquals(Triple("ch1", "def-reward", "pipe-5"), templatesApi.lastInstalled)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.platform_templates_installed, feedback.only.label)
+    }
+
+    @Test
+    fun installTemplate_refusal_is_returned_to_the_dialog_without_a_success_toast() = runTest {
+        val templatesApi =
+            RecordingRewardTemplatesApi(
+                installResult = ApiResult.Failure(ApiError(409, "ALREADY_EXISTS", "A reward titled Hydrate already exists"))
+            )
+        val feedback = RecordingFeedback()
+        val controller =
+            makeRewardsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingRewardsApi(ApiResult.Ok(emptyList())),
+                feedback,
+                templatesApi,
+            )
+        controller.load()
+
+        val result: ApiResult<InstalledPlatformTemplate> = controller.installTemplate(HydrateRewardTemplate, null)
+
+        assertEquals("ALREADY_EXISTS", (result as ApiResult.Failure).error.code)
+        assertTrue(feedback.messages.isEmpty())
+    }
 
     @Test
     fun load_surfaces_the_rewards_on_success() = runTest {
@@ -706,7 +774,41 @@ private fun makeRewardsController(
     channelsApi: ChannelsApi,
     rewardsApi: RewardsApi,
     feedback: Feedback = NoOpFeedback,
-): RewardsController = RewardsController(channelsApi, rewardsApi, StubRewardPipelinesApi, feedback)
+    platformTemplatesApi: PlatformTemplatesApi = RecordingRewardTemplatesApi(),
+): RewardsController =
+    RewardsController(channelsApi, rewardsApi, StubRewardPipelinesApi, platformTemplatesApi, feedback)
+
+private class RecordingRewardTemplatesApi(
+    private val installResult: ApiResult<InstalledPlatformTemplate> =
+        ApiResult.Ok(InstalledPlatformTemplate(kind = "reward", entityId = "r9", name = "Hydrate")),
+) : PlatformTemplatesApi {
+    var lastListed: Pair<String, String>? = null
+    var lastInstalled: Triple<String, String, String?>? = null
+
+    override suspend fun list(channelId: String, kind: String): ApiResult<List<PlatformTemplate>> {
+        lastListed = channelId to kind
+        return ApiResult.Ok(listOf(HydrateRewardTemplate))
+    }
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: InstallPlatformTemplateBody,
+    ): ApiResult<InstalledPlatformTemplate> {
+        lastInstalled = Triple(channelId, definitionId, body.pipelineId)
+        return installResult
+    }
+}
+
+private val HydrateRewardTemplate: PlatformTemplate =
+    PlatformTemplate(
+        definitionId = "def-reward",
+        kind = "reward",
+        key = "hydrate",
+        displayName = "Hydrate",
+        version = 1,
+        payloadJson = """{"title":"Hydrate","cost":500}""",
+    )
 
 private object StubRewardPipelinesApi : bot.nomnomz.dashboard.core.network.PipelinesApi {
     override suspend fun list(
