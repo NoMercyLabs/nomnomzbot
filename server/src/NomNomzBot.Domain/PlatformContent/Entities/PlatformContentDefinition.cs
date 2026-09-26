@@ -72,9 +72,20 @@ public static class PlatformContentKinds
     /// <summary>A preset channel-point reward; installing it creates the reward on the channel's Twitch.</summary>
     public const string Reward = "reward";
 
+    /// <summary>A preset named pick list ({list.pick.name} entries); installing it adds the list.</summary>
+    public const string PickList = "pick_list";
+
     public static bool IsKnown(string? kind) =>
-        kind is Command or Widget or Pipeline or CodeScript or EventResponse or Timer or Reward;
+        kind
+            is Command
+                or Widget
+                or Pipeline
+                or CodeScript
+                or EventResponse
+                or Timer
+                or Reward
+                or PickList;
 
     public static IReadOnlyList<string> All { get; } =
-    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer, Reward];
+    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer, Reward, PickList];
 }

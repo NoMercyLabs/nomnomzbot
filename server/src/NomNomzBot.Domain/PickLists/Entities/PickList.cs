@@ -12,6 +12,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.PlatformContent;
 
 namespace NomNomzBot.Domain.PickLists.Entities;
 
@@ -21,7 +22,7 @@ namespace NomNomzBot.Domain.PickLists.Entities;
 /// primitive behind behaviours like a <c>!fight</c> line picker or per-viewer shoutout variations — there is no
 /// bespoke per-behaviour table; a streamer composes those from this one building block plus example presets.
 /// </summary>
-public class PickList : SoftDeletableEntity, ITenantScoped
+public class PickList : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -40,6 +41,15 @@ public class PickList : SoftDeletableEntity, ITenantScoped
     /// JSON <c>TEXT</c> column on SQLite) — no per-item table.
     /// </summary>
     public List<string> Items { get; set; } = [];
+
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    public int? PlatformSourceVersion { get; set; }
+
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    public DateTime? PlatformSourceSyncedAt { get; set; }
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

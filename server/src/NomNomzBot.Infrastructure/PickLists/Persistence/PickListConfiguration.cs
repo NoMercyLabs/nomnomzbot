@@ -38,6 +38,10 @@ public class PickListConfiguration : IEntityTypeConfiguration<PickList>
             .HasFilter("\"DeletedAt\" IS NULL");
 
         builder
+            .HasIndex(e => e.PlatformSourceDefinitionId)
+            .HasDatabaseName("IX_PickList_PlatformSourceDefinitionId");
+
+        builder
             .HasOne(e => e.Channel)
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)

@@ -24,6 +24,7 @@ using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Quotes.Entities;
@@ -34,6 +35,7 @@ using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Commands.Persistence;
 using NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
+using NomNomzBot.Infrastructure.PickLists.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Rewards.Persistence;
@@ -122,6 +124,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<Reward> Rewards => Set<Reward>();
+    public DbSet<PickList> PickLists => Set<PickList>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -163,6 +166,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.ApplyConfiguration(new EventResponseConfiguration());
         b.ApplyConfiguration(new TimerConfiguration());
         b.ApplyConfiguration(new RewardConfiguration());
+        b.ApplyConfiguration(new PickListConfiguration());
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
@@ -200,6 +204,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(EventResponse),
         typeof(DomainTimer),
         typeof(Reward),
+        typeof(PickList),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -272,8 +277,6 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
         throw new NotSupportedException();

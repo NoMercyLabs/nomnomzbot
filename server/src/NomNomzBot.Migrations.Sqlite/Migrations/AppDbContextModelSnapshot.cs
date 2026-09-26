@@ -8801,10 +8801,27 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlatformSourceDefinitionId")
+                        .HasDatabaseName("IX_PickList_PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "Name")
                         .IsUnique()
