@@ -52,5 +52,9 @@ public class EventResponseConfiguration : IEntityTypeConfiguration<EventResponse
         builder
             .HasIndex(e => new { e.BroadcasterId, e.EventType })
             .HasDatabaseName("IX_EventResponse_BroadcasterId_EventType");
+
+        builder
+            .HasIndex(e => e.PlatformSourceDefinitionId)
+            .HasDatabaseName("IX_EventResponse_PlatformSourceDefinitionId");
     }
 }

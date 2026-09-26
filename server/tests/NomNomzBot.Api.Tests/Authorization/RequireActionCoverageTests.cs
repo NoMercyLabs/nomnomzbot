@@ -95,6 +95,17 @@ public sealed class RequireActionCoverageTests
     }
 
     [Fact]
+    public void PlatformTemplatesController_List_carries_the_dashboard_read_key()
+    {
+        RequiredActionKeyOf(
+                typeof(PlatformTemplatesController),
+                nameof(PlatformTemplatesController.List)
+            )
+            .Should()
+            .Be("dashboard:read");
+    }
+
+    [Fact]
     public void PronounsController_PutMe_carries_the_self_write_action_key()
     {
         RequiredActionKeyOf(typeof(PronounsController), nameof(PronounsController.PutMe))

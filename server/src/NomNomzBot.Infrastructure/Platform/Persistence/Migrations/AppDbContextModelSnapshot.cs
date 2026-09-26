@@ -1586,6 +1586,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("PipelineId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("integer");
+
                     b.Property<string>("ResponseType")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1599,6 +1612,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PipelineId");
+
+                    b.HasIndex("PlatformSourceDefinitionId")
+                        .HasDatabaseName("IX_EventResponse_PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "EventType")
                         .HasDatabaseName("IX_EventResponse_BroadcasterId_EventType");

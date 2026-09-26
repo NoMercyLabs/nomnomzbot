@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Contracts.PlatformContent;
@@ -82,6 +83,12 @@ public interface IPlatformContentService
     Task<Result> RetireDefinitionAsync(
         Guid actingPrincipalId,
         Guid definitionId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>The channel event catalogue an <c>event_response</c> template picks its event from.</summary>
+    Task<Result<IReadOnlyList<EventResponsePresetDto>>> ListEventResponseTypesAsync(
+        Guid actingPrincipalId,
         CancellationToken ct = default
     );
 }

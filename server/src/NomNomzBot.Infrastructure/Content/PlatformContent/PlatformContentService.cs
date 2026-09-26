@@ -67,7 +67,8 @@ public sealed class PlatformContentService(
     IVueSfcCompiler vueCompiler,
     IWidgetService widgetService,
     IPipelineService pipelineService,
-    IScriptExecutor scriptExecutor
+    IScriptExecutor scriptExecutor,
+    IEnumerable<IPlatformTemplateInstaller> templateInstallers
 ) : IPlatformContentService
 {
     public async Task<Result<PagedList<PlatformContentDefinitionDto>>> ListDefinitionsAsync(
@@ -172,6 +173,10 @@ public sealed class PlatformContentService(
                 "VALIDATION_FAILED"
             );
 
+        Result payloadOk = ValidateTemplatePayload(request.Kind, request.PayloadJson);
+        if (payloadOk.IsFailure)
+            return payloadOk.WithValue<PlatformContentDefinitionDto>(null!);
+
         bool duplicate = await db.PlatformContentDefinitions.AnyAsync(
             d => d.Kind == request.Kind && d.Key == request.Key,
             ct
@@ -235,6 +240,10 @@ public sealed class PlatformContentService(
                 "Content definition not found.",
                 "NOT_FOUND"
             );
+
+        Result payloadOk = ValidateTemplatePayload(definition.Kind, request.PayloadJson);
+        if (payloadOk.IsFailure)
+            return payloadOk.WithValue<PlatformContentVersionDto>(null!);
 
         int nextVersion =
             1
@@ -427,6 +436,10 @@ public sealed class PlatformContentService(
                 return compileGate.WithValue<PlatformContentPublishJobDto>(null!);
         }
 
+        Result templateGate = ValidateTemplatePayload(definition.Kind, version.PayloadJson);
+        if (templateGate.IsFailure)
+            return templateGate.WithValue<PlatformContentPublishJobDto>(null!);
+
         PublishSelection freshSelection = await SelectTenantRowsAsync(
             definition,
             version,
@@ -499,7 +512,7 @@ public sealed class PlatformContentService(
                     job.ValidationFailedCodeScriptIds =
                         codeScriptResult.ValidationFailedCodeScriptIds;
                 }
-                else
+                else if (definition.Kind == PlatformContentKinds.Command)
                 {
                     confirmedCount = await ApplyCommandFanOutAsync(
                         definition,
@@ -605,6 +618,30 @@ public sealed class PlatformContentService(
         await uow.SaveChangesAsync(ct);
         return Result.Success();
     }
+
+    public async Task<Result<IReadOnlyList<EventResponsePresetDto>>> ListEventResponseTypesAsync(
+        Guid actingPrincipalId,
+        CancellationToken ct = default
+    )
+    {
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentRead,
+            null,
+            ct
+        );
+        return gate.WithValue(EventResponsePresetCatalog.Presets);
+    }
+
+    // --- Template kinds (installed per channel, validated here) ---------------------------------------
+
+    /// <summary>For an installable template kind, checks the payload shape through the kind's own
+    /// <see cref="IPlatformTemplateInstaller"/> — the same rules install applies. Other kinds pass.</summary>
+    private Result ValidateTemplatePayload(string kind, string payloadJson) =>
+        FindTemplateInstaller(kind)?.ValidatePayload(payloadJson) ?? Result.Success();
+
+    private IPlatformTemplateInstaller? FindTemplateInstaller(string kind) =>
+        templateInstallers.FirstOrDefault(i => i.Kind == kind);
 
     // --- Compile gate (widget kind) -------------------------------------------------------------------
 
@@ -738,7 +775,6 @@ public sealed class PlatformContentService(
             case PlatformContentPublishModes.Force:
                 return new PublishSelection([.. installed.Select(b => b.Id)], 0);
 
-            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
             default:
                 List<Guid> untouched = [];
                 int skipped = 0;
@@ -788,7 +824,6 @@ public sealed class PlatformContentService(
             case PlatformContentPublishModes.Force:
                 return new PublishSelection([.. installed.Select(w => w.Id)], 0);
 
-            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
             default:
                 List<Guid> untouched = [];
                 int skipped = 0;
@@ -834,7 +869,6 @@ public sealed class PlatformContentService(
             case PlatformContentPublishModes.Force:
                 return new PublishSelection([.. installed.Select(p => p.Id)], 0);
 
-            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
             default:
                 List<Guid> untouched = [];
                 int skipped = 0;
@@ -879,7 +913,6 @@ public sealed class PlatformContentService(
             case PlatformContentPublishModes.Force:
                 return new PublishSelection([.. installed.Select(s => s.Id)], 0);
 
-            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
             default:
                 List<Guid> currentVersionIds =
                 [
@@ -1235,12 +1268,13 @@ public sealed class PlatformContentService(
 
         if (
             definition.Kind
-            is not (
-                PlatformContentKinds.Command
-                or PlatformContentKinds.Widget
-                or PlatformContentKinds.Pipeline
-                or PlatformContentKinds.CodeScript
-            )
+                is not (
+                    PlatformContentKinds.Command
+                    or PlatformContentKinds.Widget
+                    or PlatformContentKinds.Pipeline
+                    or PlatformContentKinds.CodeScript
+                )
+            && FindTemplateInstaller(definition.Kind) is null
         )
             return Result.Failure<(PlatformContentDefinition, PlatformContentVersion)>(
                 $"Publishing kind '{definition.Kind}' is not supported yet.",

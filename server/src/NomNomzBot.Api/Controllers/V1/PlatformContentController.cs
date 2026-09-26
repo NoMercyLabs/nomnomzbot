@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
@@ -191,6 +192,21 @@ public class PlatformContentController(
         if (acting.IsFailure)
             return ResultResponse(acting);
         return ResultResponse(await content.RetireDefinitionAsync(acting.Value, id, ct));
+    }
+
+    /// <summary>The channel event catalogue the <c>event_response</c> template form picks its event from.</summary>
+    [HttpGet("event-response-types")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.ContentRead)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<EventResponsePresetDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListEventResponseTypes(CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<IReadOnlyList<EventResponsePresetDto>>(null!));
+        return ResultResponse(await content.ListEventResponseTypesAsync(acting.Value, ct));
     }
 
     private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>

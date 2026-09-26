@@ -12,6 +12,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.PlatformContent;
 
 namespace NomNomzBot.Domain.Commands.Entities;
 
@@ -26,7 +27,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// so a per-channel limit on this resource can never be reached and would be decorative. See
 /// commands-pipelines.md §3.8.
 /// </remarks>
-public class EventResponse : SoftDeletableEntity, ITenantScoped
+public class EventResponse : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -57,6 +58,15 @@ public class EventResponse : SoftDeletableEntity, ITenantScoped
     public int ConfigSchemaVersion { get; set; } = 1;
 
     public bool IsEnabled { get; set; } = true;
+
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    public int? PlatformSourceVersion { get; set; }
+
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    public DateTime? PlatformSourceSyncedAt { get; set; }
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

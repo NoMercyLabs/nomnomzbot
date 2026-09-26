@@ -59,7 +59,7 @@ public sealed class PlatformContentServicePipelineTests : IAsyncDisposable
 
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
-            NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition action
+            Application.Abstractions.Pipeline.ActionDefinition action
         )
         {
             sink.Add(action.GetString("marker") ?? "");
@@ -87,7 +87,8 @@ public sealed class PlatformContentServicePipelineTests : IAsyncDisposable
             Substitute.For<IVueSfcCompiler>(),
             Substitute.For<IWidgetService>(),
             CreatePipelineService(),
-            Substitute.For<IScriptExecutor>()
+            Substitute.For<IScriptExecutor>(),
+            []
         );
 
     private IPipelineEngine CreateEngine() =>

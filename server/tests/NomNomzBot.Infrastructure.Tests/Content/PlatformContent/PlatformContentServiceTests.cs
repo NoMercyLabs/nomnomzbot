@@ -62,7 +62,8 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
             _vueCompiler,
             _widgetService,
             _pipelineService,
-            _scriptExecutor
+            _scriptExecutor,
+            []
         );
 
     /// <summary>

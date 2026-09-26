@@ -95,10 +95,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
-        throw new NotSupportedException();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
+    public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
     public DbSet<PlatformContentDefinition> PlatformContentDefinitions =>
@@ -117,6 +115,9 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineRunState> PipelineRunStates => Set<PipelineRunState>();
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+
+    // Platform-template installs write the channel's own feature rows.
+    public DbSet<EventResponse> EventResponses => Set<EventResponse>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -155,6 +156,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
 
         b.ApplyConfiguration(new CodeScriptConfiguration());
         b.ApplyConfiguration(new CodeScriptVersionConfiguration());
+        b.ApplyConfiguration(new EventResponseConfiguration());
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
@@ -189,6 +191,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(PipelineExecution),
         typeof(CodeScript),
         typeof(CodeScriptVersion),
+        typeof(EventResponse),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -215,9 +218,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+    public DbSet<VoiceTrigger> VoiceTriggers => throw new NotSupportedException();
+    public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
@@ -339,7 +341,6 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
-    public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();

@@ -150,7 +150,7 @@ public class EventResponseService : IEventResponseService
                 ResponseType = request.ResponseType ?? "chat_message",
                 IsEnabled = request.IsEnabled ?? true,
                 Message = request.Message,
-                PipelineId = request.PipelineId,
+                PipelineId = request.PipelineId == Guid.Empty ? null : request.PipelineId,
                 MetadataJson = request.Metadata ?? new Dictionary<string, string>(),
             };
             _db.EventResponses.Add(entity);

@@ -64,7 +64,8 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<IVueSfcCompiler>(),
             Substitute.For<IWidgetService>(),
             Substitute.For<Application.Commands.Services.IPipelineService>(),
-            _executor
+            _executor,
+            []
         );
 
     private static string CodeScriptPayload(string sourceCode) =>
@@ -439,8 +440,8 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<IHttpClientFactory>(),
             Substitute.For<IScriptStorageService>(),
             Substitute.For<Application.Contracts.Tts.ITtsDispatchService>(),
-            Substitute.For<Application.Widgets.Services.IWidgetService>(),
-            Substitute.For<Application.Widgets.Services.IWidgetEventNotifier>(),
+            Substitute.For<IWidgetService>(),
+            Substitute.For<IWidgetEventNotifier>(),
             Substitute.For<Application.Rewards.Services.IRewardService>(),
             Substitute.For<Application.Contracts.Analytics.IViewerAnalyticsService>(),
             Substitute.For<Application.Tts.Services.ITtsConfigService>(),

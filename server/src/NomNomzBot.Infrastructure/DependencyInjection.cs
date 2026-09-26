@@ -265,6 +265,12 @@ public static class DependencyInjection
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
+        // Platform-template kinds (scoped — consumed as IEnumerable<IPlatformTemplateInstaller>).
+        services.AddImplementationsOf<Application.Contracts.PlatformContent.IPlatformTemplateInstaller>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+
         // Remembers each channel's last active Spotify device across the (scoped, per-request) provider
         // instances that observe it — must outlive a single request to be useful.
         services.AddSingleton<ILastActiveSpotifyDeviceTracker, LastActiveSpotifyDeviceTracker>();
@@ -737,6 +743,13 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Scoped
         );
+
+        // Action-required inbox producers (plan item A0): every subsystem that detects a condition the
+        // streamer must fix contributes through one IActionRequiredSource, aggregated by the inbox service.
+        services.AddImplementationsOf<Application.Notifications.Services.IActionRequiredSource>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
         services.AddImplementationsOf<Application.Contracts.EventStore.IEventUpcaster>(
             infrastructure,
             ServiceLifetime.Singleton
@@ -774,7 +787,7 @@ public static class DependencyInjection
         // and a scoped instance would hand each DI scope its own empty view of a flow already in progress.
         services.AddSingleton<
             Application.Contracts.Security.IOutboundSanctionAccessor,
-            Platform.Security.OutboundSanctionAccessor
+            OutboundSanctionAccessor
         >();
 
         // The song-request history rebuilds. Explicit because AddServicesByConvention only binds interfaces
@@ -1261,7 +1274,7 @@ public static class DependencyInjection
         services
             .AddHttpClient("spotify")
             .AddSpotifyResilienceHandler()
-            .AddHttpMessageHandler<Platform.Security.OutboundSanctionHandler>();
+            .AddHttpMessageHandler<OutboundSanctionHandler>();
         services.AddHttpClient("spotify-auth");
 
         // YouTube Data API v3 client backing the browser-source song-request provider's search/resolve
@@ -1283,10 +1296,10 @@ public static class DependencyInjection
         // Super Sticker id → image URL (S-YT-STICKER-IMAGE): the liveChatMessages API never returns an
         // image URL, so this fetches Google's static reference CSV once and answers from memory — same
         // shape as the 7TV paint catalogue above. Singleton: holds its own in-memory cache.
-        services.AddHttpClient(Chat.YouTube.YouTubeSuperStickerHttpClient.Name);
+        services.AddHttpClient(YouTubeSuperStickerHttpClient.Name);
         services.AddSingleton<
-            Application.Contracts.YouTube.IYouTubeSuperStickerImageResolver,
-            Chat.YouTube.YouTubeSuperStickerImageResolver
+            IYouTubeSuperStickerImageResolver,
+            YouTubeSuperStickerImageResolver
         >();
         // Stickers are just custom image assets — never surface the raw googleusercontent.com CDN URL from
         // the CSV above. On first sight of a (channel, stickerId), this downloads that CDN image once and
@@ -1295,11 +1308,8 @@ public static class DependencyInjection
         // already takes. Scoped: it uses the scoped asset service/DbContext. The cross-tick memo of already-
         // resolved (channel, stickerId) → OUR asset URL lives separately in the singleton cache below, so a
         // fresh per-tick scope never forgets what was already downloaded.
-        services.AddSingleton<Chat.YouTube.YouTubeSuperStickerAssetCache>();
-        services.AddScoped<
-            Application.Contracts.YouTube.IYouTubeSuperStickerAssetResolver,
-            Chat.YouTube.YouTubeSuperStickerAssetResolver
-        >();
+        services.AddSingleton<YouTubeSuperStickerAssetCache>();
+        services.AddScoped<IYouTubeSuperStickerAssetResolver, YouTubeSuperStickerAssetResolver>();
 
         // ── Discord (discord.md §7) — guild link, notification rules, dispatch + dedupe ──
         // IDiscordGuildService / IDiscordNotificationConfigService / IDiscordNotificationRoleService follow the
@@ -1314,13 +1324,13 @@ public static class DependencyInjection
         >();
         // Discord REST/gateway adapter — the only thing that talks to Discord. The named "discord" typed
         // HttpClient carries the resilience handler that honours Discord's 429 Retry-After (like Spotify/Twitch).
-        services.AddTransient<Platform.Security.OutboundSanctionHandler>();
+        services.AddTransient<OutboundSanctionHandler>();
         // Discord and Spotify writes pass the same sanction rule as Twitch. Their calls are spread over many
         // sites rather than one send, so the check rides the HttpClient and covers calls not yet written.
         services
             .AddHttpClient("discord")
             .AddDiscordResilienceHandler()
-            .AddHttpMessageHandler<Platform.Security.OutboundSanctionHandler>();
+            .AddHttpMessageHandler<OutboundSanctionHandler>();
         services.AddScoped<
             Application.Contracts.Discord.IDiscordBotGateway,
             Discord.Gateway.DiscordRestBotGateway

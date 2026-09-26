@@ -63,7 +63,12 @@ public static class PlatformContentKinds
     public const string Pipeline = "pipeline";
     public const string CodeScript = "code_script";
 
-    public static bool IsKnown(string? kind) => kind is Command or Widget or Pipeline or CodeScript;
+    /// <summary>A preset for one channel event (follow, raid, …); installing it sets that event's response.</summary>
+    public const string EventResponse = "event_response";
 
-    public static IReadOnlyList<string> All { get; } = [Command, Widget, Pipeline, CodeScript];
+    public static bool IsKnown(string? kind) =>
+        kind is Command or Widget or Pipeline or CodeScript or EventResponse;
+
+    public static IReadOnlyList<string> All { get; } =
+    [Command, Widget, Pipeline, CodeScript, EventResponse];
 }
