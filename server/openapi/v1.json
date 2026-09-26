@@ -89255,8 +89255,9 @@
           "id",
           "kind",
           "severity",
-          "title",
-          "message",
+          "titleKey",
+          "messageKey",
+          "parameters",
           "detectedAt",
           "deepLinkRoute",
           "sourceUserId",
@@ -89275,11 +89276,17 @@
           "severity": {
             "type": "string"
           },
-          "title": {
+          "titleKey": {
             "type": "string"
           },
-          "message": {
+          "messageKey": {
             "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "detectedAt": {
             "type": "string",

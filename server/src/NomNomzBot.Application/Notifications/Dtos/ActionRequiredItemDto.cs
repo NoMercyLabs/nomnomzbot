@@ -16,21 +16,30 @@ namespace NomNomzBot.Application.Notifications.Dtos;
 /// stable machine key the dashboard groups/icons by (e.g. <c>integration_token_dead</c>,
 /// <c>held_chat_message</c>); <see cref="Severity"/> is <c>critical</c> | <c>warning</c> | <c>info</c>.
 /// <para>
-/// <see cref="Id"/> is the item's stable identity (S-OWN22 T2), the key the dismiss endpoint accepts: a
-/// single held message is <c>held:{queueItemGuid}</c>, a per-user group of held messages is
-/// <c>held-user:{sourceUserId}</c>, and a dead token is <c>token:{connectionId}:{invalidatedAtUtcTicks}</c>
-/// (re-invalidation after a fix mints a NEW key, so an old dismissal cannot hide it). Held messages from one
-/// user are grouped into ONE item: <see cref="Count"/> pending holds, all of them in
-/// <see cref="QueueItemIds"/>, with <see cref="SourceUserId"/>/<see cref="SourceUserName"/> naming the
-/// sender. Dead-token items keep <see cref="Count"/> = 1 and an empty <see cref="QueueItemIds"/>.
+/// The row carries no prose. <see cref="TitleKey"/> and <see cref="MessageKey"/> are dashboard string-resource
+/// names, and <see cref="Parameters"/> are the named values those strings format in (a provider key, a widget
+/// name, a failure count). The client renders them in the viewer's language; <see cref="Count"/> drives plurals.
+/// </para>
+/// <para>
+/// <see cref="DeepLinkRoute"/> is the dashboard route slug of the page where the condition is fixed
+/// (<c>integrations</c>, <c>moderationqueue</c>, <c>rewards</c>, ...), the lower-cased shell route name.
+/// </para>
+/// <para>
+/// <see cref="Id"/> is the item's stable identity (S-OWN22 T2), the key the dismiss endpoint accepts. Each
+/// source embeds whatever makes an old dismissal stale into the key, so a NEW occurrence surfaces again: a dead
+/// token is <c>token:{connectionId}:{invalidatedAtUtcTicks}</c>, a single held message is
+/// <c>held:{queueItemGuid}</c>, a per-user group of held messages is <c>held-user:{sourceUserId}</c>. Held
+/// messages from one user are grouped into ONE item: <see cref="Count"/> pending holds, all of them in
+/// <see cref="QueueItemIds"/>, with <see cref="SourceUserId"/>/<see cref="SourceUserName"/> naming the sender.
 /// </para>
 /// </summary>
 public sealed record ActionRequiredItemDto(
     string Id,
     string Kind,
     string Severity,
-    string Title,
-    string Message,
+    string TitleKey,
+    string MessageKey,
+    Dictionary<string, string> Parameters,
     DateTime DetectedAt,
     string DeepLinkRoute,
     string? SourceUserId,

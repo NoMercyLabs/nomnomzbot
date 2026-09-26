@@ -743,6 +743,13 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Scoped
         );
+
+        // Action-required inbox producers (plan item A0): every subsystem that detects a condition the
+        // streamer must fix contributes through one IActionRequiredSource, aggregated by the inbox service.
+        services.AddImplementationsOf<Application.Notifications.Services.IActionRequiredSource>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
         services.AddImplementationsOf<Application.Contracts.EventStore.IEventUpcaster>(
             infrastructure,
             ServiceLifetime.Singleton

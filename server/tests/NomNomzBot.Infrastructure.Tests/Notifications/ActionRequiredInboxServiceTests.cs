@@ -51,7 +51,7 @@ public sealed class ActionRequiredInboxServiceTests
             }
         );
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
@@ -59,9 +59,11 @@ public sealed class ActionRequiredInboxServiceTests
         ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
         item.Kind.Should().Be("integration_token_dead");
         item.Severity.Should().Be("critical");
-        item.Title.Should().Contain("spotify");
+        item.TitleKey.Should().Be("attention_integration_reauth_title");
+        item.MessageKey.Should().Be("attention_integration_refresh_failed_message");
+        item.Parameters.Should().Contain("provider", "spotify").And.Contain("failureCount", "3");
         item.DetectedAt.Should().Be(new DateTime(2026, 8, 1, 12, 0, 0, DateTimeKind.Utc));
-        item.DeepLinkRoute.Should().Be("/settings/integrations/spotify");
+        item.DeepLinkRoute.Should().Be("integrations");
     }
 
     [Fact]
@@ -78,7 +80,7 @@ public sealed class ActionRequiredInboxServiceTests
             }
         );
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
@@ -101,15 +103,19 @@ public sealed class ActionRequiredInboxServiceTests
             }
         );
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
         ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
         item.Kind.Should().Be("held_chat_message");
         item.Severity.Should().Be("warning");
-        item.Message.Should().Contain("chatter123");
-        item.DeepLinkRoute.Should().Be("/moderation/queue");
+        item.TitleKey.Should().Be("attention_held_title");
+        item.MessageKey.Should().Be("attention_held_single_from_user_message");
+        item.Parameters.Should()
+            .Contain("username", "chatter123")
+            .And.Contain("category", "swearing");
+        item.DeepLinkRoute.Should().Be("moderationqueue");
     }
 
     [Fact]
@@ -142,7 +148,7 @@ public sealed class ActionRequiredInboxServiceTests
             }
         );
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
@@ -179,7 +185,7 @@ public sealed class ActionRequiredInboxServiceTests
         ModerationQueueItem otherUsersHold = PendingHold("999002", "chatter123", t0.AddMinutes(2));
         db.ModerationQueueItems.AddRange(hold1, hold2, hold3, otherUsersHold);
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
@@ -193,7 +199,11 @@ public sealed class ActionRequiredInboxServiceTests
         grouped
             .QueueItemIds.Should()
             .BeEquivalentTo([hold1.Id, hold2.Id, hold3.Id], "every pending hold is addressable");
-        grouped.Message.Should().Contain("3").And.Contain("ashleyflores_01");
+        grouped.MessageKey.Should().Be("attention_held_many_from_user_message");
+        grouped
+            .Parameters.Should()
+            .Contain("count", "3")
+            .And.Contain("username", "ashleyflores_01");
         grouped.DetectedAt.Should().Be(t0.AddMinutes(9), "the group surfaces at its newest hold");
 
         ActionRequiredItemDto single = result.Value.Single(i => i.Count == 1);
@@ -201,7 +211,8 @@ public sealed class ActionRequiredInboxServiceTests
         single.SourceUserId.Should().Be("999002");
         single.SourceUserName.Should().Be("chatter123");
         single.QueueItemIds.Should().BeEquivalentTo([otherUsersHold.Id]);
-        single.Message.Should().Contain("chatter123");
+        single.MessageKey.Should().Be("attention_held_single_from_user_message");
+        single.Parameters.Should().Contain("username", "chatter123");
     }
 
     [Fact]
@@ -216,7 +227,7 @@ public sealed class ActionRequiredInboxServiceTests
         db.ModerationQueueItems.AddRange(hold1, hold2, otherUsersHold);
         await db.SaveChangesAsync();
         Guid dismisser = Guid.Parse("0192b000-0000-7000-8000-0000000000a9");
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<int> dismissed = await sut.DismissAsync(ChannelId, dismisser, ["held-user:999001"]);
 
@@ -255,7 +266,7 @@ public sealed class ActionRequiredInboxServiceTests
         db.ModerationQueueItems.AddRange(hold1, hold2);
         await db.SaveChangesAsync();
         Guid dismisser = Guid.Parse("0192b000-0000-7000-8000-0000000000a9");
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         // Dismiss the GROUP as the dashboard sends it — the id the grouped row actually carries.
         ActionRequiredItemDto grouped = (await sut.GetItemsAsync(ChannelId))
@@ -301,7 +312,7 @@ public sealed class ActionRequiredInboxServiceTests
         db.IntegrationConnections.Add(connection);
         await db.SaveChangesAsync();
         Guid dismisser = Guid.Parse("0192b000-0000-7000-8000-0000000000a9");
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         string firstKey = $"token:{connection.Id}:{firstDeath.Ticks}";
         (await sut.GetItemsAsync(ChannelId)).Value.Should().ContainSingle(i => i.Id == firstKey);
@@ -331,7 +342,7 @@ public sealed class ActionRequiredInboxServiceTests
         ModerationQueueItem hold = PendingHold("999001", "ashleyflores_01", t0);
         db.ModerationQueueItems.Add(hold);
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
         (await sut.GetItemsAsync(ChannelId)).Value.Should().ContainSingle();
 
         hold.Status = ModerationQueueStatus.Approved;
@@ -355,7 +366,7 @@ public sealed class ActionRequiredInboxServiceTests
         db.ModerationQueueItems.Add(hold);
         await db.SaveChangesAsync();
         Guid dismisser = Guid.Parse("0192b000-0000-7000-8000-0000000000a9");
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         (await sut.DismissAsync(ChannelId, dismisser, [$"held:{hold.Id}"])).Value.Should().Be(1);
         (await sut.DismissAsync(ChannelId, dismisser, [$"held:{hold.Id}"]))
@@ -413,7 +424,7 @@ public sealed class ActionRequiredInboxServiceTests
             UnmanagedReward("ext-2", t0.AddMinutes(5))
         );
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
@@ -421,7 +432,7 @@ public sealed class ActionRequiredInboxServiceTests
         item.Kind.Should().Be("unmanaged_rewards");
         item.Severity.Should().Be("info");
         item.Count.Should().Be(2);
-        item.DeepLinkRoute.Should().Be("/rewards");
+        item.DeepLinkRoute.Should().Be("rewards");
         item.DetectedAt.Should().Be(t0.AddMinutes(5), "the item surfaces at its newest reward");
     }
 
@@ -449,7 +460,7 @@ public sealed class ActionRequiredInboxServiceTests
             }
         );
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
@@ -467,13 +478,14 @@ public sealed class ActionRequiredInboxServiceTests
         parked.PendingMigrationRequestedAt = t0.AddMinutes(2);
         db.Rewards.AddRange(plain, parked);
         await db.SaveChangesAsync();
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         Result<List<ActionRequiredItemDto>> result = await sut.GetItemsAsync(ChannelId);
 
         ActionRequiredItemDto item = result.Value.Should().ContainSingle().Subject;
         item.Count.Should().Be(2);
-        item.Message.Should().Contain("1").And.Contain("waiting on you to free up their title");
+        item.MessageKey.Should().Be("attention_unmanaged_rewards_pending_message");
+        item.Parameters.Should().Contain("count", "2").And.Contain("pendingCount", "1");
     }
 
     [Fact]
@@ -488,7 +500,7 @@ public sealed class ActionRequiredInboxServiceTests
         db.Rewards.Add(UnmanagedReward("ext-1", t0));
         await db.SaveChangesAsync();
         Guid dismisser = Guid.Parse("0192b000-0000-7000-8000-0000000000a9");
-        ActionRequiredInboxService sut = new(db, TimeProvider.System);
+        ActionRequiredInboxService sut = ActionRequiredInboxHarness.Create(db);
 
         ActionRequiredItemDto first = (await sut.GetItemsAsync(ChannelId))
             .Value.Should()
