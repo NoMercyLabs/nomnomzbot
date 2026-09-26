@@ -28,7 +28,7 @@ public sealed class SecurityNoticeServiceTests
     private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
     private static SecurityNoticeService NewService(SecurityNoticeTestDbContext db) =>
-        new(db, Clock);
+        new(db, Clock, new Notifications.RecordingChangeNotifier());
 
     /// <summary>
     /// The scenario the slice exists for: the tenant owner was OFFLINE for the entire impersonation window
@@ -95,7 +95,7 @@ public sealed class SecurityNoticeServiceTests
 
         Result<PagedList<SecurityNoticeDto>> page = await service.ListAsync(
             broadcasterId,
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         page.IsSuccess.Should().BeTrue();
@@ -131,7 +131,7 @@ public sealed class SecurityNoticeServiceTests
         SecurityNoticeService reloadedService = NewService(db);
         Result<PagedList<SecurityNoticeDto>> reloaded = await reloadedService.ListAsync(
             broadcasterId,
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
         SecurityNoticeDto reloadedNotice = reloaded.Value.Items.Single(n => n.Id == noticeId);
         reloadedNotice.AcknowledgedAt.Should().NotBeNull();
@@ -183,7 +183,7 @@ public sealed class SecurityNoticeServiceTests
 
         Result<PagedList<SecurityNoticeDto>> ownList = await service.ListAsync(
             ownChannel,
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
         ownList.Value.Items.Should().ContainSingle();
         ownList.Value.Items.Single().Reason.Should().Be("own channel's session");

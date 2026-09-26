@@ -160,6 +160,8 @@ internal static class ImpersonationGrantLookup
 {
     public sealed record Grant(Guid ScopeChannelId, string? Reason);
 
+    private sealed record GrantRow(Guid? ScopeChannelId, string? Reason);
+
     public static async Task<Grant?> ResolveAsync(
         IApplicationDbContext db,
         Guid accessGrantId,
@@ -167,10 +169,10 @@ internal static class ImpersonationGrantLookup
         CancellationToken ct
     )
     {
-        var row = await db
+        GrantRow? row = await db
             .IamRoleAssignments.IgnoreQueryFilters()
             .Where(a => a.Id == accessGrantId)
-            .Select(a => new { a.ScopeChannelId, a.Reason })
+            .Select(a => new GrantRow(a.ScopeChannelId, a.Reason))
             .FirstOrDefaultAsync(ct);
 
         if (row is null)

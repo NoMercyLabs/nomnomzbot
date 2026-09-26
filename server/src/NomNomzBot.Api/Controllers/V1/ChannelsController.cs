@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -38,6 +39,7 @@ public class ChannelsController : BaseController
     private readonly IMembershipService _memberships;
     private readonly IUserService _users;
     private readonly IChannelDeletePreviewService _deletePreview;
+    private readonly ICurrentUserService _currentUser;
 
     public ChannelsController(
         IChannelService channelService,
@@ -46,7 +48,8 @@ public class ChannelsController : BaseController
         IChannelAccessService channelAccess,
         IMembershipService memberships,
         IUserService users,
-        IChannelDeletePreviewService deletePreview
+        IChannelDeletePreviewService deletePreview,
+        ICurrentUserService currentUser
     )
     {
         _channelService = channelService;
@@ -56,6 +59,7 @@ public class ChannelsController : BaseController
         _memberships = memberships;
         _users = users;
         _deletePreview = deletePreview;
+        _currentUser = currentUser;
     }
 
     /// <summary>List all channels the current user owns or moderates.</summary>
@@ -95,7 +99,8 @@ public class ChannelsController : BaseController
         // this when the CHANNEL's own token is dead, so grant it lazily here from the caller's WORKING token — the
         // moderated list above was resolved with it. Without this, a Twitch mod resolves as a role-less viewer on
         // channels they moderate and is dropped onto the participant surface with no mod tools.
-        if (Guid.TryParse(userId, out Guid callerGuid))
+        // Never under act-as: an operator viewing the list as someone must not write role rows on their behalf.
+        if (_currentUser.Impersonation is null && Guid.TryParse(userId, out Guid callerGuid))
             await EnsureModeratorMembershipsAsync(callerGuid, moderatedIds, ct);
 
         Result<PagedList<ChannelSummaryDto>> result = await _channelService.GetChannelsAsync(

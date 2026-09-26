@@ -22,6 +22,21 @@ public sealed record AdminTenantDto(
     DateTime? SuspendedAt
 );
 
+/// <summary>
+/// One person who belongs to a tenant, for the operator's act-as picker: the owner, a management member, a
+/// community member or a viewer the channel has seen. <paramref name="Relation"/> is <c>owner</c>,
+/// <c>manager</c>, <c>community</c> or <c>viewer</c>; the role and standing are NAMES, never numbered levels.
+/// </summary>
+public sealed record TenantMemberDto(
+    Guid UserId,
+    string Username,
+    string DisplayName,
+    string? ProfileImageUrl,
+    string Relation,
+    string? ManagementRole,
+    string? CommunityStanding
+);
+
 /// <summary>Tenant detail for the operator console — status, tier, owner, counts (stream-admin.md §4).</summary>
 public sealed record AdminTenantDetailDto(
     Guid Id,

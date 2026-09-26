@@ -265,8 +265,10 @@ public abstract class BaseController : ControllerBase
             // A refused act-as: the request is well-formed but the caller has no open support session
             // (SESSION_REQUIRED) or the platform build doesn't offer impersonation at all (NOT_SUPPORTED) —
             // both are an actionable "you can't do this right now", the same class as the other conflicts
-            // above, never a server fault.
+            // above, never a server fault. TARGET_OUTSIDE_SESSION: the session is open but scoped to a channel
+            // the chosen user does not belong to.
             or "SESSION_REQUIRED"
+            or "TARGET_OUTSIDE_SESSION"
             or "NOT_SUPPORTED"
             or "ALREADY_ENTERED"
             or "DUPLICATE_ASSIGNMENT"

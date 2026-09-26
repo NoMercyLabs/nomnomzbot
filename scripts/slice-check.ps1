@@ -53,7 +53,7 @@ else {
 # Only THIS checkout's processes: other agents' gates and worktrees run their own testhosts at the same
 # time, and killing those crashed their runs ("Test Run Aborted"). The shared VBCSCompiler is left alone
 # for the same reason; a slice's own stale DLL lock comes from its own testhost/API, which this covers.
-$serverRoot = [System.IO.Path]::GetFullPath($server).TrimEnd('', '/')
+$serverRoot = [System.IO.Path]::GetFullPath($server).TrimEnd('\', '/')
 Get-Process -Name 'testhost', 'NomNomzBot.Api' -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -and $_.Path.StartsWith($serverRoot, [System.StringComparison]::OrdinalIgnoreCase) } |
     Stop-Process -Force -ErrorAction SilentlyContinue

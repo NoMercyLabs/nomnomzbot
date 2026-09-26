@@ -40,7 +40,8 @@ public sealed class PlatformAdminService(
     ISessionRevocationService sessionRevocation,
     IChannelDeletePreviewService channelDeletePreview,
     IChannelService channelService,
-    IDatabaseMigrator migrator
+    IDatabaseMigrator migrator,
+    ITenantMemberDirectoryService memberDirectory
 ) : IPlatformAdminService
 {
     /// <summary>The seeded role a support-access grant assigns, narrowed to the target tenant (§3.2).</summary>
@@ -370,10 +371,24 @@ public sealed class PlatformAdminService(
         if (target is null)
             return Result.Failure<ImpersonationTokenDto>("Unknown user.", "NOT_FOUND");
 
+        // The support session names ONE tenant; it authorizes acting as that tenant's people only. Without this
+        // a grant opened for tenant A would let the operator act as anyone, while the audit trail names A.
+        if (
+            grant.ScopeChannelId is not Guid scopeChannelId
+            || !await memberDirectory.IsMemberAsync(scopeChannelId, targetUserId, ct)
+        )
+            return Result.Failure<ImpersonationTokenDto>(
+                "The support session does not cover this user: they do not belong to the session's channel.",
+                "TARGET_OUTSIDE_SESSION"
+            );
+
         // The target's own broadcaster channel scopes the `tenant` claim, exactly like the target's own login
-        // — null when the target owns no channel (a plain viewer).
+        // — null when the target owns no channel (a moderator or viewer). Ordered so a user who owns several
+        // channels always resolves the same one.
         Guid? tenantId = await db
             .Channels.Where(c => c.OwnerUserId == targetUserId)
+            .OrderBy(c => c.CreatedAt)
+            .ThenBy(c => c.Id)
             .Select(c => (Guid?)c.Id)
             .FirstOrDefaultAsync(ct);
 
@@ -417,6 +432,26 @@ public sealed class PlatformAdminService(
 
         return Result.Success(
             new ImpersonationTokenDto(accessToken, expiresAt, accessGrantId, ToDto(target))
+        );
+    }
+
+    public async Task<Result<PagedList<TenantMemberDto>>> ListTenantMembersAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        string? search,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        Result authorized = await RequireAsync(principalId, "tenant:read", broadcasterId, null, ct);
+        if (authorized.IsFailure)
+            return authorized.WithValue<PagedList<TenantMemberDto>>(null!);
+
+        if (!await db.Channels.AnyAsync(c => c.Id == broadcasterId, ct))
+            return Result.Failure<PagedList<TenantMemberDto>>("Unknown tenant.", "NOT_FOUND");
+
+        return Result.Success(
+            await memberDirectory.ListAsync(broadcasterId, search, pagination, ct)
         );
     }
 

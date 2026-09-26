@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -132,9 +133,7 @@ public sealed class ChannelsControllerModeratedTests
         body.Data.Should().BeEmpty();
 
         // No owned channel → the moderators API is never queried, and the caller is NOT rejected (old 401 bug).
-        await moderators
-            .DidNotReceiveWithAnyArgs()
-            .GetModeratedChannelsAsync(default, default!, default);
+        await moderators.DidNotReceiveWithAnyArgs().GetModeratedChannelsAsync(default, default!);
     }
 
     private static (
@@ -154,9 +153,10 @@ public sealed class ChannelsControllerModeratedTests
             db,
             moderators,
             access,
-            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>(),
+            Substitute.For<Application.Contracts.Authorization.IMembershipService>(),
             Substitute.For<IUserService>(),
-            Substitute.For<IChannelDeletePreviewService>()
+            Substitute.For<IChannelDeletePreviewService>(),
+            Substitute.For<ICurrentUserService>()
         )
         {
             ControllerContext = new()

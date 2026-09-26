@@ -147,6 +147,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         b.ApplyConfiguration(
             new Infrastructure.Notifications.Persistence.ActionRequiredDismissalConfiguration()
         );
+        b.ApplyConfiguration(new Infrastructure.Identity.Persistence.SecurityNoticeConfiguration());
 
         b.Entity<Channel>(e =>
         {
@@ -198,6 +199,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(OutboundWebhookEndpoint),
         typeof(EventJournal),
         typeof(IntegrationToken),
+        typeof(SecurityNotice),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -370,7 +372,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
     public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
     public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
-    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
+    public DbSet<SecurityNotice> SecurityNotices => Set<SecurityNotice>();
     public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
     public DbSet<CurrencyConfig> CurrencyConfigs => throw new NotSupportedException();
     public DbSet<EarningRule> EarningRules => throw new NotSupportedException();

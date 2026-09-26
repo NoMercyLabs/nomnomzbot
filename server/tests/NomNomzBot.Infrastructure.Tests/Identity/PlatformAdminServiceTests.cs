@@ -55,7 +55,7 @@ public sealed class PlatformAdminServiceTests
         ISessionRevocationService revocation = Substitute.For<ISessionRevocationService>();
         // ChannelService.DeleteAsync only touches db/timeProvider/registry — the other four collaborators
         // are never reached on that path, so a bare substitute is enough for them here.
-        NomNomzBot.Infrastructure.Identity.ChannelService channelService = new(
+        ChannelService channelService = new(
             db,
             clock,
             bus,
@@ -79,24 +79,46 @@ public sealed class PlatformAdminServiceTests
             revocation,
             deletePreview,
             channelService,
-            migrator
+            migrator,
+            new TenantMemberDirectoryService(db)
         );
         return (sut, db, bus, revocation, migrator);
     }
 
-    /// <summary>Seeds an OPEN, time-boxed support-access grant for <paramref name="principal"/> — the session an impersonation mint is required to ride on (S089a).</summary>
-    private static Guid SeedOpenGrant(AuthDbContext db, Guid principal, DateTime expiresAt) =>
-        db
+    /// <summary>
+    /// Seeds an OPEN, time-boxed support-access grant for <paramref name="principal"/> — the session an
+    /// impersonation mint is required to ride on (S089a) — scoped to a fresh tenant that
+    /// <paramref name="member"/> is a viewer of, so the grant covers acting as that user.
+    /// </summary>
+    private static Guid SeedOpenGrant(
+        AuthDbContext db,
+        Guid principal,
+        DateTime expiresAt,
+        Guid member
+    )
+    {
+        Guid scopeChannel = SeedTenant(db, $"scope_{Guid.NewGuid():N}");
+        db.ChannelCommunityStandings.Add(
+            new()
+            {
+                BroadcasterId = scopeChannel,
+                UserId = member,
+                Standing = CommunityStanding.Everyone,
+            }
+        );
+        return db
             .IamRoleAssignments.Add(
                 new()
                 {
                     PrincipalId = principal,
                     AssignedByPrincipalId = principal,
+                    ScopeChannelId = scopeChannel,
                     ExpiresAt = expiresAt,
                     Reason = "support session",
                 }
             )
             .Entity.Id;
+    }
 
     /// <summary>
     /// A real HS256 token service on the system clock (so a minted token is valid "now" for
@@ -237,7 +259,7 @@ public sealed class PlatformAdminServiceTests
             {
                 Id = channelId,
                 OwnerUserId = ownerId,
-                TwitchChannelId = "tw-1",
+                TwitchChannelId = $"tw-{name}",
                 Name = name,
                 NameNormalized = name,
             }
@@ -572,7 +594,7 @@ public sealed class PlatformAdminServiceTests
         // The grant's expiry gates the SESSION check via PlatformAdminService's fake clock ("Now"), but
         // also clamps the minted JWT's `exp` — and JWT validation below runs on the REAL system clock
         // (Jwt() uses TimeProvider.System), so the clamp cap must be in the real future too.
-        Guid grant = SeedOpenGrant(db, principal, DateTime.UtcNow.AddHours(1));
+        Guid grant = SeedOpenGrant(db, principal, DateTime.UtcNow.AddHours(1), targetUserId);
         await db.SaveChangesAsync();
 
         Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
@@ -630,7 +652,7 @@ public sealed class PlatformAdminServiceTests
         // The TARGET is itself a platform principal — the token must reflect the TARGET's roles, so `admin` IS present.
         Guid targetAdminId = SeedUser(db, "coadmin", isPlatformPrincipal: true);
         // Real-clock expiry — see the note in the previous test (validates against TimeProvider.System).
-        Guid grant = SeedOpenGrant(db, principal, DateTime.UtcNow.AddHours(1));
+        Guid grant = SeedOpenGrant(db, principal, DateTime.UtcNow.AddHours(1), targetAdminId);
         await db.SaveChangesAsync();
 
         Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
@@ -678,7 +700,7 @@ public sealed class PlatformAdminServiceTests
         (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
-        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1), targetUserId);
         await db.SaveChangesAsync();
 
         (await sut.StartImpersonationAsync(principal, targetUserId, grant, "   "))
@@ -704,7 +726,7 @@ public sealed class PlatformAdminServiceTests
             .Be("SESSION_REQUIRED");
 
         // An EXPIRED grant does not count as open.
-        Guid expired = SeedOpenGrant(db, principal, Now.UtcDateTime.AddMinutes(-1));
+        Guid expired = SeedOpenGrant(db, principal, Now.UtcDateTime.AddMinutes(-1), targetUserId);
         await db.SaveChangesAsync();
         (await sut.StartImpersonationAsync(principal, targetUserId, expired, "expired session"))
             .ErrorCode.Should()
@@ -719,7 +741,7 @@ public sealed class PlatformAdminServiceTests
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         // The support session expires in 5 minutes — far shorter than the configured 60-minute JWT lifetime.
         DateTime sessionExpiry = Now.UtcDateTime.AddMinutes(5);
-        Guid grant = SeedOpenGrant(db, principal, sessionExpiry);
+        Guid grant = SeedOpenGrant(db, principal, sessionExpiry, targetUserId);
         await db.SaveChangesAsync();
 
         Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
@@ -740,7 +762,7 @@ public sealed class PlatformAdminServiceTests
             Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
-        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1), targetUserId);
         await db.SaveChangesAsync();
         Result<ImpersonationTokenDto> started = await sut.StartImpersonationAsync(
             principal,
@@ -775,7 +797,7 @@ public sealed class PlatformAdminServiceTests
             Build(DeploymentMode.SelfHostFull);
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
-        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1), targetUserId);
         await db.SaveChangesAsync();
 
         Result<ImpersonationTokenDto> started = await sut.StartImpersonationAsync(
@@ -786,7 +808,7 @@ public sealed class PlatformAdminServiceTests
         );
 
         started.IsSuccess.Should().BeTrue(started.ErrorMessage);
-        started.Value!.SessionId.Should().Be(grant);
+        started.Value.SessionId.Should().Be(grant);
         started.Value.User.Id.Should().Be(targetUserId.ToString());
         started.Value.AccessToken.Should().NotBeNullOrWhiteSpace();
 
@@ -807,10 +829,226 @@ public sealed class PlatformAdminServiceTests
         (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid support = SeedPrincipal(db, "tenant:read", "tenant:access", "audit:read");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
-        Guid grant = SeedOpenGrant(db, support, Now.UtcDateTime.AddHours(1));
+        Guid grant = SeedOpenGrant(db, support, Now.UtcDateTime.AddHours(1), targetUserId);
         await db.SaveChangesAsync();
 
         (await sut.StartImpersonationAsync(support, targetUserId, grant, "not the owner"))
+            .ErrorCode.Should()
+            .Be("FORBIDDEN");
+    }
+
+    // ─── V-A1: act-as is scoped to the support session's channel ──────────────
+
+    [Fact]
+    public async Task StartImpersonation_refuses_a_target_who_does_not_belong_to_the_sessions_channel()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid member = SeedUser(db, "member", isPlatformPrincipal: false);
+        Guid outsider = SeedUser(db, "outsider", isPlatformPrincipal: false);
+        // The session covers a channel `member` belongs to; `outsider` has no tie to it at all.
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1), member);
+        await db.SaveChangesAsync();
+
+        Result<ImpersonationTokenDto> refused = await sut.StartImpersonationAsync(
+            principal,
+            outsider,
+            grant,
+            "ticket for another channel"
+        );
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("TARGET_OUTSIDE_SESSION");
+        bus.Published.OfType<ImpersonationStartedEvent>()
+            .Should()
+            .BeEmpty("no act-as session may start for a user the grant does not cover");
+    }
+
+    [Fact]
+    public async Task StartImpersonation_refuses_a_session_that_names_no_channel()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid target = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        Guid unscoped = db
+            .IamRoleAssignments.Add(
+                new()
+                {
+                    PrincipalId = principal,
+                    AssignedByPrincipalId = principal,
+                    ExpiresAt = Now.UtcDateTime.AddHours(1),
+                    Reason = "no channel",
+                }
+            )
+            .Entity.Id;
+        await db.SaveChangesAsync();
+
+        (await sut.StartImpersonationAsync(principal, target, unscoped, "no channel"))
+            .ErrorCode.Should()
+            .Be("TARGET_OUTSIDE_SESSION");
+    }
+
+    [Fact]
+    public async Task StartImpersonation_accepts_a_moderator_of_the_sessions_channel_and_names_them_on_the_token()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid tenant = SeedTenant(db, "modded_chan");
+        Guid moderator = SeedUser(db, "the_mod", isPlatformPrincipal: false);
+        db.ChannelMemberships.Add(
+            new()
+            {
+                BroadcasterId = tenant,
+                UserId = moderator,
+                ManagementRole = ManagementRole.Moderator,
+                GrantedAt = Now.UtcDateTime,
+            }
+        );
+        Guid grant = db
+            .IamRoleAssignments.Add(
+                new()
+                {
+                    PrincipalId = principal,
+                    AssignedByPrincipalId = principal,
+                    ScopeChannelId = tenant,
+                    ExpiresAt = Now.UtcDateTime.AddHours(1),
+                    Reason = "mod view",
+                }
+            )
+            .Entity.Id;
+        await db.SaveChangesAsync();
+
+        Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
+            principal,
+            moderator,
+            grant,
+            "reproduce the moderator view"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.User.Id.Should().Be(moderator.ToString());
+        JwtSecurityToken raw = new JwtSecurityTokenHandler().ReadJwtToken(result.Value.AccessToken);
+        // The moderator owns no channel, exactly like their own login: no tenant claim.
+        raw.Claims.Should().NotContain(c => c.Type == JwtTokenService.TenantClaim);
+        bus.Published.OfType<ImpersonationStartedEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.TargetUserId.Should()
+            .Be(moderator);
+    }
+
+    [Fact]
+    public async Task EndImpersonation_by_the_operator_revokes_the_row_and_publishes_the_ended_event_naming_the_target()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "user:impersonate");
+        Guid target = SeedUser(db, "viewer", isPlatformPrincipal: false);
+        Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1), target);
+        await db.SaveChangesAsync();
+        (await sut.StartImpersonationAsync(principal, target, grant, "ticket"))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result ended = await sut.EndImpersonationAsync(principal, grant);
+
+        ended.IsSuccess.Should().BeTrue(ended.ErrorMessage);
+        (await db.IamRoleAssignments.SingleAsync(a => a.Id == grant))
+            .RevokedAt.Should()
+            .NotBeNull();
+        ImpersonationEndedEvent endedEvent = bus
+            .Published.OfType<ImpersonationEndedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        endedEvent.AccessGrantId.Should().Be(grant);
+        endedEvent.OperatorPrincipalId.Should().Be(principal);
+        endedEvent.TargetUserId.Should().Be(target);
+    }
+
+    [Fact]
+    public async Task ListTenantMembers_returns_owner_first_then_every_member_kind_with_role_names_and_filters_by_search()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid tenant = SeedTenant(db, "zz_owner");
+        Guid editor = SeedUser(db, "an_editor", isPlatformPrincipal: false);
+        Guid vip = SeedUser(db, "b_vip", isPlatformPrincipal: false);
+        Guid viewer = SeedUser(db, "c_viewer", isPlatformPrincipal: false);
+        Guid stranger = SeedUser(db, "d_stranger", isPlatformPrincipal: false);
+        Guid otherTenant = SeedTenant(db, "other_chan");
+        db.ChannelMemberships.Add(
+            new()
+            {
+                BroadcasterId = tenant,
+                UserId = editor,
+                ManagementRole = ManagementRole.Editor,
+                GrantedAt = Now.UtcDateTime,
+            }
+        );
+        db.ChannelCommunityStandings.Add(
+            new()
+            {
+                BroadcasterId = tenant,
+                UserId = vip,
+                Standing = CommunityStanding.Vip,
+            }
+        );
+        db.ViewerProfiles.Add(
+            new()
+            {
+                BroadcasterId = tenant,
+                ViewerUserId = viewer,
+                ViewerTwitchUserId = "tw-viewer",
+            }
+        );
+        // A tie to ANOTHER tenant never leaks into this one.
+        db.ChannelMemberships.Add(
+            new()
+            {
+                BroadcasterId = otherTenant,
+                UserId = stranger,
+                ManagementRole = ManagementRole.Moderator,
+                GrantedAt = Now.UtcDateTime,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<PagedList<TenantMemberDto>> all = await sut.ListTenantMembersAsync(
+            principal,
+            tenant,
+            null,
+            Page
+        );
+
+        all.IsSuccess.Should().BeTrue(all.ErrorMessage);
+        all.Value.TotalCount.Should().Be(4);
+        all.Value.Items.Select(m => (m.Username, m.Relation, m.ManagementRole, m.CommunityStanding))
+            .Should()
+            .Equal(
+                ("zz_owner", "owner", "Broadcaster", null),
+                ("an_editor", "manager", "Editor", null),
+                ("b_vip", "community", null, "Vip"),
+                ("c_viewer", "viewer", null, null)
+            );
+
+        Result<PagedList<TenantMemberDto>> searched = await sut.ListTenantMembersAsync(
+            principal,
+            tenant,
+            "VIP",
+            Page
+        );
+        searched.Value.Items.Should().ContainSingle().Which.UserId.Should().Be(vip);
+    }
+
+    [Fact]
+    public async Task ListTenantMembers_without_tenant_read_is_forbidden()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "audit:read");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        (await sut.ListTenantMembersAsync(principal, tenant, null, Page))
             .ErrorCode.Should()
             .Be("FORBIDDEN");
     }
@@ -832,12 +1070,12 @@ public sealed class PlatformAdminServiceTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        NomNomzBot.Domain.Billing.Entities.TenantLimitOverride? persisted =
+        Domain.Billing.Entities.TenantLimitOverride? persisted =
             await db.TenantLimitOverrides.FirstOrDefaultAsync(o =>
                 o.BroadcasterId == tenant && o.LimitKey == "custom_commands"
             );
         persisted.Should().NotBeNull();
-        persisted!.LimitValue.Should().Be(5000);
+        persisted.LimitValue.Should().Be(5000);
         persisted.GrantedByPrincipalId.Should().Be(principal);
     }
 
@@ -885,7 +1123,7 @@ public sealed class PlatformAdminServiceTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        NomNomzBot.Domain.Billing.Entities.TenantLimitOverride cleared =
+        Domain.Billing.Entities.TenantLimitOverride cleared =
             await db.TenantLimitOverrides.SingleAsync(o => o.BroadcasterId == tenant);
         cleared.DeletedAt.Should().NotBeNull();
         cleared.DeletedBy.Should().Be(principal);
@@ -971,9 +1209,7 @@ public sealed class PlatformAdminServiceTests
         Result blank = await sut.EraseTenantAsync(principal, tenant, "");
         blank.IsFailure.Should().BeTrue();
         blank.ErrorCode.Should().Be("VALIDATION_FAILED");
-        NomNomzBot.Domain.Identity.Entities.Channel untouched = await db.Channels.SingleAsync(c =>
-            c.Id == tenant
-        );
+        Channel untouched = await db.Channels.SingleAsync(c => c.Id == tenant);
         untouched.DeletedAt.Should().BeNull();
 
         Result erased = await sut.EraseTenantAsync(
@@ -985,9 +1221,7 @@ public sealed class PlatformAdminServiceTests
 
         // Soft delete — the house default, reversible for the restore window: DeletedAt stamped and the bot
         // stopped serving the channel (Enabled = false), not a hard row delete.
-        NomNomzBot.Domain.Identity.Entities.Channel tombstone = await db.Channels.SingleAsync(c =>
-            c.Id == tenant
-        );
+        Channel tombstone = await db.Channels.SingleAsync(c => c.Id == tenant);
         tombstone.DeletedAt.Should().NotBeNull();
         tombstone.Enabled.Should().BeFalse();
     }

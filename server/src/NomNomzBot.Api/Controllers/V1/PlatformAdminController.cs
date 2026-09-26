@@ -140,6 +140,39 @@ public class PlatformAdminController(
         );
     }
 
+    /// <summary>
+    /// The people who belong to a tenant (owner, management members, community members, seen viewers),
+    /// searchable by name — the act-as target picker. An act-as under this tenant's support session may only
+    /// target one of them.
+    /// </summary>
+    [HttpGet("tenants/{broadcasterId:guid}/members")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.TenantRead)]
+    [ProducesResponseType<PaginatedResponse<TenantMemberDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListTenantMembers(
+        Guid broadcasterId,
+        [FromQuery] string? search,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PagedList<TenantMemberDto>>(null!));
+
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<TenantMemberDto>> result = await admin.ListTenantMembersAsync(
+            acting.Value,
+            broadcasterId,
+            search,
+            pagination,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
     /// <summary>Ends a support-access grant (revokes the assignment).</summary>
     [NotDestructive(
         "Ends an access grant by stamping its end time; the audited grant row survives for the audit trail."

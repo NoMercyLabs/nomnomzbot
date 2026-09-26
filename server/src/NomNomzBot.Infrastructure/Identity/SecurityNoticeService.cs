@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Identity;
@@ -26,11 +27,17 @@ public sealed class SecurityNoticeService : ISecurityNoticeService
 {
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
+    private readonly IActionRequiredChangeNotifier _inboxChanged;
 
-    public SecurityNoticeService(IApplicationDbContext db, TimeProvider timeProvider)
+    public SecurityNoticeService(
+        IApplicationDbContext db,
+        TimeProvider timeProvider,
+        IActionRequiredChangeNotifier inboxChanged
+    )
     {
         _db = db;
         _timeProvider = timeProvider;
+        _inboxChanged = inboxChanged;
     }
 
     public async Task<Result<SecurityNoticeDto>> RecordAsync(
@@ -69,6 +76,10 @@ public sealed class SecurityNoticeService : ISecurityNoticeService
 
         _db.SecurityNotices.Add(notice);
         await _db.SaveChangesAsync(ct);
+
+        // An unread notice is an action-required item (SecurityNoticeSource); tell the channel's open
+        // dashboards to refetch their inbox now rather than on their next load.
+        _inboxChanged.NotifyChanged(notice.BroadcasterId);
 
         return Result.Success(ToDto(notice));
     }

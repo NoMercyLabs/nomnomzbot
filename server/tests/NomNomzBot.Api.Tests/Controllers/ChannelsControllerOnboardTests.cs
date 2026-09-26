@@ -12,6 +12,7 @@ using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -46,9 +47,10 @@ public sealed class ChannelsControllerOnboardTests
             Substitute.For<IApplicationDbContext>(),
             Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<IChannelAccessService>(),
-            Substitute.For<NomNomzBot.Application.Contracts.Authorization.IMembershipService>(),
+            Substitute.For<Application.Contracts.Authorization.IMembershipService>(),
             Substitute.For<IUserService>(),
-            Substitute.For<IChannelDeletePreviewService>()
+            Substitute.For<IChannelDeletePreviewService>(),
+            Substitute.For<ICurrentUserService>()
         )
         {
             ControllerContext = new()

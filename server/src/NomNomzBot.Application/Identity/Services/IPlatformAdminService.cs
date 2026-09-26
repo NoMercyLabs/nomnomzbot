@@ -82,8 +82,10 @@ public interface IPlatformAdminService
     /// operator's — with the acting operator recorded only in the non-authoritative <c>act</c>/<c>act_name</c>
     /// claims. <paramref name="accessGrantId"/> must name an OPEN, time-boxed support-access grant
     /// (<see cref="BeginTenantAccessAsync"/>) belonging to the caller: minting is refused without one, and the
-    /// token's expiry is clamped to the grant's remaining time, never longer. SaaS-only — refused on
-    /// self-host. Justification is mandatory; the target user id AND the session both land on the audit row.
+    /// token's expiry is clamped to the grant's remaining time, never longer. The target must belong to the
+    /// grant's channel (owner or any member, see <see cref="ListTenantMembersAsync"/>) — otherwise
+    /// <c>TARGET_OUTSIDE_SESSION</c>. Deployment mode does not gate it. Justification is mandatory; the target
+    /// user id AND the session both land on the audit row.
     /// Requires <c>user:impersonate</c> (owner-only — not bundled into platform-support).
     /// </summary>
     Task<Result<ImpersonationTokenDto>> StartImpersonationAsync(
@@ -91,6 +93,19 @@ public interface IPlatformAdminService
         Guid targetUserId,
         Guid accessGrantId,
         string justification,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The people who belong to <paramref name="broadcasterId"/> — its owner, management members, community
+    /// members and seen viewers — searchable by name, for the act-as target picker. An act-as under a support
+    /// session scoped to this tenant may only target one of these people. Requires <c>tenant:read</c>.
+    /// </summary>
+    Task<Result<PagedList<TenantMemberDto>>> ListTenantMembersAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        string? search,
+        PaginationParams pagination,
         CancellationToken ct = default
     );
 
