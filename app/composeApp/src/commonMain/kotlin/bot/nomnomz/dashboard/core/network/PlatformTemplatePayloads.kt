@@ -20,6 +20,7 @@ import kotlinx.serialization.json.Json
 /** The installable template kinds — match the backend `PlatformContentKinds` values verbatim. */
 object PlatformTemplateKinds {
     const val EventResponse: String = "event_response"
+    const val Timer: String = "timer"
 }
 
 /** An `event_response` template (backend `EventResponseTemplatePayload`). */
@@ -41,6 +42,20 @@ data class EventResponseTemplatePayload(
     }
 }
 
+/** A `timer` template (backend `TimerTemplatePayload`). A timer with no messages runs a pipeline the installing
+ * channel picks at install time. */
+@Serializable
+data class TimerTemplatePayload(
+    val name: String = "",
+    val messages: List<String> = emptyList(),
+    val intervalMinutes: Int = 30,
+    val minChatActivity: Int = 0,
+    val fireOnce: Boolean = false,
+    val isEnabled: Boolean = true,
+) {
+    val runsPipelineOnly: Boolean get() = messages.isEmpty()
+}
+
 /** The one JSON configuration every template payload is read and written with. */
 val PlatformTemplateJson: Json = Json {
     ignoreUnknownKeys = true
@@ -53,3 +68,7 @@ fun PlatformTemplate.eventResponsePayload(): EventResponseTemplatePayload? =
     runCatching {
         PlatformTemplateJson.decodeFromString(EventResponseTemplatePayload.serializer(), payloadJson)
     }.getOrNull()
+
+/** Reads a `timer` payload; null when the JSON is not that shape. */
+fun PlatformTemplate.timerPayload(): TimerTemplatePayload? =
+    runCatching { PlatformTemplateJson.decodeFromString(TimerTemplatePayload.serializer(), payloadJson) }.getOrNull()

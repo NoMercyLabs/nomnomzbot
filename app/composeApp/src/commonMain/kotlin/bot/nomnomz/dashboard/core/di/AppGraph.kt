@@ -556,6 +556,7 @@ class AppGraph {
             timersApi = timersApi,
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
+            platformTemplatesApi = platformTemplatesApi,
             feedback = feedbackController,
             resourceLimits = billingApi::resourceLimits,
         )

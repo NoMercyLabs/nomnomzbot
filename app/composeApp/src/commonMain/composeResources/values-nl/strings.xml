@@ -3768,6 +3768,9 @@
     <string name="admin_content_kind_pipeline">Pijplijn</string>
     <string name="admin_content_kind_code_script">Codescript</string>
     <string name="admin_content_kind_event_response">Evenement reactie</string>
+    <string name="admin_content_kind_timer">Timer</string>
+    <string name="admin_content_timer_pipeline_only_hint">Zonder berichten voert deze timer alleen een pipeline uit. Het kanaal kiest een van zijn eigen pipelines bij het installeren van het sjabloon.</string>
+    <string name="timers_template_adds">Voegt een nieuwe timer toe met de naam %1$s. Heeft dit kanaal al een timer met die naam, dan krijgt de kopie een nummer.</string>
     <string name="admin_content_event_type_label">Evenement</string>
     <string name="admin_content_event_type_placeholder">Kies een evenement</string>
     <string name="admin_content_response_type_label">Hoe de bot reageert</string>
@@ -3781,6 +3784,8 @@
     <string name="platform_templates_installing">Bezig met installeren…</string>
     <string name="platform_templates_pick_pipeline">Uit te voeren pipeline</string>
     <string name="platform_templates_choose_pipeline">Kies een van je pipelines</string>
+    <string name="platform_templates_pick_pipeline_optional">Uit te voeren pipeline (optioneel)</string>
+    <string name="platform_templates_no_pipeline">Geen pipeline</string>
     <string name="platform_templates_cancel">Annuleren</string>
     <string name="platform_templates_installed">Sjabloon geïnstalleerd</string>
     <string name="event_responses_template_replaces">Vervangt de huidige reactie op %1$s in dit kanaal.</string>

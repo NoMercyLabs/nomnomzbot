@@ -40,6 +40,11 @@ import nomnomzbot.composeapp.generated.resources.feedback_timer_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_timer_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_timer_saved
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 
 // Proves the Timers page state machine the screen renders: resolve the active channel, then surface the real
 // scheduled timers — Empty when there are none, or an Error if either step fails — and the create / edit /
@@ -48,6 +53,68 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 // of this, so testing it proves the page shows real rows (no fabricated timers), mutates them, and degrades
 // cleanly.
 class TimersControllerTest {
+
+    @Test
+    fun templates_lists_the_timer_kind_for_the_active_channel() = runTest {
+        val templatesApi = FakePlatformTemplatesApi()
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = FakeTimersApi(emptyList()),
+                platformTemplatesApi = templatesApi,
+            )
+
+        val result: ApiResult<List<PlatformTemplate>> = controller.templates()
+
+        assertEquals("def-hydrate", (result as ApiResult.Ok).value.single().definitionId)
+        assertEquals("ch1" to "timer", templatesApi.lastListed)
+    }
+
+    @Test
+    fun installTemplate_installs_into_the_active_channel_then_reloads_and_confirms() = runTest {
+        val templatesApi = FakePlatformTemplatesApi()
+        val timersApi = FakeTimersApi(emptyList())
+        val feedback = RecordingFeedback()
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = timersApi,
+                feedback = feedback,
+                platformTemplatesApi = templatesApi,
+            )
+        controller.load()
+        val listsBefore: Int = timersApi.listCalls
+
+        val result: ApiResult<InstalledPlatformTemplate> = controller.installTemplate(HydrateTemplate, "pipe-3")
+
+        assertEquals("Hydrate 2", (result as ApiResult.Ok).value.name)
+        assertEquals(Triple("ch1", "def-hydrate", "pipe-3"), templatesApi.lastInstalled)
+        assertEquals(listsBefore + 1, timersApi.listCalls)
+        assertEquals(Res.string.platform_templates_installed, feedback.only.label)
+    }
+
+    @Test
+    fun installTemplate_failure_neither_reloads_nor_confirms() = runTest {
+        val templatesApi =
+            FakePlatformTemplatesApi(installResult = ApiResult.Failure(ApiError(429, "QUOTA_EXCEEDED", "Timer limit reached")))
+        val timersApi = FakeTimersApi(emptyList())
+        val feedback = RecordingFeedback()
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = timersApi,
+                feedback = feedback,
+                platformTemplatesApi = templatesApi,
+            )
+        controller.load()
+        val listsBefore: Int = timersApi.listCalls
+
+        val result: ApiResult<InstalledPlatformTemplate> = controller.installTemplate(HydrateTemplate, null)
+
+        assertEquals("Timer limit reached", (result as ApiResult.Failure).error.message)
+        assertEquals(listsBefore, timersApi.listCalls)
+        assertTrue(feedback.messages.isEmpty())
+    }
 
     @Test
     fun load_surfaces_the_channels_timers_on_success() = runTest {
@@ -382,8 +449,49 @@ private fun timersController(
     feedback: Feedback = NoOpFeedback,
     resourceLimits: suspend (String) -> ApiResult<List<bot.nomnomz.dashboard.core.network.ResourceUsage>> =
         { ApiResult.Ok(emptyList()) },
+    platformTemplatesApi: PlatformTemplatesApi = FakePlatformTemplatesApi(),
 ): TimersController =
-    TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi(), feedback, resourceLimits)
+    TimersController(
+        channelsApi,
+        timersApi,
+        pipelinesApi,
+        FakePickListsApi(),
+        platformTemplatesApi,
+        feedback,
+        resourceLimits,
+    )
+
+private class FakePlatformTemplatesApi(
+    private val installResult: ApiResult<InstalledPlatformTemplate> =
+        ApiResult.Ok(InstalledPlatformTemplate(kind = "timer", entityId = "t9", name = "Hydrate 2")),
+) : PlatformTemplatesApi {
+    var lastListed: Pair<String, String>? = null
+    var lastInstalled: Triple<String, String, String?>? = null
+
+    override suspend fun list(channelId: String, kind: String): ApiResult<List<PlatformTemplate>> {
+        lastListed = channelId to kind
+        return ApiResult.Ok(listOf(HydrateTemplate))
+    }
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: InstallPlatformTemplateBody,
+    ): ApiResult<InstalledPlatformTemplate> {
+        lastInstalled = Triple(channelId, definitionId, body.pipelineId)
+        return installResult
+    }
+}
+
+private val HydrateTemplate: PlatformTemplate =
+    PlatformTemplate(
+        definitionId = "def-hydrate",
+        kind = "timer",
+        key = "hydrate",
+        displayName = "Hydrate",
+        version = 2,
+        payloadJson = """{"name":"Hydrate","messages":["Drink water"],"intervalMinutes":45}""",
+    )
 
 private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
     // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the

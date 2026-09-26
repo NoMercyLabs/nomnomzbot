@@ -20,6 +20,8 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.CreateTimerRequest
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
 import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
@@ -28,6 +30,9 @@ import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.TimerDetail
@@ -42,6 +47,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_timer_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_timer_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_timer_saved
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import org.jetbrains.compose.resources.StringResource
 
 // The Timers page's state-holder: resolve the active channel, then load its real scheduled timers from the
@@ -57,6 +63,7 @@ class TimersController(
     private val timersApi: TimersApi,
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
+    private val platformTemplatesApi: PlatformTemplatesApi,
     private val feedback: Feedback = NoOpFeedback,
     // The channel's truthful resource-limit report (S-BUDGETS-b1's `GET .../billing/limits`), narrowed to just
     // the read this controller needs — a lambda default rather than the full `BillingApi` so this controller's
@@ -260,6 +267,29 @@ class TimersController(
     suspend fun deleteTimer(id: String) {
         val channelId: String = resolveChannelId() ?: return
         runWrite(success = Res.string.feedback_timer_deleted) { timersApi.delete(channelId, id) }
+    }
+
+    /** The published platform timer templates this channel can install. */
+    suspend fun templates(): ApiResult<List<PlatformTemplate>> =
+        when (val channel: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+            is ApiResult.Failure -> channel
+            is ApiResult.Ok -> platformTemplatesApi.list(channel.value.id, PlatformTemplateKinds.Timer)
+        }
+
+    /** Installs [template] as a new timer in this channel; reloads the list and confirms on success. */
+    suspend fun installTemplate(template: PlatformTemplate, pipelineId: String?): ApiResult<InstalledPlatformTemplate> {
+        val channel: ChannelSummary =
+            when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+                is ApiResult.Failure -> return result
+                is ApiResult.Ok -> result.value
+            }
+        val installed: ApiResult<InstalledPlatformTemplate> =
+            platformTemplatesApi.install(channel.id, template.definitionId, InstallPlatformTemplateBody(pipelineId))
+        if (installed is ApiResult.Ok) {
+            feedback.success(Res.string.platform_templates_installed)
+            load()
+        }
+        return installed
     }
 
     /**

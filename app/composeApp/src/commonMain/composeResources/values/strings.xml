@@ -3784,6 +3784,9 @@
     <string name="admin_content_kind_pipeline">Pipeline</string>
     <string name="admin_content_kind_code_script">Code script</string>
     <string name="admin_content_kind_event_response">Event response</string>
+    <string name="admin_content_kind_timer">Timer</string>
+    <string name="admin_content_timer_pipeline_only_hint">With no messages, this timer only runs a pipeline. The channel picks one of its own pipelines when it installs the template.</string>
+    <string name="timers_template_adds">Adds a new timer named %1$s. If this channel already has a timer with that name, the copy gets a number.</string>
     <string name="admin_content_event_type_label">Event</string>
     <string name="admin_content_event_type_placeholder">Choose an event</string>
     <string name="admin_content_response_type_label">How the bot responds</string>
@@ -3797,6 +3800,8 @@
     <string name="platform_templates_installing">Installing…</string>
     <string name="platform_templates_pick_pipeline">Pipeline to run</string>
     <string name="platform_templates_choose_pipeline">Choose one of your pipelines</string>
+    <string name="platform_templates_pick_pipeline_optional">Pipeline to run (optional)</string>
+    <string name="platform_templates_no_pipeline">No pipeline</string>
     <string name="platform_templates_cancel">Cancel</string>
     <string name="platform_templates_installed">Template installed</string>
     <string name="event_responses_template_replaces">Replaces the current response for %1$s on this channel.</string>

@@ -90,6 +90,11 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
+import nomnomzbot.composeapp.generated.resources.platform_templates_browse
+import nomnomzbot.composeapp.generated.resources.timers_template_adds
+import bot.nomnomz.dashboard.core.network.timerPayload
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
 import nomnomzbot.composeapp.generated.resources.timers_badge_once
 import nomnomzbot.composeapp.generated.resources.timers_delete
 import nomnomzbot.composeapp.generated.resources.timers_delete_action
@@ -172,6 +177,7 @@ fun TimersScreen(
 
     var editTarget: TimerEditTarget? by remember { mutableStateOf(null) }
     var deleteTarget: TimerSummary? by remember { mutableStateOf(null) }
+    var browsingTemplates: Boolean by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: TimersState = state) {
@@ -185,6 +191,7 @@ fun TimersScreen(
                     timersUsage = timersUsage,
                     manage = manage,
                     onNew = { editTarget = TimerEditTarget.New },
+                    onBrowseTemplates = { browsingTemplates = true },
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
                     onDelete = { timer -> deleteTarget = timer },
@@ -197,6 +204,7 @@ fun TimersScreen(
                     timersUsage = timersUsage,
                     manage = manage,
                     onNew = { editTarget = TimerEditTarget.New },
+                    onBrowseTemplates = { browsingTemplates = true },
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
                     onDelete = { timer -> deleteTarget = timer },
@@ -252,6 +260,23 @@ fun TimersScreen(
         )
     }
 
+    if (browsingTemplates) {
+        PlatformTemplatesDialog(
+            loadTemplates = { controller.templates() },
+            install = { template, pipelineId -> controller.installTemplate(template, pipelineId) },
+            onInstalled = { browsingTemplates = false },
+            onDismiss = { browsingTemplates = false },
+            consequence = { template ->
+                template.timerPayload()?.let { stringResource(Res.string.timers_template_adds, it.name) }
+            },
+            pipelines = pipelines,
+            pipelineUse = {
+                if (it.timerPayload()?.runsPipelineOnly == true) TemplatePipelineUse.Required
+                else TemplatePipelineUse.Optional
+            },
+        )
+    }
+
     deleteTarget?.let { timer ->
         ConfirmDialog(
             title = stringResource(Res.string.timers_delete_title),
@@ -281,6 +306,7 @@ private fun ManagedContent(
     timersUsage: ResourceUsage?,
     manage: ManageDecision,
     onNew: () -> Unit,
+    onBrowseTemplates: () -> Unit,
     onToggle: (TimerSummary) -> Unit,
     onEdit: (TimerSummary) -> Unit,
     onDelete: (TimerSummary) -> Unit,
@@ -306,12 +332,21 @@ private fun ManagedContent(
             // count. Both numbers come straight from the billing-limits report, never estimated client-side.
             LimitedCreateAction(usage = timersUsage) { limitAllowed ->
                 ManageGate(decision = manage) { manageAllowed ->
-                    Button(
-                        onClick = onNew,
-                        enabled = manageAllowed && limitAllowed,
-                        leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
-                    ) {
-                        Text(text = stringResource(Res.string.timers_new))
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        Button(
+                            onClick = onBrowseTemplates,
+                            variant = ButtonVariant.Outline,
+                            enabled = manageAllowed && limitAllowed,
+                        ) {
+                            Text(text = stringResource(Res.string.platform_templates_browse))
+                        }
+                        Button(
+                            onClick = onNew,
+                            enabled = manageAllowed && limitAllowed,
+                            leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+                        ) {
+                            Text(text = stringResource(Res.string.timers_new))
+                        }
                     }
                 }
             }

@@ -66,6 +66,8 @@ class RowLabelGuardTest {
     // expected to shrink; tracked so a genuinely new rendered site can never hide inside this bucket.
     private val rawFormSeedAssignmentBaseline: Map<String, Int> =
         mapOf(
+            // TimerTemplateFields.fromPayloadJson: the admin form re-reads a saved draft into its own editable name field.
+            "admin/ui/AdminContentTimerAuthoring.kt" to 1,
             "analytics/ui/AnalyticsScreen.kt" to 1,
             "chattriggers/state/ChatTriggersController.kt" to 1,
             "commands/state/CommandsController.kt" to 2,

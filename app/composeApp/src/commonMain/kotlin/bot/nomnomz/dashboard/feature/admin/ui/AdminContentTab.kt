@@ -101,6 +101,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_kind_command
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_event_response
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_pipeline
+import nomnomzbot.composeapp.generated.resources.admin_content_kind_timer
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_widget
 import nomnomzbot.composeapp.generated.resources.admin_content_list_title
 import nomnomzbot.composeapp.generated.resources.admin_content_name_label
@@ -353,10 +354,12 @@ private fun CreateDefinitionDialog(
     var pipelinePayloadJson: String by remember { mutableStateOf("") }
     var codeScriptPayloadJson: String by remember { mutableStateOf("") }
     var eventResponsePayload: EventResponseTemplatePayload by remember { mutableStateOf(EventResponseTemplatePayload()) }
+    var timerFields: TimerTemplateFields by remember { mutableStateOf(TimerTemplateFields()) }
 
     val payloadValid: Boolean =
         when (kind) {
             PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.isComplete()
+            PlatformContentAuthoringKinds.Timer -> timerFields.isComplete()
             PlatformContentAuthoringKinds.Widget -> widgetFields.sourceCode.isNotBlank()
             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson.isNotBlank()
             PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson.isNotBlank()
@@ -373,6 +376,7 @@ private fun CreateDefinitionDialog(
         val pipelineLabel: String = kindPipelineLabel()
         val codeScriptLabel: String = kindCodeScriptLabel()
         val eventResponseLabel: String = kindEventResponseLabel()
+        val timerLabel: String = kindTimerLabel()
         RadioGroup(
             options = PlatformContentAuthoringKinds.All,
             selected = kind,
@@ -383,6 +387,7 @@ private fun CreateDefinitionDialog(
                     PlatformContentAuthoringKinds.Pipeline -> pipelineLabel
                     PlatformContentAuthoringKinds.CodeScript -> codeScriptLabel
                     PlatformContentAuthoringKinds.EventResponse -> eventResponseLabel
+                    PlatformContentAuthoringKinds.Timer -> timerLabel
                     else -> commandLabel
                 }
             },
@@ -419,6 +424,8 @@ private fun CreateDefinitionDialog(
                     eventTypes = eventResponseTypes,
                     onPayloadChange = { eventResponsePayload = it },
                 )
+            PlatformContentAuthoringKinds.Timer ->
+                TimerPayloadEditor(fields = timerFields, onFieldsChange = { timerFields = it })
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -435,6 +442,7 @@ private fun CreateDefinitionDialog(
                     val resolvedPayload: String =
                         when (kind) {
                             PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.toPayloadJson()
+                            PlatformContentAuthoringKinds.Timer -> timerFields.toPayloadJson()
                             PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
                             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
                             PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson
@@ -465,6 +473,9 @@ private fun kindCodeScriptLabel(): String = stringResource(Res.string.admin_cont
 @Composable
 private fun kindEventResponseLabel(): String = stringResource(Res.string.admin_content_kind_event_response)
 
+@Composable
+private fun kindTimerLabel(): String = stringResource(Res.string.admin_content_kind_timer)
+
 /** Resolves [kind]'s display label using the SAME per-kind strings the create/draft dialogs' radio group
  * uses — the single source of truth for "the actual kind" a definitions-list row or header names (fixes the
  * definitions-list header that used to always read "Command" regardless of the rows actually shown). An
@@ -478,6 +489,7 @@ private fun kindLabel(kind: String): String =
         PlatformContentAuthoringKinds.CodeScript -> kindCodeScriptLabel()
         PlatformContentAuthoringKinds.Command -> kindCommandLabel()
         PlatformContentAuthoringKinds.EventResponse -> kindEventResponseLabel()
+        PlatformContentAuthoringKinds.Timer -> kindTimerLabel()
         else -> kind
     }
 
@@ -669,6 +681,10 @@ private fun DraftVersionDialog(
     val isPipeline: Boolean = kind == PlatformContentAuthoringKinds.Pipeline
     val isCodeScript: Boolean = kind == PlatformContentAuthoringKinds.CodeScript
     val isEventResponse: Boolean = kind == PlatformContentAuthoringKinds.EventResponse
+    val isTimer: Boolean = kind == PlatformContentAuthoringKinds.Timer
+    var timerFields: TimerTemplateFields by remember {
+        mutableStateOf(if (isTimer) TimerTemplateFields.fromPayloadJson(initialPayload) else TimerTemplateFields())
+    }
     var eventResponsePayload: EventResponseTemplatePayload by remember {
         mutableStateOf(if (isEventResponse) eventResponsePayloadFrom(initialPayload) else EventResponseTemplatePayload())
     }
@@ -684,6 +700,7 @@ private fun DraftVersionDialog(
             isPipeline -> pipelinePayloadJson.isNotBlank()
             isCodeScript -> codeScriptPayloadJson.isNotBlank()
             isEventResponse -> eventResponsePayload.isComplete()
+            isTimer -> timerFields.isComplete()
             else -> payloadJson.isNotBlank()
         }
 
@@ -701,6 +718,7 @@ private fun DraftVersionDialog(
                     eventTypes = eventResponseTypes,
                     onPayloadChange = { eventResponsePayload = it },
                 )
+            isTimer -> TimerPayloadEditor(fields = timerFields, onFieldsChange = { timerFields = it })
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -720,6 +738,7 @@ private fun DraftVersionDialog(
                             isPipeline -> pipelinePayloadJson
                             isCodeScript -> codeScriptPayloadJson
                             isEventResponse -> eventResponsePayload.toPayloadJson()
+                            isTimer -> timerFields.toPayloadJson()
                             else -> payloadJson
                         }
                     onDraft(resolvedPayload)

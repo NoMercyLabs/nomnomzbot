@@ -52,15 +52,29 @@ import nomnomzbot.composeapp.generated.resources.platform_templates_empty
 import nomnomzbot.composeapp.generated.resources.platform_templates_install
 import nomnomzbot.composeapp.generated.resources.platform_templates_installing
 import nomnomzbot.composeapp.generated.resources.platform_templates_loading
+import nomnomzbot.composeapp.generated.resources.platform_templates_no_pipeline
 import nomnomzbot.composeapp.generated.resources.platform_templates_pick_pipeline
+import nomnomzbot.composeapp.generated.resources.platform_templates_pick_pipeline_optional
 import nomnomzbot.composeapp.generated.resources.platform_templates_title
 import org.jetbrains.compose.resources.stringResource
+
+/** Whether a template binds one of the installing channel's pipelines. */
+enum class TemplatePipelineUse {
+    /** The template never runs a pipeline. */
+    None,
+
+    /** The channel may pick a pipeline to run, or install without one. */
+    Optional,
+
+    /** The template only works with a pipeline; install stays disabled until one is picked. */
+    Required,
+}
 
 /**
  * @param loadTemplates the published templates of the page's kind, for the page's channel.
  * @param install installs [PlatformTemplate] into the page's channel, binding the chosen pipeline id if any.
  * @param consequence what installing this template changes in the channel, shown before install enables.
- * @param needsPipeline whether this template runs a pipeline the channel must pick from [pipelines].
+ * @param pipelineUse whether this template binds one of [pipelines], and whether it must.
  */
 @Composable
 fun PlatformTemplatesDialog(
@@ -70,7 +84,7 @@ fun PlatformTemplatesDialog(
     onDismiss: () -> Unit,
     consequence: @Composable (PlatformTemplate) -> String?,
     pipelines: List<PipelineSummary> = emptyList(),
-    needsPipeline: (PlatformTemplate) -> Boolean = { false },
+    pipelineUse: (PlatformTemplate) -> TemplatePipelineUse = { TemplatePipelineUse.None },
 ) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
@@ -98,7 +112,9 @@ fun PlatformTemplatesDialog(
     }
 
     val current: PlatformTemplate? = selected
-    val pipelineMissing: Boolean = current != null && needsPipeline(current) && pipelineId == null
+    val use: TemplatePipelineUse = current?.let(pipelineUse) ?: TemplatePipelineUse.None
+    val pipelineMissing: Boolean = use == TemplatePipelineUse.Required && pipelineId == null
+    val noPipelineLabel: String = stringResource(Res.string.platform_templates_no_pipeline)
 
     Dialog(onDismissRequest = onDismiss) {
         DialogTitle(text = stringResource(Res.string.platform_templates_title))
@@ -139,13 +155,18 @@ fun PlatformTemplatesDialog(
                 consequence(current)?.let {
                     Text(text = it, style = typography.sm, color = tokens.mutedForeground)
                 }
-                if (needsPipeline(current)) {
+                if (use != TemplatePipelineUse.None) {
+                    // Optional binding offers "No pipeline" as the first choice; a required one does not.
+                    val choices: List<PipelineSummary?> =
+                        if (use == TemplatePipelineUse.Optional) listOf(null) + pipelines else pipelines
                     Select(
                         value = pipelines.firstOrNull { it.id == pipelineId },
-                        options = pipelines,
-                        onValueChange = { pipelineId = it.id },
-                        label = stringResource(Res.string.platform_templates_pick_pipeline),
-                        optionLabel = { it.name },
+                        options = choices,
+                        onValueChange = { pipelineId = it?.id },
+                        label =
+                            if (use == TemplatePipelineUse.Required) stringResource(Res.string.platform_templates_pick_pipeline)
+                            else stringResource(Res.string.platform_templates_pick_pipeline_optional),
+                        optionLabel = { it?.name ?: noPipelineLabel },
                         expanded = pipelineMenuOpen,
                         onExpandedChange = { pipelineMenuOpen = it },
                         placeholder = stringResource(Res.string.platform_templates_choose_pipeline),

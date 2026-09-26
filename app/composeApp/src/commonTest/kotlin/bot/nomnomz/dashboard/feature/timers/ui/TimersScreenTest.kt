@@ -83,6 +83,7 @@ class TimersScreenTest {
                     timersApi = FakeTimersApi(listOf(bound), detail),
                     pipelinesApi = pipelinesApi,
                     pickListsApi = FakePickListsApi(),
+                    platformTemplatesApi = NoTemplatesApi,
                 )
             runBlocking { controller.load() }
 
@@ -133,6 +134,7 @@ class TimersScreenTest {
                 timersApi = FakeTimersApi(listOf(bound), detail),
                 pipelinesApi = RecordingPipelinesApi(),
                 pickListsApi = FakePickListsApi(),
+                platformTemplatesApi = NoTemplatesApi,
             )
         runBlocking { controller.load() }
 
@@ -243,4 +245,17 @@ private class RecordingPipelinesApi : PipelinesApi {
         lastTestRunChannelId = channelId
         return ApiResult.Ok(TestRunResult(success = true))
     }
+}
+
+private object NoTemplatesApi : bot.nomnomz.dashboard.core.network.PlatformTemplatesApi {
+    override suspend fun list(
+        channelId: String,
+        kind: String,
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.PlatformTemplate>> = ApiResult.Ok(emptyList())
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate> = error("not used")
 }

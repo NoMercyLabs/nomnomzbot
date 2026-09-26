@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.eventResponsePayload
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
 import nomnomzbot.composeapp.generated.resources.event_responses_template_replaces
 import nomnomzbot.composeapp.generated.resources.platform_templates_browse
 import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
@@ -168,7 +169,10 @@ fun EventResponsesScreen(
                 }
             },
             pipelines = ready?.pipelines ?: emptyList(),
-            needsPipeline = { it.eventResponsePayload()?.runsPipeline == true },
+            pipelineUse = {
+                if (it.eventResponsePayload()?.runsPipeline == true) TemplatePipelineUse.Required
+                else TemplatePipelineUse.None
+            },
         )
     }
 
