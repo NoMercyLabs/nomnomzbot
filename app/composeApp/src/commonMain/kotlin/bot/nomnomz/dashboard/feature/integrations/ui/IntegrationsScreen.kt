@@ -186,7 +186,7 @@ private fun ConnectModalProvider.displayName(): String =
 // dialog (S-OWN07): unlike the branded ConnectModal (Spotify/YouTube/Discord only, pre-checked), this covers
 // EVERY provider that runs the generic connect flow — Kick and Kick bot included — since it reacts to the
 // backend's PROVIDER_NOT_CONFIGURED result rather than a per-provider pre-check.
-private fun providerDisplayName(provider: String): String =
+internal fun providerDisplayName(provider: String): String =
     when (provider) {
         SPOTIFY -> "Spotify"
         YOUTUBE -> "YouTube"

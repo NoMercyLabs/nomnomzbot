@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Action-required inbox (plan item A0): the text for every backend TitleKey / MessageKey.
+  Keys match ActionRequiredItemDto.TitleKey / MessageKey; the *_one / *_many pairs are picked by count.
+-->
+<resources>
+    <string name="attention_surface_label_one">1 punt vraagt je aandacht</string>
+    <string name="attention_surface_label_many">%1$d punten vragen je aandacht</string>
+    <string name="attention_group_label">%1$s · %2$d</string>
+    <string name="attention_surface_title">Vraagt je aandacht</string>
+    <string name="attention_surface_open">Openen</string>
+    <string name="attention_integration_reauth_title">%1$s moet opnieuw worden gekoppeld</string>
+    <string name="attention_integration_expired_message">De toegang is verlopen. Koppel opnieuw om de integratie te herstellen.</string>
+    <string name="attention_integration_refresh_failed_message">Het vernieuwen is %1$s keer achter elkaar mislukt. Koppel opnieuw om de integratie te herstellen.</string>
+    <string name="attention_integration_unusable_message">De opgeslagen aanmelding is niet meer bruikbaar. Koppel opnieuw om de integratie te herstellen.</string>
+    <string name="attention_held_title_one">Een chatbericht wacht op beoordeling</string>
+    <string name="attention_held_title_many">%1$d chatberichten wachten op beoordeling</string>
+    <string name="attention_held_single_from_user_message">AutoMod heeft een bericht van %1$s tegengehouden (%2$s).</string>
+    <string name="attention_held_single_message">AutoMod heeft een bericht tegengehouden (%1$s).</string>
+    <string name="attention_held_many_from_user_message">AutoMod heeft %1$s berichten van %2$s tegengehouden.</string>
+    <string name="attention_held_many_message">AutoMod heeft %1$s berichten tegengehouden.</string>
+    <string name="attention_held_category_unknown">gemarkeerd</string>
+    <string name="attention_unmanaged_rewards_title_one">1 kanaalpuntenbeloning wordt niet door de bot beheerd</string>
+    <string name="attention_unmanaged_rewards_title_many">%1$d kanaalpuntenbeloningen worden niet door de bot beheerd</string>
+    <string name="attention_unmanaged_rewards_message">Ze zijn elders gemaakt, dus je kunt ze hier niet bewerken. Neem ze over op de pagina Beloningen.</string>
+    <string name="attention_unmanaged_rewards_pending_message">Ze zijn elders gemaakt. %1$s ervan wachten tot je hun titel op Twitch vrijmaakt.</string>
+    <string name="attention_scope_missing_title">Twitch-toestemming ontbreekt: %1$s</string>
+    <string name="attention_scope_missing_topics_message">Twitch weigerde deze gebeurtenisfeeds: %1$s. Geef de toestemming om ze terug te krijgen.</string>
+    <string name="attention_scope_missing_message">Een botfunctie werkt niet zonder deze toestemming. Geef hem op de pagina Integraties.</string>
+    <string name="attention_eventsub_unauthorized_title">Twitch weigerde gebeurtenisfeeds</string>
+    <string name="attention_eventsub_unauthorized_message">Twitch accepteert je aanmelding niet meer voor: %1$s. Koppel Twitch opnieuw om ze terug te krijgen.</string>
+    <string name="attention_widget_build_failed_title">Widget bouwen mislukt: %1$s</string>
+    <string name="attention_widget_build_failed_message">Versie %1$s is niet gebouwd. Je stream toont nog de laatste werkende versie.</string>
+    <string name="attention_widget_build_failed_nothing_live_message">Versie %1$s is niet gebouwd, dus deze widget toont niets op je stream.</string>
+    <string name="attention_webhook_disabled_title">Webhook uitgeschakeld: %1$s</string>
+    <string name="attention_webhook_disabled_message">Hij is %1$s keer achter elkaar mislukt. Herstel de ontvanger en zet de webhook daarna weer aan.</string>
+    <string name="attention_webhook_failing_title">Webhookleveringen mislukken: %1$s</string>
+    <string name="attention_webhook_failing_message">De laatste %1$s leveringen zijn mislukt. Controleer de ontvanger.</string>
+    <string name="attention_song_lost_title_one">Een verzoeknummer is verloren gegaan</string>
+    <string name="attention_song_lost_title_many">%1$d verzoeknummers zijn verloren gegaan</string>
+    <string name="attention_song_lost_message">“%1$s” voor %2$s verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>
+    <string name="attention_song_lost_unnamed_message">Een verzoek verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>
+    <string name="attention_unknown_title">Er vraagt iets je aandacht</string>
+</resources>

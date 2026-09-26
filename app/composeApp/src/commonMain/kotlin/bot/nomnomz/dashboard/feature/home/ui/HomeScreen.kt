@@ -85,6 +85,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
+import bot.nomnomz.dashboard.feature.attention.state.attentionRouteOf
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.feature.home.state.FirstRunStep
 import bot.nomnomz.dashboard.feature.home.state.FirstRunStepKind
@@ -98,7 +99,6 @@ import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
 import bot.nomnomz.dashboard.feature.home.state.HomeController
-import bot.nomnomz.dashboard.feature.home.state.attentionRouteFor
 import bot.nomnomz.dashboard.feature.home.state.HomeState
 import bot.nomnomz.dashboard.feature.home.state.ReplayStatus
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
@@ -281,13 +281,13 @@ fun HomeScreen(
                     onSearchCategories = controller::searchCategories,
                     onSearchRaidTargets = controller::searchRaidTargets,
                     onReplay = { eventId -> scope.launch { controller.replay(eventId) } },
-                    // Review: a held-message group opens the real review dialog; anything else navigates by
-                    // its KIND's ShellRoute mapping (the wire's deepLinkRoute — a URL path — stays unread).
+                    // Review: a held-message group opens the real review dialog in place; anything else goes to
+                    // the page the backend names in its deep link (the route slug of where it is fixed).
                     onReviewAttention = { item ->
                         if (item.kind == "held_chat_message") {
                             scope.launch { controller.openHeldReview(item) }
                         } else {
-                            attentionRouteFor(item.kind)?.let(onNavigate)
+                            attentionRouteOf(item)?.let { route -> onNavigate(route.name) }
                         }
                     },
                     onDismissAttention = { item -> scope.launch { controller.dismissAttentionItem(item) } },
@@ -391,13 +391,9 @@ private fun ReadyContent(
             },
         )
 
-        StatTilesRow(stats = stats)
-        LiveBanner(stats = stats)
-        PlatformsRow(platforms = stats.platformsLive)
-
-        // The actionable attention inbox (S-OWN22 Task 4) — between the stream-status cluster and the
-        // first-run checklist, the owner's placement ask. Absent (not a fake "all good" banner) when nothing
-        // is wrong, per house rule: never show unenforced/fabricated positive state.
+        // The action-required inbox (plan item A0) sits first, directly under the header: every condition the
+        // streamer must fix, grouped by severity, is the first thing the eye lands on. Absent (not a fake
+        // "all good" banner) when nothing is wrong — never show fabricated positive state.
         if (actionRequired.isNotEmpty()) {
             AttentionInbox(
                 items = actionRequired,
@@ -405,6 +401,10 @@ private fun ReadyContent(
                 onDismiss = onDismissAttention,
             )
         }
+
+        StatTilesRow(stats = stats)
+        LiveBanner(stats = stats)
+        PlatformsRow(platforms = stats.platformsLive)
 
         // Suggested next steps for a channel with no commands, no pipelines, and no connected integration yet —
         // absent (not a stale "still onboarding" banner) the moment any of those becomes real, per house rule:

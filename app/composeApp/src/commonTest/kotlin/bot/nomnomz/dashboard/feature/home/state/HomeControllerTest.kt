@@ -334,8 +334,8 @@ class HomeControllerTest {
                         id = "held-user:9001",
                         kind = "held_chat_message",
                         severity = "warning",
-                        title = "held",
-                        message = "held",
+                        titleKey = "attention_held_title",
+                        messageKey = "attention_held_many_message",
                         deepLinkRoute = "/moderation/queue",
                     )
                 )
@@ -528,8 +528,8 @@ class HomeControllerTest {
         val item = ActionRequiredItem(
             kind = "integration_token_dead",
             severity = "critical",
-            title = "Spotify token expired",
-            message = "Reconnect Spotify to keep song requests working.",
+            titleKey = "attention_integration_reauth_title",
+            messageKey = "attention_integration_expired_message",
             detectedAt = "2026-09-01T12:00:00Z",
             deepLinkRoute = "Integrations",
         )
@@ -552,7 +552,7 @@ class HomeControllerTest {
         assertTrue(state is HomeState.Ready)
         val actionRequired: List<ActionRequiredItem> = (state as HomeState.Ready).actionRequired
         assertEquals(1, actionRequired.size)
-        assertEquals("Spotify token expired", actionRequired.first().title)
+        assertEquals("attention_integration_reauth_title", actionRequired.first().titleKey)
         assertEquals("critical", actionRequired.first().severity)
         assertEquals("Integrations", actionRequired.first().deepLinkRoute)
     }
@@ -923,20 +923,6 @@ class HomeControllerTest {
         assertEquals(listOf<Any>("below the dismiss floor"), feedback.only.formatArgs)
     }
 
-    @Test
-    fun attention_severity_maps_three_ways_not_binarised() {
-        assertEquals(AttentionSeverity.Critical, attentionSeverityFor("critical"))
-        assertEquals(AttentionSeverity.Warning, attentionSeverityFor("warning"))
-        assertEquals(AttentionSeverity.Info, attentionSeverityFor("info"))
-    }
-
-    @Test
-    fun attention_kind_maps_to_the_shell_route_names() {
-        assertEquals("Moderation", attentionRouteFor("held_chat_message"))
-        assertEquals("Integrations", attentionRouteFor("integration_token_dead"))
-        assertNull(attentionRouteFor("some_future_kind"))
-    }
-
     // ─── Attention-inbox test helpers ─────────────────────────────────────────
 
     private fun attentionController(
@@ -965,8 +951,8 @@ class HomeControllerTest {
         ActionRequiredItem(
             kind = "held_chat_message",
             severity = "warning",
-            title = "$count messages from spammy held for review",
-            message = "AutoMod is holding messages from spammy.",
+            titleKey = "attention_held_title",
+            messageKey = "attention_held_many_message",
             detectedAt = "2026-09-02T10:00:00Z",
             deepLinkRoute = "/moderation/queue",
             id = id,
@@ -980,8 +966,8 @@ class HomeControllerTest {
         ActionRequiredItem(
             kind = "integration_token_dead",
             severity = "critical",
-            title = "Spotify token expired",
-            message = "Reconnect Spotify to keep song requests working.",
+            titleKey = "attention_integration_reauth_title",
+            messageKey = "attention_integration_expired_message",
             detectedAt = "2026-09-01T12:00:00Z",
             deepLinkRoute = "/settings/integrations",
             id = id,

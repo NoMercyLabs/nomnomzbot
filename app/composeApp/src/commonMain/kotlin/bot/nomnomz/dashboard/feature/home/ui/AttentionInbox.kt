@@ -10,14 +10,12 @@
 
 package bot.nomnomz.dashboard.feature.home.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,13 +24,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
-import bot.nomnomz.dashboard.core.designsystem.component.Badge
-import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -43,7 +38,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
-import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -51,19 +45,13 @@ import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.time.Elapsed
 import bot.nomnomz.dashboard.core.time.RelativeTime
-import bot.nomnomz.dashboard.feature.home.state.AttentionSeverity
+import bot.nomnomz.dashboard.feature.attention.ui.AttentionGroupedList
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
-import bot.nomnomz.dashboard.feature.home.state.attentionSeverityFor
 import bot.nomnomz.dashboard.feature.moderation.ui.TrustHeatBadges
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionForAction
 import kotlinx.datetime.Clock
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.home_action_required_section
-import nomnomzbot.composeapp.generated.resources.home_action_required_severity_critical
-import nomnomzbot.composeapp.generated.resources.home_action_required_severity_info
-import nomnomzbot.composeapp.generated.resources.home_action_required_severity_warning
-import nomnomzbot.composeapp.generated.resources.home_attention_count_badge
-import nomnomzbot.composeapp.generated.resources.home_attention_detected_ago
 import nomnomzbot.composeapp.generated.resources.home_attention_dismiss
 import nomnomzbot.composeapp.generated.resources.home_attention_review
 import nomnomzbot.composeapp.generated.resources.home_held_allow
@@ -92,11 +80,10 @@ import nomnomzbot.composeapp.generated.resources.home_held_timeout_preset_60s
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-// The actionable attention inbox (S-OWN22 Task 4) — replaces the old ActionRequiredCard/ActionRequiredRow.
-// Every row is a real, already-detected condition (held AutoMod messages grouped per user, dead integration
-// tokens) with real actions: Review (held → the review dialog; token → the Integrations page) and a persisted
-// Dismiss. Severity renders three-way (critical/warning/info) — the old card binarised everything non-critical
-// into "Warning". Rendered only when [items] is non-empty; the caller skips the whole card on an empty list.
+// The Home action-required inbox (S-OWN22 Task 4, plan item A0): every real, already-detected condition,
+// grouped by severity (critical first) in the shared [AttentionGroupedList]. Each row carries Review (a held
+// message opens the review dialog in place; anything else goes to the page where it is fixed) and a persisted
+// Dismiss. Rendered only when [items] is non-empty; the caller skips the whole card on an empty list.
 @Composable
 fun AttentionInbox(
     items: List<ActionRequiredItem>,
@@ -114,105 +101,27 @@ fun AttentionInbox(
         ) {
             Text(
                 text = stringResource(Res.string.home_action_required_section),
-                style = typography.sm,
-                color = tokens.mutedForeground,
+                style = typography.base,
+                fontWeight = FontWeight.SemiBold,
+                color = tokens.cardForeground,
             )
-            items.forEach { item ->
-                AttentionRow(item = item, onReview = { onReview(item) }, onDismiss = { onDismiss(item) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun AttentionRow(
-    item: ActionRequiredItem,
-    onReview: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val severity: AttentionSeverity = attentionSeverityFor(item.severity)
-    val severityVariant: BadgeVariant =
-        when (severity) {
-            AttentionSeverity.Critical -> BadgeVariant.Destructive
-            AttentionSeverity.Warning -> BadgeVariant.Default
-            AttentionSeverity.Info -> BadgeVariant.Secondary
-        }
-    val severityLabel: StringResource =
-        when (severity) {
-            AttentionSeverity.Critical -> Res.string.home_action_required_severity_critical
-            AttentionSeverity.Warning -> Res.string.home_action_required_severity_warning
-            AttentionSeverity.Info -> Res.string.home_action_required_severity_info
-        }
-    val now = remember { Clock.System.now() }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .clickable(onClick = onReview)
-            .padding(vertical = spacing.s2, horizontal = spacing.s1),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Badge(variant = severityVariant) {
-            Text(text = stringResource(severityLabel).uppercase(), style = typography.xs)
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    // Routed through resolveRowLabel (RowLabelGuardTest): a row whose backend title ever
-                    // comes back blank must still render an actionable name, never an empty label.
-                    text = resolveRowLabel(
-                        primary = item.title,
-                        secondary = item.message,
-                        typeLabel = item.kind.ifBlank { "Notice" },
-                        discriminatorSource = item.id,
-                    ),
-                    style = typography.sm,
-                    fontWeight = FontWeight.SemiBold,
-                    color = tokens.cardForeground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (item.count > 1) {
-                    Badge(variant = BadgeVariant.Outline) {
-                        Text(
-                            text = stringResource(Res.string.home_attention_count_badge, item.count),
-                            style = typography.xs,
+            AttentionGroupedList(
+                items = items,
+                onOpen = onReview,
+                trailing = { item ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { onReview(item) }) {
+                            Text(text = stringResource(Res.string.home_attention_review))
+                        }
+                        GlyphButton(
+                            icon = CloseGlyph,
+                            label = stringResource(Res.string.home_attention_dismiss),
+                            onClick = { onDismiss(item) },
                         )
                     }
-                }
-            }
-            Text(
-                text = item.message,
-                style = typography.xs,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                },
             )
-            RelativeTime.minutesSince(item.detectedAt, now)?.let { minutesAgo ->
-                Text(
-                    text = stringResource(Res.string.home_attention_detected_ago, minutesAgo.coerceAtLeast(0).toInt()),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
-                )
-            }
         }
-        TextButton(onClick = onReview) {
-            Text(text = stringResource(Res.string.home_attention_review))
-        }
-        GlyphButton(
-            icon = CloseGlyph,
-            label = stringResource(Res.string.home_attention_dismiss),
-            onClick = onDismiss,
-        )
     }
 }
 

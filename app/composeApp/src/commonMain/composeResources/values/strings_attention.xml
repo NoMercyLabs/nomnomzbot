@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Action-required inbox (plan item A0): the text for every backend TitleKey / MessageKey.
+  Keys match ActionRequiredItemDto.TitleKey / MessageKey; the *_one / *_many pairs are picked by count.
+-->
+<resources>
+    <string name="attention_surface_label_one">1 item needs your attention</string>
+    <string name="attention_surface_label_many">%1$d items need your attention</string>
+    <string name="attention_group_label">%1$s · %2$d</string>
+    <string name="attention_surface_title">Needs your attention</string>
+    <string name="attention_surface_open">Open</string>
+    <string name="attention_integration_reauth_title">%1$s needs to be reconnected</string>
+    <string name="attention_integration_expired_message">Its access has expired. Reconnect it to restore the integration.</string>
+    <string name="attention_integration_refresh_failed_message">Refreshing it failed %1$s times in a row. Reconnect it to restore the integration.</string>
+    <string name="attention_integration_unusable_message">The saved sign-in can no longer be used. Reconnect it to restore the integration.</string>
+    <string name="attention_held_title_one">A chat message is held for review</string>
+    <string name="attention_held_title_many">%1$d chat messages are held for review</string>
+    <string name="attention_held_single_from_user_message">AutoMod held a message from %1$s (%2$s).</string>
+    <string name="attention_held_single_message">AutoMod held a message (%1$s).</string>
+    <string name="attention_held_many_from_user_message">AutoMod held %1$s messages from %2$s.</string>
+    <string name="attention_held_many_message">AutoMod held %1$s messages.</string>
+    <string name="attention_held_category_unknown">flagged</string>
+    <string name="attention_unmanaged_rewards_title_one">1 channel-point reward is not managed by the bot</string>
+    <string name="attention_unmanaged_rewards_title_many">%1$d channel-point rewards are not managed by the bot</string>
+    <string name="attention_unmanaged_rewards_message">They were made elsewhere, so you cannot edit them here. Take control of them on the Rewards page.</string>
+    <string name="attention_unmanaged_rewards_pending_message">They were made elsewhere. %1$s of them wait for you to free up their title on Twitch.</string>
+    <string name="attention_scope_missing_title">Twitch permission missing: %1$s</string>
+    <string name="attention_scope_missing_topics_message">Twitch refused these event feeds: %1$s. Grant the permission to get them back.</string>
+    <string name="attention_scope_missing_message">A bot feature cannot work without this permission. Grant it on the Integrations page.</string>
+    <string name="attention_eventsub_unauthorized_title">Twitch refused event feeds</string>
+    <string name="attention_eventsub_unauthorized_message">Twitch no longer accepts your sign-in for: %1$s. Reconnect Twitch to get them back.</string>
+    <string name="attention_widget_build_failed_title">Widget build failed: %1$s</string>
+    <string name="attention_widget_build_failed_message">Version %1$s did not build. Your stream still shows the last working version.</string>
+    <string name="attention_widget_build_failed_nothing_live_message">Version %1$s did not build, so this widget shows nothing on stream.</string>
+    <string name="attention_webhook_disabled_title">Webhook turned off: %1$s</string>
+    <string name="attention_webhook_disabled_message">It failed %1$s times in a row. Fix the receiver, then turn the webhook on again.</string>
+    <string name="attention_webhook_failing_title">Webhook deliveries fail: %1$s</string>
+    <string name="attention_webhook_failing_message">The last %1$s deliveries failed. Check the receiver.</string>
+    <string name="attention_song_lost_title_one">A song request was lost</string>
+    <string name="attention_song_lost_title_many">%1$d song requests were lost</string>
+    <string name="attention_song_lost_message">“%1$s” for %2$s left the player queue before it played. Any cost was refunded.</string>
+    <string name="attention_song_lost_unnamed_message">A request left the player queue before it played. Any cost was refunded.</string>
+    <string name="attention_unknown_title">Something needs your attention</string>
+</resources>

@@ -86,6 +86,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
+import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -138,6 +139,7 @@ import bot.nomnomz.dashboard.feature.webhooks.ui.WebhooksScreen
 import bot.nomnomz.dashboard.feature.federation.ui.FederationScreen
 import bot.nomnomz.dashboard.feature.customevents.ui.CustomEventsScreen
 import bot.nomnomz.dashboard.feature.admin.ui.AdminScreen
+import bot.nomnomz.dashboard.feature.attention.ui.AttentionSurface
 import bot.nomnomz.dashboard.feature.codescripts.ui.CodeScriptsScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
@@ -320,6 +322,7 @@ fun ShellScreen(
     }
 
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
 
     // The pages/routes this caller may actually OPEN on the active channel: those their role floor OR a held read
     // key surfaces (frontend-ia.md §7), plus the admin console when they're a platform admin. Drives the sidebar,
@@ -383,6 +386,21 @@ fun ShellScreen(
         }
     }
 
+    // The action-required attention surface (plan item A0): the active channel's items, loaded when the channel
+    // resolves and refetched only when the backend pushes ConfigChanged("notifications"). Rendered in the frame
+    // (sidebar on desktop, a strip under the top bar on compact) so it shows on every page.
+    val attentionItems: List<ActionRequiredItem> by
+        graph.attentionController.items.collectAsStateWithLifecycle()
+    LaunchedEffect(activeChannelId) { activeChannelId?.let { graph.attentionController.load(it) } }
+    LaunchedEffect(hubEvents) { graph.attentionController.subscribeToHub(hubEvents) }
+    val attentionSurface: @Composable (Modifier) -> Unit = { surfaceModifier ->
+        AttentionSurface(
+            items = attentionItems,
+            onNavigate = { route -> requestedRoute = route },
+            modifier = surfaceModifier,
+        )
+    }
+
     // A dead Twitch token is recovered IN PLACE — never a logout (never-logout-for-scope-or-schema-changes).
     // The profile menu's "Reconnect Twitch" AND the auto-prompt on load both run [ConnectController.reconnect] —
     // the REDIRECT re-auth for the broadcaster (device-code only on the secret-less fallback); the [ReconnectBanner]
@@ -425,6 +443,9 @@ fun ShellScreen(
                     channelName = user?.displayName,
                     onMenu = { drawerOpen = true },
                     hubState = hubConnectionState,
+                )
+                attentionSurface(
+                    Modifier.fillMaxWidth().padding(horizontal = spacing.s6, vertical = spacing.s2)
                 )
                 ShellContent(
                     selected = selected,
@@ -481,6 +502,7 @@ fun ShellScreen(
                     onReconnect = triggerReconnect,
                     onPreviewAsViewer = { previewAsViewer = true },
                     hubState = hubConnectionState,
+                    attention = { attentionSurface(Modifier.fillMaxWidth()) },
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     // No top bar on desktop: each screen renders its own PageHeader, so a shell-level
@@ -779,6 +801,7 @@ private fun Sidebar(
     onReconnect: () -> Unit,
     onPreviewAsViewer: () -> Unit,
     hubState: HubConnectionState,
+    attention: (@Composable () -> Unit)? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -801,6 +824,11 @@ private fun Sidebar(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             Box(modifier = Modifier.weight(1f)) { SidebarHeader(switcher = channelSwitcher) }
             HubDot(state = hubState)
+        }
+
+        attention?.let { surface ->
+            Spacer(modifier = Modifier.height(spacing.s2))
+            surface()
         }
 
         Spacer(modifier = Modifier.height(spacing.s2))

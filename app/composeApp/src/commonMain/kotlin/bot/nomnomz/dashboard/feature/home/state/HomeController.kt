@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
+import bot.nomnomz.dashboard.feature.attention.state.ATTENTION_HUB_DOMAIN
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AutomodConfig
@@ -338,6 +339,10 @@ class HomeController(
                             )
                         }
                     }
+                    is HubEvent.ConfigChanged ->
+                        // The backend's action-required invalidation (plan item A0): any producer's condition
+                        // appeared, cleared, or was dismissed elsewhere — refetch the attention inbox.
+                        if (evt.change.domain == ATTENTION_HUB_DOMAIN) refreshAttention()
                     is HubEvent.AutoModQueueChanged ->
                         // The AutoMod queue changed somewhere (a new hold, or a resolution by any mod or
                         // by Twitch) — re-fetch just the attention inbox so items appear/disappear live.
@@ -534,36 +539,6 @@ class HomeController(
         }
     }
 }
-
-/**
- * Maps an [ActionRequiredItem.kind] to the [bot.nomnomz.dashboard.feature.shell.nav.ShellRoute] name the
- * item's Review action navigates to — the frontend owns this mapping now; the wire's `deepLinkRoute` (a URL
- * path, not a route name — the old dead click) is no longer consumed. Null for an unknown kind: no navigation
- * is honest, a wrong page is not.
- */
-fun attentionRouteFor(kind: String): String? =
-    when (kind) {
-        "held_chat_message" -> "Moderation"
-        "integration_token_dead" -> "Integrations"
-        "unmanaged_rewards" -> "Rewards"
-        else -> null
-    }
-
-/** The three-way severity scale an [ActionRequiredItem.severity] maps onto (fixes the old binarisation
- * that rendered `info` as "Warning"). Unknown future values read as [Warning] — attention-worthy, not scary. */
-enum class AttentionSeverity {
-    Critical,
-    Warning,
-    Info,
-}
-
-/** Maps the wire severity (`critical` | `warning` | `info`) to [AttentionSeverity]. */
-fun attentionSeverityFor(severity: String): AttentionSeverity =
-    when (severity) {
-        "critical" -> AttentionSeverity.Critical
-        "info" -> AttentionSeverity.Info
-        else -> AttentionSeverity.Warning
-    }
 
 // The bot's default heat auto-timeout threshold (backend AutomodConfigDto default) — used when the automod
 // config read fails so the held-message dialog can still color heat consistently.

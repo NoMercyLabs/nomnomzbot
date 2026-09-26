@@ -247,6 +247,7 @@ import bot.nomnomz.dashboard.feature.liveops.state.ScheduleController
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 import bot.nomnomz.dashboard.feature.setup.state.SetupFinishPendingStore
 import bot.nomnomz.dashboard.feature.setup.state.SetupFinishStore
+import bot.nomnomz.dashboard.feature.attention.state.AttentionController
 
 // The composition root for this slice — one instance of each engine singleton (frontend-structure.md
 // F7: one HttpClient, one ConnectionStore), wired by explicit constructor injection. Koin replaces
@@ -334,6 +335,9 @@ class AppGraph {
     val systemApi: SystemApi = RestSystemApi(apiClient)
     val dashboardApi: DashboardApi = RestDashboardApi(apiClient)
     val notificationsApi: NotificationsApi = RestNotificationsApi(apiClient)
+
+    /** The shell-wide action-required state (plan item A0), shown in the frame on every page. */
+    val attentionController: AttentionController = AttentionController(notificationsApi)
     val communityApi: CommunityApi = RestCommunityApi(apiClient)
     val usersApi: UsersApi = RestUsersApi(apiClient)
     val viewerDataApi: ViewerDataApi = RestViewerDataApi(apiClient)

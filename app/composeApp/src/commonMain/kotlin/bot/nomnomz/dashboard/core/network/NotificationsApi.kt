@@ -12,9 +12,10 @@ package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.Serializable
 
-// The dashboard's "action required" notification centre (S071a backend / S071b Home tile) — real,
-// already-detected conditions needing the streamer's attention (dead integration tokens, AutoMod-held
-// messages pending review), so they no longer need to be discovered by noticing something silently broke.
+// The dashboard's "action required" notification centre (S071a backend, plan item A0) — real, already-detected
+// conditions needing the streamer's attention, from every backend producer (dead integrations, held messages,
+// refused Twitch permissions, failed widget builds, failing webhooks, lost song requests, ...). The backend
+// pushes `ConfigChanged("notifications")` over the dashboard hub whenever the list may have changed.
 //
 // Backend routes (NotificationsController):
 //   GET  /api/v1/channels/{channelId}/notifications/action-required → StatusResponseDto<List<ActionRequiredItemDto>>
@@ -44,19 +45,20 @@ class RestNotificationsApi(private val client: ApiClient) : NotificationsApi {
 
 /**
  * One action-required row (backend `ActionRequiredItemDto`). [severity] is `critical` | `warning` | `info`;
- * [kind] is a stable machine key (`held_chat_message` | `integration_token_dead`) the dashboard maps to a
- * [bot.nomnomz.dashboard.feature.shell.nav.ShellRoute] name itself. [id] is the stable dismissal key
- * (`held:{guid}` | `held-user:{userId}` | `token:{connectionId}:{ticks}`). Held messages are grouped per
- * user: [count] > 1 means [queueItemIds] carries every held message's queue-item guid for the group, and
- * [sourceUserId]/[sourceUserName] name the chatter. [deepLinkRoute] stays on the wire but is no longer
- * consumed — navigation derives from [kind].
+ * [kind] is a stable machine key. The row carries no prose: [titleKey] and [messageKey] name dashboard string
+ * resources and [parameters] are the named values they format in, so the text renders in the viewer's language
+ * (see `feature/attention/ui/AttentionText.kt`). [deepLinkRoute] is the lower-cased shell route of the page where
+ * the condition is fixed. [id] is the stable dismissal key. Held messages are grouped per user: [count] > 1 means
+ * [queueItemIds] carries every held message's queue-item guid for the group, and [sourceUserId]/[sourceUserName]
+ * name the chatter.
  */
 @Serializable
 data class ActionRequiredItem(
     val kind: String,
     val severity: String,
-    val title: String,
-    val message: String,
+    val titleKey: String,
+    val messageKey: String,
+    val parameters: Map<String, String> = emptyMap(),
     val detectedAt: String = "",
     val deepLinkRoute: String,
     val id: String = "",

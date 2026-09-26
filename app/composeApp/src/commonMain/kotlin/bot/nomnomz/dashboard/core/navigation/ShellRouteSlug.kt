@@ -36,6 +36,9 @@ object ShellRouteSlug {
         return BY_SLUG[normalized] ?: ShellRoute.Dashboard
     }
 
+    /** The route a slug names, or null when it names none — for callers where a fallback page would be wrong. */
+    fun find(slug: String): ShellRoute? = BY_SLUG[slug.trim().lowercase()]
+
     private val BY_SLUG: Map<String, ShellRoute> =
         ShellRoute.entries.associateBy { route -> of(route) }
 }
