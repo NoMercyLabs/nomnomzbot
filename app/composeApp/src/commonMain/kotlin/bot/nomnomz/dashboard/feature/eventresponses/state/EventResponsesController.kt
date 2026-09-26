@@ -22,6 +22,8 @@ import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineDetail
@@ -29,6 +31,9 @@ import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import bot.nomnomz.dashboard.core.network.WidgetSummary
@@ -40,6 +45,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import org.jetbrains.compose.resources.StringResource
 
 // The Event Responses page state-holder: maps Twitch channel events (follow, sub, cheer, raid, stream.online …)
@@ -53,6 +59,7 @@ class EventResponsesController(
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
     private val widgetsApi: WidgetsApi,
+    private val platformTemplatesApi: PlatformTemplatesApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<EventResponsesState> =
@@ -183,6 +190,27 @@ class EventResponsesController(
             channelId ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = NoChannelError))
         return pipelinesApi.testRun(channel, pipelineId, PipelineTestRunBody(variables))
     }
+
+    /** The published platform event-response templates this channel can install. */
+    suspend fun templates(): ApiResult<List<PlatformTemplate>> {
+        val channel: String = channelId ?: return noChannelFailure()
+        return platformTemplatesApi.list(channel, PlatformTemplateKinds.EventResponse)
+    }
+
+    /** Installs [template] into this channel (replacing that event's response); reloads the list on success. */
+    suspend fun installTemplate(template: PlatformTemplate, pipelineId: String?): ApiResult<InstalledPlatformTemplate> {
+        val channel: String = channelId ?: return noChannelFailure()
+        val result: ApiResult<InstalledPlatformTemplate> =
+            platformTemplatesApi.install(channel, template.definitionId, InstallPlatformTemplateBody(pipelineId))
+        if (result is ApiResult.Ok) {
+            feedback.success(Res.string.platform_templates_installed)
+            load()
+        }
+        return result
+    }
+
+    private fun noChannelFailure(): ApiResult.Failure =
+        ApiResult.Failure(ApiError(status = 0, code = null, message = NoChannelError))
 
     /** Toggle [isEnabled] on an event response (partial PUT — only the flag changes). */
     suspend fun toggle(eventType: String, enabled: Boolean) {

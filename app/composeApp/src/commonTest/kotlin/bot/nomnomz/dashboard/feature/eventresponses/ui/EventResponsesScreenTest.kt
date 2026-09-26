@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.eventresponses.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyChild
 import androidx.compose.ui.test.hasContentDescription
@@ -33,6 +34,8 @@ import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListPreview
@@ -43,6 +46,8 @@ import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelperDto
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
@@ -65,6 +70,92 @@ import kotlinx.coroutines.runBlocking
 // bound, the button renders DISABLED — never hidden, per the house "disable, don't hide" rule.
 @OptIn(ExperimentalTestApi::class)
 class EventResponsesScreenTest {
+
+    private fun templatesScreen(templatesApi: FakePlatformTemplatesApi): EventResponsesController {
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(),
+                eventResponsesApi =
+                    FakeEventResponsesApi(
+                        summaries =
+                            listOf(
+                                EventResponseSummary(
+                                    id = "er1",
+                                    eventType = "channel.follow",
+                                    isEnabled = false,
+                                    responseType = "chat_message",
+                                    updatedAt = "2026-06-27T00:00:00Z",
+                                )
+                            ),
+                        detailResponse = EventResponse(id = "er1", eventType = "channel.follow", responseType = "chat_message"),
+                    ),
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+                widgetsApi = FakeWidgetsApi(),
+                platformTemplatesApi = templatesApi,
+            )
+        runBlocking { controller.load() }
+        return controller
+    }
+
+    @Test
+    fun browse_templates_shows_what_the_install_replaces_and_installs_the_selected_template() = runComposeUiTest {
+        val templatesApi = FakePlatformTemplatesApi()
+        val controller = templatesScreen(templatesApi)
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        EventResponsesScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Browse templates").performClick()
+        waitForIdle()
+
+        onNodeWithText("Welcome new followers warmly.").assertExists()
+        onNodeWithText("Replaces the current response for New Follow on this channel.").assertExists()
+        onNodeWithText("Install").assertIsEnabled().performClick()
+        waitForIdle()
+
+        assertEquals(Triple("ch1", "def-follow", null), templatesApi.lastInstalled)
+    }
+
+    @Test
+    fun a_pipeline_template_cannot_install_until_one_of_the_channels_pipelines_is_chosen() = runComposeUiTest {
+        val templatesApi = FakePlatformTemplatesApi()
+        val controller = templatesScreen(templatesApi)
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        EventResponsesScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Browse templates").performClick()
+        waitForIdle()
+        onNodeWithText("Raid flow").performClick()
+        waitForIdle()
+
+        onNodeWithText("Pipeline to run").assertExists()
+        onNodeWithText("Install").assertIsNotEnabled()
+        assertEquals(null, templatesApi.lastInstalled)
+    }
 
     @Test
     fun test_action_calls_the_dry_run_endpoint_for_the_bound_pipeline_when_editing_a_bound_response() =
@@ -96,6 +187,7 @@ class EventResponsesScreenTest {
                     pipelinesApi = pipelinesApi,
                     pickListsApi = FakePickListsApi(),
                     widgetsApi = FakeWidgetsApi(),
+                    platformTemplatesApi = FakePlatformTemplatesApi(),
                 )
             runBlocking { controller.load() }
 
@@ -153,6 +245,7 @@ class EventResponsesScreenTest {
                 pipelinesApi = RecordingPipelinesApi(),
                 pickListsApi = FakePickListsApi(),
                 widgetsApi = FakeWidgetsApi(),
+                platformTemplatesApi = FakePlatformTemplatesApi(),
             )
         runBlocking { controller.load() }
 
@@ -210,6 +303,7 @@ class EventResponsesScreenTest {
                 pipelinesApi = RecordingPipelinesApi(),
                 pickListsApi = FakePickListsApi(),
                 widgetsApi = FakeWidgetsApi(),
+                platformTemplatesApi = FakePlatformTemplatesApi(),
             )
         runBlocking { controller.load() }
         val recordingHelpersApi = RecordingTemplateHelpersApi()
@@ -402,5 +496,41 @@ private class RecordingPipelinesApi : PipelinesApi {
         lastTestRunPipelineId = id
         lastTestRunChannelId = channelId
         return ApiResult.Ok(TestRunResult(success = true))
+    }
+}
+
+private class FakePlatformTemplatesApi : PlatformTemplatesApi {
+    var lastInstalled: Triple<String, String, String?>? = null
+
+    override suspend fun list(channelId: String, kind: String): ApiResult<List<PlatformTemplate>> =
+        ApiResult.Ok(
+            listOf(
+                PlatformTemplate(
+                    definitionId = "def-follow",
+                    kind = kind,
+                    key = "warm-follow",
+                    displayName = "Warm follow",
+                    description = "Welcome new followers warmly.",
+                    version = 1,
+                    payloadJson = """{"eventType":"channel.follow","responseType":"chat_message","message":"Hi {user}"}""",
+                ),
+                PlatformTemplate(
+                    definitionId = "def-raid",
+                    kind = kind,
+                    key = "raid-flow",
+                    displayName = "Raid flow",
+                    version = 1,
+                    payloadJson = """{"eventType":"channel.raid","responseType":"pipeline"}""",
+                ),
+            )
+        )
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: InstallPlatformTemplateBody,
+    ): ApiResult<InstalledPlatformTemplate> {
+        lastInstalled = Triple(channelId, definitionId, body.pipelineId)
+        return ApiResult.Ok(InstalledPlatformTemplate(kind = "event_response", entityId = "er1", name = "channel.follow"))
     }
 }

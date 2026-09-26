@@ -24,6 +24,10 @@ import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.LocalizedTextDto
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -41,6 +45,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the EventResponses page state machine: channel resolution, listing, and the write path
@@ -63,6 +68,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(listOf(summary))),
             )
@@ -76,12 +82,91 @@ class EventResponsesControllerTest {
     }
 
     @Test
+    fun templates_lists_the_event_response_kind_for_the_active_channel() = runTest {
+        val templatesApi = RecordingPlatformTemplatesApi()
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = templatesApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = RecordingEventResponsesApi(),
+            )
+
+        controller.load()
+        val result: ApiResult<List<PlatformTemplate>> = controller.templates()
+
+        assertIs<ApiResult.Ok<List<PlatformTemplate>>>(result)
+        assertEquals("warm-follow", result.value.single().key)
+        assertEquals("ch1" to "event_response", templatesApi.lastListed)
+    }
+
+    @Test
+    fun installTemplate_installs_into_the_active_channel_then_reloads_and_announces() = runTest {
+        val templatesApi = RecordingPlatformTemplatesApi()
+        val eventResponsesApi = RecordingEventResponsesApi()
+        val feedback = RecordingFeedback()
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = templatesApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = eventResponsesApi,
+                feedback = feedback,
+            )
+        controller.load()
+        val listsBefore: Int = eventResponsesApi.listCalls
+
+        val result: ApiResult<InstalledPlatformTemplate> =
+            controller.installTemplate(RecordingPlatformTemplatesApi.Template, "pipe-7")
+
+        assertIs<ApiResult.Ok<InstalledPlatformTemplate>>(result)
+        assertEquals(Triple("ch1", "def-1", "pipe-7"), templatesApi.lastInstalled)
+        assertEquals(listsBefore + 1, eventResponsesApi.listCalls)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.platform_templates_installed, feedback.only.label)
+    }
+
+    @Test
+    fun installTemplate_failure_does_not_reload_or_announce_success() = runTest {
+        val templatesApi =
+            RecordingPlatformTemplatesApi(
+                installResult = ApiResult.Failure(ApiError(status = 400, code = "PIPELINE_NOT_IN_CHANNEL", message = "no"))
+            )
+        val eventResponsesApi = RecordingEventResponsesApi()
+        val feedback = RecordingFeedback()
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = templatesApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = eventResponsesApi,
+                feedback = feedback,
+            )
+        controller.load()
+        val listsBefore: Int = eventResponsesApi.listCalls
+
+        val result: ApiResult<InstalledPlatformTemplate> =
+            controller.installTemplate(RecordingPlatformTemplatesApi.Template, null)
+
+        assertIs<ApiResult.Failure>(result)
+        assertEquals(listsBefore, eventResponsesApi.listCalls)
+        assertTrue(feedback.messages.isEmpty())
+    }
+
+    @Test
     fun load_yields_empty_state_when_no_responses_configured() = runTest {
         val controller =
             EventResponsesController(
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
             )
@@ -98,6 +183,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(status = 503, code = null, message = "no channel"))),
                 eventResponsesApi = RecordingEventResponsesApi(),
             )
@@ -116,6 +202,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi =
                     RecordingEventResponsesApi(
@@ -136,6 +223,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -168,6 +256,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
                 feedback = feedback,
@@ -189,6 +278,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -212,6 +302,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -236,6 +327,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -254,6 +346,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
                 feedback = feedback,
@@ -282,6 +375,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
                 feedback = feedback,
@@ -313,6 +407,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
                 feedback = feedback,
@@ -343,6 +438,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
             )
         controller.load()
 
@@ -369,6 +465,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
             )
         controller.load()
 
@@ -391,6 +488,7 @@ class EventResponsesControllerTest {
                 pipelinesApi = StubPipelinesApi,
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
             )
         controller.load()
 
@@ -579,6 +677,7 @@ private class RecordingEventResponsesApi(
     var lastUpsertedEventType: String? = null
     var lastUpsertedBody: UpdateEventResponseBody? = null
     var lastDeletedEventType: String? = null
+    var listCalls: Int = 0
 
     private val catalog: List<EventResponsePreset> =
         listOf(
@@ -589,7 +688,10 @@ private class RecordingEventResponsesApi(
             )
         )
 
-    override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> = listResult
+    override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> {
+        listCalls++
+        return listResult
+    }
 
     override suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>> = ApiResult.Ok(catalog)
 
@@ -609,5 +711,39 @@ private class RecordingEventResponsesApi(
     override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> {
         lastDeletedEventType = eventType
         return deleteResult
+    }
+}
+
+private class RecordingPlatformTemplatesApi(
+    private val installResult: ApiResult<InstalledPlatformTemplate> =
+        ApiResult.Ok(InstalledPlatformTemplate(kind = "event_response", entityId = "er9", name = "channel.follow")),
+) : PlatformTemplatesApi {
+    var lastListed: Pair<String, String>? = null
+    var lastInstalled: Triple<String, String, String?>? = null
+
+    override suspend fun list(channelId: String, kind: String): ApiResult<List<PlatformTemplate>> {
+        lastListed = channelId to kind
+        return ApiResult.Ok(listOf(Template))
+    }
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: InstallPlatformTemplateBody,
+    ): ApiResult<InstalledPlatformTemplate> {
+        lastInstalled = Triple(channelId, definitionId, body.pipelineId)
+        return installResult
+    }
+
+    companion object {
+        val Template: PlatformTemplate =
+            PlatformTemplate(
+                definitionId = "def-1",
+                kind = "event_response",
+                key = "warm-follow",
+                displayName = "Warm follow",
+                version = 1,
+                payloadJson = """{"eventType":"channel.follow","message":"Welcome {user}!"}""",
+            )
     }
 }

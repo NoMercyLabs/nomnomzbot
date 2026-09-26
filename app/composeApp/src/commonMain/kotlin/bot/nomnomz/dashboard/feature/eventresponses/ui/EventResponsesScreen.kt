@@ -37,6 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
@@ -58,6 +60,10 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.EventResponse
+import bot.nomnomz.dashboard.core.network.eventResponsePayload
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
+import nomnomzbot.composeapp.generated.resources.event_responses_template_replaces
+import nomnomzbot.composeapp.generated.resources.platform_templates_browse
 import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
@@ -106,22 +112,6 @@ import nomnomzbot.composeapp.generated.resources.event_responses_type_chat_messa
 import nomnomzbot.composeapp.generated.resources.event_responses_type_none
 import nomnomzbot.composeapp.generated.resources.event_responses_type_overlay
 import nomnomzbot.composeapp.generated.resources.event_responses_type_pipeline
-import nomnomzbot.composeapp.generated.resources.event_type_channel_cheer
-import nomnomzbot.composeapp.generated.resources.event_type_channel_follow
-import nomnomzbot.composeapp.generated.resources.event_type_channel_points_redemption
-import nomnomzbot.composeapp.generated.resources.event_type_channel_poll_begin
-import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_begin
-import nomnomzbot.composeapp.generated.resources.event_type_channel_raid
-import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_out
-import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_start
-import nomnomzbot.composeapp.generated.resources.event_type_channel_subscribe
-import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift
-import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_message
-import nomnomzbot.composeapp.generated.resources.event_type_engagement_first_time_chatter
-import nomnomzbot.composeapp.generated.resources.event_type_engagement_session_first_message
-import nomnomzbot.composeapp.generated.resources.event_type_stream_offline
-import nomnomzbot.composeapp.generated.resources.event_type_stream_online
-import nomnomzbot.composeapp.generated.resources.event_type_unknown
 import nomnomzbot.composeapp.generated.resources.shell_nav_event_responses
 import org.jetbrains.compose.resources.stringResource
 
@@ -139,6 +129,7 @@ fun EventResponsesScreen(
     val spacing = LocalSpacing.current
 
     var editing: EventResponseSummary? by remember { mutableStateOf(null) }
+    var browsingTemplates: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -159,8 +150,26 @@ fun EventResponsesScreen(
                         scope.launch { controller.toggle(response.eventType, enabled) }
                     },
                     onEdit = { response -> editing = response },
+                    onBrowseTemplates = { browsingTemplates = true },
                 )
         }
+    }
+
+    if (browsingTemplates) {
+        val ready: EventResponsesState.Ready? = state as? EventResponsesState.Ready
+        PlatformTemplatesDialog(
+            loadTemplates = { controller.templates() },
+            install = { template, pipelineId -> controller.installTemplate(template, pipelineId) },
+            onInstalled = { browsingTemplates = false },
+            onDismiss = { browsingTemplates = false },
+            consequence = { template ->
+                template.eventResponsePayload()?.let {
+                    stringResource(Res.string.event_responses_template_replaces, it.eventType.toEventLabel())
+                }
+            },
+            pipelines = ready?.pipelines ?: emptyList(),
+            needsPipeline = { it.eventResponsePayload()?.runsPipeline == true },
+        )
     }
 
     editing?.let { response ->
@@ -198,6 +207,7 @@ private fun ReadyContent(
     manage: ManageDecision,
     onToggle: (EventResponseSummary, Boolean) -> Unit,
     onEdit: (EventResponseSummary) -> Unit,
+    onBrowseTemplates: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -207,7 +217,16 @@ private fun ReadyContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        PageHeader(title = stringResource(Res.string.shell_nav_event_responses))
+        PageHeader(
+            title = stringResource(Res.string.shell_nav_event_responses),
+            trailing = {
+                ManageGate(decision = manage) { enabled ->
+                    Button(onClick = onBrowseTemplates, variant = ButtonVariant.Outline, enabled = enabled) {
+                        Text(text = stringResource(Res.string.platform_templates_browse))
+                    }
+                }
+            },
+        )
 
         // Write failures announce on the shell-level feedback toast (EventResponsesController.failWrite).
 
@@ -594,30 +613,6 @@ private fun CenteredMessage(text: String) {
         Text(text = text, style = typography.sm, color = tokens.mutedForeground)
     }
 }
-
-@Composable
-private fun String.toEventLabel(): String =
-    when (this) {
-        "channel.follow" -> stringResource(Res.string.event_type_channel_follow)
-        "channel.subscribe" -> stringResource(Res.string.event_type_channel_subscribe)
-        "channel.subscription.gift" -> stringResource(Res.string.event_type_channel_subscription_gift)
-        "channel.subscription.message" -> stringResource(Res.string.event_type_channel_subscription_message)
-        "channel.cheer" -> stringResource(Res.string.event_type_channel_cheer)
-        "channel.raid" -> stringResource(Res.string.event_type_channel_raid)
-        "channel.raid.start" -> stringResource(Res.string.event_type_channel_raid_start)
-        "channel.raid.out" -> stringResource(Res.string.event_type_channel_raid_out)
-        "stream.online" -> stringResource(Res.string.event_type_stream_online)
-        "stream.offline" -> stringResource(Res.string.event_type_stream_offline)
-        "channel.poll.begin" -> stringResource(Res.string.event_type_channel_poll_begin)
-        "channel.prediction.begin" -> stringResource(Res.string.event_type_channel_prediction_begin)
-        "channel.channel_points_custom_reward_redemption.add" ->
-            stringResource(Res.string.event_type_channel_points_redemption)
-        "engagement.session_first_message" ->
-            stringResource(Res.string.event_type_engagement_session_first_message)
-        "engagement.first_time_chatter" ->
-            stringResource(Res.string.event_type_engagement_first_time_chatter)
-        else -> stringResource(Res.string.event_type_unknown, this)
-    }
 
 @Composable
 private fun String.toResponseTypeLabel(): String =

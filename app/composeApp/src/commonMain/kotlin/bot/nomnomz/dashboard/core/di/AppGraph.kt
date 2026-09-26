@@ -126,6 +126,8 @@ import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentApiImpl
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.PlatformIamApiImpl
 import bot.nomnomz.dashboard.core.network.PronounsApi
@@ -397,6 +399,7 @@ class AppGraph {
     // The shared platform bot's admin surface (S-BOT-PLATFORM-UI).
     val platformBotAdminApi: PlatformBotAdminApi = RestPlatformBotAdminApi(apiClient)
     val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
+    val platformTemplatesApi: PlatformTemplatesApi = PlatformTemplatesApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
     val obsApi: ObsApi = RestObsApi(apiClient)
     val vtsApi: VtsApi = RestVtsApi(apiClient)
@@ -606,6 +609,7 @@ class AppGraph {
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
             widgetsApi = widgetsApi,
+            platformTemplatesApi = platformTemplatesApi,
             feedback = feedbackController,
         )
 

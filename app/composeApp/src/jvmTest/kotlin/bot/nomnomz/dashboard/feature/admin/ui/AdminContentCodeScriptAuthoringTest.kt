@@ -263,6 +263,9 @@ private class FakeContentApiForCodeScriptTest(
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 
     override suspend fun retireDefinition(definitionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun eventResponseTypes(): ApiResult<List<bot.nomnomz.dashboard.core.network.EventResponsePreset>> =
+        ApiResult.Ok(emptyList())
 }
 
 /** Returns one active principal for `userId = "user-1"` with no entry in effectivePermissions — ContentTab

@@ -73,6 +73,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
+import bot.nomnomz.dashboard.core.network.EventResponseTemplatePayload
 import bot.nomnomz.dashboard.core.network.PlatformContentAuthoringKinds
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
 import bot.nomnomz.dashboard.core.network.PlatformContentPublishJob
@@ -97,6 +98,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_force_denied
 import nomnomzbot.composeapp.generated.resources.admin_content_key_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_code_script
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_command
+import nomnomzbot.composeapp.generated.resources.admin_content_kind_event_response
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_pipeline
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_widget
@@ -175,6 +177,7 @@ internal fun ContentTab(state: AdminState, controller: AdminController, currentU
         // content:read holder, unless they happened to visit the IAM tab first and click "Effective" on
         // their own row. Mirrors the load-on-first-visit pattern the Users/IAM tabs already use.
         if (state.principals.isEmpty() && state.roles.isEmpty() && !state.iamLoading) controller.loadIam()
+        if (state.contentEventResponseTypes.isEmpty()) controller.loadContentEventResponseTypes()
     }
     LaunchedEffect(state.principals, currentUserId) {
         val principal = state.principals.firstOrNull { it.userId == currentUserId } ?: return@LaunchedEffect
@@ -275,6 +278,7 @@ private fun ContentDefinitionList(state: AdminState, controller: AdminController
 
     if (showCreate) {
         CreateDefinitionDialog(
+            eventResponseTypes = state.contentEventResponseTypes,
             onDismiss = { showCreate = false },
             onCreate = { kind, key, name, description, payload ->
                 showCreate = false
@@ -335,6 +339,7 @@ private fun DefinitionRow(definition: PlatformContentDefinition, onOpen: () -> U
 
 @Composable
 private fun CreateDefinitionDialog(
+    eventResponseTypes: List<String>,
     onDismiss: () -> Unit,
     onCreate: (kind: String, key: String, displayName: String, description: String?, payloadJson: String) -> Unit,
 ) {
@@ -347,9 +352,11 @@ private fun CreateDefinitionDialog(
     var widgetFields: WidgetPayloadFields by remember { mutableStateOf(WidgetPayloadFields.Empty) }
     var pipelinePayloadJson: String by remember { mutableStateOf("") }
     var codeScriptPayloadJson: String by remember { mutableStateOf("") }
+    var eventResponsePayload: EventResponseTemplatePayload by remember { mutableStateOf(EventResponseTemplatePayload()) }
 
     val payloadValid: Boolean =
         when (kind) {
+            PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.isComplete()
             PlatformContentAuthoringKinds.Widget -> widgetFields.sourceCode.isNotBlank()
             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson.isNotBlank()
             PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson.isNotBlank()
@@ -365,6 +372,7 @@ private fun CreateDefinitionDialog(
         val commandLabel: String = kindCommandLabel()
         val pipelineLabel: String = kindPipelineLabel()
         val codeScriptLabel: String = kindCodeScriptLabel()
+        val eventResponseLabel: String = kindEventResponseLabel()
         RadioGroup(
             options = PlatformContentAuthoringKinds.All,
             selected = kind,
@@ -374,6 +382,7 @@ private fun CreateDefinitionDialog(
                     PlatformContentAuthoringKinds.Widget -> widgetLabel
                     PlatformContentAuthoringKinds.Pipeline -> pipelineLabel
                     PlatformContentAuthoringKinds.CodeScript -> codeScriptLabel
+                    PlatformContentAuthoringKinds.EventResponse -> eventResponseLabel
                     else -> commandLabel
                 }
             },
@@ -404,6 +413,12 @@ private fun CreateDefinitionDialog(
                 PipelinePayloadEditor(payloadJson = pipelinePayloadJson, onPayloadJsonChange = { pipelinePayloadJson = it })
             PlatformContentAuthoringKinds.CodeScript ->
                 CodeScriptPayloadEditor(payloadJson = codeScriptPayloadJson, onPayloadJsonChange = { codeScriptPayloadJson = it })
+            PlatformContentAuthoringKinds.EventResponse ->
+                EventResponsePayloadEditor(
+                    payload = eventResponsePayload,
+                    eventTypes = eventResponseTypes,
+                    onPayloadChange = { eventResponsePayload = it },
+                )
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -419,6 +434,7 @@ private fun CreateDefinitionDialog(
                 onClick = {
                     val resolvedPayload: String =
                         when (kind) {
+                            PlatformContentAuthoringKinds.EventResponse -> eventResponsePayload.toPayloadJson()
                             PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
                             PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
                             PlatformContentAuthoringKinds.CodeScript -> codeScriptPayloadJson
@@ -446,6 +462,9 @@ private fun kindPipelineLabel(): String = stringResource(Res.string.admin_conten
 @Composable
 private fun kindCodeScriptLabel(): String = stringResource(Res.string.admin_content_kind_code_script)
 
+@Composable
+private fun kindEventResponseLabel(): String = stringResource(Res.string.admin_content_kind_event_response)
+
 /** Resolves [kind]'s display label using the SAME per-kind strings the create/draft dialogs' radio group
  * uses — the single source of truth for "the actual kind" a definitions-list row or header names (fixes the
  * definitions-list header that used to always read "Command" regardless of the rows actually shown). An
@@ -458,6 +477,7 @@ private fun kindLabel(kind: String): String =
         PlatformContentAuthoringKinds.Pipeline -> kindPipelineLabel()
         PlatformContentAuthoringKinds.CodeScript -> kindCodeScriptLabel()
         PlatformContentAuthoringKinds.Command -> kindCommandLabel()
+        PlatformContentAuthoringKinds.EventResponse -> kindEventResponseLabel()
         else -> kind
     }
 
@@ -565,6 +585,7 @@ private fun ContentDefinitionDetail(
     if (showDraftEditor) {
         DraftVersionDialog(
             kind = detail.definition.kind,
+            eventResponseTypes = state.contentEventResponseTypes,
             initialPayload = detail.versions.maxByOrNull { it.version }?.payloadJson ?: "",
             onDismiss = { showDraftEditor = false },
             onDraft = { payload ->
@@ -639,6 +660,7 @@ private fun VersionRow(version: PlatformContentVersion, onPublish: () -> Unit, c
 @Composable
 private fun DraftVersionDialog(
     kind: String,
+    eventResponseTypes: List<String>,
     initialPayload: String,
     onDismiss: () -> Unit,
     onDraft: (payloadJson: String) -> Unit,
@@ -646,6 +668,10 @@ private fun DraftVersionDialog(
     val isWidget: Boolean = kind == PlatformContentAuthoringKinds.Widget
     val isPipeline: Boolean = kind == PlatformContentAuthoringKinds.Pipeline
     val isCodeScript: Boolean = kind == PlatformContentAuthoringKinds.CodeScript
+    val isEventResponse: Boolean = kind == PlatformContentAuthoringKinds.EventResponse
+    var eventResponsePayload: EventResponseTemplatePayload by remember {
+        mutableStateOf(if (isEventResponse) eventResponsePayloadFrom(initialPayload) else EventResponseTemplatePayload())
+    }
     var payloadJson: String by remember { mutableStateOf(initialPayload) }
     var pipelinePayloadJson: String by remember { mutableStateOf(if (isPipeline) initialPayload else "") }
     var codeScriptPayloadJson: String by remember { mutableStateOf(if (isCodeScript) initialPayload else "") }
@@ -657,6 +683,7 @@ private fun DraftVersionDialog(
             isWidget -> widgetFields.sourceCode.isNotBlank()
             isPipeline -> pipelinePayloadJson.isNotBlank()
             isCodeScript -> codeScriptPayloadJson.isNotBlank()
+            isEventResponse -> eventResponsePayload.isComplete()
             else -> payloadJson.isNotBlank()
         }
 
@@ -668,6 +695,12 @@ private fun DraftVersionDialog(
                 PipelinePayloadEditor(payloadJson = pipelinePayloadJson, onPayloadJsonChange = { pipelinePayloadJson = it })
             isCodeScript ->
                 CodeScriptPayloadEditor(payloadJson = codeScriptPayloadJson, onPayloadJsonChange = { codeScriptPayloadJson = it })
+            isEventResponse ->
+                EventResponsePayloadEditor(
+                    payload = eventResponsePayload,
+                    eventTypes = eventResponseTypes,
+                    onPayloadChange = { eventResponsePayload = it },
+                )
             else ->
                 JsonPayloadField(
                     value = payloadJson,
@@ -686,6 +719,7 @@ private fun DraftVersionDialog(
                             isWidget -> widgetFields.toPayloadJson()
                             isPipeline -> pipelinePayloadJson
                             isCodeScript -> codeScriptPayloadJson
+                            isEventResponse -> eventResponsePayload.toPayloadJson()
                             else -> payloadJson
                         }
                     onDraft(resolvedPayload)

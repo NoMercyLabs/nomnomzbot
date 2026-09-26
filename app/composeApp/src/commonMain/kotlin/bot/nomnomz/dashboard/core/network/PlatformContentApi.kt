@@ -108,8 +108,9 @@ object PlatformContentAuthoringKinds {
     const val Widget: String = "widget"
     const val Pipeline: String = "pipeline"
     const val CodeScript: String = "code_script"
+    const val EventResponse: String = PlatformTemplateKinds.EventResponse
 
-    val All: List<String> = listOf(Command, Widget, Pipeline, CodeScript)
+    val All: List<String> = listOf(Command, Widget, Pipeline, CodeScript, EventResponse)
 }
 
 // ─── Request bodies ────────────────────────────────────────────────────────────────────────────
@@ -177,6 +178,9 @@ interface PlatformContentApi {
     suspend fun getPublishJob(publishJobId: String): ApiResult<PlatformContentPublishJob>
 
     suspend fun retireDefinition(definitionId: String): ApiResult<Unit>
+
+    /** The channel event catalogue an `event_response` template targets (GET /platform/content/event-response-types). */
+    suspend fun eventResponseTypes(): ApiResult<List<EventResponsePreset>>
 }
 
 class PlatformContentApiImpl(private val client: ApiClient) : PlatformContentApi {
@@ -233,6 +237,9 @@ class PlatformContentApiImpl(private val client: ApiClient) : PlatformContentApi
 
     override suspend fun retireDefinition(definitionId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/platform/content/definitions/$definitionId")
+
+    override suspend fun eventResponseTypes(): ApiResult<List<EventResponsePreset>> =
+        client.getEnvelope("api/v1/platform/content/event-response-types")
 
     /** Builds a `?a=1&b=2` query string from non-null pairs, percent-encoding each value. */
     private fun buildQuery(vararg params: Pair<String, String?>): String {

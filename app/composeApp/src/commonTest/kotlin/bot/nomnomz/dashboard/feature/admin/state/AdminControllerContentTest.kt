@@ -89,6 +89,36 @@ class AdminControllerContentTest {
     }
 
     @Test
+    fun event_response_catalogue_load_reaches_state_as_event_types() = runTest {
+        val controller =
+            contentController(
+                FakeContentApi(
+                    eventTypes =
+                        listOf(
+                            bot.nomnomz.dashboard.core.network.EventResponsePreset(eventType = "channel.follow"),
+                            bot.nomnomz.dashboard.core.network.EventResponsePreset(eventType = "channel.raid"),
+                        )
+                )
+            )
+
+        controller.loadContentEventResponseTypes()
+
+        assertEquals(listOf("channel.follow", "channel.raid"), controller.state.value.contentEventResponseTypes)
+        assertNull(controller.state.value.contentError)
+    }
+
+    @Test
+    fun failed_event_response_catalogue_load_surfaces_a_visible_error() = runTest {
+        val controller =
+            contentController(FakeContentApi(eventTypesFailure = ApiError(403, "FORBIDDEN", "Requires content:read.")))
+
+        controller.loadContentEventResponseTypes()
+
+        assertTrue(controller.state.value.contentEventResponseTypes.isEmpty())
+        assertEquals("Requires content:read.", controller.state.value.contentError)
+    }
+
+    @Test
     fun failed_definitions_load_surfaces_a_visible_error_not_an_empty_list() = runTest {
         val controller = contentController(FakeContentApi(listFailure = ApiError(500, "SERVER_ERROR", "boom")))
 
@@ -215,6 +245,8 @@ private class FakeContentApi(
     private val definition: PlatformContentDefinitionDetail? = null,
     private val preview: PublishPreview? = null,
     private val publishJob: PlatformContentPublishJob? = null,
+    private val eventTypes: List<bot.nomnomz.dashboard.core.network.EventResponsePreset> = emptyList(),
+    private val eventTypesFailure: ApiError? = null,
 ) : PlatformContentApi {
     var publishCallCount: Int = 0
         private set
@@ -246,6 +278,9 @@ private class FakeContentApi(
         publishJob?.let { ApiResult.Ok(it) } ?: ApiResult.Failure(ApiError(404, "NOT_FOUND", "not found"))
 
     override suspend fun retireDefinition(definitionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun eventResponseTypes(): ApiResult<List<bot.nomnomz.dashboard.core.network.EventResponsePreset>> =
+        eventTypesFailure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(eventTypes)
 }
 
 private class StubAdminApi : AdminApi {

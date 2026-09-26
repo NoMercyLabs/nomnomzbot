@@ -306,6 +306,8 @@ data class AdminState(
     val impersonationRefusal: ImpersonationRefusal? = null,
     // ── Platform content authoring (S-ADMIN-2b) ──
     val contentDefinitions: List<PlatformContentDefinition> = emptyList(),
+    /** The channel event types an `event_response` template can target (the server's event catalogue). */
+    val contentEventResponseTypes: List<String> = emptyList(),
     val contentLoading: Boolean = false,
     val contentError: String? = null,
     /** The definition currently open in the editor, incl. its full version history. Null when the list is
@@ -1986,6 +1988,17 @@ class AdminController(
                 _state.value = _state.value.copy(contentDefinitions = result.value.data, contentLoading = false)
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(contentLoading = false, contentError = result.error.message)
+        }
+    }
+
+    /** Reads the event catalogue the `event_response` template form picks from. A failure surfaces on
+     * [AdminState.contentError]; the form then has no event to offer and cannot be submitted. */
+    suspend fun loadContentEventResponseTypes() {
+        val content: PlatformContentApi = contentApi ?: return
+        when (val result = content.eventResponseTypes()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(contentEventResponseTypes = result.value.map { it.eventType })
+            is ApiResult.Failure -> _state.value = _state.value.copy(contentError = result.error.message)
         }
     }
 

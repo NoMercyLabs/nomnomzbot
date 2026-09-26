@@ -272,6 +272,10 @@ class ApiContractTest {
             PlatformContentVersion.serializer() to "PlatformContentVersionDto",
             PublishPreview.serializer() to "PublishPreviewDto",
             PlatformContentPublishJob.serializer() to "PlatformContentPublishJobDto",
+            // Platform templates, channel side (PlatformTemplatesController).
+            PlatformTemplate.serializer() to "PlatformTemplateDto",
+            InstalledPlatformTemplate.serializer() to "InstalledPlatformTemplateDto",
+            InstallPlatformTemplateBody.serializer() to "InstallPlatformTemplateRequest",
             // Admin act-as: the minted impersonation session, scoped to an already-open support session.
             ImpersonationTokenDto.serializer() to "ImpersonationTokenDto",
             // OBS control (obs-control.md §4/§5): connection config + bridge + live state/scene/input DTOs and
