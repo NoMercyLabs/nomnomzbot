@@ -110,6 +110,9 @@ kotlin {
             implementation(libs.ktor.client.cio)
             // Desktop mDNS LAN browse of `_nomnomz._tcp` (frontend.md §6) — jvm only.
             implementation(libs.jmdns)
+            // The code editor page in the OS's native web view (WebView2 / WKWebView / WebKitGTK).
+            implementation(libs.webview)
+            implementation(libs.jna)
         }
 
         wasmJsMain.dependencies {

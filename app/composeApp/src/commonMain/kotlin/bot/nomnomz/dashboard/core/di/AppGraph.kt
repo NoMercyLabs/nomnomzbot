@@ -146,6 +146,7 @@ import bot.nomnomz.dashboard.core.network.RestStreamApi
 import bot.nomnomz.dashboard.core.network.RestTimersApi
 import bot.nomnomz.dashboard.core.network.RestTtsApi
 import bot.nomnomz.dashboard.core.editor.ProjectEditor
+import bot.nomnomz.dashboard.core.editor.ProjectEditorHost
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.RestSdkTypesApi
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
@@ -382,7 +383,7 @@ class AppGraph {
     // can wire TypeScript autocomplete/inline errors over the SDK surface (fetch is ready now).
     val sdkTypesApi: SdkTypesApi = RestSdkTypesApi(apiClient)
     // One shared multi-file project editor actual, injected into every screen that edits a dev-platform project.
-    val projectEditor: ProjectEditorIO = ProjectEditor()
+    val projectEditor: ProjectEditorIO = ProjectEditor().also { ProjectEditorHost.botOrigin = sessionStore::baseUrl }
     val liveOpsApi: LiveOpsApi = RestLiveOpsApi(apiClient)
     val chatPollsApi: ChatPollsApi = RestChatPollsApi(apiClient)
     val billingApi: BillingApi = RestBillingApi(apiClient)

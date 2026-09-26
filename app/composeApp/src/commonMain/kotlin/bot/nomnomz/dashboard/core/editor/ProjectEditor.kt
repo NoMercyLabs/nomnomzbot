@@ -20,13 +20,13 @@ package bot.nomnomz.dashboard.core.editor
 //
 // A single-file artifact is simply a one-entry project, so both widgets and code scripts open this one editor.
 //
-// Per-target implementations live in the wasmJs and jvm source sets:
-//   Web (wasmJs):   a served page (`/editor/index.html` — real HTML/CSS/ES modules, CDN-cacheable) mounted in an
-//                   iframe in the app's shadow root; this file is only the postMessage bridge (open/save/compiled/
-//                   close). Monaco, the file tree, the problems panel, and the esbuild/Vue live preview are that
-//                   page's own business, not Kotlin's.
-//   Desktop (jvm):  a non-modal Swing dialog with a file list + a monospace text area per file, a "Save & Compile"
-//                   button, and a result label — the coroutine drives each compile off the button.
+// Both targets show the SAME editor: the bot's served page (`/editor/index.html` — real HTML/CSS/ES modules,
+// CDN-cacheable), which owns Monaco, the file tree, the problems panel, and the esbuild/Vue live preview. Kotlin
+// only speaks [EditorBridgeProtocol] to it through one shared [EditorBridgeSession]:
+//   Web (wasmJs):   the page in an iframe in the app's shadow root, bridged over postMessage.
+//   Desktop (jvm):  the page in the operating system's native web view (WebView2 / WKWebView / WebKitGTK) in its
+//                   own window, bridged over the web view's script binding. When that web view cannot run, a
+//                   design-system window explains why and how to fix it — there is no substitute editor.
 interface ProjectEditorIO {
     /**
      * Opens the editor titled [title] on the project [initialFiles] (`path → content`) whose build entry is

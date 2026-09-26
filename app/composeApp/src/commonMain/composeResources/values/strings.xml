@@ -1825,6 +1825,15 @@
     <string name="scripts_editor_source_label">Source</string>
     <string name="scripts_editor_edit_code">Edit &amp; compile</string>
     <string name="scripts_editor_compiled">Compiled and published</string>
+    <string name="code_editor_window_title">Code editor: %1$s</string>
+    <string name="code_editor_unavailable_title">Editing needs the system web view</string>
+    <string name="code_editor_unavailable_bot_title">The code editor could not load</string>
+    <string name="code_editor_unavailable_webview2">The code editor runs in the Microsoft Edge WebView2 Runtime. It is not installed on this computer. Install the Evergreen WebView2 Runtime from Microsoft, then open the editor again.</string>
+    <string name="code_editor_unavailable_get_webview2">Get WebView2 Runtime</string>
+    <string name="code_editor_unavailable_system">The code editor runs in the built-in web view of this computer, and that web view could not start (%1$s). On Linux, install WebKitGTK (the libwebkit2gtk-4.1 package). Then open the editor again.</string>
+    <string name="code_editor_unavailable_no_bot">The code editor loads from your bot, and no bot is connected. Connect to your bot, then open the editor again.</string>
+    <string name="code_editor_unavailable_page_failed">The code editor did not load from your bot (%1$s). Check that your bot is running and reachable, then open the editor again.</string>
+    <string name="code_editor_unavailable_close">Close</string>
     <string name="scripts_delete_title">Delete script?</string>
     <string name="scripts_delete_message">Delete "%1$s"? This cannot be undone.</string>
     <string name="scripts_delete_confirm">Delete</string>

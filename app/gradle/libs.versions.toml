@@ -24,6 +24,12 @@ ktor = "3.3.0"
 # the web build is single-origin and never browses.
 jmdns = "3.6.3"
 coil3 = "3.1.0"
+# SwingWebView (ca.weblite:webview, MIT) — desktop-only host for the code editor page in the OS's own web view
+# (WebView2 / WKWebView / WebKitGTK), embedded as a Swing component. No bundled browser engine; jvmMain only.
+webview = "1.7.0"
+# JNA (Apache-2.0) — one kernel32 call: points WebView2's user-data folder at the app-data dir before the web
+# view starts (the runtime otherwise writes beside java.exe, which is read-only under Program Files). jvmMain only.
+jna = "5.19.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
@@ -41,6 +47,8 @@ ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negoti
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
 jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
+webview = { module = "ca.weblite:webview", version.ref = "webview" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
 coil3-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 

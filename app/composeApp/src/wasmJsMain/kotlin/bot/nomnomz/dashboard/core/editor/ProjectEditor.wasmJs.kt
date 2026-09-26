@@ -19,13 +19,6 @@ import kotlin.js.Promise
 import kotlinx.browser.window
 import kotlinx.coroutines.await
 import kotlinx.coroutines.channels.Channel
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import org.w3c.dom.MessageEvent
 import org.w3c.dom.events.Event
 
@@ -41,32 +34,6 @@ import org.w3c.dom.events.Event
 // into a shadow root, and a light-DOM child of a shadow host is NOT laid out — appending to document.body
 // leaves the overlay 0x0 and invisible.
 private const val EDITOR_PAGE: String = "/editor/index.html"
-
-private const val MESSAGE_READY: String = "nnz:editor:ready"
-private const val MESSAGE_OPEN: String = "nnz:editor:open"
-private const val MESSAGE_SAVE: String = "nnz:editor:save"
-private const val MESSAGE_COMPILED: String = "nnz:editor:compiled"
-private const val MESSAGE_CLOSE: String = "nnz:editor:close"
-private const val MESSAGE_HISTORY_LOAD_MORE: String = "nnz:editor:historyLoadMore"
-private const val MESSAGE_HISTORY_ROLLBACK: String = "nnz:editor:historyRollback"
-private const val MESSAGE_HISTORY_DELETE: String = "nnz:editor:historyDelete"
-private const val MESSAGE_HISTORY_PAGE: String = "nnz:editor:historyPage"
-private const val MESSAGE_HISTORY_ERROR: String = "nnz:editor:historyError"
-private const val MESSAGE_TEST_RUN: String = "nnz:editor:testRun"
-private const val MESSAGE_TEST_RUN_RESULT: String = "nnz:editor:testRunResult"
-
-private val editorJson: Json = Json { ignoreUnknownKeys = true }
-
-// What [editorMessageJson] reduces a same-origin editor message to. `files` is populated on save only;
-// `versionId` on a history rollback/delete request; `variables`/`args` on a test-run request.
-@Serializable
-private data class EditorMessage(
-    val type: String,
-    val files: Map<String, String> = emptyMap(),
-    val versionId: String = "",
-    val variables: Map<String, String> = emptyMap(),
-    val args: List<String> = emptyList(),
-)
 
 actual class ProjectEditor : ProjectEditorIO {
     actual override suspend fun editAndCompile(
@@ -93,31 +60,16 @@ actual class ProjectEditor : ProjectEditorIO {
         window.addEventListener("message", listener)
 
         val frame: JsAny = mountEditorFrame(EDITOR_PAGE + versionQuery())
+        val session: EditorBridgeSession =
+            EditorBridgeSession(
+                title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun, compile,
+                post = { messageJson: String -> postToEditor(frame, messageJson) },
+            )
         try {
             while (true) {
                 val envelope: String = inbox.receiveCatching().getOrNull() ?: return
-                val message: EditorMessage =
-                    editorJson.decodeFromString(EditorMessage.serializer(), envelope)
-                when (message.type) {
-                    MESSAGE_READY ->
-                        postToEditor(
-                            frame,
-                            openMessage(title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun),
-                        )
-                    MESSAGE_SAVE -> {
-                        val feedback: CompileFeedback = compile(message.files)
-                        postToEditor(frame, compiledMessage(feedback))
-                    }
-                    MESSAGE_HISTORY_LOAD_MORE ->
-                        postHistoryOutcome(frame, history?.loadMore?.invoke())
-                    MESSAGE_HISTORY_ROLLBACK ->
-                        postHistoryOutcome(frame, history?.rollback?.invoke(message.versionId))
-                    MESSAGE_HISTORY_DELETE ->
-                        postHistoryOutcome(frame, history?.delete?.invoke(message.versionId))
-                    MESSAGE_TEST_RUN ->
-                        postTestRunOutcome(frame, testRun?.run?.invoke(message.variables, message.args))
-                    MESSAGE_CLOSE -> return
-                }
+                val message: EditorInboundMessage = EditorBridgeProtocol.decode(envelope) ?: continue
+                if (!session.handle(message)) return
             }
         } finally {
             window.removeEventListener("message", listener)
@@ -126,147 +78,6 @@ actual class ProjectEditor : ProjectEditorIO {
         }
     }
 }
-
-// Reduces one [EditorOutcome] of a history action to the editor's `historyPage` / `historyError` reply. A null
-// outcome (the caller passed no [EditorHistory], which the editor should never be able to trigger) is treated
-// as a failure rather than silently ignored, so a protocol mismatch is visible instead of a hung "Loading…" row.
-private fun postHistoryOutcome(frame: JsAny, outcome: EditorOutcome<EditorVersionsPage>?) {
-    when (outcome) {
-        is EditorOutcome.Ok -> postToEditor(frame, historyPageMessage(outcome.value))
-        is EditorOutcome.Failed -> postToEditor(frame, historyErrorMessage(outcome.message))
-        null -> postToEditor(frame, historyErrorMessage("History is not available for this project."))
-    }
-}
-
-private fun postTestRunOutcome(frame: JsAny, outcome: EditorOutcome<EditorTestRunResult>?) {
-    when (outcome) {
-        is EditorOutcome.Ok -> postToEditor(frame, testRunResultMessage(outcome.value))
-        is EditorOutcome.Failed -> postToEditor(frame, testRunFailureMessage(outcome.message))
-        null -> postToEditor(frame, testRunFailureMessage("Test run is not available for this project."))
-    }
-}
-
-private fun openMessage(
-    title: String,
-    files: Map<String, String>,
-    entryPath: String,
-    language: String,
-    sdkTypes: String,
-    eventSubscriptions: List<String>,
-    history: EditorHistory?,
-    testRun: EditorTestRun?,
-): String =
-    editorJson.encodeToString(
-        JsonObject.serializer(),
-        buildJsonObject {
-            put("type", MESSAGE_OPEN)
-            put(
-                "payload",
-                buildJsonObject {
-                    put("title", title)
-                    put("files", JsonObject(files.mapValues { entry -> JsonPrimitive(entry.value) }))
-                    put("entry", entryPath)
-                    put("language", language)
-                    put("sdkTypes", sdkTypes)
-                    // Per-event payload shapes for the preview's fire bar, so a transient widget can be
-                    // triggered without OBS. Single-sourced here rather than duplicated in the page's JS.
-                    put("fireSamples", editorJson.parseToJsonElement(WidgetFireBarSamples.allSamplesJson()))
-                    // The widget's PERSISTED subscription list — the fire bar's preferred, authoritative source
-                    // over scanning source text (see ProjectEditorIO.editAndCompile doc). Empty for a widget
-                    // that has not saved any declared subscriptions yet.
-                    put(
-                        "eventSubscriptions",
-                        JsonArray(eventSubscriptions.map { event -> JsonPrimitive(event) }),
-                    )
-                    // History / test-run panels are opt-in per caller (S-CODE-COLLAPSE) — the editor shows
-                    // neither activity item when the corresponding field is absent.
-                    if (history != null) put("history", historyPageJson(history.initialVersions, history.initialHasMore))
-                    put("testRunEnabled", testRun != null)
-                },
-            )
-        },
-    )
-
-private fun historyPageJson(versions: List<EditorVersionSummary>, hasMore: Boolean): JsonObject =
-    buildJsonObject {
-        put(
-            "versions",
-            JsonArray(
-                versions.map { version ->
-                    buildJsonObject {
-                        put("id", version.id)
-                        put("version", version.version)
-                        put("validationStatus", version.validationStatus)
-                        put("isCurrent", version.isCurrent)
-                    }
-                },
-            ),
-        )
-        put("hasMore", hasMore)
-    }
-
-private fun historyPageMessage(page: EditorVersionsPage): String =
-    editorJson.encodeToString(
-        JsonObject.serializer(),
-        buildJsonObject {
-            put("type", MESSAGE_HISTORY_PAGE)
-            put("payload", historyPageJson(page.versions, page.hasMore))
-        },
-    )
-
-private fun historyErrorMessage(message: String): String =
-    editorJson.encodeToString(
-        JsonObject.serializer(),
-        buildJsonObject {
-            put("type", MESSAGE_HISTORY_ERROR)
-            put("message", message)
-        },
-    )
-
-private fun testRunResultMessage(result: EditorTestRunResult): String =
-    editorJson.encodeToString(
-        JsonObject.serializer(),
-        buildJsonObject {
-            put("type", MESSAGE_TEST_RUN_RESULT)
-            put("ok", true)
-            put("success", result.success)
-            put("durationMs", result.durationMs)
-            put("hostCallCount", result.hostCallCount)
-            put("error", result.error)
-            put("chatOutput", JsonArray(result.chatOutput.map { line -> JsonPrimitive(line) }))
-            put(
-                "effects",
-                JsonArray(
-                    result.effects.map { effect ->
-                        buildJsonObject {
-                            put("name", effect.name)
-                            put("argsPreview", effect.argsPreview)
-                        }
-                    },
-                ),
-            )
-        },
-    )
-
-private fun testRunFailureMessage(message: String): String =
-    editorJson.encodeToString(
-        JsonObject.serializer(),
-        buildJsonObject {
-            put("type", MESSAGE_TEST_RUN_RESULT)
-            put("ok", false)
-            put("message", message)
-        },
-    )
-
-private fun compiledMessage(feedback: CompileFeedback): String =
-    editorJson.encodeToString(
-        JsonObject.serializer(),
-        buildJsonObject {
-            put("type", MESSAGE_COMPILED)
-            put("ok", feedback.ok)
-            put("message", feedback.message)
-        },
-    )
 
 // The running build, so a deploy invalidates the editor's immutably-cached assets (Program.cs caches any
 // `/editor/*` request carrying `v` for a year). There is no build stamp in the wasmJs client — `AppVersion`

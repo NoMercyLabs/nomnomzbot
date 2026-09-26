@@ -1820,6 +1820,15 @@
     <string name="scripts_editor_source_label">Broncode</string>
     <string name="scripts_editor_edit_code">Bewerken en compileren</string>
     <string name="scripts_editor_compiled">Gecompileerd en gepubliceerd</string>
+    <string name="code_editor_window_title">Code-editor: %1$s</string>
+    <string name="code_editor_unavailable_title">Bewerken heeft de systeemwebweergave nodig</string>
+    <string name="code_editor_unavailable_bot_title">De code-editor kon niet laden</string>
+    <string name="code_editor_unavailable_webview2">De code-editor draait in de Microsoft Edge WebView2 Runtime. Die is niet geïnstalleerd op deze computer. Installeer de Evergreen WebView2 Runtime van Microsoft en open de editor daarna opnieuw.</string>
+    <string name="code_editor_unavailable_get_webview2">WebView2 Runtime downloaden</string>
+    <string name="code_editor_unavailable_system">De code-editor draait in de ingebouwde webweergave van deze computer, en die webweergave kon niet starten (%1$s). Installeer op Linux WebKitGTK (het pakket libwebkit2gtk-4.1). Open de editor daarna opnieuw.</string>
+    <string name="code_editor_unavailable_no_bot">De code-editor wordt geladen vanaf je bot, en er is geen bot verbonden. Verbind met je bot en open de editor daarna opnieuw.</string>
+    <string name="code_editor_unavailable_page_failed">De code-editor is niet geladen vanaf je bot (%1$s). Controleer of je bot draait en bereikbaar is en open de editor daarna opnieuw.</string>
+    <string name="code_editor_unavailable_close">Sluiten</string>
     <string name="scripts_delete_title">Script verwijderen?</string>
     <string name="scripts_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="scripts_delete_confirm">Verwijderen</string>
