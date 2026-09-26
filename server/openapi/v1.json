@@ -64626,6 +64626,171 @@
         }
       }
     },
+    "/api/v{version}/admin/tenants/{broadcasterId}/members": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "The people who belong to a tenant (owner, management members, community members, seen viewers),\r\nsearchable by name — the act-as target picker. An act-as under this tenant's support session may only\r\ntarget one of them.",
+        "parameters": [
+          {
+            "name": "broadcasterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfTenantMemberDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/access/{accessGrantId}": {
       "delete": {
         "tags": [
@@ -105532,6 +105697,44 @@
           }
         }
       },
+      "PaginatedResponseOfTenantMemberDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantMemberDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedResponseOfTimerListItem": {
         "type": "object",
         "properties": {
@@ -121976,6 +122179,53 @@
           }
         },
         "description": "One live per-tenant quota exception, for the operator console."
+      },
+      "TenantMemberDto": {
+        "required": [
+          "userId",
+          "username",
+          "displayName",
+          "profileImageUrl",
+          "relation",
+          "managementRole",
+          "communityStanding"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "relation": {
+            "type": "string"
+          },
+          "managementRole": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "communityStanding": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One person who belongs to a tenant, for the operator's act-as picker: the owner, a management member, a\r\ncommunity member or a viewer the channel has seen. Relation is `owner`,\r\n`manager`, `community` or `viewer`; the role and standing are NAMES, never numbered levels."
       },
       "TenantRemigrationResultDto": {
         "required": [

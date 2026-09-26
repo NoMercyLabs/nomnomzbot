@@ -18,7 +18,7 @@ import bot.nomnomz.dashboard.core.connection.RestorableSession
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.connection.SessionTokens
-import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.connection.toSessionUser
 import bot.nomnomz.dashboard.core.connection.SavedConnection
 import bot.nomnomz.dashboard.core.connection.SavedConnectionsRepository
 import bot.nomnomz.dashboard.core.connection.TokenVault
@@ -81,6 +81,9 @@ class ConnectController(
     // keyed by profile id — no in-memory cache to fall out of sync).
     private val savedConnectionsRepository: SavedConnectionsRepository =
         SavedConnectionsRepository(savedConnectionsStore(), TokenVault()),
+    // Ends an active act-as session (restoring the operator and revoking the grant) — [logout] runs it first so
+    // the sign-out revokes the OPERATOR's session rather than sending the act-as token.
+    private val endActAs: suspend () -> Unit = {},
 ) {
     // The web build is single-origin: default the backend URL to the SERVED ORIGIN so it matches wherever the
     // dashboard is opened (localhost, the LAN, or the public tunnel) instead of a hardcoded localhost. Native
@@ -332,6 +335,7 @@ class ConnectController(
      * network call: local custody is dropped regardless, so even an offline logout returns the gate to Connect.
      */
     suspend fun logout() {
+        if (sessionStore.isActingAs) endActAs()
         authApi.logout()
         sessionStore.disconnect()
     }
@@ -847,15 +851,6 @@ private sealed interface RedirectOutcome {
 
     data object Cancelled : RedirectOutcome
 }
-
-private fun CurrentUser.toSessionUser(): SessionUser =
-    SessionUser(
-        id = id,
-        username = username,
-        displayName = displayName,
-        profileImageUrl = profileImageUrl,
-        isAdmin = isAdmin,
-    )
 
 /** The Connect screen's render state. */
 sealed interface ConnectStatus {

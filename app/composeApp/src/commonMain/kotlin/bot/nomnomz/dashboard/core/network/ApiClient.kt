@@ -63,7 +63,7 @@ class ApiClient(
 
     /**
      * Test-only seam: when set, invoked with the exact (HTTP method, path) of every request made through
-     * [envelope] / [unit] — BEFORE the base-URL check, so it fires even with no active connection. Lets a
+     * [envelope] / [direct] / [unit] — BEFORE the base-URL check, so it fires even with no active connection. Lets a
      * facade test (e.g. AdminApiImpl) assert the real verb+path it sends without a live HTTP client or a
      * mock engine dependency. Always null in production; never read there.
      */
@@ -146,7 +146,7 @@ class ApiClient(
      */
     @PublishedApi
     internal suspend inline fun <reified T> getDirect(path: String): ApiResult<T> =
-        direct(path) { url -> httpClient.get(url) }
+        direct(path, "GET") { url -> httpClient.get(url) }
 
     /**
      * POSTs an optional JSON [body] and deserializes the WHOLE response body to [T] (no
@@ -155,7 +155,7 @@ class ApiClient(
      */
     @PublishedApi
     internal suspend inline fun <reified T> postDirect(path: String, body: Any? = null): ApiResult<T> =
-        direct(path) { url ->
+        direct(path, "POST") { url ->
             httpClient.post(url) {
                 if (body != null) {
                     contentType(ContentType.Application.Json)
@@ -169,8 +169,10 @@ class ApiClient(
     @PublishedApi
     internal suspend inline fun <reified T> direct(
         path: String,
+        method: String,
         send: (url: String) -> HttpResponse,
     ): ApiResult<T> {
+        requestSpy?.invoke(method, path)
         val base: String = baseUrl() ?: return noConnection()
         var response: HttpResponse =
             try {

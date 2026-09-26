@@ -12,7 +12,9 @@ package bot.nomnomz.dashboard
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.connection.ImpersonationInfo
 import bot.nomnomz.dashboard.core.connection.SessionPhase
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.connection.servedOriginProfile
@@ -45,6 +48,7 @@ import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.state.resumePendingSetupFinish
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
+import bot.nomnomz.dashboard.feature.shell.ui.ImpersonationBanner
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.core.designsystem.icon.IconPreload
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
@@ -223,52 +227,68 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             )
                         Destination.Setup -> SetupWizardScreen(controller = graph.setupController)
                         Destination.Shell -> {
-                            val user: SessionUser? by
-                                graph.sessionStore.user.collectAsStateWithLifecycle()
-                            // Resolve the caller's REAL Plane-B role from the backend (/effective/me). The key is
-                            // the active channel id so that switching channels in the sidebar immediately re-resolves
-                            // the role for the new channel (the management surface re-gates without a re-login).
-                            val activeChannelId: String? by
-                                graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
-                            val access: ShellAccess by
-                                graph.shellAccessController.state.collectAsStateWithLifecycle()
-                            // Re-resolve the caller's role whenever the active channel changes. The resolve keeps
-                            // the previous channel's access until the new probe lands; ShellScreen renders a
-                            // neutral "switching" state on the channelId mismatch so the old (possibly higher)
-                            // role never renders against the newly-selected channel.
-                            LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
-                            // S050 — a TRANSIENT effectiveMe failure (network blip / momentary 5xx) must self-heal,
-                            // not strand the caller on the retry splash forever nor silently downgrade them to a
-                            // fail-closed viewer. Re-probe shortly after landing on [ShellAccess.Retrying]; this
-                            // effect re-arms every time the state flips back to Retrying (a later blip), and stops
-                            // re-firing once a real answer (Loading's first Resolved, or a repeat blip) lands.
-                            LaunchedEffect(access) {
-                                if (access is ShellAccess.Retrying) {
-                                    delay(RETRY_EFFECTIVE_ME_DELAY_MS)
-                                    graph.shellAccessController.load()
+                            // The act-as banner is the frame's first row, above EVERY shell state (the role splash,
+                            // the channel-switch splash, both rungs), so Exit is reachable whatever renders below.
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                ImpersonationBanner(
+                                    sessionStore = graph.sessionStore,
+                                    onExit = { graph.actAsCoordinator.exitInBackground() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                    val user: SessionUser? by
+                                        graph.sessionStore.user.collectAsStateWithLifecycle()
+                                    // Resolve the caller's REAL Plane-B role from the backend (/effective/me). The key is
+                                    // the active channel id so that switching channels in the sidebar immediately re-resolves
+                                    // the role for the new channel (the management surface re-gates without a re-login).
+                                    val activeChannelId: String? by
+                                        graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
+                                    val access: ShellAccess by
+                                        graph.shellAccessController.state.collectAsStateWithLifecycle()
+                                    // Re-resolve the caller's role whenever the active channel changes. The resolve keeps
+                                    // the previous channel's access until the new probe lands; ShellScreen renders a
+                                    // neutral "switching" state on the channelId mismatch so the old (possibly higher)
+                                    // role never renders against the newly-selected channel.
+                                    LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
+                                    // S050 — a TRANSIENT effectiveMe failure (network blip / momentary 5xx) must self-heal,
+                                    // not strand the caller on the retry splash forever nor silently downgrade them to a
+                                    // fail-closed viewer. Re-probe shortly after landing on [ShellAccess.Retrying]; this
+                                    // effect re-arms every time the state flips back to Retrying (a later blip), and stops
+                                    // re-firing once a real answer (Loading's first Resolved, or a repeat blip) lands.
+                                    LaunchedEffect(access) {
+                                        if (access is ShellAccess.Retrying) {
+                                            delay(RETRY_EFFECTIVE_ME_DELAY_MS)
+                                            graph.shellAccessController.load()
+                                        }
+                                    }
+                                    // Proactive dead-token recovery (never-logout-for-scope-or-schema-changes): probe Twitch
+                                    // health once the operator resolves so a dead/expired token raises the reconnect prompt
+                                    // ON LOAD — one tap to redirect-reconnect, no menu hunt, no logout. Fail-open by design.
+                                    // Never while acting as someone: their Twitch health is not the operator's to repair.
+                                    val actingAs: ImpersonationInfo? by
+                                        graph.sessionStore.impersonating.collectAsStateWithLifecycle()
+                                    LaunchedEffect(user?.id, actingAs == null) {
+                                        if (actingAs == null) graph.connectController.checkTwitchHealth()
+                                    }
+                                    when (val resolved: ShellAccess = access) {
+                                        // Hold the splash under the one-shot role probe so the shell never flashes the
+                                        // wrong (over-granted) surface before the real role lands.
+                                        ShellAccess.Loading -> SplashScreen()
+                                        // A blip, not a real answer — the same neutral splash as Loading (distinct from
+                                        // the fail-closed viewer UI a definitive Resolved failure renders); [load] is
+                                        // re-invoked above shortly after landing here.
+                                        ShellAccess.Retrying -> SplashScreen()
+                                        is ShellAccess.Resolved ->
+                                            ShellScreen(
+                                                graph = graph,
+                                                languageController = graph.languageController,
+                                                routeStore = routeStore,
+                                                user = user,
+                                                access = resolved,
+                                                onLogout = { scope.launch { graph.connectController.logout() } },
+                                            )
+                                    }
                                 }
-                            }
-                            // Proactive dead-token recovery (never-logout-for-scope-or-schema-changes): probe Twitch
-                            // health once the operator resolves so a dead/expired token raises the reconnect prompt
-                            // ON LOAD — one tap to redirect-reconnect, no menu hunt, no logout. Fail-open by design.
-                            LaunchedEffect(user?.id) { graph.connectController.checkTwitchHealth() }
-                            when (val resolved: ShellAccess = access) {
-                                // Hold the splash under the one-shot role probe so the shell never flashes the
-                                // wrong (over-granted) surface before the real role lands.
-                                ShellAccess.Loading -> SplashScreen()
-                                // A blip, not a real answer — the same neutral splash as Loading (distinct from
-                                // the fail-closed viewer UI a definitive Resolved failure renders); [load] is
-                                // re-invoked above shortly after landing here.
-                                ShellAccess.Retrying -> SplashScreen()
-                                is ShellAccess.Resolved ->
-                                    ShellScreen(
-                                        graph = graph,
-                                        languageController = graph.languageController,
-                                        routeStore = routeStore,
-                                        user = user,
-                                        access = resolved,
-                                        onLogout = { scope.launch { graph.connectController.logout() } },
-                                    )
                             }
                         }
                     }

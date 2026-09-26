@@ -50,6 +50,12 @@ class AttentionController(private val notificationsApi: NotificationsApi) {
         refresh()
     }
 
+    /** Drop the items and forget the channel — no channel is selected (e.g. the signed-in identity has none). */
+    fun reset() {
+        channelId = null
+        _items.value = emptyList()
+    }
+
     /** Refetch the list for the active channel; concurrent calls coalesce into one extra fetch. */
     suspend fun refresh() {
         if (fetchLock.isLocked) {

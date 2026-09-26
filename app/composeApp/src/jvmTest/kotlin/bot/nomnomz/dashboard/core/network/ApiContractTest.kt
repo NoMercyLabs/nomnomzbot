@@ -260,6 +260,8 @@ class ApiContractTest {
             AdminTenant.serializer() to "AdminTenantDto",
             AdminTenantDetail.serializer() to "AdminTenantDetailDto",
             TenantAccessGrant.serializer() to "TenantAccessGrantDto",
+            // The act-as picker: the people of one tenant (owner, managers, community, seen viewers).
+            TenantMember.serializer() to "TenantMemberDto",
             IamAuditEntry.serializer() to "IamAuditEntryDto",
             // EventSub subscription health + outbound webhook delivery log/replay (S-ADMIN-6a).
             AdminEventSubTopicHealth.serializer() to "AdminEventSubTopicHealthDto",

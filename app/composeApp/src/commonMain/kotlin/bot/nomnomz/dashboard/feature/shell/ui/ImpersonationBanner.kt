@@ -34,19 +34,17 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import nomnomzbot.composeapp.generated.resources.Res
-import nomnomzbot.composeapp.generated.resources.shell_impersonation_banner
+import nomnomzbot.composeapp.generated.resources.shell_impersonation_banner_ending
+import nomnomzbot.composeapp.generated.resources.shell_impersonation_banner_expired
+import nomnomzbot.composeapp.generated.resources.shell_impersonation_banner_remaining
 import nomnomzbot.composeapp.generated.resources.shell_impersonation_exit
-import nomnomzbot.composeapp.generated.resources.shell_impersonation_expires
-import nomnomzbot.composeapp.generated.resources.shell_impersonation_expires_soon
 import org.jetbrains.compose.resources.stringResource
 
-// The admin act-as banner. Shows at the top of the shell for the WHOLE time the operator is impersonating another
-// user, on EVERY page — it hangs off [SessionStore.activeImpersonation], never [SessionUser.isAdmin]
-// (impersonating a non-admin flips isAdmin false, yet the operator must still be able to exit) AND never off the
-// raw [SessionStore.impersonating] flag alone — that one does not re-check expiry, so it could still read
-// non-null a tick after the time-boxed support session ran out. A one-second tick keeps the remaining-time
-// readout live and re-evaluates expiry without any extra wiring from the caller. "Stop impersonating" restores
-// the operator's own token and re-resolves identity/access/hubs back to them. Idle or expired = hidden.
+// The admin act-as banner: the ONE operator trace while acting as someone. It sits in the frame above the shell
+// (App.kt), on every page and above the splash, so Exit is always reachable. It hangs off the raw
+// [SessionStore.impersonating] flag, never [SessionUser.isAdmin] (acting as a non-admin flips isAdmin false, yet
+// the operator must still be able to exit). A one-second tick keeps the remaining time live; once the time-boxed
+// session has run out the banner stays, says so, and keeps Exit — act-as never silently lingers without a way out.
 @Composable
 fun ImpersonationBanner(
     sessionStore: SessionStore,
@@ -61,20 +59,21 @@ fun ImpersonationBanner(
             delay(TICK_MS)
         }
     }
-    val active: ImpersonationInfo? = raw?.takeUnless { it.isExpired(now) }
 
-    AnimatedVisibility(visible = active != null, modifier = modifier) {
+    AnimatedVisibility(visible = raw != null, modifier = modifier) {
         val tokens = LocalTokens.current
         val spacing = LocalSpacing.current
         val typography = LocalTypography.current
-        // Held during the brief collapse animation after impersonation ends/expires (already null then).
-        val name: String = active?.displayName ?: ""
-        val minutesRemaining: Long = active?.let { (it.expiresAt - now).inWholeMinutes } ?: 0L
+        // Held during the brief collapse animation after impersonation ends (already null then).
+        val name: String = raw?.displayName ?: ""
+        val expired: Boolean = raw?.isExpired(now) ?: false
+        val minutesRemaining: Long = raw?.let { (it.expiresAt - now).inWholeMinutes } ?: 0L
+        val message: String = when {
+            expired -> stringResource(Res.string.shell_impersonation_banner_expired, name)
+            minutesRemaining >= 1 -> stringResource(Res.string.shell_impersonation_banner_remaining, name, minutesRemaining)
+            else -> stringResource(Res.string.shell_impersonation_banner_ending, name)
+        }
 
-        // Single compact row (name + remaining time joined by " — ") instead of a two-line stack: this banner
-        // OVERLAYS the top of the shell on every page (ShellScreen.kt), so its height directly eats into the
-        // space the sidebar's channel-selector chip needs — a stacked layout pushed it low enough to block
-        // that chip entirely while impersonating.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -83,13 +82,8 @@ fun ImpersonationBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
-            val remainingText: String = if (minutesRemaining >= 1) {
-                stringResource(Res.string.shell_impersonation_expires, minutesRemaining)
-            } else {
-                stringResource(Res.string.shell_impersonation_expires_soon)
-            }
             Text(
-                text = stringResource(Res.string.shell_impersonation_banner, name) + " — " + remainingText,
+                text = message,
                 style = typography.xs,
                 fontWeight = FontWeight.Medium,
                 color = tokens.accentForeground,

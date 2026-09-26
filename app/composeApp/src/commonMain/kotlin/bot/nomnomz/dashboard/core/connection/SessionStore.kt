@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.core.connection
 
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthPayload
+import bot.nomnomz.dashboard.core.network.CurrentUser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,7 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 // The active-connection + session Store (frontend.md §4/§6). Global, long-lived, injected; exposes
@@ -54,12 +54,16 @@ class SessionStore(
     // (impersonating a non-admin flips isAdmin false, but the operator must still be able to exit).
     private val _impersonating: MutableStateFlow<ImpersonationInfo?> = MutableStateFlow(null)
 
+    // Bumped on every identity swap (act-as begin/end, session cleared). Pages key on it so a swap remounts
+    // every screen and no state loaded for the previous identity survives into the next one.
+    private val _identityGeneration: MutableStateFlow<Int> = MutableStateFlow(0)
+
     private var tokens: SessionTokens? = null
 
-    // The operator's OWN access token, stashed on [beginImpersonation] so [endImpersonation] can restore it.
-    // Impersonation is ephemeral: only this in-memory swap changes: the vault + profile + refresh token stay
-    // the operator's, so a relaunch never restores an impersonated session.
-    private var stashedOperatorToken: String? = null
+    // The operator's OWN session state, stashed on [beginImpersonation] so [endImpersonation] can restore it.
+    // Impersonation is ephemeral: only this in-memory swap changes: the vault + profile + refresh token stay the
+    // operator's, so a relaunch never restores an impersonated session.
+    private var operatorStash: OperatorStash? = null
 
     /** The current session phase the gate observes. */
     val phase: StateFlow<SessionPhase> = _phase.asStateFlow()
@@ -74,24 +78,26 @@ class SessionStore(
     val activeChannelId: StateFlow<String?> = _activeChannelId.asStateFlow()
 
     /**
-     * The user the operator is currently acting as, or null when not impersonating. This is the RAW flag —
-     * it does not re-check expiry on its own (nothing ticks it), so a stale read past [ImpersonationInfo.expiresAt]
-     * is possible between reads. Callers that render the "Acting as …" banner must gate on [activeImpersonation]
-     * instead, which never reports an expired session as active.
+     * The user the operator is currently acting as, or null when not acting. It stays set past
+     * [ImpersonationInfo.expiresAt] until the act-as session is actually ended, so the banner can show the expired
+     * state with Exit instead of vanishing while the session still holds the target's token.
      */
     val impersonating: StateFlow<ImpersonationInfo?> = _impersonating.asStateFlow()
 
-    /** [impersonating], but null once [ImpersonationInfo.expiresAt] has passed — the banner must never claim an
-     * impersonation is active after its time-boxed support session has run out. */
-    fun activeImpersonation(now: Instant = Clock.System.now()): ImpersonationInfo? =
-        _impersonating.value?.takeUnless { it.isExpired(now) }
+    /** Changes on every identity swap; screens and per-identity effects key on it. */
+    val identityGeneration: StateFlow<Int> = _identityGeneration.asStateFlow()
+
+    /** True while acting as another user. */
+    val isActingAs: Boolean get() = _impersonating.value != null
 
     /** Switch the active managed channel. Each page controller picks this up on its next load. */
     fun switchChannel(channelId: String) {
         _activeChannelId.value = channelId
         // Remember the explicit choice so a web reload / desktop relaunch restores THIS channel rather than
         // snapping back to the owned-first default. Only an explicit switch persists — [setDefaultChannel]
-        // (the boot seed) must not overwrite a remembered choice before restore reads it.
+        // (the boot seed) must not overwrite a remembered choice before restore reads it. A switch made while
+        // acting as someone is theirs, never the operator's, so it is not remembered.
+        if (isActingAs) return
         persistenceScope.launch { activeChannelStore.write(channelId) }
     }
 
@@ -100,8 +106,11 @@ class SessionStore(
         if (_activeChannelId.value == null) _activeChannelId.value = channelId
     }
 
-    /** The channel the operator last explicitly switched to, if any — read on boot to restore that context. */
-    suspend fun persistedActiveChannel(): String? = activeChannelStore.read()
+    /**
+     * The channel the operator last explicitly switched to, if any — read on boot to restore that context. Null
+     * while acting as someone: the remembered channel is the operator's, not the impersonated user's.
+     */
+    suspend fun persistedActiveChannel(): String? = if (isActingAs) null else activeChannelStore.read()
 
     /** The active backend base URL the [ApiClient] targets; null when not connected. */
     fun baseUrl(): String? = _activeProfile.value?.baseUrl
@@ -118,11 +127,12 @@ class SessionStore(
     }
 
     /**
-     * Enter admin act-as: stash the operator's CURRENT access token, then swap the active token to the target
-     * user's [targetAccessToken] and raise the impersonation flag. Only the in-memory active token changes —
-     * the vault, the remembered profile, and the refresh token stay the operator's, so nothing about this
-     * survives a reload. [endImpersonation] restores the stashed token. Re-entrant guard: a second begin while
-     * already impersonating keeps the ORIGINAL operator token stashed (never overwrites it with an act-as token).
+     * Enter admin act-as: stash the operator's token, selected channel and identity, then swap the active token to
+     * the target user's [targetAccessToken], raise the impersonation flag, clear the selected channel (the target's
+     * own roster picks theirs) and bump [identityGeneration]. Only in-memory state changes — the vault, the
+     * remembered profile, the remembered channel and the refresh token stay the operator's, so nothing about this
+     * survives a reload. [endImpersonation] restores the stash. Re-entrant guard: a second begin while already
+     * impersonating keeps the ORIGINAL operator stash (never overwrites it with act-as state).
      */
     fun beginImpersonation(
         targetAccessToken: String,
@@ -130,20 +140,30 @@ class SessionStore(
         expiresAt: Instant,
         accessGrantId: String,
     ) {
-        if (stashedOperatorToken == null) stashedOperatorToken = tokens?.accessToken
+        if (operatorStash == null) {
+            operatorStash = OperatorStash(tokens?.accessToken, _activeChannelId.value, _user.value)
+        }
         updateAccessToken(targetAccessToken)
         _impersonating.value = ImpersonationInfo(targetDisplayName, expiresAt, accessGrantId)
+        _activeChannelId.value = null
+        _identityGeneration.value += 1
     }
 
     /**
-     * Leave admin act-as: restore the stashed operator access token and clear the impersonation flag. A no-op
-     * when not impersonating (nothing stashed), so a stray exit never blanks a real token.
+     * Leave admin act-as: restore the stashed operator token, selected channel and identity, clear the
+     * impersonation flag and bump [identityGeneration]. Returns the ended session, or null when not impersonating
+     * (nothing stashed) — a stray exit never blanks a real token.
      */
-    fun endImpersonation() {
-        val operatorToken: String = stashedOperatorToken ?: return
-        updateAccessToken(operatorToken)
-        stashedOperatorToken = null
+    fun endImpersonation(): ImpersonationInfo? {
+        val stash: OperatorStash = operatorStash ?: return null
+        val ended: ImpersonationInfo? = _impersonating.value
+        stash.accessToken?.let(::updateAccessToken)
+        operatorStash = null
         _impersonating.value = null
+        _activeChannelId.value = stash.activeChannelId
+        stash.user?.let { _user.value = it }
+        _identityGeneration.value += 1
+        return ended
     }
 
     /**
@@ -215,8 +235,11 @@ class SessionStore(
      * exactly as they were, so the gate falls through to Connect for THIS backend without wiping
      * saved connections or forcing a fresh device-code login for any other one.
      */
-    suspend fun refreshOrExpire(refresh: suspend () -> ApiResult<AuthPayload>): Boolean =
-        when (val result: ApiResult<AuthPayload> = refresh()) {
+    suspend fun refreshOrExpire(refresh: suspend () -> ApiResult<AuthPayload>): Boolean {
+        // The refresh token is the OPERATOR's; installing its result while acting would put the operator's token
+        // under the impersonated user's name. The act-as path ends the session instead (ActAsCoordinator).
+        if (isActingAs) return false
+        return when (val result: ApiResult<AuthPayload> = refresh()) {
             is ApiResult.Ok -> {
                 updateAccessToken(result.value.accessToken)
                 true
@@ -226,6 +249,7 @@ class SessionStore(
                 false
             }
         }
+    }
 
     /** Attach the signed-in identity resolved from `/me` after [connect]. */
     fun setUser(sessionUser: SessionUser) {
@@ -244,6 +268,7 @@ class SessionStore(
         tokens = null
         _user.value = null
         _activeChannelId.value = null
+        dropActAs()
         _phase.value = SessionPhase.NotConnected
     }
 
@@ -256,9 +281,25 @@ class SessionStore(
         _user.value = null
         _activeProfile.value = null
         _activeChannelId.value = null
+        dropActAs()
         _phase.value = SessionPhase.NotConnected
     }
+
+    // A session that ends while acting takes the act-as state with it: the flag and the stash must never outlive
+    // the session they belonged to (an Exit after a re-login would otherwise write a stale token over the new one).
+    private fun dropActAs() {
+        operatorStash = null
+        _impersonating.value = null
+        _identityGeneration.value += 1
+    }
 }
+
+/** The operator's own session state held while acting as someone, restored by [SessionStore.endImpersonation]. */
+private data class OperatorStash(
+    val accessToken: String?,
+    val activeChannelId: String?,
+    val user: SessionUser?,
+)
 
 /**
  * A remembered session read back from custody on boot — the active profile and its persisted tokens, if any.
@@ -285,3 +326,13 @@ data class SessionUser(
     val profileImageUrl: String?,
     val isAdmin: Boolean = false,
 )
+
+/** The shell identity projected from the backend `/me` answer. */
+fun CurrentUser.toSessionUser(): SessionUser =
+    SessionUser(
+        id = id,
+        username = username,
+        displayName = displayName,
+        profileImageUrl = profileImageUrl,
+        isAdmin = isAdmin,
+    )

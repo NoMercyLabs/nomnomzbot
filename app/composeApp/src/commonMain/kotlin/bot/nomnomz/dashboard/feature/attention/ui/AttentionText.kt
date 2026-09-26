@@ -31,6 +31,12 @@ import nomnomzbot.composeapp.generated.resources.attention_scope_missing_message
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_title
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_topics_message
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_message
+import nomnomzbot.composeapp.generated.resources.attention_security_access_granted_message
+import nomnomzbot.composeapp.generated.resources.attention_security_access_granted_title
+import nomnomzbot.composeapp.generated.resources.attention_security_impersonation_ended_message
+import nomnomzbot.composeapp.generated.resources.attention_security_impersonation_ended_title
+import nomnomzbot.composeapp.generated.resources.attention_security_impersonation_started_message
+import nomnomzbot.composeapp.generated.resources.attention_security_impersonation_started_title
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_title_many
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_title_one
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_unnamed_message
@@ -95,6 +101,17 @@ fun attentionTitleOf(item: ActionRequiredItem): AttentionText {
             AttentionText(Res.string.attention_webhook_disabled_title, listOf(literal(item.param("endpointName"))))
         "attention_webhook_failing_title" ->
             AttentionText(Res.string.attention_webhook_failing_title, listOf(literal(item.param("endpointName"))))
+        "attention_security_impersonation_started_title" ->
+            AttentionText(
+                Res.string.attention_security_impersonation_started_title,
+                listOf(literal(item.param("targetName"))),
+            )
+        "attention_security_impersonation_ended_title" ->
+            AttentionText(
+                Res.string.attention_security_impersonation_ended_title,
+                listOf(literal(item.param("targetName"))),
+            )
+        "attention_security_access_granted_title" -> AttentionText(Res.string.attention_security_access_granted_title)
         "attention_song_lost_title" ->
             if (many) {
                 AttentionText(Res.string.attention_song_lost_title_many, listOf(count))
@@ -115,6 +132,21 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
                 listOf(literal(item.param("failureCount"))),
             )
         "attention_integration_unusable_message" -> AttentionText(Res.string.attention_integration_unusable_message)
+        "attention_security_impersonation_started_message" ->
+            AttentionText(
+                Res.string.attention_security_impersonation_started_message,
+                listOf(literal(item.param("operatorName")), literal(item.param("reason"))),
+            )
+        "attention_security_impersonation_ended_message" ->
+            AttentionText(
+                Res.string.attention_security_impersonation_ended_message,
+                listOf(literal(item.param("operatorName")), literal(item.param("reason"))),
+            )
+        "attention_security_access_granted_message" ->
+            AttentionText(
+                Res.string.attention_security_access_granted_message,
+                listOf(literal(item.param("operatorName"))),
+            )
         "attention_held_single_from_user_message" ->
             AttentionText(
                 Res.string.attention_held_single_from_user_message,

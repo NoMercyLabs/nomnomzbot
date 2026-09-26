@@ -80,6 +80,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.filterNotNull
+import bot.nomnomz.dashboard.core.connection.ImpersonationInfo
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.component.Avatar
@@ -153,6 +154,7 @@ import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import nomnomzbot.composeapp.generated.resources.participant_standing_everyone
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
 import nomnomzbot.composeapp.generated.resources.language_label
@@ -348,9 +350,14 @@ fun ShellScreen(
     // less), so the content host can never render — or crash on — a page the sidebar is hiding. Routing responds to
     // permission changes with no reload. The route persisted to the URL is the coerced one, so a reload never
     // restores a page the caller has since lost.
-    var requestedRoute: ShellRoute by remember { mutableStateOf(routeStore.initialRoute()) }
+    // Keyed on the identity generation: an act-as begin/end re-seeds the route from the operator's last SAVED page
+    // (the Admin console act-as started from), and routes are never saved while acting, so the operator lands back
+    // where they left and the target's pages never leak into the operator's history.
+    val identityGeneration: Int by graph.sessionStore.identityGeneration.collectAsStateWithLifecycle()
+    val actingAs: ImpersonationInfo? by graph.sessionStore.impersonating.collectAsStateWithLifecycle()
+    var requestedRoute: ShellRoute by remember(identityGeneration) { mutableStateOf(routeStore.initialRoute()) }
     val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute
-    LaunchedEffect(selected) { routeStore.save(selected) }
+    LaunchedEffect(selected, actingAs == null) { if (actingAs == null) routeStore.save(selected) }
     // The multi-watch page runs on a DEDICATED hub connection (see AppGraph). Open it (joining the active channel
     // as the socket-opening primary — the controller filters the feed to the channels actually watched) only while
     // that page is selected, and close it on leave so an idle session holds just the one shell socket.
@@ -391,7 +398,12 @@ fun ShellScreen(
     // (sidebar on desktop, a strip under the top bar on compact) so it shows on every page.
     val attentionItems: List<ActionRequiredItem> by
         graph.attentionController.items.collectAsStateWithLifecycle()
-    LaunchedEffect(activeChannelId) { activeChannelId?.let { graph.attentionController.load(it) } }
+    // Keyed on the identity too: an act-as swap refetches with the new identity's token even on the same channel,
+    // and an identity with no channel shows no inbox rather than the previous identity's.
+    LaunchedEffect(activeChannelId, identityGeneration) {
+        val channel: String? = activeChannelId
+        if (channel != null) graph.attentionController.load(channel) else graph.attentionController.reset()
+    }
     LaunchedEffect(hubEvents) { graph.attentionController.subscribeToHub(hubEvents) }
     val attentionSurface: @Composable (Modifier) -> Unit = { surfaceModifier ->
         AttentionSurface(
@@ -412,13 +424,9 @@ fun ShellScreen(
         reconnectJob = reconnectScope.launch { graph.connectController.reconnect() }
     }
 
-    // Admin act-as exit: restore the operator's token and re-resolve identity/access/hubs back to them (the same
-    // re-resolve AdminController.impersonate runs, in reverse). Guarded by a job so a double-tap can't overlap.
-    var exitImpersonationJob: Job? by remember { mutableStateOf(null) }
-    val exitImpersonation: () -> Unit = {
-        exitImpersonationJob?.cancel()
-        exitImpersonationJob = reconnectScope.launch { graph.adminController.exitImpersonation() }
-    }
+    // While acting as someone, re-authorizing Twitch would run the operator's browser through the TARGET's grant:
+    // the menu entry, the dead-token bar and the re-auth dialog are the operator's tools, so none of them show.
+    val profileReconnect: (() -> Unit)? = if (actingAs == null) triggerReconnect else null
 
     // S050 — shell truth: the persistent, truthful hub-health signal every layout renders (see [HubDot]).
     // Read from the SHELL'S OWN connection (not the multi-watch page's dedicated socket) since it is kept
@@ -478,7 +486,7 @@ fun ShellScreen(
                     channelSwitcher = graph.channelSwitcherController,
                     languageController = languageController,
                     onLogout = onLogout,
-                    onReconnect = triggerReconnect,
+                    onReconnect = profileReconnect,
                     onPreviewAsViewer = { previewAsViewer = true },
                     hubState = hubConnectionState,
                 )
@@ -499,7 +507,7 @@ fun ShellScreen(
                     channelSwitcher = graph.channelSwitcherController,
                     languageController = languageController,
                     onLogout = onLogout,
-                    onReconnect = triggerReconnect,
+                    onReconnect = profileReconnect,
                     onPreviewAsViewer = { previewAsViewer = true },
                     hubState = hubConnectionState,
                     attention = { attentionSurface(Modifier.fillMaxWidth()) },
@@ -523,32 +531,25 @@ fun ShellScreen(
             }
         }
 
-        // Dead-token recovery bar — overlays the top of the shell. It AUTO-SHOWS on load when the operator's Twitch
-        // token is dead (the proactive "reconnect" prompt) and stays up through an in-flight reconnect; hidden
-        // otherwise. Its action runs the redirect re-auth — re-vaults a fresh token in place, no logout.
-        ReconnectBanner(
-            controller = graph.connectController,
-            onDismiss = {
-                reconnectJob?.cancel()
-                graph.connectController.clearReconnectStatus()
-            },
-            onRetry = triggerReconnect,
-            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
-        )
+        if (actingAs == null) {
+            // Dead-token recovery bar — overlays the top of the shell. It AUTO-SHOWS on load when the operator's Twitch
+            // token is dead (the proactive "reconnect" prompt) and stays up through an in-flight reconnect; hidden
+            // otherwise. Its action runs the redirect re-auth — re-vaults a fresh token in place, no logout.
+            ReconnectBanner(
+                controller = graph.connectController,
+                onDismiss = {
+                    reconnectJob?.cancel()
+                    graph.connectController.clearReconnectStatus()
+                },
+                onRetry = triggerReconnect,
+                modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            )
 
-        // Admin act-as banner — overlays the top of the shell while impersonating a user, on any page. It reads
-        // [SessionStore.impersonating] (NOT user.isAdmin, which is false while acting as a non-admin), so the Exit
-        // control is always reachable to return to the operator.
-        ImpersonationBanner(
-            sessionStore = graph.sessionStore,
-            onExit = exitImpersonation,
-            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
-        )
-
-        // The professional dead-token WARNING (proactive re-auth) — a modal, not a bar. It self-dismisses once a
-        // reconnect restores the token (it re-polls health while up), and its Reconnect action runs the same
-        // redirect re-auth as the profile menu.
-        ReauthDialog(controller = graph.connectController, onReconnect = triggerReconnect)
+            // The professional dead-token WARNING (proactive re-auth) — a modal, not a bar. It self-dismisses once a
+            // reconnect restores the token (it re-polls health while up), and its Reconnect action runs the same
+            // redirect re-auth as the profile menu.
+            ReauthDialog(controller = graph.connectController, onReconnect = triggerReconnect)
+        }
     }
 }
 
@@ -573,7 +574,8 @@ private fun ShellContent(
     modifier: Modifier = Modifier,
 ) {
     val activeChannelId: String? by graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
-    key(activeChannelId) {
+    val identityGeneration: Int by graph.sessionStore.identityGeneration.collectAsStateWithLifecycle()
+    key(identityGeneration, activeChannelId) {
     // Every screen's layout branch reads LocalWindowSizeClass, and it is measured HERE — on the content
     // pane, after the sidebar has taken its fixed width. Measuring the window instead would tell a screen
     // it has 900 dp when the sidebar leaves it 660, and it would lay out for room it does not have.
@@ -801,7 +803,8 @@ private fun Sidebar(
     channelSwitcher: ChannelSwitcherController,
     languageController: LanguageController,
     onLogout: () -> Unit,
-    onReconnect: () -> Unit,
+    // Null hides "Reconnect Twitch" (while acting as someone: their Twitch grant is not the operator's to redo).
+    onReconnect: (() -> Unit)?,
     onPreviewAsViewer: () -> Unit,
     hubState: HubConnectionState,
     attention: (@Composable () -> Unit)? = null,
@@ -1182,7 +1185,7 @@ private fun ProfileBlock(
     role: ManagementRole?,
     languageController: LanguageController,
     onLogout: () -> Unit,
-    onReconnect: () -> Unit,
+    onReconnect: (() -> Unit)?,
     onPreviewAsViewer: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1195,7 +1198,7 @@ private fun ProfileBlock(
         resolveRowLabel(
             user?.displayName,
             secondary = user?.username,
-            typeLabel = "Viewer",
+            typeLabel = stringResource(Res.string.participant_standing_everyone),
             discriminatorSource = user?.id ?: "unknown",
         )
     val roleLabel: String = role.label()
@@ -1274,21 +1277,23 @@ private fun ProfileBlock(
                 },
             )
             Separator()
-            // Reconnect Twitch — the no-logout dead-token recovery. Runs the redirect re-auth for the broadcaster
-            // (device-code only on the secret-less fallback); re-vaults a fresh token in place, session kept.
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(Res.string.shell_reconnect_menu),
-                        style = typography.sm,
-                        color = tokens.popoverForeground,
-                    )
-                },
-                onClick = {
-                    open = false
-                    onReconnect()
-                },
-            )
+            onReconnect?.let { reconnect ->
+                // Reconnect Twitch — the no-logout dead-token recovery. Runs the redirect re-auth for the broadcaster
+                // (device-code only on the secret-less fallback); re-vaults a fresh token in place, session kept.
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(Res.string.shell_reconnect_menu),
+                            style = typography.sm,
+                            color = tokens.popoverForeground,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        reconnect()
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = {
                     Text(

@@ -35,7 +35,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,7 +70,6 @@ import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
-import bot.nomnomz.dashboard.feature.shell.ui.ImpersonationBanner
 import bot.nomnomz.dashboard.feature.shell.ui.SidebarHeader
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.app_name
@@ -94,8 +92,6 @@ import nomnomzbot.composeapp.generated.resources.shell_preview_exit
 import nomnomzbot.composeapp.generated.resources.shell_profile_logout
 import nomnomzbot.composeapp.generated.resources.shell_profile_open
 import nomnomzbot.composeapp.generated.resources.shell_topbar_channel_label
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -129,15 +125,9 @@ fun ParticipantShell(
     var selected: ParticipantPage by remember { mutableStateOf(ParticipantPage.MyChannel) }
     val visible: List<ParticipantPage> = ShellNav.participantPagesFor(access.standing)
 
-    // Exit affordances that ride ABOVE the participant surface: the admin act-as banner (an operator who
-    // impersonates a role-less viewer lands here, so the Exit control must live on THIS surface too, not only the
-    // management shell) and the manager's preview banner. Both are hidden for an ordinary viewer.
-    val exitScope: CoroutineScope = rememberCoroutineScope()
+    // The manager's preview banner rides ABOVE the participant surface (hidden for an ordinary viewer). The act-as
+    // banner is not here: it is the app frame's first row (App.kt), above every shell state.
     Column(modifier = Modifier.fillMaxSize()) {
-        ImpersonationBanner(
-            sessionStore = graph.sessionStore,
-            onExit = { exitScope.launch { graph.adminController.exitImpersonation() } },
-        )
         onExitPreview?.let { PreviewBanner(onExit = it) }
 
     BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth().background(tokens.background)) {

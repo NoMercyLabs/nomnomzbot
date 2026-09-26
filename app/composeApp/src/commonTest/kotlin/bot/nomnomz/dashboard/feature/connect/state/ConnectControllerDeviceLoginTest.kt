@@ -71,6 +71,7 @@ class ConnectControllerDeviceLoginTest {
         connectLauncher: ConnectLauncher = FakeConnectLauncher(),
         diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
         savedConnectionsStore: SavedConnectionsStore = InMemorySavedConnectionsStore(),
+        endActAs: suspend (SessionStore) -> Unit = {},
     ): ConnectController {
         val session: SessionStore = SessionStore(vault, profiles)
         // The saved-connections repository shares the SAME token vault the session uses, exactly like
@@ -86,6 +87,7 @@ class ConnectControllerDeviceLoginTest {
                 diagnosticsApi = diagnostics,
                 profileIdFactory = { "test-profile" },
                 savedConnectionsRepository = savedConnectionsRepository,
+                endActAs = { endActAs(session) },
             )
             .also { sessionByController[it] = session }
     }
@@ -828,6 +830,33 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(SessionPhase.NotConnected, session.phase.value)
         assertEquals(null, session.accessToken())
     }
+
+    @Test
+    fun logout_while_acting_as_someone_ends_act_as_first_so_the_operators_session_is_revoked() = runTest {
+        val authApi = FakeAuthApi()
+        val order: MutableList<String> = mutableListOf()
+        val controller =
+            controller(
+                FakeSystemApi(ready = true),
+                authApi,
+                endActAs = { session ->
+                    order += "end-act-as"
+                    session.endImpersonation()
+                },
+            )
+        val session: SessionStore = sessionOf(controller)
+        session.connect(rememberedProfile, SessionTokens(accessToken = "operator-acc", refreshToken = "ref"))
+        session.beginImpersonation("target-acc", "Target", kotlinx.datetime.Instant.parse("2030-01-01T00:00:00Z"), "grant-1")
+        authApi.onLogout = { order += "logout:${session.accessToken()}" }
+
+        controller.logout()
+
+        // Act-as ended BEFORE the backend logout, so the logout carried the operator's token (revoking their
+        // refresh session), never the act-as token.
+        assertEquals(listOf("end-act-as", "logout:operator-acc"), order)
+        assertEquals(null, session.impersonating.value)
+        assertEquals(SessionPhase.NotConnected, session.phase.value)
+    }
 }
 
 private class FakeSystemApi(
@@ -955,8 +984,12 @@ private class FakeAuthApi(
     var logoutCalled: Boolean = false
         private set
 
+    /** Runs when logout reaches the backend — lets a test read the session state the call carried. */
+    var onLogout: () -> Unit = {}
+
     override suspend fun logout(): ApiResult<Unit> {
         logoutCalled = true
+        onLogout()
         return ApiResult.Ok(Unit)
     }
 }

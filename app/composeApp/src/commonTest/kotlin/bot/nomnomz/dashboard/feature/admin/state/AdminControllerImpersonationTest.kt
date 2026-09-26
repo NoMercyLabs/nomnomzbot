@@ -58,6 +58,9 @@ import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
 import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.core.network.TenantAccessGrant
 import bot.nomnomz.dashboard.core.network.UserSearchResult
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.feature.shell.state.ActAsCoordinator
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -70,7 +73,9 @@ import kotlin.test.assertTrue
 //      the grant it returns — both calls, in order, with the right arguments.
 //   3. A NoOpenSupportSession refusal is classified onto AdminState.impersonationRefusal, not left as a raw
 //      string the UI would otherwise render as a generic toast.
-//   4. Stop-impersonating calls the end endpoint with the held grant id and restores the operator session.
+//   4. Stop-impersonating restores the operator session FIRST, then calls the end endpoint with the held grant
+//      id carrying the operator token (an act-as token can never revoke its own grant).
+//   5. A refused mint ends the support session it just opened, so retries never pile up open grants.
 @OptIn(kotlin.time.ExperimentalTime::class)
 class AdminControllerImpersonationTest {
 
@@ -87,7 +92,10 @@ class AdminControllerImpersonationTest {
         return store
     }
 
-    private fun newController(
+    /** The bearer token each revoke call carried, in order. */
+    private val revokeTokens: MutableList<String?> = mutableListOf()
+
+    private fun TestScope.newController(
         api: FakeAdminApi,
         platformAdminApi: FakePlatformAdminApi,
         authApi: FakeAuthApi,
@@ -98,7 +106,21 @@ class AdminControllerImpersonationTest {
             iamApi = FakePlatformIamApi(),
             platformAdminApi = platformAdminApi,
             sessionStore = sessionStore,
-            authApi = authApi,
+            actAs = ActAsCoordinator(
+                sessionStore = sessionStore,
+                authApi = authApi,
+                revokeSession = { grantId ->
+                    revokeTokens += sessionStore.accessToken()
+                    api.endImpersonation(grantId)
+                },
+                reloadRoster = {},
+                resolveAccess = {},
+                reconnectHubs = {},
+                applyAccent = {},
+                clearReauthPrompt = {},
+                feedback = NoOpFeedback,
+                scope = this,
+            ),
         )
 
     @Test
@@ -109,7 +131,7 @@ class AdminControllerImpersonationTest {
         sessionStore.connect(profile, operatorTokens)
         val controller = newController(api, platformAdminApi, FakeAuthApi(), sessionStore)
 
-        controller.impersonateTenantOwner(
+        controller.impersonateTenantMember(
             broadcasterId = "chan-1",
             subjectUserId = "user-1",
             subjectDisplayName = "Some Streamer",
@@ -154,7 +176,7 @@ class AdminControllerImpersonationTest {
         )
         val controller = newController(api, platformAdminApi, authApi, sessionStore)
 
-        controller.impersonateTenantOwner(
+        controller.impersonateTenantMember(
             broadcasterId = "chan-1",
             subjectUserId = "user-1",
             subjectDisplayName = "Some Streamer",
@@ -190,14 +212,14 @@ class AdminControllerImpersonationTest {
         val api = FakeAdminApi()
         val platformAdminApi = FakePlatformAdminApi(
             beginAccessResult = ApiResult.Failure(
-                ApiError(status = 409, code = "409", message = "No open support session for this tenant."),
+                ApiError(status = 409, code = "SESSION_REQUIRED", message = "No open support session for this tenant."),
             ),
         )
         val sessionStore = newSessionStore()
         sessionStore.connect(profile, operatorTokens)
         val controller = newController(api, platformAdminApi, FakeAuthApi(), sessionStore)
 
-        controller.impersonateTenantOwner(
+        controller.impersonateTenantMember(
             broadcasterId = "chan-1",
             subjectUserId = "user-1",
             subjectDisplayName = "Some Streamer",
@@ -214,7 +236,7 @@ class AdminControllerImpersonationTest {
     fun not_permitted_refusal_from_the_mint_call_is_also_classified() = runTest {
         val api = FakeAdminApi(
             impersonateResult = ApiResult.Failure(
-                ApiError(status = 403, code = "403", message = "Not permitted."),
+                ApiError(status = 403, code = "FORBIDDEN", message = "Not permitted."),
             ),
         )
         val platformAdminApi = FakePlatformAdminApi(
@@ -232,7 +254,7 @@ class AdminControllerImpersonationTest {
         sessionStore.connect(profile, operatorTokens)
         val controller = newController(api, platformAdminApi, FakeAuthApi(), sessionStore)
 
-        controller.impersonateTenantOwner(
+        controller.impersonateTenantMember(
             broadcasterId = "chan-1",
             subjectUserId = "user-1",
             subjectDisplayName = "Some Streamer",
@@ -262,6 +284,44 @@ class AdminControllerImpersonationTest {
         controller.exitImpersonation()
 
         assertEquals(listOf("grant-1"), api.endImpersonationCalls)
+        assertEquals(listOf<String?>("operator-jwt"), revokeTokens, "the revoke must carry the operator token")
+        assertNull(sessionStore.impersonating.value)
+        assertEquals("operator-jwt", sessionStore.accessToken())
+    }
+
+    @Test
+    fun a_refused_mint_ends_the_support_session_it_opened_and_classifies_the_target_refusal() = runTest {
+        val api = FakeAdminApi(
+            impersonateResult = ApiResult.Failure(
+                ApiError(status = 409, code = "TARGET_OUTSIDE_SESSION", message = "Not in this channel."),
+            ),
+        )
+        val platformAdminApi = FakePlatformAdminApi(
+            beginAccessResult = ApiResult.Ok(
+                TenantAccessGrant(
+                    id = "grant-1",
+                    principalId = "operator-1",
+                    targetBroadcasterId = "chan-1",
+                    justification = "Investigating",
+                    grantedAt = "2026-01-01T00:00:00Z",
+                ),
+            ),
+        )
+        val sessionStore = newSessionStore()
+        sessionStore.connect(profile, operatorTokens)
+        val controller = newController(api, platformAdminApi, FakeAuthApi(), sessionStore)
+
+        val began: Boolean = controller.impersonateTenantMember(
+            broadcasterId = "chan-1",
+            subjectUserId = "stranger",
+            subjectDisplayName = "Stranger",
+            justification = "Investigating",
+        )
+
+        assertEquals(false, began)
+        assertEquals(listOf("grant-1"), platformAdminApi.endAccessCalls)
+        assertEquals(ImpersonationRefusal.TargetOutsideSession, controller.state.value.impersonationRefusal)
+        assertEquals(false, controller.state.value.impersonationInFlight)
         assertNull(sessionStore.impersonating.value)
         assertEquals("operator-jwt", sessionStore.accessToken())
     }
@@ -427,7 +487,12 @@ private class FakePlatformAdminApi(
         return beginAccessResult
     }
 
-    override suspend fun endAccess(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    val endAccessCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun endAccess(accessGrantId: String): ApiResult<Unit> {
+        endAccessCalls += accessGrantId
+        return ApiResult.Ok(Unit)
+    }
 
     override suspend fun searchAudit(
         principalId: String?,

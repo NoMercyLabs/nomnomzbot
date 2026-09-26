@@ -36,6 +36,12 @@
     <string name="attention_widget_build_failed_title">Widget build failed: %1$s</string>
     <string name="attention_widget_build_failed_message">Version %1$s did not build. Your stream still shows the last working version.</string>
     <string name="attention_widget_build_failed_nothing_live_message">Version %1$s did not build, so this widget shows nothing on stream.</string>
+    <string name="attention_security_impersonation_started_title">A NomNomzBot operator is acting as %1$s</string>
+    <string name="attention_security_impersonation_started_message">%1$s opened a support session on your channel. Reason: %2$s</string>
+    <string name="attention_security_impersonation_ended_title">A NomNomzBot operator stopped acting as %1$s</string>
+    <string name="attention_security_impersonation_ended_message">%1$s closed the support session. Reason given: %2$s</string>
+    <string name="attention_security_access_granted_title">A NomNomzBot operator opened support access to your channel</string>
+    <string name="attention_security_access_granted_message">%1$s opened the access. It ends on its own when the support session expires.</string>
     <string name="attention_webhook_disabled_title">Webhook turned off: %1$s</string>
     <string name="attention_webhook_disabled_message">It failed %1$s times in a row. Fix the receiver, then turn the webhook on again.</string>
     <string name="attention_webhook_failing_title">Webhook deliveries fail: %1$s</string>

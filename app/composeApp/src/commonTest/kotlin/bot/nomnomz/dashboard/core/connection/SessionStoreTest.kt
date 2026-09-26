@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.connection
 
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AuthPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -121,28 +123,92 @@ class SessionStoreTest {
     }
 
     @Test
-    fun active_impersonation_reports_the_session_only_while_it_has_not_expired() = runTest {
+    fun acting_as_resets_the_channel_never_touches_the_remembered_one_and_exit_restores_the_operator() = runTest {
+        val channels = FakeChannelStore()
+        val store: SessionStore =
+            SessionStore(
+                FakeTokenVault(),
+                FakeProfileStore(),
+                channels,
+                CoroutineScope(UnconfinedTestDispatcher(testScheduler)),
+            )
+        store.connect(profile, tokens)
+        val operator = SessionUser(id = "op", username = "operator", displayName = "Operator", profileImageUrl = null, isAdmin = true)
+        store.setUser(operator)
+        store.switchChannel("operator-channel")
+        val generationBefore: Int = store.identityGeneration.value
+
+        store.beginImpersonation("target-jwt", "Target User", Instant.parse("2030-01-01T00:00:00Z"), "grant-1")
+
+        // The operator's channel is gone from the request context; the roster picks the target's.
+        assertNull(store.activeChannelId.value)
+        assertEquals(generationBefore + 1, store.identityGeneration.value)
+        // The remembered channel is the operator's: never read while acting, never overwritten.
+        assertNull(store.persistedActiveChannel())
+        store.switchChannel("target-channel")
+        assertEquals("target-channel", store.activeChannelId.value)
+        assertEquals("operator-channel", channels.stored)
+        store.setUser(SessionUser(id = "target", username = "target", displayName = "Target User", profileImageUrl = null))
+
+        val ended: ImpersonationInfo? = store.endImpersonation()
+
+        assertEquals("grant-1", ended?.accessGrantId)
+        assertEquals("jwt-access-token", store.accessToken())
+        assertEquals("operator-channel", store.activeChannelId.value)
+        assertEquals(operator, store.user.value)
+        assertEquals(generationBefore + 2, store.identityGeneration.value)
+        assertEquals("operator-channel", store.persistedActiveChannel())
+    }
+
+    @Test
+    fun a_rejected_token_while_acting_never_installs_the_operators_refreshed_token() = runTest {
+        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        store.connect(profile, tokens)
+        store.beginImpersonation("target-jwt", "Target User", Instant.parse("2030-01-01T00:00:00Z"), "grant-1")
+        var refreshCalls = 0
+
+        val refreshed: Boolean =
+            store.refreshOrExpire {
+                refreshCalls++
+                ApiResult.Ok(AuthPayload(accessToken = "operator-refreshed-jwt"))
+            }
+
+        assertFalse(refreshed)
+        assertEquals(0, refreshCalls)
+        assertEquals("target-jwt", store.accessToken())
+        assertEquals("Target User", store.impersonating.value?.displayName)
+    }
+
+    @Test
+    fun a_session_that_ends_while_acting_takes_the_act_as_state_with_it() = runTest {
+        val cleared: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        cleared.connect(profile, tokens)
+        cleared.beginImpersonation("target-jwt", "Target User", Instant.parse("2030-01-01T00:00:00Z"), "grant-1")
+        cleared.clearActiveSession()
+        assertNull(cleared.impersonating.value)
+        assertNull(cleared.endImpersonation(), "no stale stash may survive to overwrite a later session")
+
+        val loggedOut: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
+        loggedOut.connect(profile, tokens)
+        loggedOut.beginImpersonation("target-jwt", "Target User", Instant.parse("2030-01-01T00:00:00Z"), "grant-1")
+        loggedOut.disconnect()
+        loggedOut.connect(profile, tokens.copy(accessToken = "new-session-jwt"))
+        assertNull(loggedOut.impersonating.value)
+        assertNull(loggedOut.endImpersonation())
+        assertEquals("new-session-jwt", loggedOut.accessToken())
+    }
+
+    @Test
+    fun the_act_as_flag_outlives_its_expiry_until_the_session_is_ended() = runTest {
         val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
         store.connect(profile, tokens)
         val expiresAt: Instant = Instant.parse("2030-01-01T00:00:00Z")
-        store.beginImpersonation(
-            targetAccessToken = "target-jwt",
-            targetDisplayName = "Target User",
-            expiresAt = expiresAt,
-            accessGrantId = "grant-1",
-        )
+        store.beginImpersonation("target-jwt", "Target User", expiresAt, "grant-1")
 
-        // Before expiry: the banner must see an active session.
-        val beforeExpiry: Instant = Instant.fromEpochSeconds(expiresAt.epochSeconds - 60)
-        assertEquals("Target User", store.activeImpersonation(beforeExpiry)?.displayName)
-
-        // The raw flag is still non-null past expiry — SessionStore does not auto-clear it — but
-        // activeImpersonation, what the banner must gate on, must not report it as active any more.
+        // The banner reads the raw flag: past expiry it must still be there (showing the expired state with Exit).
         val afterExpiry: Instant = Instant.fromEpochSeconds(expiresAt.epochSeconds + 60)
-        assertTrue(store.impersonating.value != null)
-        assertNull(store.activeImpersonation(afterExpiry))
-        assertFalse(store.impersonating.value!!.isExpired(beforeExpiry))
         assertTrue(store.impersonating.value!!.isExpired(afterExpiry))
+        assertTrue(store.isActingAs)
     }
 
     @Test

@@ -32,6 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
+import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.network.TenantMember
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -60,6 +64,23 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import bot.nomnomz.dashboard.feature.admin.state.ImpersonationRefusal
 import kotlinx.coroutines.launch
+import nomnomzbot.composeapp.generated.resources.admin_tenant_act_as
+import nomnomzbot.composeapp.generated.resources.roles_role_artist
+import nomnomzbot.composeapp.generated.resources.roles_role_vip
+import nomnomzbot.composeapp.generated.resources.roles_role_subscriber
+import nomnomzbot.composeapp.generated.resources.roles_role_broadcaster
+import nomnomzbot.composeapp.generated.resources.roles_role_editor
+import nomnomzbot.composeapp.generated.resources.roles_role_lead_moderator
+import nomnomzbot.composeapp.generated.resources.roles_role_moderator
+import nomnomzbot.composeapp.generated.resources.participant_standing_everyone
+import nomnomzbot.composeapp.generated.resources.admin_member_relation_owner
+import nomnomzbot.composeapp.generated.resources.admin_impersonate_error_target_outside
+import nomnomzbot.composeapp.generated.resources.admin_act_as_pick_required
+import nomnomzbot.composeapp.generated.resources.admin_act_as_confirm
+import nomnomzbot.composeapp.generated.resources.admin_act_as_empty
+import nomnomzbot.composeapp.generated.resources.admin_act_as_search
+import nomnomzbot.composeapp.generated.resources.admin_act_as_load_failed
+import nomnomzbot.composeapp.generated.resources.admin_act_as_title
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_cancel
 import nomnomzbot.composeapp.generated.resources.admin_impersonate_desc
@@ -89,7 +110,6 @@ import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_active
 import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_all
 import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_banned
 import nomnomzbot.composeapp.generated.resources.admin_tenant_filter_suspended
-import nomnomzbot.composeapp.generated.resources.admin_tenant_impersonate
 import nomnomzbot.composeapp.generated.resources.admin_tenant_justification
 import nomnomzbot.composeapp.generated.resources.admin_tenant_members
 import nomnomzbot.composeapp.generated.resources.admin_tenant_owner
@@ -234,18 +254,21 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
 
     impersonateFor?.let { detail ->
         ImpersonateDialog(
-            subjectDisplayName = detail.ownerDisplayName,
+            detail = detail,
             refusal = state.impersonationRefusal,
+            membersError = state.tenantMembersError,
+            inFlight = state.impersonationInFlight,
+            searchMembers = { query -> controller.searchTenantMembers(detail.id, query) },
             onDismiss = { impersonateFor = null },
-            onConfirm = { justification ->
+            onConfirm = { subject, justification ->
                 scope.launch {
-                    val succeeded: Boolean = controller.impersonateTenantOwner(
+                    val succeeded: Boolean = controller.impersonateTenantMember(
                         broadcasterId = detail.id,
-                        subjectUserId = detail.ownerUserId,
-                        subjectDisplayName = detail.ownerDisplayName,
+                        subjectUserId = subject.id,
+                        subjectDisplayName = subject.name,
                         justification = justification,
                     )
-                    // A refusal keeps the dialog open (with its specific message); only a successful mint closes it.
+                    // A refusal keeps the dialog open (with its specific message); only a successful begin closes it.
                     if (succeeded) impersonateFor = null
                 }
             },
@@ -253,27 +276,68 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
     }
 }
 
+/**
+ * Act as one person of [detail]'s channel. The owner is preselected (the usual support case); "Change" opens a
+ * search over everyone tied to the channel — managers, community members and seen viewers — so an operator can
+ * reproduce exactly what a moderator or a viewer sees. One primary action: the destructive confirm, disabled until
+ * a person and a reason are given and while a begin is in flight (a double click never opens two sessions).
+ */
 @Composable
 private fun ImpersonateDialog(
-    subjectDisplayName: String,
+    detail: AdminTenantDetail,
     refusal: ImpersonationRefusal?,
+    membersError: String?,
+    inFlight: Boolean,
+    searchMembers: suspend (query: String) -> List<TenantMember>,
     onDismiss: () -> Unit,
-    onConfirm: (justification: String) -> Unit,
+    onConfirm: (subject: PickerRef, justification: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val tokens = LocalTokens.current
     var justification: String by remember { mutableStateOf("") }
+    var subject: PickerRef? by remember(detail.id) {
+        mutableStateOf(PickerRef(id = detail.ownerUserId, name = detail.ownerDisplayName))
+    }
+    val relationLabel: (TenantMember) -> String = tenantMemberRelationLabel()
+    val personTypeLabel: String = stringResource(Res.string.participant_standing_everyone)
 
     Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_impersonate_title, subjectDisplayName))
+        DialogTitle(text = stringResource(Res.string.admin_act_as_title, detail.name))
         DialogDescription(text = stringResource(Res.string.admin_impersonate_desc))
         when (refusal) {
             ImpersonationRefusal.NoOpenSupportSession ->
                 InlineError(message = stringResource(Res.string.admin_impersonate_error_no_session))
             ImpersonationRefusal.NotPermitted ->
                 InlineError(message = stringResource(Res.string.admin_impersonate_error_not_permitted))
+            ImpersonationRefusal.TargetOutsideSession ->
+                InlineError(message = stringResource(Res.string.admin_impersonate_error_target_outside))
             null -> Unit
         }
+        membersError?.let { InlineError(message = stringResource(Res.string.admin_act_as_load_failed, it)) }
+        SearchPickerField(
+            search = { query ->
+                searchMembers(query).map { member ->
+                    PickerOption(
+                        id = member.userId,
+                        label = resolveRowLabel(
+                            primary = member.displayName,
+                            secondary = member.username,
+                            typeLabel = personTypeLabel,
+                            discriminatorSource = member.userId,
+                        ),
+                        sublabel = relationLabel(member),
+                    )
+                }
+            },
+            selected = subject,
+            onSelect = { subject = it },
+            onClear = { subject = null },
+            label = stringResource(Res.string.admin_act_as_search),
+            placeholder = stringResource(Res.string.admin_act_as_search),
+            emptyText = stringResource(Res.string.admin_act_as_empty),
+            enabled = !inFlight,
+            showAllWhenEmpty = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
         AppTextField(
             value = justification,
             onValueChange = { justification = it },
@@ -283,13 +347,47 @@ private fun ImpersonateDialog(
         Spacer(modifier = Modifier.height(spacing.s1))
         DialogFooter {
             TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
+            val chosen: PickerRef? = subject
             Button(
-                onClick = { onConfirm(justification) },
-                enabled = justification.isNotBlank(),
+                onClick = { chosen?.let { onConfirm(it, justification) } },
+                enabled = chosen != null && justification.isNotBlank() && !inFlight,
                 variant = ButtonVariant.Destructive,
             ) {
-                Text(text = stringResource(Res.string.admin_tenant_impersonate))
+                Text(
+                    text = chosen?.let { stringResource(Res.string.admin_act_as_confirm, it.name) }
+                        ?: stringResource(Res.string.admin_act_as_pick_required),
+                )
             }
+        }
+    }
+}
+
+/**
+ * The person's tie to the channel as a NAME (never a numbered level): the owner, their management role, their
+ * community standing, or a viewer.
+ */
+@Composable
+private fun tenantMemberRelationLabel(): (TenantMember) -> String {
+    val owner: String = stringResource(Res.string.admin_member_relation_owner)
+    val viewer: String = stringResource(Res.string.participant_standing_everyone)
+    val roleNames: Map<String, String> = mapOf(
+        "Moderator" to stringResource(Res.string.roles_role_moderator),
+        "LeadModerator" to stringResource(Res.string.roles_role_lead_moderator),
+        "Editor" to stringResource(Res.string.roles_role_editor),
+        "Broadcaster" to stringResource(Res.string.roles_role_broadcaster),
+    )
+    val standingNames: Map<String, String> = mapOf(
+        "Subscriber" to stringResource(Res.string.roles_role_subscriber),
+        "Vip" to stringResource(Res.string.roles_role_vip),
+        "Artist" to stringResource(Res.string.roles_role_artist),
+        "Moderator" to stringResource(Res.string.roles_role_moderator),
+    )
+    return { member ->
+        when (member.relation) {
+            "owner" -> owner
+            "manager" -> member.managementRole?.let(roleNames::get) ?: viewer
+            "community" -> member.communityStanding?.let(standingNames::get) ?: viewer
+            else -> viewer
         }
     }
 }
@@ -382,11 +480,10 @@ private fun TenantDetailDrawer(
 
             Spacer(modifier = Modifier.height(spacing.s1))
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                // Act-as the tenant OWNER — the reliable support handle (a channel owner always has an account + a
-                // live token). Offered only for an active tenant: a suspended tenant 403s at Gate 1, so acting as its
-                // owner would land on a walled session — reinstate first.
+                // Act as someone of this channel (the owner preselected). Offered only for an active tenant: a
+                // suspended tenant 403s at Gate 1, so acting inside it would land on a walled session — reinstate first.
                 if (!isSuspended) {
-                    Button(onClick = onImpersonate) { Text(text = stringResource(Res.string.admin_tenant_impersonate)) }
+                    Button(onClick = onImpersonate) { Text(text = stringResource(Res.string.admin_tenant_act_as)) }
                 }
                 if (isSuspended) {
                     Button(onClick = onReinstate) { Text(text = stringResource(Res.string.admin_tenant_reinstate)) }

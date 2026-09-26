@@ -104,6 +104,40 @@ class AttentionSurfaceTest {
         onNodeWithText("Kritiek · 1").assertExists()
     }
 
+    private val operatorActing: ActionRequiredItem =
+        ActionRequiredItem(
+            id = "security-notice:n1",
+            kind = "impersonation_started",
+            severity = "warning",
+            titleKey = "attention_security_impersonation_started_title",
+            messageKey = "attention_security_impersonation_started_message",
+            parameters = mapOf("operatorName" to "Support Sam", "targetName" to "Mod Mia", "reason" to "Ticket 4821"),
+            deepLinkRoute = "roles",
+        )
+
+    @Test
+    fun anOperatorSecurityNoticeNamesWhoActedAsWhomAndWhy_andOpensRoles() = runComposeUiTest {
+        val navigated: MutableList<ShellRoute> = mutableListOf()
+        setContent {
+            Pinned("en") { AttentionSurface(items = listOf(operatorActing), onNavigate = { navigated += it }) }
+        }
+
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("A NomNomzBot operator is acting as Mod Mia").assertExists()
+        onNodeWithText("Support Sam opened a support session on your channel. Reason: Ticket 4821").assertExists()
+
+        onNodeWithText("A NomNomzBot operator is acting as Mod Mia").performClick()
+        assertEquals(listOf(ShellRoute.Roles), navigated)
+    }
+
+    @Test
+    fun anOperatorSecurityNoticeRendersInDutch() = runComposeUiTest {
+        setContent { Pinned("nl") { AttentionSurface(items = listOf(operatorActing), onNavigate = {}) } }
+
+        onNodeWithTag(ATTENTION_SURFACE_TAG).performClick()
+        onNodeWithText("Een NomNomzBot-beheerder handelt als Mod Mia").assertExists()
+    }
+
     @Test
     fun nothingRendersWhenNothingNeedsAttention() = runComposeUiTest {
         setContent { Pinned("en") { AttentionSurface(items = emptyList(), onNavigate = {}) } }

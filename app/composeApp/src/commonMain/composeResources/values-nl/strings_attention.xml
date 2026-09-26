@@ -36,6 +36,12 @@
     <string name="attention_widget_build_failed_title">Widget bouwen mislukt: %1$s</string>
     <string name="attention_widget_build_failed_message">Versie %1$s is niet gebouwd. Je stream toont nog de laatste werkende versie.</string>
     <string name="attention_widget_build_failed_nothing_live_message">Versie %1$s is niet gebouwd, dus deze widget toont niets op je stream.</string>
+    <string name="attention_security_impersonation_started_title">Een NomNomzBot-beheerder handelt als %1$s</string>
+    <string name="attention_security_impersonation_started_message">%1$s heeft een ondersteuningssessie op je kanaal geopend. Reden: %2$s</string>
+    <string name="attention_security_impersonation_ended_title">Een NomNomzBot-beheerder handelt niet meer als %1$s</string>
+    <string name="attention_security_impersonation_ended_message">%1$s heeft de ondersteuningssessie gesloten. Opgegeven reden: %2$s</string>
+    <string name="attention_security_access_granted_title">Een NomNomzBot-beheerder heeft ondersteuningstoegang tot je kanaal geopend</string>
+    <string name="attention_security_access_granted_message">%1$s heeft de toegang geopend. Die stopt vanzelf zodra de ondersteuningssessie verloopt.</string>
     <string name="attention_webhook_disabled_title">Webhook uitgeschakeld: %1$s</string>
     <string name="attention_webhook_disabled_message">Hij is %1$s keer achter elkaar mislukt. Herstel de ontvanger en zet de webhook daarna weer aan.</string>
     <string name="attention_webhook_failing_title">Webhookleveringen mislukken: %1$s</string>

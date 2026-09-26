@@ -817,7 +817,7 @@ internal fun UsersTab(state: AdminState, controller: AdminController, onOpenIam:
                                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                             ) {
                                 // Act-as is offered from the Tenants tab (a support session is scoped to a tenant, not
-                                // a bare user id) — see TenantDetailDrawer's "Impersonate owner" in AdminTenantsTab.kt.
+                                // a bare user id) — see TenantDetailDrawer's "Act as someone" in AdminTenantsTab.kt.
                                 Text(
                                     text = stringResource(Res.string.admin_user_channels, user.channelCount),
                                     style = typography.xs,

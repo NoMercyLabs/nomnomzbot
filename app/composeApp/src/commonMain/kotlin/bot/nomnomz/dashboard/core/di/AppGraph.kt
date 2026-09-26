@@ -126,6 +126,8 @@ import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApiImpl
+import bot.nomnomz.dashboard.core.network.RestTenantMembersApi
+import bot.nomnomz.dashboard.core.network.TenantMembersApi
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
@@ -225,6 +227,7 @@ import bot.nomnomz.dashboard.feature.settings.state.BasicsController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.PermissionsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
+import bot.nomnomz.dashboard.feature.shell.state.ActAsCoordinator
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccessController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
@@ -241,6 +244,9 @@ import bot.nomnomz.dashboard.core.realtime.AdminHubClient
 import bot.nomnomz.dashboard.core.realtime.DashboardHubClient
 import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyleController
 import bot.nomnomz.dashboard.feature.language.state.LanguageController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -322,7 +328,17 @@ class AppGraph {
     // handles both halves: silent success updates the in-place token, and failure drops ONLY the
     // in-memory session — the vault, the remembered profile, and every OTHER saved connection stay
     // untouched (S111c: "desktop session expiry is unhandled").
-    val tokenRefresher: suspend () -> Boolean = { sessionStore.refreshOrExpire { authApi.refresh(null) } }
+    // While acting as someone, a rejected token means the act-as session ended (expired or revoked): it runs the
+    // full act-as exit instead, and never installs the operator's refreshed token under the target's name. The exit
+    // runs on the app scope because it makes requests of its own; this refresher answers "no fresh token" now.
+    val tokenRefresher: suspend () -> Boolean = {
+        if (sessionStore.isActingAs) {
+            actAsCoordinator.onActAsTokenRejected()
+            false
+        } else {
+            sessionStore.refreshOrExpire { authApi.refresh(null) }
+        }
+    }
 
     init {
         // Wire the 401→refresh→retry interceptor. ApiClient and AuthApi are both ready at this point.
@@ -397,6 +413,7 @@ class AppGraph {
     val adminApi: AdminApi = AdminApiImpl(apiClient)
     val platformIamApi: PlatformIamApi = PlatformIamApiImpl(apiClient)
     val platformAdminApi: PlatformAdminApi = PlatformAdminApiImpl(apiClient)
+    val tenantMembersApi: TenantMembersApi = RestTenantMembersApi(apiClient)
 
     /** The cross-tenant support desk (S-ADMIN-7a) — gated server-side on its own `user:support:view` key. */
     val adminSupportApi: AdminSupportApi = AdminSupportApiImpl(apiClient)
@@ -438,6 +455,7 @@ class AppGraph {
             connectLauncher = connectLauncher,
             lanDiscovery = lanDiscovery,
             diagnosticsApi = twitchDiagnosticsApi,
+            endActAs = { actAsCoordinator.exit() },
         )
 
     // The non-secret "setup finish pending" record custody — written by SetupController.finish() BEFORE the
@@ -802,8 +820,26 @@ class AppGraph {
     val shellAccessController: ShellAccessController =
         ShellAccessController(channelsApi = channelsApi, rolesApi = rolesApi)
 
-    // Declared AFTER shellAccessController + channelSwitcherController because it depends on both for the
-    // act-as re-resolve (property initializers run top-to-bottom; referencing a later one would read null).
+    // App-lifetime scope for work that must outlive the composable that started it (an act-as exit started from
+    // a banner the exit itself unmounts).
+    private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    // The act-as lifecycle. Declared AFTER shellAccessController + channelSwitcherController because it re-resolves
+    // through both (property initializers run top-to-bottom; referencing a later one would read null).
+    val actAsCoordinator: ActAsCoordinator =
+        ActAsCoordinator(
+            sessionStore = sessionStore,
+            authApi = authApi,
+            revokeSession = adminApi::endImpersonation,
+            reloadRoster = channelSwitcherController::load,
+            resolveAccess = shellAccessController::load,
+            reconnectHubs = ::reconnectAll,
+            applyAccent = ::setChatAccentColor,
+            clearReauthPrompt = connectController::dismissReauthPrompt,
+            feedback = feedbackController,
+            scope = appScope,
+        )
+
     val adminController: AdminController =
         AdminController(
             api = adminApi,
@@ -818,12 +854,9 @@ class AppGraph {
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,
             refreshToken = tokenRefresher,
-            // Admin act-as (impersonation): swap the session token + re-resolve the whole shell as the target.
             sessionStore = sessionStore,
-            authApi = authApi,
-            shellAccessController = shellAccessController,
-            channelSwitcherController = channelSwitcherController,
-            reconnectAll = ::reconnectAll,
+            actAs = actAsCoordinator,
+            tenantMembersApi = tenantMembersApi,
             feedback = feedbackController,
         )
 
@@ -927,15 +960,15 @@ class AppGraph {
         )
 
     /**
-     * Tear down and re-open every live SignalR hub against the CURRENT session token — used after an in-place
-     * token swap (admin act-as), so the sockets re-handshake on the new identity instead of stranding on the old
-     * token (their token getter is live, so a fresh connect picks up the swapped token). Mirrors how ShellScreen
-     * opens them: the dashboard hub rejoins the active channel; the multi-watch hub is only dropped (ShellScreen
-     * reopens it when that page is next shown); the admin hub reconnects only if it was live, so impersonating a
-     * non-admin doesn't spin a handshake that can never pass the operator-grant gate.
+     * Tear down and re-open every live SignalR hub against the CURRENT session identity — used after an identity
+     * swap (admin act-as begin/end), so the sockets re-handshake on the new token instead of stranding on the old
+     * one (their token getter is live, so a fresh connect picks up the swapped token). The dashboard hub rejoins the
+     * active channel (the roster has already re-picked it for the new identity); the multi-watch hub is only
+     * dropped (ShellScreen reopens it when that page is next shown); the admin hub opens only for a platform admin,
+     * so acting as a non-admin never spins a handshake that cannot pass the operator gate, and ending act-as
+     * reopens it for the operator.
      */
     suspend fun reconnectAll() {
-        val adminHubWasLive: Boolean = adminHubClient.isConnected
         dashboardHubClient.disconnect()
         multiChatHubClient.disconnect()
         adminHubClient.disconnect()
@@ -944,6 +977,8 @@ class AppGraph {
         sessionStore.activeChannelId.value?.let { channelId ->
             dashboardHubClient.connect(url, sessionStore::accessToken, channelId, tokenRefresher)
         }
-        if (adminHubWasLive) adminHubClient.connect(url, sessionStore::accessToken, tokenRefresher)
+        if (sessionStore.user.value?.isAdmin == true) {
+            adminHubClient.connect(url, sessionStore::accessToken, tokenRefresher)
+        }
     }
 }
