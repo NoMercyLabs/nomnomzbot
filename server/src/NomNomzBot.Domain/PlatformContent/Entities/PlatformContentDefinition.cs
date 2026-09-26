@@ -66,9 +66,12 @@ public static class PlatformContentKinds
     /// <summary>A preset for one channel event (follow, raid, …); installing it sets that event's response.</summary>
     public const string EventResponse = "event_response";
 
+    /// <summary>A preset chat timer (rotating messages on an interval); installing it adds a timer.</summary>
+    public const string Timer = "timer";
+
     public static bool IsKnown(string? kind) =>
-        kind is Command or Widget or Pipeline or CodeScript or EventResponse;
+        kind is Command or Widget or Pipeline or CodeScript or EventResponse or Timer;
 
     public static IReadOnlyList<string> All { get; } =
-    [Command, Widget, Pipeline, CodeScript, EventResponse];
+    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer];
 }

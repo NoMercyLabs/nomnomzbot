@@ -13,6 +13,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.PlatformContent;
 
 namespace NomNomzBot.Domain.Commands.Entities;
 
@@ -22,7 +23,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// Schema: I.1 (commands-pipelines.md §1).
 /// </summary>
 [CountedResource("timers", ResourceClass.NearFree)]
-public class Timer : SoftDeletableEntity, ITenantScoped
+public class Timer : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -63,6 +64,15 @@ public class Timer : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Round-robin index into <see cref="Messages"/>.</summary>
     public int NextMessageIndex { get; set; }
+
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    public int? PlatformSourceVersion { get; set; }
+
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    public DateTime? PlatformSourceSyncedAt { get; set; }
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

@@ -37,6 +37,7 @@ using NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Widgets.Persistence;
+using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
 
@@ -118,6 +119,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
 
     // Platform-template installs write the channel's own feature rows.
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<DomainTimer> Timers => Set<DomainTimer>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -157,6 +159,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.ApplyConfiguration(new CodeScriptConfiguration());
         b.ApplyConfiguration(new CodeScriptVersionConfiguration());
         b.ApplyConfiguration(new EventResponseConfiguration());
+        b.ApplyConfiguration(new TimerConfiguration());
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
@@ -192,6 +195,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(CodeScript),
         typeof(CodeScriptVersion),
         typeof(EventResponse),
+        typeof(DomainTimer),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -214,8 +218,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();
-    public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
+    public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<VoiceTrigger> VoiceTriggers => throw new NotSupportedException();
@@ -339,8 +343,6 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
-        throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();

@@ -45,5 +45,9 @@ public class TimerConfiguration : IEntityTypeConfiguration<DomainTimer>
         builder
             .HasIndex(e => new { e.BroadcasterId, e.IsEnabled })
             .HasDatabaseName("IX_Timer_BroadcasterId_IsEnabled");
+
+        builder
+            .HasIndex(e => e.PlatformSourceDefinitionId)
+            .HasDatabaseName("IX_Timer_PlatformSourceDefinitionId");
     }
 }
