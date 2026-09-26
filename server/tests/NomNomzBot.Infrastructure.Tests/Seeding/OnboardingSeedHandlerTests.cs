@@ -27,7 +27,6 @@ using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
-using NomNomzBot.Infrastructure.Commands.EventHandlers;
 using NomNomzBot.Infrastructure.Community.EventHandlers;
 using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Content.Commands.EventHandlers;
@@ -208,65 +207,6 @@ public sealed class OnboardingSeedHandlerTests
                 Arg.Any<IReadOnlySet<MembershipSource>>(),
                 Arg.Any<CancellationToken>()
             );
-    }
-
-    // ── Event response seed handler ──────────────────────────────────────────
-
-    [Fact]
-    public async Task EventResponse_handler_seeds_the_six_defaults_for_the_event_broadcaster()
-    {
-        AuthDbContext db = AuthTestBuilder.NewContext();
-        ListLogger<EventResponseSeedOnOnboardingHandler> log = new();
-        EventResponseSeedOnOnboardingHandler sut = new(new SingleContextScopeFactory(db), log);
-
-        await sut.HandleAsync(Event());
-
-        List<EventResponse> seeded = await db
-            .EventResponses.Where(r => r.BroadcasterId == Broadcaster)
-            .ToListAsync();
-
-        seeded.Should().HaveCount(6);
-        seeded
-            .Select(r => r.EventType)
-            .Should()
-            .BeEquivalentTo([
-                "channel.follow",
-                "channel.subscribe",
-                "channel.subscription.gift",
-                "channel.subscription.message",
-                "channel.cheer",
-                "channel.raid",
-            ]);
-        seeded.Should().OnlyContain(r => r.IsEnabled && r.ResponseType == "chat_message");
-        seeded
-            .Single(r => r.EventType == "channel.follow")
-            .Message.Should()
-            .Be("Welcome {user}! Thanks for the follow!");
-    }
-
-    [Fact]
-    public async Task EventResponse_handler_is_idempotent_a_second_run_adds_nothing()
-    {
-        AuthDbContext db = AuthTestBuilder.NewContext();
-        ListLogger<EventResponseSeedOnOnboardingHandler> log = new();
-        EventResponseSeedOnOnboardingHandler sut = new(new SingleContextScopeFactory(db), log);
-
-        await sut.HandleAsync(Event());
-        await sut.HandleAsync(Event());
-
-        (await db.EventResponses.CountAsync(r => r.BroadcasterId == Broadcaster)).Should().Be(6);
-    }
-
-    [Fact]
-    public async Task EventResponse_handler_catches_and_logs_a_failure_without_throwing()
-    {
-        ListLogger<EventResponseSeedOnOnboardingHandler> log = new();
-        EventResponseSeedOnOnboardingHandler sut = new(new ThrowingScopeFactory(), log);
-
-        Func<Task> act = () => sut.HandleAsync(Event());
-
-        await act.Should().NotThrowAsync();
-        log.Entries.Should().Contain(e => e.Level == LogLevel.Error);
     }
 
     // ── Banned-user import seed handler ──────────────────────────────────────

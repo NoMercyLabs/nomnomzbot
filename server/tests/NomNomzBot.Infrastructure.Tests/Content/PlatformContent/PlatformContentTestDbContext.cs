@@ -122,6 +122,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
 
     // Platform-template installs write the channel's own feature rows.
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<PlatformEventResponseDefault>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<PickList> PickLists => Set<PickList>();

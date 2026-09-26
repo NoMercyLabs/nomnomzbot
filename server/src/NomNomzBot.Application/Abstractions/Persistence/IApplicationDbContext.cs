@@ -140,6 +140,7 @@ public interface IApplicationDbContext
     DbSet<ComplianceAuditLog> ComplianceAuditLogs { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers { get; }
     DbSet<EventResponse> EventResponses { get; }
+    DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults { get; }
     DbSet<WatchStreak> WatchStreaks { get; }
     DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines { get; }
     DbSet<ScheduledPipelineTask> ScheduledPipelineTasks { get; }

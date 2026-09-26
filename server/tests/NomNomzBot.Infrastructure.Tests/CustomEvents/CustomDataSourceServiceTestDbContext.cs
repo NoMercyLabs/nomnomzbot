@@ -280,6 +280,8 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<Pipeline> Pipelines => throw new NotSupportedException();

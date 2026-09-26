@@ -1568,6 +1568,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
+                    b.Property<bool>("FollowsPlatformDefault")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -2066,6 +2069,41 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasDatabaseName("IX_PipelineTrigger_PipelineId_Order");
 
                     b.ToTable("PipelineTriggers");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PlatformEventResponseDefault", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventType")
+                        .IsUnique();
+
+                    b.ToTable("PlatformEventResponseDefaults");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask", b =>

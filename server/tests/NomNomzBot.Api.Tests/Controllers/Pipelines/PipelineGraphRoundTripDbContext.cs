@@ -293,6 +293,8 @@ internal sealed class PipelineGraphRoundTripDbContext : DbContext, IApplicationD
         throw new NotSupportedException();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>

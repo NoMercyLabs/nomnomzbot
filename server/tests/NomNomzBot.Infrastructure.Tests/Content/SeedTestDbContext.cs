@@ -256,6 +256,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<PlatformEventResponseDefault>();
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();

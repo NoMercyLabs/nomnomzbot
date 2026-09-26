@@ -170,6 +170,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterConnection> SupporterConnections =>
         throw new NotSupportedException();

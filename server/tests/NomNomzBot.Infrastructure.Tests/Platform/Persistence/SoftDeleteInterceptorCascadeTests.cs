@@ -58,6 +58,8 @@ public sealed class SoftDeleteInterceptorCascadeTests : IDisposable
         public DbSet<DomainPipeline> Pipelines => Set<DomainPipeline>();
         public DbSet<Command> Commands => Set<Command>();
         public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+        public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+            Set<PlatformEventResponseDefault>();
         public DbSet<Timer> Timers => Set<Timer>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -13,7 +13,10 @@ using NomNomzBot.Application.Abstractions.Localization;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
-/// <summary>An event response configuration.</summary>
+/// <summary>
+/// An event response configuration, as the runtime performs it: while <paramref name="FollowsPlatformDefault"/>
+/// is true the enabled flag, type and message are the platform default, not the stored channel row.
+/// </summary>
 public sealed record EventResponseDto(
     Guid Id,
     string EventType,
@@ -23,7 +26,8 @@ public sealed record EventResponseDto(
     Guid? PipelineId,
     Dictionary<string, string> Metadata,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    bool FollowsPlatformDefault
 );
 
 /// <summary>
@@ -32,13 +36,14 @@ public sealed record EventResponseDto(
 /// </summary>
 public sealed record AlertOverlayDto(string OverlayUrl, DateTime? LastRanAt);
 
-/// <summary>Lightweight event response summary.</summary>
+/// <summary>Lightweight event response summary (effective values — see <see cref="EventResponseDto"/>).</summary>
 public sealed record EventResponseListItem(
     Guid Id,
     string EventType,
     bool IsEnabled,
     string ResponseType,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    bool FollowsPlatformDefault
 );
 
 /// <summary>

@@ -98,6 +98,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
     public DbSet<Domain.Commands.Entities.Timer> Timers => Set<Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<PlatformEventResponseDefault>();
     public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         Set<Domain.Assets.Entities.ChannelAsset>();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();

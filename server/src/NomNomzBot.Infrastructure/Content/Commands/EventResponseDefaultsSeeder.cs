@@ -84,6 +84,8 @@ public sealed class EventResponseDefaultsSeeder : ISeeder
                         EventType = eventType,
                         IsEnabled = false,
                         ResponseType = "chat_message",
+                        // A fresh row has no choice of its own yet: it follows the platform default.
+                        FollowsPlatformDefault = true,
                     }
                 );
             }

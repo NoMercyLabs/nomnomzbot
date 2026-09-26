@@ -116,6 +116,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<User> Users => Set<User>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<PlatformEventResponseDefault>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints => Set<InboundWebhookEndpoint>();
 
@@ -202,6 +204,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
         typeof(Channel),
         typeof(User),
         typeof(EventResponse),
+        // The event-response read model resolves rows that follow the platform default.
+        typeof(PlatformEventResponseDefault),
         typeof(ChannelEvent),
         typeof(InboundWebhookEndpoint),
         typeof(IntegrationConnection),

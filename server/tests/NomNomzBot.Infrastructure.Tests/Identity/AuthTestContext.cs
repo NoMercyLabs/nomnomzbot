@@ -564,9 +564,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
             .Ignore(e => e.Pipeline);
         b.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();
 
-        // EventResponse: mapped scalar-only (MetadataJson's jsonb column and both navs ignored) so
-        // EventResponseSeedOnOnboardingHandler tests can seed/query the six default responses through this
-        // harness.
+        // EventResponse: mapped scalar-only (MetadataJson's jsonb column and both navs ignored) so the
+        // event-response seeding and platform-default tests can seed/query responses through this harness.
         b.Entity<NomNomzBot.Domain.Commands.Entities.EventResponse>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Commands.Entities.EventResponse>()
             .Ignore(e => e.Channel)
@@ -753,6 +752,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.EventResponse> EventResponses =>
         Set<NomNomzBot.Domain.Commands.Entities.EventResponse>();
+    public DbSet<Domain.Commands.Entities.PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<Domain.Commands.Entities.PlatformEventResponseDefault>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>

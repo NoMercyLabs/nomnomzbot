@@ -103,6 +103,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<PlatformEventResponseDefault>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();

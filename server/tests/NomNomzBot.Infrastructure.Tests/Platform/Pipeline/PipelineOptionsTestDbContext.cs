@@ -313,6 +313,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        Set<PlatformEventResponseDefault>();
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
         Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();

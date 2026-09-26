@@ -35,7 +35,12 @@ public sealed class PlatformDefaultsAuthorizationTests
 {
     private static readonly Guid OperatorUser = Guid.Parse("0199f100-0000-7000-8000-000000000d01");
 
-    public static TheoryData<Type> Controllers => new() { typeof(ActionDefaultsAdminController) };
+    public static TheoryData<Type> Controllers =>
+        new()
+        {
+            typeof(ActionDefaultsAdminController),
+            typeof(EventResponseDefaultsAdminController),
+        };
 
     [Theory]
     [MemberData(nameof(Controllers))]

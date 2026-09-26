@@ -281,6 +281,8 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<Domain.Commands.Entities.Timer> Timers => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
+    public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
+        throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<Pipeline> Pipelines => throw new NotSupportedException();

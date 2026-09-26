@@ -89,11 +89,20 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             );
         }
 
-        EventResponse? config = await _db.EventResponses.FirstOrDefaultAsync(
-            r => r.BroadcasterId == broadcasterId && r.EventType == eventTypeKey && r.IsEnabled,
+        EventResponse? row = await _db.EventResponses.FirstOrDefaultAsync(
+            r => r.BroadcasterId == broadcasterId && r.EventType == eventTypeKey,
             cancellationToken
         );
-        if (config is null)
+        EffectiveResponse? config = row switch
+        {
+            null => null,
+            { FollowsPlatformDefault: true } => await PlatformDefaultAsync(
+                row.EventType,
+                cancellationToken
+            ),
+            _ => new(row.IsEnabled, row.ResponseType, row.Message, row.PipelineId, row.MetadataJson),
+        };
+        if (config is not { IsEnabled: true })
             return;
 
         _logger.LogDebug(
@@ -132,7 +141,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                         broadcasterId,
                         eventTypeKey,
                         config.Message,
-                        config.MetadataJson,
+                        config.Metadata,
                         variables,
                         cancellationToken
                     );
@@ -152,6 +161,31 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             );
         }
     }
+
+    /// <summary>
+    /// The response a channel that never chose its own gets: the platform default for the event type, as a
+    /// chat message. Null when no platform default exists for the type (nothing happens, as before).
+    /// </summary>
+    private async Task<EffectiveResponse?> PlatformDefaultAsync(string eventType, CancellationToken ct)
+    {
+        PlatformEventResponseDefault? platform =
+            await _db.PlatformEventResponseDefaults.FirstOrDefaultAsync(
+                d => d.EventType == eventType,
+                ct
+            );
+        return platform is null
+            ? null
+            : new(platform.IsEnabled, "chat_message", platform.Message, null, []);
+    }
+
+    /// <summary>The response the runtime actually performs — the channel's own row or the platform default.</summary>
+    private sealed record EffectiveResponse(
+        bool IsEnabled,
+        string ResponseType,
+        string? Message,
+        Guid? PipelineId,
+        Dictionary<string, string> Metadata
+    );
 
     private async Task SendChatMessageAsync(
         Guid broadcasterId,

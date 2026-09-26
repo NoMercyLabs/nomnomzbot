@@ -57,18 +57,30 @@ public class EventResponseService : IEventResponseService
         );
         int total = await query.CountAsync(cancellationToken);
 
-        List<EventResponseListItem> items = await query
+        List<EventResponse> rows = await query
             .OrderBy(e => e.EventType)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(e => new EventResponseListItem(
-                e.Id,
-                e.EventType,
-                e.IsEnabled,
-                e.ResponseType,
-                e.UpdatedAt
-            ))
             .ToListAsync(cancellationToken);
+        Dictionary<string, PlatformEventResponseDefault> defaults = await PlatformDefaultsForAsync(
+            rows,
+            cancellationToken
+        );
+        List<EventResponseListItem> items =
+        [
+            .. rows.Select(e =>
+            {
+                EventResponseDto effective = ToDto(e, defaults.GetValueOrDefault(e.EventType));
+                return new EventResponseListItem(
+                    e.Id,
+                    e.EventType,
+                    effective.IsEnabled,
+                    effective.ResponseType,
+                    e.UpdatedAt,
+                    effective.FollowsPlatformDefault
+                );
+            }),
+        ];
 
         return Result.Success(
             new PagedList<EventResponseListItem>(items, pagination.Page, pagination.PageSize, total)
@@ -95,7 +107,11 @@ public class EventResponseService : IEventResponseService
         if (entity is null)
             return Errors.NotFound<EventResponseDto>("EventResponse", eventType);
 
-        return Result.Success(ToDto(entity));
+        Dictionary<string, PlatformEventResponseDefault> defaults = await PlatformDefaultsForAsync(
+            [entity],
+            cancellationToken
+        );
+        return Result.Success(ToDto(entity, defaults.GetValueOrDefault(entity.EventType)));
     }
 
     public async Task<Result<EventResponseDto>> UpsertAsync(
@@ -157,6 +173,10 @@ public class EventResponseService : IEventResponseService
         }
         else
         {
+            // The first save of its own takes the row off the platform default: start from what the channel
+            // was actually getting, so fields the request leaves out keep the behaviour it already had.
+            if (entity.FollowsPlatformDefault)
+                await AdoptPlatformDefaultAsync(entity, cancellationToken);
             if (request.IsEnabled.HasValue)
                 entity.IsEnabled = request.IsEnabled.Value;
             if (request.ResponseType is not null)
@@ -172,6 +192,7 @@ public class EventResponseService : IEventResponseService
             if (request.Metadata is not null)
                 entity.MetadataJson = request.Metadata;
         }
+        entity.FollowsPlatformDefault = false;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _eventBus.PublishAsync(
@@ -185,7 +206,7 @@ public class EventResponseService : IEventResponseService
             cancellationToken
         );
 
-        return Result.Success(ToDto(entity));
+        return Result.Success(ToDto(entity, null));
     }
 
     public async Task<Result> ResetToDefaultAsync(
@@ -216,6 +237,8 @@ public class EventResponseService : IEventResponseService
         entity.Message = null;
         entity.PipelineId = null;
         entity.MetadataJson = new Dictionary<string, string>();
+        // Reset hands the event back to the platform default — the same state a fresh channel starts in.
+        entity.FollowsPlatformDefault = true;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _eventBus.PublishAsync(
@@ -232,16 +255,51 @@ public class EventResponseService : IEventResponseService
         return Result.Success();
     }
 
-    private static EventResponseDto ToDto(EventResponse e) =>
-        new(
+    private async Task<Dictionary<string, PlatformEventResponseDefault>> PlatformDefaultsForAsync(
+        IReadOnlyCollection<EventResponse> rows,
+        CancellationToken ct
+    )
+    {
+        List<string> following = [.. rows.Where(r => r.FollowsPlatformDefault).Select(r => r.EventType)];
+        if (following.Count == 0)
+            return new(StringComparer.Ordinal);
+        return await _db
+            .PlatformEventResponseDefaults.Where(d => following.Contains(d.EventType))
+            .ToDictionaryAsync(d => d.EventType, StringComparer.Ordinal, ct);
+    }
+
+    private async Task AdoptPlatformDefaultAsync(EventResponse entity, CancellationToken ct)
+    {
+        PlatformEventResponseDefault? platform =
+            await _db.PlatformEventResponseDefaults.FirstOrDefaultAsync(
+                d => d.EventType == entity.EventType,
+                ct
+            );
+        if (platform is null)
+            return;
+        entity.IsEnabled = platform.IsEnabled;
+        entity.ResponseType = "chat_message";
+        entity.Message = platform.Message;
+    }
+
+    /// <summary>
+    /// The response as the runtime performs it: a row that follows the platform default reports the platform
+    /// default enabled flag and message (or, with no platform row, nothing — disabled).
+    /// </summary>
+    private static EventResponseDto ToDto(EventResponse e, PlatformEventResponseDefault? platform)
+    {
+        bool follows = e.FollowsPlatformDefault;
+        return new(
             e.Id,
             e.EventType,
-            e.IsEnabled,
-            e.ResponseType,
-            e.Message,
-            e.PipelineId,
+            follows ? platform?.IsEnabled ?? false : e.IsEnabled,
+            follows ? "chat_message" : e.ResponseType,
+            follows ? platform?.Message : e.Message,
+            follows ? null : e.PipelineId,
             e.MetadataJson,
             e.CreatedAt,
-            e.UpdatedAt
+            e.UpdatedAt,
+            follows
         );
+    }
 }

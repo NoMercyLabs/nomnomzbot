@@ -59,6 +59,13 @@ public class EventResponse : SoftDeletableEntity, ITenantScoped, IPlatformSource
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// True while the channel has never saved its own response for this event: the runtime then uses the
+    /// <see cref="PlatformEventResponseDefault"/> for the event type instead of this row's own values. Saving
+    /// a response clears it; resetting the response sets it again.
+    /// </summary>
+    public bool FollowsPlatformDefault { get; set; }
+
     public Guid? PlatformSourceDefinitionId { get; set; }
 
     public int? PlatformSourceVersion { get; set; }
