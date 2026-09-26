@@ -55,6 +55,10 @@ What must change (one slice, **V-A1**):
 7. Expose the owner security notices (`ImpersonationBroadcastHandlers.cs:55,106` write them; no
    endpoint/client reads them) as an inbox entry.
 
+Owner rule 2026-09-26 (widens this slice): while acting, the ONLY trace of the admin is the Exit button.
+Everything else is the target's, no exceptions: channel list and selection, role and gating, navigation (no
+admin plane unless the target is an admin), profile menu name and avatar, accent colour (target's chat
+colour), home, data, hub feed, saved routes and last-channel, reauth prompts, inbox items.
 Done-when: act as a user who does NOT moderate the admin's channel → their channel list, home, hub feed
 and role render; Exit revokes the grant (server row + `ImpersonationEndedEvent`), admin lands back on
 Admin with their own channel; a UI test asserts `X-Channel-Id` changes on begin and end.
@@ -452,7 +456,7 @@ worked" beat everything. Each line is one slice; delete it from the tracker when
 
 **Tier 1b — admin plane + authoring (owner priority 2026-09-26)**
 Owner bump 2026-09-26: the ADMIN DASHBOARD goes first. Order of dispatch from now on: in-flight work
-(A0, A1, A3) → A4 → A6 → A5 → A7 → an admin-console usability walk (every admin tab used live, defects
+(A0, A1, A3) → V-A1 impersonation (widened, below) → A4 → A6 → A5 → A7 → an admin-console usability walk (every admin tab used live, defects
 fixed) → then the remaining Tier 1 runtime items (8, 10, 11, 11b, 12) → A2 → A8.
 Source: `usability-inventory-2026-09-26-admin-and-authoring.md` (both passes). Runs right after Tier 1.
 A0. Actionable errors everywhere (owner rule 2026-09-26): one action-required inbox fed by EVERY
