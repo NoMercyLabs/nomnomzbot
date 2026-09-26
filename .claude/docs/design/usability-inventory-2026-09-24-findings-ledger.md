@@ -22,37 +22,39 @@ endpoints, and the onboarding friction walk.
 
 ## L1 · Impersonation (act-as)
 
-- [ ] `SEC` srv/NomNomzBot.Infrastructure/Identity/PlatformAdminService.cs:353-361 — support-grant lookup never checks the target belongs to `grant.ScopeChannelId`; a grant for tenant A lets the admin act as ANY user; audit names tenant A — refuse unless target is owner/member of the grant's tenant. **VERIFIED**
-- [ ] `SEC` PlatformAdminService.cs:375-378 — target tenant claim = unordered `FirstOrDefault` owned channel — order like login, or use the grant's ScopeChannelId.
-- [ ] app/core/connection/SessionStore.kt:127-136 — `beginImpersonation` swaps token+flag only; selected channel + saved last-channel stay the admin's — reset on begin/end; never read/write last-channel while acting. **VERIFIED**
-- [ ] app/feature/shell/state/ChannelSwitcherController.kt:63-65 + SessionStore.kt:99-101 — `setDefaultChannel` only when none selected — forced reset path for identity swap.
-- [ ] app/feature/admin/state/AdminController.kt:1919-1927 — role check before roster reload, against the stale channel — reset → reload → resolve.
-- [ ] app/core/network/ChannelsApi.kt:83-87 + App.kt:219 + ShellScreen.kt:286-293 — target not moderating the admin's channel → switching guard → splash forever; banner (ShellScreen.kt:520) renders after the early return, no Exit — guard timeout or banner above splash.
-- [ ] AppGraph.kt:301 → srv TenantResolutionMiddleware.cs:83 — every request carries the stale admin channel; Gate 1 admits it. **VERIFIED**
-- [ ] ShellScreen.kt:553-554 — pages keyed on `activeChannelId` only → no remount on act-as — key on a session generation.
-- [ ] AppGraph.kt:910-913 → srv DashboardHub.cs:128 — hub rejoins the admin's channel with the target token — reconnect after reset.
-- [ ] `RESULT` AdminController.kt:1911-1912 — `endImpersonation` sent BEFORE the admin token is restored → 403 (PlatformAdminController.cs:192), Result ignored → grant never revoked, `ImpersonationEndedEvent` never fires — restore first, check, surface. **VERIFIED**
-- [ ] AdminController.kt:1913 + SessionStore.kt:142-147 — exit does not reset the channel; a channel switched while acting was saved into the ADMIN's store → endless splash after exit.
-- [ ] SessionStore.kt:116, 218-228 + AppGraph.kt:316 — act-as expiry → 401 refresh installs the ADMIN token, flag/name stay → wrong identity — run the full exit path.
-- [ ] SessionStore.kt:242-249, 251-261 — `clearActiveSession`/`disconnect` keep the act-as flag + stash → survives logout; Exit writes a stale token over the new session.
+- [x] `SEC` srv/NomNomzBot.Infrastructure/Identity/PlatformAdminService.cs:353-361 — support-grant lookup never checks the target belongs to `grant.ScopeChannelId`; a grant for tenant A lets the admin act as ANY user; audit names tenant A — refuse unless target is owner/member of the grant's tenant. **VERIFIED**
+- [x] `SEC` PlatformAdminService.cs:375-378 — target tenant claim = unordered `FirstOrDefault` owned channel — order like login, or use the grant's ScopeChannelId.
+- [x] app/core/connection/SessionStore.kt:127-136 — `beginImpersonation` swaps token+flag only; selected channel + saved last-channel stay the admin's — reset on begin/end; never read/write last-channel while acting. **VERIFIED**
+- [x] app/feature/shell/state/ChannelSwitcherController.kt:63-65 + SessionStore.kt:99-101 — `setDefaultChannel` only when none selected — forced reset path for identity swap.
+- [x] app/feature/admin/state/AdminController.kt:1919-1927 — role check before roster reload, against the stale channel — reset → reload → resolve.
+- [x] app/core/network/ChannelsApi.kt:83-87 + App.kt:219 + ShellScreen.kt:286-293 — target not moderating the admin's channel → switching guard → splash forever; banner (ShellScreen.kt:520) renders after the early return, no Exit — guard timeout or banner above splash.
+- [x] AppGraph.kt:301 → srv TenantResolutionMiddleware.cs:83 — every request carries the stale admin channel; Gate 1 admits it. **VERIFIED**
+- [x] ShellScreen.kt:553-554 — pages keyed on `activeChannelId` only → no remount on act-as — key on a session generation.
+- [x] AppGraph.kt:910-913 → srv DashboardHub.cs:128 — hub rejoins the admin's channel with the target token — reconnect after reset.
+- [x] `RESULT` AdminController.kt:1911-1912 — `endImpersonation` sent BEFORE the admin token is restored → 403 (PlatformAdminController.cs:192), Result ignored → grant never revoked, `ImpersonationEndedEvent` never fires — restore first, check, surface. **VERIFIED**
+- [x] AdminController.kt:1913 + SessionStore.kt:142-147 — exit does not reset the channel; a channel switched while acting was saved into the ADMIN's store → endless splash after exit.
+- [x] SessionStore.kt:116, 218-228 + AppGraph.kt:316 — act-as expiry → 401 refresh installs the ADMIN token, flag/name stay → wrong identity — run the full exit path.
+- [x] SessionStore.kt:242-249, 251-261 — `clearActiveSession`/`disconnect` keep the act-as flag + stash → survives logout; Exit writes a stale token over the new session.
 - [ ] app/feature/connect/state/ConnectController.kt:334-337 + srv AuthController.cs:1243-1254 — logout while acting sends the act-as token; admin's refresh session not revoked — end act-as first.
-- [ ] App.kt:234 + ShellScreen.kt:538 — Twitch health re-runs on the target → "Reconnect" would OAuth under the target — suppress while acting.
-- [ ] srv ChannelsController.cs:101 — channel list as the target writes Moderator memberships — skip under impersonation.
-- [ ] ShellScreen.kt:350 — coerced route saved while acting → admin lands on Dashboard after exit.
-- [ ] `DEAD` srv Api/Hubs/Broadcasters/ImpersonationBroadcastHandlers.cs:55,106 — owner security notices written; no endpoint/client reads them — list/ack endpoint + inbox entry.
-- [ ] AdminController.kt:1855-1878 — grant opened, mint can fail → grant left open; retries open more — end on failure; reuse open grant.
-- [ ] app/feature/admin/ui/AdminTenantsTab.kt:240-250, 285-290 — Confirm not disabled in flight → double-click = two grants.
-- [ ] AdminController.kt:1920-1923 — `/me` failure after swap only toasts; token is the target's, identity the admin's — roll back and report.
-- [ ] AdminController.kt:1924-1927 — nullable shell/switcher/reconnect silently skipped — required or fail loudly.
-- [ ] AdminTenantsTab.kt:244 + AdminScreen.kt:811-812 — act-as targets the OWNER only; cannot reproduce a moderator's/viewer's view — member picker (needs the scope check).
-- [ ] AppGraph.kt:904,914 — admin hub never reopened on exit (`adminHubWasLive` false because the target token failed the gate).
-- [ ] ParticipantShell.kt:136-140 (+ ShellScreen.kt:390/402) — Exit on a composable scope the re-resolve unmounts → exit stops half-way — app-level scope.
-- [ ] ImpersonationBanner.kt:64-66 — banner vanishes at expiry, nothing ends act-as — auto-exit or "expired" banner with Exit.
-- [ ] ShellScreen.kt:520 vs ParticipantShell.kt:137 — banner overlaid (covers sidebar/header) in one shell, in-flow in the other — one placement, above.
+- [x] App.kt:234 + ShellScreen.kt:538 — Twitch health re-runs on the target → "Reconnect" would OAuth under the target — suppress while acting.
+- [x] srv ChannelsController.cs:101 — channel list as the target writes Moderator memberships — skip under impersonation.
+- [x] ShellScreen.kt:350 — coerced route saved while acting → admin lands on Dashboard after exit.
+- [x] `DEAD` srv Api/Hubs/Broadcasters/ImpersonationBroadcastHandlers.cs:55,106 — owner security notices written; no endpoint/client reads them — list/ack endpoint + inbox entry.
+- [x] AdminController.kt:1855-1878 — grant opened, mint can fail → grant left open; retries open more — end on failure; reuse open grant.
+- [x] app/feature/admin/ui/AdminTenantsTab.kt:240-250, 285-290 — Confirm not disabled in flight → double-click = two grants.
+- [x] AdminController.kt:1920-1923 — `/me` failure after swap only toasts; token is the target's, identity the admin's — roll back and report.
+- [x] AdminController.kt:1924-1927 — nullable shell/switcher/reconnect silently skipped — required or fail loudly.
+- [x] AdminTenantsTab.kt:244 + AdminScreen.kt:811-812 — act-as targets the OWNER only; cannot reproduce a moderator's/viewer's view — member picker (needs the scope check).
+- [x] AppGraph.kt:904,914 — admin hub never reopened on exit (`adminHubWasLive` false because the target token failed the gate).
+- [x] ParticipantShell.kt:136-140 (+ ShellScreen.kt:390/402) — Exit on a composable scope the re-resolve unmounts → exit stops half-way — app-level scope.
+- [x] ImpersonationBanner.kt:64-66 — banner vanishes at expiry, nothing ends act-as — auto-exit or "expired" banner with Exit.
+- [x] ShellScreen.kt:520 vs ParticipantShell.kt:137 — banner overlaid (covers sidebar/header) in one shell, in-flow in the other — one placement, above.
 - [ ] ShellScreen.kt:448-462 — Logout / Reconnect Twitch / Preview-as-viewer offered while acting; each acts on the target — hide/relabel; Exit primary.
-- [ ] `I18N` ImpersonationBanner.kt:92 — sentence assembled in code with " — " — one resource, two placeholders.
-- [ ] `VAR` ImpersonationBroadcastHandlers.cs:170 — `var row`.
-- [ ] AdminController.kt:1898-1902 — refusals keyed on HTTP status; fixed copy not backed by the server code — key on the error code.
+- [x] `I18N` ImpersonationBanner.kt:92 — sentence assembled in code with " — " — one resource, two placeholders.
+- [x] `VAR` ImpersonationBroadcastHandlers.cs:170 — `var row`.
+- [x] AdminController.kt:1898-1902 — refusals keyed on HTTP status; fixed copy not backed by the server code — key on the error code.
+- [ ] Act-as reuses an already open support grant instead of opening a new one per attempt.
+- [ ] Rendered full-shell check while acting (Playwright on the wasm build): nothing of the admin remains except Exit.
 - [x] Clean: act-as JWT carries target sub/roles/tenant (JwtTokenService.cs:86-140); middleware has no admin fallback; writes audited with both actors (EventJournalService.cs:284-301); IAM audit row before mint; channel list scoped; language per device.
 
 ## L2 · Moderator of another channel
