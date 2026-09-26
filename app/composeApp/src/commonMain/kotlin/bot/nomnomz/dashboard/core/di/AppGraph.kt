@@ -120,6 +120,8 @@ import bot.nomnomz.dashboard.core.network.AdminSupportApi
 import bot.nomnomz.dashboard.core.network.AdminSupportApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformBotAdminApi
 import bot.nomnomz.dashboard.core.network.RestPlatformBotAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformDefaultsApi
+import bot.nomnomz.dashboard.core.network.RestPlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
@@ -214,6 +216,7 @@ import bot.nomnomz.dashboard.feature.sound.state.SoundController
 import bot.nomnomz.dashboard.feature.rewards.state.RewardsController
 import bot.nomnomz.dashboard.feature.roles.state.RolesController
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
+import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import bot.nomnomz.dashboard.feature.settings.state.BillingController
 import bot.nomnomz.dashboard.feature.settings.state.ChannelBotController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
@@ -403,6 +406,7 @@ class AppGraph {
 
     // The shared platform bot's admin surface (S-BOT-PLATFORM-UI).
     val platformBotAdminApi: PlatformBotAdminApi = RestPlatformBotAdminApi(apiClient)
+    val platformDefaultsApi: PlatformDefaultsApi = RestPlatformDefaultsApi(apiClient)
     val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
     val platformTemplatesApi: PlatformTemplatesApi = PlatformTemplatesApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
@@ -822,6 +826,10 @@ class AppGraph {
             reconnectAll = ::reconnectAll,
             feedback = feedbackController,
         )
+
+    // The admin tab for runtime platform defaults (A4) — its own state holder, kept out of AdminController.
+    val platformDefaultsController: PlatformDefaultsController =
+        PlatformDefaultsController(api = platformDefaultsApi, feedback = feedbackController)
 
     val musicController: MusicController =
         MusicController(

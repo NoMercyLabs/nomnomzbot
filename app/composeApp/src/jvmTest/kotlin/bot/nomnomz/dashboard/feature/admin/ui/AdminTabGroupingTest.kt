@@ -91,6 +91,8 @@ import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyReviewItem
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
+import bot.nomnomz.dashboard.feature.admin.state.FakePlatformDefaultsApi
+import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -165,9 +167,10 @@ class AdminTabGroupingTest {
             trustSafetyApi = FakeTrustSafetyApiForGroupingTest(),
             platformBotAdminApi = FakePlatformBotAdminApiForGroupingTest(),
         )
+        val platformDefaults = PlatformDefaultsController(FakePlatformDefaultsApi(emptyList()))
 
         runComposeUiTest {
-            setContent { EnglishContent { AdminScreen(controller = controller) } }
+            setContent { EnglishContent { AdminScreen(controller = controller, platformDefaults = platformDefaults) } }
             waitForIdle()
 
             AdminTab.entries.forEach { tab ->
@@ -295,6 +298,7 @@ class AdminTabGroupingTest {
             AdminTab.Content to "Content",
             AdminTab.Iam to "IAM",
             AdminTab.PlatformBot to "Platform bot",
+            AdminTab.PlatformDefaults to "Platform defaults",
         )
 
         // Text that renders unconditionally once each tab is open, with default (empty) fake-API data —
@@ -326,6 +330,7 @@ class AdminTabGroupingTest {
             AdminTab.Content to "No content definitions yet.",
             AdminTab.Iam to "No principals yet.",
             AdminTab.PlatformBot to "speaks through this account",
+            AdminTab.PlatformDefaults to "These defaults apply to every channel",
         )
     }
 }

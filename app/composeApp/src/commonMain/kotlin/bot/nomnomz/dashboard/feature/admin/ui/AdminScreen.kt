@@ -77,6 +77,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
+import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import bot.nomnomz.dashboard.feature.admin.state.AdminSection
 import bot.nomnomz.dashboard.feature.admin.state.AdminSort
 import androidx.compose.foundation.layout.RowScope
@@ -85,6 +86,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.admin_tab_iam
 import nomnomzbot.composeapp.generated.resources.admin_tab_platform_bot
+import nomnomzbot.composeapp.generated.resources.admin_tab_platform_defaults
 import nomnomzbot.composeapp.generated.resources.admin_tab_tenants
 import nomnomzbot.composeapp.generated.resources.admin_tab_audit
 import nomnomzbot.composeapp.generated.resources.admin_tab_spam_defaults
@@ -278,10 +280,13 @@ internal enum class AdminTab(val group: AdminTabGroup, val label: StringResource
 
     /** Only present when [AdminController.platformBotAdminAvailable] — the build wired a client for it. */
     PlatformBot(AdminTabGroup.Configuration, Res.string.admin_tab_platform_bot),
+
+    /** Only present when the build wired a [PlatformDefaultsController] — the runtime platform defaults (A4). */
+    PlatformDefaults(AdminTabGroup.Configuration, Res.string.admin_tab_platform_defaults),
 }
 
 @Composable
-fun AdminScreen(controller: AdminController) {
+fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsController? = null) {
     val state: AdminState by controller.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { controller.load() }
     // Fold the live operator-hub pushes (system heartbeat, channel registry, log) into state — no polling.
@@ -300,12 +305,14 @@ fun AdminScreen(controller: AdminController) {
             controller.supportDeskAvailable,
             controller.trustSafetyAvailable,
             controller.platformBotAdminAvailable,
+            platformDefaults,
         ) {
             AdminTab.entries.filter { tab ->
                 when (tab) {
                     AdminTab.Support -> controller.supportDeskAvailable
                     AdminTab.TrustSafety -> controller.trustSafetyAvailable
                     AdminTab.PlatformBot -> controller.platformBotAdminAvailable
+                    AdminTab.PlatformDefaults -> platformDefaults != null
                     else -> true
                 }
             }
@@ -437,6 +444,7 @@ fun AdminScreen(controller: AdminController) {
             AdminTab.SpamDefaults -> SpamDefaultsTab(state = state, controller = controller)
             AdminTab.Providers -> ProvidersTab(state = state, controller = controller)
             AdminTab.PlatformBot -> PlatformBotTab(state = state, controller = controller)
+            AdminTab.PlatformDefaults -> platformDefaults?.let { PlatformDefaultsTab(controller = it) }
             AdminTab.EventSubHealth -> EventSubHealthTab(state = state, controller = controller)
             AdminTab.WebhookDeliveries -> WebhookDeliveriesTab(state = state, controller = controller)
             AdminTab.ScheduledJobs -> ScheduledJobsTab(state = state, controller = controller)

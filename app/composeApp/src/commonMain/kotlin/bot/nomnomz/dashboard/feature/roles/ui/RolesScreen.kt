@@ -1123,35 +1123,6 @@ private fun roleLabel(role: ManagementRole): StringResource =
         ManagementRole.Broadcaster -> Res.string.roles_role_broadcaster
     }
 
-/**
- * One named rung of the unified authorization ladder (roles-permissions §0). [level] is the internal comparison
- * value the backend gates on; [label] is the only thing users ever see — the numbers stay internal.
- */
-private data class LadderRung(val level: Int, val label: StringResource)
-
-/**
- * The unified ladder low→high (0/2/4/6/10/20/30/40): Plane-A community rungs then Plane-B management rungs,
- * aligned on their shared Moderator rung. The action-floor picker offers these by name; the row label maps a
- * level onto one. This is the single source for the ladder→name mapping the screen renders.
- */
-private val LadderRungs: List<LadderRung> = listOf(
-    LadderRung(0, Res.string.roles_role_everyone),
-    LadderRung(2, Res.string.roles_role_subscriber),
-    LadderRung(4, Res.string.roles_role_vip),
-    LadderRung(6, Res.string.roles_role_artist),
-    LadderRung(10, Res.string.roles_role_moderator),
-    LadderRung(20, Res.string.roles_role_lead_moderator),
-    LadderRung(30, Res.string.roles_role_editor),
-    LadderRung(40, Res.string.roles_role_broadcaster),
-)
-
-/**
- * The localized NAME of the ladder rung a [level] satisfies — the highest rung whose threshold it meets. Enforces
- * the "users never see numeric permission levels" rule: every effective/override level renders as a role name.
- */
-private fun ladderRoleLabel(level: Int): StringResource =
-    LadderRungs.lastOrNull { level >= it.level }?.label ?: Res.string.roles_role_everyone
-
 // One row in the action-permission matrix: shows the action key, its effective level, whether an override is
 // active, and two write controls (Override + Reset). The Reset button is only shown when overrideLevel != null.
 @Composable

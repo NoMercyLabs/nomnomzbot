@@ -5604,4 +5604,27 @@
     <string name="admin_tab_spam_defaults">Spam defence defaults</string>
     <string name="spam_defaults_explain">These are the values every new channel starts with. A channel that has never changed a setting keeps following these, so editing one here moves all of them at once.</string>
     <string name="pipelines_block_lane_add_menu">Add to %1$s</string>
+    <string name="admin_tab_platform_defaults">Platform defaults</string>
+    <string name="platform_defaults_explain">These defaults apply to every channel that has not chosen its own setting. A channel's own setting always wins.</string>
+    <string name="platform_defaults_section_permissions">Permissions</string>
+    <string name="platform_defaults_filter">Filter actions</string>
+    <string name="platform_defaults_empty">No actions match this filter.</string>
+    <string name="platform_defaults_action_default">Default: %1$s</string>
+    <string name="platform_defaults_action_shipped">Shipped default: %1$s</string>
+    <string name="platform_defaults_action_overrides">%1$d channel(s) set their own level</string>
+    <string name="platform_defaults_dangerous">Dangerous</string>
+    <string name="platform_defaults_change">Change</string>
+    <string name="platform_defaults_edit_title">Default for %1$s</string>
+    <string name="platform_defaults_pick_role">Who can do this by default</string>
+    <string name="platform_defaults_use_shipped">Shipped default (%1$s)</string>
+    <string name="platform_defaults_preview_loading">Counting the channels this changes…</string>
+    <string name="platform_defaults_preview_none">This changes no channel.</string>
+    <string name="platform_defaults_preview_counted">This changes %1$d channel(s) right now, including: %2$s.</string>
+    <string name="platform_defaults_preview_keeping">%1$d channel(s) keep their own setting.</string>
+    <string name="platform_defaults_danger_ack">I understand this guards a dangerous action and the change applies to every channel above.</string>
+    <string name="platform_defaults_apply">Apply to %1$d channel(s)</string>
+    <string name="platform_defaults_cancel">Cancel</string>
+    <string name="platform_defaults_saved">Saved. %1$d channel(s) follow the new default.</string>
+    <string name="platform_defaults_stale">The number of changed channels moved. Check the new count and save again.</string>
+    <string name="platform_defaults_error">Could not update platform defaults: %1$s</string>
 </resources>

@@ -5577,4 +5577,27 @@
     <string name="admin_tab_spam_defaults">Standaard spambeveiliging</string>
     <string name="spam_defaults_explain">Dit zijn de waarden waarmee elk nieuw kanaal begint. Een kanaal dat nooit een instelling heeft gewijzigd blijft deze volgen, dus hier iets aanpassen verplaatst ze allemaal tegelijk.</string>
     <string name="pipelines_block_lane_add_menu">Toevoegen aan %1$s</string>
+    <string name="admin_tab_platform_defaults">Platformstandaarden</string>
+    <string name="platform_defaults_explain">Deze standaarden gelden voor elk kanaal dat geen eigen instelling heeft gekozen. De eigen instelling van een kanaal wint altijd.</string>
+    <string name="platform_defaults_section_permissions">Rechten</string>
+    <string name="platform_defaults_filter">Acties filteren</string>
+    <string name="platform_defaults_empty">Geen acties komen overeen met dit filter.</string>
+    <string name="platform_defaults_action_default">Standaard: %1$s</string>
+    <string name="platform_defaults_action_shipped">Meegeleverde standaard: %1$s</string>
+    <string name="platform_defaults_action_overrides">%1$d kanaal/kanalen kiezen een eigen niveau</string>
+    <string name="platform_defaults_dangerous">Gevaarlijk</string>
+    <string name="platform_defaults_change">Wijzigen</string>
+    <string name="platform_defaults_edit_title">Standaard voor %1$s</string>
+    <string name="platform_defaults_pick_role">Wie dit standaard mag</string>
+    <string name="platform_defaults_use_shipped">Meegeleverde standaard (%1$s)</string>
+    <string name="platform_defaults_preview_loading">De kanalen tellen die dit verandert…</string>
+    <string name="platform_defaults_preview_none">Dit verandert geen enkel kanaal.</string>
+    <string name="platform_defaults_preview_counted">Dit verandert nu %1$d kanaal/kanalen, waaronder: %2$s.</string>
+    <string name="platform_defaults_preview_keeping">%1$d kanaal/kanalen houden hun eigen instelling.</string>
+    <string name="platform_defaults_danger_ack">Ik begrijp dat dit een gevaarlijke actie bewaakt en dat de wijziging geldt voor elk kanaal hierboven.</string>
+    <string name="platform_defaults_apply">Toepassen op %1$d kanaal/kanalen</string>
+    <string name="platform_defaults_cancel">Annuleren</string>
+    <string name="platform_defaults_saved">Opgeslagen. %1$d kanaal/kanalen volgen de nieuwe standaard.</string>
+    <string name="platform_defaults_stale">Het aantal veranderde kanalen is gewijzigd. Controleer het nieuwe aantal en sla opnieuw op.</string>
+    <string name="platform_defaults_error">Platformstandaarden bijwerken mislukt: %1$s</string>
 </resources>

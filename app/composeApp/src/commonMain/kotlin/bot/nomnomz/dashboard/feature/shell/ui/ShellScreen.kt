@@ -779,7 +779,10 @@ private fun ShellContent(
                 )
             ShellRoute.Bundles -> BundlesScreen(controller = graph.bundlesController, role = role)
             ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
-            ShellRoute.Admin -> AdminScreen(controller = graph.adminController)
+            ShellRoute.Admin -> AdminScreen(
+                controller = graph.adminController,
+                platformDefaults = graph.platformDefaultsController,
+            )
         }
         }
         } // CompositionLocalProvider(LocalWindowSizeClass)

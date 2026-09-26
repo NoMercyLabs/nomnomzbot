@@ -339,6 +339,9 @@ class ApiContractTest {
             ChannelAsset.serializer() to "ChannelAssetDto",
             // Platform admin.
             FeatureFlag.serializer() to "FeatureFlagDto",
+            ActionDefault.serializer() to "ActionDefaultDto",
+            SetActionDefaultRequest.serializer() to "SetActionDefaultRequest",
+            PlatformDefaultBlastRadius.serializer() to "PlatformDefaultBlastRadiusDto",
         )
 
     @Test
