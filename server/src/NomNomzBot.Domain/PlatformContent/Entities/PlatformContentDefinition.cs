@@ -69,9 +69,12 @@ public static class PlatformContentKinds
     /// <summary>A preset chat timer (rotating messages on an interval); installing it adds a timer.</summary>
     public const string Timer = "timer";
 
+    /// <summary>A preset channel-point reward; installing it creates the reward on the channel's Twitch.</summary>
+    public const string Reward = "reward";
+
     public static bool IsKnown(string? kind) =>
-        kind is Command or Widget or Pipeline or CodeScript or EventResponse or Timer;
+        kind is Command or Widget or Pipeline or CodeScript or EventResponse or Timer or Reward;
 
     public static IReadOnlyList<string> All { get; } =
-    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer];
+    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer, Reward];
 }

@@ -9986,6 +9986,20 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("PipelineJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Response")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
@@ -10006,6 +10020,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlatformSourceDefinitionId")
+                        .HasDatabaseName("IX_Reward_PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "TwitchRewardId")
                         .IsUnique()

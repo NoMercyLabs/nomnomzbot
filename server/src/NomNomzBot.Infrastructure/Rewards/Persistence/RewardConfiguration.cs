@@ -51,6 +51,10 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
         builder.Property(e => e.Cost);
 
         builder
+            .HasIndex(e => e.PlatformSourceDefinitionId)
+            .HasDatabaseName("IX_Reward_PlatformSourceDefinitionId");
+
+        builder
             .HasOne(e => e.Channel)
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)

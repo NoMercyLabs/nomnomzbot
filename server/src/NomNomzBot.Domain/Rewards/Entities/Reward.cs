@@ -12,10 +12,11 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.PlatformContent;
 
 namespace NomNomzBot.Domain.Rewards.Entities;
 
-public class Reward : SoftDeletableEntity, ITenantScoped
+public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -106,6 +107,15 @@ public class Reward : SoftDeletableEntity, ITenantScoped
     /// / <see cref="Response"/> fallbacks. Null = no bound pipeline.
     /// </summary>
     public Guid? PipelineId { get; set; }
+
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    public int? PlatformSourceVersion { get; set; }
+
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    public DateTime? PlatformSourceSyncedAt { get; set; }
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
