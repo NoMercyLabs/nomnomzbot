@@ -492,6 +492,12 @@ A2. SDK guidance in the editor: wire `GET /sdk/event-catalog` (SdkController.cs,
 A3. Generic platform content: open `PlatformContentKinds` (PlatformContentDefinition.cs:61-69) to timers,
     quotes/picklists, reward presets, sound clips and event responses, on the one existing
     author → publish → install flow. Done-when: the admin can author and publish each kind. (Opus: schema)
+    Status 2026-09-26: event response, timer, reward, pick list done (generic IPlatformTemplateInstaller +
+    catalog + provenance via IPlatformSourced). Quotes stay per-channel (pick lists cover the seeding need).
+    Sound clip: decided option A — a platform-owned asset store (admin upload, asset id in the payload,
+    install streams through SoundClipService.UploadAsync so format/size/quota/duration checks run, asset
+    lifetime tied to referencing definitions). Also owed: refresh server/openapi/v1.json via the script once
+    an API runs (hand-edited twice today).
 A4. Platform defaults editable at runtime: event-response defaults, builtin replies, action/permission
     floors (`ActionDefinition` is already a table), TTS voices — admin API + admin UI + blast radius,
     tenants keep their overrides. Done-when: no platform default needs a code change and a redeploy.
