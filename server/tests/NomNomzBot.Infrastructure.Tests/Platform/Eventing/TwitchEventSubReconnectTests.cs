@@ -123,9 +123,58 @@ public sealed class TwitchEventSubReconnectTests
             sessionId: "old"
         );
 
-        await service.OnSessionWelcomeAsync("new", EventSubOwnerKeys.Bot, CancellationToken.None);
+        await service.OnSessionWelcomeAsync(
+            "new",
+            EventSubOwnerKeys.Bot,
+            null,
+            CancellationToken.None
+        );
+        await service.WhenWelcomeWorkIdleAsync();
 
         transport.Deletes.Should().Contain("sub-old");
+    }
+
+    [Fact]
+    public async Task A_session_reconnect_handoff_deletes_nothing_and_creates_nothing()
+    {
+        // Twitch migrates a session's subscriptions across a session_reconnect. The owner has welcomed before,
+        // so a FRESH welcome here would delete the rows on "old" and re-POST them; the handoff must do neither
+        // and only move this owner's rows to the new session id.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(startSessionId: "new");
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+
+        Seed(db, tenant, "channel.follow", "2", "enabled", "sub-follow", sessionId: "old");
+        Seed(db, tenant, "channel.cheer", "1", "enabled", "sub-cheer", sessionId: "old");
+        // The bot owner's row on its own session "old" is not part of this owner's handoff.
+        Seed(db, tenant, "channel.chat.message", "1", "enabled", "sub-chat", sessionId: "old");
+
+        await service.OnSessionWelcomeAsync("old", tenant.ToString(), null, CancellationToken.None);
+        await service.WhenWelcomeWorkIdleAsync();
+        transport.Deletes.Clear();
+        transport.CreatedTypes.Clear();
+
+        await service.OnSessionWelcomeAsync(
+            "new",
+            tenant.ToString(),
+            "old",
+            CancellationToken.None
+        );
+        await service.WhenWelcomeWorkIdleAsync();
+
+        transport.Deletes.Should().BeEmpty();
+        transport.CreatedTypes.Should().BeEmpty();
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.AsNoTracking()
+            .OrderBy(r => r.EventType)
+            .ToListAsync();
+        rows.Select(r => (r.EventType, r.SessionId, r.TwitchSubscriptionId))
+            .Should()
+            .Equal(
+                ("channel.chat.message", "old", "sub-chat"),
+                ("channel.cheer", "new", "sub-cheer"),
+                ("channel.follow", "new", "sub-follow")
+            );
     }
 
     [Fact]
@@ -265,10 +314,13 @@ public sealed class TwitchEventSubReconnectTests
 
         // A first welcome per owner is a no-op re-register (startup reconcile's job); only a RECONNECT welcome
         // (owner already seen) drives ReRegisterOwnerAsync — so welcome each owner twice.
-        await service.OnSessionWelcomeAsync("s1", tenantA.ToString(), CancellationToken.None);
-        await service.OnSessionWelcomeAsync("s1", tenantA.ToString(), CancellationToken.None);
-        await service.OnSessionWelcomeAsync("s1", tenantB.ToString(), CancellationToken.None);
-        await service.OnSessionWelcomeAsync("s1", tenantB.ToString(), CancellationToken.None);
+        await service.OnSessionWelcomeAsync("s1", tenantA.ToString(), null, CancellationToken.None);
+        await service.OnSessionWelcomeAsync("s1", tenantA.ToString(), null, CancellationToken.None);
+        // Drained per owner: this harness shares ONE DbContext, which two owners' queued work would race on.
+        await service.WhenWelcomeWorkIdleAsync();
+        await service.OnSessionWelcomeAsync("s1", tenantB.ToString(), null, CancellationToken.None);
+        await service.OnSessionWelcomeAsync("s1", tenantB.ToString(), null, CancellationToken.None);
+        await service.WhenWelcomeWorkIdleAsync();
 
         service.GetOwnerSubscriptionCount(tenantA.ToString()).Should().Be(2);
         service.GetOwnerSubscriptionCount(tenantB.ToString()).Should().Be(1);
@@ -532,7 +584,9 @@ public sealed class TwitchEventSubReconnectTests
 
         await service.SubscribeAsync(tenant, "channel.follow");
 
-        transport.CreatedTypes.Should().ContainSingle("an unknown grant set must not silently pass the gate");
+        transport
+            .CreatedTypes.Should()
+            .ContainSingle("an unknown grant set must not silently pass the gate");
     }
 
     [Fact]

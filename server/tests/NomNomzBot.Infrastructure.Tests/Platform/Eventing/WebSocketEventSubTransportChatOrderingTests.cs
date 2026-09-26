@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 using NSubstitute;
 
@@ -82,7 +83,7 @@ public sealed class WebSocketEventSubTransportChatOrderingTests
             new EventSubConditionBuilder(),
             clock,
             NullLogger<WebSocketEventSubTransport>.Instance,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
+            TestSanction.Held()
         );
         transport.BindSink(sink);
         return transport;
@@ -195,8 +196,12 @@ public sealed class WebSocketEventSubTransportChatOrderingTests
         public Task OnSessionWelcomeAsync(
             string sessionId,
             string ownerKey,
+            string? handoffFromSessionId,
             CancellationToken ct
         ) => Task.CompletedTask;
+
+        public Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct) =>
+            Task.FromResult(true);
 
         public async Task OnNotificationAsync(
             string messageId,

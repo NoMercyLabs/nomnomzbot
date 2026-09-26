@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 
@@ -87,7 +88,7 @@ public sealed class WebSocketEventSubTransportTests
             new EventSubConditionBuilder(),
             clock,
             NullLogger<WebSocketEventSubTransport>.Instance,
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held()
+            TestSanction.Held()
         );
         transport.BindSink(sink);
         return transport;
@@ -202,6 +203,9 @@ public sealed class WebSocketEventSubTransportTests
         // The transport must connect the reconnect URL (the swap) and surface the new session's welcome.
         await sink.WaitForWelcomesAsync(2);
         sink.Welcomes.Should().Equal("session-A", "session-B");
+        // Only the welcome on the reconnect URL is a handoff, and it names the session it replaces — the sink
+        // relies on that to skip delete-all + re-create-all (Twitch migrates the subscriptions itself).
+        sink.Handoffs.Should().Equal(null, "session-A");
         factory.ConnectedUrls.Should().Contain(u => u.AbsoluteUri.Contains("reconnect.example"));
         transport
             .SessionId.Should()
@@ -278,6 +282,8 @@ public sealed class WebSocketEventSubTransportTests
         }
 
         sink.Welcomes.Should().Equal("session-A", "session-B", "session-C", "session-D");
+        sink.Handoffs.Should()
+            .OnlyContain(h => h == null, "a reconnect after a drop is a fresh session");
 
         IReadOnlyList<TimeSpan> schedule = transport.GetBackoffScheduleForOwner(
             EventSubOwnerKeys.Bot
@@ -293,6 +299,45 @@ public sealed class WebSocketEventSubTransportTests
         await sink.WaitForDisconnectsAsync(3);
         sink.Disconnects.Should().HaveCount(3);
         sink.Disconnects.Should().OnlyContain(d => d.OwnerKey == EventSubOwnerKeys.Bot);
+
+        await transport.StopAsync();
+    }
+
+    [Fact]
+    public async Task A_drop_the_sink_declines_parks_the_session_until_it_is_ensured_again()
+    {
+        FakeTimeProvider clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
+        CapturingSink sink = new() { KeepReconnecting = false };
+        ScriptedChannel first = new([Welcome("session-A")]);
+        ScriptedChannelFactory factory = new(
+            first,
+            new ScriptedChannel([Welcome("session-B")], idleAfterScript: true)
+        );
+        WebSocketEventSubTransport transport = NewTransport(factory, clock, sink);
+
+        await transport.StartAsync();
+        await sink.WaitUntilAsync(() => sink.ReconnectChecks >= 1 && first.WasDisposed);
+
+        // Several full backoff windows pass; a parked session never dials Twitch again on its own.
+        for (int i = 0; i < 200; i++)
+        {
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(2);
+        }
+
+        factory.ConnectedUrls.Should().ContainSingle();
+        sink.ReconnectChecks.Should().Be(1);
+        sink.Disconnects.Should().BeEmpty("a parked session announces no retry");
+        transport.CurrentSessionId(EventSubOwnerKeys.Bot).Should().BeNull();
+
+        // Ensuring it again opens exactly one fresh connection and returns its new session.
+        Result<EventSubTransportHandle> reopened = await transport.EnsureSessionAsync(
+            EventSubOwnerKeys.Bot
+        );
+
+        reopened.IsSuccess.Should().BeTrue(reopened.ErrorMessage);
+        reopened.Value.SessionId.Should().Be("session-B");
+        factory.ConnectedUrls.Should().HaveCount(2);
 
         await transport.StopAsync();
     }
@@ -342,19 +387,41 @@ public sealed class WebSocketEventSubTransportTests
     private sealed class CapturingSink : IEventSubNotificationSink
     {
         private readonly ConcurrentQueue<string> _welcomes = new();
+        private readonly ConcurrentQueue<string?> _handoffs = new();
+        private int _reconnectChecks;
         private readonly ConcurrentQueue<CapturedNotification> _notifications = new();
         private readonly ConcurrentQueue<CapturedRevocation> _revocations = new();
         private readonly ConcurrentQueue<CapturedDisconnect> _disconnects = new();
 
         public IReadOnlyList<string> Welcomes => [.. _welcomes];
+
+        /// <summary>Each welcome's handoff-from session id, in welcome order (null = fresh session).</summary>
+        public IReadOnlyList<string?> Handoffs => [.. _handoffs];
+
+        /// <summary>The answer every post-drop reconnect check gets; false parks the session.</summary>
+        public bool KeepReconnecting { get; set; } = true;
+
+        public int ReconnectChecks => Volatile.Read(ref _reconnectChecks);
         public IReadOnlyList<CapturedNotification> Notifications => [.. _notifications];
         public IReadOnlyList<CapturedRevocation> Revocations => [.. _revocations];
         public IReadOnlyList<CapturedDisconnect> Disconnects => [.. _disconnects];
 
-        public Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct)
+        public Task OnSessionWelcomeAsync(
+            string sessionId,
+            string ownerKey,
+            string? handoffFromSessionId,
+            CancellationToken ct
+        )
         {
             _welcomes.Enqueue(sessionId);
+            _handoffs.Enqueue(handoffFromSessionId);
             return Task.CompletedTask;
+        }
+
+        public Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct)
+        {
+            Interlocked.Increment(ref _reconnectChecks);
+            return Task.FromResult(KeepReconnecting);
         }
 
         public Task OnNotificationAsync(
@@ -413,6 +480,8 @@ public sealed class WebSocketEventSubTransportTests
 
         public Task WaitForDisconnectsAsync(int count) =>
             WaitUntil(() => _disconnects.Count >= count);
+
+        public Task WaitUntilAsync(Func<bool> predicate) => WaitUntil(predicate);
 
         private static async Task WaitUntil(Func<bool> predicate)
         {

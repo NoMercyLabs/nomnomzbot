@@ -15,6 +15,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Platform.Enums;
@@ -42,7 +43,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// </summary>
 public sealed class WebSocketEventSubTransport : IEventSubTransport
 {
-    private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor _sanctions;
+    private readonly IOutboundSanctionAccessor _sanctions;
 
     private const string DefaultWsUrl =
         "wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=30";
@@ -70,7 +71,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         IEventSubConditionBuilder conditionBuilder,
         TimeProvider clock,
         ILogger<WebSocketEventSubTransport> logger,
-        NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions
+        IOutboundSanctionAccessor sanctions
     )
     {
         _sanctions = sanctions;
@@ -165,9 +166,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         // Keeping its own event subscriptions current is inherent to the bot being connected at all — the
         // broadcaster consented to it by onboarding. Named so the traffic is still attributable.
         using IDisposable sanction = _sanctions.Begin(
-            NomNomzBot.Application.Contracts.Security.OutboundSanction.PlatformConfiguration(
-                "eventsub_subscription_lifecycle"
-            )
+            OutboundSanction.PlatformConfiguration("eventsub_subscription_lifecycle")
         );
 
         if (handle.SessionId is null)
@@ -228,9 +227,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
     )
     {
         using IDisposable sanction = _sanctions.Begin(
-            NomNomzBot.Application.Contracts.Security.OutboundSanction.PlatformConfiguration(
-                "eventsub_subscription_lifecycle"
-            )
+            OutboundSanction.PlatformConfiguration("eventsub_subscription_lifecycle")
         );
 
         // Sign the delete with the SAME identity that created the subscription. Twitch scopes this endpoint
@@ -315,8 +312,34 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
 
     // ── Sink forwarding (called by every WsSession receive loop) ────────────────
 
-    private Task ForwardWelcomeAsync(string ownerKey, string sessionId, CancellationToken ct) =>
-        _sink?.OnSessionWelcomeAsync(sessionId, ownerKey, ct) ?? Task.CompletedTask;
+    private Task ForwardWelcomeAsync(
+        string ownerKey,
+        string sessionId,
+        string? handoffFromSessionId,
+        CancellationToken ct
+    ) =>
+        _sink?.OnSessionWelcomeAsync(sessionId, ownerKey, handoffFromSessionId, ct)
+        ?? Task.CompletedTask;
+
+    // A sink failure must never strand the session: when the answer is unknown, keep reconnecting.
+    private async Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct)
+    {
+        if (_sink is null)
+            return true;
+        try
+        {
+            return await _sink.ShouldReconnectAsync(ownerKey, ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                ex,
+                "EventSub WS ({Owner}): reconnect check failed; reconnecting anyway",
+                ownerKey
+            );
+            return true;
+        }
+    }
 
     private Task ForwardNotificationAsync(
         string messageId,
@@ -384,6 +407,9 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         private Task? _receiveLoop;
 
         private volatile string? _sessionId;
+
+        // The session a session_reconnect handoff replaces, carried to the welcome on the reconnect URL.
+        private volatile string? _handoffFromSessionId;
         private TimeSpan _keepaliveTimeout = TimeSpan.FromSeconds(40);
         private DateTimeOffset? _lastReconnectAt;
 
@@ -528,11 +554,18 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 try
                 {
                     connectUrl = await ConnectAndReceiveAsync(connectUrl, firstWelcome, ct);
-                    // The reconnect URL yields a NEW session id in its welcome — Twitch does not carry the
-                    // old one across. Until that welcome lands this session id is dead, so clear it: leaving
-                    // it set let every concurrent subscribe POST a session_id Twitch had already retired,
-                    // answered as 400 "websocket transport session does not exist or has already
-                    // disconnected", and then written back onto the row to poison the next cleanup pass.
+                    // A reconnect URL is a handoff: Twitch moves this session's subscriptions to the new
+                    // connection, and the welcome there must know which session it replaces.
+                    _handoffFromSessionId = connectUrl.Equals(
+                        DefaultWsUrl,
+                        StringComparison.Ordinal
+                    )
+                        ? null
+                        : _sessionId;
+                    // Until the new welcome lands this session id is dead, so clear it: leaving it set let
+                    // every concurrent subscribe POST a session_id Twitch had already retired, answered as
+                    // 400 "websocket transport session does not exist or has already disconnected", and then
+                    // written back onto the row to poison the next cleanup pass.
                     _sessionId = null;
                     backoff = TimeSpan.FromSeconds(1); // a clean reconnect-url swap resets backoff
                     continue;
@@ -573,8 +606,15 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 }
 
                 _sessionId = null;
+                _handoffFromSessionId = null;
                 if (ct.IsCancellationRequested)
                     break;
+
+                if (!await _owner.ShouldReconnectAsync(_ownerKey, ct))
+                {
+                    await ParkAsync(firstWelcome);
+                    break;
+                }
 
                 // Exponential backoff capped at 64 s, plus full jitter, so a fleet does not thunder Twitch. The
                 // pre-jitter schedule is recorded so a caller (test or diagnostics) can assert the doubling
@@ -602,6 +642,26 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 backoff = TimeSpan.FromSeconds(Math.Min(backoff.TotalSeconds * 2, 64));
                 connectUrl = DefaultWsUrl;
             }
+        }
+
+        /// <summary>
+        /// Ends this session's loop without a reconnect and resets it, so the next
+        /// <see cref="EnsureStartedAsync"/> opens a fresh connection instead of returning the dead welcome.
+        /// </summary>
+        private async Task ParkAsync(TaskCompletionSource<string> firstWelcome)
+        {
+            IWebSocketChannel? channel;
+            lock (_stateLock)
+            {
+                channel = _channel;
+                _channel = null;
+                _receiveLoop = null;
+                _startWelcome = null;
+            }
+
+            firstWelcome.TrySetCanceled();
+            if (channel is not null)
+                await channel.DisposeAsync();
         }
 
         /// <summary>Connects, drives the receive loop, and returns the next URL (reconnect-url or default).</summary>
@@ -710,9 +770,11 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                     if (envelope.Payload?.Session?.KeepaliveTimeoutSeconds is { } keepalive and > 0)
                         _keepaliveTimeout = TimeSpan.FromSeconds(keepalive + 5);
 
+                    string? handoffFrom = _handoffFromSessionId;
+                    _handoffFromSessionId = null;
                     _sessionId = sessionId;
                     firstWelcome.TrySetResult(sessionId);
-                    await _owner.ForwardWelcomeAsync(_ownerKey, sessionId, ct);
+                    await _owner.ForwardWelcomeAsync(_ownerKey, sessionId, handoffFrom, ct);
                     break;
                 }
 

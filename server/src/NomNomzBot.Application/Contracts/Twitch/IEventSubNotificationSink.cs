@@ -44,8 +44,28 @@ public interface IEventSubNotificationSink
     /// A transport session reached a fresh steady state (welcome received) — (re)register the subscriptions that
     /// belong to <paramref name="ownerKey"/> (see <see cref="EventSubOwnerKeys"/>). Each token owner has its own
     /// WebSocket session, so a welcome re-registers only that owner's slice, not the whole registry.
+    /// Called from the receive loop: an implementation must return promptly and do its Twitch/DB work elsewhere,
+    /// or the loop stops reading frames and Twitch closes a session with no subscription inside 10 s (4003).
     /// </summary>
-    Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct);
+    /// <param name="handoffFromSessionId">
+    /// Set when this welcome arrived on a <c>session_reconnect</c> URL: the id of the session it replaces.
+    /// Twitch migrates that session's subscriptions itself, so nothing is deleted or re-created. Null for a
+    /// fresh session.
+    /// </param>
+    Task OnSessionWelcomeAsync(
+        string sessionId,
+        string ownerKey,
+        string? handoffFromSessionId,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Asked after an owner's session dropped, before a reconnect is scheduled. False parks the session: no
+    /// reconnect happens until something ensures that owner's session again (a subscribe that passes the grant
+    /// gate). Used when every one of the owner's topics is refused until its grant changes — a session with
+    /// nothing to carry is closed by Twitch within 10 s, so reconnecting it only loops.
+    /// </summary>
+    Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct);
 
     /// <summary>
     /// The token owner's session dropped (keepalive timeout, unexpected close, network error) and a reconnect

@@ -74,6 +74,12 @@ public sealed class TwitchEventSubHostedService
     private readonly HashSet<string> _welcomedOwners = [];
     private readonly Lock _welcomedLock = new();
 
+    // Post-welcome work runs off the receive loop, chained per owner so one owner's welcomes are handled in
+    // arrival order while other owners proceed independently. Each entry is that owner's newest queued run.
+    private readonly Dictionary<string, Task> _welcomeWork = [];
+    private readonly Lock _welcomeWorkLock = new();
+    private readonly CancellationTokenSource _lifetime = new();
+
     // Set once the transport has actually been started (after the readiness gate opened), so the dormancy
     // waiter never double-starts and so it stops re-checking once it has handed off to the receive loop.
     private volatile bool _transportStarted;
@@ -163,6 +169,8 @@ public sealed class TwitchEventSubHostedService
             _leadership = null;
         }
 
+        await _lifetime.CancelAsync();
+
         // Cancel first, dispose only AFTER the waiter has been awaited — the waiter's PeriodicTimer
         // registers on the token, and registering against a disposed source throws.
         if (_dormancyCts is not null)
@@ -196,6 +204,8 @@ public sealed class TwitchEventSubHostedService
         {
             _logger.LogWarning(ex, "EventSub transport failed to stop cleanly during shutdown.");
         }
+
+        await WhenWelcomeWorkIdleAsync();
     }
 
     /// <summary>
@@ -282,14 +292,99 @@ public sealed class TwitchEventSubHostedService
 
     // ── IEventSubNotificationSink (called by the transport receive loop) ────
 
-    public async Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct)
+    public Task OnSessionWelcomeAsync(
+        string sessionId,
+        string ownerKey,
+        string? handoffFromSessionId,
+        CancellationToken ct
+    )
     {
         _logger.LogInformation(
-            "EventSub session welcome ({Owner} / {SessionId}) — re-homing subscriptions",
+            "EventSub session welcome ({Owner} / {SessionId}, handoff from {HandoffFrom})",
             ownerKey,
-            sessionId
+            sessionId,
+            handoffFromSessionId ?? "none"
         );
 
+        // Queued, never awaited here: this runs on the receive loop, and cleanup + re-register + backfill can
+        // take far longer than the 10 s Twitch allows between a welcome and the first subscription. While it
+        // ran inline no frame was read, so the first create landed late and Twitch closed the session (4003).
+        lock (_welcomeWorkLock)
+        {
+            Task previous = _welcomeWork.GetValueOrDefault(ownerKey) ?? Task.CompletedTask;
+            _welcomeWork[ownerKey] = Task.Run(
+                () => RunWelcomeWorkAsync(previous, sessionId, ownerKey, handoffFromSessionId, ct),
+                CancellationToken.None
+            );
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Completes once every queued post-welcome run has finished (shutdown drain + test seam).</summary>
+    internal async Task WhenWelcomeWorkIdleAsync()
+    {
+        while (true)
+        {
+            Task[] pending;
+            lock (_welcomeWorkLock)
+                pending = [.. _welcomeWork.Values.Where(t => !t.IsCompleted)];
+            if (pending.Length == 0)
+                return;
+            await Task.WhenAll(pending);
+        }
+    }
+
+    private async Task RunWelcomeWorkAsync(
+        Task previous,
+        string sessionId,
+        string ownerKey,
+        string? handoffFromSessionId,
+        CancellationToken sessionToken
+    )
+    {
+        // Never faults: every run catches its own failure below, so one bad welcome cannot block the next.
+        await previous;
+        if (sessionToken.IsCancellationRequested || _lifetime.IsCancellationRequested)
+            return;
+
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(
+            sessionToken,
+            _lifetime.Token
+        );
+        try
+        {
+            if (handoffFromSessionId is null)
+                await HandleFreshWelcomeAsync(sessionId, ownerKey, linked.Token);
+            else
+                await HandleHandoffWelcomeAsync(
+                    sessionId,
+                    ownerKey,
+                    handoffFromSessionId,
+                    linked.Token
+                );
+        }
+        catch (OperationCanceledException) when (linked.IsCancellationRequested)
+        {
+            // The session or the host stopped; the next welcome re-runs this work.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "EventSub post-welcome work failed for owner {Owner} ({SessionId})",
+                ownerKey,
+                sessionId
+            );
+        }
+    }
+
+    private async Task HandleFreshWelcomeAsync(
+        string sessionId,
+        string ownerKey,
+        CancellationToken ct
+    )
+    {
         // A fresh welcome for this OWNER means its previous WebSocket session is dead. Twitch keeps that session's
         // subscriptions in a `websocket_disconnected` state for ~1 minute, and a re-create's 409-conflict key
         // is (type + condition) — session-independent — so those lingering subs would 409 every re-create and
@@ -312,8 +407,42 @@ public sealed class TwitchEventSubHostedService
             await BackfillOwnerGapAsync(ownerKey, ct);
         }
 
+        await PublishConnectedAsync(ownerKey, sessionId, ownerSubscriptionCount, ct);
+    }
+
+    /// <summary>
+    /// A <c>session_reconnect</c> handoff: Twitch migrated the old session's subscriptions onto this one, so
+    /// nothing is deleted or re-created — the registry rows only follow the session id. Events kept flowing on
+    /// the old connection until this welcome, so there is no gap to backfill either.
+    /// </summary>
+    private async Task HandleHandoffWelcomeAsync(
+        string sessionId,
+        string ownerKey,
+        string handoffFromSessionId,
+        CancellationToken ct
+    )
+    {
+        await RehomeHandedOffSubsAsync(ownerKey, handoffFromSessionId, sessionId, ct);
+        lock (_welcomedLock)
+            _welcomedOwners.Add(ownerKey);
+
+        await PublishConnectedAsync(
+            ownerKey,
+            sessionId,
+            _subscriptionCountByOwner.GetValueOrDefault(ownerKey),
+            ct
+        );
+    }
+
+    private async Task PublishConnectedAsync(
+        string ownerKey,
+        string sessionId,
+        int ownerSubscriptionCount,
+        CancellationToken ct
+    )
+    {
         // A broadcaster-owned session's key IS the tenant Guid (EventSubOwnerKeys.For) — surface it on the
-        // event so a per-broadcaster consumer (e.g. the needs-reauth self-heal below) can act on it; the shared
+        // event so a per-broadcaster consumer (e.g. the needs-reauth self-heal) can act on it; the shared
         // bot session carries no single tenant, so it stays the platform sentinel.
         Guid connectedBroadcasterId = Guid.TryParse(ownerKey, out Guid parsedOwner)
             ? parsedOwner
@@ -330,6 +459,41 @@ public sealed class TwitchEventSubHostedService
             },
             ct
         );
+    }
+
+    public async Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct)
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.Where(s => s.Enabled && s.DeletedAt == null)
+            .ToListAsync(ct);
+        List<EventSubSubscription> owned =
+        [
+            .. rows.Where(r => OwnerKeyFor(r.BroadcasterId, r.EventType) == ownerKey),
+        ];
+        if (owned.Count == 0)
+            return true;
+
+        foreach (EventSubSubscription row in owned)
+            if (await GrantGateHoldAsync(db, row, TokenOwnerFor(row.EventType), ct) is null)
+                return true;
+
+        // Parked. The next welcome for this owner comes from a subscribe that passed the grant gate, and that
+        // caller registers its topics itself — treating the welcome as a reconnect would double-POST them.
+        lock (_welcomedLock)
+            _welcomedOwners.Remove(ownerKey);
+        _subscriptionCountByOwner[ownerKey] = 0;
+        _activeSubscriptionCount = _subscriptionCountByOwner.Values.Sum();
+
+        _logger.LogWarning(
+            "EventSub: all {Count} topic(s) for owner {Owner} are refused until its grant changes — session closed, no reconnect until then",
+            owned.Count,
+            ownerKey
+        );
+        return false;
     }
 
     public async Task OnNotificationAsync(
@@ -591,6 +755,22 @@ public sealed class TwitchEventSubHostedService
             );
 
         string version = _conditionBuilder.GetVersion(eventType);
+        EventSubTokenOwnerKind tokenOwner = TokenOwnerFor(eventType);
+
+        EventSubSubscription? row = await db.EventSubSubscriptions.FirstOrDefaultAsync(
+            s =>
+                s.BroadcasterId == broadcasterId
+                && s.Provider == "twitch"
+                && s.EventType == eventType
+                && s.Version == version,
+            ct
+        );
+
+        // Checked BEFORE the session is ensured: a held topic must neither re-POST nor (re)open its owner's
+        // session. A session opened only for refused topics carries nothing, Twitch closes it (4003), and a
+        // parked owner would be pulled straight back into that loop by every reconcile.
+        if (row is not null && await GrantGateHoldAsync(db, row, tokenOwner, ct) is { } heldCode)
+            return Result.Failure<EventSubSubscriptionDto>(row.LastError!, heldCode);
 
         // Ensure the WebSocket session this topic must ride is live, and post the create onto it. A topic rides
         // its token owner's session: bot-owned topics (chat-read) ride the bot's session; a broadcaster's
@@ -625,15 +805,6 @@ public sealed class TwitchEventSubHostedService
             );
 
         // Idempotent upsert on (BroadcasterId, Provider, EventType, Version).
-        EventSubSubscription? row = await db.EventSubSubscriptions.FirstOrDefaultAsync(
-            s =>
-                s.BroadcasterId == broadcasterId
-                && s.Provider == "twitch"
-                && s.EventType == eventType
-                && s.Version == version,
-            ct
-        );
-
         bool isNew = row is null;
         // For the platform tenant the broadcaster slot is the bot's own id (guarded non-null above) — its
         // topics are UserOnly-shaped, so the value only ever lands in the user_id slot anyway.
@@ -678,60 +849,6 @@ public sealed class TwitchEventSubHostedService
             && row.SessionId == currentSession
         )
             return Result.Success(ToDto(row));
-
-        EventSubTokenOwnerKind tokenOwner = _conditionBuilder.RequiresBroadcasterToken(eventType)
-            ? EventSubTokenOwnerKind.Broadcaster
-            : EventSubTokenOwnerKind.Bot;
-
-        // A topic that failed on a missing scope, or on Twitch's other terminal 403 ("subscription missing
-        // proper authorization"), is NOT re-POSTed until the owner's grant actually changes: blind retries
-        // hammer Twitch with guaranteed 403s every reconcile and flood the journal with no-op failed→failed
-        // status events (this is what kept a dead session's welcome re-subscribing forever — twitch-eventsub
-        // §7 hardening). The stored grant set (IntegrationConnection.Scopes) is kept truthful on every token
-        // store/refresh, so the moment a re-grant lands the next reconcile passes this gate and the create
-        // proceeds — self-healing, no manual retry needed.
-        //
-        // A named missing scope is checked precisely against the live grant set (self-heals the instant that
-        // exact scope appears). The unnamed "missing proper authorization" failure names no scope, so it is
-        // gated on a fingerprint of the whole grant set recorded at failure time instead — any re-grant
-        // (add or remove) is enough to unblock a retry.
-        //
-        // An UNKNOWN grant set (no IntegrationConnection row at all) never blocks here — same as the named-scope
-        // branch below — the create is left to attempt and fail on its own (typically NoToken), which is the
-        // truthful failure for "not connected", not a fabricated scope gate.
-        string? blockedScope = ExtractMissingScopeFromMessage(row.LastError);
-        bool authorizationBlocked = blockedScope is null && IsMissingAuthorizationMessage(row.LastError);
-        if (row.Status == "failed" && (blockedScope is not null || authorizationBlocked))
-        {
-            List<string>? granted = await GetOwnerGrantedScopesAsync(
-                db,
-                broadcasterId,
-                tokenOwner,
-                ct
-            );
-            if (blockedScope is not null)
-            {
-                if (
-                    granted is not null
-                    && !granted.Contains(blockedScope, StringComparer.OrdinalIgnoreCase)
-                )
-                    return Result.Failure<EventSubSubscriptionDto>(
-                        row.LastError!,
-                        TwitchErrorCodes.MissingScope
-                    );
-            }
-            else if (granted is not null)
-            {
-                string recordedFingerprint =
-                    ExtractAuthorizationGrantFingerprint(row.LastError) ?? "unknown";
-                string currentFingerprint = GrantFingerprint(granted);
-                if (string.Equals(recordedFingerprint, currentFingerprint, StringComparison.Ordinal))
-                    return Result.Failure<EventSubSubscriptionDto>(
-                        row.LastError!,
-                        TwitchErrorCodes.Unauthorized
-                    );
-            }
-        }
 
         // Create at Twitch via the transport (idempotent at our layer; Twitch 409 on an exact duplicate).
         EventSubSubscriptionRequest request = new()
@@ -1143,6 +1260,72 @@ public sealed class TwitchEventSubHostedService
 
     // ── Internals ───────────────────────────────────────────────────────────
 
+    private EventSubTokenOwnerKind TokenOwnerFor(string eventType) =>
+        _conditionBuilder.RequiresBroadcasterToken(eventType)
+            ? EventSubTokenOwnerKind.Broadcaster
+            : EventSubTokenOwnerKind.Bot;
+
+    /// <summary>
+    /// The error code a failed topic is held under until its owner's grant set changes, or null when it may be
+    /// POSTed to Twitch again.
+    /// </summary>
+    private static async Task<string?> GrantGateHoldAsync(
+        IApplicationDbContext db,
+        EventSubSubscription row,
+        EventSubTokenOwnerKind tokenOwner,
+        CancellationToken ct
+    )
+    {
+        // A topic that failed on a missing scope, or on Twitch's other terminal 403 ("subscription missing
+        // proper authorization"), is NOT re-POSTed until the owner's grant actually changes: blind retries
+        // hammer Twitch with guaranteed 403s every reconcile and flood the journal with no-op failed→failed
+        // status events (this is what kept a dead session's welcome re-subscribing forever — twitch-eventsub
+        // §7 hardening). The stored grant set (IntegrationConnection.Scopes) is kept truthful on every token
+        // store/refresh, so the moment a re-grant lands the next reconcile passes this gate and the create
+        // proceeds — self-healing, no manual retry needed.
+        //
+        // A named missing scope is checked precisely against the live grant set (self-heals the instant that
+        // exact scope appears). The unnamed "missing proper authorization" failure names no scope, so it is
+        // gated on a fingerprint of the whole grant set recorded at failure time instead — any re-grant
+        // (add or remove) is enough to unblock a retry.
+        //
+        // An UNKNOWN grant set (no IntegrationConnection row at all) never blocks here — same as the named-scope
+        // branch below — the create is left to attempt and fail on its own (typically NoToken), which is the
+        // truthful failure for "not connected", not a fabricated scope gate.
+        if (row.Status != "failed")
+            return null;
+
+        string? blockedScope = ExtractMissingScopeFromMessage(row.LastError);
+        bool authorizationBlocked =
+            blockedScope is null && IsMissingAuthorizationMessage(row.LastError);
+        if (blockedScope is null && !authorizationBlocked)
+            return null;
+
+        List<string>? granted = await GetOwnerGrantedScopesAsync(
+            db,
+            row.BroadcasterId,
+            tokenOwner,
+            ct
+        );
+        if (granted is null)
+            return null;
+
+        if (blockedScope is not null)
+            return granted.Contains(blockedScope, StringComparer.OrdinalIgnoreCase)
+                ? null
+                : TwitchErrorCodes.MissingScope;
+
+        string recordedFingerprint =
+            ExtractAuthorizationGrantFingerprint(row.LastError) ?? "unknown";
+        return string.Equals(
+            recordedFingerprint,
+            GrantFingerprint(granted),
+            StringComparison.Ordinal
+        )
+            ? TwitchErrorCodes.Unauthorized
+            : null;
+    }
+
     /// <summary>
     /// The WebSocket session bucket a topic rides: the broadcaster's own session for its authorized topics,
     /// the bot's shared session for the bot-owned (chat-read) set. Mirrors the token that creates the sub.
@@ -1168,11 +1351,8 @@ public sealed class TwitchEventSubHostedService
     /// OWN registry (never another owner's rows, never another live session): the owner's rows whose
     /// <c>SessionId</c> is set and differs from the current one are the dead-session orphans.
     /// <para>
-    /// NOTE: a Twitch <c>session_reconnect</c> issues a NEW session id in the welcome on the reconnect URL —
-    /// it does not carry the old one across. (This doc previously claimed the opposite, which is why every
-    /// routine ~5-minute reconnect was treated as a full session death and ran a delete-everything +
-    /// re-register-everything storm.) So this DOES fire on an ordinary reconnect, and it must stay cheap and
-    /// correct rather than assume it is rare.
+    /// Never runs for a <c>session_reconnect</c> handoff: Twitch migrates those subscriptions itself, so the
+    /// handoff welcome only moves the rows to the new session id (<see cref="RehomeHandedOffSubsAsync"/>).
     /// </para>
     /// </summary>
     private async Task CleanupOwnerStaleSubsAsync(
@@ -1226,6 +1406,41 @@ public sealed class TwitchEventSubHostedService
                 currentSessionId
             );
         }
+    }
+
+    /// <summary>
+    /// Points this owner's rows that lived on the handed-off session at the new session id. No Twitch call:
+    /// the subscriptions already moved; only our record of where they live must follow, or the adopt check in
+    /// <see cref="SubscribeAsync"/> and the next stale-session cleanup would treat them as dead.
+    /// </summary>
+    private async Task RehomeHandedOffSubsAsync(
+        string ownerKey,
+        string handoffFromSessionId,
+        string currentSessionId,
+        CancellationToken ct
+    )
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        List<EventSubSubscription> rows = await db
+            .EventSubSubscriptions.Where(s =>
+                s.DeletedAt == null && s.SessionId == handoffFromSessionId
+            )
+            .ToListAsync(ct);
+
+        int moved = 0;
+        foreach (EventSubSubscription row in rows)
+        {
+            if (OwnerKeyFor(row.BroadcasterId, row.EventType) != ownerKey)
+                continue;
+            row.SessionId = currentSessionId;
+            moved++;
+        }
+
+        if (moved > 0)
+            await db.SaveChangesAsync(ct);
     }
 
     /// <summary>
