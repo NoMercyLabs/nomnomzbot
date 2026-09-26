@@ -22,6 +22,7 @@ object PlatformTemplateKinds {
     const val EventResponse: String = "event_response"
     const val Timer: String = "timer"
     const val Reward: String = "reward"
+    const val PickList: String = "pick_list"
 }
 
 /** An `event_response` template (backend `EventResponseTemplatePayload`). */
@@ -73,6 +74,15 @@ data class RewardTemplatePayload(
     val timerDurationSeconds: Int? = null,
 )
 
+/** A `pick_list` template (backend `PickListTemplatePayload`). The name is the `{list.pick.<name>}` key, kept
+ * verbatim on install. */
+@Serializable
+data class PickListTemplatePayload(
+    val name: String = "",
+    val description: String? = null,
+    val items: List<String> = emptyList(),
+)
+
 /** The one JSON configuration every template payload is read and written with. */
 val PlatformTemplateJson: Json = Json {
     ignoreUnknownKeys = true
@@ -93,3 +103,7 @@ fun PlatformTemplate.timerPayload(): TimerTemplatePayload? =
 /** Reads a `reward` payload; null when the JSON is not that shape. */
 fun PlatformTemplate.rewardPayload(): RewardTemplatePayload? =
     runCatching { PlatformTemplateJson.decodeFromString(RewardTemplatePayload.serializer(), payloadJson) }.getOrNull()
+
+/** Reads a `pick_list` payload; null when the JSON is not that shape. */
+fun PlatformTemplate.pickListPayload(): PickListTemplatePayload? =
+    runCatching { PlatformTemplateJson.decodeFromString(PickListTemplatePayload.serializer(), payloadJson) }.getOrNull()

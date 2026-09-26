@@ -68,6 +68,8 @@ class RowLabelGuardTest {
         mapOf(
             // TimerTemplateFields.fromPayloadJson: the admin form re-reads a saved draft into its own editable name field.
             // RewardTemplateFields.fromPayloadJson: the admin form re-reads a saved draft into its own editable title field.
+            // PickListTemplateFields.fromPayloadJson: the admin form re-reads a saved draft into its own editable name field.
+            "admin/ui/AdminContentPickListAuthoring.kt" to 1,
             "admin/ui/AdminContentRewardAuthoring.kt" to 1,
             "admin/ui/AdminContentTimerAuthoring.kt" to 1,
             "analytics/ui/AnalyticsScreen.kt" to 1,

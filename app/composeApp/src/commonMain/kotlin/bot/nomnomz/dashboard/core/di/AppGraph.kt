@@ -708,7 +708,12 @@ class AppGraph {
         QuotesController(quotesApi = quotesApi, feedback = feedbackController)
 
     val pickListsController: PickListsController =
-        PickListsController(pickListsApi = pickListsApi, feedback = feedbackController)
+        PickListsController(
+            pickListsApi = pickListsApi,
+            channelsApi = channelsApi,
+            platformTemplatesApi = platformTemplatesApi,
+            feedback = feedbackController,
+        )
 
     val giveawaysController: GiveawaysController =
         GiveawaysController(

@@ -11,6 +11,16 @@
 package bot.nomnomz.dashboard.feature.picklists.state
 
 import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -37,9 +47,53 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 class PickListsControllerTest {
 
     @Test
+    fun templates_lists_the_pick_list_kind_for_the_active_channel() = runTest {
+        val templatesApi = RecordingPickListTemplatesApi()
+        val controller =
+            pickListsController(RecordingPickListsApi(ApiResult.Ok(emptyList())), templatesApi = templatesApi)
+
+        val result: ApiResult<List<PlatformTemplate>> = controller.templates()
+
+        assertEquals("def-greetings", (result as ApiResult.Ok).value.single().definitionId)
+        assertEquals("ch1" to "pick_list", templatesApi.lastListed)
+    }
+
+    @Test
+    fun installTemplate_installs_into_the_active_channel_then_reloads_and_confirms() = runTest {
+        val templatesApi = RecordingPickListTemplatesApi()
+        val feedback = RecordingFeedback()
+        val api = RecordingPickListsApi(ApiResult.Ok(emptyList()))
+        val controller = pickListsController(api, feedback, templatesApi = templatesApi)
+
+        val result: ApiResult<InstalledPlatformTemplate> = controller.installTemplate(GreetingsTemplate)
+
+        assertEquals("greetings", (result as ApiResult.Ok).value.name)
+        assertEquals("ch1" to "def-greetings", templatesApi.lastInstalled)
+        assertTrue(controller.state.value is PickListsState.Empty)
+        assertEquals(Res.string.platform_templates_installed, feedback.only.label)
+    }
+
+    @Test
+    fun installTemplate_refusal_is_returned_without_a_success_toast() = runTest {
+        val templatesApi =
+            RecordingPickListTemplatesApi(
+                installResult =
+                    ApiResult.Failure(ApiError(409, "ALREADY_EXISTS", "A pick list named 'greetings' already exists."))
+            )
+        val feedback = RecordingFeedback()
+        val controller =
+            pickListsController(RecordingPickListsApi(ApiResult.Ok(emptyList())), feedback, templatesApi = templatesApi)
+
+        val result: ApiResult<InstalledPlatformTemplate> = controller.installTemplate(GreetingsTemplate)
+
+        assertEquals("ALREADY_EXISTS", (result as ApiResult.Failure).error.code)
+        assertTrue(feedback.messages.isEmpty())
+    }
+
+    @Test
     fun load_surfaces_the_channel_lists_on_success() = runTest {
         val controller =
-            PickListsController(
+            pickListsController(
                 RecordingPickListsApi(
                     ApiResult.Ok(
                         listOf(
@@ -70,7 +124,7 @@ class PickListsControllerTest {
 
     @Test
     fun load_is_empty_when_the_channel_has_no_lists() = runTest {
-        val controller = PickListsController(RecordingPickListsApi(ApiResult.Ok(emptyList())))
+        val controller = pickListsController(RecordingPickListsApi(ApiResult.Ok(emptyList())))
 
         controller.load()
 
@@ -80,7 +134,7 @@ class PickListsControllerTest {
     @Test
     fun load_errors_when_the_list_call_fails() = runTest {
         val controller =
-            PickListsController(RecordingPickListsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))))
+            pickListsController(RecordingPickListsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))))
 
         controller.load()
 
@@ -94,7 +148,7 @@ class PickListsControllerTest {
         // The fake starts empty; the create appends the new list to its backing store, so the controller's
         // post-write reload must surface it — proving create actually calls the api AND re-lists.
         val api = RecordingPickListsApi(ApiResult.Ok(emptyList()))
-        val controller = PickListsController(api)
+        val controller = pickListsController(api)
         controller.load()
         assertTrue(controller.state.value is PickListsState.Empty)
 
@@ -125,7 +179,7 @@ class PickListsControllerTest {
     fun create_sends_a_blank_description_as_null() = runTest {
         // A blank description is meaningless: it must go over the wire as null (omitted), not as an empty string.
         val api = RecordingPickListsApi(ApiResult.Ok(emptyList()))
-        val controller = PickListsController(api)
+        val controller = pickListsController(api)
         controller.load()
 
         controller.createPickList(name = "greetings", description = "   ", items = listOf("hi"))
@@ -144,7 +198,7 @@ class PickListsControllerTest {
                     listOf(PickList(id = "pl5", name = "old_name", items = listOf("one")))
                 )
             )
-        val controller = PickListsController(api)
+        val controller = pickListsController(api)
         controller.load()
 
         controller.updatePickList(
@@ -174,7 +228,7 @@ class PickListsControllerTest {
     fun delete_removes_the_list_then_reloads_to_empty() = runTest {
         val api =
             RecordingPickListsApi(ApiResult.Ok(listOf(PickList(id = "pl9", name = "bye", items = listOf("x")))))
-        val controller = PickListsController(api)
+        val controller = pickListsController(api)
         controller.load()
         assertTrue(controller.state.value is PickListsState.Ready)
 
@@ -193,7 +247,7 @@ class PickListsControllerTest {
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val feedback = RecordingFeedback()
-        val controller = PickListsController(api, feedback)
+        val controller = pickListsController(api, feedback)
         controller.load()
 
         controller.deletePickList(id = "pl1")
@@ -211,7 +265,7 @@ class PickListsControllerTest {
     fun a_successful_edit_announces_save_success_on_the_frame() = runTest {
         val feedback = RecordingFeedback()
         val controller =
-            PickListsController(
+            pickListsController(
                 RecordingPickListsApi(ApiResult.Ok(listOf(PickList(id = "pl2", name = "hi", items = listOf("x"))))),
                 feedback,
             )
@@ -228,7 +282,7 @@ class PickListsControllerTest {
     fun a_successful_delete_announces_the_deleted_label() = runTest {
         val feedback = RecordingFeedback()
         val controller =
-            PickListsController(
+            pickListsController(
                 RecordingPickListsApi(ApiResult.Ok(listOf(PickList(id = "pl4", name = "del_me", items = listOf("x"))))),
                 feedback,
             )
@@ -245,7 +299,7 @@ class PickListsControllerTest {
     fun a_failed_write_announces_an_error_carrying_the_backend_detail() = runTest {
         val feedback = RecordingFeedback()
         val controller =
-            PickListsController(
+            pickListsController(
                 RecordingPickListsApi(
                     ApiResult.Ok(listOf(PickList(id = "pl7", name = "boom", items = listOf("x")))),
                     writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
@@ -337,3 +391,55 @@ private class RecordingPickListsApi(
         return ApiResult.Ok(bot.nomnomz.dashboard.core.network.PickListPreview(pick = entry))
     }
 }
+
+private fun pickListsController(
+    api: PickListsApi,
+    feedback: Feedback = NoOpFeedback,
+    templatesApi: PlatformTemplatesApi = RecordingPickListTemplatesApi(),
+): PickListsController = PickListsController(api, ActiveChannelApi, templatesApi, feedback)
+
+private object ActiveChannelApi : ChannelsApi {
+    override suspend fun primaryChannel(): ApiResult<ChannelSummary> = ApiResult.Ok(ChannelSummary(id = "ch1"))
+    override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun join(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun channelScopes(channelId: String) = error("stub")
+    override suspend fun startChannelBotConnect(channelId: String) = error("stub")
+    override suspend fun channelBotStatus(channelId: String) = error("stub")
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
+}
+
+private class RecordingPickListTemplatesApi(
+    private val installResult: ApiResult<InstalledPlatformTemplate> =
+        ApiResult.Ok(InstalledPlatformTemplate(kind = "pick_list", entityId = "pl9", name = "greetings")),
+) : PlatformTemplatesApi {
+    var lastListed: Pair<String, String>? = null
+    var lastInstalled: Pair<String, String>? = null
+
+    override suspend fun list(channelId: String, kind: String): ApiResult<List<PlatformTemplate>> {
+        lastListed = channelId to kind
+        return ApiResult.Ok(listOf(GreetingsTemplate))
+    }
+
+    override suspend fun install(
+        channelId: String,
+        definitionId: String,
+        body: InstallPlatformTemplateBody,
+    ): ApiResult<InstalledPlatformTemplate> {
+        lastInstalled = channelId to definitionId
+        return installResult
+    }
+}
+
+private val GreetingsTemplate: PlatformTemplate =
+    PlatformTemplate(
+        definitionId = "def-greetings",
+        kind = "pick_list",
+        key = "greetings",
+        displayName = "Greetings",
+        version = 1,
+        payloadJson = """{"name":"greetings","items":["Hey {user}!"]}""",
+    )

@@ -48,6 +48,12 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.network.pickListPayload
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
+import nomnomzbot.composeapp.generated.resources.platform_templates_browse
+import nomnomzbot.composeapp.generated.resources.picklists_template_adds
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
@@ -132,6 +138,7 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
     // = edit). The delete-confirm target is the list pending confirmation, or null when none.
     var editor: PickListEditor? by remember { mutableStateOf(null) }
     var pendingDelete: PickList? by remember { mutableStateOf(null) }
+    var browsingTemplates: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -156,6 +163,7 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     writeManage = writeManage,
                     deleteManage = deleteManage,
                     onNew = { editor = PickListEditor.create() },
+                    onBrowseTemplates = { browsingTemplates = true },
                     onEdit = { list -> editor = PickListEditor.edit(list) },
                     onDelete = { list -> pendingDelete = list },
                     onTest = { list -> scope.launch { controller.previewPickList(list.id, list.name) } },
@@ -166,6 +174,7 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     writeManage = writeManage,
                     deleteManage = deleteManage,
                     onNew = { editor = PickListEditor.create() },
+                    onBrowseTemplates = { browsingTemplates = true },
                     onEdit = { list -> editor = PickListEditor.edit(list) },
                     onDelete = { list -> pendingDelete = list },
                     onTest = { list -> scope.launch { controller.previewPickList(list.id, list.name) } },
@@ -183,6 +192,20 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
             confirmButton = {
                 TextButton(onClick = { controller.dismissPreview() }) {
                     Text(text = stringResource(Res.string.picklists_preview_close))
+                }
+            },
+        )
+    }
+
+    if (browsingTemplates) {
+        PlatformTemplatesDialog(
+            loadTemplates = { controller.templates() },
+            install = { template, _ -> controller.installTemplate(template) },
+            onInstalled = { browsingTemplates = false },
+            onDismiss = { browsingTemplates = false },
+            consequence = { template ->
+                template.pickListPayload()?.let {
+                    stringResource(Res.string.picklists_template_adds, it.name, it.items.size)
                 }
             },
         )
@@ -243,6 +266,7 @@ private fun ManagedContent(
     writeManage: ManageDecision,
     deleteManage: ManageDecision,
     onNew: () -> Unit,
+    onBrowseTemplates: () -> Unit,
     onEdit: (PickList) -> Unit,
     onDelete: (PickList) -> Unit,
     onTest: (PickList) -> Unit,
@@ -255,7 +279,7 @@ private fun ManagedContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        Header(writeManage = writeManage, onNew = onNew)
+        Header(writeManage = writeManage, onNew = onNew, onBrowseTemplates = onBrowseTemplates)
         // How the lists are actually used — a one-liner so the operator knows what a pick-list is FOR.
         Text(
             text = stringResource(Res.string.picklists_helper),
@@ -295,17 +319,25 @@ private fun ManagedContent(
 }
 
 @Composable
-private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
+private fun Header(writeManage: ManageDecision, onNew: () -> Unit, onBrowseTemplates: () -> Unit) {
     val newLabel: String = stringResource(Res.string.picklists_new_action)
 
     PageHeader(title = stringResource(Res.string.shell_nav_pick_lists)) {
         ManageGate(decision = writeManage) { enabled ->
-            GlyphButton(
-                icon = AddGlyph,
-                label = newLabel,
-                onClick = onNew,
-                enabled = enabled,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = onBrowseTemplates, variant = ButtonVariant.Outline, enabled = enabled) {
+                    Text(text = stringResource(Res.string.platform_templates_browse))
+                }
+                GlyphButton(
+                    icon = AddGlyph,
+                    label = newLabel,
+                    onClick = onNew,
+                    enabled = enabled,
+                )
+            }
         }
     }
 }

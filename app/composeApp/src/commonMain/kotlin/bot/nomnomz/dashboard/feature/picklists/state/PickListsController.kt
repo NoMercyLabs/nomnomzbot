@@ -15,10 +15,17 @@ import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePickListBody
+import bot.nomnomz.dashboard.core.network.InstallPlatformTemplateBody
+import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListPreview
 import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplate
+import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
+import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +35,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_saved
+import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Pick Lists page's state-holder (frontend-ia.md §3 — the Chat group). Lists the channel's real named
@@ -38,6 +46,9 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 // screen renders [state]; a retry / reconnect calls [load] again.
 class PickListsController(
     private val pickListsApi: PickListsApi,
+    // Only the template catalogue is channel-routed; the pick-lists routes resolve the channel from the request.
+    private val channelsApi: ChannelsApi,
+    private val platformTemplatesApi: PlatformTemplatesApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<PickListsState> = MutableStateFlow(PickListsState.Loading)
@@ -147,6 +158,29 @@ class PickListsController(
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
+    }
+
+    /** The published platform pick-list templates this channel can install. */
+    suspend fun templates(): ApiResult<List<PlatformTemplate>> =
+        when (val channel: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+            is ApiResult.Failure -> channel
+            is ApiResult.Ok -> platformTemplatesApi.list(channel.value.id, PlatformTemplateKinds.PickList)
+        }
+
+    /** Installs [template] as a new list in this channel; reloads the page and confirms on success. */
+    suspend fun installTemplate(template: PlatformTemplate): ApiResult<InstalledPlatformTemplate> {
+        val channel: ChannelSummary =
+            when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+                is ApiResult.Failure -> return result
+                is ApiResult.Ok -> result.value
+            }
+        val installed: ApiResult<InstalledPlatformTemplate> =
+            platformTemplatesApi.install(channel.id, template.definitionId, InstallPlatformTemplateBody())
+        if (installed is ApiResult.Ok) {
+            feedback.success(Res.string.platform_templates_installed)
+            load()
+        }
+        return installed
     }
 
     // The page is already showing content (Ready or Empty) — announce on the shell-level feedback toast rather
