@@ -474,6 +474,13 @@ A1. Desktop editor parity: the desktop code/widget editor is a plain Swing text 
     Owner decision 2026-09-26: NO embedded Chromium (CEF/KCEF). Use each OS's native web view (WebView2 on
     Windows, WKWebView on macOS, WebKitGTK on Linux), as other desktop products do. An external editor is
     rejected: too slow for a rapid-fire broadcaster edit tool.
+    Status 2026-09-26: Windows done (a64e74a4, ca.weblite:webview MIT + JNA, Swing editor deleted). Open:
+    (a) high-DPI sizing bug in the library at 150% scaling (upstream fix, needs owner OK to file a PR);
+    (b) Linux runs the library's offscreen mode (no context menu, no <select>, no IME) — not acceptable,
+    needs the heavyweight/native path or a WebKitGTK embedding, plus a WebKitGTK presence check;
+    (c) macOS not run (ATS for http LAN origins, jawt in jpackage); (d) live check against a signed-in bot
+    (diagnostics, preview, fire bar, save→reopen); (e) stale "Swing dialog" comments in
+    AdminContentCodeScriptAuthoring.kt:62 and AdminContentWidgetAuthoring.kt:139.
 A2. SDK guidance in the editor: wire `GET /sdk/event-catalog` (SdkController.cs, zero callers) into a
     docs panel — browse events and API, real sample payloads, "insert handler", hover docs, snippets.
     Done-when: a new user finds and uses an event without leaving the editor.
