@@ -468,6 +468,11 @@ A0. Actionable errors everywhere (owner rule 2026-09-26): one action-required in
     deep-links to where it is fixed; Home shows all items grouped by severity at the top of the main view.
     Titles/messages are resource keys, never backend English. Done-when: every actionable failure the bot
     detects appears in the frame within seconds, and following it lands on the fix.
+    Status 2026-09-26: done in 92587835, 2b121ae7, 66b3e76b (producer contract, derived on read; producers:
+    grant gaps, widget build failures, webhook failures, lost song requests, undecryptable tokens; live push;
+    shell surface + Home). Open: bot-not-moderator needs real tracking (ChannelModerators is onboarding-only
+    and never removes; add a truthful signal, e.g. the moderator EventSub/role reconcile); rendered-client
+    visual check of the shell surface and Home.
 A1. Desktop editor parity: the desktop code/widget editor is a plain Swing text area
     (ProjectEditor.jvm.kt:42-50); give it the same Monaco editor as web (embedded browser view), with the
     same types, diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
