@@ -22,21 +22,38 @@ namespace NomNomzBot.Infrastructure.Tests.Notifications;
 /// </summary>
 internal static class ActionRequiredInboxHarness
 {
-    public static List<IActionRequiredSource> Sources(IApplicationDbContext db) =>
+    public static List<IActionRequiredSource> Sources(
+        IApplicationDbContext db,
+        TimeProvider clock
+    ) =>
         [
             new DeadIntegrationTokenSource(db),
             new HeldChatMessageSource(db),
             new UnmanagedRewardSource(db),
+            new TwitchGrantGapSource(db),
+            new WidgetBuildFailureSource(db),
+            new OutboundWebhookFailureSource(db),
+            new LostSongRequestSource(db, clock),
         ];
 
     public static ActionRequiredInboxService Create(
         IApplicationDbContext db,
-        TimeProvider? clock = null
+        TimeProvider? clock = null,
+        RecordingChangeNotifier? notifier = null
     ) =>
         new(
-            Sources(db),
+            Sources(db, clock ?? TimeProvider.System),
             db,
             clock ?? TimeProvider.System,
+            notifier ?? new RecordingChangeNotifier(),
             NullLogger<ActionRequiredInboxService>.Instance
         );
+}
+
+/// <summary>Records every channel the inbox signalled as changed, in order.</summary>
+internal sealed class RecordingChangeNotifier : IActionRequiredChangeNotifier
+{
+    public List<Guid> Signalled { get; } = [];
+
+    public void NotifyChanged(Guid channelId) => Signalled.Add(channelId);
 }

@@ -47,6 +47,7 @@ public sealed class ActionRequiredInboxAggregationTests
             [new FailingSource(), new DeadIntegrationTokenSource(db)],
             db,
             TimeProvider.System,
+            new RecordingChangeNotifier(),
             NullLogger<ActionRequiredInboxService>.Instance
         );
 

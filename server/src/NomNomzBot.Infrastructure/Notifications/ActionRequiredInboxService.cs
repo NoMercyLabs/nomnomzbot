@@ -22,13 +22,15 @@ namespace NomNomzBot.Infrastructure.Notifications;
 /// Aggregates the action-required inbox (S071a, plan item A0) from every registered
 /// <see cref="IActionRequiredSource"/>. The inbox owns only what is common to all sources: loading and writing
 /// the persisted <see cref="ActionRequiredDismissal"/> rows, routing a dismiss to the source that minted the id,
-/// and ordering the result newest first. A source that fails is logged and skipped, so one broken subsystem
+/// and ordering the result newest first. A dismissal is pushed as a live invalidation so every open dashboard
+/// of the channel drops the item at once. A source that fails is logged and skipped, so one broken subsystem
 /// never blanks the whole inbox.
 /// </summary>
 public sealed class ActionRequiredInboxService(
     IEnumerable<IActionRequiredSource> sources,
     IApplicationDbContext db,
     TimeProvider clock,
+    IActionRequiredChangeNotifier changeNotifier,
     ILogger<ActionRequiredInboxService> logger
 ) : IActionRequiredInboxService
 {
@@ -144,6 +146,8 @@ public sealed class ActionRequiredInboxService(
 
         db.ActionRequiredDismissals.AddRange(rows);
         await db.SaveChangesAsync(cancellationToken);
+        // Every other dashboard open on this channel drops the dismissed items too.
+        changeNotifier.NotifyChanged(channelId);
         return Result.Success(rows.Count);
     }
 

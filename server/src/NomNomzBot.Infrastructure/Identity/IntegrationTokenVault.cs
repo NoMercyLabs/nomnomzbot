@@ -367,16 +367,63 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             cancellationToken
         );
         if (plaintext is null)
+        {
             // Null means the DEK was crypto-shredded, the AAD/tag failed, or the value is malformed —
-            // fail closed (the GDPR guarantee surfaced to callers).
+            // fail closed (the GDPR guarantee surfaced to callers). No retry can ever open this token, so
+            // the connection is marked for re-authorization: that is what surfaces it to the streamer.
+            await MarkUndecryptableAsync(connection, cancellationToken);
             return Result.Failure<DecryptedTokenDto>(
                 "The token could not be decrypted.",
                 "DECRYPT_FAILED"
             );
+        }
 
         bool isExpired = token.ExpiresAt is { } exp && exp <= _timeProvider.GetUtcNow().UtcDateTime;
         return Result.Success(
             new DecryptedTokenDto(plaintext, tokenType, token.ExpiresAt, isExpired)
+        );
+    }
+
+    /// <summary>
+    /// Flips a connection whose stored token cannot be decrypted to <c>needs_reauth</c>, once. A set-based
+    /// update, not a tracked save: this runs inside a READ that may share its DbContext with a caller's
+    /// unit of work, and a SaveChanges here would flush that caller's pending changes. The failure counter is
+    /// left alone — nothing failed to refresh, the token is simply unusable.
+    /// </summary>
+    private async Task MarkUndecryptableAsync(
+        IntegrationConnection connection,
+        CancellationToken cancellationToken
+    )
+    {
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        int marked = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Id == connection.Id && c.Status != AuthEnums.IntegrationStatus.NeedsReauth
+            )
+            .ExecuteUpdateAsync(
+                set =>
+                    set.SetProperty(c => c.Status, AuthEnums.IntegrationStatus.NeedsReauth)
+                        .SetProperty(c => c.LastErrorAt, now),
+                cancellationToken
+            );
+        if (marked == 0)
+            return;
+
+        _logger.LogWarning(
+            "Integration {ConnectionId} ({Provider}) holds a token that cannot be decrypted; marked for re-authorization",
+            connection.Id,
+            connection.Provider
+        );
+        await _eventBus.PublishAsync(
+            new IntegrationNeedsReauthEvent
+            {
+                BroadcasterId = connection.BroadcasterId ?? Guid.Empty,
+                ConnectionId = connection.Id,
+                Provider = connection.Provider,
+                ConsecutiveFailureCount = connection.ConsecutiveFailureCount,
+            },
+            cancellationToken
         );
     }
 

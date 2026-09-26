@@ -750,6 +750,11 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Scoped
         );
+        // No-op fallback; the API host replaces it with the hub-backed ActionRequiredChangeNotifier.
+        services.AddSingleton<
+            Application.Notifications.Services.IActionRequiredChangeNotifier,
+            Notifications.NullActionRequiredChangeNotifier
+        >();
         services.AddImplementationsOf<Application.Contracts.EventStore.IEventUpcaster>(
             infrastructure,
             ServiceLifetime.Singleton

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Alerts.Entities;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Automation.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
@@ -25,6 +26,7 @@ using NomNomzBot.Domain.Federation.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
@@ -105,6 +107,23 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
 
     public DbSet<Reward> Rewards => Set<Reward>();
 
+    public DbSet<Channel> Channels => Set<Channel>();
+
+    public DbSet<Widget> Widgets => Set<Widget>();
+
+    public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
+
+    public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
+
+    public DbSet<ChannelMissingScope> ChannelMissingScopes => Set<ChannelMissingScope>();
+
+    public DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
+        Set<OutboundWebhookEndpoint>();
+
+    public DbSet<EventJournal> EventJournals => Set<EventJournal>();
+
+    public DbSet<IntegrationToken> IntegrationTokens => Set<IntegrationToken>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<IntegrationConnection>(e =>
@@ -129,6 +148,36 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             new Infrastructure.Notifications.Persistence.ActionRequiredDismissalConfiguration()
         );
 
+        b.Entity<Channel>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Tags);
+            e.Ignore(c => c.ContentLabels);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
+            e.Ignore(c => c.PlatformConnections);
+        });
+        b.Entity<IntegrationToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Connection);
+            e.Ignore(t => t.Channel);
+        });
+        b.ApplyConfiguration(new Infrastructure.Widgets.Persistence.WidgetConfiguration());
+        b.ApplyConfiguration(new Infrastructure.Widgets.Persistence.WidgetVersionConfiguration());
+        b.ApplyConfiguration(
+            new Infrastructure.Platform.Persistence.Configurations.EventSubSubscriptionConfiguration()
+        );
+        b.ApplyConfiguration(
+            new Infrastructure.Identity.Persistence.ChannelMissingScopeConfiguration()
+        );
+        b.ApplyConfiguration(
+            new Infrastructure.Platform.Persistence.Configurations.OutboundWebhookEndpointConfiguration()
+        );
+        b.ApplyConfiguration(new Infrastructure.EventStore.Persistence.EventJournalConfiguration());
+
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
 
@@ -141,6 +190,14 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem),
         typeof(NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal),
         typeof(Reward),
+        typeof(Channel),
+        typeof(Widget),
+        typeof(WidgetVersion),
+        typeof(EventSubSubscription),
+        typeof(ChannelMissingScope),
+        typeof(OutboundWebhookEndpoint),
+        typeof(EventJournal),
+        typeof(IntegrationToken),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -160,11 +217,8 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
-        throw new NotSupportedException();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
+    public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();
@@ -172,9 +226,8 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+    public DbSet<VoiceTrigger> VoiceTriggers => throw new NotSupportedException();
+    public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         throw new NotSupportedException();
@@ -210,14 +263,11 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
-    public DbSet<Widget> Widgets => throw new NotSupportedException();
-    public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
     public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
-    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
@@ -248,7 +298,6 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();
-    public DbSet<IntegrationToken> IntegrationTokens => throw new NotSupportedException();
     public DbSet<CryptoKey> CryptoKeys => throw new NotSupportedException();
     public DbSet<KeyUsageBinding> KeyUsageBindings => throw new NotSupportedException();
     public DbSet<EventSubjectKey> EventSubjectKeys => throw new NotSupportedException();
@@ -267,8 +316,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        throw new NotSupportedException();
+    public DbSet<AutomationApiToken> AutomationApiTokens => throw new NotSupportedException();
     public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
     public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
@@ -309,7 +357,6 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Supporters.Entities.SupporterEvent> SupporterEvents =>
         throw new NotSupportedException();
     public DbSet<CommandUsage> CommandUsages => throw new NotSupportedException();
-    public DbSet<EventJournal> EventJournals => throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => throw new NotSupportedException();
     public DbSet<ProjectionCheckpoint> ProjectionCheckpoints => throw new NotSupportedException();
     public DbSet<ChannelMembership> ChannelMemberships => throw new NotSupportedException();
@@ -318,7 +365,6 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<ActionDefinition> ActionDefinitions => throw new NotSupportedException();
     public DbSet<ChannelActionOverride> ChannelActionOverrides => throw new NotSupportedException();
     public DbSet<PermitGrant> PermitGrants => throw new NotSupportedException();
-    public DbSet<ChannelMissingScope> ChannelMissingScopes => throw new NotSupportedException();
     public DbSet<IamPermission> IamPermissions => throw new NotSupportedException();
     public DbSet<IamRole> IamRoles => throw new NotSupportedException();
     public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
@@ -336,11 +382,11 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+    public DbSet<PlatformContentDefinition> PlatformContentDefinitions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+    public DbSet<PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
     public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
@@ -361,8 +407,6 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<FederationPeer> FederationPeers => throw new NotSupportedException();
     public DbSet<FederationPeerKey> FederationPeerKeys => throw new NotSupportedException();
     public DbSet<ChannelFederationOptIn> ChannelFederationOptIns =>
-        throw new NotSupportedException();
-    public DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
         throw new NotSupportedException();
     public DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries =>
         throw new NotSupportedException();
