@@ -50,10 +50,16 @@ else {
 # then reports CS2012 file-lock errors that read exactly like real compile errors. verify-tree.ps1
 # has always killed these first; this gate did not, and the false red sends the slice hunting a
 # compiler bug that is not there.
-Get-Process -Name 'testhost', 'NomNomzBot.Api', 'VBCSCompiler' -ErrorAction SilentlyContinue | Stop-Process -Force
+# Only THIS checkout's processes: other agents' gates and worktrees run their own testhosts at the same
+# time, and killing those crashed their runs ("Test Run Aborted"). The shared VBCSCompiler is left alone
+# for the same reason; a slice's own stale DLL lock comes from its own testhost/API, which this covers.
+$serverRoot = [System.IO.Path]::GetFullPath($server).TrimEnd('', '/')
+Get-Process -Name 'testhost', 'NomNomzBot.Api' -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and $_.Path.StartsWith($serverRoot, [System.StringComparison]::OrdinalIgnoreCase) } |
+    Stop-Process -Force -ErrorAction SilentlyContinue
 if (-not $IsWindows) {
     Get-Process -Name 'dotnet' -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -match 'testhost|NomNomzBot\.Api' } |
+        Where-Object { $_.CommandLine -match 'testhost|NomNomzBot\.Api' -and $_.CommandLine.Contains($serverRoot) } |
         Stop-Process -Force -ErrorAction SilentlyContinue
 }
 Start-Sleep -Seconds 2
