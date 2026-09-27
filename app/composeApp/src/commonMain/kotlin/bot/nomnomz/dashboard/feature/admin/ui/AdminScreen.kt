@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.text.input.ImeAction
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -1277,7 +1278,7 @@ private fun ProviderCredentialDialog(
             label = stringResource(Res.string.admin_providers_id_label),
             modifier = Modifier.fillMaxWidth(),
         )
-        AppTextField(
+        RevealableSecretField(
             value = clientSecret,
             onValueChange = { clientSecret = it },
             label = stringResource(Res.string.admin_providers_secret_label),
