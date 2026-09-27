@@ -96,18 +96,22 @@ jobs:
         if: failure()
         working-directory: app
         run: |
-          TOTAL=$(find composeApp/build/generated -iname "*.kt" -path "*resources*" 2>/dev/null | wc -l)
-          echo "::notice::total generated resource .kt files: $TOTAL"
-          echo "::notice::--- exact declaration line for admin_invite_field_tier (no _none) ---"
-          grep -rn "val admin_invite_field_tier[^_]" composeApp/build/generated 2>/dev/null | while IFS= read -r line; do
-            echo "::notice::${line:0:300}"
-          done
-          echo "::notice::--- every raw match of the substring, with file:line ---"
-          grep -rn "admin_invite_field_tier" composeApp/build/generated 2>/dev/null | head -20 | while IFS= read -r line; do
-            echo "::notice::${line:0:300}"
-          done
-          echo "::notice::--- does Res.kt (the commonResClass) reference StringResource at all ---"
-          grep -c "StringResource" composeApp/build/generated/compose/resourceGenerator/kotlin/commonResClass/nomnomzbot/composeapp/generated/resources/Res.kt 2>/dev/null || echo "::notice::Res.kt not found or grep failed"
+          ACCESSOR_DIR="composeApp/build/generated/compose/resourceGenerator/kotlin/commonMainResourceAccessors/nomnomzbot/composeapp/generated/resources"
+          echo "::notice::--- which shard holds the pre-existing neighbor admin_invite_expires ---"
+          NEIGHBOR_FILE=$(grep -rl "val admin_invite_expires\b" "$ACCESSOR_DIR" 2>/dev/null | head -1)
+          echo "::notice::neighbor file: $NEIGHBOR_FILE"
+          if [ -n "$NEIGHBOR_FILE" ]; then
+            echo "::notice::--- full content of that shard (around admin_invite) ---"
+            grep -n "admin_invite\|^internal val\|^public val\|^val " "$NEIGHBOR_FILE" | while IFS= read -r line; do
+              echo "::notice::${line:0:300}"
+            done
+          fi
+          echo "::notice::--- which shard holds admin_invite_create (pre-existing, alphabetically close) ---"
+          CREATE_FILE=$(grep -rl "val admin_invite_create\b" "$ACCESSOR_DIR" 2>/dev/null | head -1)
+          echo "::notice::create file: $CREATE_FILE"
+          echo "::notice::--- total declared string vals across all shards ---"
+          TOTALVALS=$(grep -rc "^internal val \|^public val " "$ACCESSOR_DIR" 2>/dev/null | awk -F: '{s+=$2} END{print s}')
+          echo "::notice::total string val declarations: $TOTALVALS"
           echo "::notice::--- resource-generation task outcomes ---"
           grep -E "Task :composeApp:.*[Rr]esource" "$RUNNER_TEMP/jvmtest.log" | while IFS= read -r line; do
             echo "::notice::${line}"
