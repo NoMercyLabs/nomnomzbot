@@ -87,6 +87,30 @@ jobs:
         run: |
           grep -E '^e: |> Task .* FAILED|^[^ ].* FAILED$|What went wrong' "$RUNNER_TEMP/jvmtest.log" \
             | head -30 | while IFS= read -r line; do echo "::error::${line}"; done
+
+      # TEMPORARY diagnostic for a persistent "Unresolved reference" on newly added strings.xml keys
+      # that neither --no-build-cache nor a locale-order fix resolved: prove (or disprove) whether the
+      # generated Res.string source for the JVM target actually contains the new members. Remove once
+      # the real cause is found.
+      - name: Diagnose generated Compose resource accessors
+        if: failure()
+        working-directory: app
+        run: |
+          echo "::notice::--- generated resource accessor files ---"
+          find composeApp/build/generated -iname "*.kt" -path "*resources*" 2>/dev/null | while read -r f; do
+            echo "::notice::file: $f ($(wc -l < "$f") lines)"
+          done
+          echo "::notice::--- grep for admin_invite_field_tier in generated sources ---"
+          grep -rl "admin_invite_field_tier\b" composeApp/build/generated 2>/dev/null | while read -r f; do
+            echo "::notice::found in: $f"
+          done
+          if ! grep -rq "admin_invite_field_tier\b" composeApp/build/generated 2>/dev/null; then
+            echo "::error::admin_invite_field_tier is NOT present anywhere under composeApp/build/generated"
+          fi
+          echo "::notice::--- resource-generation task outcomes ---"
+          grep -E "Task :composeApp:.*[Rr]esource" "$RUNNER_TEMP/jvmtest.log" | while IFS= read -r line; do
+            echo "::notice::${line}"
+          done
           python3 - composeApp/build/test-results/jvmTest <<'EOF'
           import glob, sys, xml.etree.ElementTree as ET
           for report in sorted(glob.glob(sys.argv[1] + "/*.xml")):
