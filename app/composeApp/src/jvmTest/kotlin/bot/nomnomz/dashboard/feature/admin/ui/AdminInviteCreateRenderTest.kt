@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -109,7 +110,10 @@ class AdminInviteCreateRenderTest {
             }
             waitForIdle()
 
-            onNodeWithText("Create invite code").performClick()
+            // The section header and this button share the "Create invite code" string; onLast()
+            // resolves to the button, which renders after the header in the tree (see
+            // AdminTabGroupingTest.clickTab for the same pattern).
+            onAllNodesWithText("Create invite code").onLast().performClick()
             waitForIdle()
             assertEquals(0, api.createCallCount)
 
