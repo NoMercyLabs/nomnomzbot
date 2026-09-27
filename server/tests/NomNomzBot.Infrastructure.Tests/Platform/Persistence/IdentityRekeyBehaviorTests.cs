@@ -591,6 +591,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
         public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
             throw new NotSupportedException();
+        public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
             throw new NotSupportedException();
         public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks =>

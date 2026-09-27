@@ -17,6 +17,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -55,7 +56,7 @@ public sealed class VolumeBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
-        return new BuiltinResponseComposer(resolver);
+        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
     }
 
     private static NowPlaying Playing(int volume) =>

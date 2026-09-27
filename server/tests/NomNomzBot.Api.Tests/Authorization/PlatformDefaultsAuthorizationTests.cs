@@ -40,6 +40,7 @@ public sealed class PlatformDefaultsAuthorizationTests
         {
             typeof(ActionDefaultsAdminController),
             typeof(EventResponseDefaultsAdminController),
+            typeof(BuiltinReplyDefaultsAdminController),
         };
 
     [Theory]

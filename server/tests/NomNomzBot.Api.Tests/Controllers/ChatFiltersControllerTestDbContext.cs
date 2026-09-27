@@ -250,6 +250,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         throw new NotSupportedException();
+    public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<Pipeline> Pipelines => throw new NotSupportedException();

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
@@ -24,9 +25,43 @@ internal static class PlatformDefaultBlastRadius
 {
     private const int SampleSize = 5;
 
-    public static async Task<PlatformDefaultBlastRadiusDto> CountAsync(
+    public static Task<PlatformDefaultBlastRadiusDto> CountAsync(
         IApplicationDbContext db,
         IQueryable<Guid> channelsWithOwnSetting,
+        bool valueChanges,
+        bool requiresDangerConfirmation,
+        CancellationToken ct
+    ) =>
+        CountAsync(
+            db,
+            c => channelsWithOwnSetting.Contains(c.Id),
+            c => !channelsWithOwnSetting.Contains(c.Id),
+            valueChanges,
+            requiresDangerConfirmation,
+            ct
+        );
+
+    /// <summary>Same count, for a family that resolves its own-setting channels in memory.</summary>
+    public static Task<PlatformDefaultBlastRadiusDto> CountAsync(
+        IApplicationDbContext db,
+        IReadOnlyCollection<Guid> channelsWithOwnSetting,
+        bool valueChanges,
+        bool requiresDangerConfirmation,
+        CancellationToken ct
+    ) =>
+        CountAsync(
+            db,
+            c => channelsWithOwnSetting.Contains(c.Id),
+            c => !channelsWithOwnSetting.Contains(c.Id),
+            valueChanges,
+            requiresDangerConfirmation,
+            ct
+        );
+
+    private static async Task<PlatformDefaultBlastRadiusDto> CountAsync(
+        IApplicationDbContext db,
+        Expression<Func<Channel, bool>> keepsOwnSetting,
+        Expression<Func<Channel, bool>> followsDefault,
         bool valueChanges,
         bool requiresDangerConfirmation,
         CancellationToken ct
@@ -35,9 +70,9 @@ internal static class PlatformDefaultBlastRadius
         IQueryable<Channel> active = db.Channels.Where(c =>
             c.Status == AuthEnums.ChannelStatus.Active
         );
-        IQueryable<Channel> following = active.Where(c => !channelsWithOwnSetting.Contains(c.Id));
+        IQueryable<Channel> following = active.Where(followsDefault);
 
-        int keeping = await active.CountAsync(c => channelsWithOwnSetting.Contains(c.Id), ct);
+        int keeping = await active.CountAsync(keepsOwnSetting, ct);
         if (!valueChanges)
             return new(0, keeping, [], requiresDangerConfirmation);
 

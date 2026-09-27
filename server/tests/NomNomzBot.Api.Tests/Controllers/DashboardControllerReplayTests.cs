@@ -454,6 +454,8 @@ internal sealed class ReplayTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Domain.Commands.Entities.PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         throw new NotSupportedException();
+    public DbSet<Domain.Commands.Entities.PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>

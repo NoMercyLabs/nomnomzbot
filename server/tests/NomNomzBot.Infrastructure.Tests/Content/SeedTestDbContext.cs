@@ -258,6 +258,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         Set<PlatformEventResponseDefault>();
+    public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        Set<PlatformBuiltinReplyDefault>();
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();

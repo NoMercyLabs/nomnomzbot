@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.Platform;
 
@@ -621,7 +622,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 disabledCount++;
             }
 
-            if (TryParseResponseTemplateOverride(row.OverridesJson, out string? template))
+            if (BuiltinOverridesJson.TryGetResponseTemplate(row.OverridesJson, out string template))
                 ctx.BuiltinResponseOverrides[key] = template;
 
             if (TryParseSpeakWithTtsOverride(row.OverridesJson))
@@ -663,44 +664,8 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     }
 
     /// <summary>
-    /// Extracts a built-in's response-template override from its <c>OverridesJson</c> — schema
-    /// <c>{ "responseTemplate": "..." }</c>. Returns false for null/blank/malformed JSON or an empty template,
-    /// so a broken override never crashes the registry load and simply leaves the built-in on its tone default.
-    /// </summary>
-    private static bool TryParseResponseTemplateOverride(string? overridesJson, out string template)
-    {
-        template = string.Empty;
-        if (string.IsNullOrWhiteSpace(overridesJson))
-            return false;
-
-        try
-        {
-            using JsonDocument doc = JsonDocument.Parse(overridesJson);
-            if (
-                doc.RootElement.ValueKind == JsonValueKind.Object
-                && doc.RootElement.TryGetProperty("responseTemplate", out JsonElement value)
-                && value.ValueKind == JsonValueKind.String
-            )
-            {
-                string? parsed = value.GetString();
-                if (!string.IsNullOrWhiteSpace(parsed))
-                {
-                    template = parsed;
-                    return true;
-                }
-            }
-        }
-        catch (JsonException)
-        {
-            // Malformed override JSON — ignore; the built-in keeps its tone default.
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// Extracts a built-in's "speak with TTS" override from its <c>OverridesJson</c> — schema
-    /// <c>{ "speakWithTts": true }</c> alongside <see cref="TryParseResponseTemplateOverride"/>'s
+    /// <c>{ "speakWithTts": true }</c> alongside <see cref="BuiltinOverridesJson.TryGetResponseTemplate"/>'s
     /// <c>responseTemplate</c> field in the same object. Returns false for null/blank/malformed JSON, a
     /// missing property, or an explicit <c>false</c> — the default is always off.
     /// </summary>

@@ -1055,6 +1055,11 @@ public static class DependencyInjection
             IBuiltinResponseComposer,
             Commands.Builtins.BuiltinResponseComposer
         >();
+        // The platform admin's built-in reply texts, cached in the shared ICacheService (A4).
+        services.AddSingleton<
+            Application.Commands.Builtin.IPlatformBuiltinReplyDefaults,
+            Commands.Builtins.PlatformBuiltinReplyDefaultsReader
+        >();
 
         // Built-in commands — scoped because some implementations consume scoped services
         // (e.g. IMusicService). The catalog is also scoped so it receives a consistent

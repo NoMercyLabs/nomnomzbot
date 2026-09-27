@@ -92,7 +92,10 @@ public sealed class LeaderboardBuiltinTests
             .GetRankingAsync(Broadcaster, ConfigId, 5, Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<LeaderboardEntryDto>>(entries));
 
-        LeaderboardBuiltin sut = new(leaderboards, new BuiltinResponseComposer(FakeResolver()));
+        LeaderboardBuiltin sut = new(
+            leaderboards,
+            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -111,7 +114,10 @@ public sealed class LeaderboardBuiltinTests
             .ListConfigsAsync(Broadcaster, Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<LeaderboardConfigDto>>([]));
 
-        LeaderboardBuiltin sut = new(leaderboards, new BuiltinResponseComposer(FakeResolver()));
+        LeaderboardBuiltin sut = new(
+            leaderboards,
+            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context());
 

@@ -118,6 +118,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         Set<PlatformEventResponseDefault>();
+    public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        Set<PlatformBuiltinReplyDefault>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints => Set<InboundWebhookEndpoint>();
 

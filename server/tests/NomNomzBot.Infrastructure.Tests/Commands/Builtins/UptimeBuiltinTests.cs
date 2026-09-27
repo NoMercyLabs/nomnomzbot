@@ -59,7 +59,7 @@ public sealed class UptimeBuiltinTests
         registry.Get(Channel).Returns(ctx);
         return new(
             registry,
-            new BuiltinResponseComposer(FakeResolver()),
+            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance),
             new FakeTimeProvider(Now)
         );
     }

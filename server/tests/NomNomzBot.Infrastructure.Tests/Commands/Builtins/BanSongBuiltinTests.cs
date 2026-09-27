@@ -53,7 +53,7 @@ public sealed class BanSongBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
-        return new BuiltinResponseComposer(resolver);
+        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
     }
 
     [Fact]
