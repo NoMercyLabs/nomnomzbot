@@ -324,6 +324,25 @@ public sealed class PlatformAdminServiceTests
     }
 
     [Fact]
+    public async Task Suspend_refuses_the_operators_own_channel_and_leaves_it_untouched()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+        Guid owner = (await db.Channels.SingleAsync(c => c.Id == tenant)).OwnerUserId;
+        Guid self = SeedPrincipalFor(db, owner, "self", "tenant:suspend");
+        await db.SaveChangesAsync();
+
+        Result result = await sut.SuspendTenantAsync(self, tenant, new("suspended", "oops"));
+
+        result.ErrorCode.Should().Be("SELF_SUSPEND");
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == tenant);
+        channel.Status.Should().Be(AuthEnums.ChannelStatus.Active);
+        channel.SuspendedAt.Should().BeNull();
+        bus.Published.OfType<TenantSuspensionChangedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Reinstate_restores_active_and_clears_the_suspension_fields()
     {
         (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();

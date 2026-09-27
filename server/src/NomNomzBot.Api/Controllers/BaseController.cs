@@ -188,7 +188,8 @@ public abstract class BaseController : ControllerBase
             or "SOURCE_NOT_ALLOWED"
             or "PROJECT_DEPENDENCY_NOT_ALLOWED"
             or "WIDGET_DEPENDENCY_NOT_ALLOWED"
-            or "TENANT_MISMATCH" => UnauthorizedResponse(
+            or "TENANT_MISMATCH"
+            or "SELF_SUSPEND" => UnauthorizedResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
                 result.ErrorCode
             ),

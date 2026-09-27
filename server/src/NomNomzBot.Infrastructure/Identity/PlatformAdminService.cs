@@ -161,6 +161,19 @@ public sealed class PlatformAdminService(
         if (channel is null)
             return Result.Failure("Unknown tenant.", "NOT_FOUND");
 
+        // An operator suspending their own channel locks themselves out of the very console that could
+        // reinstate it (the channel-scoped surface goes dark for a suspended tenant). Another operator
+        // has to do it.
+        Guid? actingUserId = await db
+            .IamPrincipals.Where(p => p.Id == principalId)
+            .Select(p => p.UserId)
+            .FirstOrDefaultAsync(ct);
+        if (actingUserId is not null && actingUserId == channel.OwnerUserId)
+            return Result.Failure(
+                "You cannot suspend your own channel; another operator has to.",
+                "SELF_SUSPEND"
+            );
+
         channel.Status = request.NewStatus;
         channel.SuspendedAt = clock.GetUtcNow().UtcDateTime;
         channel.SuspendedReason = request.Reason;
