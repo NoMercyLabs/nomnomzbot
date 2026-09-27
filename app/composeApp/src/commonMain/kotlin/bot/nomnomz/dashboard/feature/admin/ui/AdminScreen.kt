@@ -70,6 +70,7 @@ import bot.nomnomz.dashboard.core.network.ProviderCredential
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
+import bot.nomnomz.dashboard.core.network.AdminTier
 import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -1779,6 +1780,7 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
     // Revoking an invite code stops it working immediately and cannot be undone — it goes through the
     // same confirm step as every other irreversible action here, instead of firing on the first click.
     var revokeInvite: InviteCode? by remember { mutableStateOf(null) }
+    var showCreateInvite: Boolean by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -1813,16 +1815,7 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
                 style = typography.base,
                 color = tokens.foreground,
             )
-            Button(onClick = {
-                scope.launch {
-                    controller.createInviteCode(
-                        bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest(
-                            maxRedemptions = 1,
-                            grantsFoundersBadge = false,
-                        )
-                    )
-                }
-            }) {
+            Button(onClick = { showCreateInvite = true }) {
                 Text(text = stringResource(Res.string.admin_invite_create))
             }
         }
@@ -1896,6 +1889,105 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
             },
             onDismiss = { revokeInvite = null },
         )
+    }
+
+    if (showCreateInvite) {
+        CreateInviteCodeDialog(
+            tiers = state.tiers,
+            onDismiss = { showCreateInvite = false },
+            onCreate = { request ->
+                scope.launch { controller.createInviteCode(request) }
+                showCreateInvite = false
+            },
+        )
+    }
+}
+
+/**
+ * The invite-creation form. Every field the server accepts (redemption cap, founder badge, an optional tier
+ * grant, an optional expiry) is offered here — the button used to always send `maxRedemptions = 1,
+ * grantsFoundersBadge = false` with no way to change either, so an unlimited or founder-granting invite could
+ * only be made by hand against the API.
+ */
+@Composable
+private fun CreateInviteCodeDialog(
+    tiers: List<AdminTier>,
+    onDismiss: () -> Unit,
+    onCreate: (bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    var maxRedemptionsText: String by remember { mutableStateOf("1") }
+    var grantsFounder: Boolean by remember { mutableStateOf(false) }
+    var selectedTierId: String? by remember { mutableStateOf(null) }
+    var expiresAt: String by remember { mutableStateOf("") }
+
+    val maxRedemptions: Int? = maxRedemptionsText.trim().toIntOrNull()
+    val formValid: Boolean = maxRedemptions != null && maxRedemptions > 0
+
+    Dialog(onDismissRequest = onDismiss) {
+        DialogTitle(text = stringResource(Res.string.admin_invite_create_title))
+
+        AppTextField(
+            value = maxRedemptionsText,
+            onValueChange = { maxRedemptionsText = it },
+            label = stringResource(Res.string.admin_invite_field_max_redemptions),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(spacing.s2))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.admin_invite_field_grants_founder),
+                style = typography.sm,
+                color = tokens.foreground,
+            )
+            Switch(checked = grantsFounder, onCheckedChange = { grantsFounder = it })
+        }
+        Spacer(modifier = Modifier.height(spacing.s2))
+
+        PickerField(
+            label = stringResource(Res.string.admin_invite_field_tier),
+            selectedLabel = tiers.firstOrNull { it.id == selectedTierId }?.key
+                ?: stringResource(Res.string.admin_invite_field_tier_none),
+            options = listOf("" to stringResource(Res.string.admin_invite_field_tier_none)) +
+                tiers.map { it.id to it.key },
+            onSelect = { id, _ -> selectedTierId = id.ifBlank { null } },
+        )
+        Spacer(modifier = Modifier.height(spacing.s2))
+
+        AppTextField(
+            value = expiresAt,
+            onValueChange = { expiresAt = it },
+            label = stringResource(Res.string.admin_invite_field_expires),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(spacing.s1))
+        DialogFooter {
+            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
+            Button(
+                onClick = {
+                    onCreate(
+                        bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest(
+                            maxRedemptions = maxRedemptions ?: 1,
+                            grantsFoundersBadge = grantsFounder,
+                            grantsTierId = selectedTierId,
+                            expiresAt = expiresAt.trim().ifBlank { null },
+                        ),
+                    )
+                },
+                enabled = formValid,
+            ) {
+                Text(text = stringResource(Res.string.admin_invite_create_confirm))
+            }
+        }
     }
 }
 

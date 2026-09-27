@@ -3503,6 +3503,13 @@
     <string name="admin_invite_revoke_confirm_title">Uitnodigingscode intrekken?</string>
     <string name="admin_invite_revoke_confirm_body">De code %1$s werkt meteen niet meer. Wie hem nog niet heeft ingewisseld, kan dat niet meer doen.</string>
     <string name="admin_invite_create">Uitnodigingscode aanmaken</string>
+    <string name="admin_invite_create_title">Nieuwe uitnodigingscode</string>
+    <string name="admin_invite_field_max_redemptions">Max. keer inwisselbaar</string>
+    <string name="admin_invite_field_grants_founder">Geeft oprichtersbadge</string>
+    <string name="admin_invite_field_tier">Geeft tier (optioneel)</string>
+    <string name="admin_invite_field_tier_none">Geen tier — alleen toegang</string>
+    <string name="admin_invite_field_expires">Verloopt (UTC, optioneel)</string>
+    <string name="admin_invite_create_confirm">Aanmaken</string>
     <string name="admin_billing_empty">Nog geen uitnodigingscodes.</string>
     <string name="admin_tiers_heading">Abonnementen</string>
     <string name="admin_tiers_empty">Nog geen tiers.</string>

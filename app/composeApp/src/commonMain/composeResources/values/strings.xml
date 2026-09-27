@@ -3519,6 +3519,13 @@
     <string name="admin_invite_revoke_confirm_title">Revoke invite code?</string>
     <string name="admin_invite_revoke_confirm_body">The code %1$s stops working immediately. Anyone who has not redeemed it yet can no longer use it.</string>
     <string name="admin_invite_create">Create invite code</string>
+    <string name="admin_invite_create_title">New invite code</string>
+    <string name="admin_invite_field_max_redemptions">Max redemptions</string>
+    <string name="admin_invite_field_grants_founder">Grants founder badge</string>
+    <string name="admin_invite_field_tier">Grants tier (optional)</string>
+    <string name="admin_invite_field_tier_none">No tier — access only</string>
+    <string name="admin_invite_field_expires">Expires (UTC, optional)</string>
+    <string name="admin_invite_create_confirm">Create</string>
     <string name="admin_billing_empty">No invite codes yet.</string>
     <string name="admin_tiers_heading">Plans</string>
     <string name="admin_tiers_empty">No tiers yet.</string>
