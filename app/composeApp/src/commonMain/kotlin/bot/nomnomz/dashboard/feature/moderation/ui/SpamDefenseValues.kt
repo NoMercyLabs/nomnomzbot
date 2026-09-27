@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.moderation.ui
 
 import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
+import bot.nomnomz.dashboard.core.network.SpamSettingDescriptor
 
 /**
  * Read and write one spam-defence setting by the key the backend uses for it.
@@ -23,6 +24,28 @@ import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
  * the dashboard is rebuilt therefore renders nothing for it rather than corrupting a neighbouring field.
  */
 internal object SpamDefenseValues {
+
+    private val toggleKeys: Set<String> = setOf(
+        "IsEnabled",
+        "DryRun",
+        "NonLatinScriptGate",
+        "AutoReverseOnDequalify",
+        "LockdownAutoExtend",
+        "NetworkSubscribe",
+        "NetworkContribute",
+    )
+
+    /**
+     * Whether this form can actually read and write [descriptor]. The server catalogue also lists composite
+     * settings (the trust-ladder thresholds, tuned in Trust automation) that carry no bounds and so arrive
+     * flagged as toggles; rendered, they became a switch that always read off and changed nothing.
+     */
+    fun isEditable(descriptor: SpamSettingDescriptor): Boolean =
+        if (descriptor.isToggle) {
+            descriptor.key in toggleKeys
+        } else {
+            text(SpamDefenseSettings(), descriptor.key).isNotEmpty()
+        }
 
     fun boolean(settings: SpamDefenseSettings, key: String): Boolean =
         when (key) {

@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.admin.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -50,7 +52,8 @@ internal fun SpamDefaultsTab(state: AdminState, controller: AdminController) {
     val scope = rememberCoroutineScope()
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(spacing.s6),
+        // Scrolls: the Save button sits below the full ladder, which is taller than most windows.
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         Text(

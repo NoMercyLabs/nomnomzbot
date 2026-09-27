@@ -105,7 +105,7 @@ internal fun SpamDefenseSection(
                     )
                 }
 
-                descriptors.forEach { descriptor ->
+                descriptors.filter(SpamDefenseValues::isEditable).forEach { descriptor ->
                     SpamSettingRow(
                         descriptor = descriptor,
                         settings = draft,
