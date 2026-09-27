@@ -754,6 +754,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Commands.Entities.EventResponse>();
     public DbSet<Domain.Commands.Entities.PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         Set<Domain.Commands.Entities.PlatformEventResponseDefault>();
+    public DbSet<Domain.Commands.Entities.PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        Set<Domain.Commands.Entities.PlatformBuiltinReplyDefault>();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.WatchStreak> WatchStreaks =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>

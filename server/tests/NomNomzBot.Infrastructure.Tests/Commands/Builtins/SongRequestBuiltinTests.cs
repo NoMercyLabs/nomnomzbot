@@ -387,7 +387,11 @@ public sealed class SongRequestBuiltinTests
                 return Task.FromResult(template);
             });
 
-        return new(music, new BuiltinResponseComposer(resolver), Substitute.For<IEventBus>());
+        return new(
+            music,
+            new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance),
+            Substitute.For<IEventBus>()
+        );
     }
 
     [Fact]

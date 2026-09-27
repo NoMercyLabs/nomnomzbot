@@ -22,6 +22,27 @@ namespace NomNomzBot.Application.Commands.Builtin.Personality;
 /// </summary>
 public static class BuiltinResponseSlots
 {
+    /// <summary>
+    /// The slots that receive a channel's own response override (<c>ChannelBuiltinCommand.OverridesJson</c>):
+    /// exactly the slots whose built-in passes <c>OverrideTemplate</c> to the composer. Every other slot always
+    /// renders the platform/tone text, so a platform reply change reaches every channel there.
+    /// </summary>
+    private static readonly HashSet<(string BuiltinKey, string Slot)> ChannelOverridable =
+    [
+        (Uptime.Key, Uptime.Live),
+        (Song.Key, Song.Playing),
+        (Queue.Key, Queue.List),
+        (SongRequest.Key, SongRequest.Added),
+        (Commands.Key, Commands.List),
+        (Lurk.Key, Lurk.Lurking),
+        (Lurk.Key, Lurk.NotLurking),
+        (AccountAge.Key, AccountAge.Age),
+    ];
+
+    /// <summary>True when a channel's own response override replaces this slot's text.</summary>
+    public static bool TakesChannelOverride(string builtinKey, string slot) =>
+        ChannelOverridable.Contains((builtinKey, slot));
+
     /// <summary><c>!uptime</c> — how long the stream has been live.</summary>
     public static class Uptime
     {

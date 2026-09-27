@@ -2149,6 +2149,46 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("PipelineTriggers");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PlatformBuiltinReplyDefault", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<string>("BuiltinKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slot")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Template")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuiltinKey", "Slot")
+                        .IsUnique();
+
+                    b.ToTable("PlatformBuiltinReplyDefaults");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PlatformEventResponseDefault", b =>
                 {
                     b.Property<Guid>("Id")

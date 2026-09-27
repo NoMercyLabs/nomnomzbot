@@ -231,6 +231,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         Set<PlatformEventResponseDefault>();
+    public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        Set<PlatformBuiltinReplyDefault>();
 
     // Watch streaks
     public DbSet<WatchStreak> WatchStreaks => Set<WatchStreak>();

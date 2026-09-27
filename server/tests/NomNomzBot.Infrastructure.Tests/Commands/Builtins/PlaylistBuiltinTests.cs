@@ -83,7 +83,10 @@ public sealed class PlaylistBuiltinTests
             .GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(current, queued));
 
-        PlaylistBuiltin sut = new(music, new BuiltinResponseComposer(FakeResolver()));
+        PlaylistBuiltin sut = new(
+            music,
+            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -102,7 +105,10 @@ public sealed class PlaylistBuiltinTests
             .GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(null, []));
 
-        PlaylistBuiltin sut = new(music, new BuiltinResponseComposer(FakeResolver()));
+        PlaylistBuiltin sut = new(
+            music,
+            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context());
 

@@ -15,17 +15,23 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
-/// Resolves the winning response template (override → personality tone → neutral fallback) and renders it
+/// Resolves the winning response template (channel override → platform reply → personality tone → neutral
+/// fallback) and renders it
 /// through <see cref="ITemplateResolver"/> so every built-in response speaks in the channel's voice with the
 /// full template-variable set available. The single home of the precedence rule.
 /// </summary>
 public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
 {
     private readonly ITemplateResolver _templates;
+    private readonly IPlatformBuiltinReplyDefaults _platformReplies;
 
-    public BuiltinResponseComposer(ITemplateResolver templates)
+    public BuiltinResponseComposer(
+        ITemplateResolver templates,
+        IPlatformBuiltinReplyDefaults platformReplies
+    )
     {
         _templates = templates;
+        _platformReplies = platformReplies;
     }
 
     public async Task<string> ComposeAsync(
@@ -33,11 +39,13 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
         CancellationToken cancellationToken = default
     )
     {
-        // Precedence: explicit per-command override, then a tone variation, then the neutral fallback.
+        // Precedence: the channel's own override, then the platform admin's reply text, then a tone
+        // variation, then the neutral fallback.
         string template =
             request.OverrideTemplate is { Length: > 0 } over && !string.IsNullOrWhiteSpace(over)
                 ? over
-                : ToneTemplateCatalog.Pick(request.Personality, request.BuiltinKey, request.Slot)
+                : await _platformReplies.GetAsync(request.BuiltinKey, request.Slot, cancellationToken)
+                    ?? ToneTemplateCatalog.Pick(request.Personality, request.BuiltinKey, request.Slot)
                     ?? request.NeutralFallback;
 
         if (string.IsNullOrEmpty(template))

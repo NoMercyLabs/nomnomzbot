@@ -100,6 +100,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         Set<PlatformEventResponseDefault>();
+    public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        Set<PlatformBuiltinReplyDefault>();
     public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         Set<Domain.Assets.Entities.ChannelAsset>();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();

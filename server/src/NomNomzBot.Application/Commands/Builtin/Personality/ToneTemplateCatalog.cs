@@ -66,6 +66,24 @@ public static class ToneTemplateCatalog
         );
     }
 
+    /// <summary>Every <c>(builtinKey, slot)</c> the catalog authors — the slots a platform admin may re-word.</summary>
+    public static IReadOnlyList<(string BuiltinKey, string Slot)> AllSlots() =>
+        [.. Catalog.Keys.OrderBy(k => k.BuiltinKey, StringComparer.Ordinal).ThenBy(k => k.Slot, StringComparer.Ordinal)];
+
+    /// <summary>True when the catalog authors <c>(builtinKey, slot)</c>.</summary>
+    public static bool Contains(string builtinKey, string slot) => Catalog.ContainsKey((builtinKey, slot));
+
+    /// <summary>
+    /// The shipped wording a channel on the default (Informative) tone sees for the slot — its first
+    /// Informative variation — or null when the slot ships only flavoured tones (the built-in's own fallback).
+    /// </summary>
+    public static string? ShippedTemplate(string builtinKey, string slot) =>
+        Catalog.TryGetValue((builtinKey, slot), out IReadOnlyDictionary<string, string[]>? byTone)
+        && byTone.TryGetValue(PersonalityTone.Informative, out string[]? informative)
+        && informative.Length > 0
+            ? informative[0]
+            : null;
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Content. Grouped by (builtinKey, slot); every slot declares all five tones.
     //  Templates use the variables the built-in seeds (see BuiltinResponseSlots docs).

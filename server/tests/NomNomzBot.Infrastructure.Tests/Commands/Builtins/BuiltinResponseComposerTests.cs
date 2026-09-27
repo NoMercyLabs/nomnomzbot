@@ -50,7 +50,7 @@ public sealed class BuiltinResponseComposerTests
         return resolver;
     }
 
-    private static BuiltinResponseComposer Sut() => new(FakeResolver());
+    private static BuiltinResponseComposer Sut() => new(FakeResolver(), NoPlatformBuiltinReplies.Instance);
 
     [Fact]
     public async Task Override_wins_over_the_tone_template_and_is_rendered_with_the_variables()

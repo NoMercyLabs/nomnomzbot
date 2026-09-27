@@ -124,6 +124,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
         Set<PlatformEventResponseDefault>();
+    public DbSet<PlatformBuiltinReplyDefault> PlatformBuiltinReplyDefaults =>
+        Set<PlatformBuiltinReplyDefault>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<PickList> PickLists => Set<PickList>();

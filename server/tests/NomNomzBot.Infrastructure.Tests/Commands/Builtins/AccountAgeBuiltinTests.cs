@@ -67,7 +67,7 @@ public sealed class AccountAgeBuiltinTests
                     template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
                 return Task.FromResult(template);
             });
-        return new BuiltinResponseComposer(resolver);
+        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
     }
 
     private static IUserService FakeUsers()
