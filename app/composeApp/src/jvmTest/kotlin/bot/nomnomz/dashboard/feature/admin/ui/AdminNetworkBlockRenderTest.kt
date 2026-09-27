@@ -14,6 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -169,6 +171,12 @@ class AdminNetworkBlockRenderTest {
 
         runComposeUiTest {
             setContent { EnglishContent { ObservingTrustSafetyTab(controller = controller) } }
+            waitForIdle()
+
+            // The blocks list is an audited read: it loads with the other reads on Look, never on its own
+            // from a justification the operator may still be typing.
+            onAllNodesWithText("Troll99", substring = true).assertCountEquals(0)
+            onNodeWithText("Look").performClick()
             waitForIdle()
 
             onNodeWithText("Active network blocks").assertExists()
