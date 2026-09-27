@@ -96,17 +96,18 @@ jobs:
         if: failure()
         working-directory: app
         run: |
-          echo "::notice::--- generated resource accessor files ---"
-          find composeApp/build/generated -iname "*.kt" -path "*resources*" 2>/dev/null | while read -r f; do
-            echo "::notice::file: $f ($(wc -l < "$f") lines)"
+          TOTAL=$(find composeApp/build/generated -iname "*.kt" -path "*resources*" 2>/dev/null | wc -l)
+          echo "::notice::total generated resource .kt files: $TOTAL"
+          echo "::notice::--- exact declaration line for admin_invite_field_tier (no _none) ---"
+          grep -rn "val admin_invite_field_tier[^_]" composeApp/build/generated 2>/dev/null | while IFS= read -r line; do
+            echo "::notice::${line:0:300}"
           done
-          echo "::notice::--- grep for admin_invite_field_tier in generated sources ---"
-          grep -rl "admin_invite_field_tier\b" composeApp/build/generated 2>/dev/null | while read -r f; do
-            echo "::notice::found in: $f"
+          echo "::notice::--- every raw match of the substring, with file:line ---"
+          grep -rn "admin_invite_field_tier" composeApp/build/generated 2>/dev/null | head -20 | while IFS= read -r line; do
+            echo "::notice::${line:0:300}"
           done
-          if ! grep -rq "admin_invite_field_tier\b" composeApp/build/generated 2>/dev/null; then
-            echo "::error::admin_invite_field_tier is NOT present anywhere under composeApp/build/generated"
-          fi
+          echo "::notice::--- does Res.kt (the commonResClass) reference StringResource at all ---"
+          grep -c "StringResource" composeApp/build/generated/compose/resourceGenerator/kotlin/commonResClass/nomnomzbot/composeapp/generated/resources/Res.kt 2>/dev/null || echo "::notice::Res.kt not found or grep failed"
           echo "::notice::--- resource-generation task outcomes ---"
           grep -E "Task :composeApp:.*[Rr]esource" "$RUNNER_TEMP/jvmtest.log" | while IFS= read -r line; do
             echo "::notice::${line}"
