@@ -197,6 +197,15 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
                     }
                 }
             }
+            Pager(
+                page = state.tenantsPage,
+                hasMore = state.tenantsHasMore,
+                onPage = { page ->
+                    scope.launch {
+                        controller.loadTenants(search = state.tenantSearch, status = state.tenantStatusFilter, page = page)
+                    }
+                },
+            )
         }
     }
 

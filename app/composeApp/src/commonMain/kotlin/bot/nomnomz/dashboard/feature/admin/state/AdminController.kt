@@ -220,6 +220,8 @@ data class AdminState(
     val tenantSearch: String = "",
     val tenantStatusFilter: String? = null,
     val tenantsLoading: Boolean = false,
+    val tenantsPage: Int = 1,
+    val tenantsHasMore: Boolean = false,
     val tenantsError: String? = null,
     val selectedTenant: AdminTenantDetail? = null,
     /** The mandatory, audited reason for browsing one tenant's own custom content (support desk key). */
@@ -242,6 +244,8 @@ data class AdminState(
     val auditOutcomeFilter: String? = null,
     val auditPermissionFilter: String = "",
     val auditLoading: Boolean = false,
+    val auditPage: Int = 1,
+    val auditHasMore: Boolean = false,
     val auditError: String? = null,
     // ── EventSub subscription health (S-ADMIN-6a) ──
     val eventSubHealth: List<AdminEventSubTenantHealth> = emptyList(),
@@ -1022,20 +1026,26 @@ class AdminController(
     // ── Tenants ─────────────────────────────────────────────────────────────
 
     /**
-     * Reloads the tenant list under exactly [search] and [status] (null = every status). Both are passed
+     * Reloads the tenant list under exactly [search] and [status] (null = every status), at [page] — a filter
+     * change passes none and so returns to page 1. Both are passed
      * explicitly: the "All" chip clears the status by passing null, and a null must be honoured, never read
      * as "keep the previous filter".
      */
-    suspend fun loadTenants(search: String, status: String?) {
+    suspend fun loadTenants(search: String, status: String?, page: Int = 1) {
         _state.value = _state.value.copy(
             tenantsLoading = true,
             tenantsError = null,
             tenantSearch = search,
             tenantStatusFilter = status,
+            tenantsPage = page,
         )
-        when (val result = platformAdminApi.listTenants(search = search, status = status)) {
+        when (val result = platformAdminApi.listTenants(search = search, status = status, page = page)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(tenants = result.value.data, tenantsLoading = false)
+                _state.value = _state.value.copy(
+                    tenants = result.value.data,
+                    tenantsHasMore = result.value.hasMore,
+                    tenantsLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(tenantsLoading = false, tenantsError = result.error.message)
         }
@@ -1055,7 +1065,11 @@ class AdminController(
     suspend fun suspendTenant(broadcasterId: String, newStatus: String, reason: String) {
         when (val result: ApiResult<Unit> = platformAdminApi.suspendTenant(broadcasterId, SuspendTenantBody(newStatus, reason))) {
             is ApiResult.Ok -> {
-                loadTenants(search = _state.value.tenantSearch, status = _state.value.tenantStatusFilter)
+                loadTenants(
+                    search = _state.value.tenantSearch,
+                    status = _state.value.tenantStatusFilter,
+                    page = _state.value.tenantsPage,
+                )
                 if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
             }
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
@@ -1065,7 +1079,11 @@ class AdminController(
     suspend fun reinstateTenant(broadcasterId: String, justification: String) {
         when (val result: ApiResult<Unit> = platformAdminApi.reinstateTenant(broadcasterId, ReinstateTenantBody(justification))) {
             is ApiResult.Ok -> {
-                loadTenants(search = _state.value.tenantSearch, status = _state.value.tenantStatusFilter)
+                loadTenants(
+                    search = _state.value.tenantSearch,
+                    status = _state.value.tenantStatusFilter,
+                    page = _state.value.tenantsPage,
+                )
                 if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
             }
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
@@ -1133,16 +1151,21 @@ class AdminController(
      * Reloads the audit log under exactly [outcome] (null = every outcome) and [permission] (blank = any).
      * Both are passed explicitly so the "All outcomes" chip can clear the filter with a null that is honoured.
      */
-    suspend fun loadAudit(outcome: String?, permission: String) {
+    suspend fun loadAudit(outcome: String?, permission: String, page: Int = 1) {
         _state.value = _state.value.copy(
             auditLoading = true,
             auditError = null,
             auditOutcomeFilter = outcome,
             auditPermissionFilter = permission,
+            auditPage = page,
         )
-        when (val result = platformAdminApi.searchAudit(permission = permission, outcome = outcome)) {
+        when (val result = platformAdminApi.searchAudit(permission = permission, outcome = outcome, page = page)) {
             is ApiResult.Ok ->
-                _state.value = _state.value.copy(auditEntries = result.value.data, auditLoading = false)
+                _state.value = _state.value.copy(
+                    auditEntries = result.value.data,
+                    auditHasMore = result.value.hasMore,
+                    auditLoading = false,
+                )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(auditLoading = false, auditError = result.error.message)
         }

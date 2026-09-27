@@ -76,7 +76,13 @@ internal fun AuditTab(state: AdminState, controller: AdminController) {
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         RefreshRow(loading = state.auditLoading) {
-            scope.launch { controller.loadAudit(outcome = state.auditOutcomeFilter, permission = state.auditPermissionFilter) }
+            scope.launch {
+                controller.loadAudit(
+                    outcome = state.auditOutcomeFilter,
+                    permission = state.auditPermissionFilter,
+                    page = state.auditPage,
+                )
+            }
         }
         state.auditError?.let { InlineError(message = it) }
 
@@ -114,6 +120,19 @@ internal fun AuditTab(state: AdminState, controller: AdminController) {
                     }
                 }
             }
+            Pager(
+                page = state.auditPage,
+                hasMore = state.auditHasMore,
+                onPage = { page ->
+                    scope.launch {
+                        controller.loadAudit(
+                            outcome = state.auditOutcomeFilter,
+                            permission = state.auditPermissionFilter,
+                            page = page,
+                        )
+                    }
+                },
+            )
         }
     }
 }

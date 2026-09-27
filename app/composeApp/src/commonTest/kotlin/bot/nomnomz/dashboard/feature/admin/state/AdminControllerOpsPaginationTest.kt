@@ -80,6 +80,38 @@ class AdminControllerOpsPaginationTest {
     }
 
     @Test
+    fun loadTenants_page_two_reaches_the_26th_tenant_and_a_new_filter_returns_to_page_one() = runTest {
+        val controller = AdminController(api = PagedOpsFakeAdminApi(), iamApi = PagedFakePlatformIamApi(), platformAdminApi = PagedFakePlatformAdminApi())
+
+        controller.loadTenants(search = "", status = null)
+        assertEquals(25, controller.state.value.tenants.size)
+        assertTrue(controller.state.value.tenantsHasMore)
+
+        controller.loadTenants(search = "", status = null, page = 2)
+        assertEquals(2, controller.state.value.tenantsPage)
+        assertFalse(controller.state.value.tenantsHasMore)
+        assertEquals(listOf("tenant-26"), controller.state.value.tenants.map { it.id })
+
+        controller.loadTenants(search = "", status = "suspended")
+        assertEquals(1, controller.state.value.tenantsPage)
+        assertEquals("tenant-1", controller.state.value.tenants.first().id)
+    }
+
+    @Test
+    fun loadAudit_page_two_reaches_the_26th_entry_and_keeps_the_outcome_filter() = runTest {
+        val controller = AdminController(api = PagedOpsFakeAdminApi(), iamApi = PagedFakePlatformIamApi(), platformAdminApi = PagedFakePlatformAdminApi())
+
+        controller.loadAudit(outcome = "denied", permission = "")
+        assertTrue(controller.state.value.auditHasMore)
+
+        controller.loadAudit(outcome = "denied", permission = "", page = 2)
+        assertEquals(2, controller.state.value.auditPage)
+        assertFalse(controller.state.value.auditHasMore)
+        assertEquals(listOf(26L), controller.state.value.auditEntries.map { it.id })
+        assertEquals("denied", controller.state.value.auditEntries.single().outcome)
+    }
+
+    @Test
     fun loadWebhookDeliveries_page_two_reaches_the_26th_delivery_and_reports_no_further_page() = runTest {
         val api = PagedOpsFakeAdminApi()
         val controller = AdminController(api = api, iamApi = PagedFakePlatformIamApi(), platformAdminApi = PagedFakePlatformAdminApi())
@@ -282,7 +314,16 @@ internal class PagedFakePlatformIamApi : PlatformIamApi {
 
 internal class PagedFakePlatformAdminApi : PlatformAdminApi {
     override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenant>> =
-        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+        ApiResult.Ok(pagedEnvelope(page) { i ->
+            AdminTenant(
+                id = "tenant-$i",
+                name = "channel$i",
+                twitchChannelId = "$i",
+                status = "active",
+                billingTierKey = "free",
+                createdAt = "2026-09-01T00:00:00Z",
+            )
+        })
     override suspend fun getTenant(broadcasterId: String): ApiResult<AdminTenantDetail> =
         ApiResult.Failure(ApiError(status = 404, code = null, message = "not stubbed"))
     override suspend fun suspendTenant(broadcasterId: String, body: SuspendTenantBody): ApiResult<Unit> = ApiResult.Ok(Unit)
@@ -299,5 +340,15 @@ internal class PagedFakePlatformAdminApi : PlatformAdminApi {
         to: String?,
         page: Int,
         pageSize: Int,
-    ): ApiResult<PaginatedEnvelope<IamAuditEntry>> = ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    ): ApiResult<PaginatedEnvelope<IamAuditEntry>> =
+        ApiResult.Ok(pagedEnvelope(page) { i ->
+            IamAuditEntry(
+                id = i.toLong(),
+                principalId = "principal-1",
+                principalType = "employee",
+                permission = "tenant:read",
+                outcome = outcome ?: "allowed",
+                occurredAt = "2026-09-01T00:00:00Z",
+            )
+        })
 }
