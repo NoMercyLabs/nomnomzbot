@@ -118,9 +118,11 @@ class AdminInviteCreateRenderTest {
             waitForIdle()
             assertEquals(0, api.createCallCount)
 
-            // Max redemptions: clear the "1" default and type a real cap.
-            onAllNodes(hasSetTextAction())[0].performTextClearance()
-            onAllNodes(hasSetTextAction())[0].performTextInput("25")
+            // Max redemptions: clear the "1" default and type a real cap. Indices 0 and 1 are the
+            // always-present broadcaster-id fields in EntitlementGrantSection and InvoicesSection
+            // (both render above this dialog in BillingTab); the dialog's own fields come after them.
+            onAllNodes(hasSetTextAction())[2].performTextClearance()
+            onAllNodes(hasSetTextAction())[2].performTextInput("25")
 
             // Founder badge on.
             onNodeWithText("Grants founder badge").performClick()
@@ -132,7 +134,7 @@ class AdminInviteCreateRenderTest {
             waitForIdle()
 
             // Expiry.
-            onAllNodes(hasSetTextAction())[1].performTextInput("2027-01-01T00:00:00Z")
+            onAllNodes(hasSetTextAction())[3].performTextInput("2027-01-01T00:00:00Z")
 
             onNodeWithText("Create").performClick()
             waitForIdle()
