@@ -17,6 +17,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
+import androidx.compose.ui.test.onNode
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -124,8 +126,8 @@ class AdminInviteCreateRenderTest {
             onAllNodes(hasSetTextAction())[2].performTextClearance()
             onAllNodes(hasSetTextAction())[2].performTextInput("25")
 
-            // Founder badge on.
-            onNodeWithText("Grants founder badge").performClick()
+            // Founder badge on: the label Text has no click semantics of its own, so target the Switch.
+            onNode(isToggleable()).performClick()
 
             // Grant tier: pick the one real tier the fake offers.
             onNodeWithText("No tier — access only").performClick()
