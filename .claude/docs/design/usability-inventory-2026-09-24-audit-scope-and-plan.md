@@ -509,6 +509,15 @@ A4. Platform defaults editable at runtime: event-response defaults, builtin repl
 A5. Template updates reach tenants: platform content is copied at install and never updated
     (PlatformContentDefinition.cs:17-20). Show "update available" per installed copy; the admin can push
     with a blast-radius preview; a tenant's edits are never overwritten silently.
+    Status 2026-09-27: DONE for the platform side. Publishing a timer, event-response, reward or pick-list
+    version now reaches the installed copies through the same preview → counted blast radius → publish flow
+    the other kinds use: update-in-place rewrites untouched copies and leaves a channel's edited copy alone,
+    force overwrites all, and a copy the installer refuses is recorded on the job and shown (6c4157d server).
+    Gallery widget installs now stamp the hash the publish compares against, so they count as untouched
+    instead of edited (0a25a2a). The definition detail reports installed / behind / edited counts from the
+    same copy listing (9581266 server, app commit after it). Owed: a per-copy "update available" badge on
+    the channel's own timers/event-responses/rewards/pick-lists (the widget side has it as
+    `GalleryUpdateAvailable`); today a channel that edited its copy is only counted on the admin side.
 A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:1533-1554); trace
     save → runtime reader for billing, spam defense and trust-safety (owed by the audit).
     Status 2026-09-27: DONE. Flag overrides are listed per flag from the server's read-back (channel
