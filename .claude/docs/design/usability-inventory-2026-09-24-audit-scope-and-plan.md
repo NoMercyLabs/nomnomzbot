@@ -501,6 +501,11 @@ A3. Generic platform content: open `PlatformContentKinds` (PlatformContentDefini
 A4. Platform defaults editable at runtime: event-response defaults, builtin replies, action/permission
     floors (`ActionDefinition` is already a table), TTS voices — admin API + admin UI + blast radius,
     tenants keep their overrides. Done-when: no platform default needs a code change and a redeploy.
+    Status 2026-09-27: DONE. All four families are runtime-editable under admin/platform-defaults with the
+    same preview → counted blast radius → confirmed save → audit → read-back flow and a segment each on the
+    admin "Platform defaults" tab: action/permission floors, event responses, builtin replies (handover +
+    cbacef9), TTS voice (3d632a7 backend, 149caa8 candidates, f28a406 dashboard; a null channel voice now
+    means "follow the platform default", data migrations in both providers move the old shipped voice).
 A5. Template updates reach tenants: platform content is copied at install and never updated
     (PlatformContentDefinition.cs:17-20). Show "update available" per installed copy; the admin can push
     with a blast-radius preview; a tenant's edits are never overwritten silently.
