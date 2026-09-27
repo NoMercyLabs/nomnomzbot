@@ -161,6 +161,44 @@ public class TwitchModerationApiTests
             .Contain(q => q.Key == "user_id" && q.Value == TargetId);
     }
 
+    [Fact]
+    public async Task UnbanUser_WhenTwitchSaysTheUserIsNotBanned_ReportsTheBanAsCleared()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SendResult = Result.Failure(
+                "Twitch request failed (400).",
+                TwitchErrorCodes.TwitchError,
+                "{\"error\":\"Bad Request\",\"status\":400,\"message\":\"The user in the user_id query parameter is not banned.\"}"
+            ),
+        };
+        TwitchModerationApi api = Build(transport, TwitchScopes.ModeratorManageBannedUsers);
+
+        Result result = await api.UnbanUserAsync(Tenant, TargetId);
+
+        result.IsSuccess.Should().BeTrue("a ban that does not exist is a ban that is gone");
+        transport.CallCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UnbanUser_AnyOtherTwitchRefusal_StaysAFailure()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            SendResult = Result.Failure(
+                "Twitch request failed (400).",
+                TwitchErrorCodes.TwitchError,
+                "{\"message\":\"The user in the moderator_id query parameter is not a moderator.\"}"
+            ),
+        };
+        TwitchModerationApi api = Build(transport, TwitchScopes.ModeratorManageBannedUsers);
+
+        Result result = await api.UnbanUserAsync(Tenant, TargetId);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.TwitchError);
+    }
+
     // ── Banned users / unban requests ──
 
     [Fact]

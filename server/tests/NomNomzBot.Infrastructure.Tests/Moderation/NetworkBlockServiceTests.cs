@@ -468,7 +468,10 @@ public sealed class NetworkBlockServiceTests : IDisposable
         lifted.IsSuccess.Should().BeTrue(lifted.ErrorMessage);
         lifted
             .Value.Status.Should()
-            .NotBe(NetworkBlockStatus.Lifted, "a partial outcome must never claim a clean lift");
+            .Be(
+                NetworkBlockStatus.Partial,
+                "a partial outcome must never claim a clean lift, nor read as an untouched block"
+            );
         lifted.Value.LiftedAt.Should().BeNull();
         lifted
             .Value.LiftedByPrincipalId.Should()
@@ -491,6 +494,63 @@ public sealed class NetworkBlockServiceTests : IDisposable
         allowed
             .Value.Should()
             .BeFalse("a partially-lifted block stays enforced rather than silently clearing");
+    }
+
+    [Fact]
+    public async Task Lift_Retry_ReattemptsOnlyTheFailedLegs_AndFullyLiftsOnceTheyRestore()
+    {
+        Guid blockId;
+        using (AppDbContext seed = NewDbContext())
+        {
+            SeedOperator(seed, OperatorId, IamPermissionKeys.NetworkBlockManage);
+            (NetworkBlockService applySut, ITwitchModerationApi applyTwitch) = NewService(seed);
+            Result<NetworkBlockDto> applied = await applySut.ApplyAsync(
+                OperatorId,
+                new ApplyNetworkBlockRequest(TargetTwitchId, "raid", Why, 3)
+            );
+            applied.IsSuccess.Should().BeTrue(applied.ErrorMessage);
+            blockId = applied.Value.Id;
+
+            // First attempt: Tenant B's token is revoked, the other two restore.
+            applyTwitch
+                .UnbanUserAsync(TenantB, TargetTwitchId, Arg.Any<CancellationToken>())
+                .Returns(Result.Failure("token revoked", "TWITCH_ERROR"));
+            (await applySut.LiftAsync(OperatorId, blockId, "first attempt"))
+                .Value.Status.Should()
+                .Be(NetworkBlockStatus.Partial);
+        }
+
+        using AppDbContext db = NewDbContext();
+        (NetworkBlockService sut, ITwitchModerationApi twitch) = NewService(db);
+
+        Result<NetworkBlockDto> lifted = await sut.LiftAsync(OperatorId, blockId, "retry");
+
+        lifted.IsSuccess.Should().BeTrue(lifted.ErrorMessage);
+        lifted.Value.Status.Should().Be(NetworkBlockStatus.Lifted);
+        lifted.Value.LiftedAt.Should().NotBeNull();
+        lifted
+            .Value.RestoredChannelCount.Should()
+            .Be(3, "the two legs restored on the first attempt still count");
+        lifted.Value.LiftFailedChannelIds.Should().BeEmpty();
+
+        // Only the owed leg was re-attempted — the restored ones were never un-banned twice.
+        await twitch
+            .Received(1)
+            .UnbanUserAsync(TenantB, TargetTwitchId, Arg.Any<CancellationToken>());
+        await twitch
+            .DidNotReceive()
+            .UnbanUserAsync(TenantA, TargetTwitchId, Arg.Any<CancellationToken>());
+        await twitch
+            .DidNotReceive()
+            .UnbanUserAsync(TenantC, TargetTwitchId, Arg.Any<CancellationToken>());
+
+        RoleResolver roles = new(db, TimeProvider.System);
+        Result<bool> allowed = await roles.HasCapabilityAsync(
+            TargetUserId,
+            TenantA,
+            "chat:send-command"
+        );
+        allowed.Value.Should().BeTrue("a block lifted on retry must stop being enforced");
     }
 
     // ---- Authorization: a genuine failure, and a dangerous capability held by a NAMED operator ----------

@@ -191,6 +191,13 @@ public sealed class NetworkBlockService(
         // The reversal law (as established for the spam-campaign restore): the REAL undo is attempted
         // BEFORE anything is stamped, and the row is only marked fully lifted when every leg actually
         // restores — a partial outcome is recorded honestly, never silently claimed clean.
+        // A retry after a partial lift only re-attempts the legs that failed: the restored ones are
+        // restored, and un-banning them again is a wasted Helix call at best and a fresh failure at worst
+        // (a token revoked since would flip a restored leg back to failed and the lift would never finish).
+        HashSet<Guid> pending = PendingLegs(block);
+        if (pending.Count > 0)
+            legs = legs.Where(leg => pending.Contains(leg.BroadcasterId)).ToList();
+
         List<Guid> restored = [];
         List<Guid> failed = [];
         foreach (RecordEntity leg in legs)
@@ -219,7 +226,7 @@ public sealed class NetworkBlockService(
         block.LiftedByPrincipalId = actingPrincipalId;
         block.LiftJustification = justification;
         block.LiftAttemptedAt = clock.GetUtcNow().UtcDateTime;
-        block.RestoredChannelCount = restored.Count;
+        block.RestoredChannelCount += restored.Count;
         block.LiftFailedChannelIds = string.Join(',', failed);
 
         // Stamped ONLY when every leg actually restored — a partial lift stays enforced, because this is
@@ -230,10 +237,22 @@ public sealed class NetworkBlockService(
             block.LiftedAt = block.LiftAttemptedAt;
             block.Status = NetworkBlockStatus.Lifted;
         }
+        else
+        {
+            // Stamped too, so the console shows which legs are still owed instead of an untouched "active".
+            block.Status = NetworkBlockStatus.Partial;
+        }
 
         await db.SaveChangesAsync(ct);
         return Result.Success(ToDto(block));
     }
+
+    /// <summary>The legs an earlier lift attempt left un-restored; empty when no attempt has been made.</summary>
+    private static HashSet<Guid> PendingLegs(NetworkBlock block) =>
+        block
+            .LiftFailedChannelIds.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Guid.Parse)
+            .ToHashSet();
 
     public async Task<Result<IReadOnlyList<NetworkBlockDto>>> ListAsync(
         Guid actingPrincipalId,

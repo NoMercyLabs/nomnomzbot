@@ -184,7 +184,7 @@ public sealed class TwitchModerationApi(
             OperatorUserId: operatorUserId
         );
 
-        return await transport.SendAsync(request, ct);
+        return AsCleared(await transport.SendAsync(request, ct));
     }
 
     [RequiresTwitchScope(TwitchScopes.ModeratorManageBannedUsers)]
@@ -220,8 +220,20 @@ public sealed class TwitchModerationApi(
             Priority: TwitchCallPriority.UserInteractive
         );
 
-        return await transport.SendAsync(request, ct);
+        return AsCleared(await transport.SendAsync(request, ct));
     }
+
+    /// <summary>
+    /// Twitch answers an unban of a user who is not banned with 400 "…is not banned". The caller wanted
+    /// the ban gone and it is gone, so that answer is success — a lift that keeps retrying it never
+    /// finishes, and a review that reports it as a refused reversal reverses nothing.
+    /// </summary>
+    private static Result AsCleared(Result unban) =>
+        unban
+            is { IsFailure: true, ErrorCode: TwitchErrorCodes.TwitchError, ErrorDetail: { } detail }
+        && detail.Contains("not banned", StringComparison.OrdinalIgnoreCase)
+            ? Result.Success()
+            : unban;
 
     [RequiresTwitchScope(TwitchScopes.ModerationRead)]
     public async Task<Result<TwitchPage<TwitchBannedUser>>> GetBannedUsersAsync(
