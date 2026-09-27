@@ -95,6 +95,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_draft_new_version
 import nomnomzbot.composeapp.generated.resources.admin_content_draft_pending
 import nomnomzbot.composeapp.generated.resources.admin_content_empty
 import nomnomzbot.composeapp.generated.resources.admin_content_force_denied
+import nomnomzbot.composeapp.generated.resources.admin_content_install_summary
 import nomnomzbot.composeapp.generated.resources.admin_content_key_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_code_script
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_command
@@ -135,6 +136,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_retire_confirm
 import nomnomzbot.composeapp.generated.resources.admin_content_retired
 import nomnomzbot.composeapp.generated.resources.admin_content_sample_tenants
 import nomnomzbot.composeapp.generated.resources.admin_content_saas_marker
+import nomnomzbot.composeapp.generated.resources.admin_content_update_failures_template
 import nomnomzbot.composeapp.generated.resources.admin_content_validation_failures
 import nomnomzbot.composeapp.generated.resources.admin_content_validation_failures_code_script
 import nomnomzbot.composeapp.generated.resources.admin_content_version_draft
