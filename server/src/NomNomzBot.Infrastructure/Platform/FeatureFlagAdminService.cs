@@ -108,7 +108,44 @@ public sealed class FeatureFlagAdminService(
         );
     }
 
-    public async Task<Result> SetOverrideAsync(
+    public async Task<Result<IReadOnlyList<FeatureFlagOverrideDto>>> ListOverridesAsync(
+        CancellationToken ct = default
+    )
+    {
+        // Admin-scale rows: read the overrides, then name their flags and channels in two keyed lookups rather
+        // than a join (which the in-memory provider the tests run on cannot translate).
+        List<FeatureFlagOverride> rows = await db
+            .FeatureFlagOverrides.IgnoreQueryFilters()
+            .AsNoTracking()
+            .ToListAsync(ct);
+        List<Guid> flagIds = rows.Select(o => o.FeatureFlagId).Distinct().ToList();
+        List<Guid> channelIds = rows.Select(o => o.BroadcasterId).Distinct().ToList();
+        Dictionary<Guid, string> flagKeys = await db
+            .FeatureFlags.Where(f => flagIds.Contains(f.Id))
+            .ToDictionaryAsync(f => f.Id, f => f.Key, ct);
+        Dictionary<Guid, string> channelNames = await db
+            .Channels.Where(c => channelIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Name, ct);
+
+        List<FeatureFlagOverrideDto> overrides = rows.Where(o =>
+                flagKeys.ContainsKey(o.FeatureFlagId) && channelNames.ContainsKey(o.BroadcasterId)
+            )
+            .Select(o => new FeatureFlagOverrideDto(
+                flagKeys[o.FeatureFlagId],
+                o.BroadcasterId,
+                channelNames[o.BroadcasterId],
+                o.IsEnabled,
+                o.Reason,
+                o.ExpiresAt,
+                o.UpdatedAt
+            ))
+            .OrderBy(o => o.FlagKey, StringComparer.Ordinal)
+            .ThenBy(o => o.ChannelName, StringComparer.Ordinal)
+            .ToList();
+        return Result.Success<IReadOnlyList<FeatureFlagOverrideDto>>(overrides);
+    }
+
+    public async Task<Result<FeatureFlagOverrideDto>> SetOverrideAsync(
         string flagKey,
         Guid broadcasterId,
         SetFeatureFlagOverrideRequest request,
@@ -118,7 +155,14 @@ public sealed class FeatureFlagAdminService(
     {
         FeatureFlag? flag = await db.FeatureFlags.FirstOrDefaultAsync(f => f.Key == flagKey, ct);
         if (flag is null)
-            return Result.Failure("Feature flag not found.", "NOT_FOUND");
+            return Result.Failure<FeatureFlagOverrideDto>("Feature flag not found.", "NOT_FOUND");
+        // A mistyped id must not become a phantom override nobody can see in the console.
+        string? channelName = await db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.Name)
+            .FirstOrDefaultAsync(ct);
+        if (channelName is null)
+            return Result.Failure<FeatureFlagOverrideDto>("Channel not found.", "NOT_FOUND");
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
         FeatureFlagOverride? over = await db.FeatureFlagOverrides.FirstOrDefaultAsync(
@@ -154,7 +198,17 @@ public sealed class FeatureFlagAdminService(
         await db.SaveChangesAsync(ct);
         await InvalidateAsync(flagKey, broadcasterId, ct);
         await EmitAsync(flagKey, broadcasterId, "override_set", actorUserId, ct);
-        return Result.Success();
+        return Result.Success(
+            new FeatureFlagOverrideDto(
+                flagKey,
+                broadcasterId,
+                channelName,
+                over.IsEnabled,
+                over.Reason,
+                over.ExpiresAt,
+                over.UpdatedAt
+            )
+        );
     }
 
     public async Task<Result> RemoveOverrideAsync(

@@ -55,9 +55,19 @@ public class FeatureFlagAdminController(
         CancellationToken ct
     ) => ResultResponse(await flags.SetFlagAsync(request, Caller(), ct));
 
-    /// <summary>Set a per-channel override for a feature flag (beta opt-in or kill-switch).</summary>
+    /// <summary>Every per-channel override on every flag — the console's read-back of what is forced where.</summary>
+    [HttpGet("overrides")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<FeatureFlagOverrideDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListOverrides(CancellationToken ct) =>
+        ResultResponse(await flags.ListOverridesAsync(ct));
+
+    /// <summary>Set a per-channel override for a feature flag (beta opt-in or kill-switch); returns it read back.</summary>
     [HttpPut("{flagKey}/overrides/{broadcasterId:guid}")]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<FeatureFlagOverrideDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SetOverride(
         string flagKey,
         Guid broadcasterId,

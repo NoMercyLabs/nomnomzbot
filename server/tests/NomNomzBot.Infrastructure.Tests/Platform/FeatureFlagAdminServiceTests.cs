@@ -58,6 +58,23 @@ public sealed class FeatureFlagAdminServiceTests
         await db.SaveChangesAsync();
     }
 
+    private static async Task SeedChannelAsync(AuthDbContext db, Guid id, string name)
+    {
+        db.Channels.Add(
+            new Channel
+            {
+                Id = id,
+                OwnerUserId = Guid.NewGuid(),
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = name + "-ext",
+                Name = name,
+                NameNormalized = name,
+                Status = AuthEnums.ChannelStatus.Active,
+            }
+        );
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task SetFlag_creates_then_updates_by_key()
     {
@@ -79,10 +96,30 @@ public sealed class FeatureFlagAdminServiceTests
             RecordingEventBus bus
         ) = Build();
         await SeedFlagAsync(db);
+        await SeedChannelAsync(db, Channel, "stoney");
 
-        Result result = await sut.SetOverrideAsync("feat", Channel, new(IsEnabled: true), null);
+        Result<FeatureFlagOverrideDto> result = await sut.SetOverrideAsync(
+            "feat",
+            Channel,
+            new(IsEnabled: true),
+            null
+        );
 
         result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Should()
+            .Be(
+                new FeatureFlagOverrideDto(
+                    "feat",
+                    Channel,
+                    "stoney",
+                    true,
+                    null,
+                    null,
+                    Now.UtcDateTime
+                ),
+                "the console shows the override read back, by channel name"
+            );
         db.FeatureFlagOverrides.Single().IsEnabled.Should().BeTrue();
         await cache.Received().RemoveAsync($"ff:feat:{Channel}", Arg.Any<CancellationToken>());
         bus.Published.OfType<FeatureFlagChangedEvent>()
@@ -96,9 +133,64 @@ public sealed class FeatureFlagAdminServiceTests
     {
         (FeatureFlagAdminService sut, _, _, _) = Build();
 
-        Result result = await sut.SetOverrideAsync("missing", Channel, new(IsEnabled: true), null);
+        Result<FeatureFlagOverrideDto> result = await sut.SetOverrideAsync(
+            "missing",
+            Channel,
+            new(IsEnabled: true),
+            null
+        );
 
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task SetOverride_on_an_unknown_channel_is_refused_and_stores_nothing()
+    {
+        (FeatureFlagAdminService sut, AuthDbContext db, _, RecordingEventBus bus) = Build();
+        await SeedFlagAsync(db);
+
+        Result<FeatureFlagOverrideDto> result = await sut.SetOverrideAsync(
+            "feat",
+            Channel,
+            new(IsEnabled: true),
+            null
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        db.FeatureFlagOverrides.Should().BeEmpty("a mistyped id never becomes a phantom override");
+        db.IamAuditLogs.Should().BeEmpty();
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListOverrides_reads_back_every_override_by_flag_then_channel_name()
+    {
+        (FeatureFlagAdminService sut, AuthDbContext db, _, _) = Build();
+        await SeedFlagAsync(db, "beta:editor");
+        await SeedFlagAsync(db, "alpha:widgets");
+        Guid zed = Guid.Parse("0192a000-0000-7000-8000-0000000092aa");
+        Guid amy = Guid.Parse("0192a000-0000-7000-8000-0000000092bb");
+        await SeedChannelAsync(db, zed, "zed");
+        await SeedChannelAsync(db, amy, "amy");
+        await sut.SetOverrideAsync("beta:editor", zed, new(true, "beta tester"), null);
+        await sut.SetOverrideAsync("beta:editor", amy, new(false), null);
+        await sut.SetOverrideAsync("alpha:widgets", zed, new(true), null);
+
+        IReadOnlyList<FeatureFlagOverrideDto> overrides = (await sut.ListOverridesAsync()).Value;
+
+        overrides
+            .Select(o => (o.FlagKey, o.ChannelName, o.IsEnabled))
+            .Should()
+            .Equal(
+                ("alpha:widgets", "zed", true),
+                ("beta:editor", "amy", false),
+                ("beta:editor", "zed", true)
+            );
+        overrides.Single(o => o.Reason != null).Reason.Should().Be("beta tester");
+        await sut.RemoveOverrideAsync("beta:editor", amy, null);
+        (await sut.ListOverridesAsync())
+            .Value.Should()
+            .HaveCount(2, "a cleared override leaves the list");
     }
 
     [Fact]
@@ -106,6 +198,7 @@ public sealed class FeatureFlagAdminServiceTests
     {
         (FeatureFlagAdminService sut, AuthDbContext db, ICacheService cache, _) = Build();
         await SeedFlagAsync(db);
+        await SeedChannelAsync(db, Channel, "stoney");
         await sut.SetOverrideAsync("feat", Channel, new(true), null);
 
         Result result = await sut.RemoveOverrideAsync("feat", Channel, null);
@@ -125,9 +218,7 @@ public sealed class FeatureFlagAdminServiceTests
         await sut.SetFlagAsync(new("feat", "desc", true, 100), actor);
 
         db.IamAuditLogs.Should().HaveCount(2);
-        NomNomzBot.Domain.Identity.Entities.IamAuditLog second = db
-            .IamAuditLogs.OrderBy(a => a.Id)
-            .Last();
+        IamAuditLog second = db.IamAuditLogs.OrderBy(a => a.Id).Last();
         second.TargetResource.Should().Be("feat");
         second.Justification.Should().Contain(actor.ToString());
         second.Justification.Should().Contain("enabled=False");
@@ -139,6 +230,7 @@ public sealed class FeatureFlagAdminServiceTests
     {
         (FeatureFlagAdminService sut, AuthDbContext db, _, _) = Build();
         await SeedFlagAsync(db);
+        await SeedChannelAsync(db, Channel, "stoney");
         Guid actor = Guid.Parse("0192a000-0000-7000-8000-0000000090bb");
 
         await sut.SetOverrideAsync("feat", Channel, new(true), actor);

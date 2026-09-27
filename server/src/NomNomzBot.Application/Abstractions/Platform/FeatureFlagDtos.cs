@@ -40,6 +40,20 @@ public sealed record SetFeatureFlagOverrideRequest(
 );
 
 /// <summary>
+/// One per-tenant override as the admin console reads it back: which flag, which channel (by id and by
+/// name, so the operator recognises it), the forced state, and the reason and expiry the writer gave.
+/// </summary>
+public sealed record FeatureFlagOverrideDto(
+    string FlagKey,
+    Guid BroadcasterId,
+    string ChannelName,
+    bool IsEnabled,
+    string? Reason,
+    DateTime? ExpiresAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>
 /// The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle
 /// commits (consequences-must-be-visible). <see cref="TenantsAffected"/> is the number of active channels
 /// whose effective state is actually governed by the global toggle right now: an unexpired per-tenant

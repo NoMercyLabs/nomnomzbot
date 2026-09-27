@@ -28,8 +28,16 @@ public interface IFeatureFlagAdminService
         CancellationToken ct = default
     );
 
-    /// <summary>Set (upsert) a per-tenant override; invalidates that channel's cached evaluation.</summary>
-    Task<Result> SetOverrideAsync(
+    /// <summary>Every per-tenant override on every flag, by flag key then channel name — the console's read-back.</summary>
+    Task<Result<IReadOnlyList<FeatureFlagOverrideDto>>> ListOverridesAsync(
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Set (upsert) a per-tenant override for an existing channel; invalidates that channel's cached
+    /// evaluation and returns the override read back. An unknown channel is refused, never silently stored.
+    /// </summary>
+    Task<Result<FeatureFlagOverrideDto>> SetOverrideAsync(
         string flagKey,
         Guid broadcasterId,
         SetFeatureFlagOverrideRequest request,
