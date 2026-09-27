@@ -499,9 +499,30 @@ class AdminController(
             hubClient.connect(url, accessToken, refreshToken)
         }
 
+        fetchSnapshot()
+    }
+
+    /**
+     * Re-fetches every section the snapshot carries. The channel and user lists keep their current search,
+     * sort, filter and page — a write's refresh must not silently widen them while the chips still read as
+     * applied — and the tab spinners are never flipped here: a spinner unmounts the tab that launched the
+     * write, which cancels this very refresh mid-flight and leaves the lists empty.
+     */
+    private suspend fun fetchSnapshot() {
+        val current: AdminState = _state.value
         val statsResult = api.getStats()
-        val channelsResult = api.getChannels()
-        val usersResult = api.getUsers()
+        val channelsResult = api.getChannels(
+            search = current.channelSearch,
+            page = current.channelPage,
+            sort = current.channelSort,
+            isLive = current.channelLiveFilter,
+        )
+        val usersResult = api.getUsers(
+            search = current.userSearch,
+            page = current.userPage,
+            sort = current.userSort,
+            role = current.userRoleFilter,
+        )
         val systemResult = api.getSystem()
         val healthResult = api.getHealth()
         val eventsResult = api.getEvents()
@@ -514,7 +535,9 @@ class AdminController(
         _state.value = _state.value.copy(
             stats = (statsResult as? ApiResult.Ok)?.value ?: _state.value.stats,
             channels = (channelsResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
+            channelHasMore = (channelsResult as? ApiResult.Ok)?.value?.hasMore ?: false,
             users = (usersResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
+            userHasMore = (usersResult as? ApiResult.Ok)?.value?.hasMore ?: false,
             system = (systemResult as? ApiResult.Ok)?.value ?: _state.value.system,
             health = (healthResult as? ApiResult.Ok)?.value ?: emptyList(),
             events = (eventsResult as? ApiResult.Ok)?.value ?: emptyList(),
@@ -659,7 +682,7 @@ class AdminController(
      */
     private suspend fun <T> writeThenReload(call: suspend () -> ApiResult<T>) {
         when (val result: ApiResult<T> = call()) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> fetchSnapshot()
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
         }
     }
@@ -993,16 +1016,19 @@ class AdminController(
 
     // ── Tenants ─────────────────────────────────────────────────────────────
 
-    suspend fun loadTenants(search: String? = null, status: String? = null) {
-        val effectiveSearch: String = search ?: _state.value.tenantSearch
-        val effectiveStatus: String? = status ?: _state.value.tenantStatusFilter
+    /**
+     * Reloads the tenant list under exactly [search] and [status] (null = every status). Both are passed
+     * explicitly: the "All" chip clears the status by passing null, and a null must be honoured, never read
+     * as "keep the previous filter".
+     */
+    suspend fun loadTenants(search: String, status: String?) {
         _state.value = _state.value.copy(
             tenantsLoading = true,
             tenantsError = null,
-            tenantSearch = effectiveSearch,
-            tenantStatusFilter = effectiveStatus,
+            tenantSearch = search,
+            tenantStatusFilter = status,
         )
-        when (val result = platformAdminApi.listTenants(search = effectiveSearch, status = effectiveStatus)) {
+        when (val result = platformAdminApi.listTenants(search = search, status = status)) {
             is ApiResult.Ok ->
                 _state.value = _state.value.copy(tenants = result.value.data, tenantsLoading = false)
             is ApiResult.Failure ->
@@ -1024,7 +1050,7 @@ class AdminController(
     suspend fun suspendTenant(broadcasterId: String, newStatus: String, reason: String) {
         when (val result: ApiResult<Unit> = platformAdminApi.suspendTenant(broadcasterId, SuspendTenantBody(newStatus, reason))) {
             is ApiResult.Ok -> {
-                loadTenants()
+                loadTenants(search = _state.value.tenantSearch, status = _state.value.tenantStatusFilter)
                 if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
             }
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
@@ -1034,7 +1060,7 @@ class AdminController(
     suspend fun reinstateTenant(broadcasterId: String, justification: String) {
         when (val result: ApiResult<Unit> = platformAdminApi.reinstateTenant(broadcasterId, ReinstateTenantBody(justification))) {
             is ApiResult.Ok -> {
-                loadTenants()
+                loadTenants(search = _state.value.tenantSearch, status = _state.value.tenantStatusFilter)
                 if (_state.value.selectedTenant?.id == broadcasterId) openTenant(broadcasterId)
             }
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
@@ -1058,14 +1084,17 @@ class AdminController(
      * themselves — read-only investigation surface (support/moderation/abuse triage), gated on the same
      * `user:support:view` key as the rest of the support desk. Never edits the tenant's own content: only
      * the platform content-authoring plane (Content tab) writes anything.
+     *
+     * The sheet opens first and the read waits for a typed justification: the justification field lives
+     * inside the sheet, so refusing to open on a blank one would make the sheet unreachable.
      */
     suspend fun openTenantContent(broadcasterId: String) {
         val api: AdminSupportApi = supportApi ?: return
+        _state.value = _state.value.copy(tenantContentOpenFor = broadcasterId)
         val justification: String = _state.value.tenantContentJustification.trim()
         if (justification.isBlank()) return
 
         _state.value = _state.value.copy(
-            tenantContentOpenFor = broadcasterId,
             tenantContentLoading = true,
             tenantContentError = null,
             tenantCommands = emptyList(),
@@ -1095,16 +1124,18 @@ class AdminController(
 
     // ── Audit ─────────────────────────────────────────────────────────────────
 
-    suspend fun loadAudit(outcome: String? = null, permission: String? = null) {
-        val effectiveOutcome: String? = outcome ?: _state.value.auditOutcomeFilter
-        val effectivePermission: String = permission ?: _state.value.auditPermissionFilter
+    /**
+     * Reloads the audit log under exactly [outcome] (null = every outcome) and [permission] (blank = any).
+     * Both are passed explicitly so the "All outcomes" chip can clear the filter with a null that is honoured.
+     */
+    suspend fun loadAudit(outcome: String?, permission: String) {
         _state.value = _state.value.copy(
             auditLoading = true,
             auditError = null,
-            auditOutcomeFilter = effectiveOutcome,
-            auditPermissionFilter = effectivePermission,
+            auditOutcomeFilter = outcome,
+            auditPermissionFilter = permission,
         )
-        when (val result = platformAdminApi.searchAudit(permission = effectivePermission, outcome = effectiveOutcome)) {
+        when (val result = platformAdminApi.searchAudit(permission = permission, outcome = outcome)) {
             is ApiResult.Ok ->
                 _state.value = _state.value.copy(auditEntries = result.value.data, auditLoading = false)
             is ApiResult.Failure ->

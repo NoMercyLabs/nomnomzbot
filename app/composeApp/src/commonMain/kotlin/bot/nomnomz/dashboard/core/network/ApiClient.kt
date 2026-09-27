@@ -541,14 +541,21 @@ class ApiClient(
         )
 
     @PublishedApi
-    internal fun <T> networkFailure(cause: Throwable): ApiResult<T> =
-        ApiResult.Failure(
+    /**
+     * Maps a transport failure to an [ApiResult.Failure]. A cancellation is not a failure: it must keep
+     * propagating, or a caller whose scope was cancelled mid-request (a tab leaving composition) would store
+     * a fabricated "was cancelled" network error and an empty result in its state.
+     */
+    internal fun <T> networkFailure(cause: Throwable): ApiResult<T> {
+        if (cause is CancellationException) throw cause
+        return ApiResult.Failure(
             ApiError(
                 status = 0,
                 code = "NETWORK",
                 message = cause.message?.takeIf { it.isNotBlank() } ?: "Network request failed.",
             )
         )
+    }
 
     @PublishedApi
     internal suspend fun parseError(response: HttpResponse): ApiError {

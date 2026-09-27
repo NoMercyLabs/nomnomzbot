@@ -334,17 +334,19 @@ class AdminTenantContentControllerTest {
     }
 
     @Test
-    fun opening_without_a_justification_never_calls_the_backend() = runTest {
+    fun opening_without_a_justification_shows_the_sheet_but_never_calls_the_backend() = runTest {
         val controller = controllerWith(
             commands = listOf(CommandSummary(id = "cmd-1", name = "!hug")),
             pipelines = emptyList(),
         )
-        // No setTenantContentJustification call — the reason field is left blank.
+        // No setTenantContentJustification call — the reason field is left blank. The field lives inside
+        // the sheet, so the sheet must open; the read waits for the justification.
 
         controller.openTenantContent("chan-1")
 
         val state = controller.state.value
-        assertNull(state.tenantContentOpenFor)
+        assertEquals("chan-1", state.tenantContentOpenFor)
+        assertEquals(false, state.tenantContentLoading)
         assertEquals(emptyList(), state.tenantCommands)
     }
 }

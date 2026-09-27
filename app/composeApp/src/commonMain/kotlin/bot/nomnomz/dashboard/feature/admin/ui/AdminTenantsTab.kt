@@ -161,21 +161,21 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
             label = stringResource(Res.string.admin_tenant_search),
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadTenants(search = searchText) } }),
+            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadTenants(search = searchText, status = state.tenantStatusFilter) } }),
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
             StatusFilterChip(stringResource(Res.string.admin_tenant_filter_all), state.tenantStatusFilter == null) {
-                scope.launch { controller.loadTenants(status = null) }
+                scope.launch { controller.loadTenants(search = state.tenantSearch, status = null) }
             }
             StatusFilterChip(stringResource(Res.string.admin_tenant_filter_active), state.tenantStatusFilter == STATUS_ACTIVE) {
-                scope.launch { controller.loadTenants(status = STATUS_ACTIVE) }
+                scope.launch { controller.loadTenants(search = state.tenantSearch, status = STATUS_ACTIVE) }
             }
             StatusFilterChip(stringResource(Res.string.admin_tenant_filter_suspended), state.tenantStatusFilter == STATUS_SUSPENDED) {
-                scope.launch { controller.loadTenants(status = STATUS_SUSPENDED) }
+                scope.launch { controller.loadTenants(search = state.tenantSearch, status = STATUS_SUSPENDED) }
             }
             StatusFilterChip(stringResource(Res.string.admin_tenant_filter_banned), state.tenantStatusFilter == STATUS_BANNED) {
-                scope.launch { controller.loadTenants(status = STATUS_BANNED) }
+                scope.launch { controller.loadTenants(search = state.tenantSearch, status = STATUS_BANNED) }
             }
         }
 

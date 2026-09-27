@@ -83,18 +83,18 @@ internal fun AuditTab(state: AdminState, controller: AdminController) {
             label = stringResource(Res.string.admin_audit_permission),
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadAudit(permission = permissionText) } }),
+            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadAudit(outcome = state.auditOutcomeFilter, permission = permissionText) } }),
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
             OutcomeChip(stringResource(Res.string.admin_audit_outcome_all), state.auditOutcomeFilter == null) {
-                scope.launch { controller.loadAudit(outcome = null) }
+                scope.launch { controller.loadAudit(outcome = null, permission = state.auditPermissionFilter) }
             }
             OutcomeChip(stringResource(Res.string.admin_audit_outcome_allowed), state.auditOutcomeFilter == OUTCOME_ALLOWED) {
-                scope.launch { controller.loadAudit(outcome = OUTCOME_ALLOWED) }
+                scope.launch { controller.loadAudit(outcome = OUTCOME_ALLOWED, permission = state.auditPermissionFilter) }
             }
             OutcomeChip(stringResource(Res.string.admin_audit_outcome_denied), state.auditOutcomeFilter == OUTCOME_DENIED) {
-                scope.launch { controller.loadAudit(outcome = OUTCOME_DENIED) }
+                scope.launch { controller.loadAudit(outcome = OUTCOME_DENIED, permission = state.auditPermissionFilter) }
             }
         }
 

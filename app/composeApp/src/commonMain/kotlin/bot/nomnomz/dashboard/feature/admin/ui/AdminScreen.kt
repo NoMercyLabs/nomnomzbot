@@ -351,8 +351,8 @@ fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsC
                 if (state.contentDefinitions.isEmpty()) controller.loadContentDefinitions()
             }
             AdminTab.Iam -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
-            AdminTab.Tenants -> if (state.tenants.isEmpty()) controller.loadTenants()
-            AdminTab.Audit -> if (state.auditEntries.isEmpty()) controller.loadAudit()
+            AdminTab.Tenants -> if (state.tenants.isEmpty()) controller.loadTenants(search = state.tenantSearch, status = state.tenantStatusFilter)
+            AdminTab.Audit -> if (state.auditEntries.isEmpty()) controller.loadAudit(outcome = state.auditOutcomeFilter, permission = state.auditPermissionFilter)
             AdminTab.SpamDefaults -> if (state.spamDefaults == null) controller.loadSpamDefaults()
             AdminTab.Providers -> if (state.providerCredentials.isEmpty()) controller.loadProviders()
             AdminTab.PlatformBot -> if (state.platformBotStatus == null) controller.loadPlatformBotStatus()
