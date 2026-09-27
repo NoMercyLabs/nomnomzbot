@@ -112,6 +112,21 @@ data class AdminSetFeatureFlagOverrideRequest(
 )
 
 /**
+ * One per-tenant feature-flag override as the console reads it back (backend `FeatureFlagOverrideDto`): which
+ * flag, which channel (id and name), the forced state, and the reason and expiry the writer gave.
+ */
+@Serializable
+data class FeatureFlagOverride(
+    val flagKey: String = "",
+    val broadcasterId: String = "",
+    val channelName: String = "",
+    val isEnabled: Boolean = false,
+    val reason: String? = null,
+    val expiresAt: String? = null,
+    val updatedAt: String = "",
+)
+
+/**
  * The counted blast radius of flipping a flag's GLOBAL toggle (backend `FeatureFlagBlastRadiusDto`) — fetched
  * BEFORE a kill-switch commits so the operator sees exactly how many active channels it reaches. A per-tenant
  * override insulates that channel from the global toggle, so overridden channels are never counted here.
@@ -559,6 +574,8 @@ interface AdminApi {
     suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag>
     suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit>
     suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit>
+    /** Every per-tenant override on every flag — the read-back the flags tab lists under each flag. */
+    suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>>
     suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto>
 
     // Admin billing
@@ -754,6 +771,9 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/admin/feature-flags/$flagKey/overrides/$broadcasterId")
+
+    override suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>> =
+        client.getEnvelope("api/v1/admin/feature-flags/overrides")
 
     override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
         client.getEnvelope("api/v1/admin/feature-flags/$flagKey/blast-radius")

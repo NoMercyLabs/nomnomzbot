@@ -46,6 +46,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
 import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
+import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -122,8 +123,16 @@ import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_message_
 import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_title
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_broadcaster_id
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm_disable
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm_enable
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_confirm_title
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_disable
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_enable
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_none
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_row_disabled
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_row_enabled
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_row_reason
 import nomnomzbot.composeapp.generated.resources.admin_grant_founder
 import nomnomzbot.composeapp.generated.resources.admin_grant_tier
 import nomnomzbot.composeapp.generated.resources.admin_health_degraded
@@ -1426,6 +1435,9 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
     var pendingFlagKey: String? by remember { mutableStateOf(null) }
+    // A per-tenant override forces one channel off the global ramp; it commits only after the operator
+    // confirms exactly which channel gets which state, and the list under the flag is the server's read-back.
+    var pendingOverride: PendingFlagOverride? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
@@ -1538,19 +1550,52 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                             )
                         }
 
+                        FeatureFlagOverridesList(
+                            overrides = state.flagOverrides.filter { it.flagKey == flag.key },
+                            enabled = !rowBusy,
+                            onClear = { broadcasterId ->
+                                pendingFlagKey = flag.key
+                                scope.launch {
+                                    controller.deleteFeatureFlagOverride(flag.key, broadcasterId)
+                                    pendingFlagKey = null
+                                }
+                            },
+                        )
+
+                        pendingOverride?.takeIf { it.flagKey == flag.key }?.let { pending ->
+                            ConfirmDialog(
+                                title = stringResource(Res.string.admin_flag_override_confirm_title, flag.key),
+                                message = stringResource(
+                                    if (pending.isEnabled) {
+                                        Res.string.admin_flag_override_confirm_enable
+                                    } else {
+                                        Res.string.admin_flag_override_confirm_disable
+                                    },
+                                    pending.broadcasterId,
+                                ),
+                                confirmLabel = stringResource(Res.string.admin_flag_override_confirm),
+                                dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),
+                                onConfirm = {
+                                    pendingOverride = null
+                                    pendingFlagKey = flag.key
+                                    scope.launch {
+                                        controller.setFeatureFlagOverride(
+                                            flag.key,
+                                            pending.broadcasterId,
+                                            AdminSetFeatureFlagOverrideRequest(isEnabled = pending.isEnabled),
+                                        )
+                                        pendingFlagKey = null
+                                    }
+                                },
+                                onDismiss = { pendingOverride = null },
+                            )
+                        }
+
                         FeatureFlagOverrideRow(
                             flagKey = flag.key,
                             enabled = !rowBusy,
                             onSetOverride = { broadcasterId, isEnabled ->
-                                pendingFlagKey = flag.key
-                                scope.launch {
-                                    controller.setFeatureFlagOverride(
-                                        flag.key,
-                                        broadcasterId,
-                                        AdminSetFeatureFlagOverrideRequest(isEnabled = isEnabled),
-                                    )
-                                    pendingFlagKey = null
-                                }
+                                pendingOverride = PendingFlagOverride(flag.key, broadcasterId, isEnabled)
                             },
                             onClearOverride = { broadcasterId ->
                                 pendingFlagKey = flag.key
@@ -1564,6 +1609,64 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                     if (index < state.featureFlags.lastIndex) {
                         Separator()
                     }
+                }
+            }
+        }
+    }
+}
+
+/** An override the operator asked for but has not confirmed yet — the confirm dialog's subject. */
+private data class PendingFlagOverride(val flagKey: String, val broadcasterId: String, val isEnabled: Boolean)
+
+/**
+ * The overrides the server holds for one flag, by channel name — what is actually forced where. Empty says so
+ * explicitly, so "no rows" is never mistaken for "not loaded".
+ */
+@Composable
+private fun FeatureFlagOverridesList(
+    overrides: List<FeatureFlagOverride>,
+    enabled: Boolean,
+    onClear: (broadcasterId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    if (overrides.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.admin_flag_override_none),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        return
+    }
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        overrides.forEach { override ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (override.isEnabled) {
+                            stringResource(Res.string.admin_flag_override_row_enabled, override.channelName)
+                        } else {
+                            stringResource(Res.string.admin_flag_override_row_disabled, override.channelName)
+                        },
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                    override.reason?.takeIf { it.isNotBlank() }?.let { reason ->
+                        Text(
+                            text = stringResource(Res.string.admin_flag_override_row_reason, reason),
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                        )
+                    }
+                }
+                TextButton(onClick = { onClear(override.broadcasterId) }, enabled = enabled) {
+                    Text(text = stringResource(Res.string.admin_flag_override_clear))
                 }
             }
         }

@@ -59,6 +59,7 @@ import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
 import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
+import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
@@ -154,6 +155,8 @@ data class AdminState(
     val flagKillSwitchKey: String? = null,
     /** The counted blast radius for [flagKillSwitchKey], once its preview call returns; null while loading. */
     val flagKillSwitchPreview: FeatureFlagBlastRadiusDto? = null,
+    /** Every per-tenant override on every flag, read back from the server with the flags (never inferred from a write). */
+    val flagOverrides: List<FeatureFlagOverride> = emptyList(),
     val inviteCodes: List<InviteCode> = emptyList(),
     // ── Tier authoring (S-ADMIN-4a) ──
     val tiers: List<AdminTier> = emptyList(),
@@ -488,6 +491,7 @@ class AdminController(
         val healthResult = api.getHealth()
         val eventsResult = api.getEvents()
         val flagsResult = api.getFeatureFlags()
+        val flagOverridesResult = api.getFeatureFlagOverrides()
         val invitesResult = api.getInviteCodes()
         val tiersResult = api.getTiers()
         val pricedUnitsResult = api.getPricedUnits()
@@ -500,6 +504,7 @@ class AdminController(
             health = (healthResult as? ApiResult.Ok)?.value ?: emptyList(),
             events = (eventsResult as? ApiResult.Ok)?.value ?: emptyList(),
             featureFlags = (flagsResult as? ApiResult.Ok)?.value ?: emptyList(),
+            flagOverrides = (flagOverridesResult as? ApiResult.Ok)?.value ?: emptyList(),
             inviteCodes = (invitesResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
             tiers = (tiersResult as? ApiResult.Ok)?.value ?: emptyList(),
             pricedUnits = (pricedUnitsResult as? ApiResult.Ok)?.value ?: emptyList(),

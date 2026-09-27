@@ -40,6 +40,7 @@ import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
 import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
+import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
@@ -589,6 +590,7 @@ private class RecordingFeatureFlagAdminApi(
     override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>> = ApiResult.Ok(emptyList())
     override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
         ApiResult.Ok(FeatureFlagBlastRadiusDto())
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
@@ -697,6 +699,7 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
     override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>> = ApiResult.Ok(emptyList())
     override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
         ApiResult.Ok(FeatureFlagBlastRadiusDto())
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =

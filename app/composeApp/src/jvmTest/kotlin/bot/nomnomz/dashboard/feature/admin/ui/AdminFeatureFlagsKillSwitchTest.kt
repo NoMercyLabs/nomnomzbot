@@ -14,9 +14,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -38,6 +41,7 @@ import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
 import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
+import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
@@ -165,13 +169,86 @@ class AdminFeatureFlagsKillSwitchTest {
             onNodeWithText("Enabled — 100%").assertExists()
         }
     }
+
+    // Plan item A6: the per-tenant overrides are listed from the server's read-back under their flag, and a
+    // cleared one leaves the list because the server no longer holds it — never because the click happened.
+    @Test
+    fun the_overrides_the_server_holds_are_listed_by_channel_name_and_clear_removes_one() {
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+            overrides = listOf(
+                FeatureFlagOverride("integration:spotify", "id-acme", "acme", isEnabled = true, reason = "beta tester"),
+                FeatureFlagOverride("integration:spotify", "id-zed", "zed", isEnabled = false),
+                FeatureFlagOverride("other:flag", "id-acme", "acme", isEnabled = true),
+            ),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+
+            onNodeWithText("acme: forced on").assertExists()
+            onNodeWithText("Reason: beta tester").assertExists()
+            onNodeWithText("zed: forced off").assertExists()
+            assertEquals(2, onAllNodesWithText("Clear override").fetchSemanticsNodes().size - 1, "one Clear per listed override, plus the id row's")
+
+            onAllNodesWithText("Clear override")[1].performClick()
+            waitForIdle()
+
+            assertEquals("integration:spotify" to "id-zed", api.deleteOverrideCalls.single())
+            onNodeWithText("zed: forced off").assertDoesNotExist()
+            onNodeWithText("acme: forced on").assertExists()
+        }
+    }
+
+    // Plan item A6: setting an override commits only after the operator confirms which channel gets which state,
+    // and the row that then appears is the server's read-back (with the channel's name), not the typed id.
+    @Test
+    fun setting_an_override_asks_first_and_then_lists_the_server_read_back() {
+        val api = KillSwitchFakeAdminApi(
+            flags = listOf(FeatureFlag(key = "integration:spotify", isEnabledGlobally = true, rolloutPercentage = 100)),
+            channelNames = mapOf("0192a000-0000-7000-8000-0000000091aa" to "acme"),
+        )
+        val controller = AdminController(api = api, iamApi = KillSwitchNoopIamApi(), platformAdminApi = KillSwitchNoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent { EnglishFlagsTab(controller) }
+            waitForIdle()
+            onNodeWithText("No channel overrides — every channel follows the global ramp.").assertExists()
+
+            onNode(hasSetTextAction()).performTextInput("0192a000-0000-7000-8000-0000000091aa")
+            onNodeWithText("Override: disable").performClick()
+            waitForIdle()
+
+            onNodeWithText("Override integration:spotify for one channel?").assertExists()
+            assertTrue(api.setOverrideCalls.isEmpty(), "asking must not itself write the override")
+
+            onNodeWithText("Set override").performClick()
+            waitForIdle()
+
+            val (flagKey, broadcasterId, body) = api.setOverrideCalls.single()
+            assertEquals("integration:spotify", flagKey)
+            assertEquals("0192a000-0000-7000-8000-0000000091aa", broadcasterId)
+            assertFalse(body.isEnabled)
+            onNodeWithText("acme: forced off").assertExists()
+        }
+    }
 }
 
 private class KillSwitchFakeAdminApi(
     private val flags: List<FeatureFlag>,
     private val blastRadius: FeatureFlagBlastRadiusDto = FeatureFlagBlastRadiusDto(),
+    overrides: List<FeatureFlagOverride> = emptyList(),
+    // The server names a channel on read-back; an id it does not know is refused, never stored.
+    private val channelNames: Map<String, String> = emptyMap(),
 ) : AdminApi {
     val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
+    val setOverrideCalls: MutableList<Triple<String, String, AdminSetFeatureFlagOverrideRequest>> = mutableListOf()
+    val deleteOverrideCalls: MutableList<Pair<String, String>> = mutableListOf()
+    private val overrideRows: MutableList<FeatureFlagOverride> = overrides.toMutableList()
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?) =
@@ -193,9 +270,30 @@ private class KillSwitchFakeAdminApi(
             ),
         )
     }
-    override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest) =
-        ApiResult.Ok(Unit)
-    override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) = ApiResult.Ok(Unit)
+    override suspend fun setFeatureFlagOverride(
+        flagKey: String,
+        broadcasterId: String,
+        body: AdminSetFeatureFlagOverrideRequest,
+    ): ApiResult<Unit> {
+        setOverrideCalls += Triple(flagKey, broadcasterId, body)
+        val channelName: String = channelNames[broadcasterId]
+            ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "Channel not found."))
+        overrideRows.removeAll { it.flagKey == flagKey && it.broadcasterId == broadcasterId }
+        overrideRows += FeatureFlagOverride(
+            flagKey = flagKey,
+            broadcasterId = broadcasterId,
+            channelName = channelName,
+            isEnabled = body.isEnabled,
+            reason = body.reason,
+        )
+        return ApiResult.Ok(Unit)
+    }
+    override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> {
+        deleteOverrideCalls += flagKey to broadcasterId
+        overrideRows.removeAll { it.flagKey == flagKey && it.broadcasterId == broadcasterId }
+        return ApiResult.Ok(Unit)
+    }
+    override suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>> = ApiResult.Ok(overrideRows.toList())
     override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
         ApiResult.Ok(blastRadius)
     override suspend fun getInviteCodes(page: Int, pageSize: Int) = ApiResult.Ok(PaginatedEnvelope<InviteCode>(emptyList()))

@@ -59,6 +59,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.network.InviteCode
@@ -548,6 +549,7 @@ private class FakeAdminApiForOpsToolsTest(
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>> = ApiResult.Ok(emptyList())
     override suspend fun previewFeatureFlagBlastRadius(flagKey: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getInviteCodes(page: Int, pageSize: Int) = ApiResult.Ok(PaginatedEnvelope<InviteCode>(emptyList()))

@@ -3496,6 +3496,14 @@
     <string name="admin_flag_override_enable">Override: enable</string>
     <string name="admin_flag_override_disable">Override: disable</string>
     <string name="admin_flag_override_clear">Clear override</string>
+    <string name="admin_flag_override_none">No channel overrides — every channel follows the global ramp.</string>
+    <string name="admin_flag_override_row_enabled">%1$s: forced on</string>
+    <string name="admin_flag_override_row_disabled">%1$s: forced off</string>
+    <string name="admin_flag_override_row_reason">Reason: %1$s</string>
+    <string name="admin_flag_override_confirm_title">Override %1$s for one channel?</string>
+    <string name="admin_flag_override_confirm_enable">Broadcaster %1$s gets the flag forced ON, whatever the global ramp says. It shows in this list once saved.</string>
+    <string name="admin_flag_override_confirm_disable">Broadcaster %1$s gets the flag forced OFF, whatever the global ramp says. It shows in this list once saved.</string>
+    <string name="admin_flag_override_confirm">Set override</string>
     <string name="admin_flag_kill_switch_title">Turn off %1$s?</string>
     <string name="admin_flag_kill_switch_message_counted">This turns the flag off platform-wide. %1$d active channel(s) with no override will lose it right now, including: %2$s.</string>
     <string name="admin_flag_kill_switch_message_none">This turns the flag off platform-wide. No active channel is currently governed by it — every channel either already has an override or none exist yet.</string>

@@ -42,6 +42,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.FeatureFlagOverride
 import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.network.PlatformEvent
 import bot.nomnomz.dashboard.core.network.ProviderCredential
@@ -157,6 +158,7 @@ private class FakeAdminApiForIamRevokeTest : AdminApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getFeatureFlagOverrides(): ApiResult<List<FeatureFlagOverride>> = ApiResult.Ok(emptyList())
     override suspend fun previewFeatureFlagBlastRadius(flagKey: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getInviteCodes(page: Int, pageSize: Int) =
