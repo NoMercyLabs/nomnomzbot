@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -45,6 +46,7 @@ public sealed class AdminServiceHealthTests
             AuthTestBuilder.NewContext(),
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),
+            Substitute.For<IProcessCpuSampler>(),
             gate,
             Substitute.For<IOutboundWebhookDispatcher>(),
             Substitute.For<IScheduledPipelineService>(),

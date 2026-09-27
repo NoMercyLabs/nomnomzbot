@@ -1020,6 +1020,11 @@ public static class DependencyInjection
         // Base health-check service — AdminService reports the REAL registered probes. The Api host's
         // AddHealthChecks() call layers the per-profile checks (postgres/redis/lite) onto this same service.
         services.AddHealthChecks();
+        // The System panel's CPU figure: a singleton, because each sample is measured against the previous one.
+        services.AddSingleton<
+            Application.Abstractions.Platform.IProcessCpuSampler,
+            Platform.Diagnostics.ProcessCpuSampler
+        >();
 
         // Per-platform channel provisioning (cross-platform chat, item 6) — get-or-create the tenant Channel
         // for a streamer's YouTube/Kick presence. Not an I<X>Service, so registered explicitly.
@@ -1057,7 +1062,7 @@ public static class DependencyInjection
         >();
         // The platform admin's built-in reply texts, cached in the shared ICacheService (A4).
         services.AddSingleton<
-            Application.Commands.Builtin.IPlatformBuiltinReplyDefaults,
+            IPlatformBuiltinReplyDefaults,
             Commands.Builtins.PlatformBuiltinReplyDefaultsReader
         >();
 
@@ -1135,10 +1140,7 @@ public static class DependencyInjection
         services.AddSingleton<ITtsService, TtsService>();
         // The platform default voice (A4), read from the catalogue on every resolve. Not an I<X>Service, so it
         // is registered explicitly rather than by AddServicesByConvention.
-        services.AddScoped<
-            Application.Tts.Services.IPlatformTtsVoiceDefault,
-            Tts.PlatformTtsVoiceDefault
-        >();
+        services.AddScoped<IPlatformTtsVoiceDefault, PlatformTtsVoiceDefault>();
 
         // Voice catalogue sync (tts.md §7) — pulls each provider's live voice list into the TtsVoice catalogue.
         // Scoped (writes through the scoped DbContext); does not end in "Service", so registered explicitly here.

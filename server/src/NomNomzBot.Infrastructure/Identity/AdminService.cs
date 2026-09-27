@@ -14,6 +14,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -52,6 +53,7 @@ public sealed class AdminService : IAdminService
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly HealthCheckService _healthChecks;
+    private readonly IProcessCpuSampler _cpu;
     private readonly IPlatformBotReadinessGate _botReadiness;
     private readonly IOutboundWebhookDispatcher _webhookDispatcher;
     private readonly IScheduledPipelineService _scheduledPipelines;
@@ -62,6 +64,7 @@ public sealed class AdminService : IAdminService
         IApplicationDbContext db,
         TimeProvider timeProvider,
         HealthCheckService healthChecks,
+        IProcessCpuSampler cpu,
         IPlatformBotReadinessGate botReadiness,
         IOutboundWebhookDispatcher webhookDispatcher,
         IScheduledPipelineService scheduledPipelines,
@@ -72,6 +75,7 @@ public sealed class AdminService : IAdminService
         _db = db;
         _timeProvider = timeProvider;
         _healthChecks = healthChecks;
+        _cpu = cpu;
         _botReadiness = botReadiness;
         _webhookDispatcher = webhookDispatcher;
         _scheduledPipelines = scheduledPipelines;
@@ -141,21 +145,20 @@ public sealed class AdminService : IAdminService
 
         int total = await channels.CountAsync(ct);
 
-        List<AdminChannelDto> items = await (
-            from c in ordered
-            join sub in _db.ChannelSubscriptions on c.Id equals sub.BroadcasterId into subs
-            from sub in subs.OrderByDescending(s => s.CreatedAt).Take(1).DefaultIfEmpty()
-            select new AdminChannelDto(
+        // The plan is the channel's billing tier key — the column tier grants and the billing tier editor
+        // write. The legacy subscription table this once joined is written by nothing, so it read "free"
+        // for every channel.
+        List<AdminChannelDto> items = await ordered
+            .Select(c => new AdminChannelDto(
                 c.Id.ToString(),
                 c.User.DisplayName,
                 c.Name,
                 c.IsLive,
                 c.Enabled,
                 0,
-                sub != null ? sub.Tier : "free",
+                c.BillingTierKey,
                 c.CreatedAt
-            )
-        )
+            ))
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .ToListAsync(ct);
@@ -264,7 +267,7 @@ public sealed class AdminService : IAdminService
             : services.Any(s => s.Status == "degraded") ? "degraded"
             : "healthy";
 
-        AdminSystemDto dto = new(overall, services, version, memoryMb, 0);
+        AdminSystemDto dto = new(overall, services, version, memoryMb, _cpu.SamplePercent());
         return Result.Success(dto);
     }
 

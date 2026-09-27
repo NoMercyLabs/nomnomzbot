@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
@@ -54,6 +55,7 @@ public sealed class AdminServiceErrorBudgetAndReplayTests
             db,
             clock,
             provider.GetRequiredService<HealthCheckService>(),
+            Substitute.For<IProcessCpuSampler>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             Substitute.For<IOutboundWebhookDispatcher>(),
             Substitute.For<IScheduledPipelineService>(),

@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
@@ -59,6 +60,7 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
             db,
             clock,
             provider.GetRequiredService<HealthCheckService>(),
+            Substitute.For<IProcessCpuSampler>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             Substitute.For<IOutboundWebhookDispatcher>(),
             scheduler,

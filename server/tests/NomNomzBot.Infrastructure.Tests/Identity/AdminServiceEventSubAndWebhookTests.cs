@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -42,7 +43,7 @@ public sealed class AdminServiceEventSubAndWebhookTests
         AdminService Sut,
         AuthDbContext Db,
         IOutboundWebhookDispatcher Dispatcher
-    ) Build()
+    ) Build(IProcessCpuSampler? cpu = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ServiceCollection services = new();
@@ -55,6 +56,7 @@ public sealed class AdminServiceEventSubAndWebhookTests
             db,
             new FakeTimeProvider(Now),
             provider.GetRequiredService<HealthCheckService>(),
+            cpu ?? Substitute.For<IProcessCpuSampler>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             dispatcher,
             Substitute.For<IScheduledPipelineService>(),
@@ -303,5 +305,18 @@ public sealed class AdminServiceEventSubAndWebhookTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task GetSystemHealth_reports_the_sampled_cpu_share_not_a_placeholder()
+    {
+        IProcessCpuSampler cpu = Substitute.For<IProcessCpuSampler>();
+        cpu.SamplePercent().Returns(37.5);
+        (AdminService sut, _, _) = Build(cpu);
+
+        Result<AdminSystemDto> system = await sut.GetSystemHealthAsync();
+
+        system.IsSuccess.Should().BeTrue(system.ErrorMessage);
+        system.Value.CpuPercent.Should().Be(37.5);
     }
 }

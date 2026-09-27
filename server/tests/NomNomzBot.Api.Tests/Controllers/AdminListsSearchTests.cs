@@ -15,6 +15,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -52,6 +53,7 @@ public sealed class AdminListsSearchTests
             db,
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),
+            Substitute.For<IProcessCpuSampler>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             Substitute.For<IOutboundWebhookDispatcher>(),
             Substitute.For<IScheduledPipelineService>(),

@@ -15,6 +15,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -59,6 +60,7 @@ public sealed class AdminListsSortFilterTests
             db,
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),
+            Substitute.For<IProcessCpuSampler>(),
             Substitute.For<IPlatformBotReadinessGate>(),
             Substitute.For<IOutboundWebhookDispatcher>(),
             Substitute.For<IScheduledPipelineService>(),
@@ -84,7 +86,8 @@ public sealed class AdminListsSortFilterTests
         AdminListsSearchTestDbContext db,
         string login,
         DateTime createdAt,
-        bool isLive = false
+        bool isLive = false,
+        string billingTierKey = "free"
     )
     {
         Guid ownerId = Guid.NewGuid();
@@ -106,6 +109,7 @@ public sealed class AdminListsSortFilterTests
                 NameNormalized = login,
                 CreatedAt = createdAt,
                 IsLive = isLive,
+                BillingTierKey = billingTierKey,
             }
         );
     }
@@ -169,6 +173,26 @@ public sealed class AdminListsSortFilterTests
         );
 
         Body<AdminChannelDto>(result).Data.Select(c => c.Login).Should().Equal("newer", "older");
+    }
+
+    [Fact]
+    public async Task ListChannels_reports_each_channels_billing_tier_as_its_plan()
+    {
+        (AdminController controller, AdminListsSearchTestDbContext db) = Build();
+        SeedChannel(db, "paying", Newer, billingTierKey: "pro");
+        SeedChannel(db, "starter", Old);
+        await db.SaveChangesAsync();
+
+        IActionResult result = await controller.ListChannels(
+            search: null,
+            request: new PageRequestDto(),
+            ct: CancellationToken.None
+        );
+
+        Body<AdminChannelDto>(result)
+            .Data.Select(c => (c.Login, c.Plan))
+            .Should()
+            .Equal(("paying", "pro"), ("starter", "free"));
     }
 
     [Fact]
