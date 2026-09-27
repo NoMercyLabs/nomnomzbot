@@ -31,7 +31,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Select
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -65,41 +67,48 @@ internal fun TtsVoiceDefaultSection(state: PlatformDefaultsState, controller: Pl
     val typography = LocalTypography.current
     val current: TtsVoiceDefault? = state.voiceDefault
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(
-                    text = if (current != null) {
-                        stringResource(Res.string.platform_defaults_voice_current, current.displayName, current.locale)
-                    } else {
-                        stringResource(Res.string.platform_defaults_voice_missing)
-                    },
-                    style = typography.sm,
-                    color = tokens.cardForeground,
-                )
-                if (current != null) {
-                    Text(
-                        text = stringResource(
-                            Res.string.platform_defaults_voice_counts,
-                            current.channelsFollowing,
-                            current.channelsWithOwnVoice,
-                        ),
-                        style = typography.xs,
-                        color = tokens.mutedForeground,
-                    )
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        state.voiceError?.let { InlineError(message = it) }
+        if (state.voiceLoading) {
+            Spinner(color = tokens.primary)
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                        Text(
+                            text = if (current != null) {
+                                stringResource(Res.string.platform_defaults_voice_current, current.displayName, current.locale)
+                            } else {
+                                stringResource(Res.string.platform_defaults_voice_missing)
+                            },
+                            style = typography.sm,
+                            color = tokens.cardForeground,
+                        )
+                        if (current != null) {
+                            Text(
+                                text = stringResource(
+                                    Res.string.platform_defaults_voice_counts,
+                                    current.channelsFollowing,
+                                    current.channelsWithOwnVoice,
+                                ),
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = controller::openVoiceEdit,
+                        variant = ButtonVariant.Outline,
+                        size = ButtonSize.Sm,
+                        enabled = state.voiceCandidates.isNotEmpty(),
+                    ) {
+                        Text(text = stringResource(Res.string.platform_defaults_change), maxLines = 1)
+                    }
                 }
-            }
-            Button(
-                onClick = controller::openVoiceEdit,
-                variant = ButtonVariant.Outline,
-                size = ButtonSize.Sm,
-                enabled = state.voiceCandidates.isNotEmpty(),
-            ) {
-                Text(text = stringResource(Res.string.platform_defaults_change), maxLines = 1)
             }
         }
     }

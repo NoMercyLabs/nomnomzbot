@@ -31,7 +31,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -71,8 +73,11 @@ internal fun ActionDefaultsSection(state: PlatformDefaultsState, controller: Pla
             label = stringResource(Res.string.platform_defaults_filter),
             modifier = Modifier.fillMaxWidth(),
         )
+        state.actionsError?.let { InlineError(message = it) }
         val rows: List<ActionDefault> = state.visibleActionDefaults
-        if (rows.isEmpty()) {
+        if (state.actionsLoading) {
+            Spinner(color = tokens.primary)
+        } else if (rows.isEmpty()) {
             Text(
                 text = stringResource(Res.string.platform_defaults_empty),
                 style = typography.sm,

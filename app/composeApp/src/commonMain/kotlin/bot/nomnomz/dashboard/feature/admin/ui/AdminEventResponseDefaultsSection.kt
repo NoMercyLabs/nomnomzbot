@@ -27,7 +27,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -62,10 +64,20 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun EventResponseDefaultsSection(state: PlatformDefaultsState, controller: PlatformDefaultsController) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        state.eventDefaults.forEachIndexed { index, row ->
-            EventResponseDefaultRow(row = row, onChange = { controller.openEventEdit(row.eventType) })
-            if (index < state.eventDefaults.lastIndex) Separator()
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        state.eventsError?.let { InlineError(message = it) }
+        if (state.eventsLoading) {
+            Spinner(color = tokens.primary)
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                state.eventDefaults.forEachIndexed { index, row ->
+                    EventResponseDefaultRow(row = row, onChange = { controller.openEventEdit(row.eventType) })
+                    if (index < state.eventDefaults.lastIndex) Separator()
+                }
+            }
         }
     }
     state.eventEdit?.let { edit ->

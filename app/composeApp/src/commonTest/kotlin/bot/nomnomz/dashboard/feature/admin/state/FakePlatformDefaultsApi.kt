@@ -42,6 +42,12 @@ internal class FakePlatformDefaultsApi(
     voice: TtsVoiceDefault? = null,
     voices: List<TtsVoiceCandidate> = emptyList(),
 ) : PlatformDefaultsApi {
+    /** Set to make the matching list-load call fail once, proving a section's loading/error state actually reacts. */
+    var failActionDefaults: ApiError? = null
+    var failEventResponseDefaults: ApiError? = null
+    var failBuiltinReplyDefaults: ApiError? = null
+    var failTtsVoiceCandidates: ApiError? = null
+
     private var voiceRow: TtsVoiceDefault? = voice
     private var voiceRows: List<TtsVoiceCandidate> = voices
     val voicePreviews: MutableList<TtsVoiceDefaultChange> = mutableListOf()
@@ -60,7 +66,8 @@ internal class FakePlatformDefaultsApi(
     val previews: MutableList<Pair<String, Int?>> = mutableListOf()
     val saves: MutableList<Pair<String, SetActionDefaultRequest>> = mutableListOf()
 
-    override suspend fun actionDefaults(): ApiResult<List<ActionDefault>> = ApiResult.Ok(rows.values.toList())
+    override suspend fun actionDefaults(): ApiResult<List<ActionDefault>> =
+        failActionDefaults?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(rows.values.toList())
 
     override suspend fun previewActionDefault(actionKey: String, level: Int?): ApiResult<PlatformDefaultBlastRadius> {
         previews += actionKey to level
@@ -83,7 +90,7 @@ internal class FakePlatformDefaultsApi(
     }
 
     override suspend fun eventResponseDefaults(): ApiResult<List<EventResponseDefault>> =
-        ApiResult.Ok(eventRows.values.toList())
+        failEventResponseDefaults?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(eventRows.values.toList())
 
     override suspend fun previewEventResponseDefault(
         eventType: String,
@@ -110,7 +117,7 @@ internal class FakePlatformDefaultsApi(
     }
 
     override suspend fun builtinReplyDefaults(): ApiResult<List<BuiltinReplyDefault>> =
-        ApiResult.Ok(replyRows.values.toList())
+        failBuiltinReplyDefaults?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(replyRows.values.toList())
 
     override suspend fun previewBuiltinReplyDefault(
         builtinKey: String,
@@ -142,7 +149,8 @@ internal class FakePlatformDefaultsApi(
     override suspend fun ttsVoiceDefault(): ApiResult<TtsVoiceDefault> =
         voiceRow?.let { ApiResult.Ok(it) } ?: ApiResult.Failure(ApiError(404, "NOT_FOUND", "no default voice"))
 
-    override suspend fun ttsVoiceCandidates(): ApiResult<List<TtsVoiceCandidate>> = ApiResult.Ok(voiceRows)
+    override suspend fun ttsVoiceCandidates(): ApiResult<List<TtsVoiceCandidate>> =
+        failTtsVoiceCandidates?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(voiceRows)
 
     override suspend fun previewTtsVoiceDefault(change: TtsVoiceDefaultChange): ApiResult<PlatformDefaultBlastRadius> {
         voicePreviews += change

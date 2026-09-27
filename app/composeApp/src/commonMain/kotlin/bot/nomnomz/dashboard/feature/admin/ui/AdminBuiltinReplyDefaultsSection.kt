@@ -27,7 +27,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -63,10 +65,20 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun BuiltinReplyDefaultsSection(state: PlatformDefaultsState, controller: PlatformDefaultsController) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        state.replyDefaults.forEachIndexed { index, row ->
-            BuiltinReplyDefaultRow(row = row, onChange = { controller.openReplyEdit(row.builtinKey, row.slot) })
-            if (index < state.replyDefaults.lastIndex) Separator()
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+        state.repliesError?.let { InlineError(message = it) }
+        if (state.repliesLoading) {
+            Spinner(color = tokens.primary)
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                state.replyDefaults.forEachIndexed { index, row ->
+                    BuiltinReplyDefaultRow(row = row, onChange = { controller.openReplyEdit(row.builtinKey, row.slot) })
+                    if (index < state.replyDefaults.lastIndex) Separator()
+                }
+            }
         }
     }
     state.replyEdit?.let { edit ->

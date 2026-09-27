@@ -117,17 +117,25 @@ data class TtsVoiceDefaultEdit(
 data class PlatformDefaultsState(
     val actionDefaults: List<ActionDefault> = emptyList(),
     val actionsLoaded: Boolean = false,
+    val actionsLoading: Boolean = false,
+    val actionsError: String? = null,
     val actionFilter: String = "",
     val actionEdit: ActionDefaultEdit? = null,
     val eventDefaults: List<EventResponseDefault> = emptyList(),
     val eventsLoaded: Boolean = false,
+    val eventsLoading: Boolean = false,
+    val eventsError: String? = null,
     val eventEdit: EventResponseDefaultEdit? = null,
     val replyDefaults: List<BuiltinReplyDefault> = emptyList(),
     val repliesLoaded: Boolean = false,
+    val repliesLoading: Boolean = false,
+    val repliesError: String? = null,
     val replyEdit: BuiltinReplyDefaultEdit? = null,
     val voiceDefault: TtsVoiceDefault? = null,
     val voiceCandidates: List<TtsVoiceCandidate> = emptyList(),
     val voiceLoaded: Boolean = false,
+    val voiceLoading: Boolean = false,
+    val voiceError: String? = null,
     val voiceEdit: TtsVoiceDefaultEdit? = null,
 ) {
     /** The action rows matching the filter (key or description, case-insensitive). */
@@ -156,9 +164,17 @@ class PlatformDefaultsController(
     val state: StateFlow<PlatformDefaultsState> = _state.asStateFlow()
 
     suspend fun loadActionDefaults() {
+        _state.value = _state.value.copy(actionsLoading = true, actionsError = null)
         when (val result: ApiResult<List<ActionDefault>> = api.actionDefaults()) {
-            is ApiResult.Ok -> _state.value = _state.value.copy(actionDefaults = result.value, actionsLoaded = true)
-            is ApiResult.Failure -> feedback.error(Res.string.platform_defaults_error, result.error.message)
+            is ApiResult.Ok -> _state.value = _state.value.copy(
+                actionDefaults = result.value,
+                actionsLoaded = true,
+                actionsLoading = false,
+            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(actionsLoading = false, actionsError = result.error.message)
+                feedback.error(Res.string.platform_defaults_error, result.error.message)
+            }
         }
     }
 
@@ -223,9 +239,17 @@ class PlatformDefaultsController(
     }
 
     suspend fun loadEventResponseDefaults() {
+        _state.value = _state.value.copy(eventsLoading = true, eventsError = null)
         when (val result: ApiResult<List<EventResponseDefault>> = api.eventResponseDefaults()) {
-            is ApiResult.Ok -> _state.value = _state.value.copy(eventDefaults = result.value, eventsLoaded = true)
-            is ApiResult.Failure -> feedback.error(Res.string.platform_defaults_error, result.error.message)
+            is ApiResult.Ok -> _state.value = _state.value.copy(
+                eventDefaults = result.value,
+                eventsLoaded = true,
+                eventsLoading = false,
+            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(eventsLoading = false, eventsError = result.error.message)
+                feedback.error(Res.string.platform_defaults_error, result.error.message)
+            }
         }
     }
 
@@ -308,9 +332,17 @@ class PlatformDefaultsController(
     }
 
     suspend fun loadBuiltinReplyDefaults() {
+        _state.value = _state.value.copy(repliesLoading = true, repliesError = null)
         when (val result: ApiResult<List<BuiltinReplyDefault>> = api.builtinReplyDefaults()) {
-            is ApiResult.Ok -> _state.value = _state.value.copy(replyDefaults = result.value, repliesLoaded = true)
-            is ApiResult.Failure -> feedback.error(Res.string.platform_defaults_error, result.error.message)
+            is ApiResult.Ok -> _state.value = _state.value.copy(
+                replyDefaults = result.value,
+                repliesLoaded = true,
+                repliesLoading = false,
+            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(repliesLoading = false, repliesError = result.error.message)
+                feedback.error(Res.string.platform_defaults_error, result.error.message)
+            }
         }
     }
 
@@ -400,10 +432,14 @@ class PlatformDefaultsController(
 
     /** Loads the platform voice and the candidates it may be set to; a missing default is an empty card, not an error. */
     suspend fun loadTtsVoiceDefault() {
+        _state.value = _state.value.copy(voiceLoading = true, voiceError = null)
         val current: TtsVoiceDefault? = when (val result: ApiResult<TtsVoiceDefault> = api.ttsVoiceDefault()) {
             is ApiResult.Ok -> result.value
             is ApiResult.Failure -> {
-                if (result.error.code != NOT_FOUND_CODE) feedback.error(Res.string.platform_defaults_error, result.error.message)
+                if (result.error.code != NOT_FOUND_CODE) {
+                    _state.value = _state.value.copy(voiceError = result.error.message)
+                    feedback.error(Res.string.platform_defaults_error, result.error.message)
+                }
                 null
             }
         }
@@ -412,8 +448,12 @@ class PlatformDefaultsController(
                 voiceDefault = current,
                 voiceCandidates = result.value,
                 voiceLoaded = true,
+                voiceLoading = false,
             )
-            is ApiResult.Failure -> feedback.error(Res.string.platform_defaults_error, result.error.message)
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(voiceLoading = false, voiceError = result.error.message)
+                feedback.error(Res.string.platform_defaults_error, result.error.message)
+            }
         }
     }
 
