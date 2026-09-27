@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Infrastructure.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -131,6 +132,57 @@ public sealed class ActionAuthorizationServiceTests
         denied.RequiredLevel.Should().Be(40);
         denied.CallerLevel.Should().Be(10);
         denied.Gate.Should().Be("gate2");
+    }
+
+    // A6 admin truth: the trust & safety "network block" is written by the admin console and must be what
+    // Gate-2 reads — for a caller ABOVE the level bar too, not only on the capability-grant fallback.
+    [Fact]
+    public async Task Authorize_denies_a_network_blocked_caller_who_meets_the_level_bar()
+    {
+        (ActionAuthorizationService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        SeedAction(db, "economy:config:read", defaultLevel: 10, floor: 10);
+        SeedModerator(db); // Moderator = 10, meets the bar on its own
+        SeedNetworkBlock(db, NetworkBlockStatus.Active);
+        await db.SaveChangesAsync();
+
+        Result<bool> allowed = await sut.AuthorizeActionAsync(User, Channel, "economy:config:read");
+
+        allowed.Value.Should().BeFalse("a network block outranks every level in every tenant");
+        AuthorizationDeniedEvent denied = bus.Published.OfType<AuthorizationDeniedEvent>().Single();
+        denied.CallerUserId.Should().Be(User);
+        denied.ActionKey.Should().Be("economy:config:read");
+        denied.CallerLevel.Should().Be(10);
+        denied.Gate.Should().Be("gate2");
+    }
+
+    [Fact]
+    public async Task Authorize_allows_again_once_the_network_block_is_lifted()
+    {
+        (ActionAuthorizationService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        SeedAction(db, "economy:config:read", defaultLevel: 10, floor: 10);
+        SeedModerator(db);
+        SeedNetworkBlock(db, NetworkBlockStatus.Lifted);
+        await db.SaveChangesAsync();
+
+        Result<bool> allowed = await sut.AuthorizeActionAsync(User, Channel, "economy:config:read");
+
+        allowed.Value.Should().BeTrue("a lifted block is history, not a standing denial");
+        bus.Published.OfType<AuthorizationDeniedEvent>().Should().BeEmpty();
+    }
+
+    private static void SeedNetworkBlock(AuthDbContext db, string status)
+    {
+        db.NetworkBlocks.Add(
+            new NetworkBlock
+            {
+                TargetUserId = User,
+                TargetTwitchUserId = "424242",
+                Justification = "cross-channel raid spam",
+                AppliedByPrincipalId = Actor,
+                AppliedAt = Now.UtcDateTime,
+                Status = status,
+            }
+        );
     }
 
     [Fact]

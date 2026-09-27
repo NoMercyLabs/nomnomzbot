@@ -179,8 +179,12 @@ public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvid
         tier.IsPublic = request.IsPublic;
         tier.SortOrder = request.SortOrder;
 
+        // Soft-deleted rows are loaded too: a key the operator removed earlier and adds back is RESTORED
+        // in place rather than inserted beside its deleted twin, which the (TierId, LimitKey) unique index
+        // would refuse.
         List<TierLimit> existingLimits = await db
-            .TierLimits.Where(l => l.TierId == tierId && l.DeletedAt == null)
+            .TierLimits.IgnoreQueryFilters()
+            .Where(l => l.TierId == tierId)
             .ToListAsync(ct);
         Dictionary<string, TierLimit> existingByKey = existingLimits.ToDictionary(l => l.LimitKey);
         HashSet<string> requestedKeys = [.. request.Limits.Select(l => l.LimitKey)];
@@ -188,7 +192,10 @@ public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvid
         foreach (TierLimitDto requested in request.Limits)
         {
             if (existingByKey.TryGetValue(requested.LimitKey, out TierLimit? existing))
+            {
                 existing.LimitValue = requested.LimitValue;
+                existing.DeletedAt = null;
+            }
             else
                 db.TierLimits.Add(
                     new TierLimit
@@ -200,7 +207,11 @@ public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvid
                 );
         }
 
-        foreach (TierLimit stale in existingLimits.Where(l => !requestedKeys.Contains(l.LimitKey)))
+        foreach (
+            TierLimit stale in existingLimits.Where(l =>
+                l.DeletedAt == null && !requestedKeys.Contains(l.LimitKey)
+            )
+        )
             db.TierLimits.Remove(stale);
 
         string newValue =

@@ -43,9 +43,12 @@ public sealed class BillingTierSeeder : ISeeder
             {
                 // The tier exists — backfill any limit KEYS added to the catalogue since it was seeded
                 // (values of already-present keys are never overwritten: operators may have tuned them).
+                // A key an operator REMOVED is a soft-deleted row: it counts as present here, so the removal
+                // holds across restarts instead of being re-inserted beside the deleted row on every boot.
                 HashSet<string> existingKeys = (
                     await _db
-                        .TierLimits.Where(l => l.TierId == existing.Id)
+                        .TierLimits.IgnoreQueryFilters()
+                        .Where(l => l.TierId == existing.Id)
                         .Select(l => l.LimitKey)
                         .ToListAsync(ct)
                 ).ToHashSet(StringComparer.Ordinal);

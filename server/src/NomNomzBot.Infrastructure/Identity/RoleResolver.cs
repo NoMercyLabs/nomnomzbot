@@ -66,6 +66,21 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         );
     }
 
+    public async Task<Result<bool>> IsNetworkBlockedAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // The network-wide block (S-ADMIN-8b) is a single, NON-tenant-filtered flag, so it denies every
+        // Gate-2 action in EVERY tenant for as long as it is active/partial, including a tenant that never
+        // carried a per-tenant deny row for this actor at all.
+        bool networkBlocked = await db.NetworkBlocks.AnyAsync(
+            b => b.TargetUserId == userId && b.Status != NetworkBlockStatus.Lifted,
+            cancellationToken
+        );
+        return Result.Success(networkBlocked);
+    }
+
     public async Task<Result<bool>> HasCapabilityAsync(
         Guid userId,
         Guid broadcasterId,
@@ -73,14 +88,8 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         CancellationToken cancellationToken = default
     )
     {
-        // The network-wide block (S-ADMIN-8b) is read here — a single, NON-tenant-filtered flag — so it
-        // denies every Gate-2 action in EVERY tenant for as long as it is active/partial, including a
-        // tenant that never carried a per-tenant deny row for this actor at all.
-        bool networkBlocked = await db.NetworkBlocks.AnyAsync(
-            b => b.TargetUserId == userId && b.Status != NetworkBlockStatus.Lifted,
-            cancellationToken
-        );
-        if (networkBlocked)
+        Result<bool> networkBlocked = await IsNetworkBlockedAsync(userId, cancellationToken);
+        if (networkBlocked is { IsSuccess: true, Value: true })
             return Result.Success(false);
 
         ActionDefinition? action = await db
@@ -244,9 +253,7 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         List<string> held = [];
         foreach (ActionDefinition action in actions)
         {
-            int? overrideLevel = overrides.TryGetValue(action.Id, out int level)
-                ? level
-                : (int?)null;
+            int? overrideLevel = overrides.TryGetValue(action.Id, out int level) ? level : null;
             int required = ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel);
             if (facts.EffectiveLevel >= required || directGrants.Contains(action.ActionKey))
                 held.Add(action.ActionKey);

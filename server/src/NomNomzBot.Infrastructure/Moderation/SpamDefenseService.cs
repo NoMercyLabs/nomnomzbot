@@ -10,6 +10,7 @@
 
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -33,16 +34,19 @@ public sealed class SpamDefenseService : ISpamDefenseService
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _time;
     private readonly IModerationService _moderation;
+    private readonly ICurrentTenantService _tenant;
 
     public SpamDefenseService(
         IApplicationDbContext db,
         TimeProvider time,
-        IModerationService moderation
+        IModerationService moderation,
+        ICurrentTenantService tenant
     )
     {
         _db = db;
         _time = time;
         _moderation = moderation;
+        _tenant = tenant;
     }
 
     /// <summary>
@@ -118,8 +122,38 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (settings.IsEnabled && policy.EnforcementEligibleAt is null)
             policy.EnforcementEligibleAt = _time.GetUtcNow().UtcDateTime.AddDays(7);
 
-        await _db.SaveChangesAsync(ct);
+        await SaveOutsideTheTenantWhenPlatformScopedAsync(broadcasterId, ct);
         return Result.Success(policy.ToSettings());
+    }
+
+    /// <summary>
+    /// The platform-defaults row carries the <see cref="PlatformDefaultsScope"/> sentinel on purpose, but the
+    /// tenant-stamp interceptor treats an added tenant-scoped row with an empty broadcaster as "forgot to set"
+    /// and rewrites it to the ambient tenant. An admin who owns a channel reaches this from a request whose
+    /// ambient tenant IS their own channel, so the first platform save would land as that channel's own policy
+    /// (or collide with it). Saving with the ambient tenant cleared keeps the sentinel; it is restored after.
+    /// </summary>
+    private async Task SaveOutsideTheTenantWhenPlatformScopedAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        if (broadcasterId != PlatformDefaultsScope || !_tenant.HasTenant)
+        {
+            await _db.SaveChangesAsync(ct);
+            return;
+        }
+
+        Guid ambient = _tenant.BroadcasterId!.Value;
+        _tenant.Clear();
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        finally
+        {
+            _tenant.SetTenant(ambient);
+        }
     }
 
     public async Task<SpamDefensePolicyDto> GetPolicyAsync(
@@ -128,9 +162,13 @@ public sealed class SpamDefenseService : ISpamDefenseService
     )
     {
         SpamDefensePolicy? stored = await LoadPolicyAsync(broadcasterId, track: false, ct);
+        // The page shows what actually runs for this channel — its own pinned row, else the platform
+        // defaults it tracks — not the shipped constants a tracking channel may never have seen.
+        SpamDefenseSettings effective =
+            stored?.ToSettings() ?? await GetSettingsAsync(broadcasterId, ct);
 
         return new SpamDefensePolicyDto(
-            stored?.ToSettings() ?? new SpamDefenseSettings(),
+            effective,
             SpamSettingCatalogue
                 .All.Select(d => new SpamSettingDescriptorDto(
                     d.Key,

@@ -85,10 +85,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
-        Set<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
-        Set<NomNomzBot.Domain.Billing.Entities.EntitlementGrant>();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => Set<TenantLimitOverride>();
+    public DbSet<EntitlementGrant> EntitlementGrants => Set<EntitlementGrant>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<BillingTier> BillingTiers => Set<BillingTier>();
     public DbSet<TierLimit> TierLimits => Set<TierLimit>();
@@ -110,7 +108,14 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     {
         b.Entity<Channel>(e => e.HasKey(c => c.Id));
         b.Entity<BillingTier>(e => e.HasKey(t => t.Id));
-        b.Entity<TierLimit>(e => e.HasKey(l => l.Id));
+        b.Entity<TierLimit>(e =>
+        {
+            e.HasKey(l => l.Id);
+            // The production shape: one live row per (tier, key), and removed rows hidden by the soft-delete
+            // filter — exactly what makes re-adding a removed key a restore, never a second insert.
+            e.HasIndex(l => new { l.TierId, l.LimitKey }).IsUnique();
+        });
+        b.ApplySoftDeleteFilter<TierLimit>();
         b.Entity<Subscription>(e => e.HasKey(s => s.Id));
         b.Entity<Command>(e => e.HasKey(c => c.Id));
         b.Entity<SoundClip>(e => e.HasKey(c => c.Id));
@@ -121,8 +126,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
             e.Ignore(r => r.MetadataJson);
         });
         b.Entity<Domain.Assets.Entities.ChannelAsset>(e => e.HasKey(a => a.Id));
-        b.Entity<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>(e => e.HasKey(o => o.Id));
-        b.Entity<NomNomzBot.Domain.Billing.Entities.EntitlementGrant>(e => e.HasKey(g => g.Id));
+        b.Entity<TenantLimitOverride>(e => e.HasKey(o => o.Id));
+        b.Entity<EntitlementGrant>(e => e.HasKey(g => g.Id));
         b.Entity<IamAuditLog>(e => e.HasKey(a => a.Id));
         b.Entity<Invoice>(e => e.HasKey(i => i.Id));
 
@@ -143,8 +148,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         typeof(Domain.Commands.Entities.Timer),
         typeof(EventResponse),
         typeof(Domain.Assets.Entities.ChannelAsset),
-        typeof(NomNomzBot.Domain.Billing.Entities.TenantLimitOverride),
-        typeof(NomNomzBot.Domain.Billing.Entities.EntitlementGrant),
+        typeof(TenantLimitOverride),
+        typeof(EntitlementGrant),
         typeof(IamAuditLog),
         typeof(Invoice),
     ];
@@ -172,30 +177,30 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
+    public DbSet<Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+    public DbSet<Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
         throw new NotSupportedException();
     public DbSet<ChatFilter> ChatFilters => throw new NotSupportedException();
     public DbSet<ModerationQueueItem> ModerationQueueItems => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
+    public DbSet<Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
-        throw new NotSupportedException();
-
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies =>
+    public DbSet<Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
         throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
+    public DbSet<Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies =>
         throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns =>
+    public DbSet<Domain.Moderation.Entities.SpamDetection> SpamDetections =>
         throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
+    public DbSet<Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns =>
         throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
+    public DbSet<Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
+        throw new NotSupportedException();
+
+    public DbSet<Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
         throw new NotSupportedException();
     public DbSet<ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
@@ -206,7 +211,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<NetworkBlock> NetworkBlocks => throw new NotSupportedException();
     public DbSet<UserModerationHistory> UserModerationHistories =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
+    public DbSet<Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
         throw new NotSupportedException();
     public DbSet<UserTrustScore> UserTrustScores => throw new NotSupportedException();
     public DbSet<ModerationEscalationPolicy> ModerationEscalationPolicies =>
@@ -341,11 +346,11 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
     public DbSet<Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
     public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();

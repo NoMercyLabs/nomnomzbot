@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
@@ -21,7 +22,9 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -63,11 +66,30 @@ public class SpamDefenseServiceTests : IDisposable
         db.SaveChanges();
     }
 
-    private AppDbContext NewDbContext() =>
-        new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
+    /// <summary>
+    /// With a <paramref name="tenant"/>, the context carries the production tenant-stamp interceptor, so a
+    /// save behaves as it does inside a resolved-tenant request rather than in a bare unit test.
+    /// </summary>
+    private AppDbContext NewDbContext(ICurrentTenantService? tenant = null)
+    {
+        DbContextOptionsBuilder<AppDbContext> options =
+            new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection);
+        if (tenant is not null)
+            options.AddInterceptors(new TenantStampInterceptor(tenant));
+        return new(options.Options);
+    }
 
-    private SpamDefenseService NewService(AppDbContext db, IModerationService? moderation = null) =>
-        new(db, _time, moderation ?? Substitute.For<IModerationService>());
+    private SpamDefenseService NewService(
+        AppDbContext db,
+        IModerationService? moderation = null,
+        ICurrentTenantService? tenant = null
+    ) =>
+        new(
+            db,
+            _time,
+            moderation ?? Substitute.For<IModerationService>(),
+            tenant ?? new CurrentTenantService()
+        );
 
     /// <summary>An automatic (non-dry-run) escalation, the shape a moderator can actually overturn.</summary>
     private static SpamDetection AutomaticDetection(
@@ -149,7 +171,7 @@ public class SpamDefenseServiceTests : IDisposable
             .EvaluateAsync(Message("f​r​ee f​ollows"));
 
         result.Should().NotBeNull();
-        result!.DetectionId.Should().NotBeNull();
+        result.DetectionId.Should().NotBeNull();
 
         using AppDbContext read = NewDbContext();
         SpamDetection stored = await read.SpamDetections.SingleAsync();
@@ -691,6 +713,60 @@ public class SpamDefenseServiceTests : IDisposable
         (await NewService(db).GetSettingsAsync(Channel))
             .ActionDelaySeconds.Should()
             .Be(12, "the channel pinned its own value");
+    }
+
+    [Fact]
+    public async Task ThePlatformDefaultsSave_KeepsTheSentinel_WhenTheAdminRequestCarriesTheirOwnChannel()
+    {
+        // A6 admin truth: an admin who owns a channel reaches the admin route with that channel as the
+        // ambient tenant. The tenant-stamp interceptor would rewrite the new defaults row to it, so the
+        // "platform defaults" the admin just saved would silently become their own channel's policy.
+        CurrentTenantService tenant = new();
+        tenant.SetTenant(Channel);
+        using (AppDbContext admin = NewDbContext(tenant))
+        {
+            Result<SpamDefenseSettings> saved = await NewService(admin, tenant: tenant)
+                .UpdateSettingsAsync(
+                    SpamDefenseService.PlatformDefaultsScope,
+                    new SpamDefenseSettings { ActionDelaySeconds = 45 }
+                );
+            saved.IsSuccess.Should().BeTrue();
+        }
+
+        using AppDbContext db = NewDbContext();
+        List<Guid> scopes = await db
+            .SpamDefensePolicies.IgnoreQueryFilters()
+            .Select(p => p.BroadcasterId)
+            .ToListAsync();
+        scopes
+            .Should()
+            .Equal(
+                [SpamDefenseService.PlatformDefaultsScope],
+                "the defaults row must keep the sentinel, not land on the admin's channel"
+            );
+        tenant.BroadcasterId.Should().Be(Channel, "the ambient tenant is restored after the save");
+        (await NewService(db).GetSettingsAsync(Channel))
+            .ActionDelaySeconds.Should()
+            .Be(45, "the untouched channel tracks the defaults that were just saved");
+    }
+
+    [Fact]
+    public async Task TheChannelPage_ShowsThePlatformDefaultsItTracks_NotTheShippedConstants()
+    {
+        // The dashboard must show what actually runs for the channel: the platform defaults it tracks,
+        // still marked as not pinned, rather than shipped constants the runtime no longer applies.
+        using (AppDbContext admin = NewDbContext())
+            await NewService(admin)
+                .UpdateSettingsAsync(
+                    SpamDefenseService.PlatformDefaultsScope,
+                    new SpamDefenseSettings { ActionDelaySeconds = 45 }
+                );
+
+        using AppDbContext db = NewDbContext();
+        SpamDefensePolicyDto page = await NewService(db).GetPolicyAsync(Channel);
+
+        page.Settings.ActionDelaySeconds.Should().Be(45);
+        page.IsPinned.Should().BeFalse("tracking the defaults is not a decision the channel made");
     }
 
     [Fact]

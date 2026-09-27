@@ -57,6 +57,27 @@ public sealed class ActionAuthorizationService(
         );
         int callerLevel = resolved.IsSuccess ? resolved.Value : 0;
 
+        // A network block (S-ADMIN-8b) outranks the ladder: it is checked BEFORE the level bar, because a
+        // blocked moderator or editor still meets the bar in every channel they hold a role in, and an
+        // everyone-floor action is met by anyone at all. Checking it only on the capability fallback below
+        // left both of those open.
+        Result<bool> networkBlocked = await roleResolver.IsNetworkBlockedAsync(
+            userId,
+            cancellationToken
+        );
+        if (networkBlocked is { IsSuccess: true, Value: true })
+        {
+            await PublishDeniedAsync(
+                userId,
+                broadcasterId,
+                actionKey,
+                required,
+                callerLevel,
+                cancellationToken
+            );
+            return Result.Success(false);
+        }
+
         if (callerLevel >= required)
             return Result.Success(true);
 
@@ -73,7 +94,26 @@ public sealed class ActionAuthorizationService(
         if (capability is { IsSuccess: true, Value: true })
             return Result.Success(true);
 
-        await eventBus.PublishAsync(
+        await PublishDeniedAsync(
+            userId,
+            broadcasterId,
+            actionKey,
+            required,
+            callerLevel,
+            cancellationToken
+        );
+        return Result.Success(false);
+    }
+
+    private Task PublishDeniedAsync(
+        Guid userId,
+        Guid broadcasterId,
+        string actionKey,
+        int required,
+        int callerLevel,
+        CancellationToken cancellationToken
+    ) =>
+        eventBus.PublishAsync(
             new AuthorizationDeniedEvent
             {
                 BroadcasterId = broadcasterId,
@@ -85,8 +125,6 @@ public sealed class ActionAuthorizationService(
             },
             cancellationToken
         );
-        return Result.Success(false);
-    }
 
     public async Task<Result<int>> GetEffectiveLevelAsync(
         Guid broadcasterId,

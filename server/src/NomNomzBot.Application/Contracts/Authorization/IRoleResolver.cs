@@ -34,6 +34,16 @@ public interface IRoleResolver
     );
 
     /// <summary>
+    /// Whether a platform-wide network block (active or partial, never lifted) stands against the user. It is
+    /// not tenant-scoped: a blocked actor is denied every Gate-2 action in every channel, whatever their level
+    /// there.
+    /// </summary>
+    Task<Result<bool>> IsNetworkBlockedAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Whether the caller holds the given action key — via a direct capability grant, or because their
     /// resolved level meets the action's effective required level (override clamped to floor). Unknown action
     /// keys fail closed (false).

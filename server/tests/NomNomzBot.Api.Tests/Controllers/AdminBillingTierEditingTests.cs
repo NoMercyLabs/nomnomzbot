@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
+using NomNomzBot.Infrastructure.Content.Billing;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -100,6 +101,75 @@ public sealed class AdminBillingTierEditingTests
         return (db, tier);
     }
 
+    // A6 admin truth: a limit the operator removed is a soft-deleted row. Adding the key back must restore
+    // that row; inserting a twin beside it is what the (TierId, LimitKey) unique index refuses.
+    [Fact]
+    public async Task Re_adding_a_removed_limit_restores_the_row_instead_of_inserting_a_twin()
+    {
+        (BillingTierChangeTestDbContext db, BillingTier tier) = await SeedTierWithTenantsAsync(0);
+        db.TierLimits.Add(
+            new TierLimit
+            {
+                TierId = tier.Id,
+                LimitKey = "custom_commands",
+                LimitValue = 100,
+                DeletedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+        AdminBillingController controller = BuildController(db, out _);
+
+        IActionResult result = await controller.UpdateTier(
+            tier.Id,
+            new UpdateTierRequest(
+                DisplayName: "Pro",
+                PriceCents: 999,
+                Currency: "usd",
+                AllowsCustomBotName: false,
+                PrioritySupport: false,
+                IsPublic: true,
+                SortOrder: 1,
+                Limits: [new TierLimitDto("custom_commands", 500)],
+                ConfirmedAffectedTenantCount: 0
+            ),
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        TierLimit restored = (
+            await db.TierLimits.IgnoreQueryFilters().Where(l => l.TierId == tier.Id).ToListAsync()
+        )
+            .Should()
+            .ContainSingle()
+            .Which;
+        restored.LimitKey.Should().Be("custom_commands");
+        restored.LimitValue.Should().Be(500);
+        restored.DeletedAt.Should().BeNull();
+    }
+
+    // The seeder backfills catalogue keys a tier never had; a key the operator removed is not one of those,
+    // and re-inserting it beside the removed row would fail the unique index and take the boot down with it.
+    [Fact]
+    public async Task The_seeder_leaves_a_removed_catalogue_limit_removed_on_the_next_boot()
+    {
+        using BillingTierChangeTestDbContext db = BillingTierChangeTestDbContext.New();
+        await new BillingTierSeeder(db).SeedAsync();
+        await db.SaveChangesAsync();
+        BillingTier pro = await db.BillingTiers.SingleAsync(t => t.Key == "pro");
+        TierLimit removed = await db.TierLimits.FirstAsync(l => l.TierId == pro.Id);
+        removed.DeletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        await new BillingTierSeeder(db).SeedAsync();
+        await db.SaveChangesAsync();
+
+        List<TierLimit> rows = await db
+            .TierLimits.IgnoreQueryFilters()
+            .Where(l => l.TierId == removed.TierId && l.LimitKey == removed.LimitKey)
+            .ToListAsync();
+        rows.Should().ContainSingle().Which.DeletedAt.Should().NotBeNull();
+    }
+
     [Fact]
     public async Task Updating_a_tier_persists_the_change_and_writes_an_audit_entry()
     {
@@ -154,10 +224,7 @@ public sealed class AdminBillingTierEditingTests
     public async Task Preview_returns_the_real_counted_number_of_tenants_on_the_tier()
     {
         (BillingTierChangeTestDbContext db, BillingTier tier) = await SeedTierWithTenantsAsync(3);
-        AdminBillingController controller = BuildController(
-            db,
-            out IBillingTierAdminService tierAdmin
-        );
+        BuildController(db, out IBillingTierAdminService tierAdmin);
 
         Result<TierChangePreviewDto> preview = await tierAdmin.PreviewTierChangeAsync(
             tier.Id,
