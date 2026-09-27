@@ -203,6 +203,40 @@ public sealed class TtsVoiceDefaultsAdminServiceTests
     }
 
     [Fact]
+    public async Task Candidates_are_the_keyless_voices_in_locale_order_with_the_default_marked()
+    {
+        Harness h = await BuildAsync();
+        h.Db.TtsVoices.Add(
+            new()
+            {
+                Id = "eleven-rachel",
+                Name = "Rachel",
+                DisplayName = "Rachel",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = "elevenlabs",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        IReadOnlyList<TtsVoiceCandidateDto> candidates = (await h.Sut.CandidatesAsync()).Value;
+
+        candidates
+            .Should()
+            .NotContain(c => c.VoiceId == "eleven-rachel", "a keyed voice can't be the default");
+        candidates
+            .Select(c => c.Locale)
+            .Should()
+            .BeInAscendingOrder()
+            .And.Contain(["de-DE", "en-GB", "en-US"]);
+        candidates.Single(c => c.IsDefault).VoiceId.Should().Be(Aria);
+        candidates
+            .Single(c => c.VoiceId == Guy)
+            .Should()
+            .Be(new TtsVoiceCandidateDto(Guy, "Guy (US)", "en-US", "Male", false));
+    }
+
+    [Fact]
     public async Task A_channel_pick_leaves_the_default_and_the_follow_flag_puts_it_back()
     {
         Harness h = await BuildAsync();

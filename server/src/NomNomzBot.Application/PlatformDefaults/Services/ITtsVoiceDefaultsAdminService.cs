@@ -22,6 +22,11 @@ public interface ITtsVoiceDefaultsAdminService
 {
     Task<Result<TtsVoiceDefaultDto>> GetAsync(CancellationToken ct = default);
 
+    /// <summary>The voices the default may be set to, ordered by locale then display name.</summary>
+    Task<Result<IReadOnlyList<TtsVoiceCandidateDto>>> CandidatesAsync(
+        CancellationToken ct = default
+    );
+
     /// <summary>The counted blast radius of making <paramref name="change"/> the platform default.</summary>
     Task<Result<PlatformDefaultBlastRadiusDto>> PreviewAsync(
         TtsVoiceDefaultChange change,

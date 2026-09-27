@@ -23,6 +23,18 @@ public sealed record TtsVoiceDefaultDto(
     int ChannelsWithOwnVoice
 );
 
+/// <summary>
+/// One voice the platform default may be set to: a catalogue voice every channel can speak without a key of
+/// its own. <paramref name="IsDefault"/> marks the current default.
+/// </summary>
+public sealed record TtsVoiceCandidateDto(
+    string VoiceId,
+    string DisplayName,
+    string Locale,
+    string Gender,
+    bool IsDefault
+);
+
 /// <summary>A proposed platform default voice — the preview body.</summary>
 public sealed record TtsVoiceDefaultChange(string VoiceId);
 

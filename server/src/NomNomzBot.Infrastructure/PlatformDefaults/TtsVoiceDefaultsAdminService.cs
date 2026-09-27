@@ -44,6 +44,26 @@ public sealed class TtsVoiceDefaultsAdminService(IApplicationDbContext db, TimeP
         return Result.Success(await ToDtoAsync(current, ct));
     }
 
+    public async Task<Result<IReadOnlyList<TtsVoiceCandidateDto>>> CandidatesAsync(
+        CancellationToken ct = default
+    )
+    {
+        List<TtsVoiceCandidateDto> candidates = await db
+            .TtsVoices.AsNoTracking()
+            .Where(v => v.Provider.ToLower() == RequiredProvider)
+            .OrderBy(v => v.Locale)
+            .ThenBy(v => v.DisplayName)
+            .Select(v => new TtsVoiceCandidateDto(
+                v.Id,
+                v.DisplayName,
+                v.Locale,
+                v.Gender,
+                v.IsDefault
+            ))
+            .ToListAsync(ct);
+        return Result.Success<IReadOnlyList<TtsVoiceCandidateDto>>(candidates);
+    }
+
     public async Task<Result<PlatformDefaultBlastRadiusDto>> PreviewAsync(
         TtsVoiceDefaultChange change,
         CancellationToken ct = default

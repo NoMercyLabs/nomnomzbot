@@ -43,6 +43,15 @@ public class TtsVoiceDefaultsAdminController(
     public async Task<IActionResult> Get(CancellationToken ct) =>
         ResultResponse(await defaults.GetAsync(ct));
 
+    /// <summary>The voices the platform default may be set to.</summary>
+    [HttpGet("candidates")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TtsVoiceCandidateDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> Candidates(CancellationToken ct) =>
+        ResultResponse(await defaults.CandidatesAsync(ct));
+
     /// <summary>The counted blast radius of making a voice the platform default.</summary>
     [HttpPost("blast-radius")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
