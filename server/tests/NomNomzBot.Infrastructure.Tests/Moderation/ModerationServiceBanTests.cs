@@ -224,6 +224,58 @@ public sealed class ModerationServiceBanTests
             .Be(0);
     }
 
+    // ─── Unban follows the same law: Twitch first, record only what Twitch actually did ──
+
+    [Fact]
+    public async Task UnbanAsync_WhenTwitchClears_RecordsExactlyOneUnban()
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        await SeedChannelAsync(db);
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .UnbanAsOperatorAsync(
+                Operator,
+                BroadcasterTwitchId,
+                ViewerTwitchId,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        Result<ModerationActionResult> result = await NewService(db, moderation)
+            .UnbanAsync(BroadcasterId, Operator, ViewerTwitchId);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        Record record = await db.Records.SingleAsync();
+        record.RecordType.Should().Be(ActionRecordType);
+        record.Data.Should().Contain("unban");
+    }
+
+    [Fact]
+    public async Task UnbanAsync_WhenTwitchRefuses_SurfacesTheErrorAndWritesNoRecord()
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        await SeedChannelAsync(db);
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .UnbanAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("Twitch request failed (401).", "unauthorized"));
+
+        Result<ModerationActionResult> result = await NewService(db, moderation)
+            .UnbanAsync(BroadcasterId, Operator, ViewerTwitchId);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("unauthorized");
+        // A refused unban is not an unban: the mod log must not say it happened.
+        (await db.Records.CountAsync())
+            .Should()
+            .Be(0);
+    }
+
     // ─── S012: a timeout with no usable duration must NEVER fall through to a ban ──
 
     [Theory]

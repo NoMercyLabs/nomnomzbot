@@ -196,7 +196,31 @@ public class ModerationService : IModerationService
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return Errors.ChannelNotFound<ModerationActionResult>(broadcasterId);
 
-        Result<ModerationActionResult> result = await RecordActionAsync(
+        Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (broadcaster.IsFailure)
+            return broadcaster.WithValue<ModerationActionResult>(default!);
+
+        // Lift on Twitch FIRST, and only record the unban once Twitch actually cleared it — the same law as
+        // the ban. Recording first and treating the Helix call as best effort let a refused unban read as
+        // done: the mod log said "unbanned" and the trust-and-safety desk reported an automatic action as
+        // reversed while the viewer stayed banned. Signed with the OPERATOR's own token (moderator_id =
+        // operator); an unban of a user who is not banned counts as cleared.
+        Result twitchResult = await _moderation.UnbanAsOperatorAsync(
+            operatorUserId,
+            broadcaster.Value,
+            targetUserId,
+            cancellationToken
+        );
+        if (twitchResult.IsFailure)
+            return Result.Failure<ModerationActionResult>(
+                twitchResult.ErrorMessage ?? "Twitch rejected the unban.",
+                twitchResult.ErrorCode ?? "TWITCH_ERROR"
+            );
+
+        return await RecordActionAsync(
             tenantId,
             "unban",
             targetUserId,
@@ -205,42 +229,6 @@ public class ModerationService : IModerationService
             moderatorId,
             cancellationToken
         );
-
-        if (result.IsSuccess)
-        {
-            // Sign the unban with the OPERATOR's own token (moderator_id = operator) so Twitch attributes it to them
-            // and it works on any channel they moderate. Best-effort: a resolve/Helix failure only warns — the local
-            // record already stands.
-            Result<string> broadcaster = await ResolveBroadcasterTwitchIdAsync(
-                tenantId,
-                cancellationToken
-            );
-            if (broadcaster.IsFailure)
-                _logger.LogWarning(
-                    "Twitch API unban skipped for {UserId} in {Channel}: {Error}",
-                    targetUserId,
-                    tenantId,
-                    broadcaster.ErrorMessage
-                );
-            else
-            {
-                Result twitchResult = await _moderation.UnbanAsOperatorAsync(
-                    operatorUserId,
-                    broadcaster.Value,
-                    targetUserId,
-                    cancellationToken
-                );
-                if (twitchResult.IsFailure)
-                    _logger.LogWarning(
-                        "Twitch API unban failed for {UserId} in {Channel}: {Error}",
-                        targetUserId,
-                        tenantId,
-                        twitchResult.ErrorMessage
-                    );
-            }
-        }
-
-        return result;
     }
 
     public async Task<Result<ModerationRuleDetail>> CreateRuleAsync(
