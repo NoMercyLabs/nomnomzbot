@@ -111,7 +111,10 @@ public sealed class TrustSafetyReviewService(
         if (gate.IsFailure)
             return gate.WithValue<PagedList<TrustSafetyReviewItemDto>>(null!);
 
-        IQueryable<SpamDetection> automatic = AutomaticActionRows();
+        // The queue is what still awaits a verdict: a confirmed or overturned action is reviewed, and a
+        // queue that kept listing it would never empty.
+        IQueryable<SpamDetection> automatic = AutomaticActionRows()
+            .Where(d => d.ConfirmedAt == null && d.OverturnedAt == null);
 
         int total = await automatic.CountAsync(ct);
         List<SpamDetection> page = await automatic

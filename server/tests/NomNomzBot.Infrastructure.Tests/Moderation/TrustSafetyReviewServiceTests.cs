@@ -260,7 +260,7 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
         Result<PagedList<TrustSafetyReviewItemDto>> queue = await service.GetReviewQueueAsync(
             OperatorId,
             Why,
-            new PaginationParams(1, 25)
+            new PaginationParams()
         );
 
         queue.IsSuccess.Should().BeTrue();
@@ -281,6 +281,12 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
         stored.ConfirmedAt.Should().NotBeNull();
         stored.ConfirmedByUserId.Should().Be(OperatorId);
         stored.OverturnedAt.Should().BeNull("confirming does not touch the action");
+
+        // A reviewed action leaves the queue — otherwise the desk never empties.
+        Result<PagedList<TrustSafetyReviewItemDto>> afterwards = await NewService(readBack)
+            .GetReviewQueueAsync(OperatorId, Why, new PaginationParams());
+        afterwards.Value.Items.Should().BeEmpty("the only pending action was just confirmed");
+        afterwards.Value.TotalCount.Should().Be(0);
     }
 
     // ---- Overturn reverses the REAL effect, not merely the row ------------------------------------
@@ -425,7 +431,7 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
 
         using AppDbContext db = NewDbContext();
         Result<PagedList<TrustSafetyReviewItemDto>> result = await NewService(db)
-            .GetReviewQueueAsync(OperatorId, Why, new PaginationParams(1, 25));
+            .GetReviewQueueAsync(OperatorId, Why, new PaginationParams());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("FORBIDDEN");
