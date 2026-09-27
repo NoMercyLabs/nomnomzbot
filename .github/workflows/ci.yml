@@ -73,11 +73,17 @@ jobs:
         # here. Giving the job a virtual display keeps the tests proving the REAL resource bundle
         # rather than weakening them to a headless-safe stub that would stop catching a missing
         # translation.
+        # --no-build-cache: the Compose Multiplatform resource-accessor generator has a known Gradle
+        # build-cache correctness gap (its task inputs don't always reflect a changed strings.xml), so a
+        # cache restored from an earlier commit can serve stale Res.string members and fail newly added
+        # ones as "Unresolved reference" even though the source is correct — reproduced 2026-09-27 on
+        # newly added admin_invite_* strings across two full re-runs of the same commit. Disabling the
+        # build cache for this job costs a slower run but removes that whole failure class.
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
           chmod +x gradlew
           set -o pipefail
-          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
+          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon --no-build-cache 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
 
       # The job log is only readable in a browser session; annotations also come back through the
       # REST API, so a Kotlin compile error or a failing test names itself where any client can read it.
