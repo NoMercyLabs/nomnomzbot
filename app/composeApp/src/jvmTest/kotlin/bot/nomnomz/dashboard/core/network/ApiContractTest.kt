@@ -350,6 +350,10 @@ class ApiContractTest {
             BuiltinReplyDefault.serializer() to "BuiltinReplyDefaultDto",
             BuiltinReplyDefaultChange.serializer() to "BuiltinReplyDefaultChange",
             SetBuiltinReplyDefaultRequest.serializer() to "SetBuiltinReplyDefaultRequest",
+            TtsVoiceDefault.serializer() to "TtsVoiceDefaultDto",
+            TtsVoiceCandidate.serializer() to "TtsVoiceCandidateDto",
+            TtsVoiceDefaultChange.serializer() to "TtsVoiceDefaultChange",
+            SetTtsVoiceDefaultRequest.serializer() to "SetTtsVoiceDefaultRequest",
         )
 
     @Test

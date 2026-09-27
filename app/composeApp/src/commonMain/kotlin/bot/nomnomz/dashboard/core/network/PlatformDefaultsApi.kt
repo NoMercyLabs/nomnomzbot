@@ -107,6 +107,38 @@ data class BuiltinReplyDefaultChange(val template: String?)
 @Serializable
 data class SetBuiltinReplyDefaultRequest(val template: String?, val confirmedChannelsAffected: Int)
 
+/**
+ * The platform default TTS voice (backend `TtsVoiceDefaultDto`): the catalogue voice every channel that never
+ * picked its own speaks with, how many channels follow it and how many picked their own.
+ */
+@Serializable
+data class TtsVoiceDefault(
+    val voiceId: String,
+    val displayName: String,
+    val locale: String,
+    val provider: String,
+    val channelsFollowing: Int = 0,
+    val channelsWithOwnVoice: Int = 0,
+)
+
+/** One voice the platform default may be set to (backend `TtsVoiceCandidateDto`); [isDefault] marks the current one. */
+@Serializable
+data class TtsVoiceCandidate(
+    val voiceId: String,
+    val displayName: String,
+    val locale: String,
+    val gender: String,
+    val isDefault: Boolean = false,
+)
+
+/** A proposed platform default voice — the preview body (backend `TtsVoiceDefaultChange`). */
+@Serializable
+data class TtsVoiceDefaultChange(val voiceId: String)
+
+/** Saves the platform default voice (backend `SetTtsVoiceDefaultRequest`). */
+@Serializable
+data class SetTtsVoiceDefaultRequest(val voiceId: String, val confirmedChannelsAffected: Int)
+
 interface PlatformDefaultsApi {
     suspend fun actionDefaults(): ApiResult<List<ActionDefault>>
 
@@ -141,6 +173,14 @@ interface PlatformDefaultsApi {
         slot: String,
         body: SetBuiltinReplyDefaultRequest,
     ): ApiResult<BuiltinReplyDefault>
+
+    suspend fun ttsVoiceDefault(): ApiResult<TtsVoiceDefault>
+
+    suspend fun ttsVoiceCandidates(): ApiResult<List<TtsVoiceCandidate>>
+
+    suspend fun previewTtsVoiceDefault(change: TtsVoiceDefaultChange): ApiResult<PlatformDefaultBlastRadius>
+
+    suspend fun setTtsVoiceDefault(body: SetTtsVoiceDefaultRequest): ApiResult<TtsVoiceDefault>
 }
 
 class RestPlatformDefaultsApi(private val client: ApiClient) : PlatformDefaultsApi {
@@ -203,4 +243,16 @@ class RestPlatformDefaultsApi(private val client: ApiClient) : PlatformDefaultsA
             "api/v1/admin/platform-defaults/builtin-replies/${builtinKey.encodeQuery()}/${slot.encodeQuery()}",
             body,
         )
+
+    override suspend fun ttsVoiceDefault(): ApiResult<TtsVoiceDefault> =
+        client.getEnvelope("api/v1/admin/platform-defaults/tts-voice")
+
+    override suspend fun ttsVoiceCandidates(): ApiResult<List<TtsVoiceCandidate>> =
+        client.getEnvelope("api/v1/admin/platform-defaults/tts-voice/candidates")
+
+    override suspend fun previewTtsVoiceDefault(change: TtsVoiceDefaultChange): ApiResult<PlatformDefaultBlastRadius> =
+        client.postEnvelope("api/v1/admin/platform-defaults/tts-voice/blast-radius", change)
+
+    override suspend fun setTtsVoiceDefault(body: SetTtsVoiceDefaultRequest): ApiResult<TtsVoiceDefault> =
+        client.putEnvelope("api/v1/admin/platform-defaults/tts-voice", body)
 }

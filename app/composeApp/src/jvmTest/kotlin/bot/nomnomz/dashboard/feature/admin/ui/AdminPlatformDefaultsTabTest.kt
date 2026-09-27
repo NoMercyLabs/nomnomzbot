@@ -31,6 +31,8 @@ import bot.nomnomz.dashboard.core.network.ActionDangerTier
 import bot.nomnomz.dashboard.core.network.ActionDefault
 import bot.nomnomz.dashboard.core.network.BuiltinReplyDefault
 import bot.nomnomz.dashboard.core.network.EventResponseDefault
+import bot.nomnomz.dashboard.core.network.TtsVoiceCandidate
+import bot.nomnomz.dashboard.core.network.TtsVoiceDefault
 import bot.nomnomz.dashboard.feature.admin.state.FakePlatformDefaultsApi
 import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import kotlinx.coroutines.test.runTest
@@ -228,6 +230,59 @@ class AdminPlatformDefaultsTabTest {
             assertEquals(3, api.replySaves.single().second.confirmedChannelsAffected)
             assertEquals("Live for {uptime}!", api.replySaves.single().second.template)
             onNodeWithText("Platform wording: Live for {uptime}!").assertExists()
+        }
+    }
+
+    @Test
+    fun the_tts_voice_card_shows_the_platform_voice_and_apply_sends_the_previewed_count() {
+        val api = FakePlatformDefaultsApi(
+            emptyList(),
+            voice = TtsVoiceDefault(
+                voiceId = "en-US-AriaNeural",
+                displayName = "Aria (US)",
+                locale = "en-US",
+                provider = "edge",
+                channelsFollowing = 3,
+                channelsWithOwnVoice = 1,
+            ),
+            voices = listOf(
+                TtsVoiceCandidate("en-GB-SoniaNeural", "Sonia (GB)", "en-GB", "Female"),
+                TtsVoiceCandidate("en-US-AriaNeural", "Aria (US)", "en-US", "Female", isDefault = true),
+            ),
+        )
+        val controller = PlatformDefaultsController(api)
+        runTest {
+            controller.loadTtsVoiceDefault()
+            controller.openVoiceEdit()
+        }
+
+        runComposeUiTest {
+            setContent { English { TtsVoiceDefaultSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+
+            onNodeWithText("Platform voice: Aria (US) (en-US)").assertExists()
+            onNodeWithText("3 channel(s) follow this voice, 1 picked their own").assertExists()
+            onNodeWithText("Check the impact to see which channels this changes.").assertExists()
+            onNode(hasText("Apply to 0 channel(s)") and hasClickAction()).assertIsNotEnabled()
+            assertTrue(api.voicePreviews.isEmpty(), "opening the editor previews nothing")
+        }
+
+        runTest {
+            controller.pickVoice("en-GB-SoniaNeural")
+            controller.previewVoiceEdit()
+        }
+        runComposeUiTest {
+            setContent { English { TtsVoiceDefaultSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+
+            onNodeWithText("This changes 3 channel(s) right now, including: alpha, bravo.").assertExists()
+            onNodeWithText("1 channel(s) keep their own setting.").assertExists()
+            onNode(hasText("Apply to 3 channel(s)") and hasClickAction()).performClick()
+            waitForIdle()
+
+            assertEquals(3, api.voiceSaves.single().confirmedChannelsAffected)
+            assertEquals("en-GB-SoniaNeural", api.voiceSaves.single().voiceId)
+            onNodeWithText("Platform voice: Sonia (GB) (en-GB)").assertExists()
         }
     }
 }

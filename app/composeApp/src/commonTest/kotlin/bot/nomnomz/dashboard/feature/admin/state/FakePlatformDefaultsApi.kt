@@ -22,6 +22,10 @@ import bot.nomnomz.dashboard.core.network.PlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.SetActionDefaultRequest
 import bot.nomnomz.dashboard.core.network.SetBuiltinReplyDefaultRequest
 import bot.nomnomz.dashboard.core.network.SetEventResponseDefaultRequest
+import bot.nomnomz.dashboard.core.network.SetTtsVoiceDefaultRequest
+import bot.nomnomz.dashboard.core.network.TtsVoiceCandidate
+import bot.nomnomz.dashboard.core.network.TtsVoiceDefault
+import bot.nomnomz.dashboard.core.network.TtsVoiceDefaultChange
 
 /**
  * An in-memory platform-defaults backend with the server's rules: the preview counts the followers only when
@@ -35,7 +39,14 @@ internal class FakePlatformDefaultsApi(
     var sample: List<String> = listOf("alpha", "bravo"),
     events: List<EventResponseDefault> = emptyList(),
     replies: List<BuiltinReplyDefault> = emptyList(),
+    voice: TtsVoiceDefault? = null,
+    voices: List<TtsVoiceCandidate> = emptyList(),
 ) : PlatformDefaultsApi {
+    private var voiceRow: TtsVoiceDefault? = voice
+    private var voiceRows: List<TtsVoiceCandidate> = voices
+    val voicePreviews: MutableList<TtsVoiceDefaultChange> = mutableListOf()
+    val voiceSaves: MutableList<SetTtsVoiceDefaultRequest> = mutableListOf()
+
     private val eventRows: MutableMap<String, EventResponseDefault> = events.associateBy { it.eventType }.toMutableMap()
     val eventPreviews: MutableList<Pair<String, EventResponseDefaultChange>> = mutableListOf()
     val eventSaves: MutableList<Pair<String, SetEventResponseDefaultRequest>> = mutableListOf()
@@ -126,6 +137,51 @@ internal class FakePlatformDefaultsApi(
         val saved: BuiltinReplyDefault = row.copy(platformTemplate = body.template)
         replyRows[builtinKey to slot] = saved
         return ApiResult.Ok(saved)
+    }
+
+    override suspend fun ttsVoiceDefault(): ApiResult<TtsVoiceDefault> =
+        voiceRow?.let { ApiResult.Ok(it) } ?: ApiResult.Failure(ApiError(404, "NOT_FOUND", "no default voice"))
+
+    override suspend fun ttsVoiceCandidates(): ApiResult<List<TtsVoiceCandidate>> = ApiResult.Ok(voiceRows)
+
+    override suspend fun previewTtsVoiceDefault(change: TtsVoiceDefaultChange): ApiResult<PlatformDefaultBlastRadius> {
+        voicePreviews += change
+        val candidate: TtsVoiceCandidate =
+            voiceRows.firstOrNull { it.voiceId == change.voiceId }
+                ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no voice"))
+        return ApiResult.Ok(voiceRadius(candidate))
+    }
+
+    override suspend fun setTtsVoiceDefault(body: SetTtsVoiceDefaultRequest): ApiResult<TtsVoiceDefault> {
+        voiceSaves += body
+        val candidate: TtsVoiceCandidate =
+            voiceRows.firstOrNull { it.voiceId == body.voiceId }
+                ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no voice"))
+        if (voiceRadius(candidate).channelsAffected != body.confirmedChannelsAffected) {
+            return ApiResult.Failure(ApiError(409, "PREVIEW_STALE", "stale"))
+        }
+        val saved = TtsVoiceDefault(
+            voiceId = candidate.voiceId,
+            displayName = candidate.displayName,
+            locale = candidate.locale,
+            provider = "edge",
+            channelsFollowing = followers,
+            channelsWithOwnVoice = keeping,
+        )
+        voiceRow = saved
+        voiceRows = voiceRows.map { it.copy(isDefault = it.voiceId == saved.voiceId) }
+        return ApiResult.Ok(saved)
+    }
+
+    // The server's rule: a different voice reaches every channel that never picked its own; the current voice
+    // changes nobody.
+    private fun voiceRadius(candidate: TtsVoiceCandidate): PlatformDefaultBlastRadius {
+        val changes: Boolean = candidate.voiceId != voiceRow?.voiceId
+        return PlatformDefaultBlastRadius(
+            channelsAffected = if (changes) followers else 0,
+            channelsKeepingOwnSetting = keeping,
+            sampleChannelNames = if (changes) sample else emptyList(),
+        )
     }
 
     // The server's rule: a wording change reaches every channel except those answering with their own reply

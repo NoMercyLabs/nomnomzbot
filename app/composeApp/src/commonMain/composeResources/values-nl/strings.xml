@@ -5634,4 +5634,10 @@
     <string name="platform_defaults_reply_use_shipped">De meegeleverde tekst gebruiken</string>
     <string name="platform_defaults_reply_template">Tekst</string>
     <string name="platform_defaults_reply_template_required">Een platformtekst heeft inhoud nodig, of schakel terug naar de meegeleverde tekst.</string>
+    <string name="platform_defaults_section_tts_voice">TTS-stem</string>
+    <string name="platform_defaults_voice_current">Platformstem: %1$s (%2$s)</string>
+    <string name="platform_defaults_voice_missing">De stemcatalogus markeert nog geen platformstandaard.</string>
+    <string name="platform_defaults_voice_counts">%1$d kanaal/kanalen volgen deze stem, %2$d kozen een eigen stem</string>
+    <string name="platform_defaults_voice_edit_title">Standaardstem van het platform</string>
+    <string name="platform_defaults_voice_pick">Stem</string>
 </resources>

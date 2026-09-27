@@ -24,6 +24,10 @@ import bot.nomnomz.dashboard.core.network.PlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.SetActionDefaultRequest
 import bot.nomnomz.dashboard.core.network.SetBuiltinReplyDefaultRequest
 import bot.nomnomz.dashboard.core.network.SetEventResponseDefaultRequest
+import bot.nomnomz.dashboard.core.network.SetTtsVoiceDefaultRequest
+import bot.nomnomz.dashboard.core.network.TtsVoiceCandidate
+import bot.nomnomz.dashboard.core.network.TtsVoiceDefault
+import bot.nomnomz.dashboard.core.network.TtsVoiceDefaultChange
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,6 +96,24 @@ data class BuiltinReplyDefaultEdit(
         get() = preview != null && !saving && (useShipped || template.isNotBlank())
 }
 
+/**
+ * The draft of the platform default voice edit: the candidate picked so far. A different pick drops
+ * [preview], so the save can only ever carry a count the operator saw for exactly the voice being saved.
+ */
+data class TtsVoiceDefaultEdit(
+    val voiceId: String,
+    val preview: PlatformDefaultBlastRadius? = null,
+    val previewing: Boolean = false,
+    val saving: Boolean = false,
+) {
+    val change: TtsVoiceDefaultChange
+        get() = TtsVoiceDefaultChange(voiceId = voiceId)
+
+    /** The save arms only once the count for this very pick is shown. */
+    val canSave: Boolean
+        get() = preview != null && !saving
+}
+
 data class PlatformDefaultsState(
     val actionDefaults: List<ActionDefault> = emptyList(),
     val actionsLoaded: Boolean = false,
@@ -103,6 +125,10 @@ data class PlatformDefaultsState(
     val replyDefaults: List<BuiltinReplyDefault> = emptyList(),
     val repliesLoaded: Boolean = false,
     val replyEdit: BuiltinReplyDefaultEdit? = null,
+    val voiceDefault: TtsVoiceDefault? = null,
+    val voiceCandidates: List<TtsVoiceCandidate> = emptyList(),
+    val voiceLoaded: Boolean = false,
+    val voiceEdit: TtsVoiceDefaultEdit? = null,
 ) {
     /** The action rows matching the filter (key or description, case-insensitive). */
     val visibleActionDefaults: List<ActionDefault>
@@ -372,6 +398,92 @@ class PlatformDefaultsController(
         }
     }
 
+    /** Loads the platform voice and the candidates it may be set to; a missing default is an empty card, not an error. */
+    suspend fun loadTtsVoiceDefault() {
+        val current: TtsVoiceDefault? = when (val result: ApiResult<TtsVoiceDefault> = api.ttsVoiceDefault()) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> {
+                if (result.error.code != NOT_FOUND_CODE) feedback.error(Res.string.platform_defaults_error, result.error.message)
+                null
+            }
+        }
+        when (val result: ApiResult<List<TtsVoiceCandidate>> = api.ttsVoiceCandidates()) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(
+                voiceDefault = current,
+                voiceCandidates = result.value,
+                voiceLoaded = true,
+            )
+            is ApiResult.Failure -> feedback.error(Res.string.platform_defaults_error, result.error.message)
+        }
+    }
+
+    /** Opens the editor on the current voice. Nothing is previewed until asked. */
+    fun openVoiceEdit() {
+        val current: String = _state.value.voiceDefault?.voiceId
+            ?: _state.value.voiceCandidates.firstOrNull()?.voiceId
+            ?: return
+        _state.value = _state.value.copy(voiceEdit = TtsVoiceDefaultEdit(voiceId = current))
+    }
+
+    fun pickVoice(voiceId: String) {
+        val edit: TtsVoiceDefaultEdit = _state.value.voiceEdit ?: return
+        if (edit.voiceId == voiceId) return
+        _state.value = _state.value.copy(voiceEdit = edit.copy(voiceId = voiceId, preview = null))
+    }
+
+    /** Fetches the counted blast radius for exactly the voice in the editor. */
+    suspend fun previewVoiceEdit() {
+        val edit: TtsVoiceDefaultEdit = _state.value.voiceEdit ?: return
+        val change: TtsVoiceDefaultChange = edit.change
+        _state.value = _state.value.copy(voiceEdit = edit.copy(previewing = true))
+        val result: ApiResult<PlatformDefaultBlastRadius> = api.previewTtsVoiceDefault(change)
+        val current: TtsVoiceDefaultEdit = _state.value.voiceEdit ?: return
+        // A preview for a voice the operator already changed again is dropped, never shown as theirs.
+        val stillSame: Boolean = current.change == change
+        when (result) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(
+                voiceEdit = current.copy(previewing = false, preview = if (stillSame) result.value else null),
+            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(voiceEdit = current.copy(previewing = false))
+                feedback.error(Res.string.platform_defaults_error, result.error.message)
+            }
+        }
+    }
+
+    fun dismissVoiceEdit() {
+        _state.value = _state.value.copy(voiceEdit = null)
+    }
+
+    /** Saves the previewed voice; the card becomes the server read-back. A stale count re-previews. */
+    suspend fun saveVoiceEdit() {
+        val edit: TtsVoiceDefaultEdit = _state.value.voiceEdit ?: return
+        val preview: PlatformDefaultBlastRadius = edit.preview ?: return
+        if (!edit.canSave) return
+        _state.value = _state.value.copy(voiceEdit = edit.copy(saving = true))
+        val body = SetTtsVoiceDefaultRequest(voiceId = edit.voiceId, confirmedChannelsAffected = preview.channelsAffected)
+        when (val result: ApiResult<TtsVoiceDefault> = api.setTtsVoiceDefault(body)) {
+            is ApiResult.Ok -> {
+                val saved: TtsVoiceDefault = result.value
+                _state.value = _state.value.copy(
+                    voiceDefault = saved,
+                    voiceCandidates = _state.value.voiceCandidates.map { it.copy(isDefault = it.voiceId == saved.voiceId) },
+                    voiceEdit = null,
+                )
+                feedback.success(Res.string.platform_defaults_saved, preview.channelsAffected)
+            }
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(voiceEdit = edit.copy(saving = false, preview = null))
+                if (result.error.code == STALE_CODE) {
+                    feedback.error(Res.string.platform_defaults_stale)
+                    previewVoiceEdit()
+                } else {
+                    feedback.error(Res.string.platform_defaults_error, result.error.message)
+                }
+            }
+        }
+    }
+
     // Applies [change] only while the editor still shows the same pick — a late preview for a pick the operator
     // already moved away from must never overwrite the newer one.
     private fun updateEdit(actionKey: String, level: Int?, change: (ActionDefaultEdit) -> ActionDefaultEdit) {
@@ -382,6 +494,7 @@ class PlatformDefaultsController(
 
     private companion object {
         const val STALE_CODE: String = "PREVIEW_STALE"
+        const val NOT_FOUND_CODE: String = "NOT_FOUND"
     }
 }
 

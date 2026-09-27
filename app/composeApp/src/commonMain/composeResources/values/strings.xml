@@ -5661,4 +5661,10 @@
     <string name="platform_defaults_reply_use_shipped">Use the shipped wording</string>
     <string name="platform_defaults_reply_template">Wording</string>
     <string name="platform_defaults_reply_template_required">A platform wording needs text, or switch back to the shipped wording.</string>
+    <string name="platform_defaults_section_tts_voice">TTS voice</string>
+    <string name="platform_defaults_voice_current">Platform voice: %1$s (%2$s)</string>
+    <string name="platform_defaults_voice_missing">The voice catalogue marks no platform default yet.</string>
+    <string name="platform_defaults_voice_counts">%1$d channel(s) follow this voice, %2$d picked their own</string>
+    <string name="platform_defaults_voice_edit_title">Platform default voice</string>
+    <string name="platform_defaults_voice_pick">Voice</string>
 </resources>

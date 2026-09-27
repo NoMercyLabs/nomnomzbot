@@ -43,6 +43,7 @@ import nomnomzbot.composeapp.generated.resources.platform_defaults_preview_none
 import nomnomzbot.composeapp.generated.resources.platform_defaults_section_builtin_replies
 import nomnomzbot.composeapp.generated.resources.platform_defaults_section_event_responses
 import nomnomzbot.composeapp.generated.resources.platform_defaults_section_permissions
+import nomnomzbot.composeapp.generated.resources.platform_defaults_section_tts_voice
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -51,6 +52,7 @@ internal enum class PlatformDefaultsSection(val label: StringResource) {
     Permissions(Res.string.platform_defaults_section_permissions),
     EventResponses(Res.string.platform_defaults_section_event_responses),
     BuiltinReplies(Res.string.platform_defaults_section_builtin_replies),
+    TtsVoice(Res.string.platform_defaults_section_tts_voice),
 }
 
 /**
@@ -71,6 +73,7 @@ internal fun PlatformDefaultsTab(controller: PlatformDefaultsController) {
             PlatformDefaultsSection.Permissions -> if (!state.actionsLoaded) controller.loadActionDefaults()
             PlatformDefaultsSection.EventResponses -> if (!state.eventsLoaded) controller.loadEventResponseDefaults()
             PlatformDefaultsSection.BuiltinReplies -> if (!state.repliesLoaded) controller.loadBuiltinReplyDefaults()
+            PlatformDefaultsSection.TtsVoice -> if (!state.voiceLoaded) controller.loadTtsVoiceDefault()
         }
     }
 
@@ -94,6 +97,7 @@ internal fun PlatformDefaultsTab(controller: PlatformDefaultsController) {
             PlatformDefaultsSection.Permissions -> ActionDefaultsSection(state = state, controller = controller)
             PlatformDefaultsSection.EventResponses -> EventResponseDefaultsSection(state = state, controller = controller)
             PlatformDefaultsSection.BuiltinReplies -> BuiltinReplyDefaultsSection(state = state, controller = controller)
+            PlatformDefaultsSection.TtsVoice -> TtsVoiceDefaultSection(state = state, controller = controller)
         }
     }
 }
