@@ -162,7 +162,8 @@ class AdminDataRequestsRenderTest {
             onAllNodesWithText("Failed").onFirst().performClick()
             waitForIdle()
 
-            assertEquals(listOf(null to null, "failed" to null), fakeApi.listCalls)
+            val expected: List<Pair<String?, String?>> = listOf(null to null, "failed" to null)
+            assertEquals(expected, fakeApi.listCalls.toList())
         }
     }
 
@@ -195,7 +196,7 @@ private class FakeComplianceApi(
         listCalls += status to requestType
         val filtered: List<ErasureRequest> =
             requests.filter { (status == null || it.status == status) && (requestType == null || it.requestType == requestType) }
-        return ApiResult.Ok(PaginatedEnvelope(filtered))
+        return ApiResult.Ok(PaginatedEnvelope<ErasureRequest>(filtered))
     }
 
     override suspend fun summary(): ApiResult<ErasureRequestSummary> = ApiResult.Ok(summary)

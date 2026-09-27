@@ -490,7 +490,7 @@ private class FakeComplianceApiForGroupingTest : ComplianceApi {
         requestType: String?,
         page: Int,
         pageSize: Int,
-    ): ApiResult<PaginatedEnvelope<ErasureRequest>> = ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    ): ApiResult<PaginatedEnvelope<ErasureRequest>> = ApiResult.Ok(PaginatedEnvelope<ErasureRequest>(emptyList()))
     override suspend fun summary(): ApiResult<ErasureRequestSummary> = ApiResult.Ok(ErasureRequestSummary())
 }
 
