@@ -127,7 +127,8 @@ internal fun DataRequestsTab(state: AdminState, controller: AdminController) {
 
         if (state.dataRequestsLoading) {
             Spinner(color = tokens.primary)
-        } else if (state.dataRequests.isEmpty()) {
+        } else if (state.dataRequests.isEmpty() && state.dataRequestsError == null) {
+            // A failed load is reported by the error line above; "nothing recorded" would contradict it.
             EmptyLine(stringResource(Res.string.admin_data_requests_empty))
         } else {
             Card(modifier = Modifier.fillMaxWidth()) {
