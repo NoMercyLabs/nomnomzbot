@@ -351,6 +351,35 @@ public sealed class AdminServiceErrorBudgetAndReplayTests
     }
 
     [Fact]
+    public async Task PreviewEventReplay_treats_a_window_typed_without_a_zone_as_UTC()
+    {
+        FakeProjection projection = new("fake-currency-balance", "currency.credited");
+        (AdminService sut, AuthDbContext db, _) = Build(projection);
+        Channel tenant = SeedChannel(db, "streamer_replay_unspecified");
+        SeedEvent(db, tenant.Id, "currency.credited", Now.AddHours(-1), 1);
+        SeedEvent(db, tenant.Id, "currency.credited", Now.AddHours(-30), 2);
+        await db.SaveChangesAsync();
+
+        // "2026-09-05T12:00:00" with no trailing Z binds as Unspecified; the window is UTC by contract.
+        DateTime from = DateTime.SpecifyKind(Now.AddDays(-1), DateTimeKind.Unspecified);
+        DateTime to = DateTime.SpecifyKind(Now, DateTimeKind.Unspecified);
+
+        Result<AdminEventReplayPreviewDto> preview = await sut.PreviewEventReplayAsync(
+            tenant.Id,
+            "fake-currency-balance",
+            from,
+            to,
+            eventType: null
+        );
+
+        preview.IsSuccess.Should().BeTrue(preview.ErrorMessage);
+        preview.Value.MatchingEventCount.Should().Be(1);
+        preview.Value.FromUtc.Kind.Should().Be(DateTimeKind.Utc);
+        preview.Value.ToUtc.Kind.Should().Be(DateTimeKind.Utc);
+        preview.Value.FromUtc.Should().Be(Now.AddDays(-1));
+    }
+
+    [Fact]
     public async Task ExecuteEventReplay_with_a_stale_count_fails_closed_and_applies_nothing()
     {
         FakeProjection projection = new("fake-stale-check", "currency.credited");

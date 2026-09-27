@@ -852,6 +852,8 @@ public sealed class AdminService : IAdminService
         CancellationToken ct = default
     )
     {
+        fromUtc = AsUtc(fromUtc);
+        toUtc = AsUtc(toUtc);
         if (toUtc < fromUtc)
             return Result.Failure<AdminEventReplayPreviewDto>(
                 "The replay window's end must not precede its start.",
@@ -898,6 +900,8 @@ public sealed class AdminService : IAdminService
         CancellationToken ct = default
     )
     {
+        fromUtc = AsUtc(fromUtc);
+        toUtc = AsUtc(toUtc);
         if (toUtc < fromUtc)
             return Result.Failure<AdminEventReplayResultDto>(
                 "The replay window's end must not precede its start.",
@@ -1039,6 +1043,20 @@ public sealed class AdminService : IAdminService
             );
         return Result.Success(eventType);
     }
+
+    /// <summary>
+    /// A replay window typed without a trailing <c>Z</c> binds as <see cref="DateTimeKind.Unspecified"/>, which
+    /// Npgsql refuses to compare against a <c>timestamptz</c> column — the operator got an HTTP 500 for a
+    /// missing letter. The window is UTC by contract, so an unspecified kind is stamped UTC and a local one
+    /// converted.
+    /// </summary>
+    private static DateTime AsUtc(DateTime value) =>
+        value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        };
 
     private IQueryable<EventJournal> MatchingEvents(
         Guid broadcasterId,
