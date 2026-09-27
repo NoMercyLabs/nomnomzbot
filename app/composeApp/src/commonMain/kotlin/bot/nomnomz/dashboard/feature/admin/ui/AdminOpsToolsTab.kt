@@ -141,6 +141,7 @@ internal fun EventSubHealthTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        RefreshRow(loading = state.eventSubHealthLoading) { scope.launch { controller.loadEventSubHealth() } }
         state.eventSubHealthError?.let { InlineError(message = it) }
 
         if (state.eventSubHealthLoading) {
@@ -233,6 +234,7 @@ internal fun WebhookDeliveriesTab(state: AdminState, controller: AdminController
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        RefreshRow(loading = state.webhookDeliveriesLoading) { scope.launch { controller.loadWebhookDeliveries() } }
         state.webhookDeliveriesError?.let { InlineError(message = it) }
 
         if (state.webhookDeliveriesLoading) {
@@ -383,6 +385,7 @@ internal fun ScheduledJobsTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        RefreshRow(loading = state.scheduledJobsLoading) { scope.launch { controller.loadScheduledJobs() } }
         state.scheduledJobsError?.let { InlineError(message = it) }
 
         if (state.scheduledJobsLoading) {
@@ -522,6 +525,7 @@ internal fun TenantUsageTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        RefreshRow(loading = state.tenantUsageLoading) { scope.launch { controller.loadTenantUsage() } }
         state.tenantUsageError?.let { InlineError(message = it) }
 
         if (state.tenantUsageLoading) {
@@ -646,6 +650,7 @@ internal fun ErrorBudgetTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        RefreshRow(loading = state.errorBudgetLoading) { scope.launch { controller.loadErrorBudget() } }
         state.errorBudgetError?.let { InlineError(message = it) }
 
         if (state.errorBudgetLoading) {

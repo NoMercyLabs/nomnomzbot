@@ -3763,6 +3763,7 @@
     <string name="admin_job_retry_confirm_body">Dit plant een gloednieuwe uitvoering van %1$s voor %2$s, direct verschuldigd. De originele mislukte poging blijft precies zoals hij is.</string>
     <string name="admin_job_retry_confirm_action">Opnieuw proberen bevestigen</string>
     <string name="admin_job_retry_scheduled">Nieuwe poging ingepland. Een nieuwe run staat direct klaar en verschijnt in de wachtrij zodra hij wordt opgepakt.</string>
+    <string name="admin_refresh">Vernieuwen</string>
     <string name="admin_review_confirmed">Bevestigd. De actie blijft staan en het item is uit de beoordelingswachtrij.</string>
     <string name="admin_review_overturned">Teruggedraaid. Twitch heeft de actie opgeheven en het item is uit de beoordelingswachtrij.</string>
     <string name="admin_network_block_applied">Netwerkblokkade toegepast op %1$d kanalen.</string>

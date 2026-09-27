@@ -31,6 +31,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.admin_refresh
+import org.jetbrains.compose.resources.stringResource
 
 /** A muted single-line empty state inside a card — the admin panel's "nothing here" affordance. */
 @Composable
@@ -45,6 +48,20 @@ internal fun EmptyLine(text: String) {
             color = tokens.mutedForeground,
             modifier = Modifier.padding(spacing.s4),
         )
+    }
+}
+
+/**
+ * Re-reads a live list in place. These admin lists are snapshots taken when the tab first opened; without
+ * this an operator watching a job queue or delivery log had to leave and reload the whole console.
+ * Outline and right-aligned: it is a secondary action, never the page's primary one.
+ */
+@Composable
+internal fun RefreshRow(loading: Boolean, onRefresh: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        OutlinedButton(onClick = onRefresh, enabled = !loading, loading = loading) {
+            Text(text = stringResource(Res.string.admin_refresh))
+        }
     }
 }
 

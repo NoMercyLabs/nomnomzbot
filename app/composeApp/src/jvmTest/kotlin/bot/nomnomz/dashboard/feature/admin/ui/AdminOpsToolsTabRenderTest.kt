@@ -311,6 +311,51 @@ class AdminOpsToolsTabRenderTest {
     }
 
     @Test
+    fun refresh_rereads_the_job_queue_in_place_and_shows_a_job_queued_since_the_tab_opened() {
+        fun job(id: String, pipeline: String): AdminScheduledJob =
+            AdminScheduledJob(
+                id = id,
+                broadcasterId = "chan-1",
+                channelDisplayName = "qtkitte",
+                pipelineId = "pipe-$id",
+                pipelineName = pipeline,
+                pipelineExists = true,
+                status = "pending",
+                displayState = "queued",
+                dueAt = "2026-09-06T13:00:00Z",
+                createdAt = "2026-09-06T12:00:00Z",
+                triggeredByDisplayName = "some_viewer",
+                canRetry = false,
+            )
+        val api = FakeAdminApiForOpsToolsTest(scheduledJobs = listOf(job("job-1", "feather-hide")))
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+        runTest { controller.loadScheduledJobs() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingScheduledJobsTab(controller = controller)
+                }
+            }
+            waitForIdle()
+            onNodeWithText("feather-hide", substring = true).assertExists()
+            onAllNodesWithText("hat-swap", substring = true).assertCountEquals(0)
+
+            api.scheduledJobs = api.scheduledJobs + job("job-2", "hat-swap")
+            onNodeWithText("Refresh").performClick()
+            waitForIdle()
+
+            onNodeWithText("feather-hide", substring = true).assertExists()
+            onNodeWithText("hat-swap", substring = true).assertExists()
+        }
+    }
+
+    @Test
     fun tenant_usage_renders_the_real_recorded_quantities_and_period() {
         val usage = AdminTenantUsage(
             broadcasterId = "chan-1",
@@ -514,7 +559,8 @@ class AdminOpsToolsTabRenderTest {
 private class FakeAdminApiForOpsToolsTest(
     private val eventSubHealth: List<AdminEventSubTenantHealth> = emptyList(),
     private var webhookDeliveries: List<AdminWebhookDelivery> = emptyList(),
-    private var scheduledJobs: List<AdminScheduledJob> = emptyList(),
+    // Public so a test can move the queue on between two reads, the way a live worker would.
+    var scheduledJobs: List<AdminScheduledJob> = emptyList(),
     private val tenantUsage: List<AdminTenantUsage> = emptyList(),
     private val errorBudget: List<AdminTenantErrorBudget> = emptyList(),
     private val replayProjections: List<AdminReplayableProjection> = emptyList(),

@@ -75,6 +75,9 @@ internal fun AuditTab(state: AdminState, controller: AdminController) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        RefreshRow(loading = state.auditLoading) {
+            scope.launch { controller.loadAudit(outcome = state.auditOutcomeFilter, permission = state.auditPermissionFilter) }
+        }
         state.auditError?.let { InlineError(message = it) }
 
         AppTextField(
