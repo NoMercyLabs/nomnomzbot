@@ -386,9 +386,10 @@ class AdminOpsToolsTabRenderTest {
             }
             waitForIdle()
 
-            // The priced unit reports real money, and the total is stated in its own currency.
-            onNodeWithText("Cost: 250 EUR", substring = true).assertExists()
-            onNodeWithText("Total: 250 EUR", substring = true).assertExists()
+            // The priced unit reports real money in major units (the API states 250 minor units), and the
+            // total is stated in its own currency.
+            onNodeWithText("Cost: 2.50 EUR", substring = true).assertExists()
+            onNodeWithText("Total: 2.50 EUR", substring = true).assertExists()
 
             // The unpriced ones say so, by name, instead of reading as free. BOTH of them: the unpriced
             // metric and the unpriced TTS line each carry their own "not priced yet", so neither can

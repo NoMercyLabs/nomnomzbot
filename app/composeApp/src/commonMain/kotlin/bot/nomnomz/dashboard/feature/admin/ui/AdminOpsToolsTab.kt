@@ -587,7 +587,7 @@ private fun TenantUsageCard(usage: AdminTenantUsage) {
                     Text(
                         text = stringResource(
                             Res.string.admin_tenant_usage_total_cost,
-                            cost.minorUnits.toString(),
+                            formatMinorUnits(cost.minorUnits),
                             cost.currency.uppercase(),
                         ),
                         style = typography.sm,
@@ -622,7 +622,7 @@ private fun UsageCostLine(costMinorUnits: Long?, currency: String?) {
 
     Text(
         text = if (costMinorUnits != null && currency != null) {
-            stringResource(Res.string.admin_tenant_usage_cost, costMinorUnits.toString(), currency.uppercase())
+            stringResource(Res.string.admin_tenant_usage_cost, formatMinorUnits(costMinorUnits), currency.uppercase())
         } else {
             stringResource(Res.string.admin_tenant_usage_unpriced)
         },
