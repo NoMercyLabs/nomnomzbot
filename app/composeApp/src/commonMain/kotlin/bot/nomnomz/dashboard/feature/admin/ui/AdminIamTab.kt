@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.network.IamRoleAssignment
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
+import bot.nomnomz.dashboard.feature.admin.state.promoteCandidates
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_cancel
@@ -370,7 +371,7 @@ private fun PromoteDialog(
         PickerField(
             label = stringResource(Res.string.admin_iam_display_name),
             selectedLabel = selectedUserName,
-            options = state.users.map { it.id to (it.displayName + " (" + it.login + ")") },
+            options = promoteCandidates(state.users, state.principals).map { it.id to (it.displayName + " (" + it.login + ")") },
             onSelect = { id, label -> selectedUserId = id; selectedUserName = label },
         )
         PickerField(
