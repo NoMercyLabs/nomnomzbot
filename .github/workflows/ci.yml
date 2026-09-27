@@ -76,7 +76,31 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
           chmod +x gradlew
-          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon
+          set -o pipefail
+          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
+
+      # The job log is only readable in a browser session; annotations also come back through the
+      # REST API, so a Kotlin compile error or a failing test names itself where any client can read it.
+      - name: Surface frontend failures as annotations
+        if: failure()
+        working-directory: app
+        run: |
+          grep -E '^e: |> Task .* FAILED|^[^ ].* FAILED$|What went wrong' "$RUNNER_TEMP/jvmtest.log" \
+            | head -30 | while IFS= read -r line; do echo "::error::${line}"; done
+          python3 - composeApp/build/test-results/jvmTest <<'EOF'
+          import glob, sys, xml.etree.ElementTree as ET
+          for report in sorted(glob.glob(sys.argv[1] + "/*.xml")):
+              suite = ET.parse(report).getroot()
+              for case in suite.iter("testcase"):
+                  failure = case.find("failure")
+                  if failure is None:
+                      failure = case.find("error")
+                  if failure is None:
+                      continue
+                  message = (failure.get("message") or failure.text or "").strip()
+                  message = " | ".join(line.strip() for line in message.splitlines() if line.strip())[:800]
+                  print(f"::error::{case.get('classname')}.{case.get('name')}: {message}")
+          EOF
 
   build:
     name: Build & push image
