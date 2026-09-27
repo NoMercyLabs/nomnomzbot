@@ -190,6 +190,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tab_tenant_usage
 import nomnomzbot.composeapp.generated.resources.admin_tab_error_budget
 import nomnomzbot.composeapp.generated.resources.admin_tab_event_replay
 import nomnomzbot.composeapp.generated.resources.admin_tab_support
+import nomnomzbot.composeapp.generated.resources.admin_tab_data_requests
 import nomnomzbot.composeapp.generated.resources.admin_tab_trust_safety
 import nomnomzbot.composeapp.generated.resources.admin_providers_explain
 import nomnomzbot.composeapp.generated.resources.admin_providers_empty
@@ -280,6 +281,8 @@ internal enum class AdminTab(val group: AdminTabGroup, val label: StringResource
 
     /** Only present when [AdminController.trustSafetyAvailable] — the build wired a client for it. */
     TrustSafety(AdminTabGroup.Safety, Res.string.admin_tab_trust_safety),
+    /** Only present when [AdminController.complianceAvailable] — the build wired a client for it. */
+    DataRequests(AdminTabGroup.Safety, Res.string.admin_tab_data_requests),
 
     System(AdminTabGroup.Configuration, Res.string.admin_tab_system),
     FeatureFlags(AdminTabGroup.Configuration, Res.string.admin_tab_flags),
@@ -313,6 +316,7 @@ fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsC
         remember(
             controller.supportDeskAvailable,
             controller.trustSafetyAvailable,
+            controller.complianceAvailable,
             controller.platformBotAdminAvailable,
             platformDefaults,
         ) {
@@ -320,6 +324,7 @@ fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsC
                 when (tab) {
                     AdminTab.Support -> controller.supportDeskAvailable
                     AdminTab.TrustSafety -> controller.trustSafetyAvailable
+                    AdminTab.DataRequests -> controller.complianceAvailable
                     AdminTab.PlatformBot -> controller.platformBotAdminAvailable
                     AdminTab.PlatformDefaults -> platformDefaults != null
                     else -> true
@@ -361,6 +366,10 @@ fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsC
                 if (!state.crossTenantSignalsLoaded && state.trustSafetyJustification.isNotBlank()) {
                     controller.loadCrossTenantSignals()
                     controller.loadReviewQueue()
+                }
+            AdminTab.DataRequests ->
+                if (state.dataRequestSummary == null) {
+                    controller.loadDataRequests(status = null, requestType = null)
                 }
             else -> {}
         }
@@ -462,6 +471,7 @@ fun AdminScreen(controller: AdminController, platformDefaults: PlatformDefaultsC
             AdminTab.EventReplay -> EventReplayTab(state = state, controller = controller)
             AdminTab.Support -> SupportTab(state = state, controller = controller)
             AdminTab.TrustSafety -> TrustSafetyTab(state = state, controller = controller)
+            AdminTab.DataRequests -> DataRequestsTab(state = state, controller = controller)
         }
     }
 }

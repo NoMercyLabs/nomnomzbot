@@ -85,6 +85,9 @@ import bot.nomnomz.dashboard.core.network.PlatformBotAdminState
 import bot.nomnomz.dashboard.core.network.PlatformBotAdminStatus
 import bot.nomnomz.dashboard.core.network.PlatformBotReconnectPreview
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
+import bot.nomnomz.dashboard.core.network.ComplianceApi
+import bot.nomnomz.dashboard.core.network.ErasureRequest
+import bot.nomnomz.dashboard.core.network.ErasureRequestSummary
 import bot.nomnomz.dashboard.core.network.TrustSafetyReviewItem
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
@@ -370,6 +373,15 @@ data class AdminState(
      * message the dialog shows, so the operator sees the blast radius before it commits. */
     val reviewItemPendingOverturn: TrustSafetyReviewItem? = null,
     val reviewActionInFlight: String? = null,
+    // ── GDPR data requests, platform-wide (A7) ──
+    /** Every subject's requests matching the two filters, newest first; empty until the tab is first opened. */
+    val dataRequests: List<ErasureRequest> = emptyList(),
+    /** Counts by status from the real ledger; null until the tab is first opened. */
+    val dataRequestSummary: ErasureRequestSummary? = null,
+    val dataRequestStatusFilter: String? = null,
+    val dataRequestTypeFilter: String? = null,
+    val dataRequestsLoading: Boolean = false,
+    val dataRequestsError: String? = null,
     // ── Network-wide block (S-ADMIN-8b) ──
     /** The Twitch user id the operator is about to preview/block — free text, not resolved until preview. */
     val networkBlockTargetTwitchUserId: String = "",
@@ -449,6 +461,9 @@ class AdminController(
     // The platform-wide trust & safety desk (S-ADMIN-8a). Nullable for the same reason: a bare test
     // controller still builds, and the tab stays hidden when the build has no client for it.
     private val trustSafetyApi: TrustSafetyApi? = null,
+    // The platform-wide GDPR request monitor (A7). Nullable for the same reason: a bare test controller
+    // still builds, and the tab stays hidden when the build has no client for it.
+    private val complianceApi: ComplianceApi? = null,
     // The shared platform bot's admin surface (S-BOT-PLATFORM-UI). Nullable like the other optional
     // collaborators so a bare test controller still builds; the tab stays hidden when the build has no
     // client for it.
@@ -1195,6 +1210,42 @@ class AdminController(
 
     /** True when this build wired a trust-safety client — the tab is hidden rather than dead without one. */
     val trustSafetyAvailable: Boolean get() = trustSafetyApi != null
+
+    // ── GDPR data requests, platform-wide (A7) ───────────────────────
+
+    /** True when this build wired a compliance client — the tab is hidden rather than dead without one. */
+    val complianceAvailable: Boolean get() = complianceApi != null
+
+    /**
+     * Reloads the platform-wide request list under exactly [status] / [requestType] (null = all) and the
+     * status summary beside it, so the counts and the rows always describe the same ledger moment. Both
+     * filters are passed explicitly: a chip that clears a filter passes null and the null is honoured.
+     */
+    suspend fun loadDataRequests(status: String?, requestType: String?) {
+        val api: ComplianceApi = complianceApi ?: return
+        _state.value = _state.value.copy(
+            dataRequestsLoading = true,
+            dataRequestsError = null,
+            dataRequestStatusFilter = status,
+            dataRequestTypeFilter = requestType,
+        )
+        val summary: ApiResult<ErasureRequestSummary> = api.summary()
+        if (summary is ApiResult.Failure) {
+            _state.value = _state.value.copy(dataRequestsLoading = false, dataRequestsError = summary.error.message)
+            return
+        }
+        val page: ApiResult<PaginatedEnvelope<ErasureRequest>> = api.listRequests(status = status, requestType = requestType)
+        when (page) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    dataRequests = page.value.data,
+                    dataRequestSummary = (summary as ApiResult.Ok<ErasureRequestSummary>).value,
+                    dataRequestsLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(dataRequestsLoading = false, dataRequestsError = page.error.message)
+        }
+    }
 
     fun setTrustSafetyJustification(value: String) {
         _state.value = _state.value.copy(trustSafetyJustification = value)

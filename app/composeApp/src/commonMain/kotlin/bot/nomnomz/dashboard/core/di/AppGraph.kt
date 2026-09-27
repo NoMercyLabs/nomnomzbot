@@ -123,7 +123,9 @@ import bot.nomnomz.dashboard.core.network.RestPlatformBotAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.RestPlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
+import bot.nomnomz.dashboard.core.network.ComplianceApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApiImpl
+import bot.nomnomz.dashboard.core.network.RestComplianceApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApiImpl
 import bot.nomnomz.dashboard.core.network.RestTenantMembersApi
@@ -420,6 +422,9 @@ class AppGraph {
 
     /** The platform-wide trust & safety desk (S-ADMIN-8a) — gated server-side on `trust-safety:review`. */
     val trustSafetyApi: TrustSafetyApi = TrustSafetyApiImpl(apiClient)
+
+    /** The platform-wide GDPR request monitor (A7) — gated server-side on `audit:read`. */
+    val complianceApi: ComplianceApi = RestComplianceApi(apiClient)
 
     // The shared platform bot's admin surface (S-BOT-PLATFORM-UI).
     val platformBotAdminApi: PlatformBotAdminApi = RestPlatformBotAdminApi(apiClient)
@@ -848,6 +853,7 @@ class AppGraph {
             platformAdminApi = platformAdminApi,
             supportApi = adminSupportApi,
             trustSafetyApi = trustSafetyApi,
+            complianceApi = complianceApi,
             platformBotAdminApi = platformBotAdminApi,
             contentApi = platformContentApi,
             hubClient = adminHubClient,

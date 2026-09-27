@@ -61,6 +61,9 @@ import bot.nomnomz.dashboard.core.network.AdminWebhookDelivery
 import bot.nomnomz.dashboard.core.network.AdminWebhookReplayResult
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ComplianceApi
+import bot.nomnomz.dashboard.core.network.ErasureRequest
+import bot.nomnomz.dashboard.core.network.ErasureRequestSummary
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
@@ -166,6 +169,7 @@ class AdminTabGroupingTest {
             platformAdminApi = FakePlatformAdminApiForGroupingTest(),
             supportApi = FakeAdminSupportApiForGroupingTest(),
             trustSafetyApi = FakeTrustSafetyApiForGroupingTest(),
+            complianceApi = FakeComplianceApiForGroupingTest(),
             platformBotAdminApi = FakePlatformBotAdminApiForGroupingTest(),
         )
         val platformDefaults = PlatformDefaultsController(FakePlatformDefaultsApi(emptyList()))
@@ -250,6 +254,7 @@ class AdminTabGroupingTest {
 
             onNodeWithText(ENGLISH_TAB_LABEL.getValue(AdminTab.Support)).assertDoesNotExist()
             onNodeWithText(ENGLISH_TAB_LABEL.getValue(AdminTab.TrustSafety), substring = true).assertDoesNotExist()
+            onNodeWithText(ENGLISH_TAB_LABEL.getValue(AdminTab.DataRequests)).assertDoesNotExist()
 
             // The People group still reaches its other members — the gate hides exactly the one
             // unavailable destination, never its whole group.
@@ -293,6 +298,7 @@ class AdminTabGroupingTest {
             AdminTab.Billing to "Billing",
             AdminTab.SpamDefaults to "Spam defence defaults",
             AdminTab.TrustSafety to "Trust & safety",
+            AdminTab.DataRequests to "Data requests",
             AdminTab.System to "System",
             AdminTab.FeatureFlags to "Feature Flags",
             AdminTab.Providers to "Providers",
@@ -320,6 +326,7 @@ class AdminTabGroupingTest {
             AdminTab.Billing to "No invite codes yet.",
             AdminTab.SpamDefaults to "These are the values every new channel starts with",
             AdminTab.TrustSafety to "Why are you looking? (recorded)",
+            AdminTab.DataRequests to "No data requests match.",
             AdminTab.System to "No health checks reported.",
             AdminTab.FeatureFlags to PROBE_FLAG_KEY,
             AdminTab.Providers to "No providers loaded.",
@@ -473,6 +480,18 @@ private class FakeAdminSupportApiForGroupingTest : AdminSupportApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getTenantPipelines(channelId: String, justification: String, page: Int, pageSize: Int) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+}
+
+/** Only present to flip [AdminController.complianceAvailable] on — an empty ledger, so the tab's own
+ * empty-state copy is the reachability marker. */
+private class FakeComplianceApiForGroupingTest : ComplianceApi {
+    override suspend fun listRequests(
+        status: String?,
+        requestType: String?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<ErasureRequest>> = ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun summary(): ApiResult<ErasureRequestSummary> = ApiResult.Ok(ErasureRequestSummary())
 }
 
 /** Only present to flip [AdminController.trustSafetyAvailable] on — none of its methods are exercised by

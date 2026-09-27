@@ -319,6 +319,7 @@ class ApiContractTest {
             // named schema, so it is intentionally NOT registered.
             DataExport.serializer() to "DataExportDto",
             ErasureRequest.serializer() to "ErasureRequestDto",
+            ErasureRequestSummary.serializer() to "ErasureRequestSummaryDto",
             ConsentRecord.serializer() to "ConsentRecordDto",
             ErasurePreview.serializer() to "ErasurePreviewDto",
             ErasurePreviewCategory.serializer() to "ErasurePreviewCategoryDto",
