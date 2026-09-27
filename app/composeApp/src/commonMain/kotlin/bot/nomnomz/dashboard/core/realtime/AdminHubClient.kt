@@ -232,6 +232,9 @@ class AdminHubClient {
             }
         } finally {
             isConnected = false
+            // The panel's "live" badge reads the event stream, so the stream must say when the session ends;
+            // the reconnect loop's next heartbeat turns it back on.
+            _events.tryEmit(AdminHubEvent.Disconnected)
             hubSocket.close()
             if (socket === hubSocket) socket = null
         }
@@ -283,6 +286,10 @@ sealed interface AdminHubEvent {
     data class Log(val entry: AdminLogEntry) : AdminHubEvent
 
     data class Unknown(val target: String, val rawArgs: String) : AdminHubEvent
+
+    /** The hub session ended (server close, network drop, or a deliberate disconnect); nothing is live until
+     * the next push arrives. Not a server invocation — the client raises it itself. */
+    data object Disconnected : AdminHubEvent
 
     companion object {
         private val json: Json = Json { ignoreUnknownKeys = true; isLenient = true }

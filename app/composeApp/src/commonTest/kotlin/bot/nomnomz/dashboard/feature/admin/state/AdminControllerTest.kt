@@ -45,6 +45,9 @@ import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
 import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.core.network.TenantAccessGrant
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.flow.MutableSharedFlow
+import bot.nomnomz.dashboard.core.realtime.AdminHubEvent
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -88,6 +91,26 @@ class AdminControllerTest {
 
         // Settles cleanly once the fetch resolves.
         assertFalse(AdminSection.Users in controller.state.value.loadingSections)
+    }
+
+    @Test
+    fun the_live_badge_turns_off_when_the_hub_session_ends_and_back_on_at_the_next_push() = runTest {
+        val controller = AdminController(
+            api = LoadingFakeAdminApi(),
+            iamApi = LoadingFakePlatformIamApi(),
+            platformAdminApi = LoadingFakePlatformAdminApi(),
+        )
+        val events = MutableSharedFlow<AdminHubEvent>(extraBufferCapacity = 8)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        events.emit(AdminHubEvent.SystemStatus(system = null, stats = null))
+        assertTrue(controller.state.value.hubLive)
+
+        events.emit(AdminHubEvent.Disconnected)
+        assertFalse(controller.state.value.hubLive, "a dropped session must not keep reading as live")
+
+        events.emit(AdminHubEvent.SystemStatus(system = null, stats = null))
+        assertTrue(controller.state.value.hubLive)
     }
 }
 

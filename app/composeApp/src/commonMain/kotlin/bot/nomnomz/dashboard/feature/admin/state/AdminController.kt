@@ -114,6 +114,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_act_as_unavailable
 import nomnomzbot.composeapp.generated.resources.admin_action_error
+import nomnomzbot.composeapp.generated.resources.admin_job_retry_scheduled
 
 /**
  * The ordering keys the admin lists send. The server parses exactly these and falls back to its default
@@ -669,6 +670,7 @@ class AdminController(
                         logs = (listOf(evt.entry) + current.logs).take(LOG_CAP),
                     )
                 is AdminHubEvent.Unknown -> Unit
+                AdminHubEvent.Disconnected -> _state.value = current.copy(hubLive = false)
             }
         }
     }
@@ -1770,6 +1772,7 @@ class AdminController(
         when (val result = api.retryScheduledJob(taskId)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(retryPendingJobId = null)
+                feedback.success(Res.string.admin_job_retry_scheduled)
                 loadScheduledJobs()
             }
             is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, result.error.message)
