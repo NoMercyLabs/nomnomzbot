@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinitionDetail
+import bot.nomnomz.dashboard.core.network.PlatformContentInstallSummary
 import bot.nomnomz.dashboard.core.network.PlatformContentPublishJob
 import bot.nomnomz.dashboard.core.network.PlatformContentVersion
 import bot.nomnomz.dashboard.core.network.PlatformEvent
@@ -114,7 +115,11 @@ class AdminContentTabTest {
         )
         val api = FakeContentApiForUi(
             definitions = listOf(definition),
-            definitionDetail = PlatformContentDefinitionDetail(definition = definition, versions = listOf(version)),
+            definitionDetail = PlatformContentDefinitionDetail(
+                definition = definition,
+                versions = listOf(version),
+                installs = PlatformContentInstallSummary(installedCount = 49, behindCount = 42, editedCount = 7),
+            ),
             preview = PublishPreview(affectedCount = 42, skippedCount = 7, sampleTenantNames = listOf("acme")),
         )
         val iamApi = FakeIamApiWithOnePrincipal()
@@ -132,6 +137,11 @@ class AdminContentTabTest {
                     ObservingContentTab(controller = controller, currentUserId = "user-1")
                 }
             }
+
+            assertTrue(
+                onAllNodesWithText("49 installed · 42 behind · 7 edited by the channel (kept as they are)").fetchSemanticsNodes().isNotEmpty(),
+                "the detail must show the endpoint's real install summary so the admin knows who an update reaches",
+            )
 
             onAllNodesWithText("Publish…")[0].performClick()
             waitForIdle()

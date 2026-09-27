@@ -569,6 +569,18 @@ private fun ContentDefinitionDetail(
                     )
                 Text(text = detailLabel, style = typography.base, color = tokens.foreground)
                 Text(text = detail.definition.key, style = typography.xs, color = tokens.mutedForeground)
+                detail.installs?.let { installs ->
+                    Text(
+                        text = stringResource(
+                            Res.string.admin_content_install_summary,
+                            installs.installedCount,
+                            installs.behindCount,
+                            installs.editedCount,
+                        ),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 ManageGate(decision = canAuthor) { enabled ->
@@ -801,7 +813,8 @@ private fun PublishJobFailureSurface(job: PlatformContentPublishJob) {
     if (
         job.rebuildFailedWidgetIds.isEmpty() &&
         job.validationFailedPipelineIds.isEmpty() &&
-        job.validationFailedCodeScriptIds.isEmpty()
+        job.validationFailedCodeScriptIds.isEmpty() &&
+        job.updateFailedTemplateRowIds.isEmpty()
     )
         return
 
@@ -826,6 +839,13 @@ private fun PublishJobFailureSurface(job: PlatformContentPublishJob) {
                     Res.string.admin_content_validation_failures_code_script,
                     job.validationFailedCodeScriptIds.size,
                 ),
+                style = typography.sm,
+                color = tokens.destructive,
+            )
+        }
+        if (job.updateFailedTemplateRowIds.isNotEmpty()) {
+            Text(
+                text = stringResource(Res.string.admin_content_update_failures_template, job.updateFailedTemplateRowIds.size),
                 style = typography.sm,
                 color = tokens.destructive,
             )

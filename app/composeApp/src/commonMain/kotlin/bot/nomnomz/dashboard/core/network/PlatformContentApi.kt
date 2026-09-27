@@ -40,6 +40,16 @@ data class PlatformContentDefinition(
 data class PlatformContentDefinitionDetail(
     val definition: PlatformContentDefinition,
     val versions: List<PlatformContentVersion> = emptyList(),
+    val installs: PlatformContentInstallSummary? = null,
+)
+
+/** How many tenant copies exist, how many still carry an older version, and how many the tenant edited
+ * (PlatformContentInstallSummaryDto). Edited copies are the ones an update-in-place publish leaves alone. */
+@Serializable
+data class PlatformContentInstallSummary(
+    val installedCount: Int,
+    val behindCount: Int,
+    val editedCount: Int,
 )
 
 /** One immutable content version — a draft until [publishedAt] is set (PlatformContentVersionDto). */
@@ -89,6 +99,7 @@ data class PlatformContentPublishJob(
     val rebuildFailedWidgetIds: List<String> = emptyList(),
     val validationFailedPipelineIds: List<String> = emptyList(),
     val validationFailedCodeScriptIds: List<String> = emptyList(),
+    val updateFailedTemplateRowIds: List<String> = emptyList(),
 )
 
 /** The three publish modes §2.1 defines — matches the backend's `PlatformContentPublishModes` verbatim. */

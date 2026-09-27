@@ -271,6 +271,7 @@ class ApiContractTest {
             // Platform content authoring (platform-admin.md §4, PlatformContentController).
             PlatformContentDefinition.serializer() to "PlatformContentDefinitionDto",
             PlatformContentDefinitionDetail.serializer() to "PlatformContentDefinitionDetailDto",
+            PlatformContentInstallSummary.serializer() to "PlatformContentInstallSummaryDto",
             PlatformContentVersion.serializer() to "PlatformContentVersionDto",
             PublishPreview.serializer() to "PublishPreviewDto",
             PlatformContentPublishJob.serializer() to "PlatformContentPublishJobDto",

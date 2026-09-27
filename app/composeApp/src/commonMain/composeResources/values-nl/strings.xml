@@ -3830,6 +3830,8 @@
     <string name="admin_content_rebuild_failures">%1$d widget-heropbouw(en) voor tenants is/zijn mislukt — die tenants lopen nu uit de pas met deze versie.</string>
     <string name="admin_content_validation_failures">%1$d tenant-pipeline(s) zijn niet gevalideerd en dus niet gemigreerd.</string>
     <string name="admin_content_validation_failures_code_script">%1$d tenant-codescript(s) konden niet compileren en zijn niet gemigreerd — hun vorige versie blijft actief.</string>
+    <string name="admin_content_update_failures_template">%1$d geïnstalleerde sjabloon/sjablonen kon(den) niet worden bijgewerkt — die kanalen houden hun vorige versie.</string>
+    <string name="admin_content_install_summary">%1$d geïnstalleerd · %2$d achter · %3$d door het kanaal bewerkt (blijven zoals ze zijn)</string>
     <string name="admin_content_current_version">Gepubliceerd v%1$d</string>
     <string name="admin_content_draft_pending">Niet-gepubliceerd concept</string>
     <string name="admin_content_retired">Ingetrokken</string>

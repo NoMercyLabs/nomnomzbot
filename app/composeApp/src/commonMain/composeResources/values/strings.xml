@@ -3846,6 +3846,8 @@
     <string name="admin_content_rebuild_failures">%1$d tenant widget rebuild(s) failed — those tenants are now out of sync with this version.</string>
     <string name="admin_content_validation_failures">%1$d tenant pipeline(s) failed validation and were not migrated.</string>
     <string name="admin_content_validation_failures_code_script">%1$d tenant code script(s) failed to compile and were not migrated — their previous version stays live.</string>
+    <string name="admin_content_update_failures_template">%1$d installed template(s) could not be updated — those channels keep their previous version.</string>
+    <string name="admin_content_install_summary">%1$d installed · %2$d behind · %3$d edited by the channel (kept as they are)</string>
     <string name="admin_content_current_version">Published v%1$d</string>
     <string name="admin_content_draft_pending">Unpublished draft</string>
     <string name="admin_content_retired">Retired</string>
