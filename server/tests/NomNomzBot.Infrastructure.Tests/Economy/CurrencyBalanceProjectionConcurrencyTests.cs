@@ -146,28 +146,29 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
     }
 
     [Fact]
-    public async Task Concurrent_credits_applied_through_the_projection_leave_lifetime_earned_exactly_correct()
+    public async Task Concurrent_folds_of_the_same_credit_count_it_exactly_once()
     {
         await SeedAccountAsync();
 
         const int concurrency = 12;
         const long creditAmount = 10;
 
-        // Each event carries its own absolute BalanceAfter as the real service layer would (running totals
-        // don't need to be mutually consistent across these concurrent tasks for THIS assertion — only the
-        // LifetimeEarned accumulation, which is a pure per-event delta, is under test).
+        // The real race: the projection driver's retry of a fold racing an operator's replay of the same
+        // journal event. The driver drains a tenant's stream in order under a lease, so out-of-order folds
+        // are not a path — but the SAME event reaching the projection from several writers at once is, and
+        // exactly one of them may land. SQLite's own locking serializes the UPDATEs; the stream high-water
+        // mark makes every late one a no-op.
+        EventRecord credit = CreditEvent(1, creditAmount, creditAmount);
         Task[] tasks =
         [
             .. Enumerable
                 .Range(0, concurrency)
-                .Select(i =>
+                .Select(_ =>
                     Task.Run(async () =>
                     {
                         await using EventStoreTestDbContext db = NewContext();
                         CurrencyBalanceProjection sut = new(db);
-                        Result apply = await sut.ApplyAsync(
-                            CreditEvent(i + 1, creditAmount, creditAmount * (i + 1))
-                        );
+                        Result apply = await sut.ApplyAsync(credit);
                         apply.IsSuccess.Should().BeTrue();
                     })
                 ),
@@ -179,8 +180,8 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
         earned
             .Should()
             .Be(
-                concurrency * creditAmount,
-                "every concurrent credit fold must land atomically — no lost update on LifetimeEarned"
+                creditAmount,
+                "twelve writers folding one credit must count it once — neither lost nor duplicated"
             );
         spent.Should().Be(0);
     }

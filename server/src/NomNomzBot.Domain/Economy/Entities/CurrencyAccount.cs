@@ -28,4 +28,11 @@ public class CurrencyAccount : SoftDeletableEntity, ITenantScoped
     public long LifetimeSpent { get; set; }
     public bool IsFrozen { get; set; }
     public DateTime? LastActivityAt { get; set; }
+
+    /// <summary>
+    /// The tenant-stream position of the last ledger event the balance projection folded into this wallet.
+    /// A fold at or below it is a re-apply (an operator replay, a driver retry) and must change nothing, or
+    /// the lifetime totals would count the same event twice. Zeroed by the projection's reset.
+    /// </summary>
+    public long LastAppliedStreamPosition { get; set; }
 }

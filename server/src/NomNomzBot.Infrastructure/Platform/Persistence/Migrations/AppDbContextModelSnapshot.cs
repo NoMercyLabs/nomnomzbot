@@ -3255,6 +3255,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("LastActivityAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long>("LastAppliedStreamPosition")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("LifetimeEarned")
                         .HasColumnType("bigint");
 

@@ -22,10 +22,12 @@ namespace NomNomzBot.Infrastructure.Economy;
 /// Folds <c>CurrencyCreditedEvent</c> and <c>CurrencyDebitedEvent</c> into <see cref="CurrencyAccount.Balance"/>,
 /// <see cref="CurrencyAccount.LifetimeEarned"/>, and <see cref="CurrencyAccount.LifetimeSpent"/>.
 ///
-/// Unlike most projections this one is NOT fully replay-safe on the Balance column alone — the
-/// <c>BalanceAfter</c> value on the event is the authoritative running total from the service layer, so the
-/// projection trusts it directly rather than computing deltas. This keeps the projection idempotent on
-/// re-run because an event is only applied once (the projection driver gates on the checkpoint).
+/// The <c>BalanceAfter</c> value on the event is the authoritative running total from the service layer, so
+/// the projection trusts it directly rather than computing deltas. Re-applying an event must change nothing
+/// (the <see cref="IProjection.ApplyAsync"/> contract): an operator's windowed replay folds events the driver
+/// already folded, and the lifetime totals are per-event deltas that would otherwise count twice. So every
+/// fold is gated on <see cref="CurrencyAccount.LastAppliedStreamPosition"/> — an event at or below the
+/// wallet's high-water mark is a no-op, and <see cref="ResetAsync"/> zeroes the mark so a rebuild folds all.
 ///
 /// <c>LifetimeEarned</c>/<c>LifetimeSpent</c> are OWNED by this projection, not by
 /// <c>CurrencyAccountService.AppendAsync</c> — S004j found AppendAsync also incrementing these same two
@@ -63,7 +65,7 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
         Guid? accountId =
             payload["AccountId"]?.Value<string>() is { } s && Guid.TryParse(s, out Guid aid)
                 ? aid
-                : (Guid?)null;
+                : null;
         long? balanceAfter = payload["BalanceAfter"]?.Value<long?>();
         long? amount = payload["Amount"]?.Value<long?>();
 
@@ -73,14 +75,19 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
         bool isCredit = @event.EventType == "CurrencyCreditedEvent";
         long delta = amount.Value;
 
+        long position = @event.StreamPosition;
+
         await db
             .CurrencyAccounts.Where(a =>
-                a.Id == accountId.Value && a.BroadcasterId == broadcasterId
+                a.Id == accountId.Value
+                && a.BroadcasterId == broadcasterId
+                && a.LastAppliedStreamPosition < position
             )
             .ExecuteUpdateAsync(
                 setters =>
                     setters
                         .SetProperty(a => a.Balance, balanceAfter.Value)
+                        .SetProperty(a => a.LastAppliedStreamPosition, position)
                         .SetProperty(a => a.LastActivityAt, @event.OccurredAt)
                         .SetProperty(
                             a => a.LifetimeEarned,
@@ -114,6 +121,7 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
             account.Balance = 0;
             account.LifetimeEarned = 0;
             account.LifetimeSpent = 0;
+            account.LastAppliedStreamPosition = 0;
         }
 
         await db.SaveChangesAsync(cancellationToken);
