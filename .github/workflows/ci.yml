@@ -77,8 +77,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
           chmod +x gradlew
           set -o pipefail
-          rm -rf ~/.gradle/caches/build-cache-1
-          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon --no-build-cache --no-configuration-cache --no-parallel 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
+          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
 
       # The job log is only readable in a browser session; annotations also come back through the
       # REST API, so a Kotlin compile error or a failing test names itself where any client can read it.
@@ -88,34 +87,6 @@ jobs:
         run: |
           grep -E '^e: |> Task .* FAILED|^[^ ].* FAILED$|What went wrong' "$RUNNER_TEMP/jvmtest.log" \
             | head -30 | while IFS= read -r line; do echo "::error::${line}"; done
-
-      # TEMPORARY diagnostic for a persistent "Unresolved reference" on newly added strings.xml keys
-      # that neither --no-build-cache nor a locale-order fix resolved: prove (or disprove) whether the
-      # generated Res.string source for the JVM target actually contains the new members. Remove once
-      # the real cause is found.
-      - name: Diagnose generated Compose resource accessors
-        if: failure()
-        working-directory: app
-        run: |
-          echo "::notice::--- every distinct *ResourceAccessors* directory under build/generated ---"
-          find composeApp/build/generated -type d -iname "*ResourceAccessors*" 2>/dev/null | sort | while IFS= read -r d; do
-            echo "::notice::dir: $d"
-          done
-          echo "::notice::--- every directory containing a String2.commonMain.kt file (there may be more than one copy) ---"
-          find composeApp/build -iname "String2.commonMain.kt" 2>/dev/null | while IFS= read -r f; do
-            echo "::notice::found String2.commonMain.kt at: $f"
-            grep -c "admin_invite_setup_title" "$f" 2>/dev/null | while IFS= read -r c; do
-              echo "::notice::  contains admin_invite_setup_title: $c occurrence(s)"
-            done
-          done
-          echo "::notice::--- kotlinc invocation lines mentioning ResourceAccessors, from the raw build log ---"
-          grep -o '[^ ]*ResourceAccessors[^ ]*' "$RUNNER_TEMP/jvmtest.log" 2>/dev/null | sort -u | head -20 | while IFS= read -r line; do
-            echo "::notice::${line:0:300}"
-          done
-          echo "::notice::--- resource-generation task outcomes ---"
-          grep -E "Task :composeApp:.*[Rr]esource" "$RUNNER_TEMP/jvmtest.log" | while IFS= read -r line; do
-            echo "::notice::${line}"
-          done
           python3 - composeApp/build/test-results/jvmTest <<'EOF'
           import glob, sys, xml.etree.ElementTree as ET
           for report in sorted(glob.glob(sys.argv[1] + "/*.xml")):
