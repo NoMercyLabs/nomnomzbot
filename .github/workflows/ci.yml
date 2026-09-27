@@ -97,25 +97,21 @@ jobs:
         if: failure()
         working-directory: app
         run: |
-          ACCESSOR_DIR="composeApp/build/generated/compose/resourceGenerator/kotlin/commonMainResourceAccessors/nomnomzbot/composeapp/generated/resources"
-          echo "::notice::--- broad substring search: admin_invite_create (no anchoring) ---"
-          grep -rn "admin_invite_create" "$ACCESSOR_DIR" 2>/dev/null | head -10 | while IFS= read -r line; do
+          echo "::notice::--- every distinct *ResourceAccessors* directory under build/generated ---"
+          find composeApp/build/generated -type d -iname "*ResourceAccessors*" 2>/dev/null | sort | while IFS= read -r d; do
+            echo "::notice::dir: $d"
+          done
+          echo "::notice::--- every directory containing a String2.commonMain.kt file (there may be more than one copy) ---"
+          find composeApp/build -iname "String2.commonMain.kt" 2>/dev/null | while IFS= read -r f; do
+            echo "::notice::found String2.commonMain.kt at: $f"
+            grep -c "admin_invite_setup_title" "$f" 2>/dev/null | while IFS= read -r c; do
+              echo "::notice::  contains admin_invite_setup_title: $c occurrence(s)"
+            done
+          done
+          echo "::notice::--- kotlinc invocation lines mentioning ResourceAccessors, from the raw build log ---"
+          grep -o '[^ ]*ResourceAccessors[^ ]*' "$RUNNER_TEMP/jvmtest.log" 2>/dev/null | sort -u | head -20 | while IFS= read -r line; do
             echo "::notice::${line:0:300}"
           done
-          echo "::notice::--- broad substring search: admin_invite_setup (our renamed keys) ---"
-          grep -rn "admin_invite_setup" "$ACCESSOR_DIR" 2>/dev/null | head -20 | while IFS= read -r line; do
-            echo "::notice::${line:0:300}"
-          done
-          echo "::notice::--- broad substring search: admin_invite_revoke (known-working) ---"
-          grep -rln "admin_invite_revoke" "$ACCESSOR_DIR" 2>/dev/null | while IFS= read -r line; do
-            echo "::notice::${line:0:300}"
-          done
-          echo "::notice::--- sample of ONE accessor file's actual syntax (first 15 lines) ---"
-          SAMPLE=$(find "$ACCESSOR_DIR" -iname "String0.commonMain.kt" 2>/dev/null | head -1)
-          echo "::notice::sample file: $SAMPLE"
-          if [ -n "$SAMPLE" ]; then
-            head -15 "$SAMPLE" | while IFS= read -r line; do echo "::notice::${line:0:300}"; done
-          fi
           echo "::notice::--- resource-generation task outcomes ---"
           grep -E "Task :composeApp:.*[Rr]esource" "$RUNNER_TEMP/jvmtest.log" | while IFS= read -r line; do
             echo "::notice::${line}"
