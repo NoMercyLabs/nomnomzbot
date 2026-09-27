@@ -20,6 +20,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -337,6 +338,13 @@ public sealed class WidgetServiceCloneTests
         widget.PlatformSourceDefinitionId.Should().Be(definitionId);
         widget.PlatformSourceVersion.Should().Be(3);
         widget.PlatformSourceSyncedAt.Should().NotBeNull();
+        // The install-time hash is what makes the copy "untouched" to an update-in-place publish; a null hash
+        // left every gallery install permanently skipped (A5).
+        widget
+            .PlatformSourceHash.Should()
+            .Be(
+                WidgetContentPayload.ComputeSettingsHash(widget.Settings, widget.EventSubscriptions)
+            );
     }
 
     [Fact]

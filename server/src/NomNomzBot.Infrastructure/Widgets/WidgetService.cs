@@ -29,6 +29,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Content.PlatformContent;
 
 namespace NomNomzBot.Infrastructure.Widgets;
 
@@ -1509,6 +1510,12 @@ public class WidgetService : IWidgetService
 
         widget.PlatformSourceDefinitionId = definition.Id;
         widget.PlatformSourceVersion = version.Version;
+        // The hash the publish blast radius compares against: without it a gallery install always counted as
+        // "edited" and an update-in-place publish never reached it (A5).
+        widget.PlatformSourceHash = WidgetContentPayload.ComputeSettingsHash(
+            widget.Settings,
+            widget.EventSubscriptions
+        );
         widget.PlatformSourceSyncedAt = _timeProvider.GetUtcNow().UtcDateTime;
     }
 
