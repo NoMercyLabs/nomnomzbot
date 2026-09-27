@@ -299,7 +299,8 @@ public abstract class BaseController : ControllerBase
             // A stale blast-radius preview (platform-admin.md §4): the affected-tenant count changed
             // between preview and publish — the client's confirmed count no longer matches reality, so
             // publish fails closed and the client must re-run publish-preview.
-            or "PREVIEW_STALE" => ConflictResponse(
+            or "PREVIEW_STALE"
+            or "NETWORK_BLOCK_ACTIVE" => ConflictResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
                 result.ErrorCode
             ),

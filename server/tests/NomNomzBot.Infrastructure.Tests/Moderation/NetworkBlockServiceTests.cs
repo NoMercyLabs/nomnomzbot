@@ -289,6 +289,31 @@ public sealed class NetworkBlockServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_WhileABlockIsStillEnforced_IsRefused_AndBansNobodyTwice()
+    {
+        using AppDbContext seed = NewDbContext();
+        SeedOperator(seed, OperatorId, IamPermissionKeys.NetworkBlockManage);
+
+        using AppDbContext db = NewDbContext();
+        (NetworkBlockService sut, ITwitchModerationApi twitch) = NewService(db);
+        ApplyNetworkBlockRequest request = new(TargetTwitchId, "raid", Why, 3);
+        (await sut.ApplyAsync(OperatorId, request)).IsSuccess.Should().BeTrue();
+
+        Result<NetworkBlockDto> repeat = await sut.ApplyAsync(OperatorId, request);
+
+        repeat.ErrorCode.Should().Be("NETWORK_BLOCK_ACTIVE");
+        (await db.NetworkBlocks.CountAsync(b => b.TargetUserId == TargetUserId)).Should().Be(1);
+        await twitch
+            .Received(1)
+            .BanUserAsync(
+                TenantA,
+                TargetTwitchId,
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Apply_WithAStaleConfirmedCount_FailsClosed_AndAppliesNothing()
     {
         using AppDbContext seed = NewDbContext();

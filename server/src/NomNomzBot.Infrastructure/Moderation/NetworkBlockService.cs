@@ -107,6 +107,18 @@ public sealed class NetworkBlockService(
                 "PREVIEW_STALE"
             );
 
+        // One enforced block per actor: a repeat apply (a double-click, a retried request) would ban every
+        // tenant a second time and leave two rows to lift.
+        bool alreadyBlocked = await db.NetworkBlocks.AnyAsync(
+            b => b.TargetUserId == target.Id && b.Status != NetworkBlockStatus.Lifted,
+            ct
+        );
+        if (alreadyBlocked)
+            return Result.Failure<NetworkBlockDto>(
+                "This user is already under a network block. Lift it before applying another.",
+                "NETWORK_BLOCK_ACTIVE"
+            );
+
         NetworkBlock block = new()
         {
             TargetUserId = target.Id,
