@@ -1933,12 +1933,12 @@ private fun CreateInviteCodeDialog(
     val formValid: Boolean = maxRedemptions != null && maxRedemptions > 0
 
     Dialog(onDismissRequest = onDismiss) {
-        DialogTitle(text = stringResource(Res.string.admin_invite_create_title))
+        DialogTitle(text = stringResource(Res.string.admin_invite_setup_title))
 
         AppTextField(
             value = maxRedemptionsText,
             onValueChange = { maxRedemptionsText = it },
-            label = stringResource(Res.string.admin_invite_field_max_redemptions),
+            label = stringResource(Res.string.admin_invite_setup_max_redemptions),
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(spacing.s2))
@@ -1949,7 +1949,7 @@ private fun CreateInviteCodeDialog(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.admin_invite_field_grants_founder),
+                text = stringResource(Res.string.admin_invite_setup_grants_founder),
                 style = typography.sm,
                 color = tokens.foreground,
             )
@@ -1958,10 +1958,10 @@ private fun CreateInviteCodeDialog(
         Spacer(modifier = Modifier.height(spacing.s2))
 
         PickerField(
-            label = stringResource(Res.string.admin_invite_field_tier),
+            label = stringResource(Res.string.admin_invite_setup_tier),
             selectedLabel = tiers.firstOrNull { it.id == selectedTierId }?.key
-                ?: stringResource(Res.string.admin_invite_field_tier_none),
-            options = listOf("" to stringResource(Res.string.admin_invite_field_tier_none)) +
+                ?: stringResource(Res.string.admin_invite_setup_tier_none),
+            options = listOf("" to stringResource(Res.string.admin_invite_setup_tier_none)) +
                 tiers.map { it.id to it.key },
             onSelect = { id, _ -> selectedTierId = id.ifBlank { null } },
         )
@@ -1970,7 +1970,7 @@ private fun CreateInviteCodeDialog(
         AppTextField(
             value = expiresAt,
             onValueChange = { expiresAt = it },
-            label = stringResource(Res.string.admin_invite_field_expires),
+            label = stringResource(Res.string.admin_invite_setup_expires),
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -1990,7 +1990,7 @@ private fun CreateInviteCodeDialog(
                 },
                 enabled = formValid,
             ) {
-                Text(text = stringResource(Res.string.admin_invite_create_confirm))
+                Text(text = stringResource(Res.string.admin_invite_setup_confirm))
             }
         }
     }
