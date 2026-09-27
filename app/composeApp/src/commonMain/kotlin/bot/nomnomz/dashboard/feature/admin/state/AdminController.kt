@@ -450,6 +450,9 @@ enum class ImpersonationRefusal {
     TargetOutsideSession,
 }
 
+/** The server's fail-closed code when a confirmed blast-radius count no longer matches a fresh one. */
+private const val PREVIEW_STALE: String = "PREVIEW_STALE"
+
 /**
  * The platform-admin panel's holder. Beyond the read-only stats/channels/users/flags/billing it drives the
  * Plane-C management surfaces — IAM (principals/roles), tenant operations (suspend/reinstate/detail), and the
@@ -1633,7 +1636,12 @@ class AdminController(
                 confirmedAffectedChannelCount = preview.affectedChannelCount,
             )
         ) {
-            is ApiResult.Failure -> feedback.error(Res.string.admin_action_error, start.error.message)
+            is ApiResult.Failure ->
+                if (start.error.code == PREVIEW_STALE) {
+                    failPlatformBotReconnectAsStale(start.error.message)
+                } else {
+                    feedback.error(Res.string.admin_action_error, start.error.message)
+                }
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(
                     platformBotReconnectDevice = PlatformBotReconnectDeviceState(
@@ -1671,7 +1679,15 @@ class AdminController(
                     confirmedAffectedChannelCount = confirmedAffectedChannelCount,
                 )
             ) {
-                is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
+                is ApiResult.Failure -> {
+                    // A moved blast radius is final, not transient: polling on would spin until the code
+                    // expired. Drop the device panel and the now-wrong preview so the operator re-previews.
+                    if (poll.error.code == PREVIEW_STALE) {
+                        failPlatformBotReconnectAsStale(poll.error.message)
+                        return
+                    }
+                    // Anything else is tolerated until the code's deadline.
+                }
                 is ApiResult.Ok ->
                     when (poll.value.status) {
                         "authorized" -> {
@@ -1697,6 +1713,14 @@ class AdminController(
             _state.value = _state.value.copy(platformBotReconnectDevice = null)
             feedback.error(Res.string.admin_action_error, "expired")
         }
+    }
+
+    private fun failPlatformBotReconnectAsStale(message: String) {
+        _state.value = _state.value.copy(
+            platformBotReconnectDevice = null,
+            platformBotReconnectPreview = null,
+        )
+        feedback.error(Res.string.admin_action_error, message)
     }
 
     // ── EventSub subscription health (S-ADMIN-6a) ───────────────────────────────
