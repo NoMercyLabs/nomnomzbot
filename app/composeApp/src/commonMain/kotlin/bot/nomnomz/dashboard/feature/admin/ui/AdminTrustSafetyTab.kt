@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
@@ -121,6 +120,7 @@ internal fun TrustSafetyTab(state: AdminState, controller: AdminController) {
                 scope.launch {
                     controller.loadCrossTenantSignals()
                     controller.loadReviewQueue()
+                    controller.loadNetworkBlocks()
                 }
             },
             enabled = canLook,
@@ -361,11 +361,9 @@ private fun NetworkBlockSection(state: AdminState, controller: AdminController, 
             style = typography.sm,
             color = tokens.mutedForeground,
         )
-        LaunchedEffect(state.trustSafetyJustification.isNotBlank()) {
-            if (state.trustSafetyJustification.isNotBlank() && !state.networkBlocksLoaded) {
-                controller.loadNetworkBlocks()
-            }
-        }
+        // Loaded by the Look button with the other audited reads — never on the first keystroke of the
+        // justification, which audited a one-character reason.
+        state.networkBlocksError?.let { InlineError(message = it) }
         when {
             state.networkBlocksLoading -> Spinner(color = tokens.primary)
             state.networkBlocks.isNotEmpty() -> Card(modifier = Modifier.fillMaxWidth()) {
@@ -394,6 +392,8 @@ private fun NetworkBlockSection(state: AdminState, controller: AdminController, 
             confirmLabel = stringResource(Res.string.admin_network_block_apply_confirm_confirm),
             dismissLabel = stringResource(Res.string.admin_network_block_apply_confirm_cancel),
             destructive = true,
+            // A second click while the first apply is in flight would ban every tenant twice.
+            confirmEnabled = !state.networkBlockApplyInFlight,
             onConfirm = { scope.launch { controller.applyNetworkBlock() } },
             onDismiss = { controller.dismissApplyNetworkBlockRequest() },
         )

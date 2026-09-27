@@ -3779,6 +3779,9 @@
     <string name="admin_job_retry_confirm_body">This schedules a brand-new run of %1$s for %2$s, due right away. The original failed attempt stays exactly as it is.</string>
     <string name="admin_job_retry_confirm_action">Confirm retry</string>
     <string name="admin_job_retry_scheduled">Retry scheduled. A new run is due right away; it appears in the queue as soon as it is picked up.</string>
+    <string name="admin_review_confirmed">Confirmed. The action stands and the item left the review queue.</string>
+    <string name="admin_review_overturned">Overturned. Twitch lifted the action and the item left the review queue.</string>
+    <string name="admin_network_block_applied">Network block applied on %1$d channels.</string>
     <string name="admin_tab_tenant_usage">Usage</string>
     <string name="admin_tenant_usage_empty">No recorded usage found.</string>
     <string name="admin_tenant_usage_label">Tenant</string>

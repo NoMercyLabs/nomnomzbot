@@ -115,6 +115,9 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_act_as_unavailable
 import nomnomzbot.composeapp.generated.resources.admin_action_error
 import nomnomzbot.composeapp.generated.resources.admin_job_retry_scheduled
+import nomnomzbot.composeapp.generated.resources.admin_network_block_applied
+import nomnomzbot.composeapp.generated.resources.admin_review_confirmed
+import nomnomzbot.composeapp.generated.resources.admin_review_overturned
 
 /**
  * The ordering keys the admin lists send. The server parses exactly these and falls back to its default
@@ -1349,6 +1352,7 @@ class AdminController(
         when (val result = api.confirm(detectionId = detectionId, justification = justification)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(reviewActionInFlight = null)
+                feedback.success(Res.string.admin_review_confirmed)
                 loadReviewQueue()
             }
             is ApiResult.Failure -> {
@@ -1372,6 +1376,7 @@ class AdminController(
         when (val result = api.overturn(detectionId = detectionId, justification = justification)) {
             is ApiResult.Ok -> {
                 _state.value = _state.value.copy(reviewActionInFlight = null)
+                feedback.success(Res.string.admin_review_overturned)
                 loadReviewQueue()
             }
             is ApiResult.Failure -> {
@@ -1443,6 +1448,8 @@ class AdminController(
         val preview: NetworkBlockPreview = _state.value.networkBlockPreview ?: return
         val justification: String = _state.value.trustSafetyJustification.trim()
         if (justification.isBlank()) return
+        // A second confirm while the first is in flight would ban every tenant a second time.
+        if (_state.value.networkBlockApplyInFlight) return
 
         _state.value = _state.value.copy(networkBlockApplyInFlight = true)
         val result = api.applyNetworkBlock(
@@ -1460,6 +1467,7 @@ class AdminController(
                     networkBlockTargetTwitchUserId = "",
                     networkBlockReason = "",
                 )
+                feedback.success(Res.string.admin_network_block_applied, result.value.channelCount)
                 loadNetworkBlocks()
             }
             is ApiResult.Failure -> {

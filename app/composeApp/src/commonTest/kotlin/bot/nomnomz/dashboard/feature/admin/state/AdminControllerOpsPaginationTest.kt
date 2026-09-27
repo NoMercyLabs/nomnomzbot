@@ -148,7 +148,7 @@ class AdminControllerOpsPaginationTest {
 
 /** 26 rows total per list — page 1 is a full 25-row page with more after it; page 2 is the lone 26th row
  * with nothing further, exactly the server's own `PaginatedResponse` contract. */
-private class PagedOpsFakeAdminApi : AdminApi {
+internal class PagedOpsFakeAdminApi : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?): ApiResult<PaginatedEnvelope<AdminChannel>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
@@ -266,7 +266,7 @@ private fun <T> pagedEnvelope(page: Int, build: (Int) -> T): PaginatedEnvelope<T
         PaginatedEnvelope(data = listOf(build(26)), hasMore = false)
     }
 
-private class PagedFakePlatformIamApi : PlatformIamApi {
+internal class PagedFakePlatformIamApi : PlatformIamApi {
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
     override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> = ApiResult.Ok(emptyList())
     override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?): ApiResult<List<String>> =
@@ -280,7 +280,7 @@ private class PagedFakePlatformIamApi : PlatformIamApi {
     override suspend fun revokeAssignment(assignmentId: String, reason: String?): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-private class PagedFakePlatformAdminApi : PlatformAdminApi {
+internal class PagedFakePlatformAdminApi : PlatformAdminApi {
     override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminTenant>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun getTenant(broadcasterId: String): ApiResult<AdminTenantDetail> =
