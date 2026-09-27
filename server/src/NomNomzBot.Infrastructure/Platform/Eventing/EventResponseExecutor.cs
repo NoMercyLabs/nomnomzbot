@@ -100,7 +100,13 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 row.EventType,
                 cancellationToken
             ),
-            _ => new(row.IsEnabled, row.ResponseType, row.Message, row.PipelineId, row.MetadataJson),
+            _ => new(
+                row.IsEnabled,
+                row.ResponseType,
+                row.Message,
+                row.PipelineId,
+                row.MetadataJson
+            ),
         };
         if (config is not { IsEnabled: true })
             return;
@@ -166,7 +172,10 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     /// The response a channel that never chose its own gets: the platform default for the event type, as a
     /// chat message. Null when no platform default exists for the type (nothing happens, as before).
     /// </summary>
-    private async Task<EffectiveResponse?> PlatformDefaultAsync(string eventType, CancellationToken ct)
+    private async Task<EffectiveResponse?> PlatformDefaultAsync(
+        string eventType,
+        CancellationToken ct
+    )
     {
         PlatformEventResponseDefault? platform =
             await _db.PlatformEventResponseDefaults.FirstOrDefaultAsync(

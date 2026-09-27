@@ -26,7 +26,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "EventResponses",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
 
             // Untouched seed rows (disabled, no message, no pipeline, not installed from a platform template)
             // never carried a choice of their own: they follow the platform default from now on. Every other
@@ -48,31 +49,34 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     EventType = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     IsEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     Message = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
-                    UpdatedByUserId = table.Column<Guid>(type: "TEXT", nullable: true, collation: "NOCASE"),
+                    UpdatedByUserId = table.Column<Guid>(
+                        type: "TEXT",
+                        nullable: true,
+                        collation: "NOCASE"
+                    ),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_PlatformEventResponseDefaults", x => x.Id);
-                });
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlatformEventResponseDefaults_EventType",
                 table: "PlatformEventResponseDefaults",
                 column: "EventType",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "PlatformEventResponseDefaults");
+            migrationBuilder.DropTable(name: "PlatformEventResponseDefaults");
 
-            migrationBuilder.DropColumn(
-                name: "FollowsPlatformDefault",
-                table: "EventResponses");
+            migrationBuilder.DropColumn(name: "FollowsPlatformDefault", table: "EventResponses");
         }
     }
 }

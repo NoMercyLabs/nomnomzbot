@@ -260,7 +260,10 @@ public class EventResponseService : IEventResponseService
         CancellationToken ct
     )
     {
-        List<string> following = [.. rows.Where(r => r.FollowsPlatformDefault).Select(r => r.EventType)];
+        List<string> following =
+        [
+            .. rows.Where(r => r.FollowsPlatformDefault).Select(r => r.EventType),
+        ];
         if (following.Count == 0)
             return new(StringComparer.Ordinal);
         return await _db

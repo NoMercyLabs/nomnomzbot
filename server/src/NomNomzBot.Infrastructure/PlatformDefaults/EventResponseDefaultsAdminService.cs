@@ -47,7 +47,11 @@ public sealed class EventResponseDefaultsAdminService(
         List<EventResponseDefaultDto> rows =
         [
             .. defaults.Select(d =>
-                ToDto(d, following.GetValueOrDefault(d.EventType), own.GetValueOrDefault(d.EventType))
+                ToDto(
+                    d,
+                    following.GetValueOrDefault(d.EventType),
+                    own.GetValueOrDefault(d.EventType)
+                )
             ),
         ];
         return Result.Success<IReadOnlyList<EventResponseDefaultDto>>(rows);
@@ -196,7 +200,11 @@ public sealed class EventResponseDefaultsAdminService(
     private async Task<PlatformEventResponseDefault?> FindAsync(
         string eventType,
         CancellationToken ct
-    ) => await db.PlatformEventResponseDefaults.FirstOrDefaultAsync(d => d.EventType == eventType, ct);
+    ) =>
+        await db.PlatformEventResponseDefaults.FirstOrDefaultAsync(
+            d => d.EventType == eventType,
+            ct
+        );
 
     private static string Describe(bool isEnabled, string? message) =>
         $"enabled={isEnabled};message={message ?? "-"}";
