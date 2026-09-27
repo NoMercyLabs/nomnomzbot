@@ -15,6 +15,9 @@ namespace NomNomzBot.Application.Tts.Dtos;
 /// <summary>
 /// TTS configuration for a channel (tts.md P.1). BYOK keys never leave the server — only their
 /// presence is surfaced, so the dashboard can show configured-state truthfully.
+/// <paramref name="DefaultVoiceId"/> is the EFFECTIVE voice (the channel's own pick, else the platform default
+/// voice), so the page never shows a voice the runtime does not speak; <paramref name="FollowsPlatformDefaultVoice"/>
+/// says which of the two it is.
 /// </summary>
 public sealed record TtsConfigDto(
     bool IsEnabled,
@@ -31,7 +34,8 @@ public sealed record TtsConfigDto(
     bool ViewerVoiceSelfServiceEnabled = true,
     bool HasAzureByokKey = false,
     bool HasElevenLabsByokKey = false,
-    string? AzureRegion = null
+    string? AzureRegion = null,
+    bool FollowsPlatformDefaultVoice = false
 );
 
 /// <summary>
@@ -68,6 +72,9 @@ public sealed record UpdateTtsConfigDto
 
     [MaxLength(255)]
     public string? DefaultVoiceId { get; init; }
+
+    /// <summary>True drops the channel's own voice pick so it follows the platform default voice again.</summary>
+    public bool? FollowPlatformDefaultVoice { get; init; }
 
     [Range(1, 500)]
     public int? MaxCharacters { get; init; }

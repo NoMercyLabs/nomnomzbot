@@ -41,6 +41,7 @@ public sealed class PlatformDefaultsAuthorizationTests
             typeof(ActionDefaultsAdminController),
             typeof(EventResponseDefaultsAdminController),
             typeof(BuiltinReplyDefaultsAdminController),
+            typeof(TtsVoiceDefaultsAdminController),
         };
 
     [Theory]

@@ -547,7 +547,15 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig>();
         b.Ignore<ChannelSubscription>();
-        b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
+        // TtsVoice + TtsConfig are mapped (navs ignored) so the platform default voice tests (plan item A4)
+        // can seed the catalogue and drive TtsConfigService's effective-voice resolution through this harness.
+        b.Entity<NomNomzBot.Domain.Tts.Entities.TtsVoice>().HasKey(v => v.Id);
+        b.Entity<NomNomzBot.Domain.Tts.Entities.TtsConfig>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel);
+            e.Ignore(c => c.SubjectKey);
+        });
         b.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
         // TtsUsageRecord is scalar-only (no navigation properties), so it materializes on InMemory as-is —
         // mapped so AdminService's per-tenant usage tests (S-ADMIN-6b) can seed and sum it through this harness.
@@ -729,9 +737,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
         Set<Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsConfig> TtsConfigs =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Tts.Entities.TtsConfig>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsVoice> TtsVoices =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
     public DbSet<NomNomzBot.Domain.Tts.Entities.UserTtsVoice> UserTtsVoices =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord> TtsUsageRecords =>

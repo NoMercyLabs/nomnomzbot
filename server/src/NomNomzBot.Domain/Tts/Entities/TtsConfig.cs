@@ -43,9 +43,13 @@ public class TtsConfig : SoftDeletableEntity, ITenantScoped
     [MaxLength(20)]
     public string DefaultProvider { get; set; } = "edge";
 
-    /// <summary>Channel default voice (→ TtsVoice.Id); viewers may override per-user.</summary>
+    /// <summary>
+    /// Channel default voice (→ TtsVoice.Id); viewers may override per-user. Null = the channel never picked
+    /// one and follows the platform default voice (plan item A4), resolved at read time so an admin change
+    /// reaches it without a redeploy.
+    /// </summary>
     [MaxLength(255)]
-    public string? DefaultVoiceId { get; set; } = "en-US-AriaNeural";
+    public string? DefaultVoiceId { get; set; }
 
     /// <summary>Opt-OUT light swear filter — defaults ON; the streamer may disable (tts.md §3.5).</summary>
     public bool ProfanityCensorEnabled { get; set; } = true;

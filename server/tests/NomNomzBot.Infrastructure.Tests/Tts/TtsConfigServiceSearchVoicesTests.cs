@@ -36,7 +36,8 @@ public sealed class TtsConfigServiceSearchVoicesTests
             ttsService ?? Substitute.For<ITtsService>(),
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
-            Substitute.For<Application.Identity.Services.IUserService>()
+            Substitute.For<Application.Identity.Services.IUserService>(),
+            new PlatformTtsVoiceDefault(db)
         );
 
     private static async Task<TtsTestDbContext> SeededCatalogueAsync()

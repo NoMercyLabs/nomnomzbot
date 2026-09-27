@@ -107,7 +107,8 @@ public sealed class TtsViewerSelfServiceTests
             Substitute.For<ITtsService>(),
             Substitute.For<IEventBus>(),
             Substitute.For<ISubjectKeyService>(),
-            Substitute.For<Application.Identity.Services.IUserService>()
+            Substitute.For<Application.Identity.Services.IUserService>(),
+            new PlatformTtsVoiceDefault(db)
         );
         return (config, db);
     }

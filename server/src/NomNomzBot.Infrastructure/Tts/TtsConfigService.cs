@@ -40,13 +40,15 @@ public class TtsConfigService : ITtsConfigService
     private readonly IEventBus _eventBus;
     private readonly ISubjectKeyService _subjectKeys;
     private readonly IUserService _users;
+    private readonly IPlatformTtsVoiceDefault _platformVoice;
 
     public TtsConfigService(
         IApplicationDbContext db,
         ITtsService ttsService,
         IEventBus eventBus,
         ISubjectKeyService subjectKeys,
-        IUserService users
+        IUserService users,
+        IPlatformTtsVoiceDefault platformVoice
     )
     {
         _db = db;
@@ -54,6 +56,7 @@ public class TtsConfigService : ITtsConfigService
         _eventBus = eventBus;
         _subjectKeys = subjectKeys;
         _users = users;
+        _platformVoice = platformVoice;
     }
 
     public async Task<Result<TtsConfigDto>> GetConfigAsync(
@@ -66,7 +69,7 @@ public class TtsConfigService : ITtsConfigService
             cancellationToken
         );
         // No row yet = the binding new-channel defaults; the row is created on first write, not on read.
-        return Result.Success(ToDto(config ?? new TtsConfig()));
+        return Result.Success(await ToDtoAsync(config ?? new TtsConfig(), cancellationToken));
     }
 
     public async Task<Result<TtsConfigDto>> UpdateConfigAsync(
@@ -91,7 +94,10 @@ public class TtsConfigService : ITtsConfigService
             config.Mode = request.Mode;
         if (request.DefaultProvider is not null)
             config.DefaultProvider = request.DefaultProvider;
-        if (request.DefaultVoiceId is not null)
+        // A channel's own pick takes it off the platform default; the explicit follow flag puts it back.
+        if (request.FollowPlatformDefaultVoice == true)
+            config.DefaultVoiceId = null;
+        else if (request.DefaultVoiceId is not null)
             config.DefaultVoiceId = request.DefaultVoiceId;
         if (request.MaxCharacters.HasValue)
             config.MaxCharacters = request.MaxCharacters.Value;
@@ -113,7 +119,7 @@ public class TtsConfigService : ITtsConfigService
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterId, cancellationToken);
 
-        return Result.Success(ToDto(config));
+        return Result.Success(await ToDtoAsync(config, cancellationToken));
     }
 
     public async Task<Result<TtsConfigDto>> SetByokKeyAsync(
@@ -182,7 +188,7 @@ public class TtsConfigService : ITtsConfigService
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterId, cancellationToken);
-        return Result.Success(ToDto(config));
+        return Result.Success(await ToDtoAsync(config, cancellationToken));
     }
 
     public async Task<Result<TtsConfigDto>> ClearByokKeyAsync(
@@ -219,7 +225,7 @@ public class TtsConfigService : ITtsConfigService
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterId, cancellationToken);
-        return Result.Success(ToDto(config));
+        return Result.Success(await ToDtoAsync(config, cancellationToken));
     }
 
     /// <summary>The channel's TTS DEK identity, derived the same deterministic way the token vault does it.</summary>
@@ -750,12 +756,19 @@ public class TtsConfigService : ITtsConfigService
         return Result.Success();
     }
 
-    private static TtsConfigDto ToDto(TtsConfig c) =>
-        new(
+    // The read model reports the EFFECTIVE voice: a channel that never picked one follows the platform default
+    // voice, resolved here on every read so an admin change shows (and speaks) without a redeploy.
+    private async Task<TtsConfigDto> ToDtoAsync(TtsConfig c, CancellationToken cancellationToken)
+    {
+        bool follows = c.DefaultVoiceId is null;
+        string? voiceId = follows
+            ? await _platformVoice.GetVoiceIdAsync(cancellationToken)
+            : c.DefaultVoiceId;
+        return new(
             c.IsEnabled,
             c.Mode,
             c.DefaultProvider,
-            c.DefaultVoiceId,
+            voiceId,
             c.MaxCharacters,
             c.MinPermission,
             c.SkipBotMessages,
@@ -766,6 +779,8 @@ public class TtsConfigService : ITtsConfigService
             c.ViewerVoiceSelfServiceEnabled,
             HasAzureByokKey: c.AzureApiKeyCipher is not null,
             HasElevenLabsByokKey: c.ElevenLabsApiKeyCipher is not null,
-            AzureRegion: c.AzureRegion
+            AzureRegion: c.AzureRegion,
+            FollowsPlatformDefaultVoice: follows
         );
+    }
 }

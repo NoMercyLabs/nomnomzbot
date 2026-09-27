@@ -128,7 +128,8 @@ public sealed class TtsVoiceAssignmentImportTests
                 tts,
                 Substitute.For<IEventBus>(),
                 Substitute.For<Application.Services.ISubjectKeyService>(),
-                users
+                users,
+                new PlatformTtsVoiceDefault(db)
             ),
             Db = db,
             Users = users,
