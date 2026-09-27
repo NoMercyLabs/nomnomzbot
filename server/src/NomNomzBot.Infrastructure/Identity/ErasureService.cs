@@ -59,6 +59,26 @@ public sealed class ErasureService : IErasureService
         "channel",
     };
 
+    private static readonly IReadOnlySet<string> StatusValues = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+    };
+
+    private static readonly IReadOnlySet<string> RequestTypeValues = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "erasure",
+        "export",
+        "opt_out",
+    };
+
     /// <summary>Consent types an opt-out withdraws (legitimate-interest processing, gdpr-crypto.md §3.7).</summary>
     private static readonly IReadOnlyList<string> OptOutConsentTypes =
     [
@@ -854,20 +874,33 @@ public sealed class ErasureService : IErasureService
 
     public async Task<Result<PagedList<ErasureRequestDto>>> ListRequestsAsync(
         PaginationParams pagination,
-        Guid? subjectUserId,
-        Guid? broadcasterId,
+        ErasureRequestQuery query,
         CancellationToken cancellationToken = default
     )
     {
-        IQueryable<ErasureRequest> query = _db.ErasureRequests.AsNoTracking();
-        if (subjectUserId is not null)
-            query = query.Where(r => r.SubjectUserId == subjectUserId);
-        if (broadcasterId is not null)
-            query = query.Where(r => r.BroadcasterId == broadcasterId);
+        if (query.Status is { } status && !StatusValues.Contains(status))
+            return Result.Failure<PagedList<ErasureRequestDto>>(
+                $"Unknown request status '{status}'.",
+                "VALIDATION_FAILED"
+            );
+        if (query.RequestType is { } requestType && !RequestTypeValues.Contains(requestType))
+            return Result.Failure<PagedList<ErasureRequestDto>>(
+                $"Unknown request type '{requestType}'.",
+                "VALIDATION_FAILED"
+            );
 
-        int total = await query.CountAsync(cancellationToken);
-        List<ErasureRequest> page = await query
-            .OrderByDescending(r => r.RequestedAt)
+        IQueryable<ErasureRequest> rows = _db.ErasureRequests.AsNoTracking();
+        if (query.SubjectUserId is not null)
+            rows = rows.Where(r => r.SubjectUserId == query.SubjectUserId);
+        if (query.BroadcasterId is not null)
+            rows = rows.Where(r => r.BroadcasterId == query.BroadcasterId);
+        if (query.Status is not null)
+            rows = rows.Where(r => r.Status == query.Status);
+        if (query.RequestType is not null)
+            rows = rows.Where(r => r.RequestType == query.RequestType);
+
+        int total = await rows.CountAsync(cancellationToken);
+        List<ErasureRequest> page = await rows.OrderByDescending(r => r.RequestedAt)
             .ThenByDescending(r => r.Id)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
@@ -879,6 +912,29 @@ public sealed class ErasureService : IErasureService
                 pagination.Page,
                 pagination.PageSize,
                 total
+            )
+        );
+    }
+
+    public async Task<Result<ErasureRequestSummaryDto>> GetRequestSummaryAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        Dictionary<string, int> byStatus = await _db
+            .ErasureRequests.AsNoTracking()
+            .GroupBy(r => r.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Status, g => g.Count, cancellationToken);
+
+        int Count(string status) => byStatus.GetValueOrDefault(status);
+        return Result.Success(
+            new ErasureRequestSummaryDto(
+                Total: byStatus.Values.Sum(),
+                Pending: Count("pending"),
+                Running: Count("running"),
+                Completed: Count("completed"),
+                Failed: Count("failed"),
+                Cancelled: Count("cancelled")
             )
         );
     }

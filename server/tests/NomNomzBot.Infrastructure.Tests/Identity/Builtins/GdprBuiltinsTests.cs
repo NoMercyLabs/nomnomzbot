@@ -135,7 +135,7 @@ public sealed class GdprBuiltinsTests
         Result<string> reply = await h.Forget.ExecuteAsync(Context(""));
 
         reply.Value.Should().Contain("cannot be undone").And.Contain("!forgetme confirm");
-        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!, default);
+        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public sealed class GdprBuiltinsTests
         Result<string> reply = await h.Forget.ExecuteAsync(Context("confirm"));
 
         reply.Value.Should().Contain("no pending erasure");
-        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!, default);
+        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!);
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public sealed class GdprBuiltinsTests
         Result<string> reply = await h.Forget.ExecuteAsync(Context("confirm"));
 
         reply.Value.Should().Contain("no pending erasure");
-        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!, default);
+        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public sealed class GdprBuiltinsTests
         Result<string> reply = await h.Forget.ExecuteAsync(Context("@victim"));
 
         reply.Value.Should().Contain("!forgetme confirm");
-        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!, default);
+        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!);
         // The identity that was resolved is the chatting viewer's own.
         await h
             .Users.Received()
@@ -282,8 +282,9 @@ public sealed class GdprBuiltinsTests
         Harness h = Build();
         h.Erasure.ListRequestsAsync(
                 Arg.Any<PaginationParams>(),
-                SubjectId,
-                null,
+                Arg.Is<ErasureRequestQuery>(q =>
+                    q.SubjectUserId == SubjectId && q.BroadcasterId == null
+                ),
                 Arg.Any<CancellationToken>()
             )
             .Returns(
@@ -299,8 +300,9 @@ public sealed class GdprBuiltinsTests
             .Erasure.Received(1)
             .ListRequestsAsync(
                 Arg.Any<PaginationParams>(),
-                SubjectId,
-                null,
+                Arg.Is<ErasureRequestQuery>(q =>
+                    q.SubjectUserId == SubjectId && q.BroadcasterId == null
+                ),
                 Arg.Any<CancellationToken>()
             );
         reply.Value.Should().Contain("erasure").And.Contain("completed");
@@ -312,8 +314,9 @@ public sealed class GdprBuiltinsTests
         Harness h = Build();
         h.Erasure.ListRequestsAsync(
                 Arg.Any<PaginationParams>(),
-                SubjectId,
-                null,
+                Arg.Is<ErasureRequestQuery>(q =>
+                    q.SubjectUserId == SubjectId && q.BroadcasterId == null
+                ),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success(new PagedList<ErasureRequestDto>([], 1, 1, 0)));
@@ -331,7 +334,7 @@ public sealed class GdprBuiltinsTests
         Result<string> reply = await h.Gdpr.ExecuteAsync(Context("wat"));
 
         reply.Value.Should().Contain("!gdpr status");
-        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!, default);
+        await h.Erasure.DidNotReceiveWithAnyArgs().RequestErasureAsync(default!);
     }
 
     [Fact]

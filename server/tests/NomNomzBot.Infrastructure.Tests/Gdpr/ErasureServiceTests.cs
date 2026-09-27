@@ -835,18 +835,66 @@ public sealed class ErasureServiceTests
 
         Result<PagedList<ErasureRequestDto>> own = await h.Sut.ListRequestsAsync(
             new(),
-            subjectUserId: SubjectUser,
-            broadcasterId: null
+            new(SubjectUser, BroadcasterId: null)
         );
         Result<PagedList<ErasureRequestDto>> all = await h.Sut.ListRequestsAsync(
             new(),
-            subjectUserId: null,
-            broadcasterId: null
+            new(SubjectUserId: null, BroadcasterId: null)
         );
 
         own.IsSuccess.Should().BeTrue();
         own.Value.Items.Should().ContainSingle().Which.SubjectUserId.Should().Be(SubjectUser);
         all.Value.Items.Should().HaveCount(2); // the compliance plane sees every subject
+    }
+
+    /// <summary>
+    /// The compliance console narrows the ledger by status and by request type, and the summary counts
+    /// the same rows: one completed export and one failed erasure (the vault refused) must come back as
+    /// exactly those under each filter, and as Total 2 / Completed 1 / Failed 1 on the summary.
+    /// </summary>
+    [Fact]
+    public async Task ListRequests_filters_by_status_and_type_and_the_summary_counts_the_same_rows()
+    {
+        Harness h = Build(decorateVault: inner => new RefusingRevokeVault(inner));
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        await StoreConnectionAsync(h.Vault, SubjectChannel, SubjectUser, "subject-access-token");
+        (await h.Sut.RequestExportAsync(new(OtherUser, null, "self_service")))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await h.Sut.RequestErasureAsync(SelfErasure(SubjectUser)))
+            .IsFailure.Should()
+            .BeTrue("the vault refuses, which leaves a failed request row");
+
+        Result<PagedList<ErasureRequestDto>> failed = await h.Sut.ListRequestsAsync(
+            new(),
+            new(SubjectUserId: null, BroadcasterId: null, Status: "failed")
+        );
+        Result<PagedList<ErasureRequestDto>> exports = await h.Sut.ListRequestsAsync(
+            new(),
+            new(SubjectUserId: null, BroadcasterId: null, RequestType: "export")
+        );
+        Result<PagedList<ErasureRequestDto>> failedExports = await h.Sut.ListRequestsAsync(
+            new(),
+            new(SubjectUserId: null, BroadcasterId: null, Status: "failed", RequestType: "export")
+        );
+        Result<PagedList<ErasureRequestDto>> unknown = await h.Sut.ListRequestsAsync(
+            new(),
+            new(SubjectUserId: null, BroadcasterId: null, Status: "done")
+        );
+        Result<ErasureRequestSummaryDto> summary = await h.Sut.GetRequestSummaryAsync();
+
+        ErasureRequestDto failedRow = failed.Value.Items.Should().ContainSingle().Subject;
+        failedRow.RequestType.Should().Be("erasure");
+        failedRow.SubjectUserId.Should().Be(SubjectUser);
+        failedRow.FailureReason.Should().NotBeNullOrWhiteSpace();
+        ErasureRequestDto exportRow = exports.Value.Items.Should().ContainSingle().Subject;
+        exportRow.Status.Should().Be("completed");
+        exportRow.SubjectUserId.Should().Be(OtherUser);
+        failedExports.Value.TotalCount.Should().Be(0);
+        unknown.IsFailure.Should().BeTrue("an unknown status is a caller error, not an empty page");
+        unknown.ErrorCode.Should().Be("VALIDATION_FAILED");
+        summary.Value.Should().Be(new ErasureRequestSummaryDto(2, 0, 0, 1, 1, 0));
     }
 
     [Fact]

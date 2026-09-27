@@ -132,6 +132,7 @@ public sealed class PlatformIamPolicyCoverageTests
     [Theory]
     [InlineData(nameof(ComplianceController.RequestErasure), IamPermissionKeys.ComplianceErasure)]
     [InlineData(nameof(ComplianceController.ListErasureRequests), IamPermissionKeys.AuditRead)]
+    [InlineData(nameof(ComplianceController.GetErasureRequestSummary), IamPermissionKeys.AuditRead)]
     public void ComplianceController_action_carries_the_expected_iam_policy(
         string methodName,
         string expectedKey

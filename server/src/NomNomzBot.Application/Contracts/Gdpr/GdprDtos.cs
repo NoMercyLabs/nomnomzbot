@@ -129,3 +129,30 @@ public sealed record ErasurePreviewDto(
     int TotalRows,
     IReadOnlyList<ErasurePreviewCategoryDto> Categories
 );
+
+/// <summary>
+/// Which requests a list returns. <paramref name="SubjectUserId"/> scopes to one subject (the self-service
+/// plane always passes the caller); null lists every subject (the audited compliance plane).
+/// <paramref name="Status"/> and <paramref name="RequestType"/> are schema [VC:enum] values
+/// (<c>running</c> | <c>completed</c> | <c>failed</c> …, <c>erasure</c> | <c>export</c> | <c>opt_out</c>);
+/// an unknown value fails as VALIDATION_FAILED, never as a silent empty page.
+/// </summary>
+public sealed record ErasureRequestQuery(
+    Guid? SubjectUserId,
+    Guid? BroadcasterId,
+    string? Status = null,
+    string? RequestType = null
+);
+
+/// <summary>
+/// Platform-wide request counts by status, counted from the real ledger rows — the compliance console's
+/// at-a-glance line. <paramref name="Total"/> is the sum of the five statuses the schema allows.
+/// </summary>
+public sealed record ErasureRequestSummaryDto(
+    int Total,
+    int Pending,
+    int Running,
+    int Completed,
+    int Failed,
+    int Cancelled
+);

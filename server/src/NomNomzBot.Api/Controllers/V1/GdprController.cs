@@ -140,8 +140,7 @@ public class GdprController : BaseController
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<ErasureRequestDto>> result = await _erasure.ListRequestsAsync(
             pagination,
-            subjectUserId: callerId,
-            broadcasterId: null,
+            new(callerId, BroadcasterId: null),
             ct
         );
         if (result.IsFailure)

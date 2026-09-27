@@ -162,8 +162,7 @@ public sealed class GdprSelfServiceExecutor
 
         Result<PagedList<ErasureRequestDto>> page = await _erasure.ListRequestsAsync(
             new(1, 1),
-            subjectId,
-            null,
+            new(subjectId, BroadcasterId: null),
             ct
         );
         if (page.IsFailure)

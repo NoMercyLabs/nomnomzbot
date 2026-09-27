@@ -121,7 +121,10 @@ public class ComplianceController : BaseController
         return ResultResponse(result);
     }
 
-    /// <summary>Page all subjects' GDPR requests (compliance audit view), newest first.</summary>
+    /// <summary>
+    /// Page all subjects' GDPR requests (compliance audit view), newest first. <paramref name="status"/>
+    /// and <paramref name="requestType"/> narrow the page (an unknown value is 400, not an empty page).
+    /// </summary>
     [HttpGet("erasure")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.AuditRead)]
@@ -129,18 +132,32 @@ public class ComplianceController : BaseController
     public async Task<IActionResult> ListErasureRequests(
         [FromQuery] PageRequestDto request,
         [FromQuery] Guid? broadcasterId,
+        [FromQuery] string? status,
+        [FromQuery] string? requestType,
         CancellationToken ct
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<ErasureRequestDto>> result = await _erasure.ListRequestsAsync(
             pagination,
-            subjectUserId: null,
-            broadcasterId,
+            new(SubjectUserId: null, broadcasterId, status, requestType),
             ct
         );
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>
+    /// Every subject's requests counted by status — the console's monitor line, from the real ledger.
+    /// </summary>
+    [HttpGet("erasure/summary")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.AuditRead)]
+    [ProducesResponseType<StatusResponseDto<ErasureRequestSummaryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetErasureRequestSummary(CancellationToken ct)
+    {
+        Result<ErasureRequestSummaryDto> result = await _erasure.GetRequestSummaryAsync(ct);
+        return ResultResponse(result);
     }
 }

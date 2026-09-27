@@ -80,13 +80,20 @@ public interface IErasureService
     );
 
     /// <summary>
-    /// Pages requests, newest first. <paramref name="subjectUserId"/> scopes to one subject (the self-service
-    /// plane always passes the caller); null lists all subjects (the audited compliance plane).
+    /// Pages requests matching <paramref name="query"/>, newest first (see <see cref="ErasureRequestQuery"/>
+    /// for who sees whose requests).
     /// </summary>
     Task<Result<PagedList<ErasureRequestDto>>> ListRequestsAsync(
         PaginationParams pagination,
-        Guid? subjectUserId,
-        Guid? broadcasterId,
+        ErasureRequestQuery query,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Counts every subject's requests by status — the compliance plane's monitor line. Platform-wide by
+    /// design; callers own the gate (<c>audit:read</c>).
+    /// </summary>
+    Task<Result<ErasureRequestSummaryDto>> GetRequestSummaryAsync(
         CancellationToken cancellationToken = default
     );
 }
