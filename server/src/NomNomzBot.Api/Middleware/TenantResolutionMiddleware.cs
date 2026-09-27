@@ -45,6 +45,15 @@ public class TenantResolutionMiddleware
         IApplicationDbContext db
     )
     {
+        // A platform-plane endpoint names every channel it touches explicitly; resolving the operator's
+        // active channel here would hand the tenant query filter a tenant and silently narrow every
+        // cross-tenant read to it (see PlatformPlaneAttribute).
+        if (context.GetEndpoint()?.Metadata.GetMetadata<PlatformPlaneAttribute>() is not null)
+        {
+            await _next(context);
+            return;
+        }
+
         string? requestedChannelId = ResolveRequestedChannelId(context);
 
         string? userId =

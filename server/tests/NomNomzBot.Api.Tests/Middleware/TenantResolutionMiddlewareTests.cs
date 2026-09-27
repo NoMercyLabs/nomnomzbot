@@ -316,6 +316,42 @@ public class TenantResolutionMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_PlatformPlaneEndpoint_IgnoresTheActiveChannelHeaderAndOwnChannel()
+    {
+        // The dashboard sends the operator's active channel on every request. On a platform-plane endpoint
+        // that header (and the own-channel fallback) must never become the tenant, or the tenant query filter
+        // narrows every cross-tenant admin read to that one channel.
+        bool nextCalled = false;
+        TenantResolutionMiddleware middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+        ICurrentTenantService tenantService = Substitute.For<ICurrentTenantService>();
+        IChannelAccessService access = AccessStub(allow: true);
+        access
+            .ResolveOwnChannelAsync(OwnerUser.ToString(), Arg.Any<CancellationToken>())
+            .Returns(OwnChannel);
+
+        DefaultHttpContext context = new();
+        Authenticate(context, OwnerUser);
+        context.Request.Headers["X-Channel-Id"] = ChannelGuid.ToString();
+        context.SetEndpoint(
+            new Endpoint(
+                null,
+                new EndpointMetadataCollection(new PlatformPlaneAttribute()),
+                "admin"
+            )
+        );
+
+        await middleware.InvokeAsync(context, tenantService, access, EmptyDb());
+
+        nextCalled.Should().BeTrue();
+        tenantService.DidNotReceiveWithAnyArgs().SetTenant(default);
+        await access.DidNotReceiveWithAnyArgs().ResolveOwnChannelAsync(default!);
+    }
+
+    [Fact]
     public async Task InvokeAsync_AuthenticatedUser_NoChannel_AndNoOwnedChannel_LeavesTenantUnset()
     {
         TenantResolutionMiddleware middleware = CreateMiddleware();
