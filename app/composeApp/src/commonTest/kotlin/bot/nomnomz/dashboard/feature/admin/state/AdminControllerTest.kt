@@ -61,7 +61,7 @@ class AdminControllerTest {
     @Test
     fun loading_one_tab_does_not_mark_other_tabs_as_loading() = runTest {
         val usersGate = CompletableDeferred<Unit>()
-        val api = LoadingFakeAdminApi(usersGate = usersGate)
+        val api = LoadingFakeAdminApi(usersGate = usersGate, gatedSearch = "someone")
         val controller = AdminController(
             api = api,
             iamApi = LoadingFakePlatformIamApi(),
@@ -93,14 +93,19 @@ class AdminControllerTest {
 
 // ─── Fakes ─────────────────────────────────────────────────────────────────
 
-private class LoadingFakeAdminApi(private val usersGate: CompletableDeferred<Unit>? = null) : AdminApi {
+/** Hangs the user fetch whose search equals [gatedSearch] until [usersGate] completes; the initial snapshot
+ * (which re-fetches the list with its current, empty search) must never trip it. */
+private class LoadingFakeAdminApi(
+    private val usersGate: CompletableDeferred<Unit>? = null,
+    private val gatedSearch: String? = null,
+) : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
 
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?): ApiResult<PaginatedEnvelope<AdminChannel>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
 
     override suspend fun getUsers(search: String?, page: Int, pageSize: Int, sort: String?, role: String?): ApiResult<PaginatedEnvelope<AdminUser>> {
-        if (search != null) usersGate?.await()
+        if (search == gatedSearch) usersGate?.await()
         return ApiResult.Ok(PaginatedEnvelope(emptyList()))
     }
 
