@@ -535,6 +535,13 @@ A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:
     (base-tier and grant-lifted tenants missed); TTS/sandbox limits skip `TenantLimitOverride`; flag
     gating lags tier edits by the 60s flag cache; confirming a spam detection has no runtime effect.
 A7. GDPR admin console: list and monitor export/erasure requests (GdprController.cs) platform-wide.
+    Status 2026-09-27: DONE. The compliance plane's list (`GET /compliance/erasure`, audit:read) narrows by
+    status and request type and a summary endpoint counts the ledger by status (3e1eed6); the admin plane
+    gained a Safety tab "Data requests" that shows the counts, both filters, every request's kind, state,
+    requester, scope and rows, and a failed request's recorded failure reason on its row (f06908d). Owed:
+    acting on a request from that tab (re-running a failed erasure) still goes through the subject's own
+    page, and the Audit tab's "All" outcome chip never clears the filter (loadAudit keeps the old value
+    when passed null) — both for the admin walk.
 A8. Publish the SDK types as a versioned npm package built by CI from `SdkTypeEmitter` output.
 Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, automation/IPC keys tab.
 
