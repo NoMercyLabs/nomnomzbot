@@ -78,7 +78,7 @@ jobs:
           chmod +x gradlew
           set -o pipefail
           rm -rf ~/.gradle/caches/build-cache-1
-          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon --no-build-cache --no-configuration-cache 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
+          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon --no-build-cache --no-configuration-cache --no-parallel 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
 
       # The job log is only readable in a browser session; annotations also come back through the
       # REST API, so a Kotlin compile error or a failing test names itself where any client can read it.
