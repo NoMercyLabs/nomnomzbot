@@ -3492,7 +3492,8 @@
     <string name="admin_flag_enabled">Enabled</string>
     <string name="admin_flag_enabled_rollout">Enabled — %1$d%</string>
     <string name="admin_flag_disabled">Disabled</string>
-    <string name="admin_flag_override_broadcaster_id">Broadcaster id</string>
+    <string name="admin_flag_override_broadcaster_id">Channel login or id</string>
+    <string name="admin_flag_override_no_channel">No channel has the login %1$s.</string>
     <string name="admin_flag_override_enable">Override: enable</string>
     <string name="admin_flag_override_disable">Override: disable</string>
     <string name="admin_flag_override_clear">Clear override</string>
@@ -3501,8 +3502,8 @@
     <string name="admin_flag_override_row_disabled">%1$s: forced off</string>
     <string name="admin_flag_override_row_reason">Reason: %1$s</string>
     <string name="admin_flag_override_confirm_title">Override %1$s for one channel?</string>
-    <string name="admin_flag_override_confirm_enable">Broadcaster %1$s gets the flag forced ON, whatever the global ramp says. It shows in this list once saved.</string>
-    <string name="admin_flag_override_confirm_disable">Broadcaster %1$s gets the flag forced OFF, whatever the global ramp says. It shows in this list once saved.</string>
+    <string name="admin_flag_override_confirm_enable">Channel %1$s gets the flag forced ON, whatever the global ramp says. It shows in this list once saved.</string>
+    <string name="admin_flag_override_confirm_disable">Channel %1$s gets the flag forced OFF, whatever the global ramp says. It shows in this list once saved.</string>
     <string name="admin_flag_override_confirm">Set override</string>
     <string name="admin_flag_kill_switch_title">Turn off %1$s?</string>
     <string name="admin_flag_kill_switch_message_counted">This turns the flag off platform-wide. %1$d active channel(s) with no override will lose it right now, including: %2$s.</string>

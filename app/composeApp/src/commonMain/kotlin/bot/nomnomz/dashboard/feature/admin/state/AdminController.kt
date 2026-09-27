@@ -114,6 +114,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_act_as_unavailable
 import nomnomzbot.composeapp.generated.resources.admin_action_error
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_no_channel
 import nomnomzbot.composeapp.generated.resources.admin_job_retry_scheduled
 import nomnomzbot.composeapp.generated.resources.admin_network_block_applied
 import nomnomzbot.composeapp.generated.resources.admin_review_confirmed
@@ -450,6 +451,11 @@ enum class ImpersonationRefusal {
     TargetOutsideSession,
 }
 
+/** A channel an operator named, by the id the API needs and the name a confirm dialog shows. */
+data class ResolvedChannel(val id: String, val label: String)
+
+private val CHANNEL_ID: Regex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
 /** The server's fail-closed code when a confirmed blast-radius count no longer matches a fresh one. */
 private const val PREVIEW_STALE: String = "PREVIEW_STALE"
 
@@ -707,6 +713,29 @@ class AdminController(
 
     suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
         writeThenReload { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
+
+    /**
+     * Turns what an operator typed into the channel an override targets: a channel id as-is, otherwise an
+     * exact (case-insensitive) login match. Operators know channels by login; before this the field took only
+     * a raw id, which nobody has to hand. Null, with a toast naming the login, when nothing matches.
+     */
+    suspend fun resolveOverrideChannel(input: String): ResolvedChannel? {
+        val typed: String = input.trim()
+        if (typed.isEmpty()) return null
+        if (CHANNEL_ID.matches(typed)) {
+            val known: String? = _state.value.flagOverrides.firstOrNull { it.broadcasterId == typed }?.channelName?.ifBlank { null }
+            return ResolvedChannel(id = typed, label = known ?: typed)
+        }
+        val match: AdminChannel? = (api.getChannels(search = typed) as? ApiResult.Ok)
+            ?.value
+            ?.data
+            ?.firstOrNull { it.login.equals(typed, ignoreCase = true) }
+        if (match == null) {
+            feedback.error(Res.string.admin_flag_override_no_channel, typed)
+            return null
+        }
+        return ResolvedChannel(id = match.id, label = match.displayName)
+    }
 
     /**
      * Opens the kill-switch confirm dialog for [flagKey] and fetches its counted blast radius (consequences

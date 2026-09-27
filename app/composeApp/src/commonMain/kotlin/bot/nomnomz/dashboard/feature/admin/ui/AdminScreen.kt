@@ -84,6 +84,7 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminSection
 import bot.nomnomz.dashboard.feature.admin.state.AdminSort
 import androidx.compose.foundation.layout.RowScope
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
+import bot.nomnomz.dashboard.feature.admin.state.ResolvedChannel
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.admin_tab_iam
@@ -1582,7 +1583,7 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                     } else {
                                         Res.string.admin_flag_override_confirm_disable
                                     },
-                                    pending.broadcasterId,
+                                    pending.channel.label,
                                 ),
                                 confirmLabel = stringResource(Res.string.admin_flag_override_confirm),
                                 dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),
@@ -1592,7 +1593,7 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                     scope.launch {
                                         controller.setFeatureFlagOverride(
                                             flag.key,
-                                            pending.broadcasterId,
+                                            pending.channel.id,
                                             AdminSetFeatureFlagOverrideRequest(isEnabled = pending.isEnabled),
                                         )
                                         pendingFlagKey = null
@@ -1606,12 +1607,18 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                             flagKey = flag.key,
                             enabled = !rowBusy,
                             onSetOverride = { broadcasterId, isEnabled ->
-                                pendingOverride = PendingFlagOverride(flag.key, broadcasterId, isEnabled)
+                                scope.launch {
+                                    controller.resolveOverrideChannel(broadcasterId)?.let { channel ->
+                                        pendingOverride = PendingFlagOverride(flag.key, channel, isEnabled)
+                                    }
+                                }
                             },
-                            onClearOverride = { broadcasterId ->
+                            onClearOverride = { typed ->
                                 pendingFlagKey = flag.key
                                 scope.launch {
-                                    controller.deleteFeatureFlagOverride(flag.key, broadcasterId)
+                                    controller.resolveOverrideChannel(typed)?.let { channel ->
+                                        controller.deleteFeatureFlagOverride(flag.key, channel.id)
+                                    }
                                     pendingFlagKey = null
                                 }
                             },
@@ -1627,7 +1634,7 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
 }
 
 /** An override the operator asked for but has not confirmed yet — the confirm dialog's subject. */
-private data class PendingFlagOverride(val flagKey: String, val broadcasterId: String, val isEnabled: Boolean)
+private data class PendingFlagOverride(val flagKey: String, val channel: ResolvedChannel, val isEnabled: Boolean)
 
 /**
  * The overrides the server holds for one flag, by channel name — what is actually forced where. Empty says so

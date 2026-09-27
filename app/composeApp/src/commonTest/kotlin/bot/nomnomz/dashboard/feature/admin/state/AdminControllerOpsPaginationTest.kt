@@ -182,8 +182,10 @@ class AdminControllerOpsPaginationTest {
  * with nothing further, exactly the server's own `PaginatedResponse` contract. */
 internal class PagedOpsFakeAdminApi : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
+    // Server-side search matches a substring of the login, so a search can return near-misses too.
+    var channels: List<AdminChannel> = emptyList()
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?): ApiResult<PaginatedEnvelope<AdminChannel>> =
-        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+        ApiResult.Ok(PaginatedEnvelope(channels.filter { search == null || it.login.contains(search, ignoreCase = true) }))
     override suspend fun getUsers(search: String?, page: Int, pageSize: Int, sort: String?, role: String?): ApiResult<PaginatedEnvelope<AdminUser>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))

@@ -3476,7 +3476,8 @@
     <string name="admin_flag_enabled">Ingeschakeld</string>
     <string name="admin_flag_enabled_rollout">Ingeschakeld — %1$d%</string>
     <string name="admin_flag_disabled">Uitgeschakeld</string>
-    <string name="admin_flag_override_broadcaster_id">Uitzender-id</string>
+    <string name="admin_flag_override_broadcaster_id">Kanaal-login of id</string>
+    <string name="admin_flag_override_no_channel">Geen kanaal heeft de login %1$s.</string>
     <string name="admin_flag_override_enable">Override: inschakelen</string>
     <string name="admin_flag_override_disable">Override: uitschakelen</string>
     <string name="admin_flag_override_none">Geen kanaaloverrides: elk kanaal volgt de globale uitrol.</string>
@@ -3484,8 +3485,8 @@
     <string name="admin_flag_override_row_disabled">%1$s: geforceerd uit</string>
     <string name="admin_flag_override_row_reason">Reden: %1$s</string>
     <string name="admin_flag_override_confirm_title">%1$s overriden voor één kanaal?</string>
-    <string name="admin_flag_override_confirm_enable">Uitzender %1$s krijgt de vlag geforceerd AAN, wat de globale uitrol ook zegt. Na opslaan staat hij in deze lijst.</string>
-    <string name="admin_flag_override_confirm_disable">Uitzender %1$s krijgt de vlag geforceerd UIT, wat de globale uitrol ook zegt. Na opslaan staat hij in deze lijst.</string>
+    <string name="admin_flag_override_confirm_enable">Kanaal %1$s krijgt de vlag geforceerd AAN, wat de globale uitrol ook zegt. Na opslaan staat hij in deze lijst.</string>
+    <string name="admin_flag_override_confirm_disable">Kanaal %1$s krijgt de vlag geforceerd UIT, wat de globale uitrol ook zegt. Na opslaan staat hij in deze lijst.</string>
     <string name="admin_flag_override_confirm">Override instellen</string>
     <string name="admin_flag_override_clear">Override wissen</string>
     <string name="admin_flag_kill_switch_title">%1$s uitschakelen?</string>
