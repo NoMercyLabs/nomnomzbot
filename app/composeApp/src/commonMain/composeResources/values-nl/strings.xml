@@ -3895,6 +3895,7 @@
     <string name="admin_iam_service_name">Naam serviceaccount</string>
     <string name="admin_iam_key_title">Serviceaccount-sleutel</string>
     <string name="admin_iam_key_desc">Kopieer deze sleutel nu — hij wordt maar één keer getoond en kan nooit meer worden opgehaald.</string>
+    <string name="admin_iam_key_saved">Ik heb de sleutel opgeslagen</string>
     <string name="admin_iam_promote_title">Een gebruiker promoveren</string>
     <string name="admin_iam_promote_desc">Promoveer een bestaande gebruiker tot platform-principal met de gekozen rol.</string>
     <string name="admin_iam_service_desc">Maak een serviceaccount. De sleutel wordt precies één keer teruggegeven.</string>

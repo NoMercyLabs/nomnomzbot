@@ -3911,6 +3911,7 @@
     <string name="admin_iam_service_name">Service account name</string>
     <string name="admin_iam_key_title">Service account key</string>
     <string name="admin_iam_key_desc">Copy this key now — it is shown only once and can never be retrieved again.</string>
+    <string name="admin_iam_key_saved">I have saved the key</string>
     <string name="admin_iam_promote_title">Promote a user</string>
     <string name="admin_iam_promote_desc">Promote an existing user to a platform principal with the selected role.</string>
     <string name="admin_iam_service_desc">Create a service account. Its key is returned exactly once.</string>

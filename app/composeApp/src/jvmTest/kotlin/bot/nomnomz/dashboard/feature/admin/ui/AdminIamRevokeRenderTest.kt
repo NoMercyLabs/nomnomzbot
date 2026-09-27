@@ -16,7 +16,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -129,6 +132,9 @@ class AdminIamRevokeRenderTest {
             // dialog's distinct sentence rather than the bare role name, which now matches twice).
             onNodeWithText("removes the Moderator role", substring = true).assertExists()
 
+            // The reason typed here is what the audit row will carry.
+            onNode(hasSetTextAction()).performTextInput("rotated off the mod team")
+
             // Confirm the destructive commit — the dialog's own labelled "Revoke" button is now the LAST
             // "Revoke" node on screen (the row trigger sorts first, same as before the dialog opened).
             onAllNodesWithText("Revoke")[1].performClick()
@@ -136,6 +142,7 @@ class AdminIamRevokeRenderTest {
 
             assertEquals(1, iamApi.revokeCallCount)
             assertEquals("assignment-1", iamApi.lastRevokedAssignmentId)
+            assertEquals("rotated off the mod team", iamApi.lastRevokeReason)
         }
     }
 }
@@ -199,6 +206,7 @@ private class FakeIamApiForRevokeTest(
     var revokeCallCount: Int = 0
         private set
     var lastRevokedAssignmentId: String? = null
+    var lastRevokeReason: String? = null
         private set
 
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
@@ -215,6 +223,7 @@ private class FakeIamApiForRevokeTest(
     override suspend fun revokeAssignment(assignmentId: String, reason: String?): ApiResult<Unit> {
         revokeCallCount++
         lastRevokedAssignmentId = assignmentId
+        lastRevokeReason = reason
         return ApiResult.Ok(Unit)
     }
 }

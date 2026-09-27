@@ -68,6 +68,7 @@ import nomnomzbot.composeapp.generated.resources.admin_iam_effective
 import nomnomzbot.composeapp.generated.resources.admin_iam_empty
 import nomnomzbot.composeapp.generated.resources.admin_iam_inactive
 import nomnomzbot.composeapp.generated.resources.admin_iam_key_desc
+import nomnomzbot.composeapp.generated.resources.admin_iam_key_saved
 import nomnomzbot.composeapp.generated.resources.admin_iam_key_title
 import nomnomzbot.composeapp.generated.resources.admin_iam_no_assignments
 import nomnomzbot.composeapp.generated.resources.admin_iam_permission_keys
@@ -237,14 +238,12 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
     }
 
     deactivateFor?.let { principal ->
-        ConfirmDialog(
+        ReasonedConfirmDialog(
             title = stringResource(Res.string.admin_iam_deactivate_title),
             message = stringResource(Res.string.admin_iam_deactivate_confirm),
             confirmLabel = stringResource(Res.string.admin_iam_deactivate),
-            dismissLabel = stringResource(Res.string.admin_cancel),
-            destructive = true,
-            onConfirm = {
-                scope.launch { controller.deactivatePrincipal(principal.id, null) }
+            onConfirm = { reason ->
+                scope.launch { controller.deactivatePrincipal(principal.id, reason.ifBlank { null }) }
                 deactivateFor = null
             },
             onDismiss = { deactivateFor = null },
@@ -252,14 +251,12 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
     }
 
     revokeFor?.let { assignment ->
-        ConfirmDialog(
+        ReasonedConfirmDialog(
             title = stringResource(Res.string.admin_iam_revoke_confirm_title),
             message = stringResource(Res.string.admin_iam_revoke_confirm_body, assignment.roleName),
             confirmLabel = stringResource(Res.string.admin_iam_revoke),
-            dismissLabel = stringResource(Res.string.admin_cancel),
-            destructive = true,
-            onConfirm = {
-                scope.launch { controller.revokeAssignment(assignment.id, null) }
+            onConfirm = { reason ->
+                scope.launch { controller.revokeAssignment(assignment.id, reason.ifBlank { null }) }
                 revokeFor = null
             },
             onDismiss = { revokeFor = null },
@@ -468,14 +465,49 @@ private fun AssignRoleDialog(
     }
 }
 
+/**
+ * A destructive IAM confirm that also collects the operator's reason: deactivating a principal and revoking
+ * a role are audited, and an audit row without a justification says nothing about why it happened.
+ */
+@Composable
+private fun ReasonedConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: (reason: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    var reason: String by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        DialogTitle(text = title)
+        DialogDescription(text = message)
+        bot.nomnomz.dashboard.core.designsystem.component.AppTextField(
+            value = reason,
+            onValueChange = { reason = it },
+            label = stringResource(Res.string.admin_iam_reason),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(modifier = Modifier.height(spacing.s1))
+        DialogFooter {
+            TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.admin_cancel)) }
+            Button(onClick = { onConfirm(reason) }, variant = ButtonVariant.Destructive) { Text(text = confirmLabel) }
+        }
+    }
+}
+
 @Composable
 private fun ServiceAccountKeyDialog(key: String, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
+    // The key is shown exactly once: a stray click outside or a Back press must not be the last time the
+    // operator ever sees it. Only the explicit "I have saved the key" closes this.
+    Dialog(onDismissRequest = {}, dismissOnBackPress = false, dismissOnClickOutside = false) {
         DialogTitle(text = stringResource(Res.string.admin_iam_key_title))
         DialogDescription(text = stringResource(Res.string.admin_iam_key_desc))
         CopyValue(value = key, copyLabel = stringResource(Res.string.admin_iam_key_title), copiedLabel = stringResource(Res.string.admin_iam_key_title))
         DialogFooter {
-            Button(onClick = onDismiss, variant = ButtonVariant.Default) { Text(text = stringResource(Res.string.admin_cancel)) }
+            Button(onClick = onDismiss, variant = ButtonVariant.Default) { Text(text = stringResource(Res.string.admin_iam_key_saved)) }
         }
     }
 }
