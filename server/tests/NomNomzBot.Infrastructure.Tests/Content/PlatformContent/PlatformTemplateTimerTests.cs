@@ -202,6 +202,15 @@ public sealed class PlatformTemplateTimerTests : IAsyncDisposable
         kept.IntervalMinutes.Should().Be(10, "the channel's edit is never overwritten silently");
         kept.Messages.Should().Equal("Drink some water, {channel}!", "Stretch your legs.");
         kept.PlatformSourceVersion.Should().Be(1);
+
+        PlatformContentInstallSummaryDto installs = (
+            await _h.AdminService(_installer).GetDefinitionAsync(_h.ActingPrincipalId, definitionId)
+        )
+            .Value
+            .Installs;
+        installs.InstalledCount.Should().Be(2);
+        installs.BehindCount.Should().Be(1, "the edited copy is still on v1");
+        installs.EditedCount.Should().Be(1);
     }
 
     [Fact]

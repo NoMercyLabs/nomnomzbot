@@ -143,11 +143,17 @@ public sealed class PlatformContentService(
             .ToListAsync(ct);
 
         Dictionary<Guid, int> versionNumberById = versions.ToDictionary(v => v.Id, v => v.Version);
+        int? currentVersion =
+            definition.CurrentVersionId is { } currentId
+            && versionNumberById.TryGetValue(currentId, out int number)
+                ? number
+                : null;
 
         return Result.Success(
             new PlatformContentDefinitionDetailDto(
                 ToDto(definition, versionNumberById),
-                [.. versions.Select(ToDto)]
+                [.. versions.Select(ToDto)],
+                await SummarizeInstallsAsync(definition, currentVersion, ct)
             )
         );
     }
@@ -323,7 +329,7 @@ public sealed class PlatformContentService(
         if (loaded.IsFailure)
             return loaded.WithValue<PublishPreviewDto>(null!);
 
-        (PlatformContentDefinition definition, PlatformContentVersion version) = loaded.Value;
+        PlatformContentDefinition definition = loaded.Value.Definition;
 
         PublishSelection selection = await SelectTenantRowsAsync(definition, mode, ct);
 
@@ -734,8 +740,10 @@ public sealed class PlatformContentService(
 
     /// <summary>
     /// Runs the EXACT SAME selection query publish uses (§2.1's "the preview runs the same query the
-    /// publish will use" guarantee) against REAL <see cref="ChannelBuiltinCommand"/> rows, computed BEFORE
-    /// anything is written.
+    /// publish will use" guarantee) against the REAL installed copies, computed BEFORE anything is written.
+    /// Every kind lists its copies through <see cref="ListCopiesAsync"/>; the mode then decides: publish-as-new
+    /// touches nothing, force takes every copy, and update-in-place takes only the copies whose live hash still
+    /// matches the hash recorded at install or last sync — an edited copy is counted as skipped, never hidden.
     /// </summary>
     private async Task<PublishSelection> SelectTenantRowsAsync(
         PlatformContentDefinition definition,
@@ -743,43 +751,12 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
-        return definition.Kind switch
-        {
-            PlatformContentKinds.Command => await SelectCommandRowsAsync(definition, mode, ct),
-            PlatformContentKinds.Widget => await SelectWidgetRowsAsync(definition, mode, ct),
-            PlatformContentKinds.Pipeline => await SelectPipelineRowsAsync(definition, mode, ct),
-            PlatformContentKinds.CodeScript => await SelectCodeScriptRowsAsync(
-                definition,
-                mode,
-                ct
-            ),
-            _ => await SelectTemplateRowsAsync(definition, mode, ct),
-        };
-    }
-
-    /// <summary>
-    /// The template kinds (event_response, timer, reward, pick_list): the copies are whatever the kind's
-    /// installer stamped with this definition's provenance, and "untouched" is the installer's live hash still
-    /// matching the hash recorded at install or last sync. Same rules as the command selection above.
-    /// </summary>
-    private async Task<PublishSelection> SelectTemplateRowsAsync(
-        PlatformContentDefinition definition,
-        string mode,
-        CancellationToken ct
-    )
-    {
-        IPlatformTemplateInstaller? installer = FindTemplateInstaller(definition.Kind);
-        if (installer is null)
-            return new PublishSelection([], 0);
-
-        IReadOnlyList<PlatformTemplateCopy> copies = await installer.ListCopiesAsync(
-            definition.Id,
-            ct
-        );
+        IReadOnlyList<PlatformContentCopy> copies = await ListCopiesAsync(definition, ct);
 
         switch (mode)
         {
             case PlatformContentPublishModes.PublishAsNew:
+                // Zero blast radius by construction — nothing tenant-facing is touched.
                 return new PublishSelection([], 0);
 
             case PlatformContentPublishModes.Force:
@@ -788,7 +765,7 @@ public sealed class PlatformContentService(
             default:
                 List<Guid> untouched = [];
                 int skipped = 0;
-                foreach (PlatformTemplateCopy copy in copies)
+                foreach (PlatformContentCopy copy in copies)
                 {
                     if (copy.SourceHash == copy.LiveHash)
                         untouched.Add(copy.RowId);
@@ -799,49 +776,80 @@ public sealed class PlatformContentService(
         }
     }
 
-    private async Task<PublishSelection> SelectCommandRowsAsync(
+    /// <summary>
+    /// The installs summary the admin console shows beside a definition: counted from the same copies the
+    /// publish selection reads, so "N behind, K edited" is exactly what an update-in-place publish would find.
+    /// </summary>
+    private async Task<PlatformContentInstallSummaryDto> SummarizeInstallsAsync(
         PlatformContentDefinition definition,
-        string mode,
+        int? currentVersion,
         CancellationToken ct
     )
     {
-        // Cross-tenant by design (platform-admin.md §2.1's whole point) — IgnoreQueryFilters + re-apply
-        // DeletedAt == null, same as the sample-name query above, so the caller's own ambient tenant
-        // (if they happen to own a channel) never hides every OTHER tenant's row from the blast radius.
+        IReadOnlyList<PlatformContentCopy> copies = await ListCopiesAsync(definition, ct);
+        int edited = copies.Count(c => c.SourceHash != c.LiveHash);
+        int behind = currentVersion is { } current
+            ? copies.Count(c => c.SourceVersion is { } copied && copied < current)
+            : 0;
+        return new PlatformContentInstallSummaryDto(copies.Count, behind, edited);
+    }
+
+    /// <summary>
+    /// Every tenant's installed copy of the definition, by kind. Cross-tenant by design (platform-admin.md
+    /// §2.1's whole point): each listing bypasses the ambient tenant filter and re-applies
+    /// <c>DeletedAt == null</c>, so the caller's own ambient tenant (if they happen to own a channel) never
+    /// hides every OTHER tenant's row from the blast radius.
+    /// </summary>
+    private async Task<IReadOnlyList<PlatformContentCopy>> ListCopiesAsync(
+        PlatformContentDefinition definition,
+        CancellationToken ct
+    )
+    {
+        switch (definition.Kind)
+        {
+            case PlatformContentKinds.Command:
+                return await ListCommandCopiesAsync(definition, ct);
+            case PlatformContentKinds.Widget:
+                return await ListWidgetCopiesAsync(definition, ct);
+            case PlatformContentKinds.Pipeline:
+                return await ListPipelineCopiesAsync(definition, ct);
+            case PlatformContentKinds.CodeScript:
+                return await ListCodeScriptCopiesAsync(definition, ct);
+            default:
+                IPlatformTemplateInstaller? installer = FindTemplateInstaller(definition.Kind);
+                return installer is null ? [] : await installer.ListCopiesAsync(definition.Id, ct);
+        }
+    }
+
+    /// <summary>
+    /// A builtin command has one row per channel, matched on <see cref="ChannelBuiltinCommand.BuiltinKey"/>.
+    /// A row never stamped with provenance (pre-backfill / not from this definition) is listed with no source
+    /// hash, so it reads as tenant-authored: skipped by update-in-place, counted as edited, taken only by force
+    /// (§2.1's guardrail — never matched by name).
+    /// </summary>
+    private async Task<IReadOnlyList<PlatformContentCopy>> ListCommandCopiesAsync(
+        PlatformContentDefinition definition,
+        CancellationToken ct
+    )
+    {
         List<ChannelBuiltinCommand> installed = await db
             .ChannelBuiltinCommands.IgnoreQueryFilters()
             .Where(b => b.DeletedAt == null && b.BuiltinKey == definition.Key)
             .ToListAsync(ct);
-
-        switch (mode)
-        {
-            case PlatformContentPublishModes.PublishAsNew:
-                // Zero blast radius by construction — nothing tenant-facing is touched.
-                return new PublishSelection([], 0);
-
-            case PlatformContentPublishModes.Force:
-                return new PublishSelection([.. installed.Select(b => b.Id)], 0);
-
-            default:
-                List<Guid> untouched = [];
-                int skipped = 0;
-                foreach (ChannelBuiltinCommand row in installed)
-                {
-                    string liveHash = PlatformContentHash.ComputeHash(row.OverridesJson);
-                    // A row never stamped with provenance (pre-backfill / not from this definition) is
-                    // treated as tenant-authored and skipped — never matched by name (§2.1's guardrail).
-                    if (row.PlatformSourceDefinitionId != definition.Id)
-                    {
-                        skipped++;
-                        continue;
-                    }
-                    if (row.PlatformSourceHash == liveHash)
-                        untouched.Add(row.Id);
-                    else
-                        skipped++;
-                }
-                return new PublishSelection(untouched, skipped);
-        }
+        return
+        [
+            .. installed.Select(row =>
+            {
+                bool fromThisDefinition = row.PlatformSourceDefinitionId == definition.Id;
+                return new PlatformContentCopy(
+                    row.Id,
+                    row.BroadcasterId,
+                    fromThisDefinition ? row.PlatformSourceVersion : null,
+                    fromThisDefinition ? row.PlatformSourceHash : null,
+                    PlatformContentHash.ComputeHash(row.OverridesJson)
+                );
+            }),
+        ];
     }
 
     /// <summary>
@@ -851,42 +859,25 @@ public sealed class PlatformContentService(
     /// there is no name-derived candidate set to fall back to (the seeder principle's "never match by name"
     /// guardrail applies here too).
     /// </summary>
-    private async Task<PublishSelection> SelectWidgetRowsAsync(
+    private async Task<IReadOnlyList<PlatformContentCopy>> ListWidgetCopiesAsync(
         PlatformContentDefinition definition,
-        string mode,
         CancellationToken ct
     )
     {
-        // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
         List<Widget> installed = await db
             .Widgets.IgnoreQueryFilters()
             .Where(w => w.DeletedAt == null && w.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
-
-        switch (mode)
-        {
-            case PlatformContentPublishModes.PublishAsNew:
-                return new PublishSelection([], 0);
-
-            case PlatformContentPublishModes.Force:
-                return new PublishSelection([.. installed.Select(w => w.Id)], 0);
-
-            default:
-                List<Guid> untouched = [];
-                int skipped = 0;
-                foreach (Widget row in installed)
-                {
-                    string liveHash = WidgetContentPayload.ComputeSettingsHash(
-                        row.Settings,
-                        row.EventSubscriptions
-                    );
-                    if (row.PlatformSourceHash == liveHash)
-                        untouched.Add(row.Id);
-                    else
-                        skipped++;
-                }
-                return new PublishSelection(untouched, skipped);
-        }
+        return
+        [
+            .. installed.Select(row => new PlatformContentCopy(
+                row.Id,
+                row.BroadcasterId,
+                row.PlatformSourceVersion,
+                row.PlatformSourceHash,
+                WidgetContentPayload.ComputeSettingsHash(row.Settings, row.EventSubscriptions)
+            )),
+        ];
     }
 
     /// <summary>
@@ -896,102 +887,77 @@ public sealed class PlatformContentService(
     /// opt-in-per-tenant shape as the widget kind (no name-derived candidate set to fall back to; the
     /// seeder principle's "never match by name" guardrail applies here too).
     /// </summary>
-    private async Task<PublishSelection> SelectPipelineRowsAsync(
+    private async Task<IReadOnlyList<PlatformContentCopy>> ListPipelineCopiesAsync(
         PlatformContentDefinition definition,
-        string mode,
         CancellationToken ct
     )
     {
-        // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
         List<PipelineEntity> installed = await db
             .Pipelines.IgnoreQueryFilters()
             .Where(p => p.DeletedAt == null && p.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
-
-        switch (mode)
-        {
-            case PlatformContentPublishModes.PublishAsNew:
-                return new PublishSelection([], 0);
-
-            case PlatformContentPublishModes.Force:
-                return new PublishSelection([.. installed.Select(p => p.Id)], 0);
-
-            default:
-                List<Guid> untouched = [];
-                int skipped = 0;
-                foreach (PipelineEntity row in installed)
-                {
-                    string liveHash = PlatformContentHash.ComputeHash(row.GraphJsonCache);
-                    if (row.PlatformSourceHash == liveHash)
-                        untouched.Add(row.Id);
-                    else
-                        skipped++;
-                }
-                return new PublishSelection(untouched, skipped);
-        }
+        return
+        [
+            .. installed.Select(row => new PlatformContentCopy(
+                row.Id,
+                row.BroadcasterId,
+                row.PlatformSourceVersion,
+                row.PlatformSourceHash,
+                PlatformContentHash.ComputeHash(row.GraphJsonCache)
+            )),
+        ];
     }
 
     /// <summary>
     /// The "installed" set for a code-script definition is every tenant <see cref="CodeScript"/> row already
     /// stamped with THIS <see cref="PlatformContentDefinition.Id"/> — opt-in-per-tenant, same shape as the
     /// widget/pipeline kinds (no name-derived candidate set to fall back to; the seeder principle's "never
-    /// match by name" guardrail applies here too). "Untouched" compares the row's stored provenance hash
-    /// against the hash of its OWN CURRENT VERSION's live source — a tenant who authored a new version through
-    /// their own editor (or never had one yet) reads as customized/no-baseline and is skipped, never guessed.
-    /// A soft-deleted row is excluded by the global query filter before this method ever sees it.
+    /// match by name" guardrail applies here too). The live hash is the hash of the row's OWN CURRENT
+    /// VERSION's source — a tenant who authored a new version through their own editor (or never had one yet)
+    /// reads as customized/no-baseline and is skipped, never guessed.
     /// </summary>
-    private async Task<PublishSelection> SelectCodeScriptRowsAsync(
+    private async Task<IReadOnlyList<PlatformContentCopy>> ListCodeScriptCopiesAsync(
         PlatformContentDefinition definition,
-        string mode,
         CancellationToken ct
     )
     {
-        // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
         List<CodeScript> installed = await db
             .CodeScripts.IgnoreQueryFilters()
             .Where(s => s.DeletedAt == null && s.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
 
-        switch (mode)
-        {
-            case PlatformContentPublishModes.PublishAsNew:
-                return new PublishSelection([], 0);
+        List<Guid> currentVersionIds =
+        [
+            .. installed
+                .Where(s => s.CurrentVersionId != null)
+                .Select(s => s.CurrentVersionId!.Value),
+        ];
+        Dictionary<Guid, string> sourceByVersionId = await db
+            .CodeScriptVersions.IgnoreQueryFilters()
+            .Where(v => v.DeletedAt == null && currentVersionIds.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id, v => v.SourceCode, ct);
 
-            case PlatformContentPublishModes.Force:
-                return new PublishSelection([.. installed.Select(s => s.Id)], 0);
-
-            default:
-                List<Guid> currentVersionIds =
-                [
-                    .. installed
-                        .Where(s => s.CurrentVersionId != null)
-                        .Select(s => s.CurrentVersionId!.Value),
-                ];
-                // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
-                Dictionary<Guid, string> sourceByVersionId = await db
-                    .CodeScriptVersions.IgnoreQueryFilters()
-                    .Where(v => v.DeletedAt == null && currentVersionIds.Contains(v.Id))
-                    .ToDictionaryAsync(v => v.Id, v => v.SourceCode, ct);
-
-                List<Guid> untouched = [];
-                int skipped = 0;
-                foreach (CodeScript row in installed)
-                {
-                    string? liveSource =
-                        row.CurrentVersionId is { } vid
-                        && sourceByVersionId.TryGetValue(vid, out string? src)
-                            ? src
-                            : null;
-                    string liveHash = liveSource is null
-                        ? PlatformContentHash.ComputeHash(string.Empty)
-                        : CodeScriptContentPayload.ComputeSourceHash(liveSource);
-                    if (row.PlatformSourceHash == liveHash)
-                        untouched.Add(row.Id);
-                    else
-                        skipped++;
-                }
-                return new PublishSelection(untouched, skipped);
-        }
+        return
+        [
+            .. installed.Select(row =>
+            {
+                string? liveSource =
+                    row.CurrentVersionId is { } vid
+                    && sourceByVersionId.TryGetValue(vid, out string? src)
+                        ? src
+                        : null;
+                string liveHash = liveSource is null
+                    ? PlatformContentHash.ComputeHash(string.Empty)
+                    : CodeScriptContentPayload.ComputeSourceHash(liveSource);
+                return new PlatformContentCopy(
+                    row.Id,
+                    row.BroadcasterId,
+                    row.PlatformSourceVersion,
+                    row.PlatformSourceHash,
+                    liveHash
+                );
+            }),
+        ];
     }
 
     private readonly record struct TemplateFanOutResult(int Count, List<Guid> UpdateFailedRowIds);
@@ -1002,7 +968,7 @@ public sealed class PlatformContentService(
     /// page uses (a reward change is pushed to that channel's Twitch, a timer keeps its bound pipeline) — and
     /// restamps provenance. A copy whose update is refused keeps its previous content and is recorded in
     /// <see cref="PlatformContentPublishJob.UpdateFailedTemplateRowIds"/>, never silently dropped. A customised
-    /// copy was already excluded upstream by <see cref="SelectTemplateRowsAsync"/> unless the mode is force.
+    /// copy was already excluded upstream by <see cref="SelectTenantRowsAsync"/> unless the mode is force.
     /// </summary>
     private async Task<TemplateFanOutResult> ApplyTemplateFanOutAsync(
         PlatformContentDefinition definition,
@@ -1015,7 +981,7 @@ public sealed class PlatformContentService(
         if (installer is null || affectedRowIds.Count == 0)
             return new TemplateFanOutResult(0, []);
 
-        Dictionary<Guid, PlatformTemplateCopy> copiesById = (
+        Dictionary<Guid, PlatformContentCopy> copiesById = (
             await installer.ListCopiesAsync(definition.Id, ct)
         ).ToDictionary(c => c.RowId);
         PlatformTemplateSource source = new(definition.Id, version.Version);
@@ -1024,7 +990,7 @@ public sealed class PlatformContentService(
         List<Guid> failed = [];
         foreach (Guid rowId in affectedRowIds)
         {
-            if (!copiesById.TryGetValue(rowId, out PlatformTemplateCopy? copy))
+            if (!copiesById.TryGetValue(rowId, out PlatformContentCopy? copy))
                 continue;
             Result outcome = await installer.UpdateCopyAsync(
                 new PlatformTemplateCopyUpdate(
@@ -1082,7 +1048,7 @@ public sealed class PlatformContentService(
     /// successful build, never on error) and is recorded in the returned
     /// <see cref="WidgetFanOutResult.RebuildFailedWidgetIds"/> for
     /// <see cref="PlatformContentPublishJob.RebuildFailedWidgetIds"/> — never silently swallowed. A customised
-    /// tenant was already excluded upstream by <see cref="SelectWidgetRowsAsync"/> and never reaches this loop.
+    /// tenant was already excluded upstream by <see cref="SelectTenantRowsAsync"/> and never reaches this loop.
     /// </summary>
     private async Task<WidgetFanOutResult> ApplyWidgetFanOutAsync(
         PlatformContentDefinition definition,
@@ -1233,7 +1199,7 @@ public sealed class PlatformContentService(
     /// <c>PublishVersionAsync</c> produces. The compiled JS is later run by the SAME
     /// <c>ScriptRunner</c>/hardened Jint sandbox as any tenant-authored script (S-ADMIN-2e) — this fan-out
     /// never grants a platform-published script a wider capability or resource budget. A customized or
-    /// deleted tenant was already excluded upstream by <see cref="SelectCodeScriptRowsAsync"/> and never
+    /// deleted tenant was already excluded upstream by <see cref="SelectTenantRowsAsync"/> and never
     /// reaches this loop. Since compile success/failure cannot differ per tenant, a compile failure here (the
     /// gate already ran the identical check) fails every target uniformly rather than partially.
     /// </summary>

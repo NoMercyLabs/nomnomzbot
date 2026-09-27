@@ -27,7 +27,20 @@ public sealed record PlatformContentDefinitionDto(
 /// <summary>A definition plus its full version history (§4 <c>GET /definitions/{id}</c>).</summary>
 public sealed record PlatformContentDefinitionDetailDto(
     PlatformContentDefinitionDto Definition,
-    IReadOnlyList<PlatformContentVersionDto> Versions
+    IReadOnlyList<PlatformContentVersionDto> Versions,
+    PlatformContentInstallSummaryDto Installs
+);
+
+/// <summary>
+/// What the definition's installed copies look like across every tenant right now: how many exist, how many
+/// were copied from an older version than the current one, and how many the channel has edited since (an
+/// update-in-place publish never overwrites those). Counted from the real rows, the same way the publish
+/// preview counts them.
+/// </summary>
+public sealed record PlatformContentInstallSummaryDto(
+    int InstalledCount,
+    int BehindCount,
+    int EditedCount
 );
 
 /// <summary>One immutable content version (§3.2).</summary>

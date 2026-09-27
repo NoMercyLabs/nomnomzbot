@@ -108548,7 +108548,8 @@
       "PlatformContentDefinitionDetailDto": {
         "required": [
           "definition",
-          "versions"
+          "versions",
+          "installs"
         ],
         "type": "object",
         "properties": {
@@ -108560,6 +108561,9 @@
             "items": {
               "$ref": "#/components/schemas/PlatformContentVersionDto"
             }
+          },
+          "installs": {
+            "$ref": "#/components/schemas/PlatformContentInstallSummaryDto"
           }
         },
         "description": "A definition plus its full version history (§4 `GET /definitions/{id}`)."
@@ -108637,6 +108641,41 @@
           }
         },
         "description": "A platform content definition summary row (platform-admin.md §3.1) — the definitions list."
+      },
+      "PlatformContentInstallSummaryDto": {
+        "required": [
+          "installedCount",
+          "behindCount",
+          "editedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "installedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "behindCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "editedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What the definition's installed copies look like across every tenant right now: how many exist, how many\nwere copied from an older version than the current one, and how many the channel has edited since (an\nupdate-in-place publish never overwrites those). Counted from the real rows, the same way the publish\npreview counts them."
       },
       "PlatformContentPublishJobDto": {
         "required": [

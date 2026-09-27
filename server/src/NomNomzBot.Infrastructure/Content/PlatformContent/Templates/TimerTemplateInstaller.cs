@@ -117,7 +117,7 @@ public sealed class TimerTemplateInstaller(
         return Result.Success(new InstalledPlatformTemplateDto(Kind, row.Id, row.Name));
     }
 
-    public Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+    public Task<IReadOnlyList<PlatformContentCopy>> ListCopiesAsync(
         Guid definitionId,
         CancellationToken ct = default
     ) =>

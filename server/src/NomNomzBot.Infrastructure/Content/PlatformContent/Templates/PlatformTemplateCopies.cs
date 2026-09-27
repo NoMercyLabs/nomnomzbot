@@ -23,7 +23,7 @@ internal static class PlatformTemplateCopies
     /// happens to own a channel still sees every other channel's copy. Matched on provenance only, never on
     /// name: a row the channel authored itself is not a copy.
     /// </summary>
-    public static async Task<IReadOnlyList<PlatformTemplateCopy>> ListAsync<TRow>(
+    public static async Task<IReadOnlyList<PlatformContentCopy>> ListAsync<TRow>(
         DbSet<TRow> rows,
         Guid definitionId,
         Func<TRow, Guid> id,
@@ -37,7 +37,7 @@ internal static class PlatformTemplateCopies
             .ToListAsync(ct);
         return
         [
-            .. installed.Select(r => new PlatformTemplateCopy(
+            .. installed.Select(r => new PlatformContentCopy(
                 id(r),
                 r.BroadcasterId,
                 r.PlatformSourceVersion,

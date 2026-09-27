@@ -381,6 +381,63 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
         Assert.Equal(v1.ContentHash, customisedAfter.PlatformSourceHash);
     }
 
+    // Plan item A5: the definition detail carries the installs summary the admin reads before pushing —
+    // counted from the same rows the publish selection reads.
+    [Fact]
+    public async Task GetDefinition_counts_installed_behind_and_edited_copies_from_real_rows()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedDefinitionAsync();
+        Channel untouchedChannel = await AddChannelAsync("untouched-streamer");
+        await AddBuiltinAsync(
+            untouchedChannel.Id,
+            "sr",
+            overridesJson: null,
+            sourceDefinitionId: definition.Id,
+            sourceVersion: 1,
+            sourceHash: v1.ContentHash
+        );
+        Channel customisedChannel = await AddChannelAsync("customised-streamer");
+        await AddBuiltinAsync(
+            customisedChannel.Id,
+            "sr",
+            overridesJson: "{\"cooldownSeconds\":30}",
+            sourceDefinitionId: definition.Id,
+            sourceVersion: 1,
+            sourceHash: v1.ContentHash
+        );
+        Channel ownChannel = await AddChannelAsync("own-streamer");
+        await AddBuiltinAsync(
+            ownChannel.Id,
+            "sr",
+            overridesJson: null,
+            sourceDefinitionId: null,
+            sourceVersion: null,
+            sourceHash: null
+        );
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash("{\"cooldownSeconds\":10}"),
+            PayloadJson = "{\"cooldownSeconds\":10}",
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+            PublishedAt = DateTime.UtcNow,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        definition.CurrentVersionId = v2.Id;
+        await _db.SaveChangesAsync();
+
+        Result<PlatformContentDefinitionDetailDto> detail = await CreateService()
+            .GetDefinitionAsync(_actingPrincipalId, definition.Id);
+
+        Assert.True(detail.IsSuccess, detail.ErrorMessage);
+        Assert.Equal(3, detail.Value.Installs.InstalledCount);
+        Assert.Equal(2, detail.Value.Installs.BehindCount); // the two v1 copies; the channel's own row has no version
+        Assert.Equal(2, detail.Value.Installs.EditedCount); // the customised copy and the channel's own row
+    }
+
     // ---------------------------------------------------------------------------------------------------
     // DONE-WHEN 2: the blast-radius preview returns correct counts from real tenant rows before anything
     // is written.
@@ -688,7 +745,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task ForcePublish_WithoutJustification_IsRejected()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedDefinitionAsync();
 
         PlatformContentVersion v2 = new()
@@ -765,7 +822,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task Widget_UpdateInPlaceWhereUntouched_ChangesUntouchedTenant_LeavesCustomisedTenantUnchanged()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedWidgetDefinitionAsync();
         string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
             new Dictionary<string, object> { ["color"] = "red" },
@@ -838,7 +895,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task Widget_PreviewPublish_ReturnsRealCounts_AndWritesNothing()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedWidgetDefinitionAsync();
         string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
             new Dictionary<string, object> { ["color"] = "red" },
@@ -909,7 +966,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task Widget_Publish_RejectsWhenSourceFailsToCompile_WritesNothing()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedWidgetDefinitionAsync();
         string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
             new Dictionary<string, object> { ["color"] = "red" },
@@ -970,7 +1027,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task Widget_Publish_WritesAuditRecordWithAffectedCountAndJobId()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedWidgetDefinitionAsync();
         string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
             new Dictionary<string, object> { ["color"] = "red" },
@@ -1031,7 +1088,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task Widget_Publish_RebuildsUntouchedTenantsCompiledBundle_ToReflectTheNewSource()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedWidgetDefinitionAsync();
         string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
             new Dictionary<string, object> { ["color"] = "red" },
@@ -1091,7 +1148,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     [Fact]
     public async Task Widget_Publish_SkipsCustomisedTenant_AndRecordsAFailedTenantRebuildWithoutBlankingItsBundle()
     {
-        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
             await SeedPublishedWidgetDefinitionAsync();
         string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
             new Dictionary<string, object> { ["color"] = "red" },

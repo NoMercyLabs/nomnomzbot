@@ -38,7 +38,7 @@ public interface IPlatformTemplateInstaller
     /// Every installed copy of the definition across ALL tenants, each with its live content hash, so a copy the
     /// channel edited since install can be told from one that still matches what it was copied from.
     /// </summary>
-    Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+    Task<IReadOnlyList<PlatformContentCopy>> ListCopiesAsync(
         Guid definitionId,
         CancellationToken ct = default
     );
@@ -52,8 +52,11 @@ public interface IPlatformTemplateInstaller
     Task<Result> UpdateCopyAsync(PlatformTemplateCopyUpdate update, CancellationToken ct = default);
 }
 
-/// <summary>One tenant's installed copy of a template definition, as the publish blast radius sees it.</summary>
-public sealed record PlatformTemplateCopy(
+/// <summary>
+/// One tenant's installed copy of a definition, as the publish blast radius and the installs summary see it:
+/// which version it was copied from, the hash recorded then, and the hash of what the row holds now.
+/// </summary>
+public sealed record PlatformContentCopy(
     Guid RowId,
     Guid BroadcasterId,
     int? SourceVersion,
