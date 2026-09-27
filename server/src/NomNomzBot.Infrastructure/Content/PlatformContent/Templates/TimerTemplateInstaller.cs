@@ -117,6 +117,80 @@ public sealed class TimerTemplateInstaller(
         return Result.Success(new InstalledPlatformTemplateDto(Kind, row.Id, row.Name));
     }
 
+    public Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+        Guid definitionId,
+        CancellationToken ct = default
+    ) =>
+        PlatformTemplateCopies.ListAsync(
+            db.Timers,
+            definitionId,
+            row => row.Id,
+            row => TimerTemplatePayload.FromEntity(row).ComputeHash(),
+            ct
+        );
+
+    public async Task<Result> UpdateCopyAsync(
+        PlatformTemplateCopyUpdate update,
+        CancellationToken ct = default
+    )
+    {
+        Result<TimerTemplatePayload> parsed = PlatformTemplateJson.Parse<TimerTemplatePayload>(
+            update.PayloadJson
+        );
+        if (parsed.IsFailure)
+            return parsed;
+        TimerTemplatePayload payload = parsed.Value;
+
+        Result valid = Validate(payload);
+        if (valid.IsFailure)
+            return valid;
+
+        DomainTimer? row = await db
+            .Timers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                t =>
+                    t.Id == update.RowId
+                    && t.BroadcasterId == update.BroadcasterId
+                    && t.DeletedAt == null,
+                ct
+            );
+        if (row is null)
+            return Result.Failure("The installed timer no longer exists.", "NOT_FOUND");
+
+        // The copy keeps the pipeline the channel bound at install; a version that drops its messages
+        // needs one, and a copy without one cannot take it.
+        if (payload.RunsPipelineOnly && row.PipelineId is null)
+            return Result.Failure(
+                "This timer version has no messages and runs a pipeline, but the installed copy has none bound.",
+                "VALIDATION_FAILED"
+            );
+
+        Result<TimerDto> updated = await timers.UpdateAsync(
+            update.BroadcasterId.ToString(),
+            row.Id,
+            new()
+            {
+                Name = payload.Name.Trim(),
+                Messages = [.. payload.Messages],
+                IntervalMinutes = payload.IntervalMinutes,
+                MinChatActivity = payload.MinChatActivity,
+                IsEnabled = payload.IsEnabled,
+                FireOnce = payload.FireOnce,
+            },
+            ct
+        );
+        if (updated.IsFailure)
+            return updated;
+
+        row.Stamp(
+            update.Source,
+            TimerTemplatePayload.FromEntity(row).ComputeHash(),
+            DateTime.UtcNow
+        );
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     private Result Validate(TimerTemplatePayload payload)
     {
         if (string.IsNullOrWhiteSpace(payload.Name))

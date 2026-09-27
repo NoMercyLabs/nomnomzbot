@@ -78,6 +78,47 @@ public sealed class PlatformTemplateEventResponseTests : IAsyncDisposable
         row.PlatformSourceSyncedAt.Should().NotBeNull();
     }
 
+    // Plan item A5: a published update rewrites the untouched copy in place, on its own event type.
+    [Fact]
+    public async Task Publishing_an_update_rewrites_the_untouched_copy_and_restamps_it()
+    {
+        Channel channel = await _h.AddChannelAsync("streamer-b");
+        Guid definitionId = await _h.PublishTemplateAsync(
+            _installer,
+            "warm-follow",
+            FollowTemplate
+        );
+        Guid rowId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channel.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        Guid v2 = await _h.DraftVersionAsync(
+            _installer,
+            definitionId,
+            """{"eventType":"channel.follow","responseType":"chat_message","message":"Thanks for the follow, {user}!","metadata":{"tone":"warm"},"isEnabled":true}"""
+        );
+
+        Result<PlatformContentPublishJobDto> job = await _h.PublishAfterPreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        job.IsSuccess.Should().BeTrue(job.ErrorMessage);
+        job.Value.ConfirmedAffectedCount.Should().Be(1);
+        EventResponse row = await _h
+            .Db.EventResponses.AsNoTracking()
+            .SingleAsync(e => e.Id == rowId);
+        row.Message.Should().Be("Thanks for the follow, {user}!");
+        row.EventType.Should().Be("channel.follow");
+        row.PlatformSourceVersion.Should().Be(2);
+        row.PlatformSourceHash.Should()
+            .Be(EventResponseTemplatePayload.FromEntity(row).ComputeHash());
+    }
+
     [Fact]
     public async Task Install_replaces_only_the_installing_channels_row_for_that_event()
     {

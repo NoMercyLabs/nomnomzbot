@@ -106,6 +106,80 @@ public sealed partial class RewardTemplateInstaller(
         return Result.Success(new InstalledPlatformTemplateDto(Kind, row.Id, row.Title));
     }
 
+    public Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+        Guid definitionId,
+        CancellationToken ct = default
+    ) =>
+        PlatformTemplateCopies.ListAsync(
+            db.Rewards,
+            definitionId,
+            row => row.Id,
+            row => RewardTemplatePayload.FromEntity(row).ComputeHash(),
+            ct
+        );
+
+    public async Task<Result> UpdateCopyAsync(
+        PlatformTemplateCopyUpdate update,
+        CancellationToken ct = default
+    )
+    {
+        Result<RewardTemplatePayload> parsed = PlatformTemplateJson.Parse<RewardTemplatePayload>(
+            update.PayloadJson
+        );
+        if (parsed.IsFailure)
+            return parsed;
+        RewardTemplatePayload payload = parsed.Value;
+
+        Result valid = Validate(payload);
+        if (valid.IsFailure)
+            return valid;
+
+        Reward? row = await db
+            .Rewards.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                r =>
+                    r.Id == update.RowId
+                    && r.BroadcasterId == update.BroadcasterId
+                    && r.DeletedAt == null,
+                ct
+            );
+        if (row is null)
+            return Result.Failure("The installed reward no longer exists.", "NOT_FOUND");
+
+        // Goes through the reward update path, so the change is pushed to the channel's Twitch and the local
+        // row mirrors what Twitch confirmed. Prompt and response are sent as empty rather than omitted so a
+        // version that drops them clears them; the optional limits the update API cannot clear keep the
+        // copy's value, and the restamp below records the copy's real state either way.
+        Result<RewardDetail> updated = await rewards.UpdateAsync(
+            update.BroadcasterId.ToString(),
+            row.Id.ToString(),
+            new()
+            {
+                Title = payload.Title.Trim(),
+                Cost = payload.Cost,
+                Prompt = payload.Prompt ?? string.Empty,
+                Response = payload.Response ?? string.Empty,
+                IsUserInputRequired = payload.IsUserInputRequired,
+                BackgroundColor = payload.BackgroundColor,
+                MaxPerStream = payload.MaxPerStream,
+                MaxPerUserPerStream = payload.MaxPerUserPerStream,
+                GlobalCooldownSeconds = payload.GlobalCooldownSeconds,
+                TimerDurationSeconds = payload.TimerDurationSeconds,
+            },
+            ct
+        );
+        if (updated.IsFailure)
+            return updated;
+
+        row.Stamp(
+            update.Source,
+            RewardTemplatePayload.FromEntity(row).ComputeHash(),
+            DateTime.UtcNow
+        );
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     private static Result Validate(RewardTemplatePayload payload)
     {
         string title = payload.Title.Trim();

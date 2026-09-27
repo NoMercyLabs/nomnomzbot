@@ -90,5 +90,6 @@ public sealed record PlatformContentPublishJobDto(
     string? FailureReason,
     IReadOnlyList<Guid> RebuildFailedWidgetIds,
     IReadOnlyList<Guid> ValidationFailedPipelineIds,
-    IReadOnlyList<Guid> ValidationFailedCodeScriptIds
+    IReadOnlyList<Guid> ValidationFailedCodeScriptIds,
+    IReadOnlyList<Guid> UpdateFailedTemplateRowIds
 );

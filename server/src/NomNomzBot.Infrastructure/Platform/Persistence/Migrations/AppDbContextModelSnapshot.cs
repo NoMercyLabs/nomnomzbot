@@ -9320,6 +9320,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int>("ToVersion")
                         .HasColumnType("integer");
 
+                    b.Property<string>("UpdateFailedTemplateRowIds")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("ValidationFailedCodeScriptIds")
                         .IsRequired()
                         .HasColumnType("text");

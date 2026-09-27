@@ -33,7 +33,40 @@ public interface IPlatformTemplateInstaller
         PlatformTemplateInstall install,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Every installed copy of the definition across ALL tenants, each with its live content hash, so a copy the
+    /// channel edited since install can be told from one that still matches what it was copied from.
+    /// </summary>
+    Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+        Guid definitionId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Rewrites one installed copy from a newer published payload through the SAME save path the channel's own
+    /// page uses, then restamps its provenance. The copy keeps its identity and its channel-chosen bindings (a
+    /// bound pipeline); a payload the copy cannot take (a pipeline template on a copy with no pipeline) fails
+    /// <c>VALIDATION_FAILED</c> and leaves the copy as it was.
+    /// </summary>
+    Task<Result> UpdateCopyAsync(PlatformTemplateCopyUpdate update, CancellationToken ct = default);
 }
+
+/// <summary>One tenant's installed copy of a template definition, as the publish blast radius sees it.</summary>
+public sealed record PlatformTemplateCopy(
+    Guid RowId,
+    Guid BroadcasterId,
+    int? SourceVersion,
+    string? SourceHash,
+    string LiveHash
+);
+
+public sealed record PlatformTemplateCopyUpdate(
+    Guid RowId,
+    Guid BroadcasterId,
+    PlatformTemplateSource Source,
+    string PayloadJson
+);
 
 /// <summary>The published version being installed — stamped onto the installed row as provenance.</summary>
 public sealed record PlatformTemplateSource(Guid DefinitionId, int Version);

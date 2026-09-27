@@ -325,7 +325,7 @@ public sealed class PlatformContentService(
 
         (PlatformContentDefinition definition, PlatformContentVersion version) = loaded.Value;
 
-        PublishSelection selection = await SelectTenantRowsAsync(definition, version, mode, ct);
+        PublishSelection selection = await SelectTenantRowsAsync(definition, mode, ct);
 
         // IgnoreQueryFilters + re-apply DeletedAt == null (the established cross-tenant-admin-read
         // convention, e.g. AdminService.cs): this preview spans EVERY tenant by design, but the
@@ -440,12 +440,7 @@ public sealed class PlatformContentService(
         if (templateGate.IsFailure)
             return templateGate.WithValue<PlatformContentPublishJobDto>(null!);
 
-        PublishSelection freshSelection = await SelectTenantRowsAsync(
-            definition,
-            version,
-            request.Mode,
-            ct
-        );
+        PublishSelection freshSelection = await SelectTenantRowsAsync(definition, request.Mode, ct);
         if (freshSelection.AffectedRowIds.Count != request.ConfirmedPreviewAffectedCount)
             return Result.Failure<PlatformContentPublishJobDto>(
                 "The affected-tenant count changed since the last preview. Run publish-preview again.",
@@ -521,6 +516,17 @@ public sealed class PlatformContentService(
                         now,
                         ct
                     );
+                }
+                else
+                {
+                    TemplateFanOutResult templateResult = await ApplyTemplateFanOutAsync(
+                        definition,
+                        version,
+                        freshSelection.AffectedRowIds,
+                        ct
+                    );
+                    confirmedCount = templateResult.Count;
+                    job.UpdateFailedTemplateRowIds = templateResult.UpdateFailedRowIds;
                 }
             }
 
@@ -733,7 +739,6 @@ public sealed class PlatformContentService(
     /// </summary>
     private async Task<PublishSelection> SelectTenantRowsAsync(
         PlatformContentDefinition definition,
-        PlatformContentVersion version,
         string mode,
         CancellationToken ct
     )
@@ -748,8 +753,50 @@ public sealed class PlatformContentService(
                 mode,
                 ct
             ),
-            _ => new PublishSelection([], 0),
+            _ => await SelectTemplateRowsAsync(definition, mode, ct),
         };
+    }
+
+    /// <summary>
+    /// The template kinds (event_response, timer, reward, pick_list): the copies are whatever the kind's
+    /// installer stamped with this definition's provenance, and "untouched" is the installer's live hash still
+    /// matching the hash recorded at install or last sync. Same rules as the command selection above.
+    /// </summary>
+    private async Task<PublishSelection> SelectTemplateRowsAsync(
+        PlatformContentDefinition definition,
+        string mode,
+        CancellationToken ct
+    )
+    {
+        IPlatformTemplateInstaller? installer = FindTemplateInstaller(definition.Kind);
+        if (installer is null)
+            return new PublishSelection([], 0);
+
+        IReadOnlyList<PlatformTemplateCopy> copies = await installer.ListCopiesAsync(
+            definition.Id,
+            ct
+        );
+
+        switch (mode)
+        {
+            case PlatformContentPublishModes.PublishAsNew:
+                return new PublishSelection([], 0);
+
+            case PlatformContentPublishModes.Force:
+                return new PublishSelection([.. copies.Select(c => c.RowId)], 0);
+
+            default:
+                List<Guid> untouched = [];
+                int skipped = 0;
+                foreach (PlatformTemplateCopy copy in copies)
+                {
+                    if (copy.SourceHash == copy.LiveHash)
+                        untouched.Add(copy.RowId);
+                    else
+                        skipped++;
+                }
+                return new PublishSelection(untouched, skipped);
+        }
     }
 
     private async Task<PublishSelection> SelectCommandRowsAsync(
@@ -945,6 +992,55 @@ public sealed class PlatformContentService(
                 }
                 return new PublishSelection(untouched, skipped);
         }
+    }
+
+    private readonly record struct TemplateFanOutResult(int Count, List<Guid> UpdateFailedRowIds);
+
+    /// <summary>
+    /// Rewrites every affected installed copy of a template kind through its installer's
+    /// <see cref="IPlatformTemplateInstaller.UpdateCopyAsync"/> — the same feature save path the channel's own
+    /// page uses (a reward change is pushed to that channel's Twitch, a timer keeps its bound pipeline) — and
+    /// restamps provenance. A copy whose update is refused keeps its previous content and is recorded in
+    /// <see cref="PlatformContentPublishJob.UpdateFailedTemplateRowIds"/>, never silently dropped. A customised
+    /// copy was already excluded upstream by <see cref="SelectTemplateRowsAsync"/> unless the mode is force.
+    /// </summary>
+    private async Task<TemplateFanOutResult> ApplyTemplateFanOutAsync(
+        PlatformContentDefinition definition,
+        PlatformContentVersion version,
+        List<Guid> affectedRowIds,
+        CancellationToken ct
+    )
+    {
+        IPlatformTemplateInstaller? installer = FindTemplateInstaller(definition.Kind);
+        if (installer is null || affectedRowIds.Count == 0)
+            return new TemplateFanOutResult(0, []);
+
+        Dictionary<Guid, PlatformTemplateCopy> copiesById = (
+            await installer.ListCopiesAsync(definition.Id, ct)
+        ).ToDictionary(c => c.RowId);
+        PlatformTemplateSource source = new(definition.Id, version.Version);
+
+        int updated = 0;
+        List<Guid> failed = [];
+        foreach (Guid rowId in affectedRowIds)
+        {
+            if (!copiesById.TryGetValue(rowId, out PlatformTemplateCopy? copy))
+                continue;
+            Result outcome = await installer.UpdateCopyAsync(
+                new PlatformTemplateCopyUpdate(
+                    copy.RowId,
+                    copy.BroadcasterId,
+                    source,
+                    version.PayloadJson
+                ),
+                ct
+            );
+            if (outcome.IsSuccess)
+                updated++;
+            else
+                failed.Add(rowId);
+        }
+        return new TemplateFanOutResult(updated, failed);
     }
 
     private async Task<int> ApplyCommandFanOutAsync(
@@ -1380,6 +1476,7 @@ public sealed class PlatformContentService(
             job.FailureReason,
             job.RebuildFailedWidgetIds,
             job.ValidationFailedPipelineIds,
-            job.ValidationFailedCodeScriptIds
+            job.ValidationFailedCodeScriptIds,
+            job.UpdateFailedTemplateRowIds
         );
 }

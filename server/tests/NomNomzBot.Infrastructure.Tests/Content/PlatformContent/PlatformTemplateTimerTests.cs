@@ -141,6 +141,134 @@ public sealed class PlatformTemplateTimerTests : IAsyncDisposable
         rows.Count(t => t.BroadcasterId == channelA.Id).Should().Be(1);
     }
 
+    private const string HydrateV2 =
+        """{"name":"Hydrate","messages":["Water break, {channel}!"],"intervalMinutes":60,"minChatActivity":0,"fireOnce":false,"isEnabled":true}""";
+
+    // Plan item A5: a published update reaches every copy that still matches what it was installed from,
+    // and never a copy the channel edited — the preview counts both, the publish does exactly that.
+    [Fact]
+    public async Task Publishing_an_update_in_place_rewrites_untouched_copies_and_leaves_edited_ones()
+    {
+        Channel channelA = await _h.AddChannelAsync("streamer-a");
+        Channel channelB = await _h.AddChannelAsync("streamer-b");
+        Guid definitionId = await _h.PublishTemplateAsync(_installer, "hydrate", HydrateTemplate);
+        Guid untouchedId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channelA.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        Guid editedId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channelB.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        DomainTimer edited = await _h.Db.Timers.SingleAsync(t => t.Id == editedId);
+        edited.IntervalMinutes = 10;
+        await _h.Db.SaveChangesAsync();
+
+        Guid v2 = await _h.DraftVersionAsync(_installer, definitionId, HydrateV2);
+        Result<PublishPreviewDto> preview = await _h.PreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+        preview
+            .Value.AffectedCount.Should()
+            .Be(1, "only the untouched copy is in the blast radius");
+        preview.Value.SkippedCount.Should().Be(1, "the edited copy is counted, not hidden");
+
+        Result<PlatformContentPublishJobDto> job = await _h.PublishAfterPreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        job.IsSuccess.Should().BeTrue(job.ErrorMessage);
+        job.Value.ConfirmedAffectedCount.Should().Be(1);
+        job.Value.UpdateFailedTemplateRowIds.Should().BeEmpty();
+        List<DomainTimer> rows = await _h.Db.Timers.AsNoTracking().ToListAsync();
+        DomainTimer updated = rows.Single(t => t.Id == untouchedId);
+        updated.Messages.Should().Equal("Water break, {channel}!");
+        updated.IntervalMinutes.Should().Be(60);
+        updated.PlatformSourceVersion.Should().Be(2);
+        updated
+            .PlatformSourceHash.Should()
+            .Be(TimerTemplatePayload.FromEntity(updated).ComputeHash());
+        DomainTimer kept = rows.Single(t => t.Id == editedId);
+        kept.IntervalMinutes.Should().Be(10, "the channel's edit is never overwritten silently");
+        kept.Messages.Should().Equal("Drink some water, {channel}!", "Stretch your legs.");
+        kept.PlatformSourceVersion.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_force_publish_overwrites_an_edited_copy_and_says_so_in_the_job()
+    {
+        Channel channel = await _h.AddChannelAsync("streamer-b");
+        Guid definitionId = await _h.PublishTemplateAsync(_installer, "hydrate", HydrateTemplate);
+        Guid rowId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channel.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        DomainTimer edited = await _h.Db.Timers.SingleAsync(t => t.Id == rowId);
+        edited.IntervalMinutes = 10;
+        await _h.Db.SaveChangesAsync();
+        Guid v2 = await _h.DraftVersionAsync(_installer, definitionId, HydrateV2);
+
+        Result<PlatformContentPublishJobDto> job = await _h.PublishAfterPreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.Force,
+            "Interval was wrong in v1"
+        );
+
+        job.IsSuccess.Should().BeTrue(job.ErrorMessage);
+        job.Value.Mode.Should().Be(PlatformContentPublishModes.Force);
+        job.Value.ConfirmedAffectedCount.Should().Be(1);
+        DomainTimer row = await _h.Db.Timers.AsNoTracking().SingleAsync(t => t.Id == rowId);
+        row.IntervalMinutes.Should().Be(60);
+        row.PlatformSourceVersion.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task A_copy_that_cannot_take_the_new_version_keeps_its_content_and_is_recorded_on_the_job()
+    {
+        Channel channel = await _h.AddChannelAsync("streamer-b");
+        Guid definitionId = await _h.PublishTemplateAsync(_installer, "hydrate", HydrateTemplate);
+        Guid rowId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channel.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        // v2 drops every message, so it runs a pipeline — and this copy has none bound.
+        Guid v2 = await _h.DraftVersionAsync(
+            _installer,
+            definitionId,
+            """{"name":"Hydrate","messages":[],"intervalMinutes":60}"""
+        );
+
+        Result<PlatformContentPublishJobDto> job = await _h.PublishAfterPreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        job.IsSuccess.Should().BeTrue(job.ErrorMessage);
+        job.Value.ConfirmedAffectedCount.Should().Be(0);
+        job.Value.UpdateFailedTemplateRowIds.Should().Equal(rowId);
+        DomainTimer row = await _h.Db.Timers.AsNoTracking().SingleAsync(t => t.Id == rowId);
+        row.Messages.Should().Equal("Drink some water, {channel}!", "Stretch your legs.");
+        row.PlatformSourceVersion.Should().Be(1, "a refused update never restamps the copy");
+    }
+
     [Theory]
     [InlineData("""{"name":"","messages":["hi"]}""")]
     [InlineData("""{"name":"x","messages":["hi"],"intervalMinutes":0}""")]

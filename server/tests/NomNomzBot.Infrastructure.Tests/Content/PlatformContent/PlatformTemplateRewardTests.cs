@@ -41,6 +41,11 @@ public sealed class PlatformTemplateRewardTests : IAsyncDisposable
         Substitute.For<ITwitchChannelPointsApi>();
     private readonly List<(Guid Broadcaster, CreateCustomRewardRequest Request)> _twitchCreates =
     [];
+    private readonly List<(
+        Guid Broadcaster,
+        string RewardId,
+        UpdateCustomRewardRequest Request
+    )> _twitchUpdates = [];
     private readonly RewardTemplateInstaller _installer;
 
     public PlatformTemplateRewardTests()
@@ -57,6 +62,36 @@ public sealed class PlatformTemplateRewardTests : IAsyncDisposable
                 CreateCustomRewardRequest request = call.ArgAt<CreateCustomRewardRequest>(1);
                 _twitchCreates.Add((call.ArgAt<Guid>(0), request));
                 return Result.Success(ConfirmedByTwitch(request));
+            });
+        _channelPoints
+            .UpdateCustomRewardAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<UpdateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                UpdateCustomRewardRequest request = call.ArgAt<UpdateCustomRewardRequest>(2);
+                _twitchUpdates.Add((call.ArgAt<Guid>(0), call.ArgAt<string>(1), request));
+                return Result.Success(
+                    ConfirmedByTwitch(
+                        new(
+                            Title: request.Title ?? "Hydrate",
+                            Cost: request.Cost ?? 500,
+                            Prompt: request.Prompt,
+                            BackgroundColor: request.BackgroundColor,
+                            IsUserInputRequired: request.IsUserInputRequired,
+                            IsMaxPerStreamEnabled: request.IsMaxPerStreamEnabled,
+                            MaxPerStream: request.MaxPerStream,
+                            IsGlobalCooldownEnabled: request.IsGlobalCooldownEnabled,
+                            GlobalCooldownSeconds: request.GlobalCooldownSeconds
+                        )
+                    ) with
+                    {
+                        Id = call.ArgAt<string>(1),
+                    }
+                );
             });
         RewardService rewards = new(
             _h.Db,
@@ -146,6 +181,51 @@ public sealed class PlatformTemplateRewardTests : IAsyncDisposable
         row.IsManageable.Should().BeTrue();
         row.PlatformSourceDefinitionId.Should().Be(definitionId);
         row.PlatformSourceVersion.Should().Be(1);
+        row.PlatformSourceHash.Should().Be(RewardTemplatePayload.FromEntity(row).ComputeHash());
+    }
+
+    // Plan item A5: a published reward update is pushed to each untouched copy's OWN Twitch through the same
+    // update path the channel's page uses, and the local row mirrors what Twitch confirmed plus new provenance.
+    [Fact]
+    public async Task Publishing_an_update_pushes_it_to_the_installing_channels_twitch_and_restamps()
+    {
+        Channel channel = await _h.AddChannelAsync("streamer-b");
+        Guid definitionId = await _h.PublishTemplateAsync(_installer, "hydrate", HydrateTemplate);
+        Guid rowId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channel.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        Guid v2 = await _h.DraftVersionAsync(
+            _installer,
+            definitionId,
+            """{"title":"Hydrate Plus","cost":750,"prompt":"Make me drink lots of water","response":"{user} made me drink!","isUserInputRequired":false,"backgroundColor":"#00AAFF","maxPerStream":10,"globalCooldownSeconds":300,"timerDurationSeconds":60}"""
+        );
+
+        Result<PlatformContentPublishJobDto> job = await _h.PublishAfterPreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        job.IsSuccess.Should().BeTrue(job.ErrorMessage);
+        job.Value.ConfirmedAffectedCount.Should().Be(1);
+        job.Value.UpdateFailedTemplateRowIds.Should().BeEmpty();
+        (Guid broadcaster, string twitchRewardId, UpdateCustomRewardRequest sent) = _twitchUpdates
+            .Should()
+            .ContainSingle()
+            .Subject;
+        broadcaster.Should().Be(channel.Id);
+        twitchRewardId.Should().Be("twitch-reward-1");
+        sent.Title.Should().Be("Hydrate Plus");
+        sent.Cost.Should().Be(750);
+        Reward row = await _h.Db.Rewards.AsNoTracking().SingleAsync(r => r.Id == rowId);
+        row.Title.Should().Be("Hydrate Plus");
+        row.Cost.Should().Be(750);
+        row.Description.Should().Be("Make me drink lots of water");
+        row.PlatformSourceVersion.Should().Be(2);
         row.PlatformSourceHash.Should().Be(RewardTemplatePayload.FromEntity(row).ComputeHash());
     }
 

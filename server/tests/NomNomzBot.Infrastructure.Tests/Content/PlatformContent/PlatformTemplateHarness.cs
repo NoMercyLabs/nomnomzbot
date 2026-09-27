@@ -105,6 +105,55 @@ internal sealed class PlatformTemplateHarness : IAsyncDisposable
         return created.Value.Id;
     }
 
+    /// <summary>Drafts the definition's next version from <paramref name="payloadJson"/>; returns the version id.</summary>
+    public async Task<Guid> DraftVersionAsync(
+        IPlatformTemplateInstaller installer,
+        Guid definitionId,
+        string payloadJson
+    )
+    {
+        Result<PlatformContentVersionDto> drafted = await AdminService(installer)
+            .DraftVersionAsync(ActingPrincipalId, definitionId, new(payloadJson, null));
+        if (drafted.IsFailure)
+            throw new InvalidOperationException(drafted.ErrorMessage);
+        return drafted.Value.Id;
+    }
+
+    public Task<Result<PublishPreviewDto>> PreviewAsync(
+        IPlatformTemplateInstaller installer,
+        Guid definitionId,
+        Guid versionId,
+        string mode
+    ) =>
+        AdminService(installer)
+            .PreviewPublishAsync(ActingPrincipalId, definitionId, versionId, mode);
+
+    /// <summary>Previews, then publishes with the previewed count — the exact two-step flow the admin console runs.</summary>
+    public async Task<Result<PlatformContentPublishJobDto>> PublishAfterPreviewAsync(
+        IPlatformTemplateInstaller installer,
+        Guid definitionId,
+        Guid versionId,
+        string mode,
+        string? publishNote = null
+    )
+    {
+        Result<PublishPreviewDto> preview = await PreviewAsync(
+            installer,
+            definitionId,
+            versionId,
+            mode
+        );
+        if (preview.IsFailure)
+            throw new InvalidOperationException(preview.ErrorMessage);
+        return await AdminService(installer)
+            .PublishAsync(
+                ActingPrincipalId,
+                definitionId,
+                versionId,
+                new(mode, publishNote, preview.Value.AffectedCount)
+            );
+    }
+
     public async Task<Channel> AddChannelAsync(string name)
     {
         Channel channel = new()

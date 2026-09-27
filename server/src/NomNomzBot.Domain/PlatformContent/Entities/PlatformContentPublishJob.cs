@@ -77,6 +77,13 @@ public class PlatformContentPublishJob
     /// tenants did not receive the update. Empty (never null) when nothing failed, or for a non-<c>code_script</c>
     /// -kind job.</summary>
     public List<Guid> ValidationFailedCodeScriptIds { get; set; } = [];
+
+    /// <summary>Template kinds (event_response, timer, reward, pick_list): installed copies whose in-place
+    /// update was refused during this fan-out — a version the copy cannot take (a pipeline template on a copy
+    /// with no pipeline bound), or a downstream refusal such as Twitch rejecting a reward change. The copy keeps
+    /// its previous content and provenance, so this is the only record of which tenants did not receive the
+    /// update. Empty (never null) when nothing failed, or for a non-template job.</summary>
+    public List<Guid> UpdateFailedTemplateRowIds { get; set; } = [];
 }
 
 /// <summary>The closed set of publish modes (§2.1). A publish job's mode is one of exactly these.</summary>

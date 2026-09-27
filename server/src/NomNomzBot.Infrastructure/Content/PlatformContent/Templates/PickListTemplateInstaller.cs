@@ -88,6 +88,65 @@ public sealed partial class PickListTemplateInstaller(
         return Result.Success(new InstalledPlatformTemplateDto(Kind, row.Id, row.Name));
     }
 
+    public Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+        Guid definitionId,
+        CancellationToken ct = default
+    ) =>
+        PlatformTemplateCopies.ListAsync(
+            db.PickLists,
+            definitionId,
+            row => row.Id,
+            row => PickListTemplatePayload.FromEntity(row).ComputeHash(),
+            ct
+        );
+
+    public async Task<Result> UpdateCopyAsync(
+        PlatformTemplateCopyUpdate update,
+        CancellationToken ct = default
+    )
+    {
+        Result<PickListTemplatePayload> parsed =
+            PlatformTemplateJson.Parse<PickListTemplatePayload>(update.PayloadJson);
+        if (parsed.IsFailure)
+            return parsed;
+        PickListTemplatePayload payload = parsed.Value;
+
+        Result valid = Validate(payload);
+        if (valid.IsFailure)
+            return valid;
+
+        PickList? row = await db
+            .PickLists.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                p =>
+                    p.Id == update.RowId
+                    && p.BroadcasterId == update.BroadcasterId
+                    && p.DeletedAt == null,
+                ct
+            );
+        if (row is null)
+            return Result.Failure("The installed pick list no longer exists.", "NOT_FOUND");
+
+        // The name is the {list.pick.name} key the channel's pipelines reference, so the copy keeps the name
+        // it was installed under; only the entries and description follow the new version.
+        Result<PickListDto> updated = await pickLists.UpdateAsync(
+            update.BroadcasterId,
+            row.Id,
+            new(row.Name, payload.Description, [.. payload.Items]),
+            ct
+        );
+        if (updated.IsFailure)
+            return updated;
+
+        row.Stamp(
+            update.Source,
+            PickListTemplatePayload.FromEntity(row).ComputeHash(),
+            DateTime.UtcNow
+        );
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     private static Result Validate(PickListTemplatePayload payload)
     {
         string name = payload.Name.Trim();

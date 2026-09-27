@@ -98,6 +98,86 @@ public sealed class EventResponseTemplateInstaller(
         return Result.Success(new InstalledPlatformTemplateDto(Kind, row.Id, row.EventType));
     }
 
+    public Task<IReadOnlyList<PlatformTemplateCopy>> ListCopiesAsync(
+        Guid definitionId,
+        CancellationToken ct = default
+    ) =>
+        PlatformTemplateCopies.ListAsync(
+            db.EventResponses,
+            definitionId,
+            row => row.Id,
+            row => EventResponseTemplatePayload.FromEntity(row).ComputeHash(),
+            ct
+        );
+
+    public async Task<Result> UpdateCopyAsync(
+        PlatformTemplateCopyUpdate update,
+        CancellationToken ct = default
+    )
+    {
+        Result<EventResponseTemplatePayload> parsed =
+            PlatformTemplateJson.Parse<EventResponseTemplatePayload>(update.PayloadJson);
+        if (parsed.IsFailure)
+            return parsed;
+        EventResponseTemplatePayload payload = parsed.Value;
+
+        Result valid = Validate(payload);
+        if (valid.IsFailure)
+            return valid;
+
+        EventResponse? row = await db
+            .EventResponses.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                e =>
+                    e.Id == update.RowId
+                    && e.BroadcasterId == update.BroadcasterId
+                    && e.DeletedAt == null,
+                ct
+            );
+        if (row is null)
+            return Result.Failure("The installed event response no longer exists.", "NOT_FOUND");
+
+        // Rows are a fixed catalogue keyed by event type: a version cannot move the copy to another event.
+        if (row.EventType != payload.EventType)
+            return Result.Failure(
+                $"The installed copy responds to '{row.EventType}', not '{payload.EventType}'.",
+                "VALIDATION_FAILED"
+            );
+
+        bool runsPipeline = payload.ResponseType == EventResponseTemplatePayload.Pipeline;
+        if (runsPipeline && row.PipelineId is null)
+            return Result.Failure(
+                "This version runs a pipeline, but the installed copy has none bound.",
+                "VALIDATION_FAILED"
+            );
+
+        Result<EventResponseDto> upserted = await eventResponses.UpsertAsync(
+            update.BroadcasterId.ToString(),
+            payload.EventType,
+            new()
+            {
+                IsEnabled = payload.IsEnabled,
+                ResponseType = payload.ResponseType,
+                Message = payload.Message ?? string.Empty,
+                PipelineId = runsPipeline ? row.PipelineId : Guid.Empty,
+                Metadata = new Dictionary<string, string>(payload.Metadata),
+            },
+            ct
+        );
+        if (upserted.IsFailure)
+            return upserted;
+
+        if (payload.Message is null)
+            row.Message = null;
+        row.Stamp(
+            update.Source,
+            EventResponseTemplatePayload.FromEntity(row).ComputeHash(),
+            DateTime.UtcNow
+        );
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
     private Result Validate(EventResponseTemplatePayload payload)
     {
         if (!EventResponsePresetCatalog.EventTypes.Contains(payload.EventType))

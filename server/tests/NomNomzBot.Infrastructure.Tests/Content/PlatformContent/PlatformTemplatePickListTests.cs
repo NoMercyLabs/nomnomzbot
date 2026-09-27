@@ -71,6 +71,47 @@ public sealed class PlatformTemplatePickListTests : IAsyncDisposable
         row.PlatformSourceHash.Should().Be(PickListTemplatePayload.FromEntity(row).ComputeHash());
     }
 
+    // Plan item A5: a published update replaces the entries of an untouched copy; the name is the pick key the
+    // channel's pipelines reference, so the copy keeps the name it was installed under.
+    [Fact]
+    public async Task Publishing_an_update_replaces_the_untouched_copys_entries_and_keeps_its_name()
+    {
+        Channel channel = await _h.AddChannelAsync("streamer-b");
+        Guid definitionId = await _h.PublishTemplateAsync(
+            _installer,
+            "greetings",
+            GreetingsTemplate
+        );
+        Guid rowId = (
+            await _h.Catalog(_installer)
+                .InstallAsync(_h.CallerUserId, channel.Id, definitionId, new(null))
+        )
+            .Value
+            .EntityId;
+        Guid v2 = await _h.DraftVersionAsync(
+            _installer,
+            definitionId,
+            """{"name":"greetings-v2","description":"Warmer hellos","items":["Hey {user}!","So glad you are here, {user}!"]}"""
+        );
+
+        Result<PlatformContentPublishJobDto> job = await _h.PublishAfterPreviewAsync(
+            _installer,
+            definitionId,
+            v2,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        job.IsSuccess.Should().BeTrue(job.ErrorMessage);
+        job.Value.ConfirmedAffectedCount.Should().Be(1);
+        PickList row = await _h.Db.PickLists.AsNoTracking().SingleAsync(p => p.Id == rowId);
+        row.Name.Should()
+            .Be("greetings", "the pick key the channel's pipelines reference never moves");
+        row.Description.Should().Be("Warmer hellos");
+        row.Items.Should().Equal("Hey {user}!", "So glad you are here, {user}!");
+        row.PlatformSourceVersion.Should().Be(2);
+        row.PlatformSourceHash.Should().Be(PickListTemplatePayload.FromEntity(row).ComputeHash());
+    }
+
     [Fact]
     public async Task A_taken_name_is_refused_and_neither_channels_list_changes()
     {
