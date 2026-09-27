@@ -1584,7 +1584,12 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                     } else {
                                         Res.string.admin_flag_override_confirm_disable
                                     },
-                                    pending.channel.label,
+                                    resolveRowLabel(
+                                        primary = pending.channel.displayName,
+                                        secondary = pending.channel.login,
+                                        typeLabel = stringResource(Res.string.admin_channel_row_type),
+                                        discriminatorSource = pending.channel.id,
+                                    ),
                                 ),
                                 confirmLabel = stringResource(Res.string.admin_flag_override_confirm),
                                 dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),

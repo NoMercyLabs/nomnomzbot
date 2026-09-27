@@ -451,8 +451,8 @@ enum class ImpersonationRefusal {
     TargetOutsideSession,
 }
 
-/** A channel an operator named, by the id the API needs and the name a confirm dialog shows. */
-data class ResolvedChannel(val id: String, val label: String)
+/** A channel an operator named, by the id the API needs; its display name and login render the label. */
+data class ResolvedChannel(val id: String, val displayName: String?, val login: String?)
 
 private val CHANNEL_ID: Regex = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
@@ -724,7 +724,7 @@ class AdminController(
         if (typed.isEmpty()) return null
         if (CHANNEL_ID.matches(typed)) {
             val known: String? = _state.value.flagOverrides.firstOrNull { it.broadcasterId == typed }?.channelName?.ifBlank { null }
-            return ResolvedChannel(id = typed, label = known ?: typed)
+            return ResolvedChannel(id = typed, displayName = known, login = null)
         }
         val match: AdminChannel? = (api.getChannels(search = typed) as? ApiResult.Ok)
             ?.value
@@ -734,7 +734,7 @@ class AdminController(
             feedback.error(Res.string.admin_flag_override_no_channel, typed)
             return null
         }
-        return ResolvedChannel(id = match.id, label = match.displayName)
+        return ResolvedChannel(id = match.id, displayName = match.displayName, login = match.login)
     }
 
     /**

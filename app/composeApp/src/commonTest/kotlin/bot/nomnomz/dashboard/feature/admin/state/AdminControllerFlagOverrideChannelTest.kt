@@ -49,7 +49,7 @@ class AdminControllerFlagOverrideChannelTest {
 
         val resolved: ResolvedChannel? = controller.resolveOverrideChannel(" QTKITTE ")
 
-        assertEquals(ResolvedChannel(id = "22222222-2222-2222-2222-222222222222", label = "qtkitte"), resolved)
+        assertEquals(ResolvedChannel(id = "22222222-2222-2222-2222-222222222222", displayName = "qtkitte", login = "qtkitte"), resolved)
     }
 
     @Test

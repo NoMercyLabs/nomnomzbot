@@ -102,7 +102,7 @@ class AdminFeatureFlagsKillSwitchTest {
             onNodeWithText("Enabled — 42%").assertExists()
             // The per-tenant override controls (the internal/beta opt-in or per-channel kill-switch) must
             // render alongside the cohort state, not be a separate screen the operator has to find.
-            onNodeWithText("Broadcaster id").assertExists()
+            onNodeWithText("Channel login or id").assertExists()
             onNodeWithText("Override: enable").assertExists()
             onNodeWithText("Override: disable").assertExists()
             onNodeWithText("Clear override").assertExists()
