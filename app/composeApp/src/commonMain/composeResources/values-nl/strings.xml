@@ -5623,4 +5623,15 @@
     <string name="platform_defaults_event_message_required">Een reactie die aan staat heeft een bericht nodig.</string>
     <string name="platform_defaults_check_impact">Impact bekijken</string>
     <string name="platform_defaults_check_first">Bekijk de impact om te zien welke kanalen dit verandert.</string>
+    <string name="platform_defaults_section_builtin_replies">Ingebouwde antwoorden</string>
+    <string name="platform_defaults_reply_title">!%1$s · %2$s</string>
+    <string name="platform_defaults_reply_platform">Platformtekst: %1$s</string>
+    <string name="platform_defaults_reply_shipped">Meegeleverde tekst: %1$s</string>
+    <string name="platform_defaults_reply_shipped_fallback">Meegeleverde tekst: de eigen regel van het commando</string>
+    <string name="platform_defaults_reply_counts_overridable">%1$d kanaal/kanalen antwoorden met een eigen tekst, elk ander kanaal gebruikt deze tekst</string>
+    <string name="platform_defaults_reply_counts_all">Elk kanaal gebruikt deze tekst</string>
+    <string name="platform_defaults_reply_edit_title">Tekst van !%1$s · %2$s</string>
+    <string name="platform_defaults_reply_use_shipped">De meegeleverde tekst gebruiken</string>
+    <string name="platform_defaults_reply_template">Tekst</string>
+    <string name="platform_defaults_reply_template_required">Een platformtekst heeft inhoud nodig, of schakel terug naar de meegeleverde tekst.</string>
 </resources>

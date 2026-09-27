@@ -15,11 +15,14 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ActionDangerTier
 import bot.nomnomz.dashboard.core.network.ActionDefault
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BuiltinReplyDefault
+import bot.nomnomz.dashboard.core.network.BuiltinReplyDefaultChange
 import bot.nomnomz.dashboard.core.network.EventResponseDefault
 import bot.nomnomz.dashboard.core.network.EventResponseDefaultChange
 import bot.nomnomz.dashboard.core.network.PlatformDefaultBlastRadius
 import bot.nomnomz.dashboard.core.network.PlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.SetActionDefaultRequest
+import bot.nomnomz.dashboard.core.network.SetBuiltinReplyDefaultRequest
 import bot.nomnomz.dashboard.core.network.SetEventResponseDefaultRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +70,28 @@ data class EventResponseDefaultEdit(
         get() = preview != null && !saving && (!isEnabled || message.isNotBlank())
 }
 
+/**
+ * The draft of one built-in reply wording edit. [useShipped] means "back to the shipped wording" (a null
+ * template on the wire); otherwise [template] is the platform wording. Any change drops [preview], so the save
+ * can only ever carry a count the operator saw for exactly the wording being saved.
+ */
+data class BuiltinReplyDefaultEdit(
+    val builtinKey: String,
+    val slot: String,
+    val template: String,
+    val useShipped: Boolean,
+    val preview: PlatformDefaultBlastRadius? = null,
+    val previewing: Boolean = false,
+    val saving: Boolean = false,
+) {
+    val change: BuiltinReplyDefaultChange
+        get() = BuiltinReplyDefaultChange(template = if (useShipped) null else template.trim().ifEmpty { null })
+
+    /** A platform wording must say something; the save arms only once the count for this wording is shown. */
+    val canSave: Boolean
+        get() = preview != null && !saving && (useShipped || template.isNotBlank())
+}
+
 data class PlatformDefaultsState(
     val actionDefaults: List<ActionDefault> = emptyList(),
     val actionsLoaded: Boolean = false,
@@ -75,6 +100,9 @@ data class PlatformDefaultsState(
     val eventDefaults: List<EventResponseDefault> = emptyList(),
     val eventsLoaded: Boolean = false,
     val eventEdit: EventResponseDefaultEdit? = null,
+    val replyDefaults: List<BuiltinReplyDefault> = emptyList(),
+    val repliesLoaded: Boolean = false,
+    val replyEdit: BuiltinReplyDefaultEdit? = null,
 ) {
     /** The action rows matching the filter (key or description, case-insensitive). */
     val visibleActionDefaults: List<ActionDefault>
@@ -246,6 +274,97 @@ class PlatformDefaultsController(
                 if (result.error.code == STALE_CODE) {
                     feedback.error(Res.string.platform_defaults_stale)
                     previewEventEdit()
+                } else {
+                    feedback.error(Res.string.platform_defaults_error, result.error.message)
+                }
+            }
+        }
+    }
+
+    suspend fun loadBuiltinReplyDefaults() {
+        when (val result: ApiResult<List<BuiltinReplyDefault>> = api.builtinReplyDefaults()) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(replyDefaults = result.value, repliesLoaded = true)
+            is ApiResult.Failure -> feedback.error(Res.string.platform_defaults_error, result.error.message)
+        }
+    }
+
+    /** Opens the editor on one slot with its current wording. Nothing is previewed until asked. */
+    fun openReplyEdit(builtinKey: String, slot: String) {
+        val row: BuiltinReplyDefault = _state.value.replyDefaults.firstOrNull {
+            it.builtinKey == builtinKey && it.slot == slot
+        } ?: return
+        _state.value = _state.value.copy(
+            replyEdit = BuiltinReplyDefaultEdit(
+                builtinKey = builtinKey,
+                slot = slot,
+                template = row.platformTemplate ?: row.shippedTemplate.orEmpty(),
+                useShipped = row.platformTemplate == null,
+            ),
+        )
+    }
+
+    fun editReplyUseShipped(useShipped: Boolean) {
+        val edit: BuiltinReplyDefaultEdit = _state.value.replyEdit ?: return
+        _state.value = _state.value.copy(replyEdit = edit.copy(useShipped = useShipped, preview = null))
+    }
+
+    fun editReplyTemplate(template: String) {
+        val edit: BuiltinReplyDefaultEdit = _state.value.replyEdit ?: return
+        _state.value = _state.value.copy(replyEdit = edit.copy(template = template, preview = null))
+    }
+
+    /** Fetches the counted blast radius for exactly the wording in the editor. */
+    suspend fun previewReplyEdit() {
+        val edit: BuiltinReplyDefaultEdit = _state.value.replyEdit ?: return
+        val change: BuiltinReplyDefaultChange = edit.change
+        _state.value = _state.value.copy(replyEdit = edit.copy(previewing = true))
+        val result: ApiResult<PlatformDefaultBlastRadius> =
+            api.previewBuiltinReplyDefault(edit.builtinKey, edit.slot, change)
+        val current: BuiltinReplyDefaultEdit = _state.value.replyEdit ?: return
+        // A preview for a wording the operator already changed again is dropped, never shown as theirs.
+        val stillSame: Boolean =
+            current.builtinKey == edit.builtinKey && current.slot == edit.slot && current.change == change
+        when (result) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(
+                replyEdit = current.copy(previewing = false, preview = if (stillSame) result.value else null),
+            )
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(replyEdit = current.copy(previewing = false))
+                feedback.error(Res.string.platform_defaults_error, result.error.message)
+            }
+        }
+    }
+
+    fun dismissReplyEdit() {
+        _state.value = _state.value.copy(replyEdit = null)
+    }
+
+    /** Saves the previewed wording; the row is replaced by the server read-back. A stale count re-previews. */
+    suspend fun saveReplyEdit() {
+        val edit: BuiltinReplyDefaultEdit = _state.value.replyEdit ?: return
+        val preview: PlatformDefaultBlastRadius = edit.preview ?: return
+        if (!edit.canSave) return
+        _state.value = _state.value.copy(replyEdit = edit.copy(saving = true))
+        val body = SetBuiltinReplyDefaultRequest(
+            template = edit.change.template,
+            confirmedChannelsAffected = preview.channelsAffected,
+        )
+        when (val result: ApiResult<BuiltinReplyDefault> = api.setBuiltinReplyDefault(edit.builtinKey, edit.slot, body)) {
+            is ApiResult.Ok -> {
+                val saved: BuiltinReplyDefault = result.value
+                _state.value = _state.value.copy(
+                    replyDefaults = _state.value.replyDefaults.map {
+                        if (it.builtinKey == saved.builtinKey && it.slot == saved.slot) saved else it
+                    },
+                    replyEdit = null,
+                )
+                feedback.success(Res.string.platform_defaults_saved, preview.channelsAffected)
+            }
+            is ApiResult.Failure -> {
+                _state.value = _state.value.copy(replyEdit = edit.copy(saving = false, preview = null))
+                if (result.error.code == STALE_CODE) {
+                    feedback.error(Res.string.platform_defaults_stale)
+                    previewReplyEdit()
                 } else {
                     feedback.error(Res.string.platform_defaults_error, result.error.message)
                 }

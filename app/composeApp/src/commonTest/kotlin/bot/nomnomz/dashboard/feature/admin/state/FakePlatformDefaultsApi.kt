@@ -13,11 +13,14 @@ package bot.nomnomz.dashboard.feature.admin.state
 import bot.nomnomz.dashboard.core.network.ActionDefault
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BuiltinReplyDefault
+import bot.nomnomz.dashboard.core.network.BuiltinReplyDefaultChange
 import bot.nomnomz.dashboard.core.network.EventResponseDefault
 import bot.nomnomz.dashboard.core.network.EventResponseDefaultChange
 import bot.nomnomz.dashboard.core.network.PlatformDefaultBlastRadius
 import bot.nomnomz.dashboard.core.network.PlatformDefaultsApi
 import bot.nomnomz.dashboard.core.network.SetActionDefaultRequest
+import bot.nomnomz.dashboard.core.network.SetBuiltinReplyDefaultRequest
 import bot.nomnomz.dashboard.core.network.SetEventResponseDefaultRequest
 
 /**
@@ -31,10 +34,16 @@ internal class FakePlatformDefaultsApi(
     var keeping: Int = 1,
     var sample: List<String> = listOf("alpha", "bravo"),
     events: List<EventResponseDefault> = emptyList(),
+    replies: List<BuiltinReplyDefault> = emptyList(),
 ) : PlatformDefaultsApi {
     private val eventRows: MutableMap<String, EventResponseDefault> = events.associateBy { it.eventType }.toMutableMap()
     val eventPreviews: MutableList<Pair<String, EventResponseDefaultChange>> = mutableListOf()
     val eventSaves: MutableList<Pair<String, SetEventResponseDefaultRequest>> = mutableListOf()
+
+    private val replyRows: MutableMap<Pair<String, String>, BuiltinReplyDefault> =
+        replies.associateBy { it.builtinKey to it.slot }.toMutableMap()
+    val replyPreviews: MutableList<Pair<Pair<String, String>, BuiltinReplyDefaultChange>> = mutableListOf()
+    val replySaves: MutableList<Pair<Pair<String, String>, SetBuiltinReplyDefaultRequest>> = mutableListOf()
 
     private val rows: MutableMap<String, ActionDefault> = actions.associateBy { it.actionKey }.toMutableMap()
     val previews: MutableList<Pair<String, Int?>> = mutableListOf()
@@ -87,6 +96,47 @@ internal class FakePlatformDefaultsApi(
         val saved: EventResponseDefault = row.copy(isEnabled = body.isEnabled, message = body.message)
         eventRows[eventType] = saved
         return ApiResult.Ok(saved)
+    }
+
+    override suspend fun builtinReplyDefaults(): ApiResult<List<BuiltinReplyDefault>> =
+        ApiResult.Ok(replyRows.values.toList())
+
+    override suspend fun previewBuiltinReplyDefault(
+        builtinKey: String,
+        slot: String,
+        change: BuiltinReplyDefaultChange,
+    ): ApiResult<PlatformDefaultBlastRadius> {
+        replyPreviews += (builtinKey to slot) to change
+        val row: BuiltinReplyDefault =
+            replyRows[builtinKey to slot] ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no slot"))
+        return ApiResult.Ok(replyRadius(row, change))
+    }
+
+    override suspend fun setBuiltinReplyDefault(
+        builtinKey: String,
+        slot: String,
+        body: SetBuiltinReplyDefaultRequest,
+    ): ApiResult<BuiltinReplyDefault> {
+        replySaves += (builtinKey to slot) to body
+        val row: BuiltinReplyDefault =
+            replyRows[builtinKey to slot] ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no slot"))
+        if (replyRadius(row, BuiltinReplyDefaultChange(body.template)).channelsAffected != body.confirmedChannelsAffected) {
+            return ApiResult.Failure(ApiError(409, "PREVIEW_STALE", "stale"))
+        }
+        val saved: BuiltinReplyDefault = row.copy(platformTemplate = body.template)
+        replyRows[builtinKey to slot] = saved
+        return ApiResult.Ok(saved)
+    }
+
+    // The server's rule: a wording change reaches every channel except those answering with their own reply
+    // (only on slots that take one); an unchanged wording changes nobody.
+    private fun replyRadius(row: BuiltinReplyDefault, change: BuiltinReplyDefaultChange): PlatformDefaultBlastRadius {
+        val changes: Boolean = row.platformTemplate != change.template
+        return PlatformDefaultBlastRadius(
+            channelsAffected = if (changes) followers else 0,
+            channelsKeepingOwnSetting = if (row.takesChannelOverride) row.channelsWithOwnReply else 0,
+            sampleChannelNames = if (changes) sample else emptyList(),
+        )
     }
 
     private fun eventRadius(row: EventResponseDefault, change: EventResponseDefaultChange): PlatformDefaultBlastRadius {

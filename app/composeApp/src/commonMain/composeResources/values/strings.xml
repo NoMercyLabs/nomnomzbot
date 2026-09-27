@@ -5650,4 +5650,15 @@
     <string name="platform_defaults_event_message_required">A response that is on needs a message.</string>
     <string name="platform_defaults_check_impact">Check impact</string>
     <string name="platform_defaults_check_first">Check the impact to see which channels this changes.</string>
+    <string name="platform_defaults_section_builtin_replies">Builtin replies</string>
+    <string name="platform_defaults_reply_title">!%1$s · %2$s</string>
+    <string name="platform_defaults_reply_platform">Platform wording: %1$s</string>
+    <string name="platform_defaults_reply_shipped">Shipped wording: %1$s</string>
+    <string name="platform_defaults_reply_shipped_fallback">Shipped wording: the built-in’s own line</string>
+    <string name="platform_defaults_reply_counts_overridable">%1$d channel(s) answer with their own reply, every other channel uses this wording</string>
+    <string name="platform_defaults_reply_counts_all">Every channel uses this wording</string>
+    <string name="platform_defaults_reply_edit_title">Wording of !%1$s · %2$s</string>
+    <string name="platform_defaults_reply_use_shipped">Use the shipped wording</string>
+    <string name="platform_defaults_reply_template">Wording</string>
+    <string name="platform_defaults_reply_template_required">A platform wording needs text, or switch back to the shipped wording.</string>
 </resources>

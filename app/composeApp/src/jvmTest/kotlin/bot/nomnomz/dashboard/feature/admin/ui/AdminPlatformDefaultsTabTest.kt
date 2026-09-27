@@ -29,6 +29,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.ActionDangerTier
 import bot.nomnomz.dashboard.core.network.ActionDefault
+import bot.nomnomz.dashboard.core.network.BuiltinReplyDefault
 import bot.nomnomz.dashboard.core.network.EventResponseDefault
 import bot.nomnomz.dashboard.feature.admin.state.FakePlatformDefaultsApi
 import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
@@ -180,6 +181,53 @@ class AdminPlatformDefaultsTabTest {
 
             assertEquals(4, api.eventSaves.single().second.confirmedChannelsAffected)
             assertEquals("Thanks {user}!", api.eventSaves.single().second.message)
+        }
+    }
+
+    @Test
+    fun a_builtin_reply_shows_its_wording_and_apply_sends_the_previewed_count() {
+        val uptimeLive = BuiltinReplyDefault(
+            builtinKey = "uptime",
+            slot = "live",
+            shippedTemplate = "{channel} has been live for {uptime}.",
+            takesChannelOverride = true,
+            channelsWithOwnReply = 2,
+        )
+        val api = FakePlatformDefaultsApi(emptyList(), replies = listOf(uptimeLive))
+        val controller = PlatformDefaultsController(api)
+        runTest {
+            controller.loadBuiltinReplyDefaults()
+            controller.openReplyEdit("uptime", "live")
+        }
+
+        runComposeUiTest {
+            setContent { English { BuiltinReplyDefaultsSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+
+            onNodeWithText("Shipped wording: {channel} has been live for {uptime}.").assertExists()
+            onNodeWithText("2 channel(s) answer with their own reply, every other channel uses this wording").assertExists()
+            onNodeWithText("Check the impact to see which channels this changes.").assertExists()
+            onNode(hasText("Apply to 0 channel(s)") and hasClickAction()).assertIsNotEnabled()
+            assertTrue(api.replyPreviews.isEmpty(), "opening the editor previews nothing")
+        }
+
+        runTest {
+            controller.editReplyUseShipped(false)
+            controller.editReplyTemplate("Live for {uptime}!")
+            controller.previewReplyEdit()
+        }
+        runComposeUiTest {
+            setContent { English { BuiltinReplyDefaultsSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+
+            onNodeWithText("This changes 3 channel(s) right now, including: alpha, bravo.").assertExists()
+            onNodeWithText("2 channel(s) keep their own setting.").assertExists()
+            onNode(hasText("Apply to 3 channel(s)") and hasClickAction()).performClick()
+            waitForIdle()
+
+            assertEquals(3, api.replySaves.single().second.confirmedChannelsAffected)
+            assertEquals("Live for {uptime}!", api.replySaves.single().second.template)
+            onNodeWithText("Platform wording: Live for {uptime}!").assertExists()
         }
     }
 }

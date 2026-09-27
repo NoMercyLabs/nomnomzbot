@@ -347,6 +347,9 @@ class ApiContractTest {
             EventResponseDefault.serializer() to "EventResponseDefaultDto",
             EventResponseDefaultChange.serializer() to "EventResponseDefaultChange",
             SetEventResponseDefaultRequest.serializer() to "SetEventResponseDefaultRequest",
+            BuiltinReplyDefault.serializer() to "BuiltinReplyDefaultDto",
+            BuiltinReplyDefaultChange.serializer() to "BuiltinReplyDefaultChange",
+            SetBuiltinReplyDefaultRequest.serializer() to "SetBuiltinReplyDefaultRequest",
         )
 
     @Test

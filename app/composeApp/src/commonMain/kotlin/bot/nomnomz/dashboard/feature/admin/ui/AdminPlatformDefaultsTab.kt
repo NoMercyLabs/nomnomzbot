@@ -40,6 +40,7 @@ import nomnomzbot.composeapp.generated.resources.platform_defaults_preview_count
 import nomnomzbot.composeapp.generated.resources.platform_defaults_preview_keeping
 import nomnomzbot.composeapp.generated.resources.platform_defaults_preview_loading
 import nomnomzbot.composeapp.generated.resources.platform_defaults_preview_none
+import nomnomzbot.composeapp.generated.resources.platform_defaults_section_builtin_replies
 import nomnomzbot.composeapp.generated.resources.platform_defaults_section_event_responses
 import nomnomzbot.composeapp.generated.resources.platform_defaults_section_permissions
 import org.jetbrains.compose.resources.StringResource
@@ -49,6 +50,7 @@ import org.jetbrains.compose.resources.stringResource
 internal enum class PlatformDefaultsSection(val label: StringResource) {
     Permissions(Res.string.platform_defaults_section_permissions),
     EventResponses(Res.string.platform_defaults_section_event_responses),
+    BuiltinReplies(Res.string.platform_defaults_section_builtin_replies),
 }
 
 /**
@@ -68,6 +70,7 @@ internal fun PlatformDefaultsTab(controller: PlatformDefaultsController) {
         when (section) {
             PlatformDefaultsSection.Permissions -> if (!state.actionsLoaded) controller.loadActionDefaults()
             PlatformDefaultsSection.EventResponses -> if (!state.eventsLoaded) controller.loadEventResponseDefaults()
+            PlatformDefaultsSection.BuiltinReplies -> if (!state.repliesLoaded) controller.loadBuiltinReplyDefaults()
         }
     }
 
@@ -90,6 +93,7 @@ internal fun PlatformDefaultsTab(controller: PlatformDefaultsController) {
         when (section) {
             PlatformDefaultsSection.Permissions -> ActionDefaultsSection(state = state, controller = controller)
             PlatformDefaultsSection.EventResponses -> EventResponseDefaultsSection(state = state, controller = controller)
+            PlatformDefaultsSection.BuiltinReplies -> BuiltinReplyDefaultsSection(state = state, controller = controller)
         }
     }
 }

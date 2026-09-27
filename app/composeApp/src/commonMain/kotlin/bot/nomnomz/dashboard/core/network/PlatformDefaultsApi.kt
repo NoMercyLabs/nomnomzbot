@@ -84,6 +84,29 @@ data class SetEventResponseDefaultRequest(
     val confirmedChannelsAffected: Int,
 )
 
+/**
+ * One built-in response slot's platform wording (backend `BuiltinReplyDefaultDto`): the wording a channel on the
+ * default tone ships with (null = the built-in's own fallback), the admin's replacement (null = none) which wins
+ * over every tone, whether a channel's own reply replaces this slot, and how many channels have one.
+ */
+@Serializable
+data class BuiltinReplyDefault(
+    val builtinKey: String,
+    val slot: String,
+    val shippedTemplate: String? = null,
+    val platformTemplate: String? = null,
+    val takesChannelOverride: Boolean = false,
+    val channelsWithOwnReply: Int = 0,
+)
+
+/** A proposed reply wording (null = back to the shipped wording) — the preview body (backend `BuiltinReplyDefaultChange`). */
+@Serializable
+data class BuiltinReplyDefaultChange(val template: String?)
+
+/** Saves a reply wording (backend `SetBuiltinReplyDefaultRequest`). */
+@Serializable
+data class SetBuiltinReplyDefaultRequest(val template: String?, val confirmedChannelsAffected: Int)
+
 interface PlatformDefaultsApi {
     suspend fun actionDefaults(): ApiResult<List<ActionDefault>>
 
@@ -104,6 +127,20 @@ interface PlatformDefaultsApi {
         eventType: String,
         body: SetEventResponseDefaultRequest,
     ): ApiResult<EventResponseDefault>
+
+    suspend fun builtinReplyDefaults(): ApiResult<List<BuiltinReplyDefault>>
+
+    suspend fun previewBuiltinReplyDefault(
+        builtinKey: String,
+        slot: String,
+        change: BuiltinReplyDefaultChange,
+    ): ApiResult<PlatformDefaultBlastRadius>
+
+    suspend fun setBuiltinReplyDefault(
+        builtinKey: String,
+        slot: String,
+        body: SetBuiltinReplyDefaultRequest,
+    ): ApiResult<BuiltinReplyDefault>
 }
 
 class RestPlatformDefaultsApi(private val client: ApiClient) : PlatformDefaultsApi {
@@ -143,4 +180,27 @@ class RestPlatformDefaultsApi(private val client: ApiClient) : PlatformDefaultsA
         body: SetEventResponseDefaultRequest,
     ): ApiResult<EventResponseDefault> =
         client.putEnvelope("api/v1/admin/platform-defaults/event-responses/${eventType.encodeQuery()}", body)
+
+    override suspend fun builtinReplyDefaults(): ApiResult<List<BuiltinReplyDefault>> =
+        client.getEnvelope("api/v1/admin/platform-defaults/builtin-replies")
+
+    override suspend fun previewBuiltinReplyDefault(
+        builtinKey: String,
+        slot: String,
+        change: BuiltinReplyDefaultChange,
+    ): ApiResult<PlatformDefaultBlastRadius> =
+        client.postEnvelope(
+            "api/v1/admin/platform-defaults/builtin-replies/${builtinKey.encodeQuery()}/${slot.encodeQuery()}/blast-radius",
+            change,
+        )
+
+    override suspend fun setBuiltinReplyDefault(
+        builtinKey: String,
+        slot: String,
+        body: SetBuiltinReplyDefaultRequest,
+    ): ApiResult<BuiltinReplyDefault> =
+        client.putEnvelope(
+            "api/v1/admin/platform-defaults/builtin-replies/${builtinKey.encodeQuery()}/${slot.encodeQuery()}",
+            body,
+        )
 }
