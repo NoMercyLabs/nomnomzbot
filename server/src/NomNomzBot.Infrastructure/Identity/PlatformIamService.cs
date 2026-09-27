@@ -144,6 +144,18 @@ public sealed class PlatformIamService(
             );
             if (user is null)
                 return Result.Failure<IamPrincipalDto>("Unknown user.", "NOT_FOUND");
+
+            // One principal per user: a second row for the same user would leave authorization to whichever
+            // row a query happens to return first — a repeat promote is a refusal, not a duplicate.
+            bool alreadyPrincipal = await db.IamPrincipals.AnyAsync(
+                p => p.UserId == request.UserId,
+                cancellationToken
+            );
+            if (alreadyPrincipal)
+                return Result.Failure<IamPrincipalDto>(
+                    "That user is already a platform principal.",
+                    "ALREADY_EXISTS"
+                );
         }
 
         string? serviceAccountKey = null;

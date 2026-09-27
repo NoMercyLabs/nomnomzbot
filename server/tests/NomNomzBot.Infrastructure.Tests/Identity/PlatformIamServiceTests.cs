@@ -110,7 +110,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Self_host_still_authorizes_the_owner_after_a_service_account_principal_exists()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.SelfHostLite);
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
         // Creating ONE principal (e.g. a service account onboarded for automation) must not change the
         // deployment-mode fact the whole plane keys on.
         db.IamPrincipals.Add(
@@ -359,6 +359,29 @@ public sealed class PlatformIamServiceTests
         (await db.Users.SingleAsync(u => u.Id == user.Id))
             .IsPlatformPrincipal.Should()
             .BeTrue();
+    }
+
+    [Fact]
+    public async Task Create_employee_for_a_user_who_is_already_a_principal_is_refused_and_adds_no_row()
+    {
+        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.Saas);
+        Guid creator = SeedPrincipalWithPermission(db, "iam:principal:create");
+        User user = NewUser("promoted_twice");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+        CreatePrincipalRequest request = new(
+            IamPrincipalType.Employee,
+            UserId: user.Id,
+            DisplayName: "Promoted Operator",
+            RoleIds: [],
+            ServiceAccountName: null
+        );
+        (await sut.CreatePrincipalAsync(creator, request)).IsSuccess.Should().BeTrue();
+
+        Result<IamPrincipalDto> repeat = await sut.CreatePrincipalAsync(creator, request);
+
+        repeat.ErrorCode.Should().Be("ALREADY_EXISTS");
+        (await db.IamPrincipals.CountAsync(p => p.UserId == user.Id)).Should().Be(1);
     }
 
     [Fact]
@@ -648,7 +671,7 @@ public sealed class PlatformIamServiceTests
     [Fact]
     public async Task Deactivating_the_last_iam_manage_holder_is_refused()
     {
-        (PlatformIamService sut, AuthDbContext db, _) = Build(DeploymentMode.SelfHostLite);
+        (PlatformIamService sut, AuthDbContext db, _) = Build();
         Guid onlyManager = SeedPrincipalWithPermission(db, "iam:manage");
         await db.SaveChangesAsync();
 
