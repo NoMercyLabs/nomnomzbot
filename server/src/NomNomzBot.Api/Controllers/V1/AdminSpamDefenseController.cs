@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -34,6 +35,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin/spam-defense")]
+[PlatformPlane]
 [Tags("Admin")]
 public class AdminSpamDefenseController : BaseController
 {

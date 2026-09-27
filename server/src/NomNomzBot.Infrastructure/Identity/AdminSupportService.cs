@@ -552,12 +552,10 @@ public sealed class AdminSupportService(
         if (!await ChannelExistsAsync(channelId, ct))
             return Result.Failure<PagedList<CommandListItem>>("Unknown channel.", "NOT_FOUND");
 
-        // IgnoreQueryFilters: Command is ITenantScoped, and this desk's ambient tenant (set by
-        // TenantResolutionMiddleware from the JWT sub when no explicit channelId is on the route — this
-        // route deliberately carries none, same as every other support-desk endpoint) is the OPERATOR's own
-        // channel, not the tenant under investigation. Calling ICommandService.ListAsync here would silently
-        // filter the very tenant being investigated out of its own result. DeletedAt is re-applied by hand for
-        // the same reason. Only genuinely tenant-authored commands are shown — IsPlatform ones are the shared
+        // IgnoreQueryFilters: Command is ITenantScoped, and this desk is platform-plane (no ambient tenant is
+        // resolved), so the tenant under investigation is named explicitly by channelId. Reading through
+        // ICommandService.ListAsync would couple this to whatever tenant a request happened to carry. DeletedAt
+        // is re-applied by hand because IgnoreQueryFilters drops the soft-delete filter too. Only genuinely tenant-authored commands are shown — IsPlatform ones are the shared
         // system commands, already visible (and editable) on the platform content-authoring plane.
         IQueryable<Command> query = db
             .Commands.IgnoreQueryFilters()

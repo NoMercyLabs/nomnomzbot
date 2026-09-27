@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Middleware;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Identity;
 
@@ -23,6 +24,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/platform/analytics")]
+[PlatformPlane]
 [Authorize(Policy = IamPermissionKeys.PlatformAnalyticsRead)]
 [Tags("Platform Analytics")]
 public class PlatformAnalyticsController(IPlatformAnalyticsService platformAnalytics)

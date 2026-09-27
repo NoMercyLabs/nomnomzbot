@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -28,6 +29,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/admin/platform-defaults/tts-voice")]
+[PlatformPlane]
 [Authorize(Policy = IamPermissionKeys.PlatformDefaultsManage)]
 [Tags("Platform Defaults")]
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
