@@ -511,6 +511,20 @@ A5. Template updates reach tenants: platform content is copied at install and ne
     with a blast-radius preview; a tenant's edits are never overwritten silently.
 A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:1533-1554); trace
     save → runtime reader for billing, spam defense and trust-safety (owed by the audit).
+    Status 2026-09-27: DONE. Flag overrides are listed per flag from the server's read-back (channel
+    name, reason, Clear each) and setting one asks first (cb0f64b server, d7a6829 app). The trace found
+    and fixed three lies: a network block was only read on the capability fallback, so a blocked mod or
+    any everyone-floor action passed Gate-2 (ActionAuthorizationService now denies it first); the first
+    platform spam-defense save was tenant-stamped onto the admin's own channel (saved outside the ambient
+    tenant now; the channel page shows the defaults it tracks); a removed tier limit was re-inserted by
+    the seeder beside its soft-deleted row on the next boot and re-adding it collided (restore in place
+    now). Owed, ranked: `AllowsCustomBotName`/`PrioritySupport` on a tier are display-only (no gate on
+    white-label bot connect); a network block bans only the tenants found at apply, later channels and
+    chat ingest never check it; spam-defense fields nothing reads (Lockdown*, FollowSpike/JoinBurst,
+    SemiTrustedWatchHours*, NonLatinScriptGate, NetworkSubscribe/Contribute) and the 7-day
+    `EnforcementEligibleAt` window is never enforced; tier-change preview counts Subscriptions only
+    (base-tier and grant-lifted tenants missed); TTS/sandbox limits skip `TenantLimitOverride`; flag
+    gating lags tier edits by the 60s flag cache; confirming a spam detection has no runtime effect.
 A7. GDPR admin console: list and monitor export/erasure requests (GdprController.cs) platform-wide.
 A8. Publish the SDK types as a versioned npm package built by CI from `SdkTypeEmitter` output.
 Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, automation/IPC keys tab.
