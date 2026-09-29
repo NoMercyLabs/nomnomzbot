@@ -18,6 +18,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -464,6 +465,7 @@ public sealed class PlatformBotAdminServiceTests
             TimeProvider.System,
             new(),
             Substitute.For<IPlatformOwnerPrincipalMinter>(),
+            Substitute.For<IBillingTierService>(),
             NullLogger<AuthService>.Instance
         );
 
@@ -518,7 +520,7 @@ public sealed class PlatformBotAdminServiceTests
             Guid connectionId,
             IReadOnlyList<string> actualScopes,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Result.Success<IReadOnlyList<string>>(actualScopes));
+        ) => Task.FromResult(Result.Success(actualScopes));
     }
 
     private sealed class SucceedingHelixHandler(string userId, string login) : HttpMessageHandler

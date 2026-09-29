@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -206,6 +208,21 @@ public sealed class AuthServiceSharedBotTakeoverTests
             )
             .Returns(new DevicePollOutcome(DevicePollStatus.Pending));
 
+        // Every channel here may have its own bot, so the channel-scoped poll reaches Twitch.
+        IBillingTierService tiers = Substitute.For<IBillingTierService>();
+        tiers
+            .GetEntitlementAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new EntitlementDto(
+                        "free",
+                        AllowsCustomBotName: true,
+                        PrioritySupport: false,
+                        new Dictionary<string, long>()
+                    )
+                )
+            );
+
         AuthService service = new(
             db,
             Substitute.For<ITwitchAuthService>(),
@@ -221,6 +238,7 @@ public sealed class AuthServiceSharedBotTakeoverTests
             TimeProvider.System,
             new(),
             Substitute.For<IPlatformOwnerPrincipalMinter>(),
+            tiers,
             NullLogger<AuthService>.Instance
         );
 

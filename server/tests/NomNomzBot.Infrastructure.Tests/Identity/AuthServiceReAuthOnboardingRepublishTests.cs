@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -193,6 +194,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
             TimeProvider.System,
             new(),
             Substitute.For<IPlatformOwnerPrincipalMinter>(),
+            Substitute.For<IBillingTierService>(),
             NullLogger<AuthService>.Instance
         );
     }
