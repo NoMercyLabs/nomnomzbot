@@ -262,6 +262,17 @@ public static class BuiltinResponseSlots
         public const string AccountUnresolved = "accountunresolved";
     }
 
+    /// <summary>
+    /// The bot's own status lines — not a chat command, but spoken in the channel's personality like one.
+    /// </summary>
+    public static class BotStatus
+    {
+        public const string Key = "botstatus";
+
+        /// <summary>The bot is stopping with no successor taking over (restart / crash-restart / manual stop).</summary>
+        public const string GoingOffline = "goingoffline";
+    }
+
     /// <summary><c>!sr</c> — additional usage/error tone slot (S069i), beyond the personality slots above.</summary>
     public static class SongRequestErrors
     {

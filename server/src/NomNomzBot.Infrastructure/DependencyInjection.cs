@@ -819,6 +819,8 @@ public static class DependencyInjection
         services.AddHostedWorkers(
             infrastructure,
             typeof(TwitchEventSubHostedService),
+            // Must be registered AFTER the EventSub host (stop order) — wired explicitly beside it.
+            typeof(BotShutdownAnnouncementService),
             typeof(ChannelRegistry),
             // Profile-gated above (self-host only) — must not be picked up unconditionally by the worker scan.
             typeof(MdnsAdvertiserHostedService),
@@ -1684,6 +1686,9 @@ public static class DependencyInjection
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
+        // Registered AFTER the EventSub host on purpose: hosted services stop in reverse order, so the
+        // "going offline" probe runs while a blue/green successor still holds its standby claim.
+        services.AddHostedService<BotShutdownAnnouncementService>();
 
         // ── Event store (event-store §7) ─────────────────────────────────────
         // Journal, allocator, subscriber, projection runner all touch the DbContext / IUnitOfWork (scoped).

@@ -832,6 +832,18 @@ public static class ToneTemplateCatalog
             chill: ["this command's disabled right now."]
         );
 
+        // ── bot status / going offline (shutdown with no successor) — no variables ──
+        Add(
+            catalog,
+            BuiltinResponseSlots.BotStatus.Key,
+            BuiltinResponseSlots.BotStatus.GoingOffline,
+            informative: ["Restarting for an update — back in a moment."],
+            friendly: ["Quick restart for an update — I'll be right back!"],
+            sassy: ["Going down for a restart. Try not to miss me too much."],
+            hype: ["RESTARTING FOR AN UPDATE. BACK IN A FLASH."],
+            chill: ["restarting for an update, back in a bit."]
+        );
+
         return catalog;
     }
 
