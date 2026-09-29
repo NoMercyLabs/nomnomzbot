@@ -18,8 +18,22 @@ public class Result
     public string? ErrorDetail { get; }
     public string? ErrorCode { get; }
 
-    protected Result(bool isSuccess, string? errorMessage, string? errorDetail, string? errorCode)
+    /// <summary>
+    /// Typed, structured facts about the failure (a record the producer and its caller agree on) — for callers
+    /// that phrase their own reply from data instead of parsing <see cref="ErrorMessage"/>. Null when the
+    /// failure carries none.
+    /// </summary>
+    public object? ErrorData { get; }
+
+    protected Result(
+        bool isSuccess,
+        string? errorMessage,
+        string? errorDetail,
+        string? errorCode,
+        object? errorData = null
+    )
     {
+        ErrorData = errorData;
         IsSuccess = isSuccess;
         ErrorMessage = errorMessage;
         ErrorDetail = errorDetail;
@@ -31,21 +45,23 @@ public class Result
     public static Result Failure(
         string? errorMessage,
         string? errorCode = null,
-        string? errorDetail = null
-    ) => new(false, errorMessage, errorDetail, errorCode);
+        string? errorDetail = null,
+        object? errorData = null
+    ) => new(false, errorMessage, errorDetail, errorCode, errorData);
 
     public static Result<T> Success<T>(T value) => Result<T>.Success(value);
 
     public static Result<T> Failure<T>(
         string? errorMessage,
         string? errorCode = null,
-        string? errorDetail = null
-    ) => Result<T>.Failure(errorMessage, errorCode, errorDetail);
+        string? errorDetail = null,
+        object? errorData = null
+    ) => Result<T>.Failure(errorMessage, errorCode, errorDetail, errorData);
 
     public Result<T> WithValue<T>(T value) =>
         IsSuccess
             ? Result<T>.Success(value)
-            : Result<T>.Failure(ErrorMessage!, ErrorCode, ErrorDetail);
+            : Result<T>.Failure(ErrorMessage!, ErrorCode, ErrorDetail, ErrorData);
 }
 
 public class Result<T> : Result
@@ -64,9 +80,10 @@ public class Result<T> : Result
         T? value,
         string? errorMessage,
         string? errorDetail,
-        string? errorCode
+        string? errorCode,
+        object? errorData = null
     )
-        : base(isSuccess, errorMessage, errorDetail, errorCode)
+        : base(isSuccess, errorMessage, errorDetail, errorCode, errorData)
     {
         _value = value;
     }
@@ -76,6 +93,7 @@ public class Result<T> : Result
     public static new Result<T> Failure(
         string? errorMessage,
         string? errorCode = null,
-        string? errorDetail = null
-    ) => new(false, default, errorMessage, errorDetail, errorCode);
+        string? errorDetail = null,
+        object? errorData = null
+    ) => new(false, default, errorMessage, errorDetail, errorCode, errorData);
 }

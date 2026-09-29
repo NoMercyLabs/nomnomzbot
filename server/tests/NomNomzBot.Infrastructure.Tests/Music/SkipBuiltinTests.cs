@@ -11,9 +11,11 @@
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
@@ -47,7 +49,9 @@ public sealed class SkipBuiltinTests
             Args = args,
         };
 
-    private static IBuiltinResponseComposer FakeComposer()
+    private static IBuiltinResponseComposer FakeComposer(
+        IChannelBuiltinReplyOverrides? channelReplies = null
+    )
     {
         ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
         resolver
@@ -57,11 +61,19 @@ public sealed class SkipBuiltinTests
                 Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
         return new BuiltinResponseComposer(
             resolver,
             NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
+            channelReplies ?? FakeChannelBuiltinReplies.None
         );
     }
 
@@ -166,6 +178,67 @@ public sealed class SkipBuiltinTests
 
         result.Value.Should().Be("You don't have permission to use that command.");
         await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task The_permission_refusal_is_the_system_permissiondenied_reply_a_channel_can_reword()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        FakeChannelBuiltinReplies channel = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.SystemReplies.Key,
+            BuiltinResponseSlots.SystemReplies.PermissionDenied,
+            "Mods only, friend."
+        );
+        SkipBuiltin sut = new(
+            music,
+            FakeComposer(channel),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
+
+        result.Value.Should().Be("Mods only, friend.");
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_skip_the_provider_refuses_answers_from_its_slot_never_the_services_own_sentence()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("internal provider detail 7731", "PREMIUM_REQUIRED"));
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
+
+        result
+            .Value.Should()
+            .Be(
+                ToneTemplateCatalog.Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.Skip.Key,
+                    BuiltinResponseSlots.Skip.PremiumRequired
+                )[0]
+            );
+        result.Value.Should().NotContain("7731");
+    }
+
+    [Fact]
+    public async Task A_removed_request_reply_names_the_track_and_the_caller_through_its_slot()
+    {
+        MusicQueue queue = new(CurrentTrack: null, Queue: [Item("First Song", "Bamo")]);
+        IMusicService music = Substitute.For<IMusicService>();
+        music.GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>()).Returns(queue);
+        music
+            .RemoveFromQueueAsync(Broadcaster.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx("1", ViewerLevel));
+
+        result.Value.Should().Be("@Bamo Removed your request: First Song by Artist");
     }
 
     [Fact]

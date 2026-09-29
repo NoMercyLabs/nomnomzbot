@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -46,6 +47,14 @@ public sealed class MusicServiceDuplicateRequestTests
 
         second.ErrorCode.Should().Be("DUPLICATE_TRACK");
         second.ErrorMessage.Should().Contain("viewer1");
+        // The typed facts the chat reply is phrased from — never parsed back out of the sentence above.
+        MusicRequestRefusal refusal = second
+            .ErrorData.Should()
+            .BeOfType<MusicRequestRefusal>()
+            .Subject;
+        refusal.RequestedBy.Should().Be("viewer1");
+        refusal.IsPlayingNow.Should().BeFalse();
+        refusal.TrackName.Should().NotBeNullOrWhiteSpace();
         // Refused before the provider PUSH is touched — one push, one queue entry, one play. (A GET to
         // the same path is the new provider-side duplicate probe, which also runs on the first, admitted
         // request — only the POST push count says whether the second request reached the provider.)
@@ -75,6 +84,12 @@ public sealed class MusicServiceDuplicateRequestTests
         Result result = await sut.AddToQueueAsync(ChannelId.ToString(), TrackUri, "viewer1");
 
         result.ErrorCode.Should().Be("DUPLICATE_TRACK");
+        MusicRequestRefusal refusal = result
+            .ErrorData.Should()
+            .BeOfType<MusicRequestRefusal>()
+            .Subject;
+        refusal.IsPlayingNow.Should().BeTrue();
+        refusal.TrackName.Should().NotBeNullOrWhiteSpace();
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
     }
 

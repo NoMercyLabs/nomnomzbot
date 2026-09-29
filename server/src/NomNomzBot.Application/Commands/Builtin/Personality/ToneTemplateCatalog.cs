@@ -207,7 +207,16 @@ public static partial class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Song.Key,
             BuiltinResponseSlots.Song.Playing,
-            variables: ["song.artist", "song.name", "song.status"],
+            variables:
+            [
+                "song.artist",
+                "song.attribution",
+                "song.name",
+                "song.provider",
+                "song.requester",
+                "song.source",
+                "song.status",
+            ],
             informative:
             [
                 "{song.status} {song.name} by {song.artist}",
@@ -390,45 +399,43 @@ public static partial class ToneTemplateCatalog
             ]
         );
 
-        // ── !sr / duplicate ({user} {requested.by}) ────────────────────────────
-        // NOTE: no {track.name} here — the resolve failed, so the builtin genuinely does not have the
-        // title on this path. These lines are written to land without it rather than print an empty gap.
+        // ── !sr / duplicate ({track.name} {track.artist} {requested.by} {user}) ─
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.Duplicate,
-            variables: ["requested.by", "user"],
+            variables: ["requested.by", "track.artist", "track.name", "user"],
             informative:
             [
-                "That track is already in the queue — {requested.by} requested it first.",
-                "Already queued by {requested.by}. Pick a different one and I will add it.",
-                "That one is waiting in the queue already, thanks to {requested.by}.",
+                "\"{track.name}\" is already in the queue (requested by {requested.by}).",
+                "\"{track.name}\" is already queued by {requested.by}. Pick a different one and I will add it.",
+                "\"{track.name}\" is waiting in the queue already, thanks to {requested.by}.",
             ],
             friendly:
             [
-                "Good taste! {requested.by} already queued that one — pick another and it is yours.",
-                "{requested.by} beat you to it! Got another in mind?",
-                "Already in the queue thanks to {requested.by} — hit me with a different one.",
+                "Good taste! {requested.by} already queued \"{track.name}\" — pick another and it is yours.",
+                "{requested.by} beat you to \"{track.name}\"! Got another in mind?",
+                "\"{track.name}\" is already in the queue thanks to {requested.by} — hit me with a different one.",
             ],
             sassy:
             [
-                "That is ALREADY in the queue. {requested.by} got there first. Try listening before requesting.",
-                "Again? {requested.by} already called that one. The queue is not a loop pedal.",
-                "Denied. {requested.by} queued it already. One copy is plenty, I promise.",
-                "I am not queueing that twice. {requested.by} beat you to it. Scroll up next time.",
-                "Groundbreaking choice — {requested.by} thought of it first. Pick something else.",
+                "\"{track.name}\" is ALREADY in the queue. {requested.by} got there first. Try listening before requesting.",
+                "Again? {requested.by} already called \"{track.name}\". The queue is not a loop pedal.",
+                "Denied. {requested.by} queued \"{track.name}\" already. One copy is plenty, I promise.",
+                "I am not queueing \"{track.name}\" twice. {requested.by} beat you to it. Scroll up next time.",
+                "Groundbreaking choice — {requested.by} thought of \"{track.name}\" first. Pick something else.",
             ],
             hype:
             [
-                "ALREADY IN THERE. {requested.by} CALLED IT. GIVE ME ANOTHER BANGER.",
-                "{requested.by} ALREADY QUEUED THAT ONE. GREAT MINDS. NEXT.",
-                "THAT IS LOCKED IN ALREADY — FIND ME A NEW ONE.",
+                "\"{track.name}\" IS ALREADY IN THERE. {requested.by} CALLED IT. GIVE ME ANOTHER BANGER.",
+                "{requested.by} ALREADY QUEUED \"{track.name}\". GREAT MINDS. NEXT.",
+                "\"{track.name}\" IS LOCKED IN ALREADY — FIND ME A NEW ONE.",
             ],
             chill:
             [
-                "that one is already in the queue. {requested.by} got it.",
+                "\"{track.name}\" is already in the queue. {requested.by} got it.",
                 "already queued by {requested.by}. pick another.",
-                "{requested.by} already asked for that one.",
+                "{requested.by} already asked for \"{track.name}\".",
             ]
         );
 
@@ -437,7 +444,7 @@ public static partial class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.AlreadyPlaying,
-            variables: [],
+            variables: ["track.artist", "track.name", "user"],
             informative:
             [
                 "That track is playing right now.",
