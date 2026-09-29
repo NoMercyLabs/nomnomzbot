@@ -14,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -705,7 +707,10 @@ private fun GameConfigDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = stringResource(Res.string.games_dialog_title, game.gameType)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
                 DialogSectionLabel(stringResource(Res.string.games_dialog_limits_section))
                 AppTextField(
                     value = minBet,
@@ -849,6 +854,7 @@ private fun GameConfigDialog(
                     )
                 },
                 enabled = canSave,
+                modifier = Modifier.testTag("game-save"),
             ) {
                 Text(
                     text = stringResource(Res.string.games_dialog_save),

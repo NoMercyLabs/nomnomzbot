@@ -63,6 +63,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.HistoryGlyph
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
+import bot.nomnomz.dashboard.feature.platformdefaults.ui.RestoreDefaultDialog
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -96,6 +99,7 @@ import bot.nomnomz.dashboard.core.network.timerPayload
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
 import nomnomzbot.composeapp.generated.resources.timers_badge_once
+import nomnomzbot.composeapp.generated.resources.restore_default_action
 import nomnomzbot.composeapp.generated.resources.timers_delete
 import nomnomzbot.composeapp.generated.resources.timers_delete_action
 import nomnomzbot.composeapp.generated.resources.timers_delete_confirm
@@ -177,7 +181,11 @@ fun TimersScreen(
 
     var editTarget: TimerEditTarget? by remember { mutableStateOf(null) }
     var deleteTarget: TimerSummary? by remember { mutableStateOf(null) }
+    var restoreTarget: TimerSummary? by remember { mutableStateOf(null) }
     var browsingTemplates: Boolean by remember { mutableStateOf(false) }
+    // The row action only appears when the restore flow is wired AND the timer came from a template.
+    val onRestoreDefault: ((TimerSummary) -> Unit)? =
+        if (controller.canRestoreDefaults) { timer -> restoreTarget = timer } else null
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: TimersState = state) {
@@ -195,6 +203,7 @@ fun TimersScreen(
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
                     onDelete = { timer -> deleteTarget = timer },
+                    onRestoreDefault = onRestoreDefault,
                     onDismissError = controller::clearWriteError,
                 )
             is TimersState.Ready ->
@@ -208,6 +217,7 @@ fun TimersScreen(
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
                     onDelete = { timer -> deleteTarget = timer },
+                    onRestoreDefault = onRestoreDefault,
                     onDismissError = controller::clearWriteError,
                 )
         }
@@ -277,6 +287,21 @@ fun TimersScreen(
         )
     }
 
+    restoreTarget?.let { timer ->
+        val restore: RestoreDefaultController? = remember(timer.id) { controller.restoreDefault(timer.id) }
+        if (restore != null) {
+            RestoreDefaultDialog(
+                name = timer.name,
+                controller = restore,
+                onRestored = {
+                    restoreTarget = null
+                    scope.launch { controller.afterRestore() }
+                },
+                onDismiss = { restoreTarget = null },
+            )
+        }
+    }
+
     deleteTarget?.let { timer ->
         ConfirmDialog(
             title = stringResource(Res.string.timers_delete_title),
@@ -310,6 +335,7 @@ private fun ManagedContent(
     onToggle: (TimerSummary) -> Unit,
     onEdit: (TimerSummary) -> Unit,
     onDelete: (TimerSummary) -> Unit,
+    onRestoreDefault: ((TimerSummary) -> Unit)?,
     onDismissError: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -382,6 +408,8 @@ private fun ManagedContent(
                             onToggle = { onToggle(timer) },
                             onEdit = { onEdit(timer) },
                             onDelete = { onDelete(timer) },
+                            onRestoreDefault =
+                                onRestoreDefault?.takeIf { timer.hasPlatformDefault }?.let { { it(timer) } },
                         )
                         if (index < filteredTimers.lastIndex) {
                             Separator()
@@ -401,6 +429,7 @@ private fun TimerTableRow(
     onToggle: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onRestoreDefault: (() -> Unit)?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -474,6 +503,12 @@ private fun TimerTableRow(
             }
         }
 
+        if (onRestoreDefault != null) {
+            val restoreLabel: String = stringResource(Res.string.restore_default_action, displayName)
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = HistoryGlyph, label = restoreLabel, onClick = onRestoreDefault, enabled = enabled)
+            }
+        }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }

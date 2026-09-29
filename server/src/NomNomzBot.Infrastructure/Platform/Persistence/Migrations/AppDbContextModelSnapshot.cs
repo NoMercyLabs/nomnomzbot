@@ -1409,6 +1409,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("PresetKey")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("TemplateResponse")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -1446,7 +1450,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasIndex("NameNormalized", "BroadcasterId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId");
+                        .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId")
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("Commands");
                 });

@@ -51,6 +51,8 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
 
         builder.Property(e => e.UseCount).IsRequired().HasDefaultValue(0L);
 
+        builder.Property(e => e.PresetKey).HasMaxLength(50);
+
         builder
             .HasOne(e => e.Channel)
             .WithMany()
@@ -66,10 +68,14 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
 
         builder.HasIndex(e => e.PipelineId).HasDatabaseName("IX_Command_PipelineId");
 
+        // Unique among LIVE commands only. A deleted command stays behind as a soft-deleted tombstone (the
+        // audit trail names it), so an index over every row made the name unusable forever: re-creating a
+        // deleted "!8ball" failed with a constraint error, and so did every seeder or import that wrote it.
         builder
             .HasIndex(e => new { e.NameNormalized, e.BroadcasterId })
             .IsUnique()
-            .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId");
+            .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId")
+            .HasFilter("\"DeletedAt\" IS NULL");
 
         builder
             .HasIndex(e => new { e.BroadcasterId, e.IsEnabled })

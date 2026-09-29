@@ -53,7 +53,12 @@ public sealed record PipelineListItemDto(
     DateTime? LastTriggeredAt,
     DateTime UpdatedAt,
     IReadOnlyList<string>? ParameterNames
-);
+)
+{
+    /// <summary>True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to
+    /// the platform default.</summary>
+    public bool HasPlatformDefault { get; init; }
+}
 
 /// <summary>
 /// Parses <see cref="NomNomzBot.Domain.Commands.Entities.Pipeline.ParameterNamesJson"/> into its declared name

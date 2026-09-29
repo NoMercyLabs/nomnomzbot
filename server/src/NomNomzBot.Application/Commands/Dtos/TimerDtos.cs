@@ -38,7 +38,11 @@ public sealed record TimerListItem(
     DateTime? LastFiredAt,
     int MessageCount,
     DateTime CreatedAt
-);
+)
+{
+    /// <summary>True when the timer was installed from a platform template, so it can be restored to it.</summary>
+    public bool HasPlatformDefault { get; init; }
+}
 
 /// <summary>Request to create a new timer.</summary>
 public sealed record CreateTimerDto

@@ -30,8 +30,14 @@ import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.core.network.TimersApi
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.UpdateTimerRequest
+import bot.nomnomz.dashboard.core.network.PlatformDefaultPreview
+import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
+import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -438,6 +444,69 @@ class TimersControllerTest {
             controller.testRunPipeline("pipe-7", emptyMap())
 
         assertEquals("engine exploded", (result as ApiResult.Failure).error.message)
+    }
+
+    // "Restore default" on a template-installed timer: the preview and the restore both go to this channel's
+    // timers route for the exact row, and the list reloads afterwards so the row shows the restored timer.
+    @Test
+    fun restore_default_targets_the_channel_timer_and_the_list_reloads_after() = runTest {
+        val restoreApi = FakeRestoreDefaultsApi()
+        val timersApi = FakeTimersApi(listOf(TimerSummary(id = "t1", name = "Water", hasPlatformDefault = true)))
+        val controller =
+            TimersController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi,
+                FakePipelinesApi(),
+                FakePickListsApi(),
+                FakePlatformTemplatesApi(),
+                restoreDefaultsApi = restoreApi,
+            )
+        controller.load()
+        val listsBefore: Int = timersApi.listCalls
+
+        val flow: RestoreDefaultController = assertNotNull(controller.restoreDefault("t1"))
+        flow.open()
+        assertEquals(listOf("preview ch1 timers t1"), restoreApi.calls)
+
+        assertTrue(flow.confirm())
+        controller.afterRestore()
+
+        assertEquals(listOf("preview ch1 timers t1", "restore ch1 timers t1"), restoreApi.calls)
+        assertEquals(listsBefore + 1, timersApi.listCalls)
+    }
+
+    @Test
+    fun restore_default_is_absent_when_the_deployment_does_not_wire_it() = runTest {
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = FakeTimersApi(emptyList()),
+            )
+
+        assertFalse(controller.canRestoreDefaults)
+        assertNull(controller.restoreDefault("t1"))
+    }
+}
+
+private class FakeRestoreDefaultsApi : RestoreDefaultsApi {
+    val calls: MutableList<String> = mutableListOf()
+
+    override suspend fun preview(
+        channelId: String,
+        resource: RestoreDefaultResource,
+        id: String,
+    ): ApiResult<PlatformDefaultPreview> {
+        calls += "preview $channelId ${resource.path} $id"
+        return ApiResult.Ok(PlatformDefaultPreview(kind = "timer", rowId = id, isEdited = true))
+    }
+
+    override suspend fun restore(
+        channelId: String,
+        resource: RestoreDefaultResource,
+        id: String,
+    ): ApiResult<PlatformDefaultPreview> {
+        calls += "restore $channelId ${resource.path} $id"
+        return ApiResult.Ok(PlatformDefaultPreview(kind = "timer", rowId = id))
     }
 }
 

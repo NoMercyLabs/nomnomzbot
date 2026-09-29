@@ -50,9 +50,14 @@ import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WebhookTestResult
 import bot.nomnomz.dashboard.core.network.WebhooksApi
+import bot.nomnomz.dashboard.core.network.PlatformDefaultPreview
+import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
+import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -1215,7 +1220,61 @@ class PipelinesControllerTest {
         assertTrue(api.updated.none { it.first == pipelineId })
     }
 
+    // "Restore default" on a seeded pipeline (the raid flows): the preview and the restore both go to the
+    // loaded channel's pipelines route for the exact row, and nothing is offered before a channel is known.
+    @Test
+    fun restore_default_targets_the_loaded_channel_pipeline() = runTest {
+        val restoreApi = RecordingRestoreDefaultsApi()
+        val controller =
+            PipelinesController(
+                channelsApi = okChannel(),
+                pipelinesApi = RecordingPipelinesApi(listOf(PipelineSummary(id = "p1", name = "Raid", hasPlatformDefault = true))),
+                webhooksApi = StubWebhooksApi,
+                pickListsApi = StubPickListsApi,
+                restoreDefaultsApi = restoreApi,
+            )
+        assertNull(controller.restoreDefault("p1"), "no channel is resolved before load")
+
+        controller.load()
+        val flow: RestoreDefaultController = assertNotNull(controller.restoreDefault("p1"))
+        flow.open()
+        assertTrue(flow.confirm())
+
+        assertEquals(listOf("preview ch1 pipelines p1", "restore ch1 pipelines p1"), restoreApi.calls)
+    }
+
+    @Test
+    fun restore_default_is_absent_when_the_deployment_does_not_wire_it() = runTest {
+        val controller = pipelinesController(okChannel(), RecordingPipelinesApi(emptyList()))
+        controller.load()
+
+        assertFalse(controller.canRestoreDefaults)
+        assertNull(controller.restoreDefault("p1"))
+    }
+
     private fun okChannel(): ChannelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
+}
+
+private class RecordingRestoreDefaultsApi : RestoreDefaultsApi {
+    val calls: MutableList<String> = mutableListOf()
+
+    override suspend fun preview(
+        channelId: String,
+        resource: RestoreDefaultResource,
+        id: String,
+    ): ApiResult<PlatformDefaultPreview> {
+        calls += "preview $channelId ${resource.path} $id"
+        return ApiResult.Ok(PlatformDefaultPreview(kind = "pipeline", rowId = id, isEdited = true))
+    }
+
+    override suspend fun restore(
+        channelId: String,
+        resource: RestoreDefaultResource,
+        id: String,
+    ): ApiResult<PlatformDefaultPreview> {
+        calls += "restore $channelId ${resource.path} $id"
+        return ApiResult.Ok(PlatformDefaultPreview(kind = "pipeline", rowId = id))
+    }
 }
 
 // Builds the controller with the two editor-picker fakes wired in, so the pipeline-behaviour tests need not

@@ -85,7 +85,10 @@ public class TimerManagementService : ITimerManagementService
                 t.LastFiredAt,
                 t.Messages.Count,
                 t.CreatedAt
-            ))
+            )
+            {
+                HasPlatformDefault = t.PlatformSourceDefinitionId != null,
+            })
             .ToListAsync(cancellationToken);
 
         return Result.Success(

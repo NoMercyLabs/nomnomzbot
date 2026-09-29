@@ -25,6 +25,9 @@ import bot.nomnomz.dashboard.core.network.InstalledPlatformTemplate
 import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
+import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -71,7 +74,33 @@ class TimersController(
     // caller that doesn't wire billing gets an unblocked create affordance, never a false block.
     private val resourceLimits: suspend (channelId: String) -> ApiResult<List<ResourceUsage>> =
         { ApiResult.Ok(emptyList()) },
+    // "Restore default" for a timer installed from a template. Null hides the action.
+    private val restoreDefaultsApi: RestoreDefaultsApi? = null,
 ) {
+    /** Whether "Restore default" is wired for this deployment. */
+    val canRestoreDefaults: Boolean get() = restoreDefaultsApi != null
+
+    /** Reloads the list after a restore, so the row shows the timer as it now is. */
+    suspend fun afterRestore() = load()
+
+    /**
+     * The confirm flow for putting timer [id] back on its template — null when restore is not wired. Its load
+     * and restore both target the channel resolved at call time.
+     */
+    fun restoreDefault(id: String): RestoreDefaultController? {
+        val api: RestoreDefaultsApi = restoreDefaultsApi ?: return null
+        return RestoreDefaultController(
+            load = { withChannel { channelId -> api.preview(channelId, RestoreDefaultResource.Timers, id) } },
+            restore = { withChannel { channelId -> api.restore(channelId, RestoreDefaultResource.Timers, id) } },
+        )
+    }
+
+    private suspend fun <T> withChannel(call: suspend (String) -> ApiResult<T>): ApiResult<T> =
+        when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+            is ApiResult.Failure -> result
+            is ApiResult.Ok -> call(result.value.id)
+        }
+
     private val _state: MutableStateFlow<TimersState> = MutableStateFlow(TimersState.Loading)
 
     /** The page render state: loading / ready (with the rows) / empty / error. */

@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.core.designsystem.component
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -170,11 +171,15 @@ fun AlertDialog(
             }
         }
         if (text != null) {
-            CompositionLocalProvider(
-                LocalTextStyle provides typography.sm,
-                LocalContentColor provides tokens.mutedForeground,
-            ) {
-                text()
+            // The body takes only the height left after the title and the footer, so a tall body can never push
+            // the actions off a small screen. A body taller than that scrolls inside itself.
+            Box(modifier = Modifier.weight(1f, fill = false)) {
+                CompositionLocalProvider(
+                    LocalTextStyle provides typography.sm,
+                    LocalContentColor provides tokens.mutedForeground,
+                ) {
+                    text()
+                }
             }
         }
         DialogFooter {

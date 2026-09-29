@@ -26,6 +26,9 @@ import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawaysApi
 import bot.nomnomz.dashboard.core.network.Quote
 import bot.nomnomz.dashboard.core.network.QuotesApi
+import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
+import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.SoundClip
@@ -95,7 +98,25 @@ class PipelinesController(
     // above: absent, the picker-kind fields degrade to their legacy local-list/free-text entry.
     private val pipelineOptionsApi: PipelineOptionsApi? = null,
     private val feedback: Feedback = NoOpFeedback,
+    // "Restore default" for a pipeline the platform seeded (the raid flows). Null hides the action.
+    private val restoreDefaultsApi: RestoreDefaultsApi? = null,
 ) {
+    /** Whether "Restore default" is wired for this deployment. */
+    val canRestoreDefaults: Boolean get() = restoreDefaultsApi != null
+
+    /**
+     * The confirm flow for putting pipeline [id] back on its platform default. Null when restore is not wired or
+     * no channel is resolved yet. After a confirmed restore the caller runs [load] so the list shows the result.
+     */
+    fun restoreDefault(id: String): RestoreDefaultController? {
+        val api: RestoreDefaultsApi = restoreDefaultsApi ?: return null
+        val channel: String = channelId ?: return null
+        return RestoreDefaultController(
+            load = { api.preview(channel, RestoreDefaultResource.Pipelines, id) },
+            restore = { api.restore(channel, RestoreDefaultResource.Pipelines, id) },
+        )
+    }
+
     private val _state: MutableStateFlow<PipelinesState> = MutableStateFlow(PipelinesState.Loading)
 
     /** The page render state: loading / list (ready/empty) / editing a pipeline's chain / error. */

@@ -10,7 +10,9 @@
 
 package bot.nomnomz.dashboard.feature.commands.ui
 
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -38,6 +40,7 @@ import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesController
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CommandPreset
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
@@ -71,6 +74,91 @@ import kotlinx.coroutines.runBlocking
 // button renders DISABLED — never hidden, per the house "disable, don't hide" rule.
 @OptIn(ExperimentalTestApi::class)
 class CommandsScreenTest {
+
+    private val eightBallPreset: CommandPreset =
+        CommandPreset(
+            key = "8ball",
+            description = "Ask the magic 8-ball a yes/no question.",
+            templateResponses = listOf("It is certain.", "Ask again later.", "My reply is no."),
+        )
+
+    private fun ComposeUiTest.showScreen(controller: CommandsController) {
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        CommandsScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                            repliesController = BuiltinRepliesController(FakeChannelsApi(), FakeBuiltinsApi()),
+                            detailController = BuiltinDetailController(FakeChannelsApi(), FakeBuiltinsApi()),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+    }
+
+    @Test
+    fun reset_to_preset_names_what_changes_then_resets_the_seeded_command() = runComposeUiTest {
+        val seeded =
+            CommandSummary(
+                id = "c8",
+                name = "8ball",
+                templateResponses = listOf("always yes"),
+                description = "Ask the magic 8-ball a yes/no question.",
+                isEnabled = true,
+                presetKey = "8ball",
+            )
+        val commandsApi = FakeCommandsApi(listOf(seeded), listOf(eightBallPreset))
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(),
+                commandsApi = commandsApi,
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+            )
+        runBlocking { controller.load() }
+        showScreen(controller)
+
+        onNodeWithContentDescription("Edit 8ball").performClick()
+        waitForIdle()
+        onNodeWithText("Seeded from the !8ball preset").assertExists()
+        onNodeWithTag("command-preset-reset").performClick()
+        waitForIdle()
+
+        // The consequence names exactly the part that differs (the responses) — not the matching description.
+        onNodeWithText(
+            "These go back to the !8ball preset: the responses. The name and the on/off switch stay as they are.",
+        ).assertExists()
+        onNodeWithText("Reset").performClick()
+        waitForIdle()
+
+        assertEquals(listOf("8ball"), commandsApi.presetResets)
+    }
+
+    @Test
+    fun a_command_the_channel_wrote_offers_no_reset_to_preset() = runComposeUiTest {
+        val own = CommandSummary(id = "c1", name = "ping", templateResponse = "my pong", isEnabled = true)
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(),
+                commandsApi = FakeCommandsApi(listOf(own), listOf(eightBallPreset)),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+            )
+        runBlocking { controller.load() }
+        showScreen(controller)
+
+        onNodeWithContentDescription("Edit ping").performClick()
+        waitForIdle()
+
+        onNodeWithTag("command-preset-reset").assertDoesNotExist()
+    }
 
     @Test
     fun test_action_calls_the_dry_run_endpoint_for_the_bound_pipeline_when_editing_a_bound_command() = runComposeUiTest {
@@ -322,12 +410,22 @@ private class FakeChannelsApi : ChannelsApi {
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-private class FakeCommandsApi(private val commands: List<CommandSummary>) : CommandsApi {
+private class FakeCommandsApi(
+    private val commands: List<CommandSummary>,
+    private val presetList: List<CommandPreset> = emptyList(),
+) : CommandsApi {
+    val presetResets: MutableList<String> = mutableListOf()
+
     override suspend fun list(channelId: String): ApiResult<List<CommandSummary>> = ApiResult.Ok(commands)
     override suspend fun create(channelId: String, body: CreateCommandBody): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun update(channelId: String, commandName: String, body: UpdateCommandBody): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun presets(channelId: String): ApiResult<List<CommandPreset>> = ApiResult.Ok(presetList)
+    override suspend fun resetToPreset(channelId: String, commandName: String): ApiResult<Unit> {
+        presetResets += commandName
+        return ApiResult.Ok(Unit)
+    }
 }
 
 private class FakeBuiltinsApi(private val builtins: List<BuiltinCommand> = emptyList()) : BuiltinsApi {

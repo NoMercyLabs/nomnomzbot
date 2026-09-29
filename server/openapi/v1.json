@@ -24977,6 +24977,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/command-presets": {
+      "get": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "The fun-command presets (`!8ball`, `!hug`, …) exactly as a reset writes them back, so the\ndashboard can show what a reset changes before the streamer confirms it. Its own path, not\n`commands/presets`, so it can never shadow a command the streamer named \"presets\".",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfCommandPresetDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/commands": {
       "get": {
         "tags": [
@@ -25574,6 +25672,112 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/commands/{commandName}/reset-to-preset": {
+      "post": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "Reset a seeded fun command back to its preset. Keeps the command's name and on/off state; everything\nelse (responses, description, permission, cooldowns, aliases, matching) goes back to the preset.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commandName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCommandDto"
+                }
+              }
             }
           }
         }
@@ -65621,6 +65825,222 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/pipelines/{id}/platform-default": {
+      "get": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "What restoring a platform-seeded pipeline (the raid flows) to the platform default would change: its\nstep count against the default's, or that the step settings go back. 409 NOT_PLATFORM_CONTENT for a\npipeline the channel built itself.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/pipelines/{id}/platform-default/restore": {
+      "post": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "Put a platform-seeded pipeline back on the platform default's current version.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/pipelines/{id}/blast-radius": {
       "get": {
         "tags": [
@@ -80867,6 +81287,222 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/timers/{id}/platform-default": {
+      "get": {
+        "tags": [
+          "Timers"
+        ],
+        "summary": "What restoring a timer installed from a platform template would change: every field that differs\nfrom the template's current version. 409 NOT_PLATFORM_CONTENT for a timer the channel made itself.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/timers/{id}/platform-default/restore": {
+      "post": {
+        "tags": [
+          "Timers"
+        ],
+        "summary": "Put a template-installed timer back on the template's current version.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
             }
           }
         }
@@ -96273,6 +96909,13 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "presetKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The fun-command preset this command was seeded from; null when the channel wrote it."
           }
         },
         "description": "Full command detail for viewing/editing."
@@ -96401,9 +97044,94 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "presetKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The fun-command preset this command was seeded from; null when the channel wrote it."
           }
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\n            form can pre-fill without a separate detail fetch."
+      },
+      "CommandPresetDto": {
+        "required": [
+          "key",
+          "tier",
+          "description",
+          "templateResponse",
+          "templateResponses",
+          "minPermissionLevel",
+          "cooldownSeconds",
+          "userCooldownSeconds",
+          "cooldownPerUser",
+          "aliases",
+          "prefixMode",
+          "matchMode"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateResponse": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateResponses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minPermissionLevel": {
+            "type": "string"
+          },
+          "cooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "userCooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cooldownPerUser": {
+            "type": "boolean"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prefixMode": {
+            "type": "string"
+          },
+          "matchMode": {
+            "type": "string"
+          }
+        },
+        "description": "One fun-command preset exactly as a reset writes it back — every field a reset restores, so the dashboard\ncan show the streamer what changes before they confirm. The command's own name and its on/off state are\nnever part of a reset (the streamer may have renamed or switched it off on purpose)."
       },
       "CommunityStatsDto": {
         "required": [
@@ -109266,6 +109994,10 @@
               "type": "string"
             },
             "description": "See IReadOnlyList&lt;string&gt;? PipelineDto.ParameterNames — carried on the list item too so\n            the `run_pipeline` target picker (fed by the list endpoint) knows a target's declared parameters without\n            a second per-row fetch."
+          },
+          "hasPlatformDefault": {
+            "type": "boolean",
+            "description": "True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to\nthe platform default."
           }
         },
         "description": "Lightweight pipeline summary for list views."
@@ -109782,6 +110514,78 @@
           }
         },
         "description": "One publish attempt (§3.4)."
+      },
+      "PlatformDefaultChangeDto": {
+        "required": [
+          "field",
+          "current",
+          "default"
+        ],
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "current": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string"
+          }
+        },
+        "description": "One part of a row that a restore replaces."
+      },
+      "PlatformDefaultPreviewDto": {
+        "required": [
+          "kind",
+          "rowId",
+          "defaultName",
+          "installedVersion",
+          "defaultVersion",
+          "isEdited",
+          "changes"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "rowId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "defaultName": {
+            "type": "string"
+          },
+          "installedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "defaultVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isEdited": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformDefaultChangeDto"
+            }
+          }
+        },
+        "description": "The consequence of restoring one row to its platform default."
       },
       "PlatformContentVersionDto": {
         "required": [
@@ -117061,6 +117865,42 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfCommandPresetDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CommandPresetDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfCustomDataSourcePresetDto": {
         "type": "object",
         "properties": {
@@ -121214,6 +122054,43 @@
               },
               {
                 "$ref": "#/components/schemas/PipelineCatalogueDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfPlatformDefaultPreviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlatformDefaultPreviewDto"
               }
             ]
           },
@@ -125881,6 +126758,10 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "hasPlatformDefault": {
+            "type": "boolean",
+            "description": "True when the timer was installed from a platform template, so it can be restored to it."
           }
         },
         "description": "Lightweight timer info for list views."

@@ -428,7 +428,10 @@ public class CommandService : ICommandService
                 c.TemplateResponse,
                 c.TemplateResponses,
                 c.PipelineId
-            ))
+            )
+            {
+                PresetKey = c.PresetKey,
+            })
             .ToListAsync(cancellationToken);
 
         return Result.Success(
@@ -682,7 +685,10 @@ public class CommandService : ICommandService
             c.UseCount,
             c.CreatedAt,
             c.UpdatedAt
-        );
+        )
+        {
+            PresetKey = c.PresetKey,
+        };
 
     /// <summary>The recorded shape of a <see cref="AuditRecordType"/> row — one destructive command-authoring event.</summary>
     private sealed class AuditActionData

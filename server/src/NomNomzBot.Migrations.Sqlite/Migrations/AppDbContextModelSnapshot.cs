@@ -1458,6 +1458,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PresetKey")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("TemplateResponse")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
@@ -1493,7 +1497,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("NameNormalized", "BroadcasterId")
                         .IsUnique()
-                        .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId");
+                        .HasDatabaseName("IX_Command_NameNormalized_BroadcasterId")
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("Commands");
                 });

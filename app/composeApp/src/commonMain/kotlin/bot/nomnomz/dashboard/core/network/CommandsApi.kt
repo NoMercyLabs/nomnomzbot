@@ -40,6 +40,12 @@ interface CommandsApi {
 
     /** Delete a command, addressed by its [commandName] (the backend DELETE route is keyed by name). */
     suspend fun delete(channelId: String, commandName: String): ApiResult<Unit>
+
+    /** The fun-command presets (`!8ball`, `!hug`, …) exactly as a reset writes them back. */
+    suspend fun presets(channelId: String): ApiResult<List<CommandPreset>>
+
+    /** Put a seeded fun command back on its preset; keeps its name and on/off state (backend POST). */
+    suspend fun resetToPreset(channelId: String, commandName: String): ApiResult<Unit>
 }
 
 class RestCommandsApi(private val client: ApiClient) : CommandsApi {
@@ -61,7 +67,33 @@ class RestCommandsApi(private val client: ApiClient) : CommandsApi {
 
     override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/commands/$commandName")
+
+    override suspend fun presets(channelId: String): ApiResult<List<CommandPreset>> =
+        client.getEnvelope("api/v1/channels/$channelId/command-presets")
+
+    override suspend fun resetToPreset(channelId: String, commandName: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/commands/$commandName/reset-to-preset")
 }
+
+/**
+ * One fun-command preset (backend `CommandPresetDto`) — every field a reset writes back, so the dashboard can
+ * show what a reset changes before the streamer confirms. [key] is the preset's seeded name (`8ball`).
+ */
+@Serializable
+data class CommandPreset(
+    val key: String,
+    val tier: String = "template",
+    val description: String? = null,
+    val templateResponse: String? = null,
+    val templateResponses: List<String> = emptyList(),
+    val minPermissionLevel: String = "Everyone",
+    val cooldownSeconds: Int = 0,
+    val userCooldownSeconds: Int = 0,
+    val cooldownPerUser: Boolean = false,
+    val aliases: List<String> = emptyList(),
+    val prefixMode: String = "Default",
+    val matchMode: String = "StartsWith",
+)
 
 /**
  * The create-command request body (backend `CreateCommandDto`). [name] plus a reaction ([templateResponse] for
@@ -150,4 +182,6 @@ data class CommandSummary(
     val templateResponse: String? = null,
     val templateResponses: List<String>? = null,
     val pipelineId: String? = null,
+    // The fun-command preset this command was seeded from (`8ball`); null when the channel wrote it itself.
+    val presetKey: String? = null,
 )

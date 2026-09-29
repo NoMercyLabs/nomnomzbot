@@ -16,6 +16,8 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Domain.PlatformContent.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -27,10 +29,55 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class TimersController : BaseController
 {
     private readonly ITimerManagementService _timerService;
+    private readonly IPlatformDefaultRestoreService _defaults;
 
-    public TimersController(ITimerManagementService timerService)
+    public TimersController(
+        ITimerManagementService timerService,
+        IPlatformDefaultRestoreService defaults
+    )
     {
         _timerService = timerService;
+        _defaults = defaults;
+    }
+
+    /// <summary>
+    /// What restoring a timer installed from a platform template would change: every field that differs
+    /// from the template's current version. 409 NOT_PLATFORM_CONTENT for a timer the channel made itself.
+    /// </summary>
+    [RequireAction("timers:read")]
+    [HttpGet("{id:guid}/platform-default")]
+    [ProducesResponseType<StatusResponseDto<PlatformDefaultPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPlatformDefault(
+        string channelId,
+        Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await _defaults.PreviewAsync(broadcasterId, PlatformContentKinds.Timer, id, ct)
+        );
+    }
+
+    /// <summary>Put a template-installed timer back on the template's current version.</summary>
+    [RequireAction("timers:write")]
+    [NotDestructive(
+        "Overwrites one Timer row's own fields with its template; the row, its id and its bound pipeline stay."
+    )]
+    [HttpPost("{id:guid}/platform-default/restore")]
+    [ProducesResponseType<StatusResponseDto<PlatformDefaultPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RestorePlatformDefault(
+        string channelId,
+        Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await _defaults.RestoreAsync(broadcasterId, PlatformContentKinds.Timer, id, ct)
+        );
     }
 
     /// <summary>List the channel's timers, paginated.</summary>

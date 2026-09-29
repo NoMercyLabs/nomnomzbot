@@ -300,6 +300,10 @@ public abstract class BaseController : ControllerBase
             // between preview and publish — the client's confirmed count no longer matches reality, so
             // publish fails closed and the client must re-run publish-preview.
             or "PREVIEW_STALE"
+            // A reset asked of something with nothing to go back to: a command the channel wrote itself, or
+            // a pipeline/timer the channel made rather than one seeded or installed from the platform.
+            or "NOT_A_PRESET"
+            or "NOT_PLATFORM_CONTENT"
             or "NETWORK_BLOCK_ACTIVE" => ConflictResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
                 result.ErrorCode

@@ -88,6 +88,9 @@ import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.HistoryGlyph
+import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
+import bot.nomnomz.dashboard.feature.platformdefaults.ui.RestoreDefaultDialog
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
@@ -289,6 +292,7 @@ import nomnomzbot.composeapp.generated.resources.pipelines_loading
 import nomnomzbot.composeapp.generated.resources.pipelines_new_action
 import nomnomzbot.composeapp.generated.resources.pipelines_no_description
 import nomnomzbot.composeapp.generated.resources.pipelines_delete_action
+import nomnomzbot.composeapp.generated.resources.restore_default_action
 import nomnomzbot.composeapp.generated.resources.pipelines_rename_action
 import nomnomzbot.composeapp.generated.resources.pipelines_rename_action_short
 import nomnomzbot.composeapp.generated.resources.pipelines_retry
@@ -492,6 +496,7 @@ private fun ListContent(
     // null = no dialog; a value = the create/edit dialog seed. A null id is a create, an id an edit.
     var editor: PipelineEditor? by remember { mutableStateOf(null) }
     var pendingDelete: PipelineSummary? by remember { mutableStateOf(null) }
+    var restoreTarget: PipelineSummary? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -521,6 +526,13 @@ private fun ListContent(
                             onEdit = { editor = PipelineEditor.edit(pipeline) },
                             onToggle = { enabled -> scope.launch { controller.togglePipeline(pipeline.id, enabled) } },
                             onDelete = { pendingDelete = pipeline },
+                            // Only a pipeline the platform seeded has a default to go back to.
+                            onRestoreDefault =
+                                if (controller.canRestoreDefaults && pipeline.hasPlatformDefault) {
+                                    { restoreTarget = pipeline }
+                                } else {
+                                    null
+                                },
                         )
                     }
                 }
@@ -541,6 +553,21 @@ private fun ListContent(
                 }
             },
         )
+    }
+
+    restoreTarget?.let { pipeline ->
+        val restore: RestoreDefaultController? = remember(pipeline.id) { controller.restoreDefault(pipeline.id) }
+        if (restore != null) {
+            RestoreDefaultDialog(
+                name = resolveRowLabel(pipeline.name, typeLabel = "Pipeline", discriminatorSource = pipeline.id),
+                controller = restore,
+                onRestored = {
+                    restoreTarget = null
+                    scope.launch { controller.load() }
+                },
+                onDismiss = { restoreTarget = null },
+            )
+        }
     }
 
     pendingDelete?.let { pipeline ->
@@ -602,6 +629,7 @@ internal fun PipelineRow(
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
+    onRestoreDefault: (() -> Unit)? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -655,6 +683,12 @@ internal fun PipelineRow(
             onClick = onOpen,
             tint = tokens.primary,
         )
+        if (onRestoreDefault != null) {
+            val restoreLabel: String = stringResource(Res.string.restore_default_action, displayName)
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = HistoryGlyph, label = restoreLabel, onClick = onRestoreDefault, enabled = enabled)
+            }
+        }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(icon = EditGlyph, label = renameLabel, onClick = onEdit, enabled = enabled)
         }
