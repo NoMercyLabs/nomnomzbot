@@ -25,20 +25,26 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 public sealed class BanSongBuiltin(
     IMusicService music,
     IBlockedTrackService blockedTracks,
-    IBuiltinResponseComposer composer
+    IBuiltinResponseComposer composer,
+    MusicModerationGate gate
 ) : IBuiltinCommand
 {
     public string BuiltinKey => "bansong";
     public int DefaultCooldownSeconds => 5;
 
-    // Moderator on the unified ladder (0/2/4/6/10/…) — banning a track is a moderation action.
-    public int DefaultMinPermissionLevel => 10; // mod+
+    // Banning a track is a moderation action: a moderator badge or the music:queue:moderate grant (the
+    // dashboard's ban-track action) passes. Checked in ExecuteAsync (MusicModerationGate), so the door
+    // stays open for a non-mod chatter who holds the grant.
+    public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default
     )
     {
+        if (!await gate.IsAllowedAsync(context, ct))
+            return Result.Success("You don't have permission to use that command.");
+
         NowPlaying? nowPlaying = await music.GetNowPlayingAsync(
             context.BroadcasterId.ToString(),
             ct

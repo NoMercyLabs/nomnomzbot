@@ -17,6 +17,7 @@ using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Music;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -39,6 +40,7 @@ public sealed class BanSongBuiltinTests
             BroadcasterId = Broadcaster,
             TriggeringUserId = "mod-1",
             TriggeringUserDisplayName = "SomeMod",
+            RoleLevel = 10,
             Personality = personality,
         };
 
@@ -95,7 +97,12 @@ public sealed class BanSongBuiltinTests
                 )
             );
 
-        BanSongBuiltin sut = new(music, blockedTracks, FakeComposer());
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -126,7 +133,12 @@ public sealed class BanSongBuiltinTests
 
         IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
 
-        BanSongBuiltin sut = new(music, blockedTracks, FakeComposer());
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -149,7 +161,12 @@ public sealed class BanSongBuiltinTests
         music
             .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns((NowPlaying?)null);
-        BanSongBuiltin sut = new(music, Substitute.For<IBlockedTrackService>(), FakeComposer());
+        BanSongBuiltin sut = new(
+            music,
+            Substitute.For<IBlockedTrackService>(),
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(Context(PersonalityTone.Sassy));
         Result<string> informative = await sut.ExecuteAsync(Context(PersonalityTone.Informative));
@@ -194,7 +211,12 @@ public sealed class BanSongBuiltinTests
             // No service-supplied ErrorMessage -> forces the tone-styled generic fallback.
             .Returns(Result.Failure<BlockedTrackDto>(null!, "UNKNOWN"));
 
-        BanSongBuiltin sut = new(music, blockedTracks, FakeComposer());
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(),
+            MusicGateTestKit.Gate(false)
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(Context(PersonalityTone.Sassy));
         Result<string> informative = await sut.ExecuteAsync(Context(PersonalityTone.Informative));

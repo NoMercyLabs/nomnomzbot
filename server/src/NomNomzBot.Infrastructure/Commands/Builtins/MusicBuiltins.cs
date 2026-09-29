@@ -12,7 +12,6 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -23,8 +22,11 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// request from the queue and never touches playback — before this fix <c>!skip N</c> silently ignored
 /// N and skipped the current track regardless of who typed it or what N was.
 /// </summary>
-public sealed class SkipBuiltin(IMusicService music, IBuiltinResponseComposer composer)
-    : IBuiltinCommand
+public sealed class SkipBuiltin(
+    IMusicService music,
+    IBuiltinResponseComposer composer,
+    MusicModerationGate gate
+) : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.Skip.Key;
     public int DefaultCooldownSeconds => 5;
@@ -56,7 +58,9 @@ public sealed class SkipBuiltin(IMusicService music, IBuiltinResponseComposer co
         // letting any sub skip tracks while the comment claimed mod+ (found in the item-24c audit).
         // This check used to live in DefaultMinPermissionLevel; it moved here when the N-argument
         // branch opened the builtin to Everyone (see DefaultMinPermissionLevel above).
-        if (context.RoleLevel < PermissionLevel.Moderator.ToLevelValue())
+        // Moderator badge OR the music:queue:moderate grant — the same Gate-2 action the dashboard's
+        // POST /music/skip requires, so one grant works in both places (MusicModerationGate).
+        if (!await gate.IsAllowedAsync(context, ct))
             // Same wording ChatMessageHandler's own permission-denied notice uses — stays neutral,
             // never personality.
             return Result.Success("You don't have permission to use that command.");
@@ -207,20 +211,28 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
 /// !volume [0–100] — gets or sets the playback volume (mods+). The set path stays neutral (a plain numeric
 /// confirmation); the missing/unparsable-argument usage message is tone-styled (S069h).
 /// </summary>
-public sealed class VolumeBuiltin(IMusicService music, IBuiltinResponseComposer composer)
-    : IBuiltinCommand
+public sealed class VolumeBuiltin(
+    IMusicService music,
+    IBuiltinResponseComposer composer,
+    MusicModerationGate gate
+) : IBuiltinCommand
 {
     public string BuiltinKey => "volume";
     public int DefaultCooldownSeconds => 5;
 
-    // Moderator on the UNIFIED ladder — see SkipBuiltin; 2 was Subscriber, not mod.
-    public int DefaultMinPermissionLevel => 10; // mod+
+    // Everyone may TYPE !volume: the moderator-or-music:queue:moderate-grant check runs inside
+    // ExecuteAsync (MusicModerationGate), so a non-mod chatter holding the grant is not stopped at the
+    // door by the role-ladder floor.
+    public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default
     )
     {
+        if (!await gate.IsAllowedAsync(context, ct))
+            return Result.Success("You don't have permission to use that command.");
+
         if (string.IsNullOrWhiteSpace(context.Args))
         {
             // No argument — report the current volume instead of the old "do nothing but print

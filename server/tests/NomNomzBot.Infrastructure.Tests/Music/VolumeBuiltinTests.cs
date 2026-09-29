@@ -80,7 +80,7 @@ public sealed class VolumeBuiltinTests
         music
             .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing(40));
-        VolumeBuiltin sut = new(music, FakeComposer());
+        VolumeBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(true));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -109,7 +109,7 @@ public sealed class VolumeBuiltinTests
         music
             .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns((NowPlaying?)null);
-        VolumeBuiltin sut = new(music, FakeComposer());
+        VolumeBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(true));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -125,7 +125,7 @@ public sealed class VolumeBuiltinTests
         music
             .SetVolumeAsync(Broadcaster.ToString(), 55, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        VolumeBuiltin sut = new(music, FakeComposer());
+        VolumeBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(true));
 
         Result<string> result = await sut.ExecuteAsync(Ctx("55"));
 
@@ -139,7 +139,11 @@ public sealed class VolumeBuiltinTests
     [Fact]
     public async Task Sassy_tone_produces_a_different_usage_message_than_the_default_tone()
     {
-        VolumeBuiltin sut = new(Substitute.For<IMusicService>(), FakeComposer());
+        VolumeBuiltin sut = new(
+            Substitute.For<IMusicService>(),
+            FakeComposer(),
+            MusicGateTestKit.Gate(true)
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(Ctx("not-a-number", PersonalityTone.Sassy));
         Result<string> informative = await sut.ExecuteAsync(
@@ -165,7 +169,7 @@ public sealed class VolumeBuiltinTests
         music
             .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns((NowPlaying?)null);
-        VolumeBuiltin sut = new(music, FakeComposer());
+        VolumeBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(true));
 
         Result<string> sassy = await sut.ExecuteAsync(Ctx(string.Empty, PersonalityTone.Sassy));
         Result<string> informative = await sut.ExecuteAsync(

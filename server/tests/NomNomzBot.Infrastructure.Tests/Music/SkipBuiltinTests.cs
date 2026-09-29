@@ -12,6 +12,7 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -88,7 +89,7 @@ public sealed class SkipBuiltinTests
         music
             .RemoveFromQueueAsync(Broadcaster.ToString(), 3, Arg.Any<CancellationToken>())
             .Returns(true);
-        SkipBuiltin sut = new(music, FakeComposer());
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx("2", ViewerLevel));
 
@@ -112,7 +113,7 @@ public sealed class SkipBuiltinTests
 
         IMusicService music = Substitute.For<IMusicService>();
         music.GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>()).Returns(queue);
-        SkipBuiltin sut = new(music, FakeComposer());
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx("2", ViewerLevel));
 
@@ -123,13 +124,103 @@ public sealed class SkipBuiltinTests
     }
 
     [Fact]
+    public async Task Bare_skip_by_a_non_moderator_holding_the_music_queue_moderate_grant_skips_the_track()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        SkipBuiltin sut = new(
+            music,
+            FakeComposer(),
+            MusicGateTestKit.Gate(holdsGrant: true, out IRoleResolver roles)
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
+
+        result.Value.Should().Be("Skipped the current track.");
+        await music.Received(1).SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
+        // The gate asked the Gate-2 resolver about the exact action the dashboard's POST /music/skip needs.
+        await roles
+            .Received(1)
+            .HasCapabilityAsync(
+                MusicGateTestKit.ChatterUserId,
+                Broadcaster,
+                "music:queue:moderate",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Bare_skip_by_a_non_moderator_without_the_grant_is_refused_and_skips_nothing()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
+
+        result.Value.Should().Be("You don't have permission to use that command.");
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Bare_skip_by_a_moderator_never_needs_the_grant_lookup()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        SkipBuiltin sut = new(
+            music,
+            FakeComposer(),
+            MusicGateTestKit.Gate(holdsGrant: false, out IRoleResolver roles)
+        );
+
+        await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
+
+        await music.Received(1).SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
+        await roles
+            .DidNotReceiveWithAnyArgs()
+            .HasCapabilityAsync(default, default, default!, default);
+    }
+
+    [Fact]
+    public async Task Volume_set_by_a_non_moderator_with_the_grant_reaches_the_provider_and_without_it_does_not()
+    {
+        IMusicService granted = Substitute.For<IMusicService>();
+        granted
+            .SetVolumeAsync(Broadcaster.ToString(), 40, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        VolumeBuiltin allowed = new(
+            granted,
+            FakeComposer(),
+            MusicGateTestKit.Gate(holdsGrant: true)
+        );
+        Result<string> ok = await allowed.ExecuteAsync(Ctx("40", ViewerLevel));
+        ok.Value.Should().Be("Volume set to 40%.");
+        await granted
+            .Received(1)
+            .SetVolumeAsync(Broadcaster.ToString(), 40, Arg.Any<CancellationToken>());
+
+        IMusicService denied = Substitute.For<IMusicService>();
+        VolumeBuiltin refused = new(
+            denied,
+            FakeComposer(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
+        Result<string> no = await refused.ExecuteAsync(Ctx("40", ViewerLevel));
+        no.Value.Should().Be("You don't have permission to use that command.");
+        await denied.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default, default);
+    }
+
+    [Fact]
     public async Task Bare_skip_still_skips_the_currently_playing_track_for_a_moderator()
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
             .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        SkipBuiltin sut = new(music, FakeComposer());
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -142,7 +233,7 @@ public sealed class SkipBuiltinTests
     public async Task Bare_skip_from_a_plain_viewer_is_refused_and_never_skips_playback()
     {
         IMusicService music = Substitute.For<IMusicService>();
-        SkipBuiltin sut = new(music, FakeComposer());
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
