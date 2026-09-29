@@ -590,6 +590,17 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     ) => StartDeviceLoginAsync(BotScopes, cancellationToken);
 
+    public async Task<Result<DeviceCodeStartDto>> StartChannelBotDeviceLoginAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result entitled = await RequireCustomBotEntitlementAsync(broadcasterId, cancellationToken);
+        if (entitled.IsFailure)
+            return entitled.WithValue<DeviceCodeStartDto>(null!);
+        return await StartDeviceLoginAsync(BotScopes, cancellationToken);
+    }
+
     private async Task<Result<DeviceCodeStartDto>> StartDeviceLoginAsync(
         string[] scopes,
         CancellationToken cancellationToken

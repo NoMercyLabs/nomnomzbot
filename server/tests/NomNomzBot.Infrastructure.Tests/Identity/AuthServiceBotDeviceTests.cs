@@ -175,6 +175,57 @@ public sealed class AuthServiceBotDeviceTests
     }
 
     [Fact]
+    public async Task StartChannelBotDeviceLogin_MintsTheBotCode_OnlyWhenThePlanIncludesAnOwnBot()
+    {
+        Guid channel = Guid.NewGuid();
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+        deviceCode
+            .RequestDeviceCodeAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new DeviceCodeResult(
+                    "DEV-BOT-2",
+                    "ABCD-1234",
+                    "https://www.twitch.tv/activate",
+                    5,
+                    DateTime.UtcNow.AddMinutes(30)
+                )
+            );
+        IConfiguration config = ConfigWith(clientId: "public-id", secret: null);
+
+        Result<DeviceCodeStartDto> refused = await Build(
+                config,
+                deviceCode,
+                Plan(channel, allowsOwnBot: false)
+            )
+            .StartChannelBotDeviceLoginAsync(channel);
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("NOT_ENTITLED");
+        deviceCode
+            .ReceivedCalls()
+            .Should()
+            .BeEmpty("no code is minted for a channel that may not use it");
+
+        Result<DeviceCodeStartDto> started = await Build(
+                config,
+                deviceCode,
+                Plan(channel, allowsOwnBot: true)
+            )
+            .StartChannelBotDeviceLoginAsync(channel);
+
+        started.IsSuccess.Should().BeTrue(started.ErrorMessage);
+        started.Value.DeviceCode.Should().Be("DEV-BOT-2");
+        await deviceCode
+            .Received(1)
+            .RequestDeviceCodeAsync(
+                Arg.Is<IReadOnlyList<string>>(s =>
+                    s.Contains("user:write:chat") && s.Contains("user:read:chat")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task PollChannelBotDeviceLogin_EndsInError_WithoutPollingTwitch_WhenThePlanExcludesAnOwnBot()
     {
         Guid channel = Guid.NewGuid();
