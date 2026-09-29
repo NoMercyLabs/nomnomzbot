@@ -150,6 +150,24 @@ public static partial class BuiltinResponseSlots
         public const string AccountUnresolved = "accountunresolved";
     }
 
+    /// <summary>
+    /// The chat handler's own lines about ANY command (not one built-in's reply) — spoken in the channel's
+    /// personality and re-wordable like a built-in reply. No command owns this group.
+    /// </summary>
+    public static class SystemReplies
+    {
+        public const string Key = "system";
+
+        /// <summary>The caller's role is below the command's floor — no variables.</summary>
+        public const string PermissionDenied = "permissiondenied";
+
+        /// <summary>The command is still cooling down — no variables.</summary>
+        public const string Cooldown = "cooldown";
+
+        /// <summary>The command started but failed to finish — no variables.</summary>
+        public const string Failed = "failed";
+    }
+
     /// <summary>The bot's own status lines — not a chat command, but spoken in the channel's personality like one.</summary>
     public static class BotStatus
     {
