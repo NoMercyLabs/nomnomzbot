@@ -44,6 +44,7 @@ public sealed class TwitchEventSubHostedService
     : ITwitchEventSubService,
         IEventSubNotificationSink,
         IActiveInstanceGate,
+        IEventSubHandoverReadiness,
         IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -119,6 +120,46 @@ public sealed class TwitchEventSubHostedService
     // on the first poll; the bound keeps a broken successor from holding shutdown past docker's stop -t 25.
     private static readonly TimeSpan SuccessorShardWait = TimeSpan.FromSeconds(10);
 
+    // The shared inbox (twitch-eventsub §10.1): with two instances each holding a shard, the receiver is not
+    // necessarily the processor. Every receiver stores here; only the lease holder drains. Null on SQLite,
+    // where the single instance processes what it receives directly.
+    private readonly IEventSubInbox? _inbox;
+    private readonly SemaphoreSlim _inboxSignal = new(0);
+    private CancellationTokenSource? _drainCts;
+    private Task? _drainLoop;
+    private const int InboxBatchSize = 50;
+
+    // A standby's notifications reach the active instance only through the database, so the drain also
+    // polls; the active instance's own notifications wake it at once through _inboxSignal.
+    private static readonly TimeSpan InboxPollInterval = TimeSpan.FromMilliseconds(250);
+
+    private bool UsesInbox => _conduitMode && _inbox is not null;
+
+    // How long an incoming instance may report "not ready" while its shard is unbound. The deploy polls
+    // /health/ready for up to 300 s; 60 s is many shard-claim retries yet leaves the deploy most of its
+    // budget, and past it the outgoing instance's own bounded successor wait still protects the handover.
+    internal static readonly TimeSpan ShardReadyTimeout = TimeSpan.FromSeconds(60);
+    private readonly DateTimeOffset _constructedAt;
+    private volatile bool _handoverReady;
+    private volatile bool _startDecided;
+
+    public bool IsReadyForHandover
+    {
+        get
+        {
+            if (_handoverReady)
+                return true;
+            // Not before StartAsync has decided conduit mode: "not conduit mode yet" is not "no shard needed".
+            bool ready =
+                (_startDecided && !_conduitMode)
+                || _conduits?.ClaimedShardId is not null
+                || _clock.GetUtcNow() - _constructedAt >= ShardReadyTimeout;
+            if (ready)
+                _handoverReady = true;
+            return ready;
+        }
+    }
+
     public TwitchEventSubHostedService(
         IServiceScopeFactory scopeFactory,
         IEventSubTransport transport,
@@ -126,9 +167,12 @@ public sealed class TwitchEventSubHostedService
         IEventBus eventBus,
         TimeProvider clock,
         ILogger<TwitchEventSubHostedService> logger,
-        IEventSubConduitShardCoordinator? conduits = null
+        IEventSubConduitShardCoordinator? conduits = null,
+        IEventSubInbox? inbox = null
     )
     {
+        _inbox = inbox;
+        _constructedAt = clock.GetUtcNow();
         _scopeFactory = scopeFactory;
         _transport = transport;
         _conditionBuilder = conditionBuilder;
@@ -169,10 +213,12 @@ public sealed class TwitchEventSubHostedService
             );
             // Not a standby: nothing else owns the bot, the bot just is not onboarded yet.
             _activated.TrySetResult();
+            _startDecided = true;
             return;
         }
 
         await EnterConduitModeAsync(cancellationToken);
+        _startDecided = true;
 
         // A configured instance still may not simply connect: during a switchover BOTH colours are
         // configured, so whoever loses the lease has to wait rather than open a second chat session. Losing
@@ -207,6 +253,11 @@ public sealed class TwitchEventSubHostedService
         // From here on this instance is no longer the active one: single-instance workers (the music
         // hand-over poller) stop acting, so they never overlap with the successor that is about to take over.
         _handedOver = true;
+
+        // Takeover order (twitch-eventsub §10.1): stop processing FIRST — the notification in hand finishes,
+        // everything still waiting stays in the inbox — and only after our sockets close is the lease
+        // released, which is the moment the successor starts draining. Never both, never neither.
+        await StopInboxDrainAsync();
 
         await _lifetime.CancelAsync();
 
@@ -374,6 +425,9 @@ public sealed class TwitchEventSubHostedService
     {
         if (_transportStarted)
             return;
+
+        // Only the lease holder gets here, so this is the one instance that processes the inbox.
+        StartInboxDrain();
 
         // In conduit mode the shard session IS the transport: every conduit subscription's notifications
         // arrive on it, so the bot's own session is only opened later if a topic falls back to it.
@@ -720,6 +774,145 @@ public sealed class TwitchEventSubHostedService
     }
 
     public async Task OnNotificationAsync(
+        string messageId,
+        DateTimeOffset messageTimestamp,
+        string subscriptionType,
+        string subscriptionVersion,
+        string twitchBroadcasterUserId,
+        JsonElement @event,
+        CancellationToken ct
+    )
+    {
+        if (!UsesInbox)
+        {
+            await ProcessNotificationAsync(
+                messageId,
+                messageTimestamp,
+                subscriptionType,
+                subscriptionVersion,
+                twitchBroadcasterUserId,
+                @event,
+                ct
+            );
+            return;
+        }
+
+        // Receiving is not processing: store it, and let whichever instance holds the lease dispatch it.
+        _lastEventAt = _clock.GetUtcNow();
+        await _inbox!.EnqueueAsync(
+            new EventSubInboxMessage
+            {
+                MessageId = messageId,
+                MessageTimestamp = messageTimestamp.UtcDateTime,
+                SubscriptionType = subscriptionType,
+                SubscriptionVersion = subscriptionVersion,
+                TwitchBroadcasterUserId = twitchBroadcasterUserId,
+                EventJson = @event.GetRawText(),
+                ReceivedAt = _clock.GetUtcNow().UtcDateTime,
+            },
+            CancellationToken.None
+        );
+        _inboxSignal.Release();
+    }
+
+    // ── Inbox drain (twitch-eventsub §10.1) ─────────────────────────────────
+
+    /// <summary>
+    /// Starts draining the inbox. Called only once this instance holds the chat-ingest lease, so exactly one
+    /// instance drains at any time.
+    /// </summary>
+    private void StartInboxDrain()
+    {
+        if (!UsesInbox || _drainLoop is not null)
+            return;
+
+        _drainCts = new();
+        CancellationToken token = _drainCts.Token;
+        _drainLoop = Task.Run(() => DrainInboxAsync(token), CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Stops the drain and waits for the notification in hand to finish dispatching. Runs BEFORE the lease is
+    /// released: whatever is still waiting stays in the inbox for the successor, nothing is dispatched twice.
+    /// </summary>
+    private async Task StopInboxDrainAsync()
+    {
+        if (_drainCts is null || _drainLoop is null)
+            return;
+
+        await _drainCts.CancelAsync();
+        await _drainLoop;
+        _drainCts.Dispose();
+        _drainCts = null;
+        _drainLoop = null;
+    }
+
+    private async Task DrainInboxAsync(CancellationToken stop)
+    {
+        while (!stop.IsCancellationRequested)
+        {
+            try
+            {
+                await DrainBatchAsync(stop);
+                await _inboxSignal.WaitAsync(InboxPollInterval, stop);
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                // The database blinked; the rows are still there. Retry after a pause, never drop them.
+                _logger.LogWarning(ex, "EventSub inbox drain failed; retrying.");
+                try
+                {
+                    await Task.Delay(InboxPollInterval, _clock, stop);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>Dispatches every waiting notification in arrival order; the stop token is honoured between
+    /// notifications, never in the middle of one.</summary>
+    internal async Task DrainBatchAsync(CancellationToken stop)
+    {
+        while (!stop.IsCancellationRequested)
+        {
+            IReadOnlyList<EventSubInboxMessage> batch = await _inbox!.PeekAsync(
+                InboxBatchSize,
+                CancellationToken.None
+            );
+            if (batch.Count == 0)
+                return;
+
+            foreach (EventSubInboxMessage message in batch)
+            {
+                if (stop.IsCancellationRequested)
+                    return;
+
+                using JsonDocument document = JsonDocument.Parse(message.EventJson);
+                await ProcessNotificationAsync(
+                    message.MessageId,
+                    new DateTimeOffset(
+                        DateTime.SpecifyKind(message.MessageTimestamp, DateTimeKind.Utc)
+                    ),
+                    message.SubscriptionType,
+                    message.SubscriptionVersion,
+                    message.TwitchBroadcasterUserId,
+                    document.RootElement.Clone(),
+                    CancellationToken.None
+                );
+                await _inbox.RemoveAsync(message.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    /// <summary>Resolves the tenant, then journals and fans the notification out through the dispatcher.</summary>
+    private async Task ProcessNotificationAsync(
         string messageId,
         DateTimeOffset messageTimestamp,
         string subscriptionType,
@@ -1311,7 +1504,7 @@ public sealed class TwitchEventSubHostedService
         )
             return (Result.Success(ToDto(row)), row);
 
-        await RetireWebSocketSubscriptionAsync(db, row, ct);
+        await RetireStaleSubscriptionAsync(db, row, ct);
 
         EventSubSubscriptionRequest request = new()
         {
@@ -1384,26 +1577,25 @@ public sealed class TwitchEventSubHostedService
         || IsMissingAuthorizationMessage(created.ErrorDetail);
 
     /// <summary>
-    /// Moves a row off its per-owner WebSocket subscription before it is created on the conduit (the migration
-    /// of twitch-eventsub §10 point 10): the old subscription is deleted with the owner's own token, so the
-    /// topic never exists twice and never delivers twice.
+    /// Moves a row off its old subscription before it is created on the current conduit: a per-owner
+    /// WebSocket one (the migration of twitch-eventsub §10 point 10, deleted with the owner's own token) or
+    /// one on a conduit this deployment replaced (deleted with the app token). The topic never exists twice
+    /// and never delivers twice.
     /// </summary>
-    private async Task RetireWebSocketSubscriptionAsync(
+    private async Task RetireStaleSubscriptionAsync(
         IApplicationDbContext db,
         EventSubSubscription row,
         CancellationToken ct
     )
     {
-        if (row is not { ConduitId: null, TwitchSubscriptionId: { } webSocketSubscriptionId })
+        if (row.TwitchSubscriptionId is not { } staleSubscriptionId)
             return;
 
-        await _transport.DeleteSubscriptionAsync(
-            webSocketSubscriptionId,
-            DeleteOwnerFor(row.EventType, row.BroadcasterId),
-            ct
-        );
+        // Either a per-owner WebSocket subscription, or one on a conduit this deployment replaced.
+        await DeleteAtTwitchAsync(row, staleSubscriptionId, ct);
         row.TwitchSubscriptionId = null;
         row.SessionId = null;
+        row.ConduitId = null;
         await db.SaveChangesAsync(ct);
     }
 
@@ -1547,6 +1739,16 @@ public sealed class TwitchEventSubHostedService
             .EventSubSubscriptions.Where(s => s.BroadcasterId == broadcasterId)
             .ToListAsync(ct);
 
+        // Conduit subscriptions belong to the app, so the broadcaster's token above never lists them.
+        (List<TwitchSubscriptionResult> withConduit, bool conduitListed) =
+            await AddConduitSubscriptionsAsync(
+                scope.ServiceProvider,
+                broadcasterId,
+                listed.Value,
+                ct
+            );
+        listed = Result.Success<IReadOnlyList<TwitchSubscriptionResult>>(withConduit);
+
         Dictionary<string, TwitchSubscriptionResult> liveById = listed
             .Value.Where(s => !string.IsNullOrEmpty(s.TwitchSubscriptionId))
             .GroupBy(s => s.TwitchSubscriptionId)
@@ -1585,15 +1787,23 @@ public sealed class TwitchEventSubHostedService
                 !string.IsNullOrEmpty(live.SessionId)
                 && currentSession is not null
                 && live.SessionId != currentSession;
+            // A conduit subscription on a conduit this deployment no longer uses (a replaced conduit, a
+            // different client id) feeds nobody.
+            bool staleConduit =
+                live.ConduitId is not null
+                && _conduits?.ConduitId is { } currentConduit
+                && live.ConduitId != currentConduit;
             bool notDesired = !owned.Enabled || owned.DeletedAt.HasValue;
-            if (!staleSession && !notDesired)
+            if (!staleSession && !staleConduit && !notDesired)
                 continue;
 
-            Result del = await _transport.DeleteSubscriptionAsync(
-                live.TwitchSubscriptionId,
-                DeleteOwnerFor(owned.EventType, owned.BroadcasterId),
-                ct
-            );
+            Result del = live.ConduitId is not null
+                ? await _transport.DeleteConduitSubscriptionAsync(live.TwitchSubscriptionId, ct)
+                : await _transport.DeleteSubscriptionAsync(
+                    live.TwitchSubscriptionId,
+                    DeleteOwnerFor(owned.EventType, owned.BroadcasterId),
+                    ct
+                );
             if (del.IsFailure)
             {
                 errors.Add($"delete {live.TwitchSubscriptionId}: {del.ErrorMessage}");
@@ -1637,6 +1847,16 @@ public sealed class TwitchEventSubHostedService
             if (liveExists)
                 continue;
 
+            // Twitch listed this conduit's subscriptions and this row's is not among them (removed at
+            // Twitch without a revocation reaching us): forget it, or the subscribe below would adopt it.
+            if (conduitListed && row.ConduitId is not null)
+            {
+                row.TwitchSubscriptionId = null;
+                row.ConduitId = null;
+                row.Status = "pending";
+                await db.SaveChangesAsync(ct);
+            }
+
             Result<EventSubSubscriptionDto> recreated = await SubscribeAsync(
                 broadcasterId,
                 row.EventType,
@@ -1652,6 +1872,45 @@ public sealed class TwitchEventSubHostedService
         return Result.Success(
             new EventSubReconcileReportDto(created, deleted, repaired, unchanged, errors)
         );
+    }
+
+    /// <summary>
+    /// Adds this broadcaster's conduit subscriptions to the live set reconcile compares against. A failed
+    /// app-token listing degrades to the user-token set: conduit rows then take the adopt path, as before.
+    /// </summary>
+    private async Task<(
+        List<TwitchSubscriptionResult> Live,
+        bool ConduitListed
+    )> AddConduitSubscriptionsAsync(
+        IServiceProvider services,
+        Guid broadcasterId,
+        IReadOnlyList<TwitchSubscriptionResult> userListed,
+        CancellationToken ct
+    )
+    {
+        List<TwitchSubscriptionResult> live = [.. userListed];
+        if (!_conduitMode)
+            return (live, false);
+
+        ITwitchIdentityResolver resolver = services.GetRequiredService<ITwitchIdentityResolver>();
+        string? twitchId = await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
+        if (twitchId is null)
+            return (live, false);
+
+        Result<IReadOnlyList<TwitchSubscriptionResult>> conduitListed =
+            await _transport.ListConduitSubscriptionsAsync(twitchId, ct);
+        if (conduitListed.IsFailure)
+        {
+            _logger.LogWarning(
+                "EventSub reconcile: conduit subscriptions for {BroadcasterId} could not be listed: {Error}",
+                broadcasterId,
+                conduitListed.ErrorMessage
+            );
+            return (live, false);
+        }
+
+        live.AddRange(conduitListed.Value);
+        return (live, true);
     }
 
     /// <summary>

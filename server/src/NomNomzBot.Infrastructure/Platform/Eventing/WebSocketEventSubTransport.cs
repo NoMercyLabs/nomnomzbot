@@ -377,6 +377,54 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         return Result.Success<IReadOnlyList<TwitchSubscriptionResult>>(all);
     }
 
+    public async Task<
+        Result<IReadOnlyList<TwitchSubscriptionResult>>
+    > ListConduitSubscriptionsAsync(string twitchUserId, CancellationToken ct = default)
+    {
+        List<TwitchSubscriptionResult> all = [];
+        string? cursor = null;
+        do
+        {
+            List<KeyValuePair<string, string>> query = [new("user_id", twitchUserId)];
+            if (cursor is not null)
+                query.Add(new("after", cursor));
+
+            TwitchHelixRequest request = new(
+                HttpMethod.Get,
+                "eventsub/subscriptions",
+                TwitchHelixAuth.BotApp,
+                Query: query
+            );
+            Result<TwitchPage<TwitchEventSubWireSubscription>> page = await WithHelixAsync(helix =>
+                helix.GetPageAsync<TwitchEventSubWireSubscription>(request, ct)
+            );
+            if (page.IsFailure)
+                return Result.Failure<IReadOnlyList<TwitchSubscriptionResult>>(
+                    page.ErrorMessage!,
+                    page.ErrorCode,
+                    page.ErrorDetail
+                );
+
+            foreach (TwitchEventSubWireSubscription wire in page.Value.Items)
+                if (wire.Transport?.ConduitId is { } conduitId)
+                    all.Add(
+                        new()
+                        {
+                            TwitchSubscriptionId = wire.Id ?? string.Empty,
+                            Type = wire.Type ?? string.Empty,
+                            Version = wire.Version ?? "1",
+                            Status = wire.Status ?? "enabled",
+                            Cost = wire.Cost ?? 0,
+                            ConduitId = conduitId,
+                        }
+                    );
+
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor));
+
+        return Result.Success<IReadOnlyList<TwitchSubscriptionResult>>(all);
+    }
+
     public async Task StopAsync(CancellationToken ct = default)
     {
         List<WsSession> sessions = [.. _sessions.Values];

@@ -213,7 +213,13 @@ public static class DependencyInjection
         // keeps the in-process no-op. Rate-limiter counter store (§3.7) — in-memory per-instance on lite, Redis
         // cluster-wide on full/SaaS.
         if (dbProvider == DbProviderKind.Postgres)
+        {
             services.AddSingleton<IRunOnceGuard, PostgresRunOnceGuard>();
+            // Same axis for the EventSub inbox (twitch-eventsub §10.1): two overlapping instances each hold
+            // a conduit shard, so their notifications meet in the shared database and only the lease holder
+            // processes them. SQLite has one instance, which processes what it receives directly.
+            services.AddSingleton<IEventSubInbox, DatabaseEventSubInbox>();
+        }
         else
             services.AddSingleton<IRunOnceGuard, NoOpRunOnceGuard>();
 
@@ -1684,6 +1690,9 @@ public static class DependencyInjection
         // The lifecycle host: one instance behind ITwitchEventSubService + IEventSource + IHostedService.
         services.AddSingleton<TwitchEventSubHostedService>();
         services.AddSingleton<ITwitchEventSubService>(sp =>
+            sp.GetRequiredService<TwitchEventSubHostedService>()
+        );
+        services.AddSingleton<IEventSubHandoverReadiness>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
         services.AddSingleton<IEventSource>(sp =>

@@ -40,6 +40,16 @@ public sealed class ReadinessTagScopeSourceTests
     }
 
     [Fact]
+    public void EventSubHandoverLatch_IsTaggedReady()
+    {
+        // The deploy must not stop the old colour before the new one's conduit shard is bound; this latch
+        // (bounded, never flips back) is the one EventSub fact that gates readiness.
+        ExtractCheckRegistration(LoadProgramCsSource(), "eventsub-handover")
+            .Should()
+            .Contain("\"ready\"");
+    }
+
+    [Fact]
     public void DatabaseChecks_StayTaggedReady()
     {
         string source = LoadProgramCsSource();

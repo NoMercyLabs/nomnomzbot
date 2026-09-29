@@ -995,6 +995,11 @@ public sealed class TwitchEventSubReconnectTests
             CancellationToken ct = default
         ) => Task.FromResult(Result.Success(list ?? []));
 
+        public Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListConduitSubscriptionsAsync(
+            string twitchUserId,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Success<IReadOnlyList<TwitchSubscriptionResult>>([]));
+
         public Task StopAsync(CancellationToken ct = default) => Task.CompletedTask;
 
         private static Result<TwitchSubscriptionResult> DefaultCreate(

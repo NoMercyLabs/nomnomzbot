@@ -95,6 +95,15 @@ public interface IEventSubTransport
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// The app's conduit subscriptions for one Twitch user (<c>GET /eventsub/subscriptions?user_id=</c> on the
+    /// app token — a user token never sees them). For reconcile in conduit mode.
+    /// </summary>
+    Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListConduitSubscriptionsAsync(
+        string twitchUserId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Gracefully tears down (close WS / leave conduit shards). Called on shutdown.</summary>
     Task StopAsync(CancellationToken ct = default);
 }

@@ -136,6 +136,9 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         b.ApplyConfiguration(
             new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.EventSubConduitShardConfiguration()
         );
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.EventSubInboxMessageConfiguration()
+        );
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.

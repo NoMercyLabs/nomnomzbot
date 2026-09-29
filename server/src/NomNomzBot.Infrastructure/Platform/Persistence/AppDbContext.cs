@@ -145,6 +145,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
+    public DbSet<EventSubInboxMessage> EventSubInboxMessages => Set<EventSubInboxMessage>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
 
     // Chat
