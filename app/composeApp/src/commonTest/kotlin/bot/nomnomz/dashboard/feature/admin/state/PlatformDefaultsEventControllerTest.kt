@@ -77,6 +77,25 @@ class PlatformDefaultsEventControllerTest {
     }
 
     @Test
+    fun toggling_tts_alone_is_a_change_that_is_previewed_saved_and_kept_on_a_message_only_edit() = runTest {
+        val api = FakePlatformDefaultsApi(emptyList(), events = listOf(follow))
+        val controller = opened(api)
+
+        controller.editEventSpeakWithTts(true)
+        controller.previewEventEdit()
+        assertEquals(4, controller.state.value.eventEdit?.preview?.channelsAffected, "tts alone changes behaviour")
+        controller.saveEventEdit()
+        controller.openEventEdit("channel.follow")
+        controller.editEventMessage("Thanks {user}!")
+        controller.previewEventEdit()
+        controller.saveEventEdit()
+
+        assertTrue(api.eventSaves[0].second.speakWithTts)
+        assertTrue(api.eventSaves[1].second.speakWithTts, "a message edit never silently turns TTS off")
+        assertTrue(controller.state.value.eventDefaults.single().speakWithTts)
+    }
+
+    @Test
     fun an_enabled_default_without_a_message_can_never_be_saved() = runTest {
         val api = FakePlatformDefaultsApi(emptyList(), events = listOf(follow))
         val controller = opened(api)

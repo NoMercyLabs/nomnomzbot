@@ -648,6 +648,7 @@ class AppGraph {
             pickListsApi = pickListsApi,
             widgetsApi = widgetsApi,
             platformTemplatesApi = platformTemplatesApi,
+            ttsApi = ttsApi,
             feedback = feedbackController,
         )
 

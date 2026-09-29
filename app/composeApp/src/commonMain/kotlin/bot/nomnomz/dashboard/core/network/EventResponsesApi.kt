@@ -110,6 +110,8 @@ data class EventResponse(
     val metadata: Map<String, String> = emptyMap(),
     val createdAt: String = "",
     val updatedAt: String = "",
+    /** A `chat_message` response also speaks its resolved text through the channel's TTS (default off). */
+    val speakWithTts: Boolean = false,
 )
 
 /**
@@ -123,4 +125,5 @@ data class UpdateEventResponseBody(
     val message: String? = null,
     val pipelineId: String? = null,
     val metadata: Map<String, String>? = null,
+    val speakWithTts: Boolean? = null,
 )

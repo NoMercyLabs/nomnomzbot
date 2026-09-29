@@ -3364,6 +3364,10 @@
     <string name="event_responses_dialog_title">Configure %1$s</string>
     <string name="event_responses_dialog_response_type_label">Response type</string>
     <string name="event_responses_dialog_message_label">Message template</string>
+    <string name="event_responses_speak_with_tts">Also read it out with TTS</string>
+    <string name="event_responses_speak_with_tts_ready">Plays through the TTS overlay. Add it as a browser source in OBS to hear it.</string>
+    <string name="event_responses_speak_with_tts_off">TTS is off for this channel. Turn it on under TTS, or nothing is read out.</string>
+    <string name="event_responses_speak_with_tts_unknown">Could not check whether TTS is on for this channel.</string>
     <string name="event_responses_dialog_pipeline_label">Pipeline ID</string>
     <!-- First-class pipeline binding + variable insert chips + pre-filled templates. -->
     <string name="event_responses_dialog_pipeline_pick">Bound pipeline</string>

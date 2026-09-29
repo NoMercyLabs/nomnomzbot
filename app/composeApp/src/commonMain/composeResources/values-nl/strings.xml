@@ -3349,6 +3349,10 @@
     <string name="event_responses_dialog_title">%1$s configureren</string>
     <string name="event_responses_dialog_response_type_label">Reactietype</string>
     <string name="event_responses_dialog_message_label">Berichtsjabloon</string>
+    <string name="event_responses_speak_with_tts">Ook voorlezen met TTS</string>
+    <string name="event_responses_speak_with_tts_ready">Speelt af via de TTS-overlay. Voeg die toe als browserbron in OBS om het te horen.</string>
+    <string name="event_responses_speak_with_tts_off">TTS staat uit voor dit kanaal. Zet het aan onder TTS, anders wordt er niets voorgelezen.</string>
+    <string name="event_responses_speak_with_tts_unknown">Kon niet controleren of TTS aanstaat voor dit kanaal.</string>
     <string name="event_responses_dialog_pipeline_label">Pipeline-ID</string>
     <!-- Eersteklas pipeline-binding + variabele-chips + vooraf ingevulde sjablonen. -->
     <string name="event_responses_dialog_pipeline_pick">Gekoppelde pipeline</string>

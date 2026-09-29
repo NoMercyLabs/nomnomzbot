@@ -107,11 +107,12 @@ internal class FakePlatformDefaultsApi(
     ): ApiResult<EventResponseDefault> {
         eventSaves += eventType to body
         val row: EventResponseDefault = eventRows[eventType] ?: return ApiResult.Failure(ApiError(404, "NOT_FOUND", "no event"))
-        val change = EventResponseDefaultChange(body.isEnabled, body.message)
+        val change = EventResponseDefaultChange(body.isEnabled, body.message, body.speakWithTts)
         if (eventRadius(row, change).channelsAffected != body.confirmedChannelsAffected) {
             return ApiResult.Failure(ApiError(409, "PREVIEW_STALE", "stale"))
         }
-        val saved: EventResponseDefault = row.copy(isEnabled = body.isEnabled, message = body.message)
+        val saved: EventResponseDefault =
+            row.copy(isEnabled = body.isEnabled, message = body.message, speakWithTts = body.speakWithTts)
         eventRows[eventType] = saved
         return ApiResult.Ok(saved)
     }
@@ -204,7 +205,8 @@ internal class FakePlatformDefaultsApi(
     }
 
     private fun eventRadius(row: EventResponseDefault, change: EventResponseDefaultChange): PlatformDefaultBlastRadius {
-        val changes: Boolean = row.isEnabled != change.isEnabled || row.message != change.message
+        val changes: Boolean =
+            row.isEnabled != change.isEnabled || row.message != change.message || row.speakWithTts != change.speakWithTts
         return PlatformDefaultBlastRadius(
             channelsAffected = if (changes) row.channelsFollowing else 0,
             channelsKeepingOwnSetting = row.channelsWithOwnResponse,
