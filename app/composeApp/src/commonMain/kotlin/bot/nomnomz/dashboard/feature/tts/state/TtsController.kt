@@ -135,7 +135,32 @@ class TtsController(
                 is ApiResult.Ok -> result.value
             }
 
-        _state.value = TtsState.Ready(config = config, voices = voices, lexicon = lexicon, overlay = overlay)
+        // The defaults "Reset to defaults" restores (same resilience: a failure leaves null and the reset action
+        // stays unavailable rather than guessing values on the client).
+        val resetDefaults: TtsConfig? =
+            when (val result: ApiResult<TtsConfig> = ttsApi.configDefaults(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value =
+            TtsState.Ready(
+                config = config,
+                voices = voices,
+                lexicon = lexicon,
+                overlay = overlay,
+                resetDefaults = resetDefaults,
+            )
+    }
+
+    /**
+     * Put the channel's TTS settings back to the defaults (backend `POST /tts/config/reset`). The backend
+     * returns the resulting config, which replaces the loaded baseline; BYOK keys, the default voice, the
+     * lexicon and per-viewer voices are never touched. A failure surfaces on [TtsState.Ready.saveError].
+     */
+    suspend fun resetConfig() {
+        val target: String = channelId ?: return
+        applyConfigResult { ttsApi.resetConfig(target) }
     }
 
     /**
@@ -491,6 +516,8 @@ sealed interface TtsState {
         val playbackControlBusy: Boolean = false,
         val playbackControlError: String? = null,
         val playbackPaused: Boolean = false,
+        // The server's defaults for the "Reset to defaults" preview, or null when they could not be loaded.
+        val resetDefaults: TtsConfig? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState

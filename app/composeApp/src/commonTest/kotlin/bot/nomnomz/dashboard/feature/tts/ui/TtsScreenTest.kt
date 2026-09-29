@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.tts.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
@@ -25,6 +26,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.lifecycle.Lifecycle
@@ -566,6 +568,144 @@ class TtsScreenTest {
         onNodeWithText("Save").assertIsEnabled()
     }
 
+    // ── Reset to defaults ────────────────────────────────────────────────────
+
+    // A channel that changed several settings, and the server's defaults it would go back to.
+    private val changedConfig: TtsConfig =
+        TtsConfig(
+            isEnabled = true,
+            mode = "client_edge",
+            defaultProvider = "edge",
+            maxCharacters = 120,
+            minPermission = "moderators",
+            skipBotMessages = true,
+            readUsernames = true,
+            profanityCensorEnabled = true,
+            modApprovalRequired = true,
+            minBitsToTts = 100,
+            viewerVoiceSelfServiceEnabled = true,
+        )
+    private val serverDefaults: TtsConfig =
+        changedConfig.copy(maxCharacters = 500, minPermission = "everyone", modApprovalRequired = false, minBitsToTts = null)
+
+    @Test
+    fun reset_lists_every_change_as_current_to_default_before_writing_and_confirm_writes() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(changedConfig), defaultsResult = ApiResult.Ok(serverDefaults))
+        val controller = TtsController(FakeChannelsApi(), ttsApi)
+        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
+        runBlocking {
+            controller.load()
+            queueController.load()
+        }
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                }
+            }
+        }
+        waitForIdle()
+
+        // The action sits below the fold of the scrolled form, so it is invoked by its semantics action rather
+        // than by a pointer click at coordinates outside the test window.
+        onNodeWithText("Reset to defaults").assertIsEnabled()
+        onNodeWithText("Reset to defaults").performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+
+        // Every differing setting is listed as "current → default" (the setting names also label the form
+        // behind the dialog, so the value text is what proves the dialog rendered the diff).
+        assertTrue(rendersText("120 → 500"))
+        assertTrue(rendersText("Moderators → Everyone"))
+        assertTrue(rendersText("On → Off"))
+        assertTrue(rendersText("100 → None"))
+        // Exactly those four differ, so exactly four rows: a setting already at its default is not listed.
+        assertEquals(
+            4,
+            onAllNodesWithText("→", substring = true, useUnmergedTree = true).fetchSemanticsNodes().size,
+        )
+        // Nothing is written until the operator confirms.
+        assertEquals(emptyList(), ttsApi.resetCalls)
+        // It also promises what it leaves alone.
+        assertTrue(onAllNodesWithText("not touched", substring = true).fetchSemanticsNodes().isNotEmpty())
+
+        onNodeWithText("Reset settings").assertIsEnabled().performClick()
+        waitForIdle()
+
+        assertEquals(listOf("ch1"), ttsApi.resetCalls)
+    }
+
+    @Test
+    fun reset_confirm_is_disabled_and_writes_nothing_when_every_setting_already_matches() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(serverDefaults), defaultsResult = ApiResult.Ok(serverDefaults))
+        val controller = TtsController(FakeChannelsApi(), ttsApi)
+        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
+        runBlocking {
+            controller.load()
+            queueController.load()
+        }
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Reset to defaults").performSemanticsAction(SemanticsActions.OnClick)
+        waitForIdle()
+
+        assertTrue(onAllNodesWithText("already at its default", substring = true).fetchSemanticsNodes().isNotEmpty())
+        onNodeWithText("Reset settings").assertIsNotEnabled()
+        assertEquals(emptyList(), ttsApi.resetCalls)
+    }
+
+    @Test
+    fun reset_action_is_disabled_below_the_editor_floor() = runComposeUiTest {
+        val ttsApi = FakeTtsApi(configResult = ApiResult.Ok(changedConfig), defaultsResult = ApiResult.Ok(serverDefaults))
+        val controller = TtsController(FakeChannelsApi(), ttsApi)
+        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
+        runBlocking {
+            controller.load()
+            queueController.load()
+        }
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Moderator)
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Reset to defaults").assertIsNotEnabled()
+    }
+
+    @Test
+    fun reset_action_is_unavailable_when_the_defaults_could_not_be_loaded() = runComposeUiTest {
+        val ttsApi =
+            FakeTtsApi(
+                configResult = ApiResult.Ok(changedConfig),
+                defaultsResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
+            )
+        val controller = TtsController(FakeChannelsApi(), ttsApi)
+        val queueController = TtsQueueController(FakeChannelsApi(), FakeTtsApi())
+        runBlocking {
+            controller.load()
+            queueController.load()
+        }
+        setContent {
+            withLifecycle {
+                EnglishContent {
+                    TtsScreen(controller = controller, queueController = queueController, role = ManagementRole.Broadcaster)
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithText("Reset to defaults").assertIsNotEnabled()
+    }
+
     // ── Test helpers ────────────────────────────────────────────────────────
 
     // Clicks the tab strip's [label] trigger. Each TabsTrigger renders its label text TWICE (an invisible
@@ -619,8 +759,20 @@ private class FakeTtsApi(
     private val configResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
     private val queueResult: ApiResult<List<TtsQueueEntry>> = ApiResult.Ok(emptyList()),
     private val overlayResult: ApiResult<TtsOverlay> = ApiResult.Ok(TtsOverlay()),
+    private val defaultsResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
+    private val resetResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
 ) : TtsApi {
     override suspend fun config(channelId: String): ApiResult<TtsConfig> = configResult
+
+    override suspend fun configDefaults(channelId: String): ApiResult<TtsConfig> = defaultsResult
+
+    // Which channels a reset was actually sent for — proves the confirm wired through to the API.
+    val resetCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun resetConfig(channelId: String): ApiResult<TtsConfig> {
+        resetCalls.add(channelId)
+        return resetResult
+    }
 
     override suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig> =
         ApiResult.Ok(TtsConfig())

@@ -238,6 +238,8 @@ private class StubTtsApi : TtsApi {
     override suspend fun clearPlayback(channelId: String) = error("stub")
     override suspend fun pausePlayback(channelId: String) = error("stub")
     override suspend fun resumePlayback(channelId: String) = error("stub")
+    override suspend fun configDefaults(channelId: String) = error("stub")
+    override suspend fun resetConfig(channelId: String) = error("stub")
 }
 
 private class StubRolesApi : RolesApi {

@@ -218,6 +218,67 @@ class TtsControllerTest {
     }
 
     @Test
+    fun load_carries_the_servers_defaults_for_the_reset_preview_and_null_when_they_fail() = runTest {
+        val serverDefaults = TtsConfig(isEnabled = true, maxCharacters = 500, minPermission = "everyone")
+
+        val withDefaults = TtsController(
+            FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            FakeTtsApi(ApiResult.Ok(TtsConfig()), defaultsResult = ApiResult.Ok(serverDefaults)),
+        )
+        withDefaults.load()
+        assertEquals(serverDefaults, (withDefaults.state.value as TtsState.Ready).resetDefaults)
+
+        // A failed defaults call must not block the page or be replaced by a client-side guess.
+        val withoutDefaults = TtsController(
+            FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            FakeTtsApi(
+                ApiResult.Ok(TtsConfig()),
+                defaultsResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
+            ),
+        )
+        withoutDefaults.load()
+        val ready: TtsState.Ready = withoutDefaults.state.value as TtsState.Ready
+        assertNull(ready.resetDefaults)
+    }
+
+    @Test
+    fun reset_calls_the_reset_endpoint_and_adopts_the_resulting_config() = runTest {
+        val loaded = TtsConfig(isEnabled = false, maxCharacters = 120, minPermission = "moderators")
+        val resulting = TtsConfig(isEnabled = true, maxCharacters = 500, minPermission = "everyone")
+        val ttsApi = FakeTtsApi(ApiResult.Ok(loaded), resetResult = ApiResult.Ok(resulting))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.resetConfig()
+
+        assertEquals(listOf("ch1"), ttsApi.resetCalls)
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(resulting, ready.config)
+        assertTrue(ready.justSaved)
+        assertEquals(false, ready.saving)
+        assertNull(ready.saveError)
+    }
+
+    @Test
+    fun reset_failure_surfaces_the_error_and_keeps_the_loaded_config() = runTest {
+        val loaded = TtsConfig(isEnabled = false, maxCharacters = 120)
+        val ttsApi =
+            FakeTtsApi(
+                ApiResult.Ok(loaded),
+                resetResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "not allowed")),
+            )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.resetConfig()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(loaded, ready.config)
+        assertEquals("not allowed", ready.saveError)
+        assertEquals(false, ready.justSaved)
+    }
+
+    @Test
     fun look_up_viewer_with_no_override_shows_the_channel_default() = runTest {
         val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
         val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
@@ -519,8 +580,20 @@ private class FakeTtsApi(
     private val overlayResult: ApiResult<TtsOverlay> = ApiResult.Ok(TtsOverlay()),
     private val testOverlayResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val playbackControlResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val defaultsResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
+    private val resetResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
 ) : TtsApi {
     override suspend fun overlay(channelId: String): ApiResult<TtsOverlay> = overlayResult
+
+    override suspend fun configDefaults(channelId: String): ApiResult<TtsConfig> = defaultsResult
+
+    // Records which channels a reset was sent for, so a test can assert the call actually went out.
+    val resetCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun resetConfig(channelId: String): ApiResult<TtsConfig> {
+        resetCalls.add(channelId)
+        return resetResult
+    }
 
     val testOverlayCalls: MutableList<String> = mutableListOf()
 
