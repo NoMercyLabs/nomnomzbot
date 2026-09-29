@@ -35,7 +35,7 @@ endpoints, and the onboarding friction walk.
 - [x] AdminController.kt:1913 + SessionStore.kt:142-147 — exit does not reset the channel; a channel switched while acting was saved into the ADMIN's store → endless splash after exit.
 - [x] SessionStore.kt:116, 218-228 + AppGraph.kt:316 — act-as expiry → 401 refresh installs the ADMIN token, flag/name stay → wrong identity — run the full exit path.
 - [x] SessionStore.kt:242-249, 251-261 — `clearActiveSession`/`disconnect` keep the act-as flag + stash → survives logout; Exit writes a stale token over the new session.
-- [ ] app/feature/connect/state/ConnectController.kt:334-337 + srv AuthController.cs:1243-1254 — logout while acting sends the act-as token; admin's refresh session not revoked — end act-as first.
+- [x] app/feature/connect/state/ConnectController.kt:334-337 + srv AuthController.cs:1243-1254 — logout while acting sends the act-as token; admin's refresh session not revoked — end act-as first.
 - [x] App.kt:234 + ShellScreen.kt:538 — Twitch health re-runs on the target → "Reconnect" would OAuth under the target — suppress while acting.
 - [x] srv ChannelsController.cs:101 — channel list as the target writes Moderator memberships — skip under impersonation.
 - [x] ShellScreen.kt:350 — coerced route saved while acting → admin lands on Dashboard after exit.
@@ -49,11 +49,11 @@ endpoints, and the onboarding friction walk.
 - [x] ParticipantShell.kt:136-140 (+ ShellScreen.kt:390/402) — Exit on a composable scope the re-resolve unmounts → exit stops half-way — app-level scope.
 - [x] ImpersonationBanner.kt:64-66 — banner vanishes at expiry, nothing ends act-as — auto-exit or "expired" banner with Exit.
 - [x] ShellScreen.kt:520 vs ParticipantShell.kt:137 — banner overlaid (covers sidebar/header) in one shell, in-flow in the other — one placement, above.
-- [ ] ShellScreen.kt:448-462 — Logout / Reconnect Twitch / Preview-as-viewer offered while acting; each acts on the target — hide/relabel; Exit primary.
+- [x] ShellScreen.kt:448-462 — Logout / Reconnect Twitch / Preview-as-viewer offered while acting; each acts on the target — hide/relabel; Exit primary.
 - [x] `I18N` ImpersonationBanner.kt:92 — sentence assembled in code with " — " — one resource, two placeholders.
 - [x] `VAR` ImpersonationBroadcastHandlers.cs:170 — `var row`.
 - [x] AdminController.kt:1898-1902 — refusals keyed on HTTP status; fixed copy not backed by the server code — key on the error code.
-- [ ] Act-as reuses an already open support grant instead of opening a new one per attempt.
+- [x] Act-as reuses an already open support grant instead of opening a new one per attempt. (Decided: the new begin supersedes the operator's open session on that tenant — fresh justification and expiry, never two open.)
 - [ ] Rendered full-shell check while acting (Playwright on the wasm build): nothing of the admin remains except Exit.
 - [x] Clean: act-as JWT carries target sub/roles/tenant (JwtTokenService.cs:86-140); middleware has no admin fallback; writes audited with both actors (EventJournalService.cs:284-301); IAM audit row before mint; channel list scoped; language per device.
 

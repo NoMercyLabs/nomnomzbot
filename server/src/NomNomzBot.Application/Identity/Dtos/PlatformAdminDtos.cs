@@ -97,6 +97,12 @@ public sealed record ImpersonationTokenDto(
     UserDto User
 );
 
+/// <summary>
+/// What a signature-valid act-as token names: the impersonated user (<c>sub</c>), the support-access grant
+/// it runs under (<c>sid</c>) and the operator behind it (<c>act</c>, non-authoritative).
+/// </summary>
+public sealed record ActAsTokenClaims(Guid SubjectUserId, Guid AccessGrantId, string ActorUserId);
+
 /// <summary>Plane-C audit-log search filters (stream-admin.md §4).</summary>
 public sealed record AuditSearchQuery(
     Guid? PrincipalId,
