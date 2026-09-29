@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -49,24 +48,6 @@ public sealed class GameBuiltinsTests
             Personality = personality,
         };
 
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
-
     private static GameConfigDto Config(bool enabled) =>
         new(
             Id: GameId,
@@ -87,7 +68,8 @@ public sealed class GameBuiltinsTests
 
     private static (CoinflipBuiltin Sut, IGameService Games) Build(
         bool enabled = true,
-        Result<GamePlayResultDto>? playResult = null
+        Result<GamePlayResultDto>? playResult = null,
+        FakeChannelBuiltinReplies? channelReplies = null
     )
     {
         IGameService games = Substitute.For<IGameService>();
@@ -122,7 +104,7 @@ public sealed class GameBuiltinsTests
                 )
             );
 
-        return (new(games, users, FakeComposer()), games);
+        return (new(games, users, TestBuiltinComposer.Create(channelReplies)), games);
     }
 
     private static (CoinflipBuiltin Sut, IUserService Users) BuildWithUnresolvedAccount()
@@ -143,7 +125,7 @@ public sealed class GameBuiltinsTests
             )
             .Returns(Result.Failure<UserDto>("account lookup failed", "ACCOUNT_ERROR"));
 
-        return (new(games, users, FakeComposer()), users);
+        return (new(games, users, TestBuiltinComposer.Create()), users);
     }
 
     [Fact]
@@ -154,8 +136,8 @@ public sealed class GameBuiltinsTests
         Result<string> none = await sut.ExecuteAsync(Context(""));
         Result<string> junk = await sut.ExecuteAsync(Context("all-in"));
 
-        none.Value.Should().Contain("Usage: !coinflip <bet>");
-        junk.Value.Should().Contain("Usage: !coinflip <bet>");
+        none.Value.Should().Be("Usage: !coinflip <bet>");
+        junk.Value.Should().Be("Usage: !coinflip <bet>");
         await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!, default);
     }
 
@@ -205,7 +187,7 @@ public sealed class GameBuiltinsTests
 
         Result<string> reply = await sut.ExecuteAsync(Context("50"));
 
-        reply.Value.Should().Contain("won 95").And.Contain("Balance: 1045");
+        reply.Value.Should().Be("You won 95 on coinflip (bet 50)! Balance: 1045");
         await games
             .Received(1)
             .PlayAsync(
@@ -240,11 +222,86 @@ public sealed class GameBuiltinsTests
 
         Result<string> reply = await sut.ExecuteAsync(Context("50"));
 
-        reply.Value.Should().Contain("lost 50").And.Contain("Balance: 950");
+        reply.Value.Should().Be("You lost 50 on coinflip. Balance: 950");
     }
 
     [Fact]
-    public async Task A_rule_rejection_relays_the_services_chat_friendly_message()
+    public async Task A_channel_override_of_the_won_slot_rewords_only_the_win()
+    {
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            "coinflip",
+            BuiltinResponseSlots.Game.Won,
+            "Nice flip! +{game.payout}, now at {game.balance}."
+        );
+        (CoinflipBuiltin winner, _) = Build(
+            playResult: Result.Success(
+                new GamePlayResultDto(9, "coinflip", "Win", 50, 95, 45, 1045, null)
+            ),
+            channelReplies: replies
+        );
+        (CoinflipBuiltin loser, _) = Build(
+            playResult: Result.Success(
+                new GamePlayResultDto(10, "coinflip", "Lose", 50, 0, -50, 950, null)
+            ),
+            channelReplies: replies
+        );
+
+        Result<string> won = await winner.ExecuteAsync(Context("50"));
+        Result<string> lost = await loser.ExecuteAsync(Context("50"));
+
+        won.Value.Should().Be("Nice flip! +95, now at 1045.");
+        lost.Value.Should().Be("You lost 50 on coinflip. Balance: 950");
+    }
+
+    [Theory]
+    [InlineData("INSUFFICIENT_FUNDS", "Insufficient funds.")]
+    [InlineData("ON_COOLDOWN", "Game is on cooldown.")]
+    [InlineData("PER_STREAM_LIMIT", "Per-stream play limit reached for this game.")]
+    [InlineData("FORBIDDEN", "Insufficient role to play this game.")]
+    [InlineData("AGE_CONSENT_REQUIRED", "This game requires confirming you are 18 or older.")]
+    [InlineData("SOMETHING_NEW", "That didn't work — try again.")]
+    public async Task Every_service_refusal_code_speaks_from_its_own_slot(
+        string code,
+        string expectedLine
+    )
+    {
+        (CoinflipBuiltin sut, _) = Build(
+            playResult: Result.Failure<GamePlayResultDto>("internal detail", code)
+        );
+
+        Result<string> reply = await sut.ExecuteAsync(Context("50"));
+
+        reply.Value.Should().Be(expectedLine);
+    }
+
+    [Fact]
+    public async Task A_channel_override_of_the_insufficient_funds_slot_replaces_that_refusal_only()
+    {
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            "coinflip",
+            BuiltinResponseSlots.Game.InsufficientFunds,
+            "Broke! Chat more."
+        );
+        (CoinflipBuiltin broke, _) = Build(
+            playResult: Result.Failure<GamePlayResultDto>(
+                "Insufficient funds.",
+                "INSUFFICIENT_FUNDS"
+            ),
+            channelReplies: replies
+        );
+        (CoinflipBuiltin cooling, _) = Build(
+            playResult: Result.Failure<GamePlayResultDto>("Game is on cooldown.", "ON_COOLDOWN"),
+            channelReplies: replies
+        );
+
+        (await broke.ExecuteAsync(Context("50"))).Value.Should().Be("Broke! Chat more.");
+        (await cooling.ExecuteAsync(Context("50"))).Value.Should().Be("Game is on cooldown.");
+    }
+
+    [Fact]
+    public async Task A_rule_rejection_speaks_the_slot_line_not_the_service_message()
     {
         (CoinflipBuiltin sut, _) = Build(
             playResult: Result.Failure<GamePlayResultDto>(
@@ -255,7 +312,7 @@ public sealed class GameBuiltinsTests
 
         Result<string> reply = await sut.ExecuteAsync(Context("999999"));
 
-        reply.Value.Should().Contain("Bet is outside the allowed range.");
+        reply.Value.Should().Be("Bet is outside the allowed range.");
     }
 
     [Fact]

@@ -59,6 +59,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The caller's lurking flag was cleared; <c>{user}</c> is set.</summary>
         public const string NotLurking = "notlurking";
+
+        /// <summary>The caller's account could not be resolved, so the flag was not changed; <c>{user}</c> is set.</summary>
+        public const string AccountUnresolved = "accountunresolved";
     }
 
     /// <summary><c>!accountage</c> — how long the caller's Twitch account has existed.</summary>
@@ -68,6 +71,18 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The age was resolved; <c>{user}</c>/<c>{age}</c> are set.</summary>
         public const string Age = "age";
+
+        /// <summary>The caller's account could not be resolved; <c>{user}</c> is set.</summary>
+        public const string AccountUnresolved = "accountunresolved";
+
+        /// <summary>The live Twitch lookup did not answer; <c>{user}</c> is set.</summary>
+        public const string TwitchUnavailable = "twitchunavailable";
+
+        /// <summary>Twitch has no account for the caller; <c>{user}</c> is set.</summary>
+        public const string NotFound = "notfound";
+
+        /// <summary>The account was found but carries no creation date; <c>{user}</c> is set.</summary>
+        public const string Undetermined = "undetermined";
     }
 
     /// <summary><c>!whisper &lt;user&gt; &lt;message&gt;</c> — usage/error tone slots (S069h).</summary>
@@ -86,6 +101,12 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>No direct-message sender is bound for the target platform — no variables.</summary>
         public const string NotAvailable = "notavailable";
+
+        /// <summary>The whisper was sent; <c>{user}</c> is the recipient's display name.</summary>
+        public const string Sent = "sent";
+
+        /// <summary>The platform refused the whisper; <c>{user}</c> is the recipient's display name.</summary>
+        public const string SendFailed = "sendfailed";
     }
 
     /// <summary><c>!discord</c> — points viewers at the channel's linked Discord server via a live-created invite.</summary>
@@ -122,6 +143,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>A sub-moderator caller tried to update someone else; <c>{user}</c> is set.</summary>
         public const string OwnInfoOnly = "owninfoonly";
+
+        /// <summary>The profile was refreshed; <c>{user}</c> is the refreshed user's display name.</summary>
+        public const string Updated = "updated";
     }
 
     /// <summary><c>!leaderboard</c> — the channel's points leaderboard.</summary>
@@ -148,6 +172,45 @@ public static partial class BuiltinResponseSlots
     {
         /// <summary>The caller's own account could not be resolved/created — no variables.</summary>
         public const string AccountUnresolved = "accountunresolved";
+
+        /// <summary>No bet (or a bet that is not a positive whole number) was given; <c>{game.name}</c> is set.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>The game is not switched on for the channel; <c>{game.name}</c> is set.</summary>
+        public const string NotEnabled = "notenabled";
+
+        /// <summary>The channel's game list could not be read — no variables.</summary>
+        public const string Unavailable = "unavailable";
+
+        /// <summary>The player won; <c>{game.name}</c>, <c>{game.bet}</c>, <c>{game.payout}</c>, <c>{game.balance}</c> are set.</summary>
+        public const string Won = "won";
+
+        /// <summary>The player lost; <c>{game.name}</c>, <c>{game.bet}</c>, <c>{game.balance}</c> are set.</summary>
+        public const string Lost = "lost";
+
+        /// <summary>The bet is below the minimum or above the maximum — no variables.</summary>
+        public const string BetOutOfRange = "betoutofrange";
+
+        /// <summary>The player cannot cover the bet — no variables.</summary>
+        public const string InsufficientFunds = "insufficientfunds";
+
+        /// <summary>The player must confirm they are 18 or older first — no variables.</summary>
+        public const string AgeConsentRequired = "ageconsentrequired";
+
+        /// <summary>The player's standing is below the game's floor — no variables.</summary>
+        public const string NotAllowed = "notallowed";
+
+        /// <summary>The player played too recently — no variables.</summary>
+        public const string OnCooldown = "oncooldown";
+
+        /// <summary>The player used all their plays for this stream — no variables.</summary>
+        public const string StreamLimit = "streamlimit";
+
+        /// <summary>The channel has no currency switched on — no variables.</summary>
+        public const string CurrencyDisabled = "currencydisabled";
+
+        /// <summary>Any other failure while playing — no variables.</summary>
+        public const string PlayFailed = "playfailed";
     }
 
     /// <summary>
@@ -166,6 +229,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The command started but failed to finish — no variables.</summary>
         public const string Failed = "failed";
+
+        /// <summary>A pipeline command has no saved pipeline to run, so nothing happened — no variables.</summary>
+        public const string NothingRan = "nothingran";
     }
 
     /// <summary>The bot's own status lines — not a chat command, but spoken in the channel's personality like one.</summary>

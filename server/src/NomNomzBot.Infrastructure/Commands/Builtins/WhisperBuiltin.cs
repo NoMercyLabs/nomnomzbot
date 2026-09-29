@@ -134,10 +134,22 @@ public sealed class WhisperBuiltin : IBuiltinCommand
         }
 
         Result sent = await sender.SendAsync(context.BroadcasterId, target.Id, message, ct);
-        return Result.Success(
-            sent.IsSuccess
-                ? $"Whispered {target.DisplayName}."
-                : sent.ErrorMessage ?? $"Could not whisper {target.DisplayName}."
+        string outcome = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinResponseSlots.Whisper.Key,
+                Slot = sent.IsSuccess
+                    ? BuiltinResponseSlots.Whisper.Sent
+                    : BuiltinResponseSlots.Whisper.SendFailed,
+                NeutralFallback = sent.IsSuccess
+                    ? $"Whispered {target.DisplayName}."
+                    : $"Could not whisper {target.DisplayName}.",
+                Variables = new Dictionary<string, string> { ["user"] = target.DisplayName },
+            },
+            ct
         );
+        return Result.Success(outcome);
     }
 }

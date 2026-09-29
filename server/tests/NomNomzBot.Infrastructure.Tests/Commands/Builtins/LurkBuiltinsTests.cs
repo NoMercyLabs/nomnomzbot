@@ -186,6 +186,86 @@ public sealed class LurkBuiltinsTests
         result.Value.Should().Contain("no longer lurking");
         db.Users.Single(u => u.TwitchUserId == TwitchId).IsLurking.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task An_override_of_lurk_lurking_does_not_change_lurk_notlurking()
+    {
+        Guid broadcaster = Guid.CreateVersion7();
+        BuiltinCommandContext context = new()
+        {
+            BroadcasterId = broadcaster,
+            TriggeringUserId = TwitchId,
+            TriggeringUserDisplayName = "Stoney_Eagle",
+            TriggeringUserLogin = Login,
+        };
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            broadcaster,
+            BuiltinResponseSlots.Lurk.Key,
+            BuiltinResponseSlots.Lurk.Lurking,
+            "{user} vanishes into the shadows."
+        );
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = TwitchId,
+                Username = Login,
+                UsernameNormalized = Login,
+                DisplayName = "Stoney_Eagle",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<string> lurking = await new LurkBuiltin(
+            FakeUsers(),
+            db,
+            TestBuiltinComposer.Create(replies)
+        ).ExecuteAsync(context);
+        Result<string> back = await new UnlurkBuiltin(
+            FakeUsers(),
+            db,
+            TestBuiltinComposer.Create(replies)
+        ).ExecuteAsync(context);
+
+        lurking.Value.Should().Be("Stoney_Eagle vanishes into the shadows.");
+        back.Value.Should().Be("@Stoney_Eagle is no longer lurking. Welcome back!");
+    }
+
+    [Fact]
+    public async Task An_unresolvable_account_replies_from_its_own_slot_and_flips_nothing()
+    {
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<UserDto>("lookup failed", "ACCOUNT_ERROR"));
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = TwitchId,
+                Username = Login,
+                UsernameNormalized = Login,
+                DisplayName = "Stoney_Eagle",
+                IsLurking = false,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<string> result = await new LurkBuiltin(
+            users,
+            db,
+            TestBuiltinComposer.Create()
+        ).ExecuteAsync(Context());
+
+        result.Value.Should().Be("@Stoney_Eagle your account could not be resolved.");
+        db.Users.Single(u => u.TwitchUserId == TwitchId).IsLurking.Should().BeFalse();
+    }
 }
 
 file static class SubstituteExtensions
