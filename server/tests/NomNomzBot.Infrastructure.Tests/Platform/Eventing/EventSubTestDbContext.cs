@@ -128,6 +128,15 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
             // the scope-gate tests seed a grant set and prove SubscribeAsync holds/releases on it.
         });
 
+        // The conduit registry keeps its production mapping (unique conduit id, unique shard per conduit) so
+        // the conduit tests hit the same constraints the real database enforces.
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.EventSubConduitConfiguration()
+        );
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.EventSubConduitShardConfiguration()
+        );
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -156,6 +165,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     [
         typeof(EventSubSubscription),
         typeof(IntegrationConnection),
+        typeof(EventSubConduit),
+        typeof(EventSubConduitShard),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -249,8 +260,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
     public DbSet<AlertQueueEntry> AlertQueueEntries => throw new NotSupportedException();
     public DbSet<RecordEntity> Records => throw new NotSupportedException();
-    public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
-    public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
+    public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
+    public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();

@@ -1672,6 +1672,10 @@ public static class DependencyInjection
         services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
         services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
 
+        // The conduit + shard owner behind the zero-downtime blue/green handover (twitch-eventsub §10).
+        // Inert without an app secret: EnsureConduitAsync then fails no_token and the per-owner sessions stay.
+        services.AddSingleton<IEventSubConduitShardCoordinator, EventSubConduitShardCoordinator>();
+
         // Reconnect gap backfill (twitch-eventsub §7): sweeps redemptions + follows for the window a dropped
         // WebSocket session silently missed, deterministically deduped, then replayed through the ordinary
         // IEventBus path. Scoped — touches the scoped Helix sub-clients and the scoped journal.
