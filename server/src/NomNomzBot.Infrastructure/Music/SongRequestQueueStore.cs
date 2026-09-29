@@ -77,6 +77,19 @@ public interface ISongRequestQueueStore
     bool IsInFlightCheckDue(string broadcasterId);
 
     /// <summary>
+    /// Serialises every hand-over to the provider for one channel. The in-flight check and the in-flight
+    /// write sit on either side of an awaited provider call, and several callers race for them: admission,
+    /// the reconciler on every playback change, and the poller's recovery tick every second, each in its
+    /// own DI scope. Without this lock a second caller inside that await sees nothing in flight, pushes the
+    /// same head entry again, and the provider plays the request twice (live 2026-09-29). Hold the returned
+    /// handle from the in-flight check until the in-flight write is done; dispose it to release.
+    /// </summary>
+    Task<IDisposable> AcquireHandoverLockAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Replays a persisted queue back into memory at startup (S001b), in the exact order it was
     /// persisted. Only meant to be called once per channel, before any live traffic reaches it —
     /// <see cref="FairQueue{T}.Enqueue"/> derives rank purely from insertion order, so replaying the
@@ -108,6 +121,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         string,
         (SongRequestEntry Entry, DateTimeOffset NextCheckAt)
     > _inFlightChecks = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
     private readonly TimeProvider _timeProvider;
 
     public SongRequestQueueStore(TimeProvider? timeProvider = null)
@@ -159,6 +173,26 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 
     private void ScheduleNextCheck(string broadcasterId, SongRequestEntry entry) =>
         _inFlightChecks[broadcasterId] = (entry, _timeProvider.GetUtcNow() + InFlightCheckInterval);
+
+    public async Task<IDisposable> AcquireHandoverLockAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        SemaphoreSlim gate = _handoverLocks.GetOrAdd(broadcasterId, static _ => new(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        return new HandoverLock(gate);
+    }
+
+    /// <summary>Releases its channel's hand-over gate exactly once, however often it is disposed.</summary>
+    private sealed class HandoverLock : IDisposable
+    {
+        private SemaphoreSlim? _gate;
+
+        public HandoverLock(SemaphoreSlim gate) => _gate = gate;
+
+        public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
+    }
 
     /// <summary>
     /// REPLACES the channel's queue with the persisted set — it must never append.

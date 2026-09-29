@@ -753,20 +753,49 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // A push failure means the request never reached the provider: it is NOT left behind as a phantom
         // entry pretending to be live — that one entry is removed (never the requester's other pending
         // requests) and the caller gets the real, typed reason instead of a false success.
-        if (_queueStore.GetInFlight(broadcasterId) is not null)
-        {
-            // Something of ours is already queued at the provider; this request waits its turn in the
-            // fair queue, where a later re-rank can still move it.
-            await LogAndAnnounceAsync(
+        Result? pushFailure;
+        using (await _queueStore.AcquireHandoverLockAsync(broadcasterId, cancellationToken))
+            pushFailure = await HandOverAdmittedIfIdleAsync(
                 tenantId,
                 broadcasterId,
-                trackInfo,
-                requestedBy,
-                cancellationToken,
-                requesterUserId
+                provider,
+                queue,
+                entry,
+                trackInfo.TrackName,
+                cancellationToken
             );
-            return Result.Success();
-        }
+        if (pushFailure is not null)
+            return pushFailure;
+
+        await LogAndAnnounceAsync(
+            tenantId,
+            broadcasterId,
+            trackInfo,
+            requestedBy,
+            cancellationToken,
+            requesterUserId
+        );
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Pushes a just-admitted request to the provider when nothing of ours is there yet, and records it as
+    /// in-flight. Returns null on success or when something is already in flight (the request then waits its
+    /// turn in the fair queue, where a later re-rank can still move it); returns the typed failure after
+    /// rolling the entry back when the push is refused. The caller holds the channel's hand-over lock.
+    /// </summary>
+    private async Task<Result?> HandOverAdmittedIfIdleAsync(
+        Guid tenantId,
+        string broadcasterId,
+        IMusicProvider provider,
+        FairQueue<SongRequestEntry> queue,
+        SongRequestEntry entry,
+        string trackName,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_queueStore.GetInFlight(broadcasterId) is not null)
+            return null;
 
         // Same basis as HandOverNextAsync's own push, and needed just as unconditionally here: a chat
         // command (`!sr`, run off an EventSub notification) reaches this exact code with no HTTP request
@@ -778,13 +807,17 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         try
         {
-            bool pushed = await provider.AddToQueueAsync(tenantId, trackUri, cancellationToken);
+            bool pushed = await provider.AddToQueueAsync(
+                tenantId,
+                entry.TrackUri,
+                cancellationToken
+            );
             if (!pushed)
                 return await RollBackAsync(
                     broadcasterId,
                     queue,
                     entry,
-                    ProviderErrorOnQueue(trackInfo.TrackName),
+                    ProviderErrorOnQueue(trackName),
                     cancellationToken
                 );
         }
@@ -794,7 +827,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 broadcasterId,
                 queue,
                 entry,
-                PremiumRequiredOnQueue(trackInfo.TrackName),
+                PremiumRequiredOnQueue(trackName),
                 cancellationToken
             );
         }
@@ -804,7 +837,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 broadcasterId,
                 queue,
                 entry,
-                NoActiveDeviceOnQueue(trackInfo.TrackName),
+                NoActiveDeviceOnQueue(trackName),
                 cancellationToken
             );
         }
@@ -814,7 +847,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 broadcasterId,
                 queue,
                 entry,
-                AuthFailedOnQueue(trackInfo.TrackName),
+                AuthFailedOnQueue(trackName),
                 cancellationToken
             );
         }
@@ -824,7 +857,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 broadcasterId,
                 queue,
                 entry,
-                ForbiddenOnQueue(trackInfo.TrackName),
+                ForbiddenOnQueue(trackName),
                 cancellationToken
             );
         }
@@ -835,16 +868,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // Re-sync so the persisted row set carries the in-flight flag too (S-SR-INFLIGHT-DURABLE) — the
         // sync above (before this request's hand-off outcome was known) could not have stamped it yet.
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
-
-        await LogAndAnnounceAsync(
-            tenantId,
-            broadcasterId,
-            trackInfo,
-            requestedBy,
-            cancellationToken,
-            requesterUserId
-        );
-        return Result.Success();
+        return null;
     }
 
     /// <summary>The accepted-request side effects, identical whether the request went straight to the
@@ -1784,6 +1808,14 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
         if (queue is null)
             return;
+
+        // The reconciler and the poller's recovery tick both land here, often in the same second. Without
+        // the channel's hand-over lock the second one reads "nothing in flight" while the first is still
+        // awaiting the provider, and pushes the same head again — the request then plays twice.
+        using IDisposable handoverLock = await _queueStore.AcquireHandoverLockAsync(
+            broadcasterId,
+            cancellationToken
+        );
 
         // Never two of ours at the provider — that is the invariant the whole fair queue rests on. Callers
         // that fire on a cadence (the playback poller's recovery tick) can therefore call this freely. The
