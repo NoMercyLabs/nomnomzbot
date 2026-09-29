@@ -66,6 +66,23 @@ public class GamesController(
         return ResultResponse(await games.UpsertGameAsync(broadcasterId, request, ct));
     }
 
+    /// <summary>
+    /// Puts one built-in game's settings back on the platform defaults and keeps whether it is on or off. 404 when
+    /// the channel has no such game or it has no platform default.
+    /// </summary>
+    [HttpPost("{gameType}/reset")]
+    [RequireAction("economy:games:write")]
+    public async Task<IActionResult> ResetGame(
+        string channelId,
+        string gameType,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await games.ResetGameAsync(broadcasterId, gameType, ct));
+    }
+
     /// <summary>Play a configured game as the authenticated caller, with the player's role level resolved server-side.</summary>
     [HttpPost("{gameConfigId:guid}/play")]
     [RequireAction("economy:games:play")]
