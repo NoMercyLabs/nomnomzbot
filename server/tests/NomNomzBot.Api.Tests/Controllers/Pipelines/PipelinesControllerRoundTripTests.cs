@@ -131,6 +131,9 @@ public sealed class PipelinesControllerRoundTripTests : IAsyncDisposable
                     services.AddSingleton<ICommandConfigValidator, CommandConfigValidator>();
                     services.AddSingleton<IPipelineService, PipelineService>();
                     services.AddSingleton(Substitute.For<IPipelineTestRunService>());
+                    services.AddSingleton(
+                        Substitute.For<Application.Contracts.PlatformContent.IPlatformDefaultRestoreService>()
+                    );
 
                     services.AddSingleton<
                         Asp.Versioning.IApiVersionReader,

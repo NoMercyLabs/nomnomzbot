@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.PlatformContent;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -69,7 +70,8 @@ public sealed class PipelinesControllerCatalogueTests
             Substitute.For<IPipelineTestRunService>(),
             Substitute.For<ICommandConfigValidator>(),
             actions,
-            conditions
+            conditions,
+            Substitute.For<IPlatformDefaultRestoreService>()
         );
 
         IActionResult result = controller.ListActionCatalogue("chan");
@@ -115,7 +117,8 @@ public sealed class PipelinesControllerCatalogueTests
             Substitute.For<IPipelineTestRunService>(),
             Substitute.For<ICommandConfigValidator>(),
             actions,
-            []
+            [],
+            Substitute.For<IPlatformDefaultRestoreService>()
         );
 
         IActionResult result = controller.ListActionCatalogue("chan");

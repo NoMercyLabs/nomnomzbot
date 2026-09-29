@@ -79,7 +79,10 @@ public class PipelineService : IPipelineService
                 p.LastTriggeredAt,
                 p.UpdatedAt,
                 PipelineParameterNames.Parse(p.ParameterNamesJson)
-            ))
+            )
+            {
+                HasPlatformDefault = p.PlatformSourceDefinitionId != null,
+            })
             .ToList();
 
         return Result.Success(

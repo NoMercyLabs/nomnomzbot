@@ -20,6 +20,8 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Domain.PlatformContent.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -35,13 +37,15 @@ public class PipelinesController : BaseController
     private readonly ICommandConfigValidator _validator;
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IEnumerable<ICommandCondition> _conditions;
+    private readonly IPlatformDefaultRestoreService _defaults;
 
     public PipelinesController(
         IPipelineService pipelineService,
         IPipelineTestRunService testRunService,
         ICommandConfigValidator validator,
         IEnumerable<ICommandAction> actions,
-        IEnumerable<ICommandCondition> conditions
+        IEnumerable<ICommandCondition> conditions,
+        IPlatformDefaultRestoreService defaults
     )
     {
         _pipelineService = pipelineService;
@@ -49,6 +53,48 @@ public class PipelinesController : BaseController
         _validator = validator;
         _actions = actions;
         _conditions = conditions;
+        _defaults = defaults;
+    }
+
+    /// <summary>
+    /// What restoring a platform-seeded pipeline (the raid flows) to the platform default would change: its
+    /// step count against the default's, or that the step settings go back. 409 NOT_PLATFORM_CONTENT for a
+    /// pipeline the channel built itself.
+    /// </summary>
+    [RequireAction("pipelines:read")]
+    [HttpGet("{id:guid}/platform-default")]
+    [ProducesResponseType<StatusResponseDto<PlatformDefaultPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPlatformDefault(
+        string channelId,
+        Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await _defaults.PreviewAsync(broadcasterId, PlatformContentKinds.Pipeline, id, ct)
+        );
+    }
+
+    /// <summary>Put a platform-seeded pipeline back on the platform default's current version.</summary>
+    [RequireAction("pipelines:write")]
+    [NotDestructive(
+        "Replaces one Pipeline's steps with the platform default through the editor's own save; the pipeline, its id and everything bound to it stay."
+    )]
+    [HttpPost("{id:guid}/platform-default/restore")]
+    [ProducesResponseType<StatusResponseDto<PlatformDefaultPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RestorePlatformDefault(
+        string channelId,
+        Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await _defaults.RestoreAsync(broadcasterId, PlatformContentKinds.Pipeline, id, ct)
+        );
     }
 
     /// <summary>List the channel's pipelines, paginated.</summary>
