@@ -515,9 +515,14 @@ A5. Template updates reach tenants: platform content is copied at install and ne
     force overwrites all, and a copy the installer refuses is recorded on the job and shown (6c4157d server).
     Gallery widget installs now stamp the hash the publish compares against, so they count as untouched
     instead of edited (0a25a2a). The definition detail reports installed / behind / edited counts from the
-    same copy listing (9581266 server, app commit after it). Owed: a per-copy "update available" badge on
-    the channel's own timers/event-responses/rewards/pick-lists (the widget side has it as
-    `GalleryUpdateAvailable`); today a channel that edited its copy is only counted on the admin side.
+    same copy listing (9581266 server, app commit after it). The channel side now exists for every kind:
+    `GET channels/{id}/platform-templates/updates?kind=` lists this channel's copies behind the current
+    version (edited or not), and `POST …/{definitionId}/copies/{rowId}/update` takes the new version into
+    one copy through the kind's own save path, gated by its write key (PlatformTemplateUpdateService).
+    Owed: the dashboard half — an "update available" badge + Update action (with "replaces your edits"
+    when edited) on the timers and pick-lists pages. Blocked only on regenerating server/openapi/v1.json
+    through scripts/refresh-openapi.ps1 (port 5080 was held by a running API; ApiRouteContractTest needs
+    the routes in the snapshot before the Kotlin client may call them).
 A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:1533-1554); trace
     save → runtime reader for billing, spam defense and trust-safety (owed by the audit).
     Status 2026-09-27: DONE. Flag overrides are listed per flag from the server's read-back (channel

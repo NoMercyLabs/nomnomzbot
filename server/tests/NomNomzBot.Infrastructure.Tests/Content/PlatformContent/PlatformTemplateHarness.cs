@@ -78,6 +78,9 @@ internal sealed class PlatformTemplateHarness : IAsyncDisposable
     public PlatformTemplateCatalogService Catalog(IPlatformTemplateInstaller installer) =>
         new(Db, new TestUnitOfWork(Db), Authorization, [installer]);
 
+    public PlatformTemplateUpdateService Updates(IPlatformTemplateInstaller installer) =>
+        new(Db, new TestUnitOfWork(Db), Authorization, [installer]);
+
     /// <summary>Authors a definition and publishes v1 through the real admin flow; returns the definition id.</summary>
     public async Task<Guid> PublishTemplateAsync(
         IPlatformTemplateInstaller installer,

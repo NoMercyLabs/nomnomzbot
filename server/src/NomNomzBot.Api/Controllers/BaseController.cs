@@ -248,6 +248,7 @@ public abstract class BaseController : ControllerBase
                 result.ErrorCode
             ),
             "ALREADY_EXISTS"
+            or "ALREADY_CURRENT"
             or "MIGRATION_PENDING_EXTERNAL_REMOVAL"
             or TwitchErrorCodes.NoToken
             or "INSUFFICIENT_FUNDS"

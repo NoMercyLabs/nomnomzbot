@@ -32,9 +32,52 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("PlatformTemplates")]
 public class PlatformTemplatesController(
     IPlatformTemplateCatalogService templates,
+    IPlatformTemplateUpdateService updates,
     ICurrentUserService currentUser
 ) : BaseController
 {
+    /// <summary>This channel's installed copies of one kind whose template has a newer published version.</summary>
+    [HttpGet("updates")]
+    [RequireAction("dashboard:read")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<PlatformTemplateUpdateDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListUpdates(
+        string channelId,
+        [FromQuery] string kind,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await updates.ListAsync(broadcasterId, kind, ct));
+    }
+
+    /// <summary>
+    /// Rewrite one installed copy from its template's current published version. Replaces the channel's own
+    /// edits to that copy; gated in the service by the kind's write key.
+    /// </summary>
+    [HttpPost("{definitionId:guid}/copies/{rowId:guid}/update")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [ProducesResponseType<StatusResponseDto<PlatformTemplateUpdateDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ApplyUpdate(
+        string channelId,
+        Guid definitionId,
+        Guid rowId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(currentUser.UserId, out Guid caller))
+            return UnauthenticatedResponse();
+
+        return ResultResponse(
+            await updates.ApplyAsync(caller, broadcasterId, definitionId, rowId, ct)
+        );
+    }
+
     [HttpGet]
     [RequireAction("dashboard:read")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]

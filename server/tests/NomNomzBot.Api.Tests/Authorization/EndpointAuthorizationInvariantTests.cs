@@ -61,6 +61,8 @@ public sealed class EndpointAuthorizationInvariantTests
             "self-only in body (caller==userId): GDPR data summary of the caller's own data",
         ["PlatformTemplatesController.Install"] =
             "Gate-2 in the service: PlatformTemplateCatalogService checks the template kind's own write key (e.g. eventresponses:write) in the target channel — one route serves every kind, so the key is not static",
+        ["PlatformTemplatesController.ApplyUpdate"] =
+            "Gate-2 in the service: PlatformTemplateUpdateService checks the template kind's own write key in the target channel, exactly as Install does — one route serves every kind",
         // ── GDPR self-service my-data plane: Gate-1 only, subject ALWAYS forced to the JWT sub (never body/route) ──
         ["GdprController.ExportData"] =
             "self-scoped in body: subject forced to JWT sub — gdpr-crypto.md §5.1 (right of access on own data)",

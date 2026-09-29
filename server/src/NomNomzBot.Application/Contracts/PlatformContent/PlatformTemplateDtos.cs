@@ -29,3 +29,17 @@ public sealed record InstallPlatformTemplateRequest(Guid? PipelineId);
 
 /// <summary>The channel row an install created or replaced.</summary>
 public sealed record InstalledPlatformTemplateDto(string Kind, Guid EntityId, string Name);
+
+/// <summary>
+/// One installed copy and the version its definition is on now. <see cref="EditedSinceInstall"/> is true when
+/// the channel changed the copy after it was installed: taking the update replaces those edits.
+/// </summary>
+public sealed record PlatformTemplateUpdateDto(
+    Guid RowId,
+    Guid DefinitionId,
+    string Kind,
+    string DisplayName,
+    int? InstalledVersion,
+    int CurrentVersion,
+    bool EditedSinceInstall
+);
