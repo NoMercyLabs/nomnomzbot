@@ -71,7 +71,8 @@ public sealed class FunCommandPresetPackSeedOnOnboardingHandlerTests
                 commandService,
                 db,
                 Substitute.For<IChannelRegistry>(),
-                new RecordingEventBus()
+                new RecordingEventBus(),
+                new TemplateHelperValidator()
             ),
             NullLogger<FunCommandPresetPackSeedOnOnboardingHandler>.Instance
         );

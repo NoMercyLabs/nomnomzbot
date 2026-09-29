@@ -77,7 +77,7 @@ internal sealed class RealCommandsDb : IDisposable
             TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
-        Presets = new(Commands, Db, Registry, Bus);
+        Presets = new(Commands, Db, Registry, Bus, new TemplateHelperValidator());
     }
 
     public AppDbContext Db { get; }

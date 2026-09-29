@@ -10,10 +10,12 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Infrastructure.Commands;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
@@ -105,6 +107,50 @@ public sealed class CommandPresetServiceTests : IDisposable
         (await _real.Commands.GetAsync(Channel, "ping"))
             .Value.TemplateResponse.Should()
             .Be("my own pong");
+    }
+
+    [Fact]
+    public async Task Reset_is_refused_and_writes_nothing_when_the_preset_responses_fail_the_helper_check()
+    {
+        await _real.Presets.SeedAsync(RealCommandsDb.Channel);
+        await _real.Commands.UpdateAsync(
+            Channel,
+            "hug",
+            new() { TemplateResponse = "my own hug", Description = "mine" }
+        );
+        _real.Bus.Published.Clear();
+        ITemplateHelperValidator rejecting = Substitute.For<ITemplateHelperValidator>();
+        rejecting
+            .Validate(Arg.Any<string?>(), Arg.Any<TemplateHelperContext>())
+            .Returns(Errors.ValidationFailed("Unknown helper {nope}."));
+        CommandPresetService sut = new(
+            _real.Commands,
+            _real.Db,
+            _real.Registry,
+            _real.Bus,
+            rejecting
+        );
+
+        Result<CommandDto> reset = await sut.ResetAsync(Channel, "hug");
+
+        reset.IsFailure.Should().BeTrue();
+        reset.ErrorMessage.Should().Contain("{nope}");
+        CommandDto row = (await _real.Commands.GetAsync(Channel, "hug")).Value;
+        row.TemplateResponse.Should().Be("my own hug");
+        row.Description.Should().Be("mine");
+        _real.Bus.Published.OfType<ChannelConfigChangedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Every_preset_passes_the_command_helper_check_so_a_real_reset_is_never_refused()
+    {
+        await _real.Presets.SeedAsync(RealCommandsDb.Channel);
+
+        foreach (CommandPresetDto preset in _real.Presets.ListPresets())
+        {
+            Result<CommandDto> reset = await _real.Presets.ResetAsync(Channel, preset.Key);
+            reset.IsSuccess.Should().BeTrue($"!{preset.Key}: {reset.ErrorMessage}");
+        }
     }
 
     [Fact]

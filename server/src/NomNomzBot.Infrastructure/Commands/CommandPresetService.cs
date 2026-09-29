@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -30,7 +31,8 @@ public sealed class CommandPresetService(
     ICommandService commands,
     IApplicationDbContext db,
     IChannelRegistry registry,
-    IEventBus eventBus
+    IEventBus eventBus,
+    ITemplateHelperValidator templateHelperValidator
 ) : ICommandPresetService
 {
     public IReadOnlyList<CommandPresetDto> ListPresets() =>
@@ -125,6 +127,10 @@ public sealed class CommandPresetService(
                 "NOT_A_PRESET"
             );
 
+        Result helpersValid = ValidateHelpers(preset);
+        if (helpersValid.IsFailure)
+            return helpersValid.ToTyped<CommandDto>();
+
         ApplyPreset(command, preset);
         await db.SaveChangesAsync(cancellationToken);
         await registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
@@ -140,6 +146,27 @@ public sealed class CommandPresetService(
         );
 
         return await commands.GetAsync(broadcasterId, command.Name, cancellationToken);
+    }
+
+    /// <summary>
+    /// A reset writes the preset's responses straight onto the row, so they pass the same save-time helper
+    /// check as a response the streamer types in.
+    /// </summary>
+    private Result ValidateHelpers(CreateCommandDto preset)
+    {
+        foreach (
+            string? response in (preset.TemplateResponses ?? []).Prepend(preset.TemplateResponse)
+        )
+        {
+            Result result = templateHelperValidator.Validate(
+                response,
+                TemplateHelperContext.Command
+            );
+            if (result.IsFailure)
+                return result;
+        }
+
+        return Result.Success();
     }
 
     /// <summary>
