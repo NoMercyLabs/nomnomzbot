@@ -177,35 +177,6 @@ public sealed class BuiltinResponseComposerTests
     }
 
     [Fact]
-    public async Task Neutral_fallback_is_used_when_the_tone_has_no_template_for_the_slot()
-    {
-        // stats/profile is authored ONLY for the flavored tones — Informative deliberately has none, so the
-        // default tone falls through to the built-in's neutral line.
-        ToneTemplateCatalog
-            .Get(
-                PersonalityTone.Informative,
-                BuiltinResponseSlots.Stats.Key,
-                BuiltinResponseSlots.Stats.Profile
-            )
-            .Should()
-            .BeEmpty("Informative is intentionally omitted for !stats");
-
-        string result = await Sut()
-            .ComposeAsync(
-                new()
-                {
-                    BroadcasterId = Channel,
-                    Personality = PersonalityTone.Informative,
-                    BuiltinKey = BuiltinResponseSlots.Stats.Key,
-                    Slot = BuiltinResponseSlots.Stats.Profile,
-                    NeutralFallback = "Alice: 42 messages, 500 points.",
-                }
-            );
-
-        result.Should().Be("Alice: 42 messages, 500 points.");
-    }
-
-    [Fact]
     public async Task An_unknown_slot_falls_back_to_the_neutral_string()
     {
         string result = await Sut()

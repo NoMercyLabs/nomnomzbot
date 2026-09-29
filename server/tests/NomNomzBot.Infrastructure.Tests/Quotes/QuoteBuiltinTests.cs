@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Tts;
@@ -21,6 +22,7 @@ using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Quotes;
 using NomNomzBot.Infrastructure.Quotes.Builtins;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -51,7 +53,8 @@ public sealed class QuoteBuiltinTests
         IQuoteService quotes,
         bool mayWrite = true,
         bool mayDelete = true,
-        ITtsDispatchService? tts = null
+        ITtsDispatchService? tts = null,
+        FakeChannelBuiltinReplies? channelReplies = null
     )
     {
         IUserService users = Substitute.For<IUserService>();
@@ -83,7 +86,13 @@ public sealed class QuoteBuiltinTests
             )
             .Returns(Result.Success(mayDelete));
 
-        return new(quotes, users, roles, tts ?? NewPassingTtsDispatch());
+        return new(
+            quotes,
+            users,
+            roles,
+            tts ?? NewPassingTtsDispatch(),
+            CommunityReplyTestComposer.Create(channelReplies)
+        );
     }
 
     /// <summary>A TTS dispatch mock that always reports success, for tests not exercising the TTS path itself.</summary>
@@ -572,5 +581,74 @@ public sealed class QuoteBuiltinTests
         Result<QuoteDto> stored = await quotes.GetAsync(channel, 1);
         stored.IsSuccess.Should().BeTrue();
         stored.Value.Text.Should().Be("keep me");
+    }
+
+    // ─── Reply slots (commands-pipelines.md section 11) ───────────────────────
+
+    [Fact]
+    public async Task Add_WithoutTextOrReply_SpeaksTheAddUsageSlot_AndSavesNothing()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true);
+
+        Result<string> reply = await builtin.ExecuteAsync(Context(channel, "add"));
+
+        reply
+            .Value.Should()
+            .Be("Usage: !quote add <text> — or reply to a message with !quote add.");
+        (await quotes.GetAsync(channel, 1)).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Add_WithTooLongText_SpeaksTheInvalidTextSlot_NotTheServiceMessage()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true);
+
+        Result<string> reply = await builtin.ExecuteAsync(
+            Context(channel, "add " + new string('x', 501))
+        );
+
+        reply.Value.Should().Be("A quote needs text, and it can be at most 500 characters.");
+    }
+
+    [Fact]
+    public async Task ChannelOverrides_ReplaceExactlyTheirOwnSlot_AndFillTheirVariables()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies()
+            .Set(
+                channel,
+                BuiltinResponseSlots.Quote.Key,
+                BuiltinResponseSlots.Quote.Added,
+                "Saved as {quote.number}!"
+            )
+            .Set(
+                channel,
+                BuiltinResponseSlots.Quote.Key,
+                BuiltinResponseSlots.Quote.NotFound,
+                "No quote {quote.number} here."
+            );
+        QuoteBuiltin builtin = NewBuiltin(quotes, mayWrite: true, channelReplies: own);
+
+        Result<string> added = await builtin.ExecuteAsync(Context(channel, "add hello there"));
+        Result<string> shown = await builtin.ExecuteAsync(Context(channel, "1"));
+        Result<string> missing = await builtin.ExecuteAsync(Context(channel, "99"));
+
+        added.Value.Should().Be("Saved as 1!");
+        shown.Value.Should().Be("#1: \"hello there\"", "the show slot has no override");
+        missing.Value.Should().Be("No quote 99 here.");
     }
 }

@@ -539,51 +539,6 @@ public static partial class ToneTemplateCatalog
             chill: ["skipped.", "next one. skipped.", "gone. moving on."]
         );
 
-        // ── !stats / profile ({stats.user} {stats.messages} {stats.watchtime}
-        //    {stats.points} {stats.firstseen}) — Informative is intentionally OMITTED so the default tone
-        //    keeps the built-in's richer, conditional stats line (rank + streak). The four flavored tones
-        //    deviate from it. ──────────────────────────────────────────────────
-        AddFlavored(
-            catalog,
-            BuiltinResponseSlots.Stats.Key,
-            BuiltinResponseSlots.Stats.Profile,
-            variables:
-            [
-                "stats.firstseen",
-                "stats.messages",
-                "stats.points",
-                "stats.rank",
-                "stats.streak",
-                "stats.user",
-                "stats.watchtime",
-            ],
-            friendly:
-            [
-                "{stats.user}, you've sent {stats.messages} messages and earned {stats.points} points — {stats.watchtime} watched together!",
-                "Look at {stats.user}: {stats.points} points, {stats.messages} messages, here since {stats.firstseen}!",
-                "{stats.user} has been amazing — {stats.watchtime} watched and {stats.points} points!",
-            ],
-            sassy:
-            [
-                "CLASSIFIED DOSSIER: {stats.user}. {stats.messages} messages. {stats.watchtime} watched. {stats.points} points. Threat level: chronically online.",
-                "{stats.user}: {stats.messages} messages, {stats.points} points, here since {stats.firstseen}. Impressive. Concerning. Both.",
-                "{stats.user} has {stats.watchtime} of watch time. I'm not judging. Actually, judging is most of my codebase. I'm judging.",
-                "{stats.user} in a nutshell: {stats.messages} messages, {stats.points} points, {stats.watchtime} watched. And somehow, none of it was quiet.",
-            ],
-            hype:
-            [
-                "{stats.user}: {stats.points} POINTS, {stats.messages} MESSAGES, {stats.watchtime} WATCHED. LEGEND STATUS.",
-                "BIG NUMBERS FOR {stats.user}: {stats.points} POINTS AND {stats.watchtime} WATCHED.",
-                "{stats.user} IS BUILT DIFFERENT: {stats.messages} MESSAGES, {stats.points} POINTS.",
-            ],
-            chill:
-            [
-                "{stats.user}: {stats.messages} msgs, {stats.watchtime}, {stats.points} pts.",
-                "{stats.user} — {stats.points} points, around since {stats.firstseen}.",
-                "{stats.user}: {stats.watchtime} watched, {stats.points} pts. solid.",
-            ]
-        );
-
         // ── !commands / !help (generic) / list ({user} {commands}) ─────────────
         Add(
             catalog,
@@ -934,34 +889,6 @@ public static partial class ToneTemplateCatalog
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
             {
                 [PersonalityTone.Informative] = informative,
-                [PersonalityTone.Friendly] = friendly,
-                [PersonalityTone.Sassy] = sassy,
-                [PersonalityTone.Hype] = hype,
-                [PersonalityTone.Chill] = chill,
-            }
-        );
-    }
-
-    /// <summary>
-    /// Registers a slot's four FLAVORED tones with no Informative entry — so the default (Informative) tone
-    /// resolves to the built-in's own neutral fallback instead of a catalog template. Used where the built-in's
-    /// neutral line is already the ideal precise/default phrasing (e.g. the rich <c>!stats</c> line).
-    /// </summary>
-    private static void AddFlavored(
-        Dictionary<(string, string), SlotEntry> catalog,
-        string builtinKey,
-        string slot,
-        string[] friendly,
-        string[] sassy,
-        string[] hype,
-        string[] chill,
-        string[]? variables = null
-    )
-    {
-        catalog[(builtinKey, slot)] = new SlotEntry(
-            variables ?? [],
-            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-            {
                 [PersonalityTone.Friendly] = friendly,
                 [PersonalityTone.Sassy] = sassy,
                 [PersonalityTone.Hype] = hype,
