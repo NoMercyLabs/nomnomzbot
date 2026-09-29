@@ -327,6 +327,22 @@ public class RewardService : IRewardService
         if (reward is null)
             return Result.Failure($"Reward '{rewardId}' was not found.", "NOT_FOUND");
 
+        // A bot-owned reward is deleted on Twitch too — otherwise it lives on there, still redeemable, while
+        // the soft-deleted row keeps its Twitch id and the next sync trips the (BroadcasterId, TwitchRewardId)
+        // unique index (live 2026-09-29). "Already gone on Twitch" is the outcome we want, not a failure.
+        if (reward.IsManageable && reward.TwitchRewardId is not null)
+        {
+            Result removed = await _channelPoints.DeleteCustomRewardAsync(
+                broadcaster,
+                reward.TwitchRewardId,
+                cancellationToken
+            );
+            if (removed.IsFailure && removed.ErrorCode != TwitchErrorCodes.NotFound)
+                return removed;
+
+            reward.TwitchRewardId = null;
+        }
+
         _db.Rewards.Remove(reward);
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -623,12 +639,15 @@ public class RewardService : IRewardService
                 .Select(r => r.Id)
                 .ToHashSet(StringComparer.Ordinal);
 
-            syncedCount = await UpsertTwitchRewardsAsync(
+            Result<int> upserted = await UpsertTwitchRewardsAsync(
                 broadcaster,
                 twitchRewards,
                 manageableRewardIds,
                 cancellationToken
             );
+            if (upserted.IsFailure)
+                return upserted;
+            syncedCount = upserted.Value;
         }
 
         // The other direction: any bot-manageable LOCAL reward Twitch has never seen (no TwitchRewardId) —
@@ -735,6 +754,7 @@ public class RewardService : IRewardService
                 "Reward import: Twitch returned no channel-point rewards for broadcaster {BroadcasterId}",
                 broadcasterId
             );
+            await FinishParkedTakeOversAsync(broadcaster, twitchRewards, cancellationToken);
             return Result.Success();
         }
 
@@ -764,19 +784,72 @@ public class RewardService : IRewardService
             .Value.Select(r => r.Id)
             .ToHashSet(StringComparer.Ordinal);
 
-        int importedCount = await UpsertTwitchRewardsAsync(
+        Result<int> imported = await UpsertTwitchRewardsAsync(
             broadcaster,
             twitchRewards,
             manageableRewardIds,
             cancellationToken
         );
+        if (imported.IsFailure)
+            return imported;
+
+        await FinishParkedTakeOversAsync(broadcaster, twitchRewards, cancellationToken);
 
         _logger.LogInformation(
             "Imported {Count} rewards (managed + external) for broadcaster {BroadcasterId}",
-            importedCount,
+            imported.Value,
             broadcasterId
         );
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Completes every parked take-over whose original no longer blocks its title on Twitch — deleted there
+    /// (its id is gone from the full list) or renamed (its id now carries another title). The streamer did
+    /// the one step only they can do; finishing is ours, with no second click. A take-over Twitch still
+    /// refuses simply stays parked for the next import.
+    /// </summary>
+    private async Task FinishParkedTakeOversAsync(
+        Guid broadcaster,
+        IReadOnlyList<TwitchCustomReward> fullTwitchList,
+        CancellationToken cancellationToken
+    )
+    {
+        Dictionary<string, string> liveTitleById = fullTwitchList.ToDictionary(
+            r => r.Id,
+            r => r.Title,
+            StringComparer.Ordinal
+        );
+        List<Reward> parked = await _db
+            .Rewards.Where(r =>
+                r.BroadcasterId == broadcaster
+                && r.PendingMigrationRequestedAt != null
+                && !r.IsManageable
+            )
+            .ToListAsync(cancellationToken);
+
+        foreach (Reward reward in parked)
+        {
+            bool originalStillBlocks =
+                reward.TwitchRewardId is not null
+                && liveTitleById.TryGetValue(reward.TwitchRewardId, out string? liveTitle)
+                && string.Equals(liveTitle, reward.Title, StringComparison.OrdinalIgnoreCase);
+            if (originalStillBlocks)
+                continue;
+
+            Result<RewardDetail> finished = await RecreateUnderBotAsync(
+                broadcaster.ToString(),
+                reward.Id.ToString(),
+                cancellationToken
+            );
+            if (finished.IsFailure)
+                _logger.LogInformation(
+                    "Reward import: parked take-over of '{Title}' for {BroadcasterId} is not finished yet: {Error}",
+                    reward.Title,
+                    broadcaster,
+                    finished.ErrorMessage
+                );
+        }
     }
 
     public async Task<Result<RewardDetail>> RecreateUnderBotAsync(
@@ -881,34 +954,29 @@ public class RewardService : IRewardService
             return created.WithValue<RewardDetail>(default!);
         }
 
+        // The local row IS the reward: re-point it at the bot-owned copy so its pipeline, response, limits and
+        // cooldowns carry over. Inserting a second row (the old behavior) listed the reward twice with an
+        // unconfigured copy, which streamers then deleted — orphaning the bot reward on Twitch.
         TwitchCustomReward tr = created.Value;
-        Reward botReward = new()
-        {
-            Id = Guid.NewGuid(),
-            BroadcasterId = broadcaster,
-            Title = tr.Title,
-            Description = tr.Prompt,
-            Cost = tr.Cost,
-            IsEnabled = tr.IsEnabled,
-            IsPaused = tr.IsPaused,
-            TwitchRewardId = tr.Id,
-            IsPlatform = true,
-            IsManageable = true,
-        };
-
-        // A single insert (the original external row is left exactly as-is) — one SaveChanges is atomic,
-        // matching how the rest of this service persists.
-        _db.Rewards.Add(botReward);
+        string? originalTwitchRewardId = external.TwitchRewardId;
+        external.TwitchRewardId = tr.Id;
+        external.Title = tr.Title;
+        external.Description = tr.Prompt;
+        external.Cost = tr.Cost;
+        external.IsEnabled = tr.IsEnabled;
+        external.IsPaused = tr.IsPaused;
+        external.IsPlatform = true;
+        external.IsManageable = true;
         await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Recreated external reward '{Title}' ({ExternalId}) under the bot as {TwitchRewardId} for {BroadcasterId}",
+            "Took control of reward '{Title}' ({OriginalTwitchRewardId}) as bot reward {TwitchRewardId} for {BroadcasterId}",
             external.Title,
-            external.TwitchRewardId,
+            originalTwitchRewardId,
             tr.Id,
             broadcasterId
         );
-        return Result.Success(ToDetail(botReward));
+        return Result.Success(ToDetail(external));
     }
 
     /// <summary>
@@ -958,82 +1026,126 @@ public class RewardService : IRewardService
     /// on a newly-created row. Twitch's reward payload carries no manageability field, so it is never inferred
     /// from the wire. Shared by sync (managed set only) and import (full set). Returns the number upserted.
     /// </summary>
-    private async Task<int> UpsertTwitchRewardsAsync(
+    private async Task<Result<int>> UpsertTwitchRewardsAsync(
         Guid broadcaster,
         IReadOnlyList<TwitchCustomReward> twitchRewards,
         IReadOnlySet<string> manageableRewardIds,
         CancellationToken cancellationToken
     )
     {
+        // Soft-deleted rows included: the (BroadcasterId, TwitchRewardId) unique index counts them, so a sync
+        // that cannot see them would link or insert an id a deleted row still holds and throw (live 2026-09-29).
         List<Reward> existing = await _db
-            .Rewards.Where(r => r.BroadcasterId == broadcaster)
+            .Rewards.IgnoreQueryFilters()
+            .Where(r => r.BroadcasterId == broadcaster)
             .ToListAsync(cancellationToken);
 
         Dictionary<string, Reward> existingByTwitchId = existing
             .Where(r => r.TwitchRewardId != null)
             .ToDictionary(r => r.TwitchRewardId!);
 
-        // Title-match is a fallback for linking a locally-created reward (no Twitch id yet). Titles are NOT
-        // unique — once a reward is recreated under the bot, its original external row and the new bot row share
-        // a title — so group and keep the first candidate rather than letting ToDictionary throw on a duplicate.
+        // Title-match links a live local reward that has no Twitch id yet (a local-only create, or a parked
+        // take-over whose original is gone). Titles are not unique locally, so keep the first candidate.
         Dictionary<string, Reward> existingByTitle = existing
-            .Where(r => r.TwitchRewardId is null)
+            .Where(r => r.TwitchRewardId is null && r.DeletedAt is null)
             .GroupBy(r => r.Title, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        List<Reward> touched = [];
         int upsertedCount = 0;
         foreach (TwitchCustomReward tr in twitchRewards)
         {
             bool manageable = manageableRewardIds.Contains(tr.Id);
             if (existingByTwitchId.TryGetValue(tr.Id, out Reward? reward))
             {
-                // Update existing record
-                reward.Title = tr.Title;
-                reward.Cost = tr.Cost;
-                reward.IsEnabled = tr.IsEnabled;
-                reward.IsPaused = tr.IsPaused;
-                reward.Description = tr.Prompt;
-                reward.IsManageable = manageable;
-                reward.IsUserInputRequired = tr.IsUserInputRequired;
+                // Deleted here but still on Twitch: never resurrect it and never hand its id to another row.
+                if (reward.DeletedAt is not null)
+                {
+                    _logger.LogInformation(
+                        "Reward sync: Twitch reward {TwitchRewardId} ('{Title}') belongs to a reward deleted locally for {BroadcasterId}; left as is.",
+                        tr.Id,
+                        tr.Title,
+                        broadcaster
+                    );
+                    continue;
+                }
+
+                // A parked take-over keeps the title it is waiting to claim; a renamed original must not
+                // drag the row's title along with it.
+                if (reward.PendingMigrationRequestedAt is null)
+                    reward.Title = tr.Title;
+                ApplyTwitchState(reward, tr, manageable);
+                touched.Add(reward);
                 upsertedCount++;
             }
-            else if (existingByTitle.TryGetValue(tr.Title, out Reward? rewardByTitle))
+            else if (existingByTitle.Remove(tr.Title, out Reward? rewardByTitle))
             {
-                // Match by title — link Twitch ID
                 rewardByTitle.TwitchRewardId = tr.Id;
-                rewardByTitle.Cost = tr.Cost;
-                rewardByTitle.IsEnabled = tr.IsEnabled;
-                rewardByTitle.IsPaused = tr.IsPaused;
-                rewardByTitle.Description = tr.Prompt;
-                rewardByTitle.IsManageable = manageable;
-                rewardByTitle.IsUserInputRequired = tr.IsUserInputRequired;
+                ApplyTwitchState(rewardByTitle, tr, manageable);
+                touched.Add(rewardByTitle);
                 upsertedCount++;
             }
             else
             {
-                // New reward — create local record
-                _db.Rewards.Add(
-                    new()
-                    {
-                        Id = Guid.NewGuid(),
-                        BroadcasterId = broadcaster,
-                        Title = tr.Title,
-                        TwitchRewardId = tr.Id,
-                        Cost = tr.Cost,
-                        IsEnabled = tr.IsEnabled,
-                        IsPaused = tr.IsPaused,
-                        Description = tr.Prompt,
-                        IsPlatform = manageable,
-                        IsManageable = manageable,
-                        IsUserInputRequired = tr.IsUserInputRequired,
-                    }
-                );
+                Reward created = new()
+                {
+                    Id = Guid.NewGuid(),
+                    BroadcasterId = broadcaster,
+                    Title = tr.Title,
+                    TwitchRewardId = tr.Id,
+                    Cost = tr.Cost,
+                    IsEnabled = tr.IsEnabled,
+                    IsPaused = tr.IsPaused,
+                    Description = tr.Prompt,
+                    IsPlatform = manageable,
+                    IsManageable = manageable,
+                    IsUserInputRequired = tr.IsUserInputRequired,
+                };
+                _db.Rewards.Add(created);
+                touched.Add(created);
                 upsertedCount++;
             }
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
-        return upsertedCount;
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            // Release every row this sync touched: a failed save must not stay tracked and poison the caller's
+            // next SaveChanges (a script run shares this context — the whole run died after one failed sync).
+            foreach (Reward row in touched)
+                _db.Entry(row).State = EntityState.Detached;
+            _logger.LogWarning(
+                ex,
+                "Reward sync: saving Twitch rewards failed for {BroadcasterId}; nothing was changed.",
+                broadcaster
+            );
+            return Result.Failure<int>(
+                "Saving the rewards read from Twitch failed; nothing was changed.",
+                "REWARD_SYNC_CONFLICT"
+            );
+        }
+
+        return Result.Success(upsertedCount);
+    }
+
+    /// <summary>Copies Twitch's live state onto a local row. A reward the bot owns is no longer a pending
+    /// take-over — that is exactly what taking control produces.</summary>
+    private static void ApplyTwitchState(Reward reward, TwitchCustomReward tr, bool manageable)
+    {
+        reward.Cost = tr.Cost;
+        reward.IsEnabled = tr.IsEnabled;
+        reward.IsPaused = tr.IsPaused;
+        reward.Description = tr.Prompt;
+        reward.IsManageable = manageable;
+        reward.IsUserInputRequired = tr.IsUserInputRequired;
+        if (manageable)
+        {
+            reward.IsPlatform = true;
+            reward.PendingMigrationRequestedAt = null;
+        }
     }
 
     /// <summary>

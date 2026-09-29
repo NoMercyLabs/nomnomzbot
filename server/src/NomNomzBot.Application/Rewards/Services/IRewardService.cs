@@ -121,8 +121,8 @@ public interface IRewardService
     /// <summary>
     /// Convert an external (non-manageable) reward to bot-controlled by RECREATING an equivalent reward under
     /// the bot's own Twitch client — Twitch does not allow taking over a reward another client_id created.
-    /// Copies title/cost/prompt/enabled to a new Helix reward, persists it as a second, bot-managed row (new
-    /// Twitch id, <c>IsManageable = true</c>), and leaves the original external row untouched. Fails when the
+    /// Copies title/cost/prompt/enabled to a new Helix reward and re-points the SAME local row at it (new Twitch
+    /// id, <c>IsManageable = true</c>), so everything configured on the reward carries over. Fails when the
     /// target reward is already bot-manageable (nothing to convert).
     /// </summary>
     Task<Result<RewardDetail>> RecreateUnderBotAsync(

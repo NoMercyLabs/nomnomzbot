@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
@@ -16,8 +17,11 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Persistence;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Rewards;
@@ -25,10 +29,9 @@ namespace NomNomzBot.Infrastructure.Tests.Rewards;
 /// <summary>
 /// Proves the reward IMPORT + CONVERT capability (rewards.md §3.1). Import pulls the FULL reward set
 /// (<c>only_manageable_rewards=false</c>) so externally-created rewards land locally recorded as read-only
-/// (<see cref="Reward.IsManageable"/> = false); convert recreates an external reward under the bot's client as
-/// a second, bot-managed row (new Twitch id) while leaving the original external row untouched — Twitch does not
-/// allow taking over a reward another client_id created — and refuses to "convert" a reward the bot already
-/// manages.
+/// (<see cref="Reward.IsManageable"/> = false); convert recreates an external reward under the bot's client
+/// (Twitch does not allow taking over a reward another client_id created) and re-points the SAME local row at
+/// it, keeping its configuration; it refuses to "convert" a reward the bot already manages.
 /// </summary>
 public sealed class RewardServiceImportTests
 {
@@ -52,6 +55,55 @@ public sealed class RewardServiceImportTests
         ITwitchChannelPointsApi points = Substitute.For<ITwitchChannelPointsApi>();
         // The real clock: these tests complete in milliseconds, and the throttle-specific tests below set
         // Reward.RewardsSyncedAt relative to DateTime.UtcNow directly rather than needing a fake to advance.
+        RewardService sut = new(
+            db,
+            points,
+            TimeProvider.System,
+            NullLogger<RewardService>.Instance
+        );
+        return (sut, db, points);
+    }
+
+    // The production context (soft-delete interceptor + global soft-delete filter + the real unique index on
+    // (BroadcasterId, TwitchRewardId)) — AuthDbContext above has neither the filter nor soft delete, so a
+    // deleted-row bug can never reproduce against it.
+    private static (RewardService Sut, AppDbContext Db, ITwitchChannelPointsApi Points) BuildReal()
+    {
+        SqliteConnection connection = new("DataSource=:memory:");
+        connection.Open();
+        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(
+                new SoftDeleteInterceptor(TimeProvider.System, new NullCurrentUserService())
+            )
+            .Options;
+        AppDbContext db = new(options);
+        db.Database.EnsureCreated();
+
+        Guid ownerId = Guid.Parse("0192a000-0000-7000-8000-00000000d200");
+        db.Users.Add(
+            new()
+            {
+                Id = ownerId,
+                TwitchUserId = "tw-owner",
+                Username = "stoney",
+                UsernameNormalized = "stoney",
+                DisplayName = "Stoney",
+            }
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                OwnerUserId = ownerId,
+                TwitchChannelId = "tw-channel",
+                Name = "stoney",
+                NameNormalized = "stoney",
+            }
+        );
+        db.SaveChanges();
+
+        ITwitchChannelPointsApi points = Substitute.For<ITwitchChannelPointsApi>();
         RewardService sut = new(
             db,
             points,
@@ -245,9 +297,13 @@ public sealed class RewardServiceImportTests
     }
 
     [Fact]
-    public async Task Recreate_creates_a_second_bot_managed_reward_and_leaves_the_external_one()
+    public async Task Recreate_repoints_the_same_row_at_the_new_bot_reward_and_keeps_its_configuration()
     {
-        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        // Live 2026-09-29: taking control used to INSERT a second row (no pipeline, no response, no limits) and
+        // leave the old external row showing "Take control" — the dashboard then listed the reward twice and
+        // the streamer deleted the configured-less copy, orphaning it on Twitch. The local row IS the reward:
+        // taking control re-points it at the bot-owned Twitch reward and keeps everything configured on it.
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
         Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e001");
         db.Rewards.Add(
             new()
@@ -261,18 +317,16 @@ public sealed class RewardServiceImportTests
                 TwitchRewardId = "ext-1",
                 IsManageable = false,
                 IsPlatform = false,
+                Response = "Thanks {user}!",
+                GlobalCooldownSeconds = 30,
+                MaxPerStream = 5,
+                PendingMigrationRequestedAt = DateTime.UtcNow.AddMinutes(-5),
             }
         );
         await db.SaveChangesAsync();
 
-        // The live Twitch list carries only the one external reward — no title conflict.
-        StubGetRewards(
-            points,
-            full: [TwitchReward("ext-1", "First Light", 500, enabled: true)],
-            manageable: []
-        );
-
-        // Twitch echoes the newly created reward with a brand-new id under OUR client.
+        // The streamer removed the original on Twitch, so the title is free.
+        StubGetRewards(points, full: [], manageable: []);
         points
             .CreateCustomRewardAsync(
                 Channel,
@@ -287,11 +341,9 @@ public sealed class RewardServiceImportTests
         );
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value.Title.Should().Be("First Light");
-        result.Value.Cost.Should().Be(500);
+        result.Value.Id.Should().Be(externalId.ToString());
         result.Value.IsManageable.Should().BeTrue();
 
-        // The create request copied title/cost/prompt/enabled off the external reward.
         await points
             .Received(1)
             .CreateCustomRewardAsync(
@@ -306,25 +358,298 @@ public sealed class RewardServiceImportTests
             );
 
         List<Reward> rewards = await db
-            .Rewards.Where(r => r.BroadcasterId == Channel)
+            .Rewards.IgnoreQueryFilters()
+            .Where(r => r.BroadcasterId == Channel)
             .ToListAsync();
-        rewards
-            .Should()
-            .HaveCount(2, "the external reward is left in place, the bot copy is added");
+        rewards.Should().ContainSingle("taking control never adds a second row");
 
-        // The original external row is untouched — still read-only, still its own Twitch id.
-        Reward external = rewards.Single(r => r.Id == externalId);
-        external.TwitchRewardId.Should().Be("ext-1");
-        external.IsManageable.Should().BeFalse();
-        external.IsPlatform.Should().BeFalse();
+        Reward taken = rewards[0];
+        taken.Id.Should().Be(externalId);
+        taken.TwitchRewardId.Should().Be("bot-1");
+        taken.IsManageable.Should().BeTrue();
+        taken.IsPlatform.Should().BeTrue();
+        taken.PendingMigrationRequestedAt.Should().BeNull();
+        taken.Response.Should().Be("Thanks {user}!");
+        taken.GlobalCooldownSeconds.Should().Be(30);
+        taken.MaxPerStream.Should().Be(5);
+    }
 
-        // The new bot row carries the new Twitch id and is fully manageable.
-        Reward bot = rewards.Single(r => r.Id != externalId);
-        bot.TwitchRewardId.Should().Be("bot-1");
-        bot.Title.Should().Be("First Light");
-        bot.Cost.Should().Be(500);
-        bot.IsManageable.Should().BeTrue();
-        bot.IsPlatform.Should().BeTrue();
+    [Fact]
+    public async Task Sync_skips_a_bot_reward_whose_local_row_was_deleted_instead_of_crashing()
+    {
+        // Live 2026-09-29: a deleted row still held its Twitch id; the soft-delete filter hid it from the
+        // sync, so the sync title-linked that id onto the live same-titled row and the unique index
+        // (BroadcasterId, TwitchRewardId) threw — killing every script that touched rewards mid-run.
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid deletedId = Guid.Parse("0192a000-0000-7000-8000-00000000e101");
+        Guid liveId = Guid.Parse("0192a000-0000-7000-8000-00000000e102");
+        db.Rewards.AddRange(
+            new Reward
+            {
+                Id = deletedId,
+                BroadcasterId = Channel,
+                Title = "First",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = "bot-old",
+                IsManageable = true,
+                IsPlatform = true,
+                DeletedAt = DateTime.UtcNow.AddDays(-1),
+            },
+            new Reward
+            {
+                Id = liveId,
+                BroadcasterId = Channel,
+                Title = "First",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = "ext-first",
+                IsManageable = false,
+                IsPlatform = false,
+            }
+        );
+        await db.SaveChangesAsync();
+        StubGetRewards(
+            points,
+            full: [],
+            manageable: [TwitchReward("bot-old", "First", 1, enabled: true)]
+        );
+
+        Result result = await sut.SyncWithTwitchAsync(Channel.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        List<Reward> rows = await db
+            .Rewards.IgnoreQueryFilters()
+            .Where(r => r.BroadcasterId == Channel)
+            .ToListAsync();
+        rows.Should()
+            .HaveCount(2, "a deleted row's Twitch reward is never resurrected as a new row");
+        Reward deleted = rows.Single(r => r.Id == deletedId);
+        deleted.DeletedAt.Should().NotBeNull();
+        deleted.TwitchRewardId.Should().Be("bot-old");
+        rows.Single(r => r.Id == liveId).TwitchRewardId.Should().Be("ext-first");
+    }
+
+    [Fact]
+    public async Task Sync_links_a_parked_reward_to_the_bot_reward_under_its_title_and_clears_the_pending_marker()
+    {
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid parkedId = Guid.Parse("0192a000-0000-7000-8000-00000000e103");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = parkedId,
+                BroadcasterId = Channel,
+                Title = "First",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = null,
+                IsManageable = false,
+                IsPlatform = false,
+                PendingMigrationRequestedAt = DateTime.UtcNow.AddDays(-2),
+            }
+        );
+        await db.SaveChangesAsync();
+        StubGetRewards(
+            points,
+            full: [],
+            manageable: [TwitchReward("bot-new", "First", 1, enabled: true)]
+        );
+
+        Result result = await sut.SyncWithTwitchAsync(Channel.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        Reward linked = await db.Rewards.SingleAsync(r => r.Id == parkedId);
+        linked.TwitchRewardId.Should().Be("bot-new");
+        linked.IsManageable.Should().BeTrue();
+        linked.PendingMigrationRequestedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Deleting_a_bot_managed_reward_removes_it_on_Twitch_and_releases_its_id()
+    {
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid rewardId = Guid.Parse("0192a000-0000-7000-8000-00000000e104");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = rewardId,
+                BroadcasterId = Channel,
+                Title = "First",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = "bot-1",
+                IsManageable = true,
+                IsPlatform = true,
+            }
+        );
+        await db.SaveChangesAsync();
+        points
+            .DeleteCustomRewardAsync(Channel, "bot-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        Result result = await sut.DeleteAsync(Channel.ToString(), rewardId.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await points
+            .Received(1)
+            .DeleteCustomRewardAsync(Channel, "bot-1", Arg.Any<CancellationToken>());
+        Reward gone = await db.Rewards.IgnoreQueryFilters().SingleAsync(r => r.Id == rewardId);
+        gone.DeletedAt.Should().NotBeNull();
+        gone.TwitchRewardId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Deleting_a_bot_managed_reward_Twitch_already_lost_still_deletes_it_locally()
+    {
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid rewardId = Guid.Parse("0192a000-0000-7000-8000-00000000e105");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = rewardId,
+                BroadcasterId = Channel,
+                Title = "Gone",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = "bot-2",
+                IsManageable = true,
+                IsPlatform = true,
+            }
+        );
+        await db.SaveChangesAsync();
+        points
+            .DeleteCustomRewardAsync(Channel, "bot-2", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Not found.", TwitchErrorCodes.NotFound));
+
+        Result result = await sut.DeleteAsync(Channel.ToString(), rewardId.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        (await db.Rewards.IgnoreQueryFilters().SingleAsync(r => r.Id == rewardId))
+            .DeletedAt.Should()
+            .NotBeNull();
+    }
+
+    [Fact]
+    public async Task Deleting_keeps_the_reward_when_Twitch_refuses_the_delete()
+    {
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid rewardId = Guid.Parse("0192a000-0000-7000-8000-00000000e106");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = rewardId,
+                BroadcasterId = Channel,
+                Title = "Kept",
+                Cost = 1,
+                IsEnabled = true,
+                TwitchRewardId = "bot-3",
+                IsManageable = true,
+                IsPlatform = true,
+            }
+        );
+        await db.SaveChangesAsync();
+        points
+            .DeleteCustomRewardAsync(Channel, "bot-3", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Twitch rejected the token.", TwitchErrorCodes.Unauthorized));
+
+        Result result = await sut.DeleteAsync(Channel.ToString(), rewardId.ToString());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.Unauthorized);
+        Reward kept = await db.Rewards.SingleAsync(r => r.Id == rewardId);
+        kept.TwitchRewardId.Should().Be("bot-3");
+    }
+
+    [Fact]
+    public async Task Import_finishes_a_parked_take_over_once_the_original_is_gone_from_Twitch()
+    {
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid parkedId = Guid.Parse("0192a000-0000-7000-8000-00000000e107");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = parkedId,
+                BroadcasterId = Channel,
+                Title = "Hydrate!",
+                Description = "drink",
+                Cost = 100,
+                IsEnabled = true,
+                TwitchRewardId = "ext-hydrate",
+                IsManageable = false,
+                IsPlatform = false,
+                Response = "Stay hydrated {user}",
+                PendingMigrationRequestedAt = DateTime.UtcNow.AddDays(-1),
+            }
+        );
+        await db.SaveChangesAsync();
+        // The streamer deleted the original on Twitch; nothing carries the title any more.
+        StubGetRewards(points, full: [], manageable: []);
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(TwitchReward("bot-hydrate", "Hydrate!", 100, enabled: true)));
+
+        Result result = await sut.ImportFromTwitchAsync(Channel.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        Reward taken = await db.Rewards.SingleAsync(r => r.Id == parkedId);
+        taken.TwitchRewardId.Should().Be("bot-hydrate");
+        taken.IsManageable.Should().BeTrue();
+        taken.PendingMigrationRequestedAt.Should().BeNull();
+        taken.Response.Should().Be("Stay hydrated {user}");
+    }
+
+    [Fact]
+    public async Task Import_finishes_a_parked_take_over_once_the_original_was_renamed_on_Twitch()
+    {
+        (RewardService sut, AppDbContext db, ITwitchChannelPointsApi points) = BuildReal();
+        Guid parkedId = Guid.Parse("0192a000-0000-7000-8000-00000000e108");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = parkedId,
+                BroadcasterId = Channel,
+                Title = "Time-out",
+                Cost = 5000,
+                IsEnabled = true,
+                TwitchRewardId = "ext-timeout",
+                IsManageable = false,
+                IsPlatform = false,
+                PendingMigrationRequestedAt = DateTime.UtcNow.AddDays(-1),
+            }
+        );
+        await db.SaveChangesAsync();
+        StubGetRewards(
+            points,
+            full: [TwitchReward("ext-timeout", "Time-out (old)", 5000, enabled: false)],
+            manageable: []
+        );
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(TwitchReward("bot-timeout", "Time-out", 5000, enabled: true)));
+
+        Result result = await sut.ImportFromTwitchAsync(Channel.ToString());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await points
+            .Received(1)
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Is<CreateCustomRewardRequest>(r => r.Title == "Time-out"),
+                Arg.Any<CancellationToken>()
+            );
+        Reward taken = await db.Rewards.SingleAsync(r => r.Id == parkedId);
+        taken.Title.Should().Be("Time-out");
+        taken.TwitchRewardId.Should().Be("bot-timeout");
+        taken.IsManageable.Should().BeTrue();
     }
 
     [Fact]
@@ -582,8 +907,9 @@ public sealed class RewardServiceImportTests
     [Fact]
     public async Task Importing_again_after_a_recreate_reconciles_both_rows_without_a_duplicate_title_crash()
     {
-        // Recreating leaves two rows that share a title (the external "First Light" and the bot copy). A second
-        // import must reconcile both by their distinct Twitch ids, not choke building its title-match index.
+        // Taking control re-points the local row at the bot copy; if the original still exists on Twitch (e.g. it
+        // was renamed rather than deleted), the next import records it as its own read-only row, matched by its
+        // own Twitch id — never a crash, never a third row.
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
         Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e003");
         db.Rewards.Add(
