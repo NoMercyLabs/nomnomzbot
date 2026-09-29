@@ -1685,6 +1685,15 @@
     <string name="widgets_overlay_not_connected">Niet verbonden</string>
     <string name="widgets_update_action">Overlay %1$s bijwerken vanuit de galerij</string>
     <string name="widgets_update_action_short">Bijwerken</string>
+    <string name="widgets_system_badge">Systeem</string>
+    <string name="widgets_edited_badge">Aangepast</string>
+    <string name="widgets_reset_action">Overlay %1$s terugzetten naar de systeemstandaard</string>
+    <string name="widgets_reset_action_short">Standaard herstellen</string>
+    <string name="widgets_reset_title">%1$s terugzetten naar de systeemstandaard?</string>
+    <string name="widgets_reset_message">De overlay schakelt meteen over naar de NomNomzBot-versie van %1$s, en open browserbronnen laden opnieuw. Je aangepaste code blijft bewaard in Versies als versie %2$s, dus je kunt ernaar terugrollen. Je instellingen blijven zoals ze zijn.</string>
+    <string name="widgets_reset_message_unnumbered">De overlay schakelt meteen over naar de NomNomzBot-versie van %1$s, en open browserbronnen laden opnieuw. Je aangepaste code blijft bewaard in Versies, dus je kunt ernaar terugrollen. Je instellingen blijven zoals ze zijn.</string>
+    <string name="widgets_reset_confirm">Standaard herstellen</string>
+    <string name="widgets_reset_dismiss">Mijn aanpassing houden</string>
     <string name="widgets_settings_action">Instellingen voor overlay %1$s</string>
     <string name="widgets_settings_action_short">Instellingen</string>
     <string name="widgets_settings_title">Instellingen voor %1$s</string>

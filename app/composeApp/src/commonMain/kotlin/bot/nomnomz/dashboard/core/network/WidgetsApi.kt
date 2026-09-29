@@ -383,6 +383,10 @@ data class WidgetSummary(
     // "overlay last-seen" signal, so a streamer can tell an overlay is actually loaded in OBS without needing
     // to fire a test event first.
     val isAttached: Boolean = false,
+    // True when the channel saved its own code over a catalogue widget's source (a first-party system widget or a
+    // gallery install). The row shows "Edited" and offers the reset to the catalogue source; a catalogue update
+    // never overwrites it on its own.
+    val isCustomized: Boolean = false,
 )
 
 /**
