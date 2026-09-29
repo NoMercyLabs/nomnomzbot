@@ -1662,6 +1662,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("chat_message");
 
+                    b.Property<bool>("SpeakWithTts")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -2210,6 +2213,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("Message")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("SpeakWithTts")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");

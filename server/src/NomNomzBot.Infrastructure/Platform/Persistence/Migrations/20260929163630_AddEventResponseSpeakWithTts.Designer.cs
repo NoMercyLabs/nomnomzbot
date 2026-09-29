@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.Platform.Persistence;
@@ -13,9 +14,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260929163630_AddEventResponseSpeakWithTts")]
+    partial class AddEventResponseSpeakWithTts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -8783,60 +8786,6 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasDatabaseName("UX_EventSubConduitShard_ConduitId_ShardId");
 
                     b.ToTable("EventSubConduitShards");
-                });
-
-            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubInboxMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("EventJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("MessageId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime>("MessageTimestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ReceivedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SubscriptionType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("SubscriptionVersion")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("TwitchBroadcasterUserId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MessageId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_EventSubInboxMessage_MessageId");
-
-                    b.HasIndex("ReceivedAt", "Id")
-                        .HasDatabaseName("IX_EventSubInboxMessage_ReceivedAt_Id");
-
-                    b.ToTable("EventSubInboxMessages");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubSubscription", b =>

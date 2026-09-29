@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
@@ -51,7 +52,8 @@ public sealed class EventResponseDefaultsAdminServiceTests
         AuthDbContext Db,
         EventResponseDefaultsAdminService Sut,
         EventResponseExecutor Executor,
-        IChatProvider Chat
+        IChatProvider Chat,
+        ITtsDispatchService Tts
     );
 
     private static async Task<Harness> BuildAsync()
@@ -80,12 +82,14 @@ public sealed class EventResponseDefaultsAdminServiceTests
             )
             .Returns(call => call.ArgAt<string>(0));
         IChatProvider chat = Substitute.For<IChatProvider>();
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         EventResponseExecutor executor = new(
             db,
             Substitute.For<IPipelineEngine>(),
             templates,
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
+            tts,
             NullLogger<EventResponseExecutor>.Instance
         );
         EventResponseDefaultsAdminService sut = new(
@@ -93,7 +97,7 @@ public sealed class EventResponseDefaultsAdminServiceTests
             new TemplateHelperValidator(),
             new FakeTimeProvider(Now)
         );
-        return new(db, sut, executor, chat);
+        return new(db, sut, executor, chat, tts);
     }
 
     private static Channel NewChannel(Guid id, string name) =>
@@ -269,5 +273,76 @@ public sealed class EventResponseDefaultsAdminServiceTests
         own.Message.Should().Be("My own welcome, {user}");
         reset.FollowsPlatformDefault.Should().BeTrue();
         reset.Message.Should().Be("Welcome {user}! Thanks for the follow!");
+    }
+
+    [Fact]
+    public async Task A_default_saved_with_tts_is_spoken_by_following_channels_only_and_carried_into_an_own_save()
+    {
+        Harness h = await BuildAsync();
+
+        EventResponseDefaultDto saved = (
+            await h.Sut.SetAsync(
+                Follow,
+                new(true, "Thanks {user}!", ConfirmedChannelsAffected: 1, SpeakWithTts: true),
+                Admin
+            )
+        ).Value;
+        await FireFollowAsync(h, Follower);
+        await FireFollowAsync(h, OwnChannel);
+        EventResponseService channelService = new(
+            h.Db,
+            new RecordingEventBus(),
+            new TemplateHelperValidator()
+        );
+        EventResponseDto following = (
+            await channelService.GetByEventTypeAsync(Follower.ToString(), Follow)
+        ).Value;
+        EventResponseDto own = (
+            await channelService.UpsertAsync(
+                Follower.ToString(),
+                Follow,
+                new() { Message = "Mine, {user}" }
+            )
+        ).Value;
+
+        saved.SpeakWithTts.Should().BeTrue();
+        (await h.Db.IamAuditLogs.SingleAsync())
+            .Justification.Should()
+            .Contain("new=enabled=True;tts=True");
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Follower, "Thanks {user}!", Arg.Any<CancellationToken>());
+        await h
+            .Tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.BroadcasterId == Follower && r.Text == "Thanks {user}!"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Tts.DidNotReceive()
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.BroadcasterId == OwnChannel),
+                Arg.Any<CancellationToken>()
+            );
+        following.SpeakWithTts.Should().BeTrue("the page shows the default the channel follows");
+        own.SpeakWithTts.Should()
+            .BeTrue("the first own save starts from the default it was following");
+    }
+
+    [Fact]
+    public async Task Toggling_only_tts_on_a_default_counts_as_a_change_in_the_blast_radius()
+    {
+        Harness h = await BuildAsync();
+
+        PlatformDefaultBlastRadiusDto radius = (
+            await h.Sut.PreviewAsync(
+                Follow,
+                new(true, "Welcome {user}! Thanks for the follow!", SpeakWithTts: true)
+            )
+        ).Value;
+
+        radius.ChannelsAffected.Should().Be(1);
     }
 }

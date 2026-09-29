@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.eventresponses.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyChild
 import androidx.compose.ui.test.hasContentDescription
@@ -52,6 +54,7 @@ import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelperDto
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
+import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
@@ -59,6 +62,7 @@ import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTokenRotation
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
+import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesTtsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
@@ -93,6 +97,7 @@ class EventResponsesScreenTest {
                 pickListsApi = FakePickListsApi(),
                 widgetsApi = FakeWidgetsApi(),
                 platformTemplatesApi = templatesApi,
+                ttsApi = EventResponsesTtsApi(),
             )
         runBlocking { controller.load() }
         return controller
@@ -188,6 +193,7 @@ class EventResponsesScreenTest {
                     pickListsApi = FakePickListsApi(),
                     widgetsApi = FakeWidgetsApi(),
                     platformTemplatesApi = FakePlatformTemplatesApi(),
+                    ttsApi = EventResponsesTtsApi(),
                 )
             runBlocking { controller.load() }
 
@@ -246,6 +252,7 @@ class EventResponsesScreenTest {
                 pickListsApi = FakePickListsApi(),
                 widgetsApi = FakeWidgetsApi(),
                 platformTemplatesApi = FakePlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
             )
         runBlocking { controller.load() }
 
@@ -304,6 +311,7 @@ class EventResponsesScreenTest {
                 pickListsApi = FakePickListsApi(),
                 widgetsApi = FakeWidgetsApi(),
                 platformTemplatesApi = FakePlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
             )
         runBlocking { controller.load() }
         val recordingHelpersApi = RecordingTemplateHelpersApi()
@@ -332,6 +340,97 @@ class EventResponsesScreenTest {
         assertEquals(TemplateHelperContext.EventResponse, recordingHelpersApi.lastContext)
         assertEquals("channel.raid", recordingHelpersApi.lastEventType)
     }
+
+    // Speak with TTS: the switch shows for a chat message, states the channel's TTS status plainly, and a
+    // toggle → save → reopen round-trips through the API (the stored flag, not local UI state, drives it).
+    @Test
+    fun speak_with_tts_toggle_saves_and_reopens_on() = runComposeUiTest {
+        val eventResponsesApi =
+            StoringEventResponsesApi(
+                EventResponse(
+                    id = "er3",
+                    eventType = "channel.raid",
+                    isEnabled = true,
+                    responseType = "chat_message",
+                    message = "raiders incoming",
+                )
+            )
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(),
+                eventResponsesApi = eventResponsesApi,
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+                widgetsApi = FakeWidgetsApi(),
+                platformTemplatesApi = FakePlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(ApiResult.Ok(TtsConfig(isEnabled = false))),
+            )
+        runBlocking { controller.load() }
+
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        EventResponsesScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithContentDescription("Edit Incoming Raid").performClick()
+        waitForIdle()
+        onNodeWithText("TTS is off for this channel. Turn it on under TTS, or nothing is read out.").assertExists()
+        onNodeWithContentDescription("Also read it out with TTS").assertIsOff().performClick()
+        waitForIdle()
+        onNodeWithText("Save").performClick()
+        waitForIdle()
+
+        assertEquals(true, eventResponsesApi.lastUpsert?.speakWithTts)
+        assertEquals("chat_message", eventResponsesApi.lastUpsert?.responseType)
+
+        onNodeWithContentDescription("Edit Incoming Raid").performClick()
+        waitForIdle()
+        onNodeWithContentDescription("Also read it out with TTS").assertIsOn()
+    }
+}
+
+// Keeps the one stored response and merges every upsert into it, so a reopen reads back what was saved.
+private class StoringEventResponsesApi(private var stored: EventResponse) : EventResponsesApi {
+    var lastUpsert: UpdateEventResponseBody? = null
+
+    override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> =
+        ApiResult.Ok(
+            listOf(
+                EventResponseSummary(
+                    id = stored.id,
+                    eventType = stored.eventType,
+                    isEnabled = stored.isEnabled,
+                    responseType = stored.responseType,
+                )
+            )
+        )
+    override suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>> = ApiResult.Ok(emptyList())
+    override suspend fun get(channelId: String, eventType: String): ApiResult<EventResponse> = ApiResult.Ok(stored)
+    override suspend fun upsert(
+        channelId: String,
+        eventType: String,
+        body: UpdateEventResponseBody,
+    ): ApiResult<EventResponse> {
+        lastUpsert = body
+        stored =
+            stored.copy(
+                responseType = body.responseType ?: stored.responseType,
+                message = body.message ?: stored.message,
+                speakWithTts = body.speakWithTts ?: stored.speakWithTts,
+            )
+        return ApiResult.Ok(stored)
+    }
+    override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 @androidx.compose.runtime.Composable

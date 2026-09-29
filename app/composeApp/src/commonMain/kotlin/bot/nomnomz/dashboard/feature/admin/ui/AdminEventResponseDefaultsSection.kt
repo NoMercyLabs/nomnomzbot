@@ -42,6 +42,7 @@ import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsState
 import bot.nomnomz.dashboard.feature.eventresponses.ui.toEventLabel
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.event_responses_speak_with_tts
 import nomnomzbot.composeapp.generated.resources.platform_defaults_apply
 import nomnomzbot.composeapp.generated.resources.platform_defaults_cancel
 import nomnomzbot.composeapp.generated.resources.platform_defaults_change
@@ -164,6 +165,14 @@ internal fun EventResponseDefaultEditDialog(
             },
             modifier = Modifier.fillMaxWidth(),
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Switch(checked = edit.speakWithTts, onCheckedChange = controller::editEventSpeakWithTts, enabled = !busy)
+            Text(
+                text = stringResource(Res.string.event_responses_speak_with_tts),
+                style = typography.sm,
+                color = tokens.popoverForeground,
+            )
+        }
         if (edit.preview != null || edit.previewing) {
             PlatformDefaultBlastRadiusText(preview = edit.preview)
         } else {

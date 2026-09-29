@@ -423,6 +423,7 @@ public class BundleExportService : IBundleExportService
                     PipelineName = pipelineName,
                     Metadata = response.MetadataJson,
                     IsEnabled = response.IsEnabled,
+                    SpeakWithTts = response.SpeakWithTts,
                 };
                 manifestItems.Add(
                     await WriteItemAsync(

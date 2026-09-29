@@ -143,6 +143,9 @@ public sealed record EventResponseExport
         new Dictionary<string, string>();
 
     public bool IsEnabled { get; init; } = true;
+
+    /// <summary>A chat_message response also speaks its resolved text through the channel's TTS.</summary>
+    public bool SpeakWithTts { get; init; }
 }
 
 /// <summary>

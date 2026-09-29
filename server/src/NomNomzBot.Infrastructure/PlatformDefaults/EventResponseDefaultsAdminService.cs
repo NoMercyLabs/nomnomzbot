@@ -74,7 +74,9 @@ public sealed class EventResponseDefaultsAdminService(
         if (validation.IsFailure)
             return validation.WithValue<PlatformDefaultBlastRadiusDto>(null!);
 
-        return Result.Success(await CountAsync(current, change.IsEnabled, change.Message, ct));
+        return Result.Success(
+            await CountAsync(current, change.IsEnabled, change.Message, change.SpeakWithTts, ct)
+        );
     }
 
     public async Task<Result<EventResponseDefaultDto>> SetAsync(
@@ -100,6 +102,7 @@ public sealed class EventResponseDefaultsAdminService(
             current,
             request.IsEnabled,
             message,
+            request.SpeakWithTts,
             ct
         );
         if (radius.ChannelsAffected != request.ConfirmedChannelsAffected)
@@ -109,9 +112,10 @@ public sealed class EventResponseDefaultsAdminService(
             );
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
-        string oldValue = Describe(current.IsEnabled, current.Message);
+        string oldValue = Describe(current);
         current.IsEnabled = request.IsEnabled;
         current.Message = message;
+        current.SpeakWithTts = request.SpeakWithTts;
         current.UpdatedByUserId = actorUserId;
         PlatformDefaultAudit.Record(
             db,
@@ -119,7 +123,7 @@ public sealed class EventResponseDefaultsAdminService(
             eventType,
             actorUserId,
             oldValue,
-            Describe(current.IsEnabled, current.Message),
+            Describe(current),
             radius.ChannelsAffected,
             now
         );
@@ -159,11 +163,13 @@ public sealed class EventResponseDefaultsAdminService(
         PlatformEventResponseDefault current,
         bool isEnabled,
         string? message,
+        bool speakWithTts,
         CancellationToken ct
     )
     {
         bool changes =
             current.IsEnabled != isEnabled
+            || current.SpeakWithTts != speakWithTts
             || !string.Equals(current.Message, Normalize(message), StringComparison.Ordinal);
         // Only a channel whose row follows the default feels it; every other channel (its own response, or no
         // row at all) keeps what it has.
@@ -206,8 +212,8 @@ public sealed class EventResponseDefaultsAdminService(
             ct
         );
 
-    private static string Describe(bool isEnabled, string? message) =>
-        $"enabled={isEnabled};message={message ?? "-"}";
+    private static string Describe(PlatformEventResponseDefault d) =>
+        $"enabled={d.IsEnabled};tts={d.SpeakWithTts};message={d.Message ?? "-"}";
 
     private static EventResponseDefaultDto ToDto(
         PlatformEventResponseDefault d,
@@ -225,7 +231,8 @@ public sealed class EventResponseDefaultsAdminService(
             preset?.Variables ?? [],
             following,
             own,
-            d.UpdatedAt
+            d.UpdatedAt,
+            d.SpeakWithTts
         );
     }
 }

@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Obs.Events;
@@ -147,6 +148,7 @@ public sealed class WaitForEventProductionWiringTests
         services.AddSingleton(resolver);
         services.AddSingleton<IChatProvider>(Substitute.For<IChatProvider>());
         services.AddSingleton(Substitute.For<IEventResponseOverlayNotifier>());
+        services.AddSingleton(Substitute.For<ITtsDispatchService>());
         services.AddSingleton<ICommandAction>(new StopAction());
         services.AddSingleton<ICommandAction>(new SetVariableAction());
         services.AddSingleton<ICommandAction>(new WaitForEventAction(resolver));

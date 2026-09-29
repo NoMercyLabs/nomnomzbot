@@ -35,6 +35,8 @@ import bot.nomnomz.dashboard.core.network.PlatformTemplate
 import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
+import bot.nomnomz.dashboard.core.network.TtsApi
+import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
@@ -60,6 +62,7 @@ class EventResponsesController(
     private val pickListsApi: PickListsApi,
     private val widgetsApi: WidgetsApi,
     private val platformTemplatesApi: PlatformTemplatesApi,
+    private val ttsApi: TtsApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<EventResponsesState> =
@@ -111,6 +114,13 @@ class EventResponsesController(
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> emptyList()
             }
+        // Whether the channel's TTS is on — the "Also read it out with TTS" switch states it plainly next to
+        // itself, so a switch that would do nothing never looks like it works. Null = could not be read.
+        val ttsEnabled: Boolean? =
+            when (val result: ApiResult<TtsConfig> = ttsApi.config(channel.id)) {
+                is ApiResult.Ok -> result.value.isEnabled
+                is ApiResult.Failure -> null
+            }
 
         when (val result: ApiResult<List<EventResponseSummary>> = eventResponsesApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = EventResponsesState.Error(result.error.message)
@@ -124,6 +134,7 @@ class EventResponsesController(
                             pipelines = pipelines,
                             pickListNames = pickListNames,
                             widgets = widgets,
+                            ttsEnabled = ttsEnabled,
                         )
         }
     }
@@ -228,6 +239,7 @@ class EventResponsesController(
      * Upsert the full event-response config for [eventType]. For an `overlay` response, [widgetId] names the
      * widget the event fires — persisted under the [WidgetIdMetadataKey] key of the response's MetadataJson so
      * the overlay dispatch can target it. A null/blank [widgetId] clears the target (empty metadata).
+     * [speakWithTts] only applies to a `chat_message` response; every other type saves it off.
      */
     suspend fun save(
         eventType: String,
@@ -235,6 +247,7 @@ class EventResponsesController(
         message: String?,
         pipelineId: String?,
         widgetId: String?,
+        speakWithTts: Boolean = false,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         // Only overlay responses carry a widget target; for every other type send an empty metadata map so a
@@ -254,6 +267,7 @@ class EventResponsesController(
                     // AWAY from pipeline actually clears the old binding — a null would be dropped and kept.
                     pipelineId = pipelineId?.takeIf { it.isNotBlank() } ?: EMPTY_PIPELINE_ID,
                     metadata = metadata,
+                    speakWithTts = responseType == "chat_message" && speakWithTts,
                 ),
             )
         )
@@ -322,6 +336,8 @@ sealed interface EventResponsesState {
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
         val widgets: List<WidgetSummary> = emptyList(),
+        /** Whether the channel's TTS is on; null when it could not be read. */
+        val ttsEnabled: Boolean? = null,
     ) : EventResponsesState
 
     data object Empty : EventResponsesState

@@ -70,11 +70,13 @@ data class EventResponseDefault(
     val variables: List<String> = emptyList(),
     val channelsFollowing: Int = 0,
     val channelsWithOwnResponse: Int = 0,
+    /** Following channels also speak the message through their TTS (default off). */
+    val speakWithTts: Boolean = false,
 )
 
 /** A proposed event-response default — the preview body (backend `EventResponseDefaultChange`). */
 @Serializable
-data class EventResponseDefaultChange(val isEnabled: Boolean, val message: String?)
+data class EventResponseDefaultChange(val isEnabled: Boolean, val message: String?, val speakWithTts: Boolean)
 
 /** Saves an event-response default (backend `SetEventResponseDefaultRequest`). */
 @Serializable
@@ -82,6 +84,7 @@ data class SetEventResponseDefaultRequest(
     val isEnabled: Boolean,
     val message: String?,
     val confirmedChannelsAffected: Int,
+    val speakWithTts: Boolean,
 )
 
 /**

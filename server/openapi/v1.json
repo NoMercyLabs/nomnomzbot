@@ -99772,9 +99772,13 @@
               "null",
               "string"
             ]
+          },
+          "speakWithTts": {
+            "type": "boolean",
+            "default": false
           }
         },
-        "description": "A proposed platform default for one event type — the body of both the preview and the save."
+        "description": "A proposed platform default for one event type — the body of both the preview and the save.\nSpeakWithTts: following channels also speak the message through their TTS."
       },
       "EventResponseDefaultDto": {
         "required": [
@@ -99784,7 +99788,8 @@
           "variables",
           "channelsFollowing",
           "channelsWithOwnResponse",
-          "updatedAt"
+          "updatedAt",
+          "speakWithTts"
         ],
         "type": "object",
         "properties": {
@@ -99825,6 +99830,9 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "speakWithTts": {
+            "type": "boolean"
           }
         },
         "description": "One event type's platform default, as the admin editor shows it: whether following channels respond and\nwith which chat message, the template variables the event fills (for the editor hint), and how many\nchannels follow the default versus answer with their own saved response."
@@ -99840,7 +99848,8 @@
           "metadata",
           "createdAt",
           "updatedAt",
-          "followsPlatformDefault"
+          "followsPlatformDefault",
+          "speakWithTts"
         ],
         "type": "object",
         "properties": {
@@ -99887,6 +99896,9 @@
             "format": "date-time"
           },
           "followsPlatformDefault": {
+            "type": "boolean"
+          },
+          "speakWithTts": {
             "type": "boolean"
           }
         },
@@ -111201,6 +111213,10 @@
               "string"
             ],
             "format": "int32"
+          },
+          "speakWithTts": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "Saves a platform default. ConfirmedChannelsAffected must equal the preview's live count."
@@ -127567,6 +127583,13 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "speakWithTts": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged."
           }
         },
         "description": "Request to update an event response configuration."

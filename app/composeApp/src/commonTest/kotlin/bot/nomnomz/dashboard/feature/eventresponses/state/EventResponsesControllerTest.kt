@@ -32,6 +32,7 @@ import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import kotlin.test.Test
@@ -69,6 +70,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(listOf(summary))),
             )
@@ -90,6 +92,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = templatesApi,
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(),
             )
@@ -113,6 +116,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = templatesApi,
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = eventResponsesApi,
                 feedback = feedback,
@@ -144,6 +148,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = templatesApi,
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = eventResponsesApi,
                 feedback = feedback,
@@ -167,6 +172,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
             )
@@ -184,6 +190,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Failure(ApiError(status = 503, code = null, message = "no channel"))),
                 eventResponsesApi = RecordingEventResponsesApi(),
             )
@@ -203,6 +210,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi =
                     RecordingEventResponsesApi(
@@ -224,6 +232,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -257,6 +266,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
                 feedback = feedback,
@@ -279,6 +289,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -295,6 +306,52 @@ class EventResponsesControllerTest {
     }
 
     @Test
+    fun speak_with_tts_is_sent_for_a_chat_message_and_forced_off_for_other_types() = runTest {
+        val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = api,
+            )
+
+        controller.load()
+        controller.save("channel.subscription.gift", "chat_message", "{user} gifted!", null, null, speakWithTts = true)
+        val chatBody: UpdateEventResponseBody? = api.lastUpsertedBody
+        controller.save("channel.subscription.gift", "overlay", "{user} gifted!", null, null, speakWithTts = true)
+
+        assertEquals(true, chatBody?.speakWithTts)
+        assertEquals(false, api.lastUpsertedBody?.speakWithTts)
+    }
+
+    @Test
+    fun load_reports_whether_the_channels_tts_is_on_and_null_when_it_cannot_be_read() = runTest {
+        val summary = EventResponseSummary(id = "er1", eventType = "channel.follow", responseType = "chat_message")
+        suspend fun ttsEnabledWith(tts: EventResponsesTtsApi): Boolean? {
+            val controller =
+                EventResponsesController(
+                    pipelinesApi = StubPipelinesApi,
+                    pickListsApi = StubPickListsApi,
+                    widgetsApi = StubWidgetsApi,
+                    platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                    ttsApi = tts,
+                    channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                    eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(listOf(summary))),
+                )
+            controller.load()
+            return assertIs<EventResponsesState.Ready>(controller.state.value).ttsEnabled
+        }
+
+        assertEquals(true, ttsEnabledWith(EventResponsesTtsApi(ApiResult.Ok(TtsConfig(isEnabled = true)))))
+        assertEquals(false, ttsEnabledWith(EventResponsesTtsApi(ApiResult.Ok(TtsConfig(isEnabled = false)))))
+        assertNull(ttsEnabledWith(EventResponsesTtsApi(ApiResult.Failure(ApiError(500, null, "down")))))
+    }
+
+    @Test
     fun save_overlay_writes_target_widget_id_into_metadata() = runTest {
         val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
         val controller =
@@ -303,6 +360,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -328,6 +386,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
             )
@@ -347,6 +406,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
                 feedback = feedback,
@@ -376,6 +436,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
                 feedback = feedback,
@@ -408,6 +469,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
                 channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 eventResponsesApi = api,
                 feedback = feedback,
@@ -439,6 +501,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
             )
         controller.load()
 
@@ -466,6 +529,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
             )
         controller.load()
 
@@ -489,6 +553,7 @@ class EventResponsesControllerTest {
                 pickListsApi = StubPickListsApi,
                 widgetsApi = StubWidgetsApi,
                 platformTemplatesApi = RecordingPlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
             )
         controller.load()
 

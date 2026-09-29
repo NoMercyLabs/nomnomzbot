@@ -168,6 +168,7 @@ public class EventResponseService : IEventResponseService
                 Message = request.Message,
                 PipelineId = request.PipelineId == Guid.Empty ? null : request.PipelineId,
                 MetadataJson = request.Metadata ?? new Dictionary<string, string>(),
+                SpeakWithTts = request.SpeakWithTts ?? false,
             };
             _db.EventResponses.Add(entity);
         }
@@ -191,6 +192,8 @@ public class EventResponseService : IEventResponseService
                     request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
             if (request.Metadata is not null)
                 entity.MetadataJson = request.Metadata;
+            if (request.SpeakWithTts.HasValue)
+                entity.SpeakWithTts = request.SpeakWithTts.Value;
         }
         entity.FollowsPlatformDefault = false;
 
@@ -237,6 +240,7 @@ public class EventResponseService : IEventResponseService
         entity.Message = null;
         entity.PipelineId = null;
         entity.MetadataJson = new Dictionary<string, string>();
+        entity.SpeakWithTts = false;
         // Reset hands the event back to the platform default — the same state a fresh channel starts in.
         entity.FollowsPlatformDefault = true;
 
@@ -283,6 +287,7 @@ public class EventResponseService : IEventResponseService
         entity.IsEnabled = platform.IsEnabled;
         entity.ResponseType = "chat_message";
         entity.Message = platform.Message;
+        entity.SpeakWithTts = platform.SpeakWithTts;
     }
 
     /// <summary>
@@ -302,7 +307,8 @@ public class EventResponseService : IEventResponseService
             e.MetadataJson,
             e.CreatedAt,
             e.UpdatedAt,
-            follows
+            follows,
+            follows ? platform?.SpeakWithTts ?? false : e.SpeakWithTts
         );
     }
 }

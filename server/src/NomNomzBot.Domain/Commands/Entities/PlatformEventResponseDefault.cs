@@ -33,6 +33,9 @@ public class PlatformEventResponseDefault : BaseEntity
     [MaxLength(2000)]
     public string? Message { get; set; }
 
+    /// <summary>Following channels also speak the resolved message through their TTS. Opt-in: false by default.</summary>
+    public bool SpeakWithTts { get; set; }
+
     /// <summary>The platform operator who last changed this default.</summary>
     public Guid? UpdatedByUserId { get; set; }
 }

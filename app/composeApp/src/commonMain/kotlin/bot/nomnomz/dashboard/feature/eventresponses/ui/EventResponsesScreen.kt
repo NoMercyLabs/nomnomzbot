@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -108,6 +109,10 @@ import nomnomzbot.composeapp.generated.resources.event_responses_loading
 import nomnomzbot.composeapp.generated.resources.event_responses_reset_confirm_message
 import nomnomzbot.composeapp.generated.resources.event_responses_reset_confirm_title
 import nomnomzbot.composeapp.generated.resources.event_responses_retry
+import nomnomzbot.composeapp.generated.resources.event_responses_speak_with_tts
+import nomnomzbot.composeapp.generated.resources.event_responses_speak_with_tts_off
+import nomnomzbot.composeapp.generated.resources.event_responses_speak_with_tts_ready
+import nomnomzbot.composeapp.generated.resources.event_responses_speak_with_tts_unknown
 import nomnomzbot.composeapp.generated.resources.event_responses_toggle_action
 import nomnomzbot.composeapp.generated.resources.event_responses_type_chat_message
 import nomnomzbot.composeapp.generated.resources.event_responses_type_none
@@ -184,13 +189,14 @@ fun EventResponsesScreen(
             pipelines = ready?.pipelines ?: emptyList(),
             pickListNames = ready?.pickListNames ?: emptyList(),
             widgets = ready?.widgets ?: emptyList(),
+            ttsEnabled = ready?.ttsEnabled,
             templateHelpersApi = templateHelpersApi,
             loadDetail = { controller.detail(response.eventType) },
             onDismiss = { editing = null },
-            onSave = { responseType, message, pipelineId, widgetId ->
+            onSave = { responseType, message, pipelineId, widgetId, speakWithTts ->
                 editing = null
                 scope.launch {
-                    controller.save(response.eventType, responseType, message, pipelineId, widgetId)
+                    controller.save(response.eventType, responseType, message, pipelineId, widgetId, speakWithTts)
                 }
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
@@ -334,10 +340,11 @@ private fun EditDialog(
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
     widgets: List<WidgetSummary>,
+    ttsEnabled: Boolean?,
     templateHelpersApi: TemplateHelpersApi,
     loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
-    onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?) -> Unit,
+    onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?, speakWithTts: Boolean) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
     onResetToDefault: () -> Unit,
@@ -355,6 +362,7 @@ private fun EditDialog(
     var message: String by remember { mutableStateOf("") }
     var pipelineChoice: String? by remember { mutableStateOf(null) }
     var widgetChoice: String by remember { mutableStateOf("") }
+    var speakWithTts: Boolean by remember { mutableStateOf(false) }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
     // The reset is destructive (it discards the current config), so it confirms first and names exactly what
     // happens — the row goes back to its disabled, no-message default, it is NOT a permanent removal (the
@@ -374,6 +382,7 @@ private fun EditDialog(
         message = storedMessage.ifBlank { presetTemplate }
         pipelineChoice = detail?.pipelineId?.ifBlank { null }
         widgetChoice = detail?.metadata?.get(EventResponsesController.WidgetIdMetadataKey).orEmpty()
+        speakWithTts = detail?.speakWithTts ?: false
     }
 
     val canSubmit: Boolean =
@@ -457,6 +466,16 @@ private fun EditDialog(
                     )
                 }
 
+                // A chat message can also be read out: the same resolved text goes to chat AND the channel's TTS.
+                if (selectedType == "chat_message") {
+                    SpeakWithTtsField(
+                        checked = speakWithTts,
+                        onCheckedChange = { speakWithTts = it },
+                        ttsEnabled = ttsEnabled,
+                        enabled = manage.isAllowed,
+                    )
+                }
+
                 // Overlay target — which widget this event fires. Persisted in the response's MetadataJson so the
                 // overlay dispatch can render the chosen widget.
                 if (selectedType == "overlay") {
@@ -511,6 +530,7 @@ private fun EditDialog(
                         message.takeIf { it.isNotBlank() },
                         pipelineChoice,
                         widgetChoice.takeIf { selectedType == "overlay" && it.isNotBlank() },
+                        speakWithTts,
                     )
                 },
                 enabled = canSubmit,
@@ -569,6 +589,45 @@ private fun EditDialog(
                 boundPipelineId?.let { id -> testRunScope.launch { testRunController.run(id, variables) } }
             },
             onDismiss = { testRunDialogOpen = false },
+        )
+    }
+}
+
+// The "Also read it out with TTS" switch plus one plain line of truth under it: TTS off for the channel (the
+// switch would do nothing), could not be checked, or on — in which case it names where the audio plays.
+@Composable
+private fun SpeakWithTtsField(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    ttsEnabled: Boolean?,
+    enabled: Boolean,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val spacing = LocalSpacing.current
+    val label: String = stringResource(Res.string.event_responses_speak_with_tts)
+    val status: String =
+        when (ttsEnabled) {
+            true -> stringResource(Res.string.event_responses_speak_with_tts_ready)
+            false -> stringResource(Res.string.event_responses_speak_with_tts_off)
+            null -> stringResource(Res.string.event_responses_speak_with_tts_unknown)
+        }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                enabled = enabled,
+                // Plain (not cleared) semantics: the switch keeps its on/off state for assistive tech.
+                modifier = Modifier.semantics { contentDescription = label },
+            )
+            Text(text = label, style = typography.sm, color = tokens.popoverForeground)
+        }
+        Text(
+            text = status,
+            style = typography.xs,
+            color = if (ttsEnabled == false && checked) tokens.destructive else tokens.mutedForeground,
         )
     }
 }

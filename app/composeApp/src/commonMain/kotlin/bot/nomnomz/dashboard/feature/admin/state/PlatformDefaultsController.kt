@@ -55,19 +55,24 @@ data class ActionDefaultEdit(
 }
 
 /**
- * The draft of one event-response default edit. Any change to [isEnabled] or [message] drops [preview], so the
- * save can only ever carry a count the operator saw for exactly the values being saved.
+ * The draft of one event-response default edit. Any change to [isEnabled], [message] or [speakWithTts] drops
+ * [preview], so the save can only ever carry a count the operator saw for exactly the values being saved.
  */
 data class EventResponseDefaultEdit(
     val eventType: String,
     val isEnabled: Boolean,
     val message: String,
+    val speakWithTts: Boolean = false,
     val preview: PlatformDefaultBlastRadius? = null,
     val previewing: Boolean = false,
     val saving: Boolean = false,
 ) {
     val change: EventResponseDefaultChange
-        get() = EventResponseDefaultChange(isEnabled = isEnabled, message = message.trim().ifEmpty { null })
+        get() = EventResponseDefaultChange(
+            isEnabled = isEnabled,
+            message = message.trim().ifEmpty { null },
+            speakWithTts = speakWithTts,
+        )
 
     /** An enabled default must say something; the save arms only once the count for these values is shown. */
     val canSave: Boolean
@@ -261,6 +266,7 @@ class PlatformDefaultsController(
                 eventType = eventType,
                 isEnabled = row.isEnabled,
                 message = row.message.orEmpty(),
+                speakWithTts = row.speakWithTts,
             ),
         )
     }
@@ -268,6 +274,11 @@ class PlatformDefaultsController(
     fun editEventEnabled(enabled: Boolean) {
         val edit: EventResponseDefaultEdit = _state.value.eventEdit ?: return
         _state.value = _state.value.copy(eventEdit = edit.copy(isEnabled = enabled, preview = null))
+    }
+
+    fun editEventSpeakWithTts(speak: Boolean) {
+        val edit: EventResponseDefaultEdit = _state.value.eventEdit ?: return
+        _state.value = _state.value.copy(eventEdit = edit.copy(speakWithTts = speak, preview = null))
     }
 
     fun editEventMessage(message: String) {
@@ -309,6 +320,7 @@ class PlatformDefaultsController(
             isEnabled = edit.change.isEnabled,
             message = edit.change.message,
             confirmedChannelsAffected = preview.channelsAffected,
+            speakWithTts = edit.change.speakWithTts,
         )
         when (val result: ApiResult<EventResponseDefault> = api.setEventResponseDefault(edit.eventType, body)) {
             is ApiResult.Ok -> {

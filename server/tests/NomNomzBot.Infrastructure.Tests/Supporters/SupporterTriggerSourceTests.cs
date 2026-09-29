@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Events;
@@ -62,6 +63,7 @@ public sealed class SupporterTriggerSourceTests
             templates,
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
+            Substitute.For<ITtsDispatchService>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         SupporterTriggerSource handler = new(
