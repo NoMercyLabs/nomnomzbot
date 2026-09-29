@@ -109,6 +109,8 @@ public sealed partial class TemplateHelperCoverageTests
         // TemplateResolver.cs
         "count",
         "anonymous",
+        "gifter", // supplied by GiftSubscriptionReceivedEventHandler.BuildVariables
+        "gifter.id",
         "bits",
         "viewers",
         "reward",

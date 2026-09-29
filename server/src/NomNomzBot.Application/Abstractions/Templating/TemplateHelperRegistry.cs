@@ -207,6 +207,14 @@ public static class TemplateHelperRegistry
                 eventScoped: true
             ),
             Literal("bits", EventSourceOnlyContexts, "template.helper.bits", eventScoped: true),
+            // ── Gift recipients (channel.subscription.gift.received) ─────────
+            Literal("gifter", EventSourceOnlyContexts, "template.helper.gifter", eventScoped: true),
+            Literal(
+                "gifter.id",
+                EventSourceOnlyContexts,
+                "template.helper.gifter_id",
+                eventScoped: true
+            ),
             // ── Raids (channel.raid, channel.raid.out) ──────────────────────
             Literal(
                 "viewers",

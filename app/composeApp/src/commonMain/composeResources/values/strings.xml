@@ -4914,6 +4914,8 @@
     <string name="template_helper_message">The message attached to the event (a resub or cheer message)</string>
     <string name="template_helper_also_said">"They also said: ..." — the resub message, pre-formatted with a lead-in and quotes; empty when the resubscriber didn't write one</string>
     <string name="template_helper_event_count">How many were gifted (gift subscriptions)</string>
+    <string name="template_helper_gifter">Who gifted the sub to this viewer ("Anonymous" when the gifter stayed anonymous)</string>
+    <string name="template_helper_gifter_id">The gifter's platform user id; empty when the gifter stayed anonymous</string>
     <string name="template_helper_anonymous">Whether the sender chose to stay anonymous ("true"/"false")</string>
     <string name="template_helper_bits">How many bits were cheered</string>
     <string name="template_helper_viewers">The viewer count carried over by a raid</string>

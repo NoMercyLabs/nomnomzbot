@@ -362,6 +362,8 @@
     "template.helper.followed_at",
     "template.helper.game",
     "template.helper.gendered_term",
+    "template.helper.gifter",
+    "template.helper.gifter_id",
     "template.helper.input",
     "template.helper.link",
     "template.helper.list_pick",
