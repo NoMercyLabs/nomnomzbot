@@ -264,6 +264,37 @@ class GamesControllerTest {
     }
 
     @Test
+    fun reset_asks_the_backend_for_the_defaults_then_reloads_them() = runTest {
+        val game =
+            GameSummary(
+                id = "g1",
+                gameType = "coinflip",
+                category = "gambling",
+                isEnabled = true,
+                requires18Plus = true,
+                minBet = 10,
+                winChancePercent = 70.0,
+                cooldownSeconds = 900,
+                permission = "Subscriber",
+            )
+        val gamesApi = RecordingGamesApi(ApiResult.Ok(listOf(game)))
+        val controller =
+            GamesController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), gamesApi)
+        controller.load()
+
+        controller.resetGame(game)
+
+        assertEquals(listOf("coinflip"), gamesApi.resets)
+        assertTrue(gamesApi.upserted.isEmpty(), "a reset never sends the dashboard's own idea of the defaults")
+        val shown: GameSummary = (controller.state.value as GamesState.Ready).games.first()
+        assertEquals(50.0, shown.winChancePercent)
+        assertEquals("Everyone", shown.permission)
+        assertNull(shown.minBet)
+        assertEquals(false, shown.requires18Plus)
+        assertEquals(true, shown.isEnabled)
+    }
+
+    @Test
     fun a_failed_write_surfaces_the_error_over_the_kept_list() = runTest {
         val game = GameSummary(id = "g1", gameType = "coinflip", isEnabled = true)
         val gamesApi =
@@ -312,7 +343,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 // controller's post-write reload observes the real consequence (a flipped flag, new config) — not merely that a
 // call happened. [writeResult] forces every write to fail (the store is left untouched) to exercise the error
 // path. A list-level failure is modelled by passing a Failure as the initial result.
-private class RecordingGamesApi(
+internal class RecordingGamesApi(
     initial: ApiResult<List<GameSummary>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : GamesApi {
@@ -369,6 +400,32 @@ private class RecordingGamesApi(
                         maxPlaysPerStream = body.maxPlaysPerStream,
                         permission = body.permission,
                         config = body.config,
+                    )
+            }
+        }
+        return writeResult
+    }
+
+    val resets: MutableList<String> = mutableListOf()
+
+    // Like the service: the game's settings go back to the catalog default, its on/off state is kept.
+    override suspend fun reset(channelId: String, gameType: String): ApiResult<Unit> {
+        resets += gameType
+        if (writeResult is ApiResult.Ok) {
+            val index: Int = store.indexOfFirst { it.gameType == gameType }
+            if (index >= 0) {
+                val current: GameSummary = store[index]
+                store[index] =
+                    GameSummary(
+                        id = current.id,
+                        gameType = current.gameType,
+                        category = current.category,
+                        isEnabled = current.isEnabled,
+                        winChancePercent = 50.0,
+                        houseEdgePercent = 5.0,
+                        payoutMultiplier = 1.9,
+                        cooldownSeconds = 300,
+                        permission = "Everyone",
                     )
             }
         }

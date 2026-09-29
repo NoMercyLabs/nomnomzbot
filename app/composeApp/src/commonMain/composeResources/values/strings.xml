@@ -1185,6 +1185,10 @@
     <string name="games_perm_broadcaster">Broadcaster</string>
     <string name="games_dialog_save">Save</string>
     <string name="games_dialog_cancel">Cancel</string>
+    <string name="games_dialog_reset">Reset to defaults</string>
+    <string name="games_reset_title">Reset %1$s to its defaults?</string>
+    <string name="games_reset_message">%1$s goes back to its default odds, payout, bet limits, cooldown, who can play and custom settings. The 18+ check turns off. Whether the game is on or off does not change.</string>
+    <string name="games_reset_confirm">Reset</string>
     <string name="games_history_title">Play History</string>
     <string name="games_history_empty">No plays recorded yet</string>
     <!-- Games page — the two sections: instant gambling minigames vs live overlay games. -->

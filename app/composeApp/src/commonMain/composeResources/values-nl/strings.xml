@@ -1182,6 +1182,10 @@
     <string name="games_perm_broadcaster">Streamer</string>
     <string name="games_dialog_save">Opslaan</string>
     <string name="games_dialog_cancel">Annuleren</string>
+    <string name="games_dialog_reset">Standaard herstellen</string>
+    <string name="games_reset_title">%1$s terugzetten naar de standaard?</string>
+    <string name="games_reset_message">%1$s krijgt weer de standaard kansen, uitbetaling, inzetgrenzen, wachttijd, wie mag spelen en eigen instellingen. De 18+ controle gaat uit. Of het spel aan of uit staat, verandert niet.</string>
+    <string name="games_reset_confirm">Herstellen</string>
     <string name="games_history_title">Speelgeschiedenis</string>
     <string name="games_history_empty">Nog geen spellen geregistreerd</string>
     <!-- Spellenpagina — de twee secties: directe gokminigames vs live overlay-spellen. -->

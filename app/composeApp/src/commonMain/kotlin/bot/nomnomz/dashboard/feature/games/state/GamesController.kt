@@ -193,6 +193,15 @@ class GamesController(
         )
     }
 
+    /**
+     * Put [game]'s settings back on the platform defaults — the backend owns what the defaults are, so nothing is
+     * computed here. Whether the game is on or off is kept. Reloads on success; surfaces the error on failure.
+     */
+    suspend fun resetGame(game: GameSummary) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(gamesApi.reset(channel, game.gameType))
+    }
+
     // A write either reloads the list (success) or surfaces its error over the current Ready list without losing
     // it (failure) — so a failed toggle/edit leaves the page intact with a visible reason.
     private suspend fun afterWrite(result: ApiResult<Unit>) {

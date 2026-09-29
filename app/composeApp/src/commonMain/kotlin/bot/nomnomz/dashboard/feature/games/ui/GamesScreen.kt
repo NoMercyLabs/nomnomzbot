@@ -50,6 +50,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import androidx.compose.ui.platform.testTag
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
@@ -83,6 +85,10 @@ import nomnomzbot.composeapp.generated.resources.games_cooldown
 import nomnomzbot.composeapp.generated.resources.games_dialog_18plus_label
 import nomnomzbot.composeapp.generated.resources.games_dialog_advanced_section
 import nomnomzbot.composeapp.generated.resources.games_dialog_cancel
+import nomnomzbot.composeapp.generated.resources.games_dialog_reset
+import nomnomzbot.composeapp.generated.resources.games_reset_confirm
+import nomnomzbot.composeapp.generated.resources.games_reset_message
+import nomnomzbot.composeapp.generated.resources.games_reset_title
 import nomnomzbot.composeapp.generated.resources.games_dialog_config_add
 import nomnomzbot.composeapp.generated.resources.games_dialog_config_key_hint
 import nomnomzbot.composeapp.generated.resources.games_dialog_config_remove
@@ -200,10 +206,31 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
         }
     }
 
+    // A reset waits for this confirm, which says what goes back to default before anything changes.
+    var pendingReset: GameSummary? by remember { mutableStateOf(null) }
+    pendingReset?.let { game ->
+        ConfirmDialog(
+            title = stringResource(Res.string.games_reset_title, game.gameType),
+            message = stringResource(Res.string.games_reset_message, game.gameType),
+            confirmLabel = stringResource(Res.string.games_reset_confirm),
+            dismissLabel = stringResource(Res.string.games_dialog_cancel),
+            destructive = true,
+            onConfirm = {
+                pendingReset = null
+                scope.launch { controller.resetGame(game) }
+            },
+            onDismiss = { pendingReset = null },
+        )
+    }
+
     editing?.let { game ->
         GameConfigDialog(
             game = game,
             onDismiss = { editing = null },
+            onReset = {
+                editing = null
+                pendingReset = game
+            },
             onSave = { edit ->
                 editing = null
                 scope.launch {
@@ -629,6 +656,7 @@ private data class GameConfigEdit(
 private fun GameConfigDialog(
     game: GameSummary,
     onDismiss: () -> Unit,
+    onReset: () -> Unit,
     onSave: (GameConfigEdit) -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -829,11 +857,22 @@ private fun GameConfigDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = stringResource(Res.string.games_dialog_cancel),
-                    color = tokens.mutedForeground,
-                )
+            // The destructive reset sits apart from Save/Cancel in its own quiet destructive treatment.
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = onReset,
+                    variant = ButtonVariant.DestructiveGhost,
+                    size = ButtonSize.Sm,
+                    modifier = Modifier.testTag("game-reset"),
+                ) {
+                    Text(text = stringResource(Res.string.games_dialog_reset), maxLines = 1)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(Res.string.games_dialog_cancel),
+                        color = tokens.mutedForeground,
+                    )
+                }
             }
         },
     )
