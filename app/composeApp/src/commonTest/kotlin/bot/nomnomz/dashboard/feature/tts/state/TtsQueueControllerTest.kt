@@ -188,6 +188,10 @@ private class FakeQueueTtsApi(
 
     override suspend fun resumePlayback(channelId: String): ApiResult<Unit> = error("stub")
 
+    override suspend fun configDefaults(channelId: String) = error("stub")
+
+    override suspend fun resetConfig(channelId: String) = error("stub")
+
     private val queueFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<TtsQueueEntry> =
         (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()

@@ -42,6 +42,8 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.io.playSoundPreview
 import bot.nomnomz.dashboard.feature.tts.state.TtsOverlaySchedule
+import bot.nomnomz.dashboard.feature.tts.state.ttsResetChanges
+import nomnomzbot.composeapp.generated.resources.tts_reset_action
 import bot.nomnomz.dashboard.feature.tts.state.VoiceBrowserState
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
@@ -262,6 +264,7 @@ fun TtsScreen(
                     queueController = queueController,
                     queueManage = queueManage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
+                    onResetConfig = { scope.launch { controller.resetConfig() } },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
                     onTestOverlay = { scope.launch { controller.testOverlay() } },
                     onSkipPlayback = { scope.launch { controller.skipPlayback() } },
@@ -296,7 +299,7 @@ fun TtsScreen(
 
 // The minimum-permission values the backend accepts (UpdateTtsConfigDto regex). Each pairs the wire value
 // the API persists with its localized label; the form picks one, never free text, so the value is always valid.
-private val PERMISSIONS: List<Pair<String, StringResource>> =
+internal val PERMISSIONS: List<Pair<String, StringResource>> =
     listOf(
         "everyone" to Res.string.tts_permission_everyone,
         "subscribers" to Res.string.tts_permission_subscribers,
@@ -306,7 +309,7 @@ private val PERMISSIONS: List<Pair<String, StringResource>> =
     )
 
 // The TTS dispatch plane (backend TtsConfigDto.mode) — where synthesis runs. Fixed value set, picked as a chip.
-private val TTS_MODES: List<Pair<String, StringResource>> =
+internal val TTS_MODES: List<Pair<String, StringResource>> =
     listOf(
         "client_edge" to Res.string.tts_mode_client_edge,
         "byok" to Res.string.tts_mode_byok,
@@ -315,7 +318,7 @@ private val TTS_MODES: List<Pair<String, StringResource>> =
 
 // The preferred synthesis provider (backend TtsConfigDto.defaultProvider). Switching to azure/elevenlabs is how
 // a BYOK key is put to use. Fixed value set, picked as a chip.
-private val TTS_PROVIDERS: List<Pair<String, StringResource>> =
+internal val TTS_PROVIDERS: List<Pair<String, StringResource>> =
     listOf(
         "edge" to Res.string.tts_provider_edge,
         "azure" to Res.string.tts_provider_azure,
@@ -352,6 +355,7 @@ private fun ReadyContent(
     queueController: TtsQueueController,
     queueManage: ManageDecision,
     onSave: (TtsConfig) -> Unit,
+    onResetConfig: () -> Unit,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
     onTestOverlay: () -> Unit,
     onSkipPlayback: () -> Unit,
@@ -428,6 +432,9 @@ private fun ReadyContent(
     // just what's currently rendered from it.
     var selectedTab: TtsTab by remember { mutableStateOf(TtsTab.General) }
     val typography = LocalTypography.current
+    // The "Reset to defaults" confirm. The diff is against the SAVED config (what the server would overwrite),
+    // not the in-progress form, and the server's own defaults supply the right-hand side — nothing is guessed here.
+    var showReset: Boolean by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         PageHeader(
@@ -478,6 +485,8 @@ private fun ReadyContent(
                     saveError = state.saveError,
                     canSave = canSave,
                     onSave = { onSave(edited) },
+                    resetAvailable = state.resetDefaults != null,
+                    onReset = { showReset = true },
                 )
             TtsTab.Voices ->
                 VoicesTab(
@@ -537,6 +546,18 @@ private fun ReadyContent(
                 )
         }
     }
+
+    val resetDefaults: TtsConfig? = state.resetDefaults
+    if (showReset && resetDefaults != null) {
+        TtsResetDialog(
+            changes = ttsResetChanges(loaded, resetDefaults),
+            onConfirm = {
+                showReset = false
+                onResetConfig()
+            },
+            onDismiss = { showReset = false },
+        )
+    }
 }
 
 // General (owner-punch-list-2026-09-08.md §2): the enable toggle, provider selection, default voice, and
@@ -580,6 +601,9 @@ internal fun GeneralTab(
     saveError: String?,
     canSave: Boolean,
     onSave: () -> Unit,
+    // "Reset to defaults" sits in the save bar; unavailable until the server's defaults have loaded.
+    resetAvailable: Boolean = false,
+    onReset: () -> Unit = {},
 ) {
     val spacing = LocalSpacing.current
     ScrollArea(modifier = Modifier.fillMaxSize()) {
@@ -625,6 +649,8 @@ internal fun GeneralTab(
                 canSave = canSave,
                 manage = manage,
                 onSave = onSave,
+                resetAvailable = resetAvailable,
+                onReset = onReset,
             )
         }
     }
@@ -2294,6 +2320,8 @@ private fun SaveBar(
     canSave: Boolean,
     manage: ManageDecision,
     onSave: () -> Unit,
+    resetAvailable: Boolean,
+    onReset: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -2331,6 +2359,17 @@ private fun SaveBar(
                     .clearAndSetSemantics { contentDescription = savingLabel },
             )
         } else {
+            // Reset sits beside Save but stays quiet (outline): Save is the one primary action of this group.
+            ManageGate(decision = manage) { gateEnabled ->
+                Button(
+                    onClick = onReset,
+                    enabled = gateEnabled && resetAvailable,
+                    variant = ButtonVariant.Outline,
+                    modifier = Modifier.wrapContentWidth(),
+                ) {
+                    Text(stringResource(Res.string.tts_reset_action))
+                }
+            }
             ManageGate(decision = manage) { gateEnabled ->
                 Button(
                     onClick = onSave,

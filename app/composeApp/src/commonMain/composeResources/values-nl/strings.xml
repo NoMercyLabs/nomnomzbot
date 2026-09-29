@@ -1132,6 +1132,17 @@
     <string name="tts_saving">Bezig met opslaan…</string>
     <string name="tts_saved">Opgeslagen</string>
     <string name="tts_save_error">Kon de TTS-instellingen niet opslaan: %1$s</string>
+    <string name="tts_reset_action">Standaardwaarden herstellen</string>
+    <string name="tts_reset_title">TTS-instellingen terugzetten naar standaard</string>
+    <string name="tts_reset_intro">Deze instellingen gaan terug naar hun standaardwaarde:</string>
+    <string name="tts_reset_change">%1$s → %2$s</string>
+    <string name="tts_reset_on">Aan</string>
+    <string name="tts_reset_off">Uit</string>
+    <string name="tts_reset_none">Geen</string>
+    <string name="tts_reset_unchanged">Elke instelling staat al op de standaardwaarde. Er is niets om terug te zetten.</string>
+    <string name="tts_reset_preserved">Je providersleutels (BYOK), standaardstem, uitspraakregels en stemtoewijzingen per kijker blijven ongemoeid.</string>
+    <string name="tts_reset_confirm">Instellingen terugzetten</string>
+    <string name="tts_reset_cancel">Annuleren</string>
     <string name="rewards_title">Beloningen</string>
     <string name="rewards_new_action">Nieuwe beloning</string>
     <string name="rewards_sync_action">Synchroniseren met Twitch</string>

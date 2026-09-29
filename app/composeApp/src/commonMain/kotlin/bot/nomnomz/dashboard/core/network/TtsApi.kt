@@ -20,12 +20,26 @@ import kotlinx.serialization.Serializable
 // Backend routes (TtsConfigController):
 //   GET /api/v1/channels/{channelId}/tts/config  →  StatusResponseDto<TtsConfigDto>
 //   PUT /api/v1/channels/{channelId}/tts/config  ←  UpdateTtsConfigDto  →  StatusResponseDto<TtsConfigDto>
+//   GET /api/v1/channels/{channelId}/tts/config/defaults  →  StatusResponseDto<TtsConfigDto>
+//   POST /api/v1/channels/{channelId}/tts/config/reset  →  StatusResponseDto<TtsConfigDto>
 interface TtsApi {
     /** The channel's current TTS configuration. */
     suspend fun config(channelId: String): ApiResult<TtsConfig>
 
     /** Persist [update]; the backend echoes the saved configuration back. */
     suspend fun updateConfig(channelId: String, update: TtsConfigUpdate): ApiResult<TtsConfig>
+
+    /**
+     * The defaults [resetConfig] puts the channel's settings back to (backend `GET /tts/config/defaults`), so the
+     * reset confirm dialog can list "current → default" from the server's own values instead of a client copy.
+     */
+    suspend fun configDefaults(channelId: String): ApiResult<TtsConfig>
+
+    /**
+     * Put the channel's TTS settings back to the defaults (backend `POST /tts/config/reset`); the backend
+     * returns the resulting config. BYOK keys, the default voice, the lexicon and per-viewer voices are untouched.
+     */
+    suspend fun resetConfig(channelId: String): ApiResult<TtsConfig>
 
     /**
      * Store a bring-your-own-key provider credential ([provider] = `azure` | `elevenlabs`). The key is
@@ -157,6 +171,13 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
         update: TtsConfigUpdate,
     ): ApiResult<TtsConfig> =
         client.putEnvelope("api/v1/channels/$channelId/tts/config", update)
+
+    override suspend fun configDefaults(channelId: String): ApiResult<TtsConfig> =
+        client.getEnvelope("api/v1/channels/$channelId/tts/config/defaults")
+
+    // No request body; the reset answers a StatusResponseDto<TtsConfigDto> envelope, unwrapped like updateConfig.
+    override suspend fun resetConfig(channelId: String): ApiResult<TtsConfig> =
+        client.postEnvelope("api/v1/channels/$channelId/tts/config/reset")
 
     override suspend fun setByokKey(
         channelId: String,

@@ -1135,6 +1135,17 @@
     <string name="tts_saving">Saving…</string>
     <string name="tts_saved">Saved</string>
     <string name="tts_save_error">Couldn't save TTS settings: %1$s</string>
+    <string name="tts_reset_action">Reset to defaults</string>
+    <string name="tts_reset_title">Reset TTS settings to defaults</string>
+    <string name="tts_reset_intro">These settings change back to their defaults:</string>
+    <string name="tts_reset_change">%1$s → %2$s</string>
+    <string name="tts_reset_on">On</string>
+    <string name="tts_reset_off">Off</string>
+    <string name="tts_reset_none">None</string>
+    <string name="tts_reset_unchanged">Every setting is already at its default. Nothing to reset.</string>
+    <string name="tts_reset_preserved">Your provider keys (BYOK), default voice, pronunciation rules and per-viewer voice assignments are not touched.</string>
+    <string name="tts_reset_confirm">Reset settings</string>
+    <string name="tts_reset_cancel">Cancel</string>
     <string name="rewards_title">Rewards</string>
     <string name="rewards_new_action">New reward</string>
     <string name="rewards_sync_action">Sync from Twitch</string>
