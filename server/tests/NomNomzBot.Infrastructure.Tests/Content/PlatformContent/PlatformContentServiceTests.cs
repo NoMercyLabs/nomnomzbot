@@ -893,6 +893,123 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task Widget_UpdateInPlaceWhereUntouched_LeavesTenantWhoEditedTheCode_Unchanged()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion _) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+        const string catalogueSource = "<template><div/></template>";
+
+        // Both tenants kept the default settings, so the settings hash alone reads both as untouched. Only the
+        // second one saved its own code over the catalogue version.
+        Channel untouchedChannel = await AddChannelAsync("untouched-streamer");
+        Widget untouchedRow = await AddWidgetAsync(
+            untouchedChannel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+        await AddWidgetVersionAsync(untouchedRow, 1, catalogueSource);
+        untouchedRow.CatalogueVersionNumber = 1;
+
+        Channel editedChannel = await AddChannelAsync("code-edited-streamer");
+        Widget editedRow = await AddWidgetAsync(
+            editedChannel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+        await AddWidgetVersionAsync(editedRow, 1, catalogueSource);
+        WidgetVersion channelEdit = await AddWidgetVersionAsync(
+            editedRow,
+            2,
+            "<template><p>mine</p></template>"
+        );
+        editedRow.CatalogueVersionNumber = 1;
+        editedRow.ActiveVersionId = channelEdit.Id;
+        await _db.SaveChangesAsync();
+
+        const string v2Payload =
+            "{\"sourceCode\":\"<template><span/></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(v2Payload),
+            PayloadJson = v2Payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        Result<PlatformContentPublishJobDto> publishResult = await CreateService()
+            .PublishAsync(
+                _actingPrincipalId,
+                definition.Id,
+                v2.Id,
+                new PublishContentRequest(
+                    PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                    PublishNote: null,
+                    ConfirmedPreviewAffectedCount: 1
+                )
+            );
+
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+        Assert.Equal(1, publishResult.Value.ConfirmedAffectedCount);
+
+        // The untouched tenant took the new catalogue source, and that version is its new catalogue baseline.
+        Widget untouchedAfter = await _db
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == untouchedRow.Id);
+        WidgetVersion untouchedActive = await _db
+            .WidgetVersions.AsNoTracking()
+            .SingleAsync(v => v.Id == untouchedAfter.ActiveVersionId);
+        Assert.Equal("<template><span/></template>", untouchedActive.SourceCode);
+        Assert.Equal(2, untouchedAfter.CatalogueVersionNumber);
+
+        // The code-edited tenant keeps serving its own code: no new version, nothing re-stamped.
+        Widget editedAfter = await _db
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == editedRow.Id);
+        Assert.Equal(channelEdit.Id, editedAfter.ActiveVersionId);
+        Assert.Equal(2, await _db.WidgetVersions.CountAsync(v => v.WidgetId == editedRow.Id));
+        Assert.Equal("red", editedAfter.Settings["color"]);
+        Assert.Equal(1, editedAfter.PlatformSourceVersion);
+        Assert.Equal(1, editedAfter.CatalogueVersionNumber);
+    }
+
+    private async Task<WidgetVersion> AddWidgetVersionAsync(
+        Widget widget,
+        int versionNumber,
+        string sourceCode
+    )
+    {
+        WidgetVersion version = new()
+        {
+            WidgetId = widget.Id,
+            BroadcasterId = widget.BroadcasterId,
+            VersionNumber = versionNumber,
+            SourceCode = sourceCode,
+            BuildStatus = "success",
+            CompiledBundle = $"compiled::{sourceCode}",
+            ContentHash = new string('c', 64),
+            CompiledAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.WidgetVersions.Add(version);
+        await _db.SaveChangesAsync();
+        return version;
+    }
+
+    [Fact]
     public async Task Widget_PreviewPublish_ReturnsRealCounts_AndWritesNothing()
     {
         (PlatformContentDefinition definition, PlatformContentVersion _) =

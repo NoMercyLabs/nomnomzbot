@@ -20,6 +20,10 @@ namespace NomNomzBot.Application.Widgets.Dtos;
 /// <c>custom</c> widget (no gallery link to compare against). <see cref="IsAttached"/> is true when a live
 /// browser source has this widget open right now (<c>IOverlayPresenceRegistry</c>) — the "overlay last-seen"
 /// signal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.
+/// <see cref="IsCustomized"/> is true when the channel has saved its own code over a catalogue widget's source
+/// (a first-party system widget or a gallery install) — the dashboard marks it "Edited" and offers the reset to
+/// the catalogue source; a catalogue update never overwrites it on its own. Always false for a <c>custom</c>
+/// widget, which has no catalogue source to differ from.
 /// </summary>
 public sealed record WidgetDetail(
     Guid Id,
@@ -38,7 +42,8 @@ public sealed record WidgetDetail(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     bool GalleryUpdateAvailable,
-    bool IsAttached
+    bool IsAttached,
+    bool IsCustomized
 );
 
 /// <summary>

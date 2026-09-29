@@ -149,7 +149,8 @@ public sealed class LuckyFeatherBundleTests
                     CreatedAt: Start.UtcDateTime,
                     UpdatedAt: Start.UtcDateTime,
                     GalleryUpdateAvailable: false,
-                    IsAttached: false
+                    IsAttached: false,
+                    IsCustomized: false
                 );
                 createdWidgets.Add(created);
                 return Result.Success(created);

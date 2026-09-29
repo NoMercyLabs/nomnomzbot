@@ -79,6 +79,9 @@ import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
+import bot.nomnomz.dashboard.feature.widgets.state.CatalogueRowAction
+import bot.nomnomz.dashboard.feature.widgets.state.catalogueRowAction
+import bot.nomnomz.dashboard.feature.widgets.state.isSystem
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetEditorMessages
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsState
@@ -129,6 +132,15 @@ import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_update_action
 import nomnomzbot.composeapp.generated.resources.widgets_update_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_update_badge
+import nomnomzbot.composeapp.generated.resources.widgets_system_badge
+import nomnomzbot.composeapp.generated.resources.widgets_edited_badge
+import nomnomzbot.composeapp.generated.resources.widgets_reset_action
+import nomnomzbot.composeapp.generated.resources.widgets_reset_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_reset_title
+import nomnomzbot.composeapp.generated.resources.widgets_reset_message
+import nomnomzbot.composeapp.generated.resources.widgets_reset_message_unnumbered
+import nomnomzbot.composeapp.generated.resources.widgets_reset_confirm
+import nomnomzbot.composeapp.generated.resources.widgets_reset_dismiss
 import nomnomzbot.composeapp.generated.resources.widgets_never_ran
 import nomnomzbot.composeapp.generated.resources.widgets_last_ran
 import nomnomzbot.composeapp.generated.resources.widgets_runtime_error
@@ -225,6 +237,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     var pendingVersions: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingSettings: WidgetSummary? by remember { mutableStateOf(null) }
     var pendingRollback: PendingRollback? by remember { mutableStateOf(null) }
+    var pendingReset: WidgetSummary? by remember { mutableStateOf(null) }
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
     var showGalleryDialog: Boolean by remember { mutableStateOf(false) }
     var showSubmitDialog: Boolean by remember { mutableStateOf(false) }
@@ -320,7 +333,12 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                     onEditCode = { widget -> scope.launch { controller.editWidgetCode(widget, editorMessages) } },
                     onVersions = { widget -> pendingVersions = widget },
                     onSettings = { widget -> pendingSettings = widget },
-                    onUpdateFromGallery = { widget -> scope.launch { controller.updateFromGallery(widget.id) } },
+                    // An unedited widget takes a catalogue update directly; an edited one would lose its live code,
+                    // so the reset goes through a confirm that states the consequence first.
+                    onCatalogueAction = { widget ->
+                        if (widget.catalogueRowAction() == CatalogueRowAction.Reset) pendingReset = widget
+                        else scope.launch { controller.updateFromGallery(widget.id) }
+                    },
                     onTest = { widget -> controller.testWidget(widget) },
                     onRotateToken = { widget -> pendingRotateWidgetToken = widget },
                 )
@@ -464,6 +482,18 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
         )
     }
 
+    pendingReset?.let { widget ->
+        ResetToSystemDefaultDialog(
+            widget = widget,
+            loadVersions = { controller.listVersions(widget.id) },
+            onConfirm = {
+                pendingReset = null
+                scope.launch { controller.updateFromGallery(widget.id) }
+            },
+            onDismiss = { pendingReset = null },
+        )
+    }
+
     if (showCreateDialog) {
         CreateWidgetDialog(
             loadTemplates = { controller.listTemplates() },
@@ -563,7 +593,7 @@ private fun ReadyContent(
     onEditCode: (WidgetSummary) -> Unit,
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
-    onUpdateFromGallery: (WidgetSummary) -> Unit,
+    onCatalogueAction: (WidgetSummary) -> Unit,
     onTest: suspend (WidgetSummary) -> ApiResult<String>,
     onRotateToken: (WidgetSummary) -> Unit,
 ) {
@@ -583,7 +613,7 @@ private fun ReadyContent(
             onEditCode = onEditCode,
             onVersions = onVersions,
             onSettings = onSettings,
-            onUpdateFromGallery = onUpdateFromGallery,
+            onCatalogueAction = onCatalogueAction,
             onTest = onTest,
             onRotateToken = onRotateToken,
             modifier = Modifier.weight(1f),
@@ -602,7 +632,7 @@ private fun WidgetList(
     onEditCode: (WidgetSummary) -> Unit,
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
-    onUpdateFromGallery: (WidgetSummary) -> Unit,
+    onCatalogueAction: (WidgetSummary) -> Unit,
     onTest: suspend (WidgetSummary) -> ApiResult<String>,
     onRotateToken: (WidgetSummary) -> Unit,
     modifier: Modifier = Modifier,
@@ -628,7 +658,7 @@ private fun WidgetList(
                     onEditCode = { onEditCode(widget) },
                     onVersions = { onVersions(widget) },
                     onSettings = { onSettings(widget) },
-                    onUpdateFromGallery = { onUpdateFromGallery(widget) },
+                    onCatalogueAction = { onCatalogueAction(widget) },
                     onTest = { onTest(widget) },
                     onRotateToken = { onRotateToken(widget) },
                 )
@@ -653,7 +683,7 @@ private fun WidgetRow(
     onEditCode: () -> Unit,
     onVersions: () -> Unit,
     onSettings: () -> Unit,
-    onUpdateFromGallery: () -> Unit,
+    onCatalogueAction: () -> Unit,
     onTest: suspend () -> ApiResult<String>,
     onRotateToken: () -> Unit,
 ) {
@@ -667,7 +697,8 @@ private fun WidgetRow(
 
     // Typed settings exist for first-party widgets (their type has an authored schema the backend serves); the
     // Settings affordance is shown only then. A self-authored custom widget is configured via the code editor.
-    val hasTypedSettings: Boolean = widget.source == "first_party"
+    val hasTypedSettings: Boolean = widget.isSystem
+    val catalogueAction: CatalogueRowAction = widget.catalogueRowAction()
 
     val stateLabel: String =
         stringResource(
@@ -683,7 +714,12 @@ private fun WidgetRow(
     val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widgetDisplayName)
     val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widgetDisplayName)
     val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widgetDisplayName)
-    val updateLabel: String = stringResource(Res.string.widgets_update_action, widgetDisplayName)
+    val catalogueActionLabel: String =
+        stringResource(
+            if (catalogueAction == CatalogueRowAction.Reset) Res.string.widgets_reset_action
+            else Res.string.widgets_update_action,
+            widgetDisplayName,
+        )
     val testLabel: String = stringResource(Res.string.widgets_test_action, widgetDisplayName)
     val rotateTokenLabel: String = stringResource(Res.string.widgets_rotate_widget_token_action, widgetDisplayName)
     // "Last ran" / runtime-error state was fetched but never rendered — a widget silently failing every time it
@@ -737,9 +773,9 @@ private fun WidgetRow(
                         onEditCode = onEditCode,
                         testLabel = testLabel,
                         onTest = runTest,
-                        galleryUpdateAvailable = widget.galleryUpdateAvailable,
-                        updateLabel = updateLabel,
-                        onUpdateFromGallery = onUpdateFromGallery,
+                        catalogueAction = catalogueAction,
+                        catalogueActionLabel = catalogueActionLabel,
+                        onCatalogueAction = onCatalogueAction,
                         versionsLabel = versionsLabel,
                         onVersions = onVersions,
                         renameLabel = renameLabel,
@@ -779,9 +815,9 @@ private fun WidgetRow(
                     onEditCode = onEditCode,
                     testLabel = testLabel,
                     onTest = runTest,
-                    galleryUpdateAvailable = widget.galleryUpdateAvailable,
-                    updateLabel = updateLabel,
-                    onUpdateFromGallery = onUpdateFromGallery,
+                    catalogueAction = catalogueAction,
+                    catalogueActionLabel = catalogueActionLabel,
+                    onCatalogueAction = onCatalogueAction,
                     versionsLabel = versionsLabel,
                     onVersions = onVersions,
                     renameLabel = renameLabel,
@@ -869,11 +905,24 @@ private fun WidgetRowInfo(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val systemBadge: String = stringResource(Res.string.widgets_system_badge)
+    val editedBadge: String = stringResource(Res.string.widgets_edited_badge)
+    val updateBadge: String = stringResource(Res.string.widgets_update_badge)
+    val provenanceBadges: List<Pair<String, BadgeVariant>> =
+        buildList {
+            if (widget.isSystem) add(systemBadge to BadgeVariant.Outline)
+            if (widget.isCustomized) add(editedBadge to BadgeVariant.Secondary)
+            if (widget.galleryUpdateAvailable) add(updateBadge to BadgeVariant.Secondary)
+        }
+    val badgeSpeech: String = provenanceBadges.joinToString(separator = "") { (label: String, _) -> " $label." }
+
     Column(
         modifier =
             modifier
-                // One node for the text block: "Alerts, vanilla, enabled.".
-                .clearAndSetSemantics { contentDescription = "$widgetDisplayName, ${widget.framework}, $stateLabel." },
+                // One node for the text block: "Alerts, vue, enabled. System. Edited.".
+                .clearAndSetSemantics {
+                    contentDescription = "$widgetDisplayName, ${widget.framework}, $stateLabel.$badgeSpeech"
+                },
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
         Text(
@@ -914,9 +963,16 @@ private fun WidgetRowInfo(
         } else {
             Text(text = lastRanText, style = typography.xs, color = tokens.mutedForeground)
         }
-        if (widget.galleryUpdateAvailable) {
-            Badge(variant = BadgeVariant.Secondary) {
-                Text(stringResource(Res.string.widgets_update_badge), style = typography.xs)
+        // Provenance + state markers. None of them is the row's task, so none takes the accent: "System" is an
+        // outline (who shipped it), "Edited" / "Update available" are secondary (what changed).
+        if (provenanceBadges.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                provenanceBadges.forEach { (label: String, variant: BadgeVariant) ->
+                    Badge(variant = variant) { Text(label, style = typography.xs) }
+                }
             }
         }
         when (val result: ApiResult<String>? = testResult) {
@@ -954,9 +1010,9 @@ private fun WidgetRowActions(
     onEditCode: () -> Unit,
     testLabel: String,
     onTest: () -> Unit,
-    galleryUpdateAvailable: Boolean,
-    updateLabel: String,
-    onUpdateFromGallery: () -> Unit,
+    catalogueAction: CatalogueRowAction,
+    catalogueActionLabel: String,
+    onCatalogueAction: () -> Unit,
     versionsLabel: String,
     onVersions: () -> Unit,
     renameLabel: String,
@@ -1018,18 +1074,24 @@ private fun WidgetRowActions(
             )
         }
     }
-    // Only ever shown once the gallery item's source has actually moved on (never a proactive prompt);
-    // the platform never rebuilds this widget on its own, so this is the one control that does.
-    if (galleryUpdateAvailable) {
+    // Update: only once the catalogue source has actually moved on and the widget is unedited (never a proactive
+    // prompt) — the platform never rebuilds it on its own. Reset: only once the channel edited the code; the
+    // screen routes it through a confirm first. Maintenance weight (neutral text), like the token rotate — it
+    // never competes with Edit code / Test.
+    if (catalogueAction != CatalogueRowAction.None) {
         ManageGate(decision = manage) { enabled ->
             TextButton(
-                onClick = onUpdateFromGallery,
+                onClick = onCatalogueAction,
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = updateLabel },
+                modifier = Modifier.semantics { contentDescription = catalogueActionLabel },
             ) {
                 Text(
-                    text = stringResource(Res.string.widgets_update_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    text =
+                        stringResource(
+                            if (catalogueAction == CatalogueRowAction.Reset) Res.string.widgets_reset_action_short
+                            else Res.string.widgets_update_action_short
+                        ),
+                    color = tokens.mutedForeground,
                     maxLines = 1,
                 )
             }
@@ -1402,6 +1464,45 @@ private fun RenameWidgetDialog(
 // Dialog listing a widget's version history (newest first) with a per-version roll-back control. Fetches its own
 // list on open (loading / error / empty / list); rollback is gated at the page's Editor manage floor and hidden
 // on the currently-active version (there is nothing to roll back to).
+// "Reset to system default" for an edited catalogue widget. The consequence is stated before the confirm: the live
+// code switches to the NomNomzBot version, the streamer's edit stays in Versions under its real version number
+// (read from the backend, never guessed), and settings are kept. The confirm waits for that read; if the read
+// fails the message drops the number rather than blocking the reset.
+@Composable
+internal fun ResetToSystemDefaultDialog(
+    widget: WidgetSummary,
+    loadVersions: suspend () -> ApiResult<List<WidgetVersionSummary>>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var versions: ApiResult<List<WidgetVersionSummary>>? by remember(widget.id) { mutableStateOf(null) }
+    LaunchedEffect(widget.id) { versions = loadVersions() }
+
+    // The newest version that built — the edit the overlay serves now (a failed earlier reset attempt is an
+    // `error` version and never the live one).
+    val editedVersion: Int? =
+        (versions as? ApiResult.Ok)
+            ?.value
+            ?.filter { version: WidgetVersionSummary -> version.buildStatus == "success" }
+            ?.maxOfOrNull { version: WidgetVersionSummary -> version.versionNumber }
+    val message: String =
+        if (editedVersion != null) {
+            stringResource(Res.string.widgets_reset_message, widget.name, editedVersion.toString())
+        } else {
+            stringResource(Res.string.widgets_reset_message_unnumbered, widget.name)
+        }
+
+    ConfirmDialog(
+        title = stringResource(Res.string.widgets_reset_title, widget.name),
+        message = message,
+        confirmLabel = stringResource(Res.string.widgets_reset_confirm),
+        dismissLabel = stringResource(Res.string.widgets_reset_dismiss),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        confirmEnabled = versions != null,
+    )
+}
+
 @Composable
 private fun WidgetVersionsDialog(
     widget: WidgetSummary,

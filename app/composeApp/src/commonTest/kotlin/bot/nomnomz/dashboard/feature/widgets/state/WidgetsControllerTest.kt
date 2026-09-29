@@ -331,6 +331,51 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun a_system_widget_opens_in_the_same_editor_saves_as_an_edit_and_resets_to_the_system_default() = runTest {
+        val alerts =
+            WidgetSummary(
+                id = "alerts",
+                name = "Alerts",
+                framework = "vue",
+                source = "first_party",
+                galleryItemId = "gallery-alerts",
+                activeVersionId = "v-1",
+            )
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(listOf(alerts)),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.vue" to "<template>catalogue</template>"),
+                            manifest = ProjectManifestDto(entry = "index.vue", kind = "widget", framework = "vue"),
+                        )
+                    ),
+                putProjectResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
+            )
+        val editor = FakeProjectEditor(toSave = listOf("<template>mine</template>"))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi, editor)
+        controller.load()
+
+        controller.editWidgetCode(alerts, messages)
+
+        // The system widget opened on its catalogue source and the save PUT the channel's own code.
+        assertEquals("<template>catalogue</template>", editor.openedEntryContent)
+        assertEquals(listOf("alerts" to mapOf("index.vue" to "<template>mine</template>")), widgetsApi.savedProjects)
+        val edited: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
+        assertTrue(edited.isCustomized)
+        assertEquals(CatalogueRowAction.Reset, edited.catalogueRowAction())
+
+        controller.updateFromGallery("alerts")
+
+        assertEquals(listOf("alerts"), widgetsApi.updatedFromGalleryIds)
+        val reset: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
+        assertEquals(false, reset.isCustomized)
+        assertEquals(CatalogueRowAction.None, reset.catalogueRowAction())
+    }
+
+    @Test
     fun edit_widget_code_feeds_the_editor_the_real_reflected_sdk_surface() = runTest {
         // A distinctive symbol that only appears in the server-generated `nnz.d.ts` (reflected from the real
         // SdkRuntimeSurface, never a hand-written approximation) -- proves the fetched declarations reach the
@@ -850,6 +895,11 @@ private class RecordingWidgetsApi(
         project: ProjectDto,
     ): ApiResult<WidgetVersionDetail> {
         savedProjects += widgetId to project.files
+        // Like the backend: a clean save over a catalogue widget's source is a channel edit.
+        val index: Int = store.indexOfFirst { it.id == widgetId }
+        if (putProjectResult is ApiResult.Ok && index >= 0 && store[index].galleryItemId != null) {
+            store[index] = store[index].copy(isCustomized = true)
+        }
         return putProjectResult
     }
 
@@ -927,8 +977,9 @@ private class RecordingWidgetsApi(
         )
     }
 
-    // Records which widget was updated and flips its store row's galleryUpdateAvailable off — the real
-    // consequence the controller's post-write reload must observe, not merely that the call happened.
+    // Records which widget was updated and flips its store row's galleryUpdateAvailable (and, like the backend's
+    // reset, isCustomized) off — the real consequence the controller's post-write reload must observe, not merely
+    // that the call happened.
     val updatedFromGalleryIds: MutableList<String> = mutableListOf()
 
     override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> {
@@ -936,7 +987,7 @@ private class RecordingWidgetsApi(
         if (writeResult is ApiResult.Failure) return writeResult
         val index: Int = store.indexOfFirst { it.id == widgetId }
         if (index < 0) return ApiResult.Failure(ApiError(status = 404, code = "NOT_FOUND", message = "not found"))
-        val updated: WidgetSummary = store[index].copy(galleryUpdateAvailable = false)
+        val updated: WidgetSummary = store[index].copy(galleryUpdateAvailable = false, isCustomized = false)
         store[index] = updated
         return ApiResult.Ok(updated)
     }

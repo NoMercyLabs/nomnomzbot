@@ -11072,6 +11072,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("CatalogueVersionNumber")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ConfigSchemaVersion")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")

@@ -281,8 +281,10 @@ public interface IWidgetService
     /// <summary>
     /// Pull the linked gallery item's current source into this widget as a new compiled version — the explicit,
     /// streamer-initiated action behind <see cref="WidgetDetail.GalleryUpdateAvailable"/> (the platform never
-    /// rebuilds an installed widget on its own). Fails <c>NOT_FOUND</c> if the widget has no <c>GalleryItemId</c>,
-    /// and <c>WIDGET_NO_SOURCE</c> if the gallery item currently carries no source.
+    /// rebuilds an installed widget on its own), and the "Reset to system default" action behind
+    /// <see cref="WidgetDetail.IsCustomized"/>: the channel's edited versions stay in the history, and the new
+    /// version becomes the catalogue baseline again. Fails <c>WIDGET_NOT_GALLERY_LINKED</c> if the widget has no
+    /// <c>GalleryItemId</c>, and <c>WIDGET_NO_SOURCE</c> if the gallery item currently carries no source.
     /// </summary>
     Task<Result<WidgetDetail>> UpdateFromGalleryAsync(
         string broadcasterId,

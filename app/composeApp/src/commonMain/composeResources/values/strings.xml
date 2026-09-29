@@ -1688,6 +1688,15 @@
     <string name="widgets_overlay_not_connected">Not connected</string>
     <string name="widgets_update_action">Update overlay %1$s from the gallery</string>
     <string name="widgets_update_action_short">Update</string>
+    <string name="widgets_system_badge">System</string>
+    <string name="widgets_edited_badge">Edited</string>
+    <string name="widgets_reset_action">Reset overlay %1$s to the system default</string>
+    <string name="widgets_reset_action_short">Reset to default</string>
+    <string name="widgets_reset_title">Reset %1$s to the system default?</string>
+    <string name="widgets_reset_message">The overlay switches to the NomNomzBot version of %1$s right away, and open browser sources reload. Your edited code stays in Versions as version %2$s, so you can roll back to it. Your settings stay as they are.</string>
+    <string name="widgets_reset_message_unnumbered">The overlay switches to the NomNomzBot version of %1$s right away, and open browser sources reload. Your edited code stays in Versions, so you can roll back to it. Your settings stay as they are.</string>
+    <string name="widgets_reset_confirm">Reset to default</string>
+    <string name="widgets_reset_dismiss">Keep my edit</string>
     <string name="widgets_settings_action">Settings for overlay %1$s</string>
     <string name="widgets_settings_action_short">Settings</string>
     <string name="widgets_settings_title">%1$s settings</string>
