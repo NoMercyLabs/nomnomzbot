@@ -263,6 +263,14 @@ public sealed class PlatformAdminService(
             );
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
+        List<Guid> superseded = await SupersedeOpenSupportSessionsAsync(
+            principalId,
+            broadcasterId,
+            supportRole.Id,
+            now,
+            ct
+        );
+
         DateTime expiresAt = request.ExpiresAt ?? now.Add(DefaultTenantAccessDuration);
         IamRoleAssignment assignment = new()
         {
@@ -275,6 +283,10 @@ public sealed class PlatformAdminService(
         };
         db.IamRoleAssignments.Add(assignment);
         await db.SaveChangesAsync(ct);
+
+        // A token minted on a superseded session carries its id as `sid`; revoking it ends that token too.
+        foreach (Guid sessionId in superseded)
+            await sessionRevocation.RevokeAsync(sessionId, ct);
 
         await eventBus.PublishAsync(
             new TenantAccessGrantedEvent
@@ -301,6 +313,34 @@ public sealed class PlatformAdminService(
                 RevokedAt: null
             )
         );
+    }
+
+    /// <summary>
+    /// Ends the operator's own still-open support sessions on <paramref name="broadcasterId"/> (stamped, saved by
+    /// the caller) and returns their ids. One operator holds at most one open support session per tenant: a
+    /// session left open by an act-as that never reached Exit is closed by the next begin instead of stacking.
+    /// </summary>
+    private async Task<List<Guid>> SupersedeOpenSupportSessionsAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        Guid supportRoleId,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        List<IamRoleAssignment> open = await db
+            .IamRoleAssignments.Where(a =>
+                a.PrincipalId == principalId
+                && a.RoleId == supportRoleId
+                && a.ScopeChannelId == broadcasterId
+                && a.RevokedAt == null
+                && (a.ExpiresAt == null || a.ExpiresAt > now)
+            )
+            .ToListAsync(ct);
+
+        foreach (IamRoleAssignment session in open)
+            session.RevokedAt = now;
+        return open.Select(a => a.Id).ToList();
     }
 
     public async Task<Result> EndTenantAccessAsync(
@@ -387,7 +427,7 @@ public sealed class PlatformAdminService(
         // The support session names ONE tenant; it authorizes acting as that tenant's people only. Without this
         // a grant opened for tenant A would let the operator act as anyone, while the audit trail names A.
         if (
-            grant.ScopeChannelId is not Guid scopeChannelId
+            grant.ScopeChannelId is not { } scopeChannelId
             || !await memberDirectory.IsMemberAsync(scopeChannelId, targetUserId, ct)
         )
             return Result.Failure<ImpersonationTokenDto>(

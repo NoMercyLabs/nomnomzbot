@@ -502,6 +502,85 @@ public sealed class PlatformAdminServiceTests
             .Be(operatorUserId.ToString());
     }
 
+    /// <summary>
+    /// Every act-as attempt begins a support session. A session left open by an attempt that never reached Exit
+    /// (a reload drops act-as from memory) must not stack beside the new one: beginning access to a tenant ends
+    /// the operator's own still-open support session on that SAME tenant and revokes its <c>sid</c>, so an
+    /// orphaned act-as token dies with it. Other tenants, other operators and non-support assignments stay open.
+    /// </summary>
+    [Fact]
+    public async Task BeginTenantAccess_supersedes_the_operators_still_open_support_session_on_the_same_tenant()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation, _) =
+            Build();
+        Guid principal = SeedPrincipal(db, "tenant:access");
+        Guid otherOperator = SeedPrincipal(db, "tenant:access");
+        Guid tenant = SeedTenant(db);
+        Guid otherTenant = SeedTenant(db, "other_channel");
+        Guid supportRoleId = Guid.NewGuid();
+        db.IamRoles.Add(new() { Id = supportRoleId, Name = "platform-support" });
+        Guid staffRoleId = Guid.NewGuid();
+        db.IamRoles.Add(new() { Id = staffRoleId, Name = "tenant-staff" });
+        Guid staffAssignment = db
+            .IamRoleAssignments.Add(
+                new()
+                {
+                    PrincipalId = principal,
+                    RoleId = staffRoleId,
+                    ScopeChannelId = tenant,
+                    AssignedByPrincipalId = principal,
+                    Reason = "standing tenant staffing",
+                }
+            )
+            .Entity.Id;
+        await db.SaveChangesAsync();
+
+        Guid orphaned = (
+            await sut.BeginTenantAccessAsync(principal, tenant, new("first attempt", false, null))
+        )
+            .Value
+            .Id;
+        Guid onOtherTenant = (
+            await sut.BeginTenantAccessAsync(principal, otherTenant, new("elsewhere", false, null))
+        )
+            .Value
+            .Id;
+        Guid otherOperatorsSession = (
+            await sut.BeginTenantAccessAsync(otherOperator, tenant, new("colleague", false, null))
+        )
+            .Value
+            .Id;
+
+        Result<TenantAccessGrantDto> retried = await sut.BeginTenantAccessAsync(
+            principal,
+            tenant,
+            new("second attempt", false, null)
+        );
+
+        retried.IsSuccess.Should().BeTrue(retried.ErrorMessage);
+        retried.Value.Id.Should().NotBe(orphaned);
+
+        List<IamRoleAssignment> rows = await db.IamRoleAssignments.ToListAsync();
+        rows.Single(a => a.Id == orphaned).RevokedAt.Should().Be(Now.UtcDateTime);
+        rows.Single(a => a.Id == retried.Value.Id).RevokedAt.Should().BeNull();
+        rows.Single(a => a.Id == retried.Value.Id).Reason.Should().Be("second attempt");
+        rows.Single(a => a.Id == onOtherTenant).RevokedAt.Should().BeNull();
+        rows.Single(a => a.Id == otherOperatorsSession).RevokedAt.Should().BeNull();
+        rows.Single(a => a.Id == staffAssignment).RevokedAt.Should().BeNull();
+        rows.Where(a =>
+                a.PrincipalId == principal
+                && a.RoleId == supportRoleId
+                && a.ScopeChannelId == tenant
+                && a.RevokedAt == null
+            )
+            .Should()
+            .ContainSingle();
+
+        // The orphaned session's sid is revoked, so a token minted on it stops authenticating; no other is.
+        await revocation.Received(1).RevokeAsync(orphaned, Arg.Any<CancellationToken>());
+        await revocation.Received(1).RevokeAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task BeginTenantAccess_requires_a_justification()
     {
