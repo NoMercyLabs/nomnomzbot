@@ -15786,6 +15786,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/builtins/replies": {
+      "get": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "The channel's built-in reply catalogue (commands-pipelines.md §11): every reply slot of every built-in,\nwhat it says for this channel right now, which layer that text comes from (channel / platform / tone),\nthe default it falls back to, and the variables it can use.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/builtins/{builtinKey}": {
       "patch": {
         "tags": [
@@ -15912,12 +16010,12 @@
         }
       }
     },
-    "/api/v{version}/channels/{channelId}/builtins/{builtinKey}/response": {
+    "/api/v{version}/channels/{channelId}/builtins/{builtinKey}/replies/{slot}": {
       "put": {
         "tags": [
           "Commands"
         ],
-        "summary": "Sets (or clears, when `template` is blank/omitted) a built-in's per-channel response-template\noverride — the S-OWN09 write path for the precedence ladder IBuiltinResponseComposer\nalready reads: this override wins over the personality tone template, which wins over the built-in's\nneutral fallback.",
+        "summary": "Sets the channel's own text for exactly one reply slot. A blank template resets the slot. An unknown\nvariable, a locked data-rights reply, or text over 500 characters is rejected (400).",
         "parameters": [
           {
             "name": "channelId",
@@ -15929,6 +16027,14 @@
           },
           {
             "name": "builtinKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slot",
             "in": "path",
             "required": true,
             "schema": {
@@ -15948,17 +16054,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetBuiltinResponseOverrideRequest"
+                "$ref": "#/components/schemas/SetBuiltinReplyRequest"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetBuiltinResponseOverrideRequest"
+                "$ref": "#/components/schemas/SetBuiltinReplyRequest"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/SetBuiltinResponseOverrideRequest"
+                "$ref": "#/components/schemas/SetBuiltinReplyRequest"
               }
             }
           },
@@ -16030,7 +16136,119 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBuiltinReplyDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "Resets one reply slot to its default; returns the slot as it now resolves.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "builtinKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slot",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBuiltinReplyDto"
                 }
               }
             }
@@ -93639,7 +93857,7 @@
           "isEnabled",
           "defaultCooldownSeconds",
           "defaultMinPermissionLevel",
-          "responseOverride",
+          "replyGroup",
           "speakWithTts"
         ],
         "type": "object",
@@ -93664,11 +93882,8 @@
           "defaultMinPermissionLevel": {
             "type": "string"
           },
-          "responseOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "replyGroup": {
+            "type": "string"
           },
           "speakWithTts": {
             "type": "boolean"
@@ -93696,7 +93911,6 @@
           "slot",
           "shippedTemplate",
           "platformTemplate",
-          "takesChannelOverride",
           "channelsWithOwnReply"
         ],
         "type": "object",
@@ -93718,9 +93932,6 @@
               "null",
               "string"
             ]
-          },
-          "takesChannelOverride": {
-            "type": "boolean"
           },
           "channelsWithOwnReply": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -110913,20 +111124,6 @@
           }
         },
         "description": "Saves a reply text. ConfirmedChannelsAffected must equal the preview's live count."
-      },
-      "SetBuiltinResponseOverrideRequest": {
-        "required": [
-          "template"
-        ],
-        "type": "object",
-        "properties": {
-          "template": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
       },
       "SetBuiltinSpeakWithTtsRequest": {
         "required": [
@@ -131365,6 +131562,195 @@
           }
         },
         "description": "A row in a widget's version history (rollback / debug list)."
+      },
+      "SetBuiltinReplyRequest": {
+        "required": [
+          "template"
+        ],
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BuiltinReplyGroupDto": {
+        "required": [
+          "builtinKey",
+          "commandKeys",
+          "replies"
+        ],
+        "type": "object",
+        "properties": {
+          "builtinKey": {
+            "type": "string"
+          },
+          "commandKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuiltinReplyDto"
+            }
+          }
+        }
+      },
+      "BuiltinReplyDto": {
+        "required": [
+          "builtinKey",
+          "slot",
+          "label",
+          "description",
+          "effectiveTemplate",
+          "source",
+          "defaultTemplate",
+          "toneVariations",
+          "variables",
+          "isOverridden",
+          "isLocked"
+        ],
+        "type": "object",
+        "properties": {
+          "builtinKey": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string"
+          },
+          "label": {
+            "$ref": "#/components/schemas/LocalizedText"
+          },
+          "description": {
+            "$ref": "#/components/schemas/LocalizedText"
+          },
+          "effectiveTemplate": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "defaultTemplate": {
+            "type": "string"
+          },
+          "toneVariations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuiltinReplyVariableDto"
+            }
+          },
+          "isOverridden": {
+            "type": "boolean"
+          },
+          "isLocked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BuiltinReplyVariableDto": {
+        "required": [
+          "name",
+          "description",
+          "sampleValue"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "$ref": "#/components/schemas/LocalizedText"
+          },
+          "sampleValue": {
+            "type": "string"
+          }
+        },
+        "description": "A variable a reply slot seeds, with the example value the dashboard preview fills in."
+      },
+      "StatusResponseDtoOfBuiltinReplyDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltinReplyDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BuiltinReplyGroupDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
       }
     }
   },
