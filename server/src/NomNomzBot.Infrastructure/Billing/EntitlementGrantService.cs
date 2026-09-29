@@ -162,9 +162,14 @@ public sealed class EntitlementGrantService(
             : new Dictionary<string, long>();
         string currentTierKey = currentResult.IsSuccess ? currentResult.Value.TierKey : "";
 
-        Dictionary<string, long> targetLimits = await db
-            .TierLimits.Where(l => l.TierId == targetTier.Id && l.DeletedAt == null)
-            .ToDictionaryAsync(l => l.LimitKey, l => l.LimitValue, ct);
+        // The current limits already carry the channel's live overrides; they keep winning after the grant, so the
+        // target side carries them too, and an overridden key is never reported as a change the grant makes.
+        Dictionary<string, long> targetLimits = LiveLimitOverrides.Overlay(
+            await db
+                .TierLimits.Where(l => l.TierId == targetTier.Id && l.DeletedAt == null)
+                .ToDictionaryAsync(l => l.LimitKey, l => l.LimitValue, ct),
+            await LiveLimitOverrides.LoadAsync(db, broadcasterId, clock.GetUtcNow().UtcDateTime, ct)
+        );
 
         HashSet<string> allKeys = [.. currentLimits.Keys, .. targetLimits.Keys];
         List<string> changedKeys =

@@ -21,8 +21,8 @@ namespace NomNomzBot.Infrastructure.Billing;
 /// <summary>
 /// Tier catalogue + entitlement resolution (monetization-billing.md §3.2). Self-host (Channel.DeploymentMode =
 /// <c>self_host_*</c>) resolves every limit to unlimited; a SaaS channel resolves through its active subscription
-/// (or the <c>base</c> entry tier when none is active — grandfathered, additions only). An unseeded limit key is
-/// treated as unlimited.
+/// (or the <c>base</c> entry tier when none is active — grandfathered, additions only). A live per-tenant
+/// override replaces the resolved limit for its key. An unseeded limit key is treated as unlimited.
 /// </summary>
 public sealed class BillingTierService(IApplicationDbContext db, TimeProvider clock)
     : IBillingTierService
@@ -71,6 +71,15 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
         CancellationToken ct = default
     )
     {
+        // An operator's per-tenant override wins over the tier's limit for its key, so every reader of these
+        // limits (TTS cap, sandbox and TTS metering, the channel's own usage page) enforces the same number.
+        Dictionary<string, long> overrides = await LiveLimitOverrides.LoadAsync(
+            db,
+            broadcasterId,
+            clock.GetUtcNow().UtcDateTime,
+            ct
+        );
+
         if (await IsSelfHostAsync(broadcasterId, ct))
         {
             List<string> keys = await db
@@ -82,7 +91,7 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
                     SelfHostTierKey,
                     AllowsCustomBotName: true,
                     PrioritySupport: false,
-                    keys.ToDictionary(k => k, _ => -1L)
+                    LiveLimitOverrides.Overlay(keys.ToDictionary(k => k, _ => -1L), overrides)
                 )
             );
         }
@@ -95,7 +104,12 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
             .TierLimits.Where(l => l.TierId == tier.Id && l.DeletedAt == null)
             .ToDictionaryAsync(l => l.LimitKey, l => l.LimitValue, ct);
         return Result.Success(
-            new EntitlementDto(tier.Key, tier.AllowsCustomBotName, tier.PrioritySupport, limits)
+            new EntitlementDto(
+                tier.Key,
+                tier.AllowsCustomBotName,
+                tier.PrioritySupport,
+                LiveLimitOverrides.Overlay(limits, overrides)
+            )
         );
     }
 
