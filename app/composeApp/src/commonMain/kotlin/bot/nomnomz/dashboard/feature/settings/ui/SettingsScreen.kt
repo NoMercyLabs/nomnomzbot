@@ -167,6 +167,7 @@ import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect_message
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_disconnect_title
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_not_connected
+import nomnomzbot.composeapp.generated.resources.settings_channel_bot_plan_excludes
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_empty
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_granted
 import nomnomzbot.composeapp.generated.resources.settings_channel_bot_scopes_title
@@ -1464,6 +1465,14 @@ private fun ChannelBotSection(controller: ChannelBotController, manage: ManageDe
                                 Text(stringResource(Res.string.settings_channel_bot_disconnect), maxLines = 1)
                             }
                         }
+                    } else if (!current.ownBotAllowed) {
+                        // The plan decides this, and the server refuses it: explain rather than offer a Connect
+                        // that can only fail.
+                        Text(
+                            text = stringResource(Res.string.settings_channel_bot_plan_excludes),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
                     } else {
                         ManageGate(decision = manage) { enabled: Boolean ->
                             Button(

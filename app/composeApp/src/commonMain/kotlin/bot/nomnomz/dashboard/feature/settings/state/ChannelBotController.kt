@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.settings.state
 
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BillingEntitlement
 import bot.nomnomz.dashboard.core.network.ChannelBotStatusDetail
 import bot.nomnomz.dashboard.core.network.ChannelScope
 import bot.nomnomz.dashboard.core.network.ChannelScopesResponse
@@ -24,8 +25,12 @@ import kotlinx.coroutines.flow.asStateFlow
 // State-holder for the channel's white-label bot card in Settings. The channel bot is an OPTIONAL
 // dedicated Twitch account whose messages appear from a channel-specific identity instead of the
 // shared platform bot. Connecting it opens a Twitch OAuth flow; disconnecting revokes the stored
-// token without affecting the channel record or the fallback platform bot.
-class ChannelBotController(private val channelsApi: ChannelsApi) {
+// token without affecting the channel record or the fallback platform bot. Whether the channel may
+// connect one at all is a plan feature ([entitlement]'s allowsCustomBotName), enforced by the server.
+class ChannelBotController(
+    private val channelsApi: ChannelsApi,
+    private val entitlement: suspend (channelId: String) -> ApiResult<BillingEntitlement>,
+) {
     private val _state: MutableStateFlow<ChannelBotState> = MutableStateFlow(ChannelBotState.Loading)
 
     /** The card's render state. */
@@ -65,11 +70,20 @@ class ChannelBotController(private val channelsApi: ChannelsApi) {
                 is ApiResult.Ok -> result.value.permissions
             }
 
+        // An unreadable plan leaves Connect offered: the server refuses a channel that is not entitled, so the
+        // card never hides a bot the channel may in fact connect.
+        val ownBotAllowed: Boolean =
+            when (val result: ApiResult<BillingEntitlement> = entitlement(channel.id)) {
+                is ApiResult.Failure -> true
+                is ApiResult.Ok -> result.value.allowsCustomBotName
+            }
+
         _state.value =
             ChannelBotState.Ready(
                 connected = botStatus.connected,
                 login = botStatus.displayName ?: botStatus.login,
                 scopes = scopes,
+                ownBotAllowed = ownBotAllowed,
             )
     }
 
@@ -117,6 +131,8 @@ sealed interface ChannelBotState {
         val connected: Boolean,
         val login: String?,
         val scopes: List<ChannelScope> = emptyList(),
+        /** False when the channel's plan does not include its own bot; the card explains instead of offering Connect. */
+        val ownBotAllowed: Boolean = true,
         val busy: Boolean = false,
         val actionError: String? = null,
     ) : ChannelBotState

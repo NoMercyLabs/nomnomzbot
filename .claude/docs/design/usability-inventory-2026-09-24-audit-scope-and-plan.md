@@ -527,8 +527,7 @@ A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:
     platform spam-defense save was tenant-stamped onto the admin's own channel (saved outside the ambient
     tenant now; the channel page shows the defaults it tracks); a removed tier limit was re-inserted by
     the seeder beside its soft-deleted row on the next boot and re-adding it collided (restore in place
-    now). Owed, ranked: `AllowsCustomBotName`/`PrioritySupport` on a tier are display-only (no gate on
-    white-label bot connect); a network block bans only the tenants found at apply, later channels and
+    now). Owed, ranked: `PrioritySupport` on a tier is display-only; a network block bans only the tenants found at apply, later channels and
     chat ingest never check it; spam-defense fields nothing reads (Lockdown*, FollowSpike/JoinBurst,
     SemiTrustedWatchHours*, NonLatinScriptGate, NetworkSubscribe/Contribute) and the 7-day
     `EnforcementEligibleAt` window is never enforced; tier-change preview counts Subscriptions only
