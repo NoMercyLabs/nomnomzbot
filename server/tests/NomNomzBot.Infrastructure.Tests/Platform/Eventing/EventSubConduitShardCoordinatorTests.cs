@@ -126,6 +126,25 @@ public sealed class EventSubConduitShardCoordinatorTests : IDisposable
     }
 
     [Fact]
+    public async Task A_fresh_conduit_whose_shards_Twitch_does_not_list_yet_is_still_claimed()
+    {
+        // Production 2026-09-29: a brand-new conduit listed no usable shard, every claim failed with
+        // "every shard is enabled on another session", and Twitch closed each idle shard socket (4003).
+        _twitch.ListsOnlyBoundShards = true;
+        EventSubConduitShardCoordinator blue = NewInstance();
+        EventSubConduitShardCoordinator green = NewInstance();
+
+        Result<string> blueShard = await blue.ClaimShardAsync("session-blue");
+        Result<string> greenShard = await green.ClaimShardAsync("session-green");
+
+        blueShard.IsSuccess.Should().BeTrue();
+        greenShard.IsSuccess.Should().BeTrue();
+        blueShard.Value.Should().NotBe(greenShard.Value);
+        _twitch.Shard(blue.ConduitId!, blueShard.Value).Should().Be(("enabled", "session-blue"));
+        _twitch.Shard(blue.ConduitId!, greenShard.Value).Should().Be(("enabled", "session-green"));
+    }
+
+    [Fact]
     public async Task Two_instances_each_bind_a_different_shard_to_their_own_session()
     {
         EventSubConduitShardCoordinator blue = NewInstance();

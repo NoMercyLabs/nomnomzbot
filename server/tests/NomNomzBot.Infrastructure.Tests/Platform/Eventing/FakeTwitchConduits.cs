@@ -31,6 +31,12 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
 
     public List<string> Calls { get; } = [];
 
+    /// <summary>
+    /// When set, Get Conduit Shards lists only shards that have been bound to a session, the way a fresh
+    /// conduit can come back from Twitch with shards that were never assigned missing from the listing.
+    /// </summary>
+    public bool ListsOnlyBoundShards { get; set; }
+
     /// <summary>When set, every call fails with this code (models a self-host without an app secret).</summary>
     public string? FailWith { get; set; }
 
@@ -170,6 +176,7 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
             return Task.FromResult(
                 Result.Success<IReadOnlyList<TwitchConduitShard>>([
                     .. _conduits[conduitId]
+                        .Where(s => !ListsOnlyBoundShards || s.SessionId is not null)
                         .Where(s => status is null || s.Status == status)
                         .Select(s => new TwitchConduitShard(
                             s.Id,

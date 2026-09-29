@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -251,36 +252,23 @@ public sealed class EventSubConduitShardCoordinator(
         if (shards.IsFailure)
             return shards.WithValue<string>(default!);
 
-        // A session_reconnect keeps the shard on the session it replaces; re-binding the same shard to the new
-        // session id is idempotent, so the shard this process already holds is always tried first.
-        IEnumerable<TwitchConduitShard> candidates = shards
-            .Value.Where(s => !s.IsEnabled || s.Id == _claimedShardId)
-            .OrderByDescending(s => s.Id == _claimedShardId)
-            .ThenBy(s => s.Id, StringComparer.Ordinal);
-
-        foreach (TwitchConduitShard candidate in candidates)
+        foreach (string candidate in FreeShardIds(shards.Value))
         {
-            Result<bool> bound = await TryBindAsync(
-                api,
-                conduit.Value,
-                candidate.Id,
-                sessionId,
-                ct
-            );
+            Result<bool> bound = await TryBindAsync(api, conduit.Value, candidate, sessionId, ct);
             if (bound.IsFailure)
                 return bound.WithValue<string>(default!);
             if (!bound.Value)
                 continue;
 
-            _claimedShardId = candidate.Id;
-            await PersistClaimAsync(scope.ServiceProvider, candidate.Id, sessionId, ct);
+            _claimedShardId = candidate;
+            await PersistClaimAsync(scope.ServiceProvider, candidate, sessionId, ct);
             logger.LogInformation(
                 "EventSub: shard {ShardId} of conduit {ConduitId} bound to session {SessionId}",
-                candidate.Id,
+                candidate,
                 conduit.Value,
                 sessionId
             );
-            return Result.Success(candidate.Id);
+            return Result.Success(candidate);
         }
 
         return Result.Failure<string>(
@@ -290,10 +278,31 @@ public sealed class EventSubConduitShardCoordinator(
     }
 
     /// <summary>
+    /// The shards this process may bind, the one it already holds first (a session_reconnect keeps the shard on
+    /// the session it replaces, and re-binding it to the new session id is idempotent). Every id the conduit was
+    /// created with counts — not only the ones Twitch lists — because a shard that was never bound need not
+    /// appear in the listing at all, and treating an unlisted shard as taken leaves a fresh conduit unclaimable.
+    /// </summary>
+    private IEnumerable<string> FreeShardIds(IReadOnlyList<TwitchConduitShard> listed)
+    {
+        HashSet<string> taken =
+        [
+            .. listed.Where(s => s.IsEnabled && s.Id != _claimedShardId).Select(s => s.Id),
+        ];
+        return Enumerable
+            .Range(0, IEventSubConduitShardCoordinator.ShardCount)
+            .Select(i => i.ToString(CultureInfo.InvariantCulture))
+            .Union(listed.Select(s => s.Id))
+            .Where(id => !taken.Contains(id))
+            .OrderByDescending(id => id == _claimedShardId)
+            .ThenBy(id => id, StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// PATCHes one shard onto the session, then re-reads it: two instances binding the same free shard at the
     /// same moment both get a clean PATCH, and only the re-read tells which one Twitch kept.
     /// </summary>
-    private static async Task<Result<bool>> TryBindAsync(
+    private async Task<Result<bool>> TryBindAsync(
         ITwitchEventSubConduitsApi api,
         string conduitId,
         string shardId,
@@ -308,8 +317,21 @@ public sealed class EventSubConduitShardCoordinator(
         );
         if (updated.IsFailure)
             return updated.WithValue<bool>(default);
-        if (updated.Value.Errors.Any(e => e.Id == shardId))
+        TwitchConduitShardError? refused = updated.Value.Errors.FirstOrDefault(e =>
+            e.Id == shardId
+        );
+        if (refused is not null)
+        {
+            logger.LogWarning(
+                "EventSub: Twitch refused binding shard {ShardId} of conduit {ConduitId} to session {SessionId}: {Code} {Message}",
+                shardId,
+                conduitId,
+                sessionId,
+                refused.Code,
+                refused.Message
+            );
             return Result.Success(false);
+        }
 
         Result<IReadOnlyList<TwitchConduitShard>> confirmed = await api.GetConduitShardsAsync(
             conduitId,
