@@ -114,6 +114,9 @@ public sealed class BuiltinsController : BaseController
     }
 
     /// <summary>Resets one reply slot to its default; returns the slot as it now resolves.</summary>
+    [NotDestructive(
+        "Removes one per-slot template from the built-in's OverridesJson; nothing references it, the reply falls back to the platform/tone default, and it can be set again at any time."
+    )]
     [RequireAction("commands:write")]
     [HttpDelete("{builtinKey}/replies/{slot}")]
     [ProducesResponseType<StatusResponseDto<BuiltinReplyDto>>(StatusCodes.Status200OK)]
