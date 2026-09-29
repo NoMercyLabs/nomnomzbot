@@ -245,10 +245,7 @@
     <string name="shell_unreachable_title">Kan je bot niet bereiken</string>
     <string name="shell_unreachable_message">Je bent ingelogd, maar de backend reageert nu niet. Er wordt automatisch opnieuw geprobeerd — je sessie blijft behouden.</string>
     <string name="shell_unreachable_retry">Nu opnieuw proberen</string>
-    <string name="shell_impersonation_exit">Stoppen met imiteren</string>
-    <string name="shell_impersonation_banner_remaining">Handelt als %1$s · eindigt over %2$d min</string>
-    <string name="shell_impersonation_banner_ending">Handelt als %1$s · eindigt binnen een minuut</string>
-    <string name="shell_impersonation_banner_expired">De sessie als %1$s is afgelopen. Sluit af om terug te gaan naar je eigen account.</string>
+    <string name="shell_impersonation_exit">Imitatie beëindigen</string>
     <string name="shell_impersonation_revoke_failed">Je bent terug op je eigen account, maar de server heeft de sessie niet gesloten: %1$s</string>
     <string name="shell_impersonation_identity_failed">Het gekozen account kon niet worden geladen. Je bent terug op je eigen account.</string>
     <string name="shell_impersonation_ended_expired">De sessie als iemand anders is afgelopen. Je bent terug op je eigen account.</string>

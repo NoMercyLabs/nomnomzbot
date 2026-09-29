@@ -10,7 +10,11 @@
 
 package bot.nomnomz.dashboard.core.di
 
+import bot.nomnomz.dashboard.core.connection.ActAsSessionStore
+import bot.nomnomz.dashboard.core.connection.ActAsSessionVault
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.navigation.AppReloader
+import bot.nomnomz.dashboard.core.navigation.PlatformAppReloader
 import bot.nomnomz.dashboard.core.connection.LanDiscovery
 import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
@@ -250,6 +254,7 @@ import bot.nomnomz.dashboard.feature.language.state.LanguageController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -453,6 +458,10 @@ class AppGraph {
     // handed to the Connect controller, which owns its start/stop lifecycle.
     private val lanDiscovery: LanDiscovery = lanDiscovery()
 
+    // Act-as custody + the app reload the act-as swap runs on (see ActAsCoordinator).
+    private val actAsSessionStore: ActAsSessionStore = ActAsSessionVault()
+    private val appReloader: AppReloader = PlatformAppReloader()
+
     val connectController: ConnectController =
         ConnectController(
             sessionStore = sessionStore,
@@ -461,7 +470,9 @@ class AppGraph {
             connectLauncher = connectLauncher,
             lanDiscovery = lanDiscovery,
             diagnosticsApi = twitchDiagnosticsApi,
-            endActAs = { actAsCoordinator.exit() },
+            endActAs = { actAsCoordinator.exitWithoutReload() },
+            resumeActAs = { profile, operatorTokens -> actAsCoordinator.resume(profile, operatorTokens) },
+            reloadAfterActAsLogout = { appReloader.reload(location = "") },
         )
 
     // The non-secret "setup finish pending" record custody — written by SetupController.finish() BEFORE the
@@ -834,18 +845,14 @@ class AppGraph {
     // a banner the exit itself unmounts).
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // The act-as lifecycle. Declared AFTER shellAccessController + channelSwitcherController because it re-resolves
-    // through both (property initializers run top-to-bottom; referencing a later one would read null).
+    // The act-as lifecycle: a full session swap through an app reload, so no state of one identity reaches the next.
     val actAsCoordinator: ActAsCoordinator =
         ActAsCoordinator(
             sessionStore = sessionStore,
             authApi = authApi,
             revokeSession = adminApi::endImpersonation,
-            reloadRoster = channelSwitcherController::load,
-            resolveAccess = shellAccessController::load,
-            reconnectHubs = ::reconnectAll,
-            applyAccent = ::setChatAccentColor,
-            clearReauthPrompt = connectController::dismissReauthPrompt,
+            actAsStore = actAsSessionStore,
+            reloader = appReloader,
             feedback = feedbackController,
             scope = appScope,
         )
@@ -971,25 +978,14 @@ class AppGraph {
         )
 
     /**
-     * Tear down and re-open every live SignalR hub against the CURRENT session identity — used after an identity
-     * swap (admin act-as begin/end), so the sockets re-handshake on the new token instead of stranding on the old
-     * one (their token getter is live, so a fresh connect picks up the swapped token). The dashboard hub rejoins the
-     * active channel (the roster has already re-picked it for the new identity); the multi-watch hub is only
-     * dropped (ShellScreen reopens it when that page is next shown); the admin hub opens only for a platform admin,
-     * so acting as a non-admin never spins a handshake that cannot pass the operator gate, and ending act-as
-     * reopens it for the operator.
+     * Release everything this graph holds open — every live hub socket and the app-lifetime scope. The desktop
+     * in-process restart (act-as begin/exit) builds a fresh graph and shuts the old one down, so no socket keeps
+     * listening under the previous identity. On web the page reload does this.
      */
-    suspend fun reconnectAll() {
+    fun shutdown() {
         dashboardHubClient.disconnect()
         multiChatHubClient.disconnect()
         adminHubClient.disconnect()
-
-        val url: String = sessionStore.baseUrl() ?: return
-        sessionStore.activeChannelId.value?.let { channelId ->
-            dashboardHubClient.connect(url, sessionStore::accessToken, channelId, tokenRefresher)
-        }
-        if (sessionStore.user.value?.isAdmin == true) {
-            adminHubClient.connect(url, sessionStore::accessToken, tokenRefresher)
-        }
+        appScope.cancel()
     }
 }

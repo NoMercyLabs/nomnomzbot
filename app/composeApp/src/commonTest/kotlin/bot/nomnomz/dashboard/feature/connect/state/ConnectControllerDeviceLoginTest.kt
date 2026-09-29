@@ -72,6 +72,8 @@ class ConnectControllerDeviceLoginTest {
         diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
         savedConnectionsStore: SavedConnectionsStore = InMemorySavedConnectionsStore(),
         endActAs: suspend (SessionStore) -> Unit = {},
+        resumeActAs: suspend (ConnectionProfile, SessionTokens?) -> Boolean = { _, _ -> false },
+        reloadAfterActAsLogout: () -> Unit = {},
     ): ConnectController {
         val session: SessionStore = SessionStore(vault, profiles)
         // The saved-connections repository shares the SAME token vault the session uses, exactly like
@@ -88,6 +90,8 @@ class ConnectControllerDeviceLoginTest {
                 profileIdFactory = { "test-profile" },
                 savedConnectionsRepository = savedConnectionsRepository,
                 endActAs = { endActAs(session) },
+                resumeActAs = resumeActAs,
+                reloadAfterActAsLogout = reloadAfterActAsLogout,
             )
             .also { sessionByController[it] = session }
     }
@@ -796,6 +800,39 @@ class ConnectControllerDeviceLoginTest {
     }
 
     @Test
+    fun restore_session_boots_a_live_act_as_session_before_the_operators_credentials_are_touched() = runTest {
+        // F5 while acting: the act-as session opens first, so not one request of the boot runs as the operator.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        val operatorTokens = SessionTokens(accessToken = "operator-acc", refreshToken = "operator-ref")
+        vault.write("p1", operatorTokens)
+        profiles.write(rememberedProfile)
+        val authApi = FakeAuthApi(refreshResult = ApiResult.Ok(AuthPayload(accessToken = "operator-fresh")))
+        val resumedWith: MutableList<Pair<ConnectionProfile, SessionTokens?>> = mutableListOf()
+        val controller =
+            controller(
+                FakeSystemApi(ready = true),
+                authApi,
+                vault = vault,
+                profiles = profiles,
+                resumeActAs = { profile, tokens ->
+                    resumedWith += profile to tokens
+                    true
+                },
+            )
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(true, restored)
+        // The act-as boot got the remembered backend and the operator's vaulted tokens (held back for Exit only).
+        assertEquals(listOf<Pair<ConnectionProfile, SessionTokens?>>(rememberedProfile to operatorTokens), resumedWith)
+        // The operator's session was never renewed or proven, and their custody is untouched.
+        assertEquals(0, authApi.refreshCallCount)
+        assertEquals(null, sessionOf(controller).accessToken())
+        assertEquals(operatorTokens, vault.stored["p1"])
+    }
+
+    @Test
     fun restore_session_is_a_no_op_when_no_session_was_remembered() = runTest {
         val controller = controller(FakeSystemApi(ready = true))
 
@@ -843,6 +880,7 @@ class ConnectControllerDeviceLoginTest {
                     order += "end-act-as"
                     session.endImpersonation()
                 },
+                reloadAfterActAsLogout = { order += "reload" },
             )
         val session: SessionStore = sessionOf(controller)
         session.connect(rememberedProfile, SessionTokens(accessToken = "operator-acc", refreshToken = "ref"))
@@ -852,10 +890,23 @@ class ConnectControllerDeviceLoginTest {
         controller.logout()
 
         // Act-as ended BEFORE the backend logout, so the logout carried the operator's token (revoking their
-        // refresh session), never the act-as token.
-        assertEquals(listOf("end-act-as", "logout:operator-acc"), order)
+        // refresh session), never the act-as token. Then the app reloads, so none of the target's in-memory data
+        // outlives the session it belonged to.
+        assertEquals(listOf("end-act-as", "logout:operator-acc", "reload"), order)
         assertEquals(null, session.impersonating.value)
         assertEquals(SessionPhase.NotConnected, session.phase.value)
+    }
+
+    @Test
+    fun logout_of_the_operators_own_session_never_reloads_the_app() = runTest {
+        var reloads = 0
+        val controller = controller(FakeSystemApi(ready = true), FakeAuthApi(), reloadAfterActAsLogout = { reloads++ })
+        sessionOf(controller).connect(rememberedProfile, SessionTokens(accessToken = "acc", refreshToken = "ref"))
+
+        controller.logout()
+
+        assertEquals(0, reloads)
+        assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
     }
 }
 

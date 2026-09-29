@@ -60,6 +60,8 @@ import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.core.network.TenantAccessGrant
 import bot.nomnomz.dashboard.core.network.UserSearchResult
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.connection.InMemoryActAsSessionStore
+import bot.nomnomz.dashboard.core.navigation.RecordingAppReloader
 import bot.nomnomz.dashboard.feature.shell.state.ActAsCoordinator
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -114,11 +116,8 @@ class AdminControllerImpersonationTest {
                     revokeTokens += sessionStore.accessToken()
                     api.endImpersonation(grantId)
                 },
-                reloadRoster = {},
-                resolveAccess = {},
-                reconnectHubs = {},
-                applyAccent = {},
-                clearReauthPrompt = {},
+                actAsStore = InMemoryActAsSessionStore(),
+                reloader = RecordingAppReloader(),
                 feedback = NoOpFeedback,
                 scope = this,
             ),
