@@ -100,10 +100,10 @@ public sealed class GiftSubscriptionReceivedEventHandler
             ["provider"] = e.Provider,
         };
 
-    /// <summary>A gift bomb is announced once by its <see cref="GiftSubscriptionEvent"/>; announcing each of its
-    /// (up to hundreds of) recipients too would flood chat, so only standalone gifts are announced here.</summary>
+    /// <summary>Every recipient is named, including each one inside a gift bomb — a big gift earns the noise
+    /// (owner decision 2026-09-29); the bomb's own <see cref="GiftSubscriptionEvent"/> still announces the batch.</summary>
     public Task HandleAsync(GiftSubscriptionReceivedEvent @event, CancellationToken ct = default) =>
-        @event.CommunityGiftId is null ? HandleCoreAsync(@event, ct) : Task.CompletedTask;
+        HandleCoreAsync(@event, ct);
 }
 
 /// <summary>Handles resubscription events.</summary>

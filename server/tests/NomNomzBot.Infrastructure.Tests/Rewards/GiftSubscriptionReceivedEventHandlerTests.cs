@@ -31,7 +31,7 @@ namespace NomNomzBot.Infrastructure.Tests.Rewards;
 /// A gifted-sub recipient is announced as a gift ("X was gifted a sub by Y"), never as a self-subscriber. Twitch
 /// fires <c>channel.subscribe</c> (<c>is_gift = true</c>) once per recipient, so that event must not trigger the
 /// "just subscribed" response; the recipient/gifter pairing arrives as <see cref="GiftSubscriptionReceivedEvent"/>.
-/// A gift bomb is announced once by its batch event, so its members must not each post a message.
+/// Every recipient of a gift bomb is named individually as well as the batch itself.
 /// </summary>
 public sealed class GiftSubscriptionReceivedEventHandlerTests
 {
@@ -238,13 +238,23 @@ public sealed class GiftSubscriptionReceivedEventHandlerTests
     }
 
     [Fact]
-    public async Task A_recipient_inside_a_gift_bomb_is_not_announced_one_by_one()
+    public async Task Every_recipient_inside_a_gift_bomb_is_named_individually()
     {
         Harness h = Build();
 
         await h.Received.HandleAsync(Received(communityGiftId: "batch-42"));
 
-        h.Executor.ReceivedCalls().Should().BeEmpty();
+        await h
+            .Executor.Received(1)
+            .ExecuteAsync(
+                Channel,
+                ReceivedKey,
+                "777",
+                "Lucky_Viewer",
+                Arg.Any<Dictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        CapturedVariables(h.Executor)["gifter"].Should().Be("Generous_Gifter");
     }
 
     [Fact]
