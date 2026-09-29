@@ -653,7 +653,8 @@ public sealed class ScriptHostBridgeTests
             CreatedAt: DateTime.UtcNow,
             UpdatedAt: DateTime.UtcNow,
             GalleryUpdateAvailable: false,
-            IsAttached: false
+            IsAttached: false,
+            IsCustomized: false
         );
 
     [Fact]

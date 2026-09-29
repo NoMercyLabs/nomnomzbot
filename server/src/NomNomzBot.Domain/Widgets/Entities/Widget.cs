@@ -53,6 +53,14 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// </summary>
     public int? InstalledSourceRevision { get; set; }
 
+    /// <summary>
+    /// The <see cref="WidgetVersion.VersionNumber"/> of the last version that carried the catalogue's own source
+    /// verbatim — written by install, update/reset from the gallery, and a platform publish. Null for a
+    /// self-authored <c>custom</c> widget (it has no catalogue). Any later version is the channel's own edit, see
+    /// <see cref="IsSourceCustomized"/>.
+    /// </summary>
+    public int? CatalogueVersionNumber { get; set; }
+
     /// <summary>The <see cref="WidgetVersion"/> the overlay currently serves; null until the first successful build.</summary>
     public Guid? ActiveVersionId { get; set; }
 
@@ -78,9 +86,10 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// <summary>The <c>PlatformContentVersion.Version</c> installed.</summary>
     public int? PlatformSourceVersion { get; set; }
 
-    /// <summary>The <c>ContentHash</c> at install/last-sync time — compared against this row's live content
-    /// hash (of source + settings + subscriptions, canonicalized) to decide "untouched" for
-    /// <c>update_in_place_where_untouched</c> publishes.</summary>
+    /// <summary>The settings hash at install/last-sync time — compared against this row's live hash (of
+    /// settings + subscriptions, canonicalized) to decide "untouched" for <c>update_in_place_where_untouched</c>
+    /// publishes. A code edit is not in this hash (the source lives on <see cref="WidgetVersion"/>); it is caught
+    /// by <see cref="IsSourceCustomized"/> instead.</summary>
     [MaxLength(64)]
     public string? PlatformSourceHash { get; set; }
 
@@ -112,4 +121,14 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// exposes anything about the channel-wide credential.</summary>
     public static string GenerateOverlayToken() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+
+    /// <summary>
+    /// True when the channel has saved its own source over the catalogue's: the widget's newest version
+    /// (<paramref name="latestVersionNumber"/>) came after the last catalogue version. A catalogue update must
+    /// never overwrite such a widget on its own — only the streamer's explicit reset does.
+    /// </summary>
+    public bool IsSourceCustomized(int? latestVersionNumber) =>
+        CatalogueVersionNumber is { } catalogue
+        && latestVersionNumber is { } latest
+        && latest > catalogue;
 }

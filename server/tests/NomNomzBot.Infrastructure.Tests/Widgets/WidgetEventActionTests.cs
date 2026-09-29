@@ -72,6 +72,7 @@ public sealed class WidgetEventActionTests
                         DateTime.UtcNow,
                         DateTime.UtcNow,
                         false,
+                        false,
                         false
                     )
                 )

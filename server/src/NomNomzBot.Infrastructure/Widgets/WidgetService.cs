@@ -116,7 +116,8 @@ public class WidgetService : IWidgetService
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
 
-        return Result.Success(ToDetail(widget));
+        // A brand-new custom widget has no gallery link and no version yet — nothing to look up.
+        return Result.Success(ToDetail(widget, null, null));
     }
 
     public async Task<Result<WidgetDetail>> CloneToEditAsync(
@@ -334,10 +335,10 @@ public class WidgetService : IWidgetService
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
 
         // Compile the shipped source into the first version so the install is immediately live.
-        Result<WidgetVersionDetail> compiled = await CompileAsync(
+        Result<WidgetVersionDetail> compiled = await CompileCatalogueSourceAsync(
             broadcasterId,
-            widget.Id.ToString(),
-            new() { SourceCode = item.SourceCode },
+            widget,
+            item.SourceCode,
             cancellationToken
         );
         if (compiled.IsFailure)
@@ -401,18 +402,29 @@ public class WidgetService : IWidgetService
             );
 
         // Compile-on-save with the gallery's current source, exactly like an authored save — a new WidgetVersion,
-        // never an edit to the streamer's history. Settings/subscriptions the streamer has since customized are
-        // left untouched; only the source (and the revision it is pinned to) moves.
-        Result<WidgetVersionDetail> compiled = await CompileAsync(
+        // never an edit to the streamer's history. This is also the "Reset to system default" action: a channel's
+        // own edited versions stay in the history (rollback reaches them), and the new version becomes the
+        // catalogue baseline again. Settings/subscriptions the streamer has since customized are left untouched;
+        // only the source (and the revision it is pinned to) moves.
+        Result<WidgetVersionDetail> compiled = await CompileCatalogueSourceAsync(
             broadcasterId,
-            widgetId,
-            new() { SourceCode = item.SourceCode },
+            widget,
+            item.SourceCode,
             cancellationToken
         );
         if (compiled.IsFailure)
             return Result.Failure<WidgetDetail>(
                 compiled.ErrorMessage ?? "The updated widget failed to compile.",
                 compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
+            );
+
+        // The failed version is kept (append-only history), but the overlay still serves the previous code — say
+        // so instead of reporting a reset/update that did not reach the live overlay.
+        if (compiled.Value.BuildStatus != "success")
+            return Result.Failure<WidgetDetail>(
+                compiled.Value.BuildError
+                    ?? "The catalogue source failed to build; the overlay keeps its current code.",
+                "WIDGET_BUILD_FAILED"
             );
 
         widget.InstalledSourceRevision = item.SourceRevision;
@@ -458,11 +470,7 @@ public class WidgetService : IWidgetService
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
 
-        int? galleryRevision = await GetGalleryRevisionAsync(
-            widget.GalleryItemId,
-            cancellationToken
-        );
-        return Result.Success(ToDetail(widget, galleryRevision));
+        return Result.Success(await ToDetailAsync(widget, cancellationToken));
     }
 
     public async Task<Result> DeleteAsync(
@@ -587,6 +595,13 @@ public class WidgetService : IWidgetService
             .WidgetGalleryItems.Where(i => linkedGalleryItemIds.Contains(i.Id))
             .ToDictionaryAsync(i => i.Id, i => i.SourceRevision, cancellationToken);
 
+        List<Guid> pageWidgetIds = [.. widgets.Select(w => w.Id)];
+        Dictionary<Guid, int> latestVersionNumbers = await _db
+            .WidgetVersions.Where(v => pageWidgetIds.Contains(v.WidgetId))
+            .GroupBy(v => v.WidgetId)
+            .Select(g => new { WidgetId = g.Key, Latest = g.Max(v => v.VersionNumber) })
+            .ToDictionaryAsync(x => x.WidgetId, x => x.Latest, cancellationToken);
+
         List<WidgetDetail> items =
         [
             .. widgets.Select(w =>
@@ -594,7 +609,8 @@ public class WidgetService : IWidgetService
                     w,
                     w.GalleryItemId is { } gid && galleryRevisions.TryGetValue(gid, out int rev)
                         ? rev
-                        : null
+                        : null,
+                    latestVersionNumbers.TryGetValue(w.Id, out int latest) ? latest : null
                 )
             ),
         ];
@@ -626,11 +642,7 @@ public class WidgetService : IWidgetService
         if (widget is null)
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
 
-        int? galleryRevision = await GetGalleryRevisionAsync(
-            widget.GalleryItemId,
-            cancellationToken
-        );
-        return Result.Success(ToDetail(widget, galleryRevision));
+        return Result.Success(await ToDetailAsync(widget, cancellationToken));
     }
 
     public async Task<Result<WidgetDetail>> GetByTokenAsync(
@@ -660,7 +672,7 @@ public class WidgetService : IWidgetService
                 "NOT_FOUND"
             );
 
-        return Result.Success(ToDetail(widget));
+        return Result.Success(await ToDetailAsync(widget, cancellationToken));
     }
 
     public async Task<Result<WidgetSettingsSchema>> GetSettingsSchemaAsync(
@@ -1043,11 +1055,7 @@ public class WidgetService : IWidgetService
             cancellationToken
         );
 
-        int? galleryRevision = await GetGalleryRevisionAsync(
-            widget.GalleryItemId,
-            cancellationToken
-        );
-        return Result.Success(ToDetail(widget, galleryRevision));
+        return Result.Success(await ToDetailAsync(widget, cancellationToken));
     }
 
     /// <summary>Mints a new token for exactly this widget (audit B5) and starts the grace window on the retired
@@ -1625,7 +1633,50 @@ public class WidgetService : IWidgetService
         return channel is null ? null : new OverlayTokenScope(channel.Id, null);
     }
 
-    private WidgetDetail ToDetail(Widget w, int? currentGalleryRevision = null)
+    /// <summary>
+    /// Compiles catalogue-shipped source (install, update/reset from the gallery) into the widget's next version
+    /// and records that version as the widget's catalogue baseline (<see cref="Widget.CatalogueVersionNumber"/>),
+    /// so any later channel save reads as an edit. A failed build keeps the previous baseline: the overlay still
+    /// serves the earlier code, so a channel edit stays marked as an edit and the reset can be retried. The very
+    /// first catalogue version (install) is always the baseline — nothing precedes it — so a widget installed
+    /// while the build tool was missing still tells a later channel edit apart. Only a missing widget fails.
+    /// </summary>
+    private async Task<Result<WidgetVersionDetail>> CompileCatalogueSourceAsync(
+        string broadcasterId,
+        Widget widget,
+        string sourceCode,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<WidgetVersionDetail> compiled = await CompileAsync(
+            broadcasterId,
+            widget.Id.ToString(),
+            new() { SourceCode = sourceCode },
+            cancellationToken
+        );
+        if (compiled.IsFailure)
+            return compiled;
+
+        if (compiled.Value.BuildStatus == "success" || widget.CatalogueVersionNumber is null)
+        {
+            widget.CatalogueVersionNumber = compiled.Value.VersionNumber;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        return compiled;
+    }
+
+    /// <summary>One widget's detail with its gallery revision and newest version number looked up.</summary>
+    private async Task<WidgetDetail> ToDetailAsync(Widget widget, CancellationToken ct)
+    {
+        int? galleryRevision = await GetGalleryRevisionAsync(widget.GalleryItemId, ct);
+        int? latestVersionNumber = await _db
+            .WidgetVersions.Where(v => v.WidgetId == widget.Id)
+            .Select(v => (int?)v.VersionNumber)
+            .MaxAsync(ct);
+        return ToDetail(widget, galleryRevision, latestVersionNumber);
+    }
+
+    private WidgetDetail ToDetail(Widget w, int? currentGalleryRevision, int? latestVersionNumber)
     {
         return new(
             w.Id,
@@ -1646,7 +1697,8 @@ public class WidgetService : IWidgetService
             w.GalleryItemId is not null
                 && currentGalleryRevision is { } rev
                 && rev > (w.InstalledSourceRevision ?? 0),
-            _presence.IsWidgetAttached(w.BroadcasterId, w.Id)
+            _presence.IsWidgetAttached(w.BroadcasterId, w.Id),
+            w.IsSourceCustomized(latestVersionNumber)
         );
     }
 

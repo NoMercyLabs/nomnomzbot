@@ -72,8 +72,8 @@ public sealed record WidgetContentPayload(
     /// <summary>The canonicalized hash of just the tenant-mutable slice (settings + event subscriptions) —
     /// compared against a tenant <c>Widget</c> row's <c>PlatformSourceHash</c> to decide "untouched" for
     /// <c>update_in_place_where_untouched</c> publishes. Deliberately excludes <see cref="SourceCode"/>: the
-    /// Vue source is not stored on the tenant row itself (that lives on <c>WidgetVersion</c>), so only the
-    /// fields a tenant can actually edit in place participate in staleness detection.
+    /// Vue source is not stored on the tenant row itself (that lives on <c>WidgetVersion</c>), so a tenant's
+    /// code edit is detected separately through <c>Widget.IsSourceCustomized</c> when the copies are listed.
     /// </summary>
     public string ComputeSettingsHash() =>
         ComputeSettingsHash(DefaultSettings, DefaultEventSubscriptions);

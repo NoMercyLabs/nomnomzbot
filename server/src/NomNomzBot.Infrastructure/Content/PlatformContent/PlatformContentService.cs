@@ -857,7 +857,11 @@ public sealed class PlatformContentService(
     /// with THIS <see cref="PlatformContentDefinition.Id"/> — a widget is opt-in per tenant (created by
     /// install-from-gallery or an earlier publish), unlike a builtin command's one-row-per-channel shape, so
     /// there is no name-derived candidate set to fall back to (the seeder principle's "never match by name"
-    /// guardrail applies here too).
+    /// guardrail applies here too). The stamped hash covers settings + subscriptions only, because the source
+    /// lives on <see cref="WidgetVersion"/> rows, so a channel that edited the CODE is caught separately: a
+    /// widget whose newest version came after its catalogue version (<see cref="Widget.IsSourceCustomized"/>)
+    /// gets a live hash that can never equal the stamped one — it is counted as edited and an update-in-place
+    /// publish skips it instead of overwriting the channel's code.
     /// </summary>
     private async Task<IReadOnlyList<PlatformContentCopy>> ListWidgetCopiesAsync(
         PlatformContentDefinition definition,
@@ -868,15 +872,36 @@ public sealed class PlatformContentService(
             .Widgets.IgnoreQueryFilters()
             .Where(w => w.DeletedAt == null && w.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
+
+        List<Guid> installedIds = [.. installed.Select(w => w.Id)];
+        Dictionary<Guid, int> latestVersionNumbers = await db
+            .WidgetVersions.IgnoreQueryFilters()
+            .Where(v => installedIds.Contains(v.WidgetId))
+            .GroupBy(v => v.WidgetId)
+            .Select(g => new { WidgetId = g.Key, Latest = g.Max(v => v.VersionNumber) })
+            .ToDictionaryAsync(x => x.WidgetId, x => x.Latest, ct);
+
         return
         [
-            .. installed.Select(row => new PlatformContentCopy(
-                row.Id,
-                row.BroadcasterId,
-                row.PlatformSourceVersion,
-                row.PlatformSourceHash,
-                WidgetContentPayload.ComputeSettingsHash(row.Settings, row.EventSubscriptions)
-            )),
+            .. installed.Select(row =>
+            {
+                int? latest = latestVersionNumbers.TryGetValue(row.Id, out int number)
+                    ? number
+                    : null;
+                string liveHash = row.IsSourceCustomized(latest)
+                    ? PlatformContentHash.ComputeHash($$"""{"customizedSource":"{{row.Id}}"}""")
+                    : WidgetContentPayload.ComputeSettingsHash(
+                        row.Settings,
+                        row.EventSubscriptions
+                    );
+                return new PlatformContentCopy(
+                    row.Id,
+                    row.BroadcasterId,
+                    row.PlatformSourceVersion,
+                    row.PlatformSourceHash,
+                    liveHash
+                );
+            }),
         ];
     }
 
@@ -1088,19 +1113,34 @@ public sealed class PlatformContentService(
             // copy of the row from the same DbContext, so the settings must already be visible to it.
             await uow.SaveChangesAsync(ct);
 
-            bool rebuilt = await TryRebuildTenantBundleAsync(row, payload.SourceCode, ct);
-            if (!rebuilt)
+            WidgetVersionDetail? rebuilt = await TryRebuildTenantBundleAsync(
+                row,
+                payload.SourceCode,
+                ct
+            );
+            if (rebuilt is { BuildStatus: "success" })
+            {
+                // The new live version carries the catalogue's source verbatim — it is the widget's catalogue
+                // baseline now, so a later channel save reads as an edit again. A failed rebuild keeps the old
+                // baseline, the same rule the widget service applies to a failed reset.
+                row.CatalogueVersionNumber = rebuilt.VersionNumber;
+                await uow.SaveChangesAsync(ct);
+            }
+            else
+            {
                 rebuildFailedWidgetIds.Add(row.Id);
+            }
         }
         return new WidgetFanOutResult(targets.Count, rebuildFailedWidgetIds);
     }
 
     /// <summary>
-    /// One tenant's rebuild attempt. Never throws out of this method — an exception from the compiler/build
-    /// pipeline is caught and treated as a rebuild failure (recorded, not swallowed) exactly like a normal
-    /// build-error result, so one tenant's bad luck never aborts the rest of the fan-out.
+    /// One tenant's rebuild attempt: the version it appended (a build error is still a version, with an
+    /// <c>error</c> status), or null when none was written. Never throws out of this method — an exception from the compiler/build pipeline is
+    /// caught and treated as a rebuild failure (recorded, not swallowed) exactly like a normal build-error
+    /// result, so one tenant's bad luck never aborts the rest of the fan-out.
     /// </summary>
-    private async Task<bool> TryRebuildTenantBundleAsync(
+    private async Task<WidgetVersionDetail?> TryRebuildTenantBundleAsync(
         Widget row,
         string sourceCode,
         CancellationToken ct
@@ -1114,11 +1154,11 @@ public sealed class PlatformContentService(
                 new CompileWidgetRequest { SourceCode = sourceCode },
                 ct
             );
-            return compiled is { IsSuccess: true, Value.BuildStatus: "success" };
+            return compiled.IsSuccess ? compiled.Value : null;
         }
         catch (Exception)
         {
-            return false;
+            return null;
         }
     }
 

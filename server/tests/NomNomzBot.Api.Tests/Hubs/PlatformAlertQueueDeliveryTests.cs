@@ -110,7 +110,8 @@ public sealed class PlatformAlertQueueDeliveryTests
                         DateTime.UtcNow,
                         DateTime.UtcNow,
                         false,
-                        overlayConnected
+                        overlayConnected,
+                        false
                     )
                 )
             );

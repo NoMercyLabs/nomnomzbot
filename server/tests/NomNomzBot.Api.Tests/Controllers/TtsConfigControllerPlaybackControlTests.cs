@@ -52,6 +52,7 @@ public sealed class TtsConfigControllerPlaybackControlTests
             DateTime.UtcNow,
             DateTime.UtcNow,
             false,
+            false,
             false
         );
 
