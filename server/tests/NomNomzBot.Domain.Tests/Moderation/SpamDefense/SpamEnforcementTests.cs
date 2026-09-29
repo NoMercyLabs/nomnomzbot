@@ -42,12 +42,15 @@ public class SpamEnforcementTests
             dryRun: false
         );
 
-        decision.Outcome.Should().BeOneOf(SpamOutcome.Flag);
+        // Nothing fired is nothing to review; anything that did fire goes to a human as a flag.
+        SpamOutcome expected =
+            confidence == SpamConfidence.Zero ? SpamOutcome.None : SpamOutcome.Flag;
+        decision.Outcome.Should().Be(expected);
         decision.TouchesAccount.Should().BeFalse();
         decision
             .WouldHaveBeen.Should()
             .Be(
-                SpamOutcome.Flag,
+                expected,
                 "even the counterfactual must never show a ban for an Established viewer"
             );
     }

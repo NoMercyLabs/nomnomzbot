@@ -32,6 +32,13 @@ public enum ContentSignal
 
     /// <summary>Contact handles, price/offer vocabulary, imperative CTAs.</summary>
     PromoShape,
+
+    /// <summary>
+    /// An audience for sale — viewers, followers, primes, view/follow bots — next to a storefront link,
+    /// including the spaced-out form (<c>twitchstar .com</c>, <c>name dot com</c>) these campaigns use to
+    /// slip past link filters. The viewbot-seller campaign's own shape; high-confidence on its own.
+    /// </summary>
+    SellingAudience,
 }
 
 /// <summary>The signals a message produced, and the confidence they fuse to.</summary>
@@ -101,6 +108,47 @@ public static class ContentSignals
         RegexOptions.Compiled | RegexOptions.IgnoreCase
     );
 
+    /// <summary>What a viewbot seller sells. Deliberately not "subs", "views" or "chatters": viewers say those.</summary>
+    private static readonly Regex AudienceProduct = new(
+        @"\b(viewers?|followers|primes?|prime\s*subs|view\s*bots?|viewbots?|follow\s*bots?|followbots?)\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase
+    );
+
+    /// <summary>
+    /// A storefront written to dodge link detection: <c>name .com</c>, <c>name (.) com</c>, <c>name dot com</c>.
+    /// Group 1 is the name, group 2 the top-level domain, so the pair can be checked against the allow lists.
+    /// </summary>
+    private static readonly Regex SpacedDomain = new(
+        @"\b([a-z0-9-]{3,})(?:\s+\.\s*|\.\s+|\s*\(\s*\.\s*\)\s*|\s*\[\s*\.\s*\]\s*|\s+dot\s+|\s*\(dot\)\s*|\s*\[dot\]\s*)"
+            + @"(com|net|org|io|ru|xyz|shop|store|live|tv|gg|me|pro|top|site|online|club|cc|co|biz|info|fun)\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase
+    );
+
+    /// <summary>
+    /// Mainstream platforms a real viewer links while talking about viewers or followers ("go follow the
+    /// raid target at twitch.tv/x"). A storefront is never one of these, so they never carry the signal.
+    /// </summary>
+    private static readonly string[] MainstreamDomains =
+    [
+        "twitch.tv",
+        "youtube.com",
+        "youtu.be",
+        "twitter.com",
+        "x.com",
+        "instagram.com",
+        "tiktok.com",
+        "reddit.com",
+        "discord.gg",
+        "discord.com",
+        "kick.com",
+        "streamelements.com",
+        "streamlabs.com",
+        "throne.com",
+        "ko-fi.com",
+        "patreon.com",
+        "spotify.com",
+    ];
+
     /// <summary>Anything shaped like a domain, read from the SKELETON so `t.me∕x` is still seen.</summary>
     private static readonly Regex DomainLike = new(
         @"([a-z0-9-]+(?:\.[a-z0-9-]+)+)",
@@ -144,6 +192,9 @@ public static class ContentSignals
         if (HasPromoShape(rawText))
             signals.Add(ContentSignal.PromoShape);
 
+        if (SellsAudience(rawText, p))
+            signals.Add(ContentSignal.SellingAudience);
+
         return new ContentEvaluation(signals, Fuse(signals));
     }
 
@@ -162,6 +213,7 @@ public static class ContentSignals
                 is ContentSignal.CosmeticAbuse
                     or ContentSignal.CorpusMatch
                     or ContentSignal.MaliciousLink
+                    or ContentSignal.SellingAudience
         );
         if (high)
             return SpamConfidence.High;
@@ -270,6 +322,27 @@ public static class ContentSignals
 
         return false;
     }
+
+    private static bool SellsAudience(string rawText, ContentPolicy policy) =>
+        AudienceProduct.IsMatch(rawText)
+        && StorefrontDomains(rawText).Any(domain => !IsAllowedStorefront(domain, policy));
+
+    /// <summary>Every domain in the text, written normally or spaced out, lower-cased.</summary>
+    private static IEnumerable<string> StorefrontDomains(string rawText)
+    {
+        foreach (Match match in DomainLike.Matches(rawText))
+            yield return match.Value.ToLowerInvariant();
+        foreach (Match match in SpacedDomain.Matches(rawText))
+            yield return $"{match.Groups[1].Value}.{match.Groups[2].Value}".ToLowerInvariant();
+    }
+
+    private static bool IsAllowedStorefront(string domain, ContentPolicy policy) =>
+        MainstreamDomains
+            .Concat(policy.AllowedDomains)
+            .Any(allowed =>
+                domain.Equals(allowed, StringComparison.OrdinalIgnoreCase)
+                || domain.EndsWith($".{allowed}", StringComparison.OrdinalIgnoreCase)
+            );
 
     private static bool HasPromoShape(string rawText) =>
         ContactHandle.IsMatch(rawText) && OfferVocabulary.IsMatch(rawText);

@@ -93,15 +93,17 @@ public static class SpamEnforcement
     )
     {
         // SD8, first and unconditionally. Not a lower score — a short-circuit.
+        // Nothing fired means nothing to show a human: flagging every ordinary line a regular types would
+        // bury the review queue in chat.
         if (TrustTierLadder.IsImmune(tier))
-            return Build(
-                SpamOutcome.Flag,
-                dryRun,
-                confidence == SpamConfidence.Zero
-                    ? "Established viewer; nothing fired."
-                    : $"Established viewer — {Describe(confidence)} flagged for a human. "
+            return confidence == SpamConfidence.Zero
+                ? Build(SpamOutcome.None, dryRun, "Established viewer; nothing fired.")
+                : Build(
+                    SpamOutcome.Flag,
+                    dryRun,
+                    $"Established viewer — {Describe(confidence)} flagged for a human. "
                         + "An established regular is never actioned automatically."
-            );
+                );
 
         // SD11 ceiling: standing means the engine may delete and flag, never touch the account.
         if (TrustTierLadder.IsShieldedFromAutomatedAccountAction(tier))

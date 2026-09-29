@@ -59,6 +59,11 @@ public class ContentSignalsTests
     [InlineData("おはよう")]
     [InlineData("привет всем")]
     [InlineData("따라 하지 마세요")]
+    [InlineData("all viewers go follow the raid target at twitch.tv/anda_six")]
+    [InlineData("my followers loved the clip on youtube.com/watch?v=abc")]
+    [InlineData("we hit 500 followers today, thank you all")]
+    [InlineData("the vod is on youtube .com if you missed it")]
+    [InlineData("I sub on twitchstar and it was fine")]
     public void OrdinaryChat_FiresNothing_EvenWithAFullCorpusLoaded(string message)
     {
         // The single most important property in the file. Note the last three: whole messages in another
@@ -68,6 +73,44 @@ public class ContentSignalsTests
         result
             .Signals.Should()
             .BeEmpty($"\"{message}\" is something a real viewer types; it must fire nothing");
+        result.Confidence.Should().Be(SpamConfidence.Zero);
+    }
+
+    // ---- The viewbot-seller campaign --------------------------------------------------------------
+
+    [Theory]
+    [InlineData("Ai vIewers twitchstar .com")] // the real 2026-09-29 message in anda_six's chat
+    [InlineData("Ai viewers twitchstar.com")]
+    [InlineData("Best viewers on streamboo .com")]
+    [InlineData("Cheap followers and primes at growfast (.) net")]
+    [InlineData("real viewbots here: viewerboss dot com")]
+    [InlineData("Wanna become famous? Buy followers, primes and viewers on example [.] shop")]
+    public void AnAudienceForSale_WithAStorefront_IsHighConfidenceWithoutAnyCorpus(string message)
+    {
+        // No corpus, no deny list: a campaign nobody has reported yet is still recognised by its shape.
+        ContentEvaluation result = Evaluate(message);
+
+        result.Signals.Should().Contain(ContentSignal.SellingAudience);
+        result.Confidence.Should().Be(SpamConfidence.High);
+    }
+
+    [Fact]
+    public void AnAudienceForSale_OnTheChannelsOwnAllowedDomain_DoesNotFire()
+    {
+        ContentEvaluation result = Evaluate(
+            "our viewers can grab merch at stoneyshop .com",
+            new ContentPolicy { AllowedDomains = ["stoneyshop.com"] }
+        );
+
+        result.Signals.Should().NotContain(ContentSignal.SellingAudience);
+    }
+
+    [Fact]
+    public void AStorefrontAlone_WithoutAnAudienceForSale_DoesNotCarryTheSignal()
+    {
+        ContentEvaluation result = Evaluate("check out twitchstar .com");
+
+        result.Signals.Should().NotContain(ContentSignal.SellingAudience);
         result.Confidence.Should().Be(SpamConfidence.Zero);
     }
 
