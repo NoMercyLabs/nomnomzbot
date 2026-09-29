@@ -81,15 +81,9 @@ class ConnectController(
     // keyed by profile id — no in-memory cache to fall out of sync).
     private val savedConnectionsRepository: SavedConnectionsRepository =
         SavedConnectionsRepository(savedConnectionsStore(), TokenVault()),
-    // Ends an active act-as session (restoring the operator and revoking the grant) — [logout] runs it first so
-    // the sign-out revokes the OPERATOR's session rather than sending the act-as token.
-    private val endActAs: suspend () -> Unit = {},
-    // Boot step run before the operator's own restore: when an act-as session was carried across a reload, open
-    // the target's session instead (true = the target's session is live). See ActAsCoordinator.resume.
-    private val resumeActAs: suspend (ConnectionProfile, SessionTokens?) -> Boolean = { _, _ -> false },
-    // Runs after a logout that ended an act-as session: the app reloads so none of the target's in-memory data
-    // outlives the session it belonged to.
-    private val reloadAfterActAsLogout: () -> Unit = {},
+    // The act-as seams of boot and logout: the boot refresh decides who the session is (an open act-as session
+    // answers with `impersonation`), and a logout while acting reloads the app. See ActAsCoordinator.
+    private val actAs: ActAsConnectHooks = NoActAs,
 ) {
     // The web build is single-origin: default the backend URL to the SERVED ORIGIN so it matches wherever the
     // dashboard is opened (localhost, the LAN, or the public tunnel) instead of a hardcoded localhost. Native
@@ -340,12 +334,13 @@ class ConnectController(
      * [restoreSession]'s refresh, landing the operator straight back on the dashboard. Best-effort on the
      * network call: local custody is dropped regardless, so even an offline logout returns the gate to Connect.
      */
+    // While acting, the logout still carries the act-as token: the server treats it as the OPERATOR logging out —
+    // it ends the support session and revokes the operator's own session, never the impersonated user's.
     suspend fun logout() {
         val wasActingAs: Boolean = sessionStore.isActingAs
-        if (wasActingAs) endActAs()
         authApi.logout()
         sessionStore.disconnect()
-        if (wasActingAs) reloadAfterActAsLogout()
+        if (wasActingAs) actAs.onLoggedOutWhileActing()
     }
 
     /**
@@ -694,12 +689,12 @@ class ConnectController(
         // the ApiClient short-circuits to "no connection" and refresh never reaches the network.
         sessionStore.pin(profile)
 
-        // 0. An act-as session carried across a reload boots as the TARGET — never the operator first, so not one
-        //    request, socket or screen resolves under the operator's identity while acting.
-        if (resumeActAs(profile, stored)) return true
+        // A native client that was acting holds the act-as token in memory; web's rides the HttpOnly cookie.
+        val actAsToken: String? = actAs.heldActAsToken()
 
-        // 1. A stored access token (the native vault, or a same-tab web reload) — prove it first.
-        if (stored != null && attachSession(profile, stored)) return true
+        // 1. A stored access token (the native vault) — prove it first. Never while an act-as token is held: then
+        //    the refresh below decides who this boot is, so not one request runs as the operator first.
+        if (actAsToken == null && stored != null && attachSession(profile, stored)) return true
 
         // 2. Renew — native sends the refresh token it holds; web sends null and the backend reads its
         //    HttpOnly cookie. Either way this gets a fresh access token without another device-code dance.
@@ -707,9 +702,14 @@ class ConnectController(
         //    exact 504 observed live behind the dev webpack proxy) is retried a few times before giving up: it
         //    is NOT proof the cookie is dead, and treating it as one bounced a perfectly valid session to the
         //    login screen for what was really a momentary blip.
-        val refreshed: ApiResult<AuthPayload> = refreshWithTransientRetry(stored?.refreshToken)
+        //    While an act-as session is open (the nnz_act_as cookie on web, [actAsToken] on native) the answer is
+        //    the IMPERSONATED user and carries `impersonation` — the only act-as boot marker there is.
+        val refreshed: ApiResult<AuthPayload> = refreshWithTransientRetry(stored?.refreshToken, actAsToken)
         when (refreshed) {
-            is ApiResult.Ok -> {
+            is ApiResult.Ok -> if (refreshed.value.impersonation != null) {
+                if (actAs.resume(profile, stored, refreshed.value)) return true
+            } else {
+                actAs.onOperatorSession()
                 val renewed: SessionTokens =
                     SessionTokens(
                         accessToken = refreshed.value.accessToken,
@@ -752,13 +752,14 @@ class ConnectController(
      */
     private suspend fun refreshWithTransientRetry(
         refreshToken: String?,
+        actAsToken: String?,
     ): ApiResult<AuthPayload> {
         var attempt = 0
-        var result: ApiResult<AuthPayload> = authApi.refresh(refreshToken)
+        var result: ApiResult<AuthPayload> = authApi.refresh(refreshToken, actAsToken)
         while (result is ApiResult.Failure && isTransientFailure(result.error) && attempt < RESTORE_REFRESH_MAX_RETRIES) {
             delay(RESTORE_REFRESH_RETRY_DELAY_MS)
             attempt++
-            result = authApi.refresh(refreshToken)
+            result = authApi.refresh(refreshToken, actAsToken)
         }
         return result
     }

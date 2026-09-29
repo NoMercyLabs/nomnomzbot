@@ -249,6 +249,7 @@
     <string name="shell_impersonation_revoke_failed">Je bent terug op je eigen account, maar de server heeft de sessie niet gesloten: %1$s</string>
     <string name="shell_impersonation_identity_failed">Het gekozen account kon niet worden geladen. Je bent terug op je eigen account.</string>
     <string name="shell_impersonation_ended_expired">De sessie als iemand anders is afgelopen. Je bent terug op je eigen account.</string>
+    <string name="shell_impersonation_exit_failed">Beëindigen mislukt: %1$s. Je handelt nog steeds als dit account. Probeer het opnieuw.</string>
     <string name="shell_profile_view_as_viewer">Bekijk als kijker</string>
     <string name="shell_preview_banner">Voorbeeld van de kijkerservaring</string>
     <string name="shell_preview_exit">Voorbeeld sluiten</string>

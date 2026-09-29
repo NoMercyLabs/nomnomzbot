@@ -11,27 +11,23 @@
 package bot.nomnomz.dashboard.core.connection
 
 import kotlinx.browser.window
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 
-// Web act-as custody — sessionStorage, not localStorage: the act-as session belongs to the one tab it was started
-// in, survives that tab's reload (F5 stays impersonated), and dies with the tab. Only the act-as ACCESS token is
-// kept: access-only (no refresh), clamped to the open support session and revoked server-side on Exit. That is a
-// deliberate, narrow exception to TokenVault's "no token in JS storage" rule — script on this page can already mint
-// an access token by calling /auth/refresh with the cookie, so this adds no stronger credential. The refresh token
-// (the long-lived one) never leaves its HttpOnly cookie.
+// Web act-as state — sessionStorage, not localStorage: it belongs to the one tab the operator started acting in and
+// dies with it. It holds only the operator's return route and a one-shot notice. No token ever lands here: the
+// act-as token rides the HttpOnly nnz_act_as cookie (CookieActAsCustody), exactly like the refresh token.
 actual class ActAsSessionVault : ActAsSessionStore {
 
     private val json: Json = Json { ignoreUnknownKeys = true }
 
-    actual override fun read(): PersistedActAs? = decode(SESSION_KEY, PersistedActAs.serializer())
+    actual override fun readReturnLocation(): String? = window.sessionStorage.getItem(RETURN_KEY)
 
-    actual override fun write(session: PersistedActAs) {
-        window.sessionStorage.setItem(SESSION_KEY, json.encodeToString(PersistedActAs.serializer(), session))
+    actual override fun writeReturnLocation(location: String) {
+        window.sessionStorage.setItem(RETURN_KEY, location)
     }
 
     actual override fun clear() {
-        window.sessionStorage.removeItem(SESSION_KEY)
+        window.sessionStorage.removeItem(RETURN_KEY)
     }
 
     actual override fun putNotice(notice: ActAsEndNotice) {
@@ -39,18 +35,15 @@ actual class ActAsSessionVault : ActAsSessionStore {
     }
 
     actual override fun takeNotice(): ActAsEndNotice? {
-        val notice: ActAsEndNotice? = decode(NOTICE_KEY, ActAsEndNotice.serializer())
+        val raw: String = window.sessionStorage.getItem(NOTICE_KEY) ?: return null
         window.sessionStorage.removeItem(NOTICE_KEY)
-        return notice
-    }
-
-    private fun <T> decode(key: String, serializer: KSerializer<T>): T? {
-        val raw: String = window.sessionStorage.getItem(key) ?: return null
-        return runCatching { json.decodeFromString(serializer, raw) }.getOrNull()
+        return runCatching { json.decodeFromString(ActAsEndNotice.serializer(), raw) }.getOrNull()
     }
 
     private companion object {
-        const val SESSION_KEY: String = "nnz.act-as"
+        const val RETURN_KEY: String = "nnz.act-as-return"
         const val NOTICE_KEY: String = "nnz.act-as-notice"
     }
 }
+
+actual fun platformActAsCustody(): ActAsTokenCustody = CookieActAsCustody

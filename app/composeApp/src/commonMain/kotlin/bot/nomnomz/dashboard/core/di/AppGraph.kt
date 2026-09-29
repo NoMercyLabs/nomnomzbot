@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.connection.OAuthConnectLauncher
 import bot.nomnomz.dashboard.core.connection.OAuthLauncher
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.lanDiscovery
+import bot.nomnomz.dashboard.core.connection.platformActAsCustody
 import bot.nomnomz.dashboard.core.connection.servedOriginProfile
 import bot.nomnomz.dashboard.core.feedback.FeedbackController
 import bot.nomnomz.dashboard.core.emoji.EmojiStylePreferenceStore
@@ -336,13 +337,12 @@ class AppGraph {
     // handles both halves: silent success updates the in-place token, and failure drops ONLY the
     // in-memory session — the vault, the remembered profile, and every OTHER saved connection stay
     // untouched (S111c: "desktop session expiry is unhandled").
-    // While acting as someone, a rejected token means the act-as session ended (expired or revoked): it runs the
-    // full act-as exit instead, and never installs the operator's refreshed token under the target's name. The exit
-    // runs on the app scope because it makes requests of its own; this refresher answers "no fresh token" now.
+    // While acting as someone, a rejected token goes to the act-as coordinator instead: the server re-mints the act-as
+    // token while the support session is open (the request is retried as the target), or hands the operator back once
+    // it is over (the app reloads as them). The operator's refreshed token is never installed under the target's name.
     val tokenRefresher: suspend () -> Boolean = {
         if (sessionStore.isActingAs) {
-            actAsCoordinator.onActAsTokenRejected()
-            false
+            actAsCoordinator.renew()
         } else {
             sessionStore.refreshOrExpire { authApi.refresh(null) }
         }
@@ -458,9 +458,28 @@ class AppGraph {
     // handed to the Connect controller, which owns its start/stop lifecycle.
     private val lanDiscovery: LanDiscovery = lanDiscovery()
 
-    // Act-as custody + the app reload the act-as swap runs on (see ActAsCoordinator).
+    // Act-as state (non-secret: the return route + a notice), the act-as token custody (the HttpOnly cookie on web,
+    // process memory on desktop) and the app reload the act-as swap runs on (see ActAsCoordinator).
     private val actAsSessionStore: ActAsSessionStore = ActAsSessionVault()
     private val appReloader: AppReloader = PlatformAppReloader()
+
+    // App-lifetime scope for work that must outlive the composable that started it (an act-as exit started from
+    // a control the exit itself unmounts).
+    private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    // The act-as lifecycle: a full session swap through an app reload, so no state of one identity reaches the next.
+    // WHO a boot is comes from /auth/refresh alone; the client keeps no act-as marker of its own.
+    val actAsCoordinator: ActAsCoordinator =
+        ActAsCoordinator(
+            sessionStore = sessionStore,
+            authApi = authApi,
+            revokeSession = adminApi::endImpersonation,
+            actAsStore = actAsSessionStore,
+            tokenCustody = platformActAsCustody(),
+            reloader = appReloader,
+            feedback = feedbackController,
+            scope = appScope,
+        )
 
     val connectController: ConnectController =
         ConnectController(
@@ -470,9 +489,7 @@ class AppGraph {
             connectLauncher = connectLauncher,
             lanDiscovery = lanDiscovery,
             diagnosticsApi = twitchDiagnosticsApi,
-            endActAs = { actAsCoordinator.exitWithoutReload() },
-            resumeActAs = { profile, operatorTokens -> actAsCoordinator.resume(profile, operatorTokens) },
-            reloadAfterActAsLogout = { appReloader.reload(location = "") },
+            actAs = actAsCoordinator,
         )
 
     // The non-secret "setup finish pending" record custody — written by SetupController.finish() BEFORE the
@@ -840,22 +857,6 @@ class AppGraph {
     // every write affordance gate by the REAL Plane-B ManagementRole, replacing the old broadcaster hardcode.
     val shellAccessController: ShellAccessController =
         ShellAccessController(channelsApi = channelsApi, rolesApi = rolesApi)
-
-    // App-lifetime scope for work that must outlive the composable that started it (an act-as exit started from
-    // a banner the exit itself unmounts).
-    private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    // The act-as lifecycle: a full session swap through an app reload, so no state of one identity reaches the next.
-    val actAsCoordinator: ActAsCoordinator =
-        ActAsCoordinator(
-            sessionStore = sessionStore,
-            authApi = authApi,
-            revokeSession = adminApi::endImpersonation,
-            actAsStore = actAsSessionStore,
-            reloader = appReloader,
-            feedback = feedbackController,
-            scope = appScope,
-        )
 
     val adminController: AdminController =
         AdminController(

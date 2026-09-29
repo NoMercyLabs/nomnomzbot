@@ -10,21 +10,27 @@
 
 package bot.nomnomz.dashboard.core.connection
 
-/** An in-memory [ActAsSessionStore] standing in for the tab's sessionStorage, readable by the test. */
-class InMemoryActAsSessionStore(var session: PersistedActAs? = null) : ActAsSessionStore {
+/**
+ * An in-memory [ActAsSessionStore] standing in for the tab's sessionStorage. [written] records every value that
+ * was ever written to it, so a test can prove no token reached JS storage.
+ */
+class InMemoryActAsSessionStore(var returnLocation: String? = null) : ActAsSessionStore {
     var notice: ActAsEndNotice? = null
+    val written: MutableList<String> = mutableListOf()
 
-    override fun read(): PersistedActAs? = session
+    override fun readReturnLocation(): String? = returnLocation
 
-    override fun write(session: PersistedActAs) {
-        this.session = session
+    override fun writeReturnLocation(location: String) {
+        written += location
+        returnLocation = location
     }
 
     override fun clear() {
-        session = null
+        returnLocation = null
     }
 
     override fun putNotice(notice: ActAsEndNotice) {
+        written += notice.toString()
         this.notice = notice
     }
 

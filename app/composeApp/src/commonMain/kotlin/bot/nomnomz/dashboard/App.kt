@@ -273,7 +273,8 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                         if (actingAs == null) graph.connectController.checkTwitchHealth()
                                     }
                                     // A time-boxed act-as session ends itself on time — even on an idle page where no
-                                    // request would hit the rejected token — through the same exit path.
+                                    // request would hit the rejected token: at its end the server is asked who this
+                                    // session is, and hands the operator back.
                                     LaunchedEffect(actingAs) {
                                         val info: ImpersonationInfo = actingAs ?: return@LaunchedEffect
                                         delay((info.expiresAt - Clock.System.now()).coerceAtLeast(Duration.ZERO))

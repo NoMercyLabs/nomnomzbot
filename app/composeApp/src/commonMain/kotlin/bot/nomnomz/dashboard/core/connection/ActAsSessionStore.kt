@@ -13,19 +13,17 @@ package bot.nomnomz.dashboard.core.connection
 import kotlinx.serialization.Serializable
 
 /**
- * The act-as (admin impersonation) session marker that survives an app reload, so a reload while acting boots
- * straight back into the target's session instead of silently returning to the operator.
- *
- * It holds the act-as ACCESS token only. That token is access-only (the server mints no refresh token for it),
- * time-boxed to the backing support session and revocable server-side. The operator's refresh token never lands
- * here: on web it stays in the HttpOnly cookie, on desktop in the OS vault.
+ * The NON-SECRET act-as state that has to cross an app reload: where the operator was when they started acting
+ * (so Exit lands them back there) and a one-shot notice for the next boot. It never holds a token and it never
+ * decides who a boot is — that comes from `/auth/refresh` alone ([bot.nomnomz.dashboard.core.network.AuthPayload.impersonation]).
  */
 interface ActAsSessionStore {
-    /** The live act-as session, or null when the operator is not acting as anyone. */
-    fun read(): PersistedActAs?
+    /** Where the operator was when they started acting in this tab, or null when they have not. */
+    fun readReturnLocation(): String?
 
-    fun write(session: PersistedActAs)
+    fun writeReturnLocation(location: String)
 
+    /** Forget the return location (the act-as session is over). A pending notice is kept. */
     fun clear()
 
     /** Leave a one-shot notice for the next boot (an act-as session that ended across a reload). */
@@ -35,42 +33,25 @@ interface ActAsSessionStore {
     fun takeNotice(): ActAsEndNotice?
 }
 
-/**
- * The act-as session carried across a reload. [returnLocation] is where the operator was when they started
- * acting (web: the route hash), so Exit lands them back there; it is never read while acting.
- */
-@Serializable
-data class PersistedActAs(
-    val accessToken: String,
-    val expiresAt: String,
-    val accessGrantId: String,
-    val displayName: String,
-    val returnLocation: String,
-)
-
 /** Why an act-as session ended outside the operator's own Exit click, told to the operator after the reload. */
 @Serializable
-data class ActAsEndNotice(val reason: ActAsEndReason, val detail: String? = null)
+data class ActAsEndNotice(val reason: ActAsEndReason)
 
 @Serializable
 enum class ActAsEndReason {
-    /** The act-as token was rejected or ran out: the session had already ended server-side. */
+    /** The support session was over (expired, or ended elsewhere): the server handed back the operator. */
     Expired,
-
-    /** The operator exited, but the server did not confirm the grant was revoked. */
-    RevokeFailed,
 }
 
 /**
- * The per-target custody for [PersistedActAs]:
- *   Web:     sessionStorage — survives a reload of THIS tab only, is never shared with other tabs, and is gone
- *            when the tab closes.
+ * The per-target custody for [ActAsSessionStore]:
+ *   Web:     sessionStorage — this tab only, gone when the tab closes.
  *   Desktop: process memory — survives the in-process app restart, never a relaunch.
  */
 expect class ActAsSessionVault() : ActAsSessionStore {
-    override fun read(): PersistedActAs?
+    override fun readReturnLocation(): String?
 
-    override fun write(session: PersistedActAs)
+    override fun writeReturnLocation(location: String)
 
     override fun clear()
 

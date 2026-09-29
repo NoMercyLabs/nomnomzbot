@@ -252,6 +252,7 @@
     <string name="shell_impersonation_revoke_failed">You are back on your own account, but the server did not close the act-as session: %1$s</string>
     <string name="shell_impersonation_identity_failed">The account you chose could not be loaded. You are back on your own account.</string>
     <string name="shell_impersonation_ended_expired">The act-as session ended. You are back on your own account.</string>
+    <string name="shell_impersonation_exit_failed">Could not exit: %1$s. You are still acting as this account. Try again.</string>
     <string name="shell_profile_view_as_viewer">View as viewer</string>
     <string name="shell_preview_banner">Previewing the viewer experience</string>
     <string name="shell_preview_exit">Exit preview</string>

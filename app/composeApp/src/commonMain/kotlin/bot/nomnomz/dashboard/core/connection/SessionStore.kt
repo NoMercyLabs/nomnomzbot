@@ -149,9 +149,9 @@ class SessionStore(
     }
 
     /**
-     * Boot straight into an act-as session carried across a reload: pin [profile], stash [operatorTokens] (the
-     * desktop vault's; null on web, where the operator's token is re-minted from the HttpOnly cookie on Exit), then
-     * enter act-as with the target's token. The gate stays where it is until [commitActAs] proves the token.
+     * Boot straight into the act-as session `/auth/refresh` answered with: pin [profile], stash [operatorTokens] (the
+     * desktop vault's; null on web, where Exit hands the operator back through the HttpOnly cookie), then enter
+     * act-as with the target's token. The gate stays where it is until [commitActAs] proves the token.
      */
     fun resumeImpersonation(
         profile: ConnectionProfile,
@@ -177,6 +177,26 @@ class SessionStore(
         if (!isActingAs) return
         _user.value = target
         _phase.value = SessionPhase.Connected
+    }
+
+    /**
+     * The act-as token was re-minted by `/auth/refresh` for the SAME impersonated user (the old one ran out while the
+     * support session is still open): hold the new token and the session's end. Identity, channel and stash stay.
+     */
+    fun renewActAs(accessToken: String, expiresAt: Instant) {
+        val acting: ImpersonationInfo = _impersonating.value ?: return
+        tokens = SessionTokens(accessToken = accessToken)
+        _impersonating.value = acting.copy(expiresAt = expiresAt)
+    }
+
+    /**
+     * Persist the operator's own session to the vault WITHOUT holding it or moving the gate — the operator's refresh
+     * token was rotated while acting (an Exit, or the server handing the operator back), and the reload that follows
+     * restores from the vault. A no-op on web, whose vault holds nothing (the refresh token is an HttpOnly cookie).
+     */
+    suspend fun vaultOperatorTokens(operatorTokens: SessionTokens) {
+        val profile: ConnectionProfile = _activeProfile.value ?: return
+        tokenVault.write(profile.id, operatorTokens)
     }
 
     /**
