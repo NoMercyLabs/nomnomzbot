@@ -531,6 +531,12 @@ public static class DependencyInjection
         // No-op fallback; the API host replaces this with the SignalR-backed EventResponseOverlayNotifierAdapter
         // (drives an EventResponse's `overlay` ResponseType — commands-pipelines.md §3.2.1).
         services.AddScoped<IEventResponseOverlayNotifier, NullEventResponseOverlayNotifier>();
+        // No-op fallback; the API host replaces this with the SignalR-backed RenderedAlertReplayer (re-sends
+        // an activity event's captured overlay alerts on a dashboard replay).
+        services.AddScoped<
+            Application.Widgets.Services.IRenderedAlertReplayer,
+            Widgets.NullRenderedAlertReplayer
+        >();
         // No-op fallback for the generic overlay event feed; the API host replaces it with the hub-backed adapter.
         // The OverlayEventFeedHook that drives it is auto-registered by the IJournalPostCommitHook scan below.
         services.AddScoped<
@@ -1002,6 +1008,15 @@ public static class DependencyInjection
         // The ONE event-response execution path every trigger source dispatches through (alert handlers,
         // supporter triggers, stream online/offline, reward redemptions). Not an I<X>Service — explicit.
         services.AddScoped<IEventResponseExecutor, EventResponseExecutor>();
+        // The presentation half of every alert handler, keyed by event type, for the dashboard's activity
+        // replay (IActivityReplayService, registered by convention). A replay rebuilds each event from the journal
+        // and finds a gift bomb's named recipients; both are concrete, single-use collaborators — explicit.
+        services.AddImplementationsOf<IEventResponsePresenter>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+        services.AddScoped<EventStore.JournaledDomainEventReader>();
+        services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
         services.AddScoped<ICommandConfigValidator, CommandConfigValidator>();
         // S-CONSEQ: counts the pipeline steps that name a keyless resource (sound clip, widget) inside

@@ -69,13 +69,49 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         CancellationToken cancellationToken = default
     )
     {
-        // S-PIPE-TREE-d3c: this is THE single choke point every trigger source (74 EventSub
-        // translators, timers, rewards, supporters, …) already dispatches through with a real,
-        // bus-delivered domain event behind it — so it is also the one place a `wait_for_event`
-        // pipeline step can be resumed without inventing a second event-fan-out mechanism. Runs
-        // UNCONDITIONALLY, before the EventResponse lookup below, because a channel can have a run
-        // parked on this event name with no EventResponse row configured for it at all. Failures
-        // here must never block the configured response below or escape into the event bus.
+        await ResumeWaitingRunsAsync(broadcasterId, eventTypeKey, variables, cancellationToken);
+        await RespondAsync(
+            broadcasterId,
+            eventTypeKey,
+            userId,
+            userDisplayName,
+            variables,
+            cancellationToken
+        );
+    }
+
+    // A replay is the same response, minus waking parked runs: the event is not happening again.
+    public Task<EventResponseOutcome> ReplayAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        string? userId,
+        string? userDisplayName,
+        Dictionary<string, string> variables,
+        CancellationToken cancellationToken = default
+    ) =>
+        RespondAsync(
+            broadcasterId,
+            eventTypeKey,
+            userId,
+            userDisplayName,
+            variables,
+            cancellationToken
+        );
+
+    // S-PIPE-TREE-d3c: this is THE single choke point every trigger source (74 EventSub
+    // translators, timers, rewards, supporters, …) already dispatches through with a real,
+    // bus-delivered domain event behind it — so it is also the one place a `wait_for_event`
+    // pipeline step can be resumed without inventing a second event-fan-out mechanism. Runs
+    // UNCONDITIONALLY, before the EventResponse lookup, because a channel can have a run
+    // parked on this event name with no EventResponse row configured for it at all. Failures
+    // here must never block the configured response or escape into the event bus.
+    private async Task ResumeWaitingRunsAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        Dictionary<string, string> variables,
+        CancellationToken cancellationToken
+    )
+    {
         try
         {
             await _pipeline.ResumeSuspendedRunsForEventAsync(
@@ -94,7 +130,17 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 broadcasterId
             );
         }
+    }
 
+    private async Task<EventResponseOutcome> RespondAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        string? userId,
+        string? userDisplayName,
+        Dictionary<string, string> variables,
+        CancellationToken cancellationToken
+    )
+    {
         EventResponse? row = await _db.EventResponses.FirstOrDefaultAsync(
             r => r.BroadcasterId == broadcasterId && r.EventType == eventTypeKey,
             cancellationToken
@@ -116,7 +162,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             ),
         };
         if (config is not { IsEnabled: true })
-            return;
+            return EventResponseOutcome.None;
 
         _logger.LogDebug(
             "Executing event response {EventType} ({ResponseType}) for channel {Channel}",
@@ -127,43 +173,35 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
 
         try
         {
-            switch (config.ResponseType)
+            return config.ResponseType switch
             {
-                case "chat_message":
-                    await SendChatMessageAsync(
-                        broadcasterId,
-                        eventTypeKey,
-                        config.Message,
-                        config.SpeakWithTts,
-                        variables,
-                        cancellationToken
-                    );
-                    break;
-
-                case "pipeline":
-                    await RunPipelineAsync(
-                        broadcasterId,
-                        config.PipelineId,
-                        userId,
-                        userDisplayName,
-                        variables,
-                        cancellationToken
-                    );
-                    break;
-
-                case "overlay":
-                    await SendOverlayAsync(
-                        broadcasterId,
-                        eventTypeKey,
-                        config.Message,
-                        config.Metadata,
-                        variables,
-                        cancellationToken
-                    );
-                    break;
-
+                "chat_message" => await SendChatMessageAsync(
+                    broadcasterId,
+                    eventTypeKey,
+                    config.Message,
+                    config.SpeakWithTts,
+                    variables,
+                    cancellationToken
+                ),
+                "pipeline" => await RunPipelineAsync(
+                    broadcasterId,
+                    config.PipelineId,
+                    userId,
+                    userDisplayName,
+                    variables,
+                    cancellationToken
+                ),
+                "overlay" => await SendOverlayAsync(
+                    broadcasterId,
+                    eventTypeKey,
+                    config.Message,
+                    config.Metadata,
+                    variables,
+                    cancellationToken
+                ),
                 // "none" or any unknown type: no action.
-            }
+                _ => EventResponseOutcome.None,
+            };
         }
         catch (Exception ex)
         {
@@ -174,6 +212,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 config.ResponseType,
                 broadcasterId
             );
+            return EventResponseOutcome.None;
         }
     }
 
@@ -213,7 +252,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         bool SpeakWithTts
     );
 
-    private async Task SendChatMessageAsync(
+    private async Task<EventResponseOutcome> SendChatMessageAsync(
         Guid broadcasterId,
         string eventTypeKey,
         string? messageTemplate,
@@ -223,7 +262,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     )
     {
         if (string.IsNullOrWhiteSpace(messageTemplate))
-            return;
+            return EventResponseOutcome.None;
 
         string message = await _templateResolver.ResolveAsync(
             messageTemplate,
@@ -232,12 +271,16 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             ct
         );
         if (string.IsNullOrWhiteSpace(message))
-            return;
+            return EventResponseOutcome.None;
 
-        await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
-
-        if (speakWithTts)
-            await SpeakAsync(broadcasterId, eventTypeKey, message, variables, ct);
+        bool sent = await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
+        bool spoken =
+            speakWithTts && await SpeakAsync(broadcasterId, eventTypeKey, message, variables, ct);
+        return EventResponseOutcome.None with
+        {
+            ChatMessagesSent = sent ? 1 : 0,
+            TtsQueued = spoken ? 1 : 0,
+        };
     }
 
     /// <summary>
@@ -248,7 +291,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     /// rejection or an exception is logged and never escapes; whether anything could PLAY the line is
     /// reported by the tts_speak broadcaster, so nothing here claims it was heard.
     /// </summary>
-    private async Task SpeakAsync(
+    private async Task<bool> SpeakAsync(
         Guid broadcasterId,
         string eventTypeKey,
         string text,
@@ -276,13 +319,15 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 ),
                 ct
             );
-            if (result.IsFailure)
-                _logger.LogWarning(
-                    "Event response {EventType} in {Channel} went to chat but was not spoken: {Reason}",
-                    eventTypeKey,
-                    broadcasterId,
-                    result.ErrorMessage
-                );
+            if (result.IsSuccess)
+                return true;
+            _logger.LogWarning(
+                "Event response {EventType} in {Channel} went to chat but was not spoken: {Reason}",
+                eventTypeKey,
+                broadcasterId,
+                result.ErrorMessage
+            );
+            return false;
         }
         catch (Exception ex)
         {
@@ -292,10 +337,11 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 eventTypeKey,
                 broadcasterId
             );
+            return false;
         }
     }
 
-    private async Task SendOverlayAsync(
+    private async Task<EventResponseOutcome> SendOverlayAsync(
         Guid broadcasterId,
         string eventTypeKey,
         string? messageTemplate,
@@ -315,9 +361,10 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             metadata,
             ct
         );
+        return EventResponseOutcome.None with { OverlaysShown = 1 };
     }
 
-    private async Task RunPipelineAsync(
+    private async Task<EventResponseOutcome> RunPipelineAsync(
         Guid broadcasterId,
         Guid? pipelineId,
         string? userId,
@@ -327,16 +374,16 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     )
     {
         if (!pipelineId.HasValue)
-            return;
+            return EventResponseOutcome.None;
 
         Domain.Commands.Entities.Pipeline? pipeline = await _db.Pipelines.FirstOrDefaultAsync(
             p => p.Id == pipelineId.Value,
             ct
         );
         if (pipeline is null || !pipeline.IsEnabled)
-            return;
+            return EventResponseOutcome.None;
 
-        await _pipeline.ExecuteAsync(
+        PipelineExecutionResult result = await _pipeline.ExecuteAsync(
             new()
             {
                 BroadcasterId = broadcasterId,
@@ -349,5 +396,12 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             },
             ct
         );
+
+        // A pipeline's own chat steps are its business; what is counted here is the TTS it queued, so a replay
+        // can say whether the stream heard anything.
+        int ttsQueued = result.StepLogs.Count(log =>
+            log is { ActionType: "play_tts", Succeeded: true }
+        );
+        return EventResponseOutcome.None with { TtsQueued = ttsQueued };
     }
 }

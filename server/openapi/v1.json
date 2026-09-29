@@ -110240,10 +110240,46 @@
       },
       "ReplayActivityResultDto": {
         "required": [
+          "eventsReplayed",
+          "chatMessagesSent",
+          "ttsQueued",
+          "overlaysShown",
           "widgetsNotified"
         ],
         "type": "object",
         "properties": {
+          "eventsReplayed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "chatMessagesSent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ttsQueued": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "overlaysShown": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "widgetsNotified": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -110253,7 +110289,7 @@
             "format": "int32"
           }
         },
-        "description": "How many currently-subscribed widgets a replay actually re-pushed to — 0 is a valid, truthful\n    outcome (e.g. every subscribed widget was disabled since the alert originally fired), never disguised\n    as a full success."
+        "description": "What a replay actually re-performed — every count is real work, and 0 is a valid, truthful\n    outcome (e.g. the response is disabled, or every subscribed widget was removed since the alert fired),\n    never disguised as a full success. EventsReplayed is 1, or 1 + each named recipient of a gift bomb."
       },
       "RequestErasureRequest": {
         "required": [

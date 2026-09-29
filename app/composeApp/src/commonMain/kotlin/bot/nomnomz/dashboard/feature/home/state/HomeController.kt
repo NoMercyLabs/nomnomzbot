@@ -267,8 +267,8 @@ class HomeController(
     }
 
     /**
-     * Replay the captured alert/TTS payload for [eventId] to currently-subscribed widgets — for when a
-     * WebSocket drop meant OBS/overlay/TTS missed it live (backend `dashboard:replay`, Mod floor). Tracks the
+     * Replay [eventId] the way viewers experienced it — the bot's chat reply, the TTS and the overlay alerts; a
+     * gift bomb replays its whole chain (backend `dashboard:replay`, Mod floor). Tracks the
      * outcome per-event in [HomeState.Ready.replayStatus] so only THIS row shows in-flight/disabled and its own
      * distinct result — other rows are unaffected. A 404 means nothing was captured for this event: that is
      * surfaced as [ReplayStatus.NothingToReplay], never disguised as [ReplayStatus.Replayed].

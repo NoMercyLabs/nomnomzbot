@@ -77,13 +77,14 @@ internal static class WidgetAlertDispatch
         // The capture below still reflects EVERY subscriber (including the alerts surface, via `subscribers`)
         // even though the excluded widget is skipped HERE — the capture is a record of what the channel's
         // widgets were subscribed to, not of which SignalR calls this method personally made.
-        foreach (Widget widget in subscribers.Where(w => w.Id != excludeWidgetId))
-            await notifier.SendWidgetEventAsync(
-                broadcasterId.ToString(),
-                widget.Id.ToString(),
-                new(widget.Id.ToString(), eventType, data),
-                cancellationToken
-            );
+        await PushAsync(
+            notifier,
+            broadcasterId,
+            subscribers.Where(w => w.Id != excludeWidgetId),
+            eventType,
+            data,
+            cancellationToken
+        );
 
         // Same exclusion DashboardController.GetActivity applies to the feed itself (chat never shows there) —
         // applied here too, one step earlier: a shared per-broadcaster ring buffer that also captured
@@ -102,6 +103,34 @@ internal static class WidgetAlertDispatch
                 channelEventId,
                 cancellationToken
             );
+    }
+
+    /// <summary>
+    /// The one widget push both a live alert and a replayed capture go through: <paramref name="data"/> to each
+    /// of <paramref name="widgets"/> over its OverlayHub group. Returns how many pushes were made.
+    /// </summary>
+    public static async Task<int> PushAsync(
+        IWidgetNotifier notifier,
+        Guid broadcasterId,
+        IEnumerable<Widget> widgets,
+        string eventType,
+        object data,
+        CancellationToken cancellationToken
+    )
+    {
+        int pushed = 0;
+        foreach (Widget widget in widgets)
+        {
+            await notifier.SendWidgetEventAsync(
+                broadcasterId.ToString(),
+                widget.Id.ToString(),
+                new(widget.Id.ToString(), eventType, data),
+                cancellationToken
+            );
+            pushed++;
+        }
+
+        return pushed;
     }
 
     /// <summary>
