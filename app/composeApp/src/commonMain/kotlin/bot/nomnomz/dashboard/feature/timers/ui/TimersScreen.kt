@@ -291,7 +291,7 @@ fun TimersScreen(
         val restore: RestoreDefaultController? = remember(timer.id) { controller.restoreDefault(timer.id) }
         if (restore != null) {
             RestoreDefaultDialog(
-                name = timer.name,
+                name = resolveRowLabel(timer.name, typeLabel = "Timer", discriminatorSource = timer.id),
                 controller = restore,
                 onRestored = {
                     restoreTarget = null

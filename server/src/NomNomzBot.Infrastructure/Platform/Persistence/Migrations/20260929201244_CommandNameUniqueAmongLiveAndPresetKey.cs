@@ -12,21 +12,24 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_Command_NameNormalized_BroadcasterId",
-                table: "Commands");
+                table: "Commands"
+            );
 
             migrationBuilder.AddColumn<string>(
                 name: "PresetKey",
                 table: "Commands",
                 type: "character varying(50)",
                 maxLength: 50,
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Command_NameNormalized_BroadcasterId",
                 table: "Commands",
                 columns: new[] { "NameNormalized", "BroadcasterId" },
                 unique: true,
-                filter: "\"DeletedAt\" IS NULL");
+                filter: "\"DeletedAt\" IS NULL"
+            );
         }
 
         /// <inheritdoc />
@@ -34,17 +37,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_Command_NameNormalized_BroadcasterId",
-                table: "Commands");
+                table: "Commands"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "PresetKey",
-                table: "Commands");
+            migrationBuilder.DropColumn(name: "PresetKey", table: "Commands");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Command_NameNormalized_BroadcasterId",
                 table: "Commands",
                 columns: new[] { "NameNormalized", "BroadcasterId" },
-                unique: true);
+                unique: true
+            );
         }
     }
 }
