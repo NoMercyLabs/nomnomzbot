@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -41,7 +40,6 @@ public sealed class StatsBuiltinTests
     private readonly IViewerAnalyticsService _analytics;
     private readonly ICurrencyAccountService _wallets;
     private readonly IUserService _users;
-    private readonly ITemplateResolver _templates;
 
     public StatsBuiltinTests()
     {
@@ -95,30 +93,10 @@ public sealed class StatsBuiltinTests
                     new UserDto(Alice.ToString(), "alice", "Alice", null, null, default, default)
                 )
             );
-
-        _templates = Substitute.For<ITemplateResolver>();
-        _templates
-            .Resolve(Arg.Any<string>(), Arg.Any<IDictionary<string, string>>())
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return template;
-            });
     }
 
     private StatsBuiltin Sut(FakeChannelBuiltinReplies? channelReplies = null) =>
-        new(
-            _analytics,
-            _wallets,
-            _users,
-            _db,
-            _templates,
-            channelReplies ?? FakeChannelBuiltinReplies.None
-        );
+        new(_analytics, _wallets, _users, _db, TestBuiltinComposer.Create(channelReplies));
 
     private static BuiltinCommandContext Context(string args = "") =>
         new()
@@ -245,7 +223,7 @@ public sealed class StatsBuiltinTests
     {
         Result<string> reply = await Sut().ExecuteAsync(Context("@ghost"));
 
-        reply.Value.Should().Be("I haven't seen ghost here yet.");
+        reply.Value.Should().Be("I haven't seen ghost chat here yet.");
     }
 
     [Fact]
@@ -322,39 +300,76 @@ public sealed class StatsBuiltinTests
     }
 
     [Fact]
-    public async Task Stats_WithTheDefaultInformativeTone_KeepsTheRichNeutralLine()
+    public async Task Stats_WithTheDefaultInformativeTone_ReadsTheShippedLineWithRankAndStreak()
     {
-        // Informative is intentionally NOT authored for !stats, so the default keeps the richer conditional
-        // line (rank + streak) — proving the AddFlavored omission behaves as designed.
+        // The Informative line of stats/profile reproduces the wording the built-in used to build in code.
         SeedAliceStats();
-        BuiltinCommandContext ctx = new()
-        {
-            BroadcasterId = Channel,
-            TriggeringUserId = "111",
-            TriggeringUserDisplayName = "Alice",
-            TriggeringUserLogin = "alice",
-            Args = string.Empty,
-            Personality = PersonalityTone.Informative,
-        };
 
-        Result<string> reply = await Sut().ExecuteAsync(ctx);
+        Result<string> reply = await Sut().ExecuteAsync(Context());
 
-        reply.Value.Should().Contain("500 points (rank #3)");
-        reply.Value.Should().Contain("3-stream streak");
+        reply
+            .Value.Should()
+            .Be(
+                "Alice · 42 messages · 2h 1m watched · 500 points (rank #3) · 3-stream streak · first seen 2026-01-05"
+            );
+    }
+
+    [Fact]
+    public async Task Stats_WithoutARankOrAStreak_OmitsThoseParts_AndKeepsTheSeparatorsClean()
+    {
+        _analytics
+            .GetProfileAsync(Channel, Alice, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new ViewerProfileDto(
+                        Alice,
+                        "111",
+                        "Alice",
+                        new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc),
+                        null,
+                        TotalWatchSeconds: 60,
+                        TotalMessages: 7,
+                        TotalCommandsUsed: 0,
+                        TotalRedemptions: 0,
+                        TotalSongRequests: 0,
+                        IsFollower: false,
+                        IsSubscriber: false,
+                        SubTier: null,
+                        IsAnalyticsOptedOut: false
+                    )
+                )
+            );
+
+        Result<string> reply = await Sut().ExecuteAsync(Context());
+
+        reply
+            .Value.Should()
+            .Be("Alice · 7 messages · 1m watched · 0 points · first seen 2026-01-05");
+    }
+
+    [Fact]
+    public async Task Stats_AChannelOverrideOfTheNotSeenSlot_ReplacesOnlyThatReply()
+    {
+        SeedAliceStats();
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Stats.Key,
+            BuiltinResponseSlots.Stats.NotSeen,
+            "Who is {stats.user}? Not a regular yet!"
+        );
+
+        Result<string> unknown = await Sut(own).ExecuteAsync(Context("@ghost"));
+        Result<string> known = await Sut(own).ExecuteAsync(Context());
+
+        unknown.Value.Should().Be("Who is ghost? Not a regular yet!");
+        known.Value.Should().StartWith("Alice · 42 messages");
     }
 
     [Fact]
     public async Task Profile_IsTheLegacyParityAliasOfStats()
     {
         SeedAliceStats();
-        ProfileBuiltin alias = new(
-            _analytics,
-            _wallets,
-            _users,
-            _db,
-            _templates,
-            FakeChannelBuiltinReplies.None
-        );
+        ProfileBuiltin alias = new(_analytics, _wallets, _users, _db, TestBuiltinComposer.Create());
 
         alias.BuiltinKey.Should().Be("profile");
         Result<string> reply = await alias.ExecuteAsync(Context());

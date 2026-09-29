@@ -14,13 +14,12 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
-/// The one way the music chat commands (<c>!skip</c>, <c>!volume</c>, <c>!bansong</c>, <c>!playlist</c>) phrase a
-/// reply: through the composer, so every line is a slot the streamer can re-word. Keeps each built-in free of
-/// the request-building boilerplate.
+/// One call per reply for a built-in that speaks through <see cref="IBuiltinResponseComposer"/>: it fills the
+/// broadcaster and personality from the invocation context, so the built-in names only its reply group, slot,
+/// neutral wording and variables.
 /// </summary>
-internal static class MusicBuiltinReplies
+internal static class BuiltinReplyComposeExtensions
 {
-    /// <summary>Composes the reply of <paramref name="builtinKey"/>/<paramref name="slot"/> for the caller's channel.</summary>
     public static Task<string> ComposeAsync(
         this IBuiltinResponseComposer composer,
         BuiltinCommandContext context,
@@ -43,7 +42,7 @@ internal static class MusicBuiltinReplies
             ct
         );
 
-    /// <summary>The chat handler's own "you may not use this command" line — the <c>system/permissiondenied</c> slot.</summary>
+    /// <summary>The "you may not use this command" line — the <c>system/permissiondenied</c> slot.</summary>
     public static Task<string> ComposePermissionDeniedAsync(
         this IBuiltinResponseComposer composer,
         BuiltinCommandContext context,

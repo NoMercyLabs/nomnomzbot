@@ -350,4 +350,13 @@ public sealed class GdprBuiltinsTests
         h.MyData.BuiltinKey.Should().Be("mydata");
         h.Gdpr.BuiltinKey.Should().Be("gdpr");
     }
+
+    [Fact]
+    public void The_forgetme_done_slot_ships_the_executors_default_copy_as_its_informative_line()
+    {
+        ToneTemplateCatalog
+            .ShippedTemplate(BuiltinResponseSlots.Forgetme.Key, BuiltinResponseSlots.Forgetme.Done)
+            .Should()
+            .Be(GdprSelfServiceExecutor.DefaultErasedCopy);
+    }
 }

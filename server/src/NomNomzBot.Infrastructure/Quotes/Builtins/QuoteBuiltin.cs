@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Tts;
@@ -16,6 +17,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.Quotes.Builtins;
 
@@ -48,18 +50,21 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IRoleResolver _roles;
     private readonly ITtsDispatchService _tts;
+    private readonly IBuiltinResponseComposer _composer;
 
     public QuoteBuiltin(
         IQuoteService quotes,
         IUserService users,
         IRoleResolver roles,
-        ITtsDispatchService tts
+        ITtsDispatchService tts,
+        IBuiltinResponseComposer composer
     )
     {
         _quotes = quotes;
         _users = users;
         _roles = roles;
         _tts = tts;
+        _composer = composer;
     }
 
     public string BuiltinKey => "quote";
@@ -134,13 +139,25 @@ public sealed class QuoteBuiltin : IBuiltinCommand
             if (context.SpeakWithTts)
                 await SpeakAsync(context, result.Value, ct);
 
-            return Result.Success(QuoteFormatter.Format(result.Value));
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.Show,
+                "{quote}",
+                QuoteVars(result.Value),
+                ct
+            );
         }
 
         // A miss is never silence — distinguish "no quotes yet" from "that number doesn't exist".
-        return Result.Success(
-            number is null ? "There are no quotes yet." : $"I couldn't find quote #{number.Value}."
-        );
+        return number is null
+            ? await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.Empty,
+                "There are no quotes yet.",
+                null,
+                ct
+            )
+            : await NotFoundAsync(context, number.Value, ct);
     }
 
     /// <summary>
@@ -183,7 +200,13 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     {
         Result<Guid> invoker = await AuthorizeAsync(context, WriteCapability, "add quotes", ct);
         return invoker.IsFailure
-            ? Result.Success(invoker.ErrorMessage!)
+            ? await DeniedAsync(
+                context,
+                invoker,
+                BuiltinResponseSlots.Quote.NoAddPermission,
+                "You don't have permission to add quotes.",
+                ct
+            )
             : await AddAsAuthorizedAsync(context, rest, invoker.Value, ct);
     }
 
@@ -208,8 +231,12 @@ public sealed class QuoteBuiltin : IBuiltinCommand
         string? attribution = captureReply ? context.ReplyParentUserName : null;
 
         if (string.IsNullOrWhiteSpace(text))
-            return Result.Success(
-                "Usage: !quote add <text> — or reply to a message with !quote add."
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.AddUsage,
+                "Usage: !quote add <text> — or reply to a message with !quote add.",
+                null,
+                ct
             );
 
         Result<QuoteDto> added = await _quotes.AddAsync(
@@ -218,11 +245,24 @@ public sealed class QuoteBuiltin : IBuiltinCommand
             ct
         );
 
-        return Result.Success(
-            added.IsSuccess
-                ? $"Added {QuoteFormatter.Format(added.Value)}"
-                : added.ErrorMessage ?? "I couldn't add that quote."
-        );
+        if (added.IsSuccess)
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.Added,
+                "Added {quote}",
+                QuoteVars(added.Value),
+                ct
+            );
+
+        return added.ErrorCode == "VALIDATION_FAILED"
+            ? await InvalidTextAsync(context, ct)
+            : await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.AddFailed,
+                "I couldn't add that quote.",
+                null,
+                ct
+            );
     }
 
     /// <summary><c>!quote edit|update &lt;n&gt; &lt;text&gt;</c> — re-bodies a quote, keeping its attribution.</summary>
@@ -234,17 +274,29 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     {
         Result<Guid> invoker = await AuthorizeAsync(context, WriteCapability, "edit quotes", ct);
         if (invoker.IsFailure)
-            return Result.Success(invoker.ErrorMessage!);
+            return await DeniedAsync(
+                context,
+                invoker,
+                BuiltinResponseSlots.Quote.NoEditPermission,
+                "You don't have permission to edit quotes.",
+                ct
+            );
 
         (int? number, string text) = SplitNumberAndText(rest);
         if (number is null || string.IsNullOrWhiteSpace(text))
-            return Result.Success("Usage: !quote edit <number> <new text>");
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.EditUsage,
+                "Usage: !quote edit <number> <new text>",
+                null,
+                ct
+            );
 
         // EditAsync replaces the whole record, so carry the existing attribution forward — a chat edit changes
         // only the wording.
         Result<QuoteDto> existing = await _quotes.GetAsync(context.BroadcasterId, number.Value, ct);
         if (existing.IsFailure)
-            return Result.Success($"I couldn't find quote #{number.Value}.");
+            return await NotFoundAsync(context, number.Value, ct);
 
         Result<QuoteDto> edited = await _quotes.EditAsync(
             context.BroadcasterId,
@@ -253,11 +305,24 @@ public sealed class QuoteBuiltin : IBuiltinCommand
             ct
         );
 
-        return Result.Success(
-            edited.IsSuccess
-                ? $"Updated {QuoteFormatter.Format(edited.Value)}"
-                : edited.ErrorMessage ?? "I couldn't update that quote."
-        );
+        if (edited.IsSuccess)
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.Updated,
+                "Updated {quote}",
+                QuoteVars(edited.Value),
+                ct
+            );
+
+        return edited.ErrorCode == "VALIDATION_FAILED"
+            ? await InvalidTextAsync(context, ct)
+            : await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.EditFailed,
+                "I couldn't update that quote.",
+                null,
+                ct
+            );
     }
 
     /// <summary><c>!quote del|delete|remove &lt;n&gt;</c> — soft-deletes a quote; its number is never reused.</summary>
@@ -269,19 +334,109 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     {
         Result<Guid> invoker = await AuthorizeAsync(context, DeleteCapability, "delete quotes", ct);
         if (invoker.IsFailure)
-            return Result.Success(invoker.ErrorMessage!);
+            return await DeniedAsync(
+                context,
+                invoker,
+                BuiltinResponseSlots.Quote.NoDeletePermission,
+                "You don't have permission to delete quotes.",
+                ct
+            );
 
         (int? number, _) = SplitNumberAndText(rest);
         if (number is null)
-            return Result.Success("Usage: !quote del <number>");
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.DeleteUsage,
+                "Usage: !quote del <number>",
+                null,
+                ct
+            );
 
         Result deleted = await _quotes.DeleteAsync(context.BroadcasterId, number.Value, ct);
-        return Result.Success(
-            deleted.IsSuccess
-                ? $"Deleted quote #{number.Value}."
-                : $"I couldn't find quote #{number.Value}."
-        );
+        return deleted.IsSuccess
+            ? await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.Deleted,
+                "Deleted quote #{quote.number}.",
+                NumberVars(number.Value),
+                ct
+            )
+            : await NotFoundAsync(context, number.Value, ct);
     }
+
+    private async Task<Result<string>> ReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        IReadOnlyDictionary<string, string>? variables,
+        CancellationToken ct
+    ) =>
+        Result.Success(
+            await _composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Quote.Key,
+                slot,
+                neutralFallback,
+                variables,
+                ct
+            )
+        );
+
+    private Task<Result<string>> NotFoundAsync(
+        BuiltinCommandContext context,
+        int number,
+        CancellationToken ct
+    ) =>
+        ReplyAsync(
+            context,
+            BuiltinResponseSlots.Quote.NotFound,
+            "I couldn't find quote #{quote.number}.",
+            NumberVars(number),
+            ct
+        );
+
+    private Task<Result<string>> InvalidTextAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    ) =>
+        ReplyAsync(
+            context,
+            BuiltinResponseSlots.Quote.InvalidText,
+            "A quote needs text, and it can be at most 500 characters.",
+            null,
+            ct
+        );
+
+    /// <summary>
+    /// The reply for a failed <see cref="AuthorizeAsync"/>: "account unresolved" for the NOT_FOUND code, else the
+    /// capability's own refusal slot. The service-side message stays for logs; chat gets the slot's wording.
+    /// </summary>
+    private Task<Result<string>> DeniedAsync(
+        BuiltinCommandContext context,
+        Result<Guid> failure,
+        string forbiddenSlot,
+        string forbiddenFallback,
+        CancellationToken ct
+    ) =>
+        failure.ErrorCode == "NOT_FOUND"
+            ? ReplyAsync(
+                context,
+                BuiltinResponseSlots.Quote.AccountUnresolved,
+                "Your account could not be resolved — try again.",
+                null,
+                ct
+            )
+            : ReplyAsync(context, forbiddenSlot, forbiddenFallback, null, ct);
+
+    private static Dictionary<string, string> QuoteVars(QuoteDto quote) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["quote"] = QuoteFormatter.Format(quote),
+            ["quote.number"] = quote.Number.ToString(),
+        };
+
+    private static Dictionary<string, string> NumberVars(int number) =>
+        new(StringComparer.OrdinalIgnoreCase) { ["quote.number"] = number.ToString() };
 
     /// <summary>
     /// Resolves the invoking chatter to their internal user id (the get-or-create viewer seam) and requires

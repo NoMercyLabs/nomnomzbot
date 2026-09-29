@@ -56,6 +56,24 @@ public sealed class ToneTemplateCatalogIntegrityTests
     }
 
     [Fact]
+    public void Every_slot_ships_a_default_line_the_editor_can_show_and_reset_to()
+    {
+        List<string> missing =
+        [
+            .. ToneTemplateCatalog
+                .AllSlots()
+                .Where(s =>
+                    string.IsNullOrWhiteSpace(
+                        ToneTemplateCatalog.ShippedTemplate(s.BuiltinKey, s.Slot)
+                    )
+                )
+                .Select(s => $"{s.BuiltinKey}/{s.Slot}"),
+        ];
+
+        missing.Should().BeEmpty("a reset must land on real text, never on an empty reply");
+    }
+
+    [Fact]
     public void Every_declared_variable_has_a_preview_sample()
     {
         List<string> missing =
