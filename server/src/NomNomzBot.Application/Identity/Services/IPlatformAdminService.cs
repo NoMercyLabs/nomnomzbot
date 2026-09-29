@@ -60,7 +60,8 @@ public interface IPlatformAdminService
     /// <summary>
     /// Grants the acting principal audited support access to one tenant: a time-boxed
     /// <c>IamRoleAssignment</c> of the seeded <c>platform-support</c> role narrowed to that tenant.
-    /// Justification is mandatory. Requires <c>tenant:access</c>.
+    /// Justification is mandatory. Requires <c>tenant:access</c>. The caller's own still-open support session on
+    /// the same tenant is ended (and its session id revoked), so one operator holds at most one per tenant.
     /// </summary>
     Task<Result<TenantAccessGrantDto>> BeginTenantAccessAsync(
         Guid principalId,
