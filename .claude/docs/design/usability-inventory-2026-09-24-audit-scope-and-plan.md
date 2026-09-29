@@ -554,7 +554,7 @@ Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, autom
 sweep. 17. V-B3.3 chat-earning role scale. 18. V-B2.1 typed pipeline params from backend descriptors
 (+ accept numeric strings). 19. V-B6.2 push `WidgetSettingsChanged`; V-B6.1 stop the double alert.
 21. V-B3 giveaway open/draw announced; game seeding per
-type; `WinChance ?? 0` refused. 22. V-B8.1 Integrations bot row → channel bot endpoints.
+type; `WinChance ?? 0` refused. 22. V-B8.1 Integrations bot row: status + Disconnect done; a channel-scoped device START route remains.
 23. V-B5.4 `!sr` instrumentation (query, message id, resolved uri) + atomic in-flight claim + hand over
 the head; address queue entries by code, not position.
 

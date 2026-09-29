@@ -113,8 +113,10 @@ class IntegrationsController(
     suspend fun refresh() {
         val id: String = channelId ?: return
 
+        // THIS channel's own bot, the one the row's Connect wires up. The platform-wide bot status is an admin
+        // read (403 for a streamer), which used to show every streamer "not connected".
         val bot: BotConnection =
-            when (val result: ApiResult<BotStatus> = botAuthApi.status()) {
+            when (val result: ApiResult<BotStatus> = channelsApi.channelBotStatus(id)) {
                 is ApiResult.Ok -> BotConnection(result.value.connected, result.value.displayName ?: result.value.login)
                 is ApiResult.Failure -> BotConnection(connected = false, accountName = null)
             }
@@ -284,7 +286,7 @@ class IntegrationsController(
     }
 
     /**
-     * Connect the platform-shared bot account. The bot is a SEPARATE Twitch account, so this ALWAYS uses the
+     * Connect this channel's own bot account. The bot is a SEPARATE Twitch account, so this ALWAYS uses the
      * device-code flow — never the redirect. A redirect would authorize whatever account is logged into the
      * browser (the streamer, whose name then wrongly shows on the consent), not the bot; the device-code flow
      * is account-agnostic, so the operator approves the short code at twitch.tv/activate on a session logged
@@ -488,16 +490,18 @@ class IntegrationsController(
     }
 
     /**
-     * Disconnect the platform-shared bot account (admin-only), then refresh so the bot card reflects it. To
-     * CHANGE the bot, the operator disconnects here then connects the new account via [connectBot].
+     * Disconnect THIS channel's own bot, then refresh so the bot card reflects it; the channel falls back to the
+     * shared platform bot. Never the deployment-wide bot, which would silence every channel. To CHANGE the bot,
+     * disconnect here then connect the new account via [connectBot].
      */
     suspend fun disconnectBot() {
+        val id: String = channelId ?: return
         withBusy(
             target = BusyTarget.Bot,
             successMessage = Res.string.feedback_disconnected,
             failureMessage = Res.string.feedback_disconnect_failed,
         ) {
-            botAuthApi.disconnect()
+            channelsApi.disconnectChannelBot(id)
         }
     }
 
@@ -734,7 +738,7 @@ sealed interface IntegrationsState {
     data class Error(val detail: String) : IntegrationsState
 }
 
-/** The platform-shared bot account connection, surfaced to the screen. */
+/** This channel's own bot account connection, surfaced to the screen. */
 data class BotConnection(val connected: Boolean, val accountName: String?)
 
 /** One provider row (Spotify / YouTube / Discord) the screen renders. */
