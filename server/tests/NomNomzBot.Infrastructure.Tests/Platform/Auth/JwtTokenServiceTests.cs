@@ -145,8 +145,7 @@ public class JwtTokenServiceTests
             SessionId,
             roles: ["user"],
             idp: "twitch",
-            actorUserId: "admin-operator-id",
-            actorUsername: "operator"
+            actorUserId: "admin-operator-id"
         );
 
         // Read the raw wire claims (ValidateAccessToken may remap short names for role/sub).
@@ -156,10 +155,24 @@ public class JwtTokenServiceTests
             .ContainSingle(c => c.Type == JwtTokenService.ActorClaim)
             .Which.Value.Should()
             .Be("admin-operator-id");
-        jwt.Claims.Should()
-            .ContainSingle(c => c.Type == JwtTokenService.ActorNameClaim)
-            .Which.Value.Should()
-            .Be("operator");
+        // The operator rides by id alone: the act-as token carries exactly one claim type more than the same
+        // user's own token — no operator name for the acting browser to show.
+        string ownToken = svc.GenerateAccessToken(
+            UserId,
+            "target-user",
+            TenantId,
+            SessionId,
+            roles: ["user"],
+            idp: "twitch"
+        );
+        HashSet<string> ownTypes =
+        [
+            .. new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler()
+                .ReadJwtToken(ownToken)
+                .Claims.Select(c => c.Type),
+        ];
+        HashSet<string> actAsTypes = [.. jwt.Claims.Select(c => c.Type)];
+        actAsTypes.Except(ownTypes).Should().BeEquivalentTo([JwtTokenService.ActorClaim]);
 
         // The role claims are the TARGET's — the operator's `admin` role never leaks onto the token.
         ClaimsPrincipal principal = svc.ValidateAccessToken(token)!;
@@ -177,7 +190,6 @@ public class JwtTokenServiceTests
         System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwt =
             new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
         jwt.Claims.Should().NotContain(c => c.Type == JwtTokenService.ActorClaim);
-        jwt.Claims.Should().NotContain(c => c.Type == JwtTokenService.ActorNameClaim);
     }
 
     [Fact]

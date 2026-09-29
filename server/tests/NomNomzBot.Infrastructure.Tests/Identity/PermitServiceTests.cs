@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -42,7 +43,7 @@ public sealed class PermitServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
         FakeTimeProvider clock = new(Now);
-        RoleResolver resolver = new(db, clock);
+        RoleResolver resolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
         PermitService sut = new(db, resolver, bus, clock);
         return (sut, db, bus, resolver);
     }

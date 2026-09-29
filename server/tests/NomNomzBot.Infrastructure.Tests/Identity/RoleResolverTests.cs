@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -34,7 +35,11 @@ public sealed class RoleResolverTests
     private static (RoleResolver Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        RoleResolver sut = new(db, new FakeTimeProvider(Now));
+        RoleResolver sut = new(
+            db,
+            new FakeTimeProvider(Now),
+            Substitute.For<IActAsMembershipOverlay>()
+        );
         return (sut, db);
     }
 
@@ -355,7 +360,7 @@ public sealed class RoleResolverTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         FakeTimeProvider clock = new(Now);
-        RoleResolver sut = new(db, clock);
+        RoleResolver sut = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
         ActionAuthorizationService overrides = new(db, sut, new RecordingEventBus(), clock);
         SeedAction(db, "commands:read", defaultLevel: 10, floor: 4);
         SeedAction(db, "moderation:ban", defaultLevel: 10, floor: 10);

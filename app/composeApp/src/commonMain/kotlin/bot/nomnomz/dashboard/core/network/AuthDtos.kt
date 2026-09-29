@@ -29,7 +29,11 @@ data class StatusResponse<T>(
 
 /**
  * The auth payload the callback / refresh endpoints return inside `data`
- * (AuthController: `{ accessToken, refreshToken, expiresIn, user }`).
+ * (AuthController: `{ accessToken, refreshToken, expiresIn, user, impersonation }`).
+ *
+ * [impersonation] is set only by `/auth/refresh` while an act-as session is open: [accessToken] and [user] are
+ * then the impersonated user's and no refresh token comes back. It is the ONLY signal a reload uses to decide
+ * it boots as someone else — the dashboard keeps no act-as marker of its own.
  */
 @Serializable
 data class AuthPayload(
@@ -37,7 +41,12 @@ data class AuthPayload(
     val refreshToken: String? = null,
     val expiresIn: Long? = null,
     val user: AuthUser? = null,
+    val impersonation: ActAsSessionInfo? = null,
 )
+
+/** The support session an act-as refresh runs under: its id and when it ends (ISO-8601). */
+@Serializable
+data class ActAsSessionInfo(val sessionId: String, val expiresAt: String)
 
 /** The `user` block on the auth payload — the backend `UserDto`. */
 @Serializable

@@ -25,7 +25,9 @@ import bot.nomnomz.dashboard.core.connection.SessionTokens
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AuthApi
+import bot.nomnomz.dashboard.core.network.ActAsSessionInfo
 import bot.nomnomz.dashboard.core.network.AuthPayload
+import bot.nomnomz.dashboard.core.network.AuthUser
 import bot.nomnomz.dashboard.core.network.BotOAuthUrl
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.CurrentUser
@@ -71,7 +73,7 @@ class ConnectControllerDeviceLoginTest {
         connectLauncher: ConnectLauncher = FakeConnectLauncher(),
         diagnostics: TwitchDiagnosticsApi = FakeTwitchDiagnosticsApi(),
         savedConnectionsStore: SavedConnectionsStore = InMemorySavedConnectionsStore(),
-        endActAs: suspend (SessionStore) -> Unit = {},
+        actAs: ActAsConnectHooks = NoActAs,
     ): ConnectController {
         val session: SessionStore = SessionStore(vault, profiles)
         // The saved-connections repository shares the SAME token vault the session uses, exactly like
@@ -87,7 +89,7 @@ class ConnectControllerDeviceLoginTest {
                 diagnosticsApi = diagnostics,
                 profileIdFactory = { "test-profile" },
                 savedConnectionsRepository = savedConnectionsRepository,
-                endActAs = { endActAs(session) },
+                actAs = actAs,
             )
             .also { sessionByController[it] = session }
     }
@@ -796,6 +798,64 @@ class ConnectControllerDeviceLoginTest {
     }
 
     @Test
+    fun f5_on_web_boots_as_the_target_because_the_cookie_refresh_answers_with_impersonation() = runTest {
+        // Web keeps no act-as marker: the refresh (the HttpOnly cookies ride along) says who this boot is.
+        val profiles = InMemoryProfileStore()
+        profiles.write(rememberedProfile)
+        val authApi = FakeAuthApi(refreshResult = ApiResult.Ok(actingAnswer))
+        val hooks = RecordingActAsHooks(resumes = true)
+        val controller = controller(FakeSystemApi(ready = true), authApi, profiles = profiles, actAs = hooks)
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(true, restored)
+        // No token in the body — the browser's cookies carry both sessions.
+        assertEquals(listOf<Pair<String?, String?>>(null to null), authApi.refreshCalls)
+        assertEquals(listOf("resume:${rememberedProfile.id}:null:target-acc"), hooks.calls)
+        // The operator was never attached or proven.
+        assertEquals(0, authApi.meCallCount)
+        assertEquals(null, sessionOf(controller).accessToken())
+    }
+
+    @Test
+    fun a_desktop_restart_while_acting_sends_the_held_act_as_token_and_never_proves_the_operators_token() = runTest {
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        val operatorTokens = SessionTokens(accessToken = "operator-acc", refreshToken = "operator-ref")
+        vault.write("p1", operatorTokens)
+        profiles.write(rememberedProfile)
+        val authApi = FakeAuthApi(refreshResult = ApiResult.Ok(actingAnswer))
+        val hooks = RecordingActAsHooks(held = "target-held", resumes = true)
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles, actAs = hooks)
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(true, restored)
+        assertEquals(listOf<Pair<String?, String?>>("operator-ref" to "target-held"), authApi.refreshCalls)
+        // The act-as boot got the operator's vaulted tokens (held back for Exit only), which stay untouched.
+        assertEquals(listOf("resume:${rememberedProfile.id}:operator-ref:target-acc"), hooks.calls)
+        assertEquals(0, authApi.meCallCount, "the operator's stored token is never proven while acting")
+        assertEquals(operatorTokens, vault.stored["p1"])
+    }
+
+    @Test
+    fun a_refresh_answer_without_impersonation_boots_the_operator_and_forgets_any_act_as_state() = runTest {
+        val profiles = InMemoryProfileStore()
+        profiles.write(rememberedProfile)
+        val authApi = FakeAuthApi(refreshResult = ApiResult.Ok(AuthPayload(accessToken = "operator-fresh")))
+        val hooks = RecordingActAsHooks()
+        val controller = controller(FakeSystemApi(ready = true), authApi, profiles = profiles, actAs = hooks)
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(true, restored)
+        assertEquals(listOf("operator-session"), hooks.calls)
+        assertEquals("operator-fresh", sessionOf(controller).accessToken())
+        assertEquals(null, sessionOf(controller).impersonating.value)
+    }
+
+    @Test
     fun restore_session_is_a_no_op_when_no_session_was_remembered() = runTest {
         val controller = controller(FakeSystemApi(ready = true))
 
@@ -832,30 +892,63 @@ class ConnectControllerDeviceLoginTest {
     }
 
     @Test
-    fun logout_while_acting_as_someone_ends_act_as_first_so_the_operators_session_is_revoked() = runTest {
+    fun logout_while_acting_sends_the_act_as_token_then_drops_the_act_as_state_and_reloads() = runTest {
         val authApi = FakeAuthApi()
-        val order: MutableList<String> = mutableListOf()
-        val controller =
-            controller(
-                FakeSystemApi(ready = true),
-                authApi,
-                endActAs = { session ->
-                    order += "end-act-as"
-                    session.endImpersonation()
-                },
-            )
+        val hooks = RecordingActAsHooks()
+        val controller = controller(FakeSystemApi(ready = true), authApi, actAs = hooks)
         val session: SessionStore = sessionOf(controller)
         session.connect(rememberedProfile, SessionTokens(accessToken = "operator-acc", refreshToken = "ref"))
         session.beginImpersonation("target-acc", "Target", kotlinx.datetime.Instant.parse("2030-01-01T00:00:00Z"), "grant-1")
-        authApi.onLogout = { order += "logout:${session.accessToken()}" }
+        authApi.onLogout = { hooks.calls += "logout:${session.accessToken()}" }
 
         controller.logout()
 
-        // Act-as ended BEFORE the backend logout, so the logout carried the operator's token (revoking their
-        // refresh session), never the act-as token.
-        assertEquals(listOf("end-act-as", "logout:operator-acc"), order)
+        // The server reads a logout carrying the act-as token as the OPERATOR logging out (it ends the support
+        // session and revokes the operator's session only). Then the app reloads, so none of the target's
+        // in-memory data outlives the session it belonged to.
+        assertEquals(listOf("logout:target-acc", "logged-out-while-acting"), hooks.calls)
         assertEquals(null, session.impersonating.value)
         assertEquals(SessionPhase.NotConnected, session.phase.value)
+    }
+
+    @Test
+    fun logout_of_the_operators_own_session_never_reloads_the_app() = runTest {
+        val hooks = RecordingActAsHooks()
+        val controller = controller(FakeSystemApi(ready = true), FakeAuthApi(), actAs = hooks)
+        sessionOf(controller).connect(rememberedProfile, SessionTokens(accessToken = "acc", refreshToken = "ref"))
+
+        controller.logout()
+
+        assertEquals(emptyList(), hooks.calls)
+        assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
+    }
+
+    private val actingAnswer: AuthPayload =
+        AuthPayload(
+            accessToken = "target-acc",
+            user = AuthUser(id = "target-id", username = "anda_six", displayName = "anda_six"),
+            impersonation = ActAsSessionInfo(sessionId = "grant-1", expiresAt = "2030-01-01T00:00:00Z"),
+        )
+}
+
+/** Records every act-as seam the connect flow calls, in order. */
+private class RecordingActAsHooks(private val held: String? = null, private val resumes: Boolean = false) :
+    ActAsConnectHooks {
+    val calls: MutableList<String> = mutableListOf()
+
+    override fun heldActAsToken(): String? = held
+
+    override suspend fun resume(profile: ConnectionProfile, operatorTokens: SessionTokens?, answer: AuthPayload): Boolean {
+        calls += "resume:${profile.id}:${operatorTokens?.refreshToken}:${answer.accessToken}"
+        return resumes
+    }
+
+    override fun onOperatorSession() {
+        calls += "operator-session"
+    }
+
+    override fun onLoggedOutWhileActing() {
+        calls += "logged-out-while-acting"
     }
 }
 
@@ -959,11 +1052,20 @@ private class FakeAuthApi(
     override suspend fun providers():
         ApiResult<List<bot.nomnomz.dashboard.core.network.LoginProvider>> = ApiResult.Ok(emptyList())
 
+    /** How many times /me was called — proves which token a boot proved (or that it proved none). */
+    val meCallCount: Int get() = meCall
+
+    /** The (refreshToken, actAsToken) each refresh carried in its body, in order. */
+    val refreshCalls: MutableList<Pair<String?, String?>> = mutableListOf()
+
     override suspend fun me(): ApiResult<CurrentUser> {
         val index: Int = minOf(meCall, meResults.lastIndex)
         meCall++
         return meResults[index]
     }
+
+    override suspend fun exitImpersonation(refreshToken: String?): ApiResult<AuthPayload?> =
+        ApiResult.Failure(ApiError(501, "UNUSED", "not used here"))
 
     override suspend fun startDeviceLogin(provider: String): ApiResult<DeviceCodeStart> = start
 
@@ -972,8 +1074,9 @@ private class FakeAuthApi(
         deviceCode: String,
     ): ApiResult<DeviceLoginPoll> = poll
 
-    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> {
+    override suspend fun refresh(refreshToken: String?, actAsToken: String?): ApiResult<AuthPayload> {
         baseUrlAtRefresh = baseUrlProbe?.invoke()
+        refreshCalls += refreshToken to actAsToken
         val results: List<ApiResult<AuthPayload>> = refreshResults ?: listOf(refreshResult)
         val index: Int = minOf(refreshCallCount, results.lastIndex)
         refreshCallCount++

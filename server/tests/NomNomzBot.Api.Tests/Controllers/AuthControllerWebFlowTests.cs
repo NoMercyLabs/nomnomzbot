@@ -180,7 +180,7 @@ public sealed class AuthControllerWebFlowTests
             )
         );
 
-        await controller.Logout(default);
+        await controller.Logout(Substitute.For<IPlatformAdminService>(), default);
 
         // The server-side session is revoked AND the cookie is deleted (emitted with an empty value + past
         // expiry, on the same path it was set with) — otherwise the browser keeps a working refresh token.
@@ -247,7 +247,8 @@ public sealed class AuthControllerWebFlowTests
             [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>(),
-            Substitute.For<ISystemCredentialsProvider>()
+            Substitute.For<ISystemCredentialsProvider>(),
+            Substitute.For<IImpersonationSessionService>()
         )
         {
             ControllerContext = new() { HttpContext = http },

@@ -50,8 +50,8 @@ class SessionStore(
     private val _activeChannelId: MutableStateFlow<String?> = MutableStateFlow(null)
 
     // Admin act-as (impersonation) state. Non-null while the operator is acting as another user; drives the
-    // shell-level "Acting as …" banner + Exit control, which hang off THIS flag rather than [user.isAdmin]
-    // (impersonating a non-admin flips isAdmin false, but the operator must still be able to exit).
+    // shell-level Exit control, which hangs off THIS flag rather than [user.isAdmin] (impersonating a non-admin
+    // flips isAdmin false, but the operator must still be able to exit).
     private val _impersonating: MutableStateFlow<ImpersonationInfo?> = MutableStateFlow(null)
 
     // Bumped on every identity swap (act-as begin/end, session cleared). Pages key on it so a swap remounts
@@ -61,8 +61,8 @@ class SessionStore(
     private var tokens: SessionTokens? = null
 
     // The operator's OWN session state, stashed on [beginImpersonation] so [endImpersonation] can restore it.
-    // Impersonation is ephemeral: only this in-memory swap changes: the vault + profile + refresh token stay the
-    // operator's, so a relaunch never restores an impersonated session.
+    // The vault, profile and refresh token stay the operator's; the act-as marker that carries a session across a
+    // reload lives in [ActAsSessionStore], owned by the ActAsCoordinator, never here.
     private var operatorStash: OperatorStash? = null
 
     /** The current session phase the gate observes. */
@@ -79,8 +79,8 @@ class SessionStore(
 
     /**
      * The user the operator is currently acting as, or null when not acting. It stays set past
-     * [ImpersonationInfo.expiresAt] until the act-as session is actually ended, so the banner can show the expired
-     * state with Exit instead of vanishing while the session still holds the target's token.
+     * [ImpersonationInfo.expiresAt] until the act-as session is actually ended, so Exit stays reachable while the
+     * session still holds the target's token.
      */
     val impersonating: StateFlow<ImpersonationInfo?> = _impersonating.asStateFlow()
 
@@ -127,12 +127,11 @@ class SessionStore(
     }
 
     /**
-     * Enter admin act-as: stash the operator's token, selected channel and identity, then swap the active token to
-     * the target user's [targetAccessToken], raise the impersonation flag, clear the selected channel (the target's
-     * own roster picks theirs) and bump [identityGeneration]. Only in-memory state changes — the vault, the
-     * remembered profile, the remembered channel and the refresh token stay the operator's, so nothing about this
-     * survives a reload. [endImpersonation] restores the stash. Re-entrant guard: a second begin while already
-     * impersonating keeps the ORIGINAL operator stash (never overwrites it with act-as state).
+     * Enter admin act-as: stash the operator's tokens, selected channel and identity, then hold ONLY the target
+     * user's access-only [targetAccessToken] (no refresh token while acting), raise the impersonation flag, clear
+     * the selected channel (the target's own roster picks theirs) and bump [identityGeneration]. The vault, the
+     * remembered profile and the remembered channel stay the operator's. [endImpersonation] restores the stash.
+     * Re-entrant guard: a second begin while already impersonating keeps the ORIGINAL operator stash.
      */
     fun beginImpersonation(
         targetAccessToken: String,
@@ -141,23 +140,75 @@ class SessionStore(
         accessGrantId: String,
     ) {
         if (operatorStash == null) {
-            operatorStash = OperatorStash(tokens?.accessToken, _activeChannelId.value, _user.value)
+            operatorStash = OperatorStash(tokens, _activeChannelId.value, _user.value)
         }
-        updateAccessToken(targetAccessToken)
+        tokens = SessionTokens(accessToken = targetAccessToken)
         _impersonating.value = ImpersonationInfo(targetDisplayName, expiresAt, accessGrantId)
         _activeChannelId.value = null
         _identityGeneration.value += 1
     }
 
     /**
-     * Leave admin act-as: restore the stashed operator token, selected channel and identity, clear the
+     * Boot straight into the act-as session `/auth/refresh` answered with: pin [profile], stash [operatorTokens] (the
+     * desktop vault's; null on web, where Exit hands the operator back through the HttpOnly cookie), then enter
+     * act-as with the target's token. The gate stays where it is until [commitActAs] proves the token.
+     */
+    fun resumeImpersonation(
+        profile: ConnectionProfile,
+        operatorTokens: SessionTokens?,
+        targetAccessToken: String,
+        targetDisplayName: String,
+        expiresAt: Instant,
+        accessGrantId: String,
+    ) {
+        _activeProfile.value = profile
+        tokens = operatorTokens
+        _user.value = null
+        _activeChannelId.value = null
+        operatorStash = null
+        beginImpersonation(targetAccessToken, targetDisplayName, expiresAt, accessGrantId)
+    }
+
+    /**
+     * The act-as token was proven via `/me`: attach the target's identity and open the gate. Nothing is persisted —
+     * the act-as token never enters the operator's vault.
+     */
+    fun commitActAs(target: SessionUser) {
+        if (!isActingAs) return
+        _user.value = target
+        _phase.value = SessionPhase.Connected
+    }
+
+    /**
+     * The act-as token was re-minted by `/auth/refresh` for the SAME impersonated user (the old one ran out while the
+     * support session is still open): hold the new token and the session's end. Identity, channel and stash stay.
+     */
+    fun renewActAs(accessToken: String, expiresAt: Instant) {
+        val acting: ImpersonationInfo = _impersonating.value ?: return
+        tokens = SessionTokens(accessToken = accessToken)
+        _impersonating.value = acting.copy(expiresAt = expiresAt)
+    }
+
+    /**
+     * Persist the operator's own session to the vault WITHOUT holding it or moving the gate — the operator's refresh
+     * token was rotated while acting (an Exit, or the server handing the operator back), and the reload that follows
+     * restores from the vault. A no-op on web, whose vault holds nothing (the refresh token is an HttpOnly cookie).
+     */
+    suspend fun vaultOperatorTokens(operatorTokens: SessionTokens) {
+        val profile: ConnectionProfile = _activeProfile.value ?: return
+        tokenVault.write(profile.id, operatorTokens)
+    }
+
+    /**
+     * Leave admin act-as: restore the stashed operator tokens, selected channel and identity, clear the
      * impersonation flag and bump [identityGeneration]. Returns the ended session, or null when not impersonating
-     * (nothing stashed) — a stray exit never blanks a real token.
+     * (nothing stashed) — a stray exit never blanks a real token. After a reload the stash holds no token (web), so
+     * no token is held until the caller re-mints the operator's from the refresh cookie.
      */
     fun endImpersonation(): ImpersonationInfo? {
         val stash: OperatorStash = operatorStash ?: return null
         val ended: ImpersonationInfo? = _impersonating.value
-        stash.accessToken?.let(::updateAccessToken)
+        tokens = stash.tokens
         operatorStash = null
         _impersonating.value = null
         _activeChannelId.value = stash.activeChannelId
@@ -296,7 +347,7 @@ class SessionStore(
 
 /** The operator's own session state held while acting as someone, restored by [SessionStore.endImpersonation]. */
 private data class OperatorStash(
-    val accessToken: String?,
+    val tokens: SessionTokens?,
     val activeChannelId: String?,
     val user: SessionUser?,
 )
@@ -309,14 +360,12 @@ private data class OperatorStash(
 data class RestorableSession(val profile: ConnectionProfile, val tokens: SessionTokens?)
 
 /**
- * The user the operator is currently acting as (admin impersonation): the [displayName] drives the "Acting
- * as …" banner, [expiresAt] is the time-boxed support session's remaining life (the server clamps the
- * token's own expiry to it), and [accessGrantId] is what "Stop impersonating" calls the end endpoint with.
+ * The user the operator is currently acting as (admin impersonation). [displayName] is never rendered — while
+ * acting the shell shows the target's own identity from `/me`. [expiresAt] is the time-boxed support session's
+ * remaining life (the server clamps the token's own expiry to it; the shell ends the session on time), and
+ * [accessGrantId] is what Exit revokes.
  */
-data class ImpersonationInfo(val displayName: String, val expiresAt: Instant, val accessGrantId: String) {
-    /** True once [now] has reached or passed [expiresAt] — the session is no longer valid, active-in-name-only. */
-    fun isExpired(now: Instant): Boolean = now >= expiresAt
-}
+data class ImpersonationInfo(val displayName: String, val expiresAt: Instant, val accessGrantId: String)
 
 /** The signed-in streamer identity surfaced to the shell (frontend.md §6). */
 data class SessionUser(

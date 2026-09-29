@@ -12,9 +12,7 @@ package bot.nomnomz.dashboard
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,13 +46,15 @@ import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.state.resumePendingSetupFinish
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
-import bot.nomnomz.dashboard.feature.shell.ui.ImpersonationBanner
+import bot.nomnomz.dashboard.feature.shell.ui.ExitImpersonationButton
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
 import bot.nomnomz.dashboard.core.designsystem.icon.IconPreload
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlin.time.Duration
 
 private const val SPLASH_HOLD_MS: Long = 1_200L
 
@@ -120,6 +120,8 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                 }
             delay(SPLASH_HOLD_MS)
             restore?.join()
+            // An act-as session that ended across the reload (expired, or a failed revoke) says so once, now.
+            graph.actAsCoordinator.surfacePendingNotice()
 
             // Onboarding-first gate: before the operator ever sees a Twitch sign-in affordance (Landing's
             // "Get started" -> Connect's login button), find out whether deployment-level onboarding — at
@@ -186,7 +188,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         // we pushed on connect) and sign the operator out — returning them to the Connect screen.
         LaunchedEffect(destination) {
             if (destination == Destination.Shell) {
-                routeStore.disconnectRequests.collect { graph.connectController.logout() }
+                // Never while acting: that entry is the operator's history, and Exit is the only way out of act-as.
+                routeStore.disconnectRequests.collect {
+                    if (!graph.sessionStore.isActingAs) graph.connectController.logout()
+                }
             }
         }
 
@@ -197,8 +202,9 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         // authenticated caller. A no-op when no record is pending (the common case). Re-arms on every fresh
         // Connected transition (e.g. a later sign-out/sign-in cycle), which is safe: the read is cheap and
         // the store only ever holds a record right after a setup finish.
+        // Never while acting: a pending record is the operator's own setup, never the target's channel's.
         LaunchedEffect(phase) {
-            if (phase == SessionPhase.Connected) {
+            if (phase == SessionPhase.Connected && !graph.sessionStore.isActingAs) {
                 resumePendingSetupFinish(
                     pendingStore = graph.setupFinishStore,
                     systemApi = graph.systemApi,
@@ -227,15 +233,11 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             )
                         Destination.Setup -> SetupWizardScreen(controller = graph.setupController)
                         Destination.Shell -> {
-                            // The act-as banner is the frame's first row, above EVERY shell state (the role splash,
-                            // the channel-switch splash, both rungs), so Exit is reachable whatever renders below.
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                ImpersonationBanner(
-                                    sessionStore = graph.sessionStore,
-                                    onExit = { graph.actAsCoordinator.exitInBackground() },
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            // While acting, the Exit button floats over EVERY shell state (the role splash, the
+                            // channel-switch splash, both rungs), so it is reachable whatever renders below — and it
+                            // is the only thing on screen that is not the target's.
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.fillMaxSize()) {
                                     val user: SessionUser? by
                                         graph.sessionStore.user.collectAsStateWithLifecycle()
                                     // Resolve the caller's REAL Plane-B role from the backend (/effective/me). The key is
@@ -270,6 +272,14 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                     LaunchedEffect(user?.id, actingAs == null) {
                                         if (actingAs == null) graph.connectController.checkTwitchHealth()
                                     }
+                                    // A time-boxed act-as session ends itself on time — even on an idle page where no
+                                    // request would hit the rejected token: at its end the server is asked who this
+                                    // session is, and hands the operator back.
+                                    LaunchedEffect(actingAs) {
+                                        val info: ImpersonationInfo = actingAs ?: return@LaunchedEffect
+                                        delay((info.expiresAt - Clock.System.now()).coerceAtLeast(Duration.ZERO))
+                                        graph.actAsCoordinator.onActAsTokenRejected()
+                                    }
                                     when (val resolved: ShellAccess = access) {
                                         // Hold the splash under the one-shot role probe so the shell never flashes the
                                         // wrong (over-granted) surface before the real role lands.
@@ -289,6 +299,13 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                             )
                                     }
                                 }
+                                ExitImpersonationButton(
+                                    sessionStore = graph.sessionStore,
+                                    onExit = { graph.actAsCoordinator.exitInBackground() },
+                                    // Bottom-centre: clear of the sidebar footer (left), page actions and the chat
+                                    // composer (right), and the toasts (top-right).
+                                    modifier = Modifier.align(Alignment.BottomCenter).padding(spacing.s4),
+                                )
                             }
                         }
                     }

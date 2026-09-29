@@ -10429,6 +10429,126 @@
         }
       }
     },
+    "/api/v{version}/auth/impersonation/exit": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Leave an act-as session from inside it (the Exit button while acting): closes the support session the\nact-as token runs under — the same audited end, `sid` revocation and owner notice as ending it with\nthe operator's token — clears the act-as cookie, and hands back the OPERATOR's own session. Web gets it\nthrough the normal HttpOnly refresh cookie; native sends its own refresh token in the body. With no\noperator refresh token to resume, the session still ends and the response carries no token.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/auth/refresh": {
       "post": {
         "tags": [
@@ -10561,7 +10681,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Log out the current session, revoking its refresh tokens.",
+        "summary": "Log out the current session, revoking its refresh tokens. While acting as someone the person logging out\nis the OPERATOR: the act-as session ends and the operator's own web session (the refresh cookie) is\nrevoked — the impersonated user's own sessions are never touched.",
         "parameters": [
           {
             "name": "version",
@@ -10641,7 +10761,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Log out of all the current user's sessions, revoking every refresh token they hold.",
+        "summary": "Log out of all the current user's sessions, revoking every refresh token they hold. While acting as\nsomeone this is the OPERATOR's \"everywhere\": the act-as session ends and every session of the operator\nbehind the refresh cookie is revoked — never the impersonated user's.",
         "parameters": [
           {
             "name": "version",
@@ -110565,9 +110685,15 @@
               "null",
               "string"
             ]
+          },
+          "actAsToken": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\nhold in their own vault."
+        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\nhold in their own vault. A native client acting as another user also sends the act-as token it holds\n(`ActAsToken`, possibly expired): while that session is open the refresh hands back the SAME impersonated user, never the operator. The served-web dashboard keeps that token in an HttpOnly cookie."
       },
       "RefundRequest": {
         "required": [

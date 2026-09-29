@@ -20,6 +20,7 @@ using NomNomzBot.Infrastructure.Content.Identity;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.PlatformDefaults;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.PlatformDefaults;
 
@@ -93,7 +94,7 @@ public sealed class ActionDefaultsAdminServiceTests
 
         ActionAuthorizationService gate = new(
             db,
-            new RoleResolver(db, clock),
+            new RoleResolver(db, clock, Substitute.For<IActAsMembershipOverlay>()),
             new RecordingEventBus(),
             clock
         );

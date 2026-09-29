@@ -121,6 +121,8 @@ public sealed class EndpointAuthorizationInvariantTests
             "own session: revokes the caller's own session tokens (identity-auth.md §5)",
         ["AuthController.LogoutAll"] =
             "own sessions: revokes every session of the caller themselves (identity-auth.md §5)",
+        ["AuthController.ExitImpersonation"] =
+            "own session: ends only the act-as session the caller's own token runs under (its sid + act claim, operator verified against the grant); INVALID_STATE for any other token",
         // ── Automation data plane: token-scheme authed, scope-gated in the service (automation-api.md D4) ──
         ["AutomationDataController.GetInfo"] =
             "API-token plane: [Authorize(AuthenticationSchemes=AutomationToken)] + scope 'read' enforced in AutomationCommandService (automation-api.md §4.1; no Gate-2 by design)",

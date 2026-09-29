@@ -13,9 +13,10 @@ package bot.nomnomz.dashboard.feature.shell.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.lifecycle.Lifecycle
@@ -29,21 +30,22 @@ import bot.nomnomz.dashboard.core.connection.ProfileSource
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.SessionTokenStore
 import bot.nomnomz.dashboard.core.connection.SessionTokens
+import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.minutes
 
-// The act-as banner is the ONE operator trace while acting as someone. Rendered from a real SessionStore: it names
-// the impersonated user and the time left, offers Exit, stays up (with Exit) once the session has expired instead
-// of vanishing, and is gone when nobody is being acted as. Both locales, one parameterised sentence each.
+// While acting, the Exit button is the ONE operator trace on screen. Rendered from a real SessionStore: it reads
+// "Exit impersonation" (both locales) and nothing else — no operator name, no target name, no timer; a press fires
+// the exit exactly once (a second press while the exit runs is ignored); and it is gone when nobody is being acted
+// as, including the moment an act-as session ends.
 @OptIn(ExperimentalTestApi::class)
-class ImpersonationBannerTest {
+class ExitImpersonationButtonTest {
 
-    // The banner collects the session with collectAsStateWithLifecycle(), which needs a resumed lifecycle owner.
+    // The button collects the session with collectAsStateWithLifecycle(), which needs a resumed lifecycle owner.
     @Composable
     private fun Pinned(tag: String, content: @Composable () -> Unit) {
         val owner: LifecycleOwner =
@@ -56,49 +58,63 @@ class ImpersonationBannerTest {
         }
     }
 
-    private fun acting(expiresAt: Instant): SessionStore =
+    // The operator (Stoney_Eagle) signed in, then acting as anda_six.
+    private fun acting(): SessionStore =
         SessionStore(NoVault, NoProfile, NoChannel).apply {
-            arm(ConnectionProfile(id = "p1", displayName = "Self-host", baseUrl = "http://localhost:5080", source = ProfileSource.Manual), SessionTokens(accessToken = "operator-jwt"))
-            beginImpersonation("target-jwt", "Mod Mia", expiresAt, "grant-1")
+            arm(
+                ConnectionProfile(id = "p1", displayName = "Self-host", baseUrl = "http://localhost:5080", source = ProfileSource.Manual),
+                SessionTokens(accessToken = "operator-jwt"),
+            )
+            setUser(SessionUser("operator-id", "stoney_eagle", "Stoney_Eagle", null, isAdmin = true))
+            beginImpersonation("target-jwt", "anda_six", Clock.System.now() + 30.minutes, "grant-1")
         }
 
     @Test
-    fun an_active_session_names_the_target_and_the_time_left_and_exit_fires() = runComposeUiTest {
-        val store: SessionStore = acting(Clock.System.now() + 30.minutes)
+    fun while_acting_only_the_exit_control_renders_and_one_press_fires_one_exit() = runComposeUiTest {
+        val store: SessionStore = acting()
         var exits = 0
-        setContent { Pinned("en") { ImpersonationBanner(sessionStore = store, onExit = { exits++ }) } }
+        setContent { Pinned("en") { ExitImpersonationButton(sessionStore = store, onExit = { exits++ }) } }
 
-        onNodeWithText("Acting as Mod Mia · ends in", substring = true).assertExists()
-        onNodeWithText("Stop impersonating").performClick()
+        onAllNodesWithText("Exit impersonation", useUnmergedTree = true).assertCountEquals(1)
+        // No name of either account and no countdown: the control says only what it does.
+        onAllNodesWithText("Stoney_Eagle", substring = true, useUnmergedTree = true).assertCountEquals(0)
+        onAllNodesWithText("anda_six", substring = true, useUnmergedTree = true).assertCountEquals(0)
+        onAllNodesWithText("min", substring = true, useUnmergedTree = true).assertCountEquals(0)
+
+        onNodeWithText("Exit impersonation").performClick()
+        // The exit is running: a second press must not queue a second exit.
+        onRoot().performClick()
+        waitForIdle()
         assertEquals(1, exits)
     }
 
     @Test
-    fun an_expired_session_keeps_the_banner_and_its_exit() = runComposeUiTest {
-        val store: SessionStore = acting(Clock.System.now() - 1.minutes)
-        var exits = 0
-        setContent { Pinned("en") { ImpersonationBanner(sessionStore = store, onExit = { exits++ }) } }
+    fun the_exit_control_renders_in_dutch() = runComposeUiTest {
+        val store: SessionStore = acting()
+        setContent { Pinned("nl") { ExitImpersonationButton(sessionStore = store, onExit = {}) } }
 
-        onNodeWithText("The session acting as Mod Mia has ended. Exit to return to your own account.").assertExists()
-        onNodeWithText("Stop impersonating").performClick()
-        assertEquals(1, exits)
-    }
-
-    @Test
-    fun the_banner_renders_in_dutch() = runComposeUiTest {
-        val store: SessionStore = acting(Clock.System.now() + 30.minutes)
-        setContent { Pinned("nl") { ImpersonationBanner(sessionStore = store, onExit = {}) } }
-
-        onNodeWithText("Handelt als Mod Mia · eindigt over", substring = true).assertExists()
-        onNodeWithText("Stoppen met imiteren").assertExists()
+        onAllNodesWithText("Imitatie beëindigen", useUnmergedTree = true).assertCountEquals(1)
+        onAllNodesWithText("Exit impersonation", useUnmergedTree = true).assertCountEquals(0)
     }
 
     @Test
     fun nothing_renders_when_nobody_is_being_acted_as() = runComposeUiTest {
         val store = SessionStore(NoVault, NoProfile, NoChannel)
-        setContent { Pinned("en") { ImpersonationBanner(sessionStore = store, onExit = {}) } }
+        setContent { Pinned("en") { ExitImpersonationButton(sessionStore = store, onExit = {}) } }
 
-        onAllNodesWithText("Stop impersonating").assertCountEquals(0)
+        onAllNodesWithText("Exit impersonation", useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun the_control_leaves_the_moment_the_act_as_session_ends() = runComposeUiTest {
+        val store: SessionStore = acting()
+        setContent { Pinned("en") { ExitImpersonationButton(sessionStore = store, onExit = {}) } }
+        onAllNodesWithText("Exit impersonation", useUnmergedTree = true).assertCountEquals(1)
+
+        store.endImpersonation()
+        waitForIdle()
+
+        onAllNodesWithText("Exit impersonation", useUnmergedTree = true).assertCountEquals(0)
     }
 
     private object NoVault : SessionTokenStore {

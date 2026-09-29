@@ -21,7 +21,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 // Proves the real session state machine that drives the App gate (frontend.md §5/§6). The gate renders
 // Connect while NotConnected and the Main shell while Connected, so these phase transitions ARE the routing
@@ -196,19 +195,6 @@ class SessionStoreTest {
         assertNull(loggedOut.impersonating.value)
         assertNull(loggedOut.endImpersonation())
         assertEquals("new-session-jwt", loggedOut.accessToken())
-    }
-
-    @Test
-    fun the_act_as_flag_outlives_its_expiry_until_the_session_is_ended() = runTest {
-        val store: SessionStore = SessionStore(FakeTokenVault(), FakeProfileStore(), FakeChannelStore())
-        store.connect(profile, tokens)
-        val expiresAt: Instant = Instant.parse("2030-01-01T00:00:00Z")
-        store.beginImpersonation("target-jwt", "Target User", expiresAt, "grant-1")
-
-        // The banner reads the raw flag: past expiry it must still be there (showing the expired state with Exit).
-        val afterExpiry: Instant = Instant.fromEpochSeconds(expiresAt.epochSeconds + 60)
-        assertTrue(store.impersonating.value!!.isExpired(afterExpiry))
-        assertTrue(store.isActingAs)
     }
 
     @Test

@@ -1209,8 +1209,13 @@ private class FakeAuthApi(private val pollStatuses: List<String> = emptyList()) 
         return ApiResult.Ok(DeviceLoginPoll(status = status, auth = auth))
     }
 
-    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
+    override suspend fun refresh(refreshToken: String?, actAsToken: String?): ApiResult<AuthPayload> =
         ApiResult.Failure(ApiError(0, "UNUSED", "not used here"))
+
+    override suspend fun exitImpersonation(refreshToken: String?): ApiResult<AuthPayload?> =
+
+        ApiResult.Failure(ApiError(501, "UNUSED", "not used here"))
+
 
     override suspend fun logout(): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

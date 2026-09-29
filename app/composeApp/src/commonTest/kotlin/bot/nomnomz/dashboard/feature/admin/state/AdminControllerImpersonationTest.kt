@@ -60,6 +60,9 @@ import bot.nomnomz.dashboard.core.network.SuspendTenantBody
 import bot.nomnomz.dashboard.core.network.TenantAccessGrant
 import bot.nomnomz.dashboard.core.network.UserSearchResult
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.connection.CookieActAsCustody
+import bot.nomnomz.dashboard.core.connection.InMemoryActAsSessionStore
+import bot.nomnomz.dashboard.core.navigation.RecordingAppReloader
 import bot.nomnomz.dashboard.feature.shell.state.ActAsCoordinator
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -96,6 +99,8 @@ class AdminControllerImpersonationTest {
     /** The bearer token each revoke call carried, in order. */
     private val revokeTokens: MutableList<String?> = mutableListOf()
 
+    private val reloader: RecordingAppReloader = RecordingAppReloader()
+
     private fun TestScope.newController(
         api: FakeAdminApi,
         platformAdminApi: FakePlatformAdminApi,
@@ -114,11 +119,9 @@ class AdminControllerImpersonationTest {
                     revokeTokens += sessionStore.accessToken()
                     api.endImpersonation(grantId)
                 },
-                reloadRoster = {},
-                resolveAccess = {},
-                reconnectHubs = {},
-                applyAccent = {},
-                clearReauthPrompt = {},
+                actAsStore = InMemoryActAsSessionStore(),
+                tokenCustody = CookieActAsCustody,
+                reloader = reloader,
                 feedback = NoOpFeedback,
                 scope = this,
             ),
@@ -267,7 +270,7 @@ class AdminControllerImpersonationTest {
     }
 
     @Test
-    fun stop_impersonating_calls_the_end_endpoint_with_the_held_grant_and_restores_the_operator() = runTest {
+    fun stop_impersonating_leaves_through_the_act_as_exit_endpoint_and_reloads() = runTest {
         val api = FakeAdminApi()
         val sessionStore = newSessionStore()
         sessionStore.connect(profile, operatorTokens)
@@ -277,17 +280,15 @@ class AdminControllerImpersonationTest {
             expiresAt = kotlinx.datetime.Instant.parse("2030-01-01T00:00:00Z"),
             accessGrantId = "grant-1",
         )
-        val authApi = FakeAuthApi(
-            meResult = ApiResult.Ok(CurrentUser(id = "operator-1", username = "operator", displayName = "Operator")),
-        )
+        val authApi = FakeAuthApi(bearer = sessionStore::accessToken)
         val controller = newController(api, FakePlatformAdminApi(), authApi, sessionStore)
 
         controller.exitImpersonation()
 
-        assertEquals(listOf("grant-1"), api.endImpersonationCalls)
-        assertEquals(listOf<String?>("operator-jwt"), revokeTokens, "the revoke must carry the operator token")
-        assertNull(sessionStore.impersonating.value)
-        assertEquals("operator-jwt", sessionStore.accessToken())
+        // The act-as token itself ends its session server-side — no admin-token revoke call any more.
+        assertEquals(listOf<String?>("target-jwt"), authApi.exitBearers)
+        assertTrue(api.endImpersonationCalls.isEmpty())
+        assertEquals(listOf(""), reloader.reloads, "the app reloads as the operator")
     }
 
     @Test
@@ -524,14 +525,23 @@ private class FakePlatformIamApi : PlatformIamApi {
 
 private class FakeAuthApi(
     private val meResult: ApiResult<CurrentUser> = ApiResult.Failure(ApiError(500, null, "not stubbed")),
+    private val bearer: () -> String? = { null },
 ) : AuthApi {
+    /** The bearer each /auth/impersonation/exit call carried. */
+    val exitBearers: MutableList<String?> = mutableListOf()
+
     override suspend fun providers(): ApiResult<List<LoginProvider>> = ApiResult.Ok(emptyList())
     override suspend fun me(): ApiResult<CurrentUser> = meResult
     override suspend fun startDeviceLogin(provider: String): ApiResult<DeviceCodeStart> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun pollDeviceLogin(provider: String, deviceCode: String): ApiResult<DeviceLoginPoll> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
-    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
+    override suspend fun refresh(refreshToken: String?, actAsToken: String?): ApiResult<AuthPayload> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
+    override suspend fun exitImpersonation(refreshToken: String?): ApiResult<AuthPayload?> {
+        exitBearers += bearer()
+        return ApiResult.Ok(AuthPayload(accessToken = "operator-fresh-jwt"))
+    }
+
     override suspend fun logout(): ApiResult<Unit> = ApiResult.Ok(Unit)
 }

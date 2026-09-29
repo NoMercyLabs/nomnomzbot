@@ -11,7 +11,11 @@
 package bot.nomnomz.dashboard
 
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
@@ -25,6 +29,8 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.di.AppGraph
+import bot.nomnomz.dashboard.core.navigation.DesktopAppRestart
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.platform.DesktopLogFile
 import bot.nomnomz.dashboard.core.platform.ScreenBounds
@@ -124,7 +130,14 @@ fun main() = application {
         // before App()'s own backgrounds draw.
         NomNomzTheme {
             Surface(color = LocalTokens.current.background) {
-                App()
+                // Act-as begin/exit restarts the app in-process: a new epoch builds a fresh AppGraph (no controller,
+                // cache or socket of the previous identity survives) and shuts the old one down.
+                val restartEpoch: Int by DesktopAppRestart.epoch.collectAsState()
+                key(restartEpoch) {
+                    val graph: AppGraph = remember { AppGraph() }
+                    DisposableEffect(graph) { onDispose { graph.shutdown() } }
+                    App(graph = graph)
+                }
             }
         }
     }

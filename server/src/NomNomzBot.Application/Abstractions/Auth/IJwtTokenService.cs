@@ -25,8 +25,9 @@ public interface IJwtTokenService
     /// Mints a short-lived access JWT: <c>sub=userId</c>, <c>tenant=broadcasterId</c>, <c>sid=sessionId</c>,
     /// plus any roles and the login-provider <c>idp</c> claim (platform-identity §3.3). Pure — no persistence.
     /// When <paramref name="actorUserId"/> is supplied the token is an act-as (impersonation) token: the
-    /// non-authoritative <c>act</c>/<c>act_name</c> claims name the operator ACTING AS the subject, while
-    /// <c>sub</c> and the roles remain the impersonated user's — no authorization path reads <c>act</c>.
+    /// non-authoritative <c>act</c> claim names the operator ACTING AS the subject (by id only — the token sits in
+    /// the browser of someone who must see nothing of the operator), while <c>sub</c> and the roles remain the
+    /// impersonated user's — no authorization path reads <c>act</c>.
     /// </summary>
     /// <param name="userId">The internal user id — becomes the <c>sub</c> claim.</param>
     /// <param name="username">The subject's username — becomes the <c>ClaimTypes.Name</c> claim.</param>
@@ -39,7 +40,6 @@ public interface IJwtTokenService
     /// <c>act</c> claim while <paramref name="userId"/>/<paramref name="roles"/> stay the impersonated
     /// subject's.
     /// </param>
-    /// <param name="actorUsername">The operator's display name, alongside <paramref name="actorUserId"/>.</param>
     /// <param name="maxExpiresAt">
     /// When supplied, the minted token's expiry is <c>min(now + configured lifetime, maxExpiresAt)</c> —
     /// never later than this instant. Used to clamp an act-as (impersonation) token's lifetime to its
@@ -53,7 +53,6 @@ public interface IJwtTokenService
         IEnumerable<string>? roles = null,
         string? idp = null,
         string? actorUserId = null,
-        string? actorUsername = null,
         DateTime? maxExpiresAt = null
     );
 

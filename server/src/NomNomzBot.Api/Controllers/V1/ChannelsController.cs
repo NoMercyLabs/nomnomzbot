@@ -100,6 +100,8 @@ public class ChannelsController : BaseController
         // moderated list above was resolved with it. Without this, a Twitch mod resolves as a role-less viewer on
         // channels they moderate and is dropped onto the participant surface with no mod tools.
         // Never under act-as: an operator viewing the list as someone must not write role rows on their behalf.
+        // The role resolver computes those same rows per request instead (IActAsMembershipOverlay), so the acting
+        // answers still equal the user's own login.
         if (_currentUser.Impersonation is null && Guid.TryParse(userId, out Guid callerGuid))
             await EnsureModeratorMembershipsAsync(callerGuid, moderatedIds, ct);
 

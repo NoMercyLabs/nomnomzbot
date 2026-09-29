@@ -23,6 +23,7 @@ import kotlinx.serialization.Serializable
 //   POST /api/v1/auth/{provider}/device      →  StatusResponseDto<DeviceCodeStart>  (anonymous)
 //   POST /api/v1/auth/{provider}/device/poll →  StatusResponseDto<DeviceLoginPoll>  (anonymous)
 //   POST /api/v1/auth/refresh               →  StatusResponseDto<AuthPayload>      (anonymous; renew a stale access token)
+//   POST /api/v1/auth/impersonation/exit    →  StatusResponseDto<AuthPayload?>     (act-as bearer; hand back the operator)
 interface AuthApi {
     /**
      * The login providers this backend offers (platform-identity §4). The login screen renders one button
@@ -52,8 +53,20 @@ interface AuthApi {
      * Native passes the refresh token it holds; web passes null and the backend reads its HttpOnly cookie
      * instead. The backend rotates the refresh token (returned in the body for native, kept in the cookie for
      * web), so a native caller persists whatever [AuthPayload.refreshToken] comes back.
+     *
+     * While an act-as session is open the answer is the impersonated user ([AuthPayload.impersonation] set, no
+     * refresh token, the operator's own one untouched). Web carries the act-as token in the HttpOnly `nnz_act_as`
+     * cookie and passes null; native passes the [actAsToken] it holds in memory.
      */
-    suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload>
+    suspend fun refresh(refreshToken: String?, actAsToken: String? = null): ApiResult<AuthPayload>
+
+    /**
+     * Leave the act-as session from inside it — called with the act-as token as the bearer. The server ends the
+     * support session and hands back the operator's own session: web through the refresh cookie (the body is the
+     * new operator access token), native by rotating the [refreshToken] it sends. Ok(null) when the session ended
+     * but no operator refresh credential came with the call.
+     */
+    suspend fun exitImpersonation(refreshToken: String?): ApiResult<AuthPayload?>
 
     /**
      * End the session server-side: revoke this session's refresh token AND — on web — delete the HttpOnly
@@ -84,8 +97,19 @@ class RestAuthApi(private val client: ApiClient) : AuthApi {
             DevicePollBody(deviceCode),
         )
 
-    override suspend fun refresh(refreshToken: String?): ApiResult<AuthPayload> =
-        client.postEnvelope("api/v1/auth/refresh${clientQuery()}", RefreshBody(refreshToken))
+    override suspend fun refresh(refreshToken: String?, actAsToken: String?): ApiResult<AuthPayload> =
+        client.postEnvelope("api/v1/auth/refresh${clientQuery()}", RefreshBody(refreshToken, actAsToken))
+
+    // The exit answers `{status:"ok"}` with no data when there was no operator session to resume; a null `data`
+    // is that valid outcome here, not an empty-body failure, so the envelope is unwrapped by hand.
+    override suspend fun exitImpersonation(refreshToken: String?): ApiResult<AuthPayload?> =
+        when (
+            val result: ApiResult<StatusResponse<AuthPayload?>> =
+                client.postDirect("api/v1/auth/impersonation/exit${clientQuery()}", RefreshBody(refreshToken))
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(result.error)
+            is ApiResult.Ok -> ApiResult.Ok(result.value.data)
+        }
 
     // The cookie is scoped to /api/v1/auth, so the browser attaches it to this same-origin POST and honours
     // the response's Set-Cookie deletion; postUnit treats any 2xx as success and ignores the status envelope.
@@ -130,8 +154,9 @@ data class DeviceLoginPoll(val status: String, val auth: AuthPayload? = null)
 private data class DevicePollBody(val deviceCode: String)
 
 /**
- * The refresh request body — the stored refresh token to exchange. Null on web (the token rides the HttpOnly
- * cookie, not the body); the client's JSON omits nulls, so web sends `{}` and the backend reads the cookie.
+ * The refresh (and act-as exit) request body — the backend `RefreshTokenRequest`. Both fields are null on web
+ * (the tokens ride HttpOnly cookies, not the body); the client's JSON omits nulls, so web sends `{}` and the
+ * backend reads the cookies. Native sends the refresh token it holds and, while acting, the act-as token.
  */
 @Serializable
-private data class RefreshBody(val refreshToken: String?)
+internal data class RefreshBody(val refreshToken: String?, val actAsToken: String? = null)

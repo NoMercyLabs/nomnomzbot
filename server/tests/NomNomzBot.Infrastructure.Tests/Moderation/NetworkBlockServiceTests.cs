@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -378,7 +379,11 @@ public sealed class NetworkBlockServiceTests : IDisposable
         // that never had a per-tenant row for them at all — proving it reads the network block, not a
         // per-tenant permit/ban table.
         using AppDbContext check = NewDbContext();
-        RoleResolver roles = new(check, TimeProvider.System);
+        RoleResolver roles = new(
+            check,
+            TimeProvider.System,
+            Substitute.For<IActAsMembershipOverlay>()
+        );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
             untouchedTenant,
@@ -400,7 +405,11 @@ public sealed class NetworkBlockServiceTests : IDisposable
         seed.SaveChanges();
 
         using AppDbContext check = NewDbContext();
-        RoleResolver roles = new(check, TimeProvider.System);
+        RoleResolver roles = new(
+            check,
+            TimeProvider.System,
+            Substitute.For<IActAsMembershipOverlay>()
+        );
         Result<int> level = await roles.ResolveEffectiveLevelAsync(TargetUserId, TenantA);
 
         level.IsSuccess.Should().BeTrue();
@@ -452,7 +461,11 @@ public sealed class NetworkBlockServiceTests : IDisposable
             .UnbanUserAsync(TenantC, TargetTwitchId, Arg.Any<CancellationToken>());
 
         // The enforcement gate must actually clear once fully lifted.
-        RoleResolver roles = new(db, TimeProvider.System);
+        RoleResolver roles = new(
+            db,
+            TimeProvider.System,
+            Substitute.For<IActAsMembershipOverlay>()
+        );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
             TenantA,
@@ -510,7 +523,11 @@ public sealed class NetworkBlockServiceTests : IDisposable
             .Be(TenantB.ToString());
 
         // Still enforced network-wide — the honest partial state, not a silent clean lift.
-        RoleResolver roles = new(db, TimeProvider.System);
+        RoleResolver roles = new(
+            db,
+            TimeProvider.System,
+            Substitute.For<IActAsMembershipOverlay>()
+        );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
             TenantA,
@@ -569,7 +586,11 @@ public sealed class NetworkBlockServiceTests : IDisposable
             .DidNotReceive()
             .UnbanUserAsync(TenantC, TargetTwitchId, Arg.Any<CancellationToken>());
 
-        RoleResolver roles = new(db, TimeProvider.System);
+        RoleResolver roles = new(
+            db,
+            TimeProvider.System,
+            Substitute.For<IActAsMembershipOverlay>()
+        );
         Result<bool> allowed = await roles.HasCapabilityAsync(
             TargetUserId,
             TenantA,
