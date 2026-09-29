@@ -138,7 +138,8 @@ public sealed class SkipBuiltinTests
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
-        result.Value.Should().Be("Skipped the current track.");
+        // The composer picks one of the informative skip variants (ToneTemplateCatalog), not a fixed line.
+        result.Value.Should().BeOneOf("Skipped.", "Track skipped.", "Skipped the current track.");
         await music.Received(1).SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
         // The gate asked the Gate-2 resolver about the exact action the dashboard's POST /music/skip needs.
         await roles
