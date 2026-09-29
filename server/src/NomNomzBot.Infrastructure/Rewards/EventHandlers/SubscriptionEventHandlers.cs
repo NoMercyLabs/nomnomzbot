@@ -61,8 +61,10 @@ public sealed class NewSubscriptionEventHandler
 
     /// <summary>A gifted recipient did not subscribe themselves, so "just subscribed" must not fire for them —
     /// they are announced through <see cref="GiftSubscriptionReceivedEventHandler"/> instead.</summary>
+    protected override bool Announces(NewSubscriptionEvent e) => !e.IsGift;
+
     public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default) =>
-        @event.IsGift ? Task.CompletedTask : HandleCoreAsync(@event, ct);
+        HandleCoreAsync(@event, ct);
 }
 
 /// <summary>Announces a gift recipient together with their gifter — the "X was gifted a sub by Y" response.</summary>

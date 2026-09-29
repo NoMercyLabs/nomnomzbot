@@ -35,6 +35,9 @@ public sealed class TtsSpeakBroadcastHandler(
     ILogger<TtsSpeakBroadcastHandler> logger
 ) : IEventHandler<TtsUtteranceDispatchedEvent>
 {
+    /// <summary>The widget event a TTS utterance is pushed (and captured) as.</summary>
+    public const string WidgetEventType = "tts_speak";
+
     public async Task HandleAsync(
         TtsUtteranceDispatchedEvent @event,
         CancellationToken cancellationToken = default
@@ -45,7 +48,7 @@ public sealed class TtsSpeakBroadcastHandler(
             db,
             notifier,
             @event.BroadcasterId,
-            "tts_speak",
+            WidgetEventType,
             new
             {
                 text = @event.Text,
@@ -81,7 +84,9 @@ public sealed class TtsSpeakBroadcastHandler(
             .Where(w => w.BroadcasterId == broadcasterId)
             .ToListAsync(cancellationToken);
 
-        List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, "tts_speak").ToList();
+        List<Widget> subscribers = WidgetAlertRouting
+            .Subscribers(widgets, WidgetEventType)
+            .ToList();
         if (subscribers.Any(w => presence.IsWidgetAttached(broadcasterId, w.Id)))
             return;
 

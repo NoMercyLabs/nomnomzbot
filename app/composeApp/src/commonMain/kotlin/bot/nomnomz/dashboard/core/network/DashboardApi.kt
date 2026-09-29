@@ -64,9 +64,17 @@ data class ActivityEvent(
     val timestamp: String = "",
 )
 
-/** Backend `ReplayActivityResultDto` — how many currently-subscribed widgets the re-broadcast reached. */
+/**
+ * Backend `ReplayActivityResultDto` — what a replay re-performed: the events in the chain (a gift bomb is the
+ * gifter plus each recipient), the chat lines the bot sent, the TTS queued, the overlay responses shown, and the
+ * widget pushes of the captured alerts.
+ */
 @Serializable
 data class ReplayResult(
+    val eventsReplayed: Int = 0,
+    val chatMessagesSent: Int = 0,
+    val ttsQueued: Int = 0,
+    val overlaysShown: Int = 0,
     val widgetsNotified: Int = 0,
 )
 

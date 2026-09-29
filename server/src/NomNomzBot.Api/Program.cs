@@ -224,6 +224,10 @@ try
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
     builder.Services.AddScoped<IWidgetNotifier, WidgetNotifier>();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Widgets.Services.IRenderedAlertReplayer,
+        NomNomzBot.Api.Hubs.Broadcasters.RenderedAlertReplayer
+    >();
     builder.Services.AddSingleton<
         NomNomzBot.Application.Notifications.Services.IActionRequiredChangeNotifier,
         ActionRequiredChangeNotifier

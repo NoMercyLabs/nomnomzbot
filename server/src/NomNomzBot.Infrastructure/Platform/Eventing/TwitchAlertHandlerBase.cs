@@ -23,9 +23,10 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// Base class for stream engagement event handlers: builds the event's template variables, logs the event
 /// to <c>ChannelEvents</c> (so the activity feed and analytics projections pick it up), and dispatches the
 /// operator-configured response through <see cref="IEventResponseExecutor"/> — the one execution path all
-/// trigger sources share.
+/// trigger sources share. The response half is also an <see cref="IEventResponsePresenter"/>, so a dashboard
+/// replay runs the exact same variables and response key without logging or re-running anything else.
 /// </summary>
-public abstract class TwitchAlertHandlerBase<TEvent>
+public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter
     where TEvent : class, IDomainEvent
 {
     protected abstract string EventTypeKey { get; }
@@ -71,10 +72,19 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         return $"{seconds} second{(seconds == 1 ? "" : "s")}";
     }
 
+    /// <summary>
+    /// Whether this event gets announced at all. Defaults to always; a handler overrides it when some events of
+    /// its type must stay silent (e.g. a gifted sub's recipient-side notice). The live path and a replay both
+    /// honour it, so a replay never says something the stream never heard.
+    /// </summary>
+    protected virtual bool Announces(TEvent @event) => true;
+
+    public Type EventType => typeof(TEvent);
+
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
     {
         Guid broadcasterId = @event.BroadcasterId;
-        if (broadcasterId == Guid.Empty)
+        if (broadcasterId == Guid.Empty || !Announces(@event))
             return;
 
         using IServiceScope scope = ScopeFactory.CreateScope();
@@ -86,15 +96,51 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         // THE one execution path for configured responses — shared with every other trigger source.
         IEventResponseExecutor executor =
             scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+        ResponseTrigger trigger = TriggerFor(@event);
         await executor.ExecuteAsync(
             broadcasterId,
-            ResponseKeyFor(@event),
-            GetUserId(@event),
-            GetUserDisplayName(@event),
-            SeedTargetAlias(BuildVariables(@event)),
+            trigger.ResponseKey,
+            trigger.UserId,
+            trigger.UserDisplayName,
+            trigger.Variables,
             ct
         );
     }
+
+    public async Task<EventResponseOutcome> ReplayAsync(IDomainEvent @event, CancellationToken ct)
+    {
+        if (@event is not TEvent typed || typed.BroadcasterId == Guid.Empty || !Announces(typed))
+            return EventResponseOutcome.None;
+
+        using IServiceScope scope = ScopeFactory.CreateScope();
+        IEventResponseExecutor executor =
+            scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+        ResponseTrigger trigger = TriggerFor(typed);
+        return await executor.ReplayAsync(
+            typed.BroadcasterId,
+            trigger.ResponseKey,
+            trigger.UserId,
+            trigger.UserDisplayName,
+            trigger.Variables,
+            ct
+        );
+    }
+
+    private ResponseTrigger TriggerFor(TEvent @event) =>
+        new(
+            ResponseKeyFor(@event),
+            GetUserId(@event),
+            GetUserDisplayName(@event),
+            SeedTargetAlias(BuildVariables(@event))
+        );
+
+    /// <summary>Everything the executor needs for one event — built once, so live and replay never drift.</summary>
+    private sealed record ResponseTrigger(
+        string ResponseKey,
+        string? UserId,
+        string? UserDisplayName,
+        Dictionary<string, string> Variables
+    );
 
     /// <summary>
     /// {target.*} is documented (and, on the command path, wired via <c>ChatMessageHandler

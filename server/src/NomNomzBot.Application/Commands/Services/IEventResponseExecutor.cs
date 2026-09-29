@@ -33,4 +33,19 @@ public interface IEventResponseExecutor
         Dictionary<string, string> variables,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Runs the SAME configured response as <see cref="ExecuteAsync"/> for a past event, as a dashboard replay.
+    /// Presentation only: it never resumes a pipeline run parked on a <c>wait_for_event</c> step, because the
+    /// event is not happening again. Parameters match <see cref="ExecuteAsync"/>.
+    /// </summary>
+    /// <returns>What the response put in front of viewers (chat lines, TTS, overlay pushes).</returns>
+    Task<EventResponseOutcome> ReplayAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        string? userId,
+        string? userDisplayName,
+        Dictionary<string, string> variables,
+        CancellationToken cancellationToken = default
+    );
 }
