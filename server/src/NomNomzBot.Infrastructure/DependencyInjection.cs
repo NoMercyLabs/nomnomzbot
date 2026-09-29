@@ -1700,7 +1700,14 @@ public static class DependencyInjection
 
         // The conduit + shard owner behind the zero-downtime blue/green handover (twitch-eventsub §10).
         // Inert without an app secret: EnsureConduitAsync then fails no_token and the per-owner sessions stay.
-        services.AddSingleton<IEventSubConduitShardCoordinator, EventSubConduitShardCoordinator>();
+        // Opt-in via EventSub:Conduits:Enabled until the blue/green takeover is proven against live Twitch: the
+        // first conduit deploy (2026-09-29) left the bot deaf for 18 minutes. Unregistered, the hosted service
+        // never enters conduit mode and the per-owner WebSocket sessions carry everything.
+        if (configuration.GetValue<bool>("EventSub:Conduits:Enabled"))
+            services.AddSingleton<
+                IEventSubConduitShardCoordinator,
+                EventSubConduitShardCoordinator
+            >();
 
         // Reconnect gap backfill (twitch-eventsub §7): sweeps redemptions + follows for the window a dropped
         // WebSocket session silently missed, deterministically deduped, then replayed through the ordinary
