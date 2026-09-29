@@ -27,6 +27,7 @@ using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -343,6 +344,7 @@ public sealed class CommandNamePrefixGuardTests
             new(),
             new FakeTimeProvider(DateTime.UtcNow),
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

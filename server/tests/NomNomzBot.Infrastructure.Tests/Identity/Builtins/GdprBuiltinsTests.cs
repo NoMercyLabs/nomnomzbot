@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Gdpr;
 using NomNomzBot.Application.Identity.Dtos;
@@ -42,10 +43,7 @@ public sealed class GdprBuiltinsTests
         FakeTimeProvider Clock
     );
 
-    private static BuiltinCommandContext Context(
-        string args,
-        string? customResponseTemplate = null
-    ) =>
+    private static BuiltinCommandContext Context(string args) =>
         new()
         {
             BroadcasterId = Channel,
@@ -54,7 +52,6 @@ public sealed class GdprBuiltinsTests
             TriggeringUserLogin = "viewer",
             RoleLevel = 0,
             Args = args,
-            CustomResponseTemplate = customResponseTemplate,
         };
 
     private static ErasureRequestDto RequestDto(string requestType, string status) =>
@@ -77,7 +74,7 @@ public sealed class GdprBuiltinsTests
             CompletedAt: DateTime.UnixEpoch
         );
 
-    private static Harness Build()
+    private static Harness Build(string? channelDoneText = null)
     {
         IErasureService erasure = Substitute.For<IErasureService>();
         erasure
@@ -107,17 +104,20 @@ public sealed class GdprBuiltinsTests
                 )
             );
 
-        // Real precedence surrogate: override wins when set, else the neutral fallback — matching
-        // BuiltinResponseComposer's ladder without dragging the template resolver in.
+        // Real precedence surrogate: the channel's own text for forgetme/done wins when set, else the neutral
+        // fallback — matching BuiltinResponseComposer's ladder without dragging the template resolver in.
         IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
         composer
             .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 BuiltinResponseRequest request = call.Arg<BuiltinResponseRequest>();
-                return string.IsNullOrWhiteSpace(request.OverrideTemplate)
-                    ? request.NeutralFallback
-                    : request.OverrideTemplate!;
+                bool isDone =
+                    request.BuiltinKey == BuiltinResponseSlots.Forgetme.Key
+                    && request.Slot == BuiltinResponseSlots.Forgetme.Done;
+                return isDone && channelDoneText is not null
+                    ? channelDoneText
+                    : request.NeutralFallback;
             });
 
         FakeTimeProvider clock = new();
@@ -188,12 +188,10 @@ public sealed class GdprBuiltinsTests
     [Fact]
     public async Task Completion_reply_always_appends_the_mandatory_reentry_clause_even_over_a_custom_template()
     {
-        Harness h = Build();
+        Harness h = Build(channelDoneText: "Poof — gone!");
 
         await h.Forget.ExecuteAsync(Context(""));
-        Result<string> reply = await h.Forget.ExecuteAsync(
-            Context("confirm", customResponseTemplate: "Poof — gone!")
-        );
+        Result<string> reply = await h.Forget.ExecuteAsync(Context("confirm"));
 
         // Part 1 is the streamer's copy; part 2 (informed re-entry) is fixed and non-removable.
         reply.Value.Should().StartWith("Poof — gone!");
@@ -351,5 +349,14 @@ public sealed class GdprBuiltinsTests
         h.Forget.BuiltinKey.Should().Be("forgetme");
         h.MyData.BuiltinKey.Should().Be("mydata");
         h.Gdpr.BuiltinKey.Should().Be("gdpr");
+    }
+
+    [Fact]
+    public void The_forgetme_done_slot_ships_the_executors_default_copy_as_its_informative_line()
+    {
+        ToneTemplateCatalog
+            .ShippedTemplate(BuiltinResponseSlots.Forgetme.Key, BuiltinResponseSlots.Forgetme.Done)
+            .Should()
+            .Be(GdprSelfServiceExecutor.DefaultErasedCopy);
     }
 }

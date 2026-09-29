@@ -9,10 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.Tts.Builtins;
 
@@ -35,9 +37,16 @@ namespace NomNomzBot.Infrastructure.Tts.Builtins;
 /// </summary>
 public sealed class VoiceBuiltin : IBuiltinCommand
 {
-    private readonly ITtsConfigService _tts;
+    private const string FeatureDisabledCode = "FEATURE_DISABLED";
 
-    public VoiceBuiltin(ITtsConfigService tts) => _tts = tts;
+    private readonly ITtsConfigService _tts;
+    private readonly IBuiltinResponseComposer _composer;
+
+    public VoiceBuiltin(ITtsConfigService tts, IBuiltinResponseComposer composer)
+    {
+        _tts = tts;
+        _composer = composer;
+    }
 
     public string BuiltinKey => "voice";
     public int DefaultCooldownSeconds => 5;
@@ -51,10 +60,9 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     )
     {
         string args = context.Args.Trim();
-        string viewerId = context.TriggeringUserId;
 
         if (args.Length == 0)
-            return await ShowAsync(context.BroadcasterId, viewerId, ct);
+            return await ShowAsync(context, ct);
 
         string[] parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         string head = parts[0].ToLowerInvariant();
@@ -64,32 +72,41 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         // working without a subcommand.
         return head switch
         {
-            "clear" or "reset" or "default" => await ClearAsync(
-                context.BroadcasterId,
-                viewerId,
-                ct
-            ),
-            "current" => await ShowAsync(context.BroadcasterId, viewerId, ct),
-            "languages" or "langs" => await LanguagesAsync(ct),
+            "clear" or "reset" or "default" => await ClearAsync(context, ct),
+            "current" => await ShowAsync(context, ct),
+            "languages" or "langs" => await LanguagesAsync(context, ct),
             "get" => rest.Length == 0
-                ? Result.Success(
-                    "Usage: !voice get <language> - e.g. !voice get en, or !voice get en-US."
+                ? await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Voice.GetUsage,
+                    "Usage: !voice get <language> - e.g. !voice get en, or !voice get en-US.",
+                    null,
+                    ct
                 )
-                : await VoicesForLanguageAsync(rest, ct),
+                : await VoicesForLanguageAsync(context, rest, ct),
             "set" => rest.Length == 0
-                ? Result.Success("Usage: !voice set <name> - e.g. !voice set Ana.")
-                : await SetAsync(context.BroadcasterId, viewerId, rest, ct),
-            "roulette" => await RouletteAsync(context.BroadcasterId, viewerId, ct),
-            _ => await SetAsync(context.BroadcasterId, viewerId, args, ct),
+                ? await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Voice.SetUsage,
+                    "Usage: !voice set <name> - e.g. !voice set Ana.",
+                    null,
+                    ct
+                )
+                : await SetAsync(context, rest, ct),
+            "roulette" => await RouletteAsync(context, ct),
+            _ => await SetAsync(context, args, ct),
         };
     }
 
     /// <summary>Every language the catalogue can speak, grouped by language code (<c>EN: en-US, en-GB</c>).</summary>
-    private async Task<Result<string>> LanguagesAsync(CancellationToken ct)
+    private async Task<Result<string>> LanguagesAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    )
     {
         IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
         if (catalogue.Count == 0)
-            return Result.Success("No TTS voices are available right now.");
+            return await NoVoicesAsync(context, ct);
 
         IEnumerable<IGrouping<string, string>> groups = catalogue
             .Select(v => v.Locale)
@@ -102,18 +119,28 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
 
         string list = string.Join(" | ", groups.Select(g => $"{g.Key}: {string.Join(", ", g)}"));
-        return Result.Success($"Languages: {list}");
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Voice.Languages,
+            "Languages: {voice.languages}",
+            Vars(("voice.languages", list)),
+            ct
+        );
     }
 
     /// <summary>
     /// The voices for one language. Accepts a bare language code (<c>en</c>) or a full locale (<c>en-US</c>);
     /// a bare code matches every locale under it, which is what a viewer means by "English".
     /// </summary>
-    private async Task<Result<string>> VoicesForLanguageAsync(string language, CancellationToken ct)
+    private async Task<Result<string>> VoicesForLanguageAsync(
+        BuiltinCommandContext context,
+        string language,
+        CancellationToken ct
+    )
     {
         IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
         if (catalogue.Count == 0)
-            return Result.Success("I could not read the voice catalogue.");
+            return await NoVoicesAsync(context, ct);
 
         string query = language.Trim();
         List<TtsVoiceDto> matches =
@@ -126,44 +153,68 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             ),
         ];
         if (matches.Count == 0)
-            return Result.Success(
-                $"No voices for {query}. Try !voice languages to see what is available."
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.NoVoicesForLanguage,
+                "No voices for {voice.language}. Try !voice languages to see what is available.",
+                Vars(("voice.language", query)),
+                ct
             );
 
         // Chat is one line: name the first handful and say how many more there are, rather than truncating
         // mid-list and leaving the viewer thinking that is all of them.
         const int shown = 12;
         string names = string.Join(", ", matches.Take(shown).Select(SpeakerName));
-        string more = matches.Count > shown ? $" (+{matches.Count - shown} more)" : string.Empty;
-        return Result.Success($"{query} voices: {names}{more}. Pick one with !voice set <name>.");
+        return matches.Count > shown
+            ? await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.VoicesMore,
+                "{voice.language} voices: {voice.list} (+{voice.more} more). Pick one with !voice set <name>.",
+                Vars(
+                    ("voice.language", query),
+                    ("voice.list", names),
+                    ("voice.more", (matches.Count - shown).ToString())
+                ),
+                ct
+            )
+            : await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.Voices,
+                "{voice.language} voices: {voice.list}. Pick one with !voice set <name>.",
+                Vars(("voice.language", query), ("voice.list", names)),
+                ct
+            );
     }
 
     /// <summary>Picks a random catalogue voice and keeps it - the pick is saved, not a one-off.</summary>
     private async Task<Result<string>> RouletteAsync(
-        Guid broadcasterId,
-        string viewerId,
+        BuiltinCommandContext context,
         CancellationToken ct
     )
     {
         IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
         if (catalogue.Count == 0)
-            return Result.Success("No voices available for roulette!");
+            return await NoVoicesAsync(context, ct);
 
         TtsVoiceDto pick = NoImmediateRepeatPicker.Pick(
             catalogue,
-            $"tts.roulette:{broadcasterId}:{viewerId}"
+            $"tts.roulette:{context.BroadcasterId}:{context.TriggeringUserId}"
         );
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
-            broadcasterId,
-            viewerId,
+            context.BroadcasterId,
+            context.TriggeringUserId,
             new() { VoiceId = pick.Id },
             ct
         );
         if (set.IsFailure)
-            return Result.Success(set.ErrorMessage ?? "I could not set that voice.");
+            return await SetFailedAsync(context, set, ct);
 
-        return Result.Success(
-            $"The wheel has spoken - your voice is now {pick.DisplayName} [{pick.Locale} {pick.Gender}]. No takebacks."
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Voice.Roulette,
+            "The wheel has spoken - your voice is now {voice.name} [{voice.locale} {voice.gender}]. No takebacks.",
+            PickVars(pick),
+            ct
         );
     }
 
@@ -209,39 +260,64 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     }
 
     private async Task<Result<string>> ShowAsync(
-        Guid broadcasterId,
-        string viewerId,
+        BuiltinCommandContext context,
         CancellationToken ct
     )
     {
-        Result<UserTtsVoiceDto?> own = await _tts.GetOwnVoiceAsync(broadcasterId, viewerId, ct);
+        Result<UserTtsVoiceDto?> own = await _tts.GetOwnVoiceAsync(
+            context.BroadcasterId,
+            context.TriggeringUserId,
+            ct
+        );
         if (own is { IsSuccess: true, Value: { } voice })
-            return Result.Success(
-                $"Your TTS voice is {voice.VoiceId}. Change it with !voice <search>, or !voice clear to use the channel default."
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.Current,
+                "Your TTS voice is {voice.id}. Change it with !voice <search>, or !voice clear to use the channel default.",
+                Vars(("voice.id", voice.VoiceId)),
+                ct
             );
-        return Result.Success(
-            "You're using the channel default TTS voice. Pick your own with !voice <search> — e.g. !voice british female."
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Voice.CurrentDefault,
+            "You're using the channel default TTS voice. Pick your own with !voice <search> — e.g. !voice british female.",
+            null,
+            ct
         );
     }
 
     private async Task<Result<string>> ClearAsync(
-        Guid broadcasterId,
-        string viewerId,
+        BuiltinCommandContext context,
         CancellationToken ct
     )
     {
-        Result cleared = await _tts.ClearOwnVoiceAsync(broadcasterId, viewerId, ct);
-        // A gate refusal (FEATURE_DISABLED) carries a viewer-friendly message; surface it verbatim.
-        return Result.Success(
-            cleared.IsSuccess
-                ? "Your TTS voice is back to the channel default."
-                : cleared.ErrorMessage ?? "I couldn't reset your voice."
+        Result cleared = await _tts.ClearOwnVoiceAsync(
+            context.BroadcasterId,
+            context.TriggeringUserId,
+            ct
         );
+        if (cleared.IsSuccess)
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.Cleared,
+                "Your TTS voice is back to the channel default.",
+                null,
+                ct
+            );
+
+        return cleared.ErrorCode == FeatureDisabledCode
+            ? await DisabledAsync(context, ct)
+            : await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.ClearFailed,
+                "I couldn't reset your voice.",
+                null,
+                ct
+            );
     }
 
     private async Task<Result<string>> SetAsync(
-        Guid broadcasterId,
-        string viewerId,
+        BuiltinCommandContext context,
         string query,
         CancellationToken ct
     )
@@ -251,29 +327,119 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             ct
         );
         if (matches.IsFailure || matches.Value.Items.Count == 0)
-            return Result.Success(
-                $"No voice matched \"{query}\". Try a name, a language like en-US, or an accent like british."
+            return await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.NoMatch,
+                "No voice matched \"{query}\". Try a name, a language like en-US, or an accent like british.",
+                Vars(("query", query)),
+                ct
             );
 
         TtsVoiceDto pick = BestMatch(matches.Value.Items, query);
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
-            broadcasterId,
-            viewerId,
+            context.BroadcasterId,
+            context.TriggeringUserId,
             new() { VoiceId = pick.Id },
             ct
         );
         if (set.IsFailure)
-            // FEATURE_DISABLED (self-service locked) or NOT_FOUND (voice vanished) — reply with the reason.
-            return Result.Success(set.ErrorMessage ?? "I couldn't set that voice.");
+            return await SetFailedAsync(context, set, ct);
 
         int total = matches.Value.TotalCount;
-        string extra =
-            total > 1
-                ? $" ({total} matched — add a word to narrow it, or !voice clear to reset.)"
-                : "";
-        return Result.Success(
-            $"Your TTS voice is now {pick.DisplayName} [{pick.Locale} {pick.Gender}].{extra}"
+        return total > 1
+            ? await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.SetMany,
+                "Your TTS voice is now {voice.name} [{voice.locale} {voice.gender}]. ({voice.count} matched — add a word to narrow it, or !voice clear to reset.)",
+                PickVars(pick, total),
+                ct
+            )
+            : await ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.Set,
+                "Your TTS voice is now {voice.name} [{voice.locale} {voice.gender}].",
+                PickVars(pick),
+                ct
+            );
+    }
+
+    /// <summary>
+    /// A failed set: FEATURE_DISABLED (self-service locked) gets the disabled slot; anything else (for example
+    /// NOT_FOUND when the voice vanished) the generic failure slot. The service message stays for logs.
+    /// </summary>
+    private Task<Result<string>> SetFailedAsync(
+        BuiltinCommandContext context,
+        Result failure,
+        CancellationToken ct
+    ) =>
+        failure.ErrorCode == FeatureDisabledCode
+            ? DisabledAsync(context, ct)
+            : ReplyAsync(
+                context,
+                BuiltinResponseSlots.Voice.SetFailed,
+                "I couldn't set that voice.",
+                null,
+                ct
+            );
+
+    private Task<Result<string>> DisabledAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    ) =>
+        ReplyAsync(
+            context,
+            BuiltinResponseSlots.Voice.Disabled,
+            "Picking your own voice is turned off on this channel.",
+            null,
+            ct
         );
+
+    private Task<Result<string>> NoVoicesAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    ) =>
+        ReplyAsync(
+            context,
+            BuiltinResponseSlots.Voice.NoVoices,
+            "No TTS voices are available right now.",
+            null,
+            ct
+        );
+
+    private async Task<Result<string>> ReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        IReadOnlyDictionary<string, string>? variables,
+        CancellationToken ct
+    ) =>
+        Result.Success(
+            await _composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Voice.Key,
+                slot,
+                neutralFallback,
+                variables,
+                ct
+            )
+        );
+
+    private static Dictionary<string, string> Vars(params (string Name, string Value)[] values) =>
+        new(
+            values.Select(v => KeyValuePair.Create(v.Name, v.Value)),
+            StringComparer.OrdinalIgnoreCase
+        );
+
+    private static Dictionary<string, string> PickVars(TtsVoiceDto pick, int? matched = null)
+    {
+        Dictionary<string, string> vars = Vars(
+            ("voice.name", pick.DisplayName),
+            ("voice.locale", pick.Locale),
+            ("voice.gender", pick.Gender)
+        );
+        if (matched is { } count)
+            vars["voice.count"] = count.ToString();
+        return vars;
     }
 
     // Relevance beats catalogue order. The rung that matters most in chat is the BARE SPEAKER NAME: a viewer

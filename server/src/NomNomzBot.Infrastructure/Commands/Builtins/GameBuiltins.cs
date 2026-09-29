@@ -23,13 +23,31 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// <see cref="IGameService.PlayAsync"/>. The chatter IS a (possibly not-set-up) User — resolved through the
 /// same <see cref="IUserService.GetOrCreateAsync"/> seam every chat-ingest path uses. Every game rule
 /// (enabled toggle, optional 18+ gate, bet range, cooldown, per-stream cap, standing floor) is enforced by
-/// the service; this class only parses the bet and phrases the outcome for chat.
+/// the service; this class only parses the bet and maps every outcome (played, refused, failed) to a reply
+/// slot under the game's own trigger key, so the channel can re-word each one.
 /// </summary>
 public abstract class GamePlayBuiltinBase : IBuiltinCommand
 {
     private readonly IGameService _games;
     private readonly IUserService _users;
     private readonly IBuiltinResponseComposer _composer;
+
+    /// <summary>Which reply slot each service refusal code speaks with; any other code is <c>playfailed</c>.</summary>
+    private static readonly IReadOnlyDictionary<string, string> FailureSlots = new Dictionary<
+        string,
+        string
+    >(StringComparer.Ordinal)
+    {
+        ["NOT_FOUND"] = BuiltinResponseSlots.Game.NotEnabled,
+        ["GAMBLING_DISABLED"] = BuiltinResponseSlots.Game.NotEnabled,
+        ["AGE_CONSENT_REQUIRED"] = BuiltinResponseSlots.Game.AgeConsentRequired,
+        ["FORBIDDEN"] = BuiltinResponseSlots.Game.NotAllowed,
+        ["BET_OUT_OF_RANGE"] = BuiltinResponseSlots.Game.BetOutOfRange,
+        ["ON_COOLDOWN"] = BuiltinResponseSlots.Game.OnCooldown,
+        ["PER_STREAM_LIMIT"] = BuiltinResponseSlots.Game.StreamLimit,
+        ["INSUFFICIENT_FUNDS"] = BuiltinResponseSlots.Game.InsufficientFunds,
+        ["CURRENCY_DISABLED"] = BuiltinResponseSlots.Game.CurrencyDisabled,
+    };
 
     protected GamePlayBuiltinBase(
         IGameService games,
@@ -66,20 +84,39 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             ct
         );
         if (games.IsFailure)
-            return Result.Success("Games are unavailable right now.");
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Game.Unavailable,
+                    "Games are unavailable right now.",
+                    ct
+                )
+            );
 
         GameConfigDto? game = games.Value.FirstOrDefault(g =>
             string.Equals(g.GameType, GameType, StringComparison.OrdinalIgnoreCase)
         );
         if (game is null || !game.IsEnabled)
             return Result.Success(
-                $"!{GameType} isn't enabled yet — turn it on under Economy → Games. Games spend your channel currency, so set that up there too."
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Game.NotEnabled,
+                    $"!{GameType} isn't enabled yet — turn it on under Economy → Games. Games spend your channel currency, so set that up there too.",
+                    ct
+                )
             );
 
         // The response is sent as a reply to the caller's message, so no "@user" prefix is needed.
         string betArg = context.Args.Trim().Split(' ', 2)[0];
         if (!long.TryParse(betArg, out long bet) || bet <= 0)
-            return Result.Success($"Usage: !{GameType} <bet>");
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Game.Usage,
+                    $"Usage: !{GameType} <bet>",
+                    ct
+                )
+            );
 
         Result<UserDto> user = await _users.GetOrCreateAsync(
             context.TriggeringUserId,
@@ -89,18 +126,14 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
         );
         if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid playerUserId))
         {
-            string unresolved = await _composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinKey,
-                    Slot = BuiltinResponseSlots.Game.AccountUnresolved,
-                    NeutralFallback = "Could not resolve your account — try again.",
-                },
-                ct
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Game.AccountUnresolved,
+                    "Could not resolve your account — try again.",
+                    ct
+                )
             );
-            return Result.Success(unresolved);
         }
 
         Result<GamePlayResultDto> played = await _games.PlayAsync(
@@ -109,15 +142,65 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             ct
         );
 
-        // The service's failure messages are already chat-friendly ("Bet is outside the allowed range.", …).
+        // The service keeps its own ErrorMessage for logs and the API; chat speaks from the code's slot.
         if (played.IsFailure)
-            return Result.Success(played.ErrorMessage ?? "That didn't work — try again.");
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    FailureSlots.GetValueOrDefault(
+                        played.ErrorCode ?? string.Empty,
+                        BuiltinResponseSlots.Game.PlayFailed
+                    ),
+                    played.ErrorMessage ?? "That didn't work — try again.",
+                    ct
+                )
+            );
 
         GamePlayResultDto outcome = played.Value;
+        bool won = outcome.PayoutAmount > 0;
         return Result.Success(
-            outcome.PayoutAmount > 0
-                ? $"You won {outcome.PayoutAmount} on {GameType} (bet {outcome.BetAmount})! Balance: {outcome.BalanceAfter}"
-                : $"You lost {outcome.BetAmount} on {GameType}. Balance: {outcome.BalanceAfter}"
+            await ReplyAsync(
+                context,
+                won ? BuiltinResponseSlots.Game.Won : BuiltinResponseSlots.Game.Lost,
+                won
+                    ? $"You won {outcome.PayoutAmount} on {GameType} (bet {outcome.BetAmount})! Balance: {outcome.BalanceAfter}"
+                    : $"You lost {outcome.BetAmount} on {GameType}. Balance: {outcome.BalanceAfter}",
+                ct,
+                new Dictionary<string, string>
+                {
+                    ["game.bet"] = outcome.BetAmount.ToString(),
+                    ["game.payout"] = outcome.PayoutAmount.ToString(),
+                    ["game.balance"] = outcome.BalanceAfter.ToString(),
+                }
+            )
+        );
+    }
+
+    /// <summary>Composes one of this game's reply slots; <c>{game.name}</c> is always the game's trigger word.</summary>
+    private Task<string> ReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string>? extra = null
+    )
+    {
+        Dictionary<string, string> variables = new() { ["game.name"] = GameType };
+        if (extra is not null)
+            foreach (KeyValuePair<string, string> pair in extra)
+                variables[pair.Key] = pair.Value;
+
+        return _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinKey,
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+                Variables = variables,
+            },
+            ct
         );
     }
 }

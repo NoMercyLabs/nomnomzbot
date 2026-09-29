@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -28,7 +29,7 @@ public sealed class LeaderboardBuiltin(
     IBuiltinResponseComposer composer
 ) : IBuiltinCommand
 {
-    public string BuiltinKey => "leaderboard";
+    public string BuiltinKey => BuiltinResponseSlots.Leaderboard.Key;
     public int DefaultCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0;
 
@@ -57,7 +58,7 @@ public sealed class LeaderboardBuiltin(
                     BroadcasterId = context.BroadcasterId,
                     Personality = context.Personality,
                     BuiltinKey = BuiltinKey,
-                    Slot = "none",
+                    Slot = BuiltinResponseSlots.Leaderboard.None,
                     NeutralFallback = "No leaderboard is configured for this channel yet.",
                 },
                 ct
@@ -80,7 +81,7 @@ public sealed class LeaderboardBuiltin(
                     BroadcasterId = context.BroadcasterId,
                     Personality = context.Personality,
                     BuiltinKey = BuiltinKey,
-                    Slot = "empty",
+                    Slot = BuiltinResponseSlots.Leaderboard.Empty,
                     NeutralFallback = "The leaderboard doesn't have any ranked entries yet.",
                 },
                 ct
@@ -99,8 +100,7 @@ public sealed class LeaderboardBuiltin(
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
-                Slot = "top",
-                OverrideTemplate = context.CustomResponseTemplate,
+                Slot = BuiltinResponseSlots.Leaderboard.Top,
                 NeutralFallback = "Top {leaderboard.metric}: {leaderboard.list}",
                 Variables = new Dictionary<string, string>
                 {

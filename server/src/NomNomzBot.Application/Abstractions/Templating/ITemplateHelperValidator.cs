@@ -25,4 +25,15 @@ public interface ITemplateHelperValidator
     /// for <paramref name="context"/>. A null/empty template is always valid (nothing to check).
     /// </summary>
     Result Validate(string? template, TemplateHelperContext context);
+
+    /// <summary>
+    /// Same check, additionally accepting the caller's own seeded variables (<paramref name="extraKeys"/>) —
+    /// e.g. a built-in reply slot's declared variables such as <c>{track.name}</c>, which are real for that one
+    /// reply but are not registry helpers (commands-pipelines.md §11).
+    /// </summary>
+    Result Validate(
+        string? template,
+        TemplateHelperContext context,
+        IReadOnlyCollection<string> extraKeys
+    );
 }

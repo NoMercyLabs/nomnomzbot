@@ -44,7 +44,9 @@ public sealed class BanSongBuiltinTests
             Personality = personality,
         };
 
-    private static IBuiltinResponseComposer FakeComposer()
+    private static IBuiltinResponseComposer FakeComposer(
+        IChannelBuiltinReplyOverrides? channelReplies = null
+    )
     {
         ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
         resolver
@@ -54,8 +56,20 @@ public sealed class BanSongBuiltinTests
                 Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
-        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            channelReplies ?? FakeChannelBuiltinReplies.None
+        );
     }
 
     [Fact]
@@ -107,7 +121,7 @@ public sealed class BanSongBuiltinTests
         Result<string> result = await sut.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain("Never Gonna Give You Up");
+        result.Value.Should().Be("@SomeMod banned \"Never Gonna Give You Up\" from song requests.");
 
         await blockedTracks
             .Received(1)
@@ -121,6 +135,61 @@ public sealed class BanSongBuiltinTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_channel_can_reword_the_ban_confirmation_and_the_title_still_fills_in()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    TrackName: "Toxic",
+                    Artist: "Britney Spears",
+                    Album: null,
+                    ImageUrl: null,
+                    DurationMs: 200_000,
+                    ProgressMs: 1_000,
+                    IsPlaying: true,
+                    Volume: 50,
+                    RequestedBy: null,
+                    Provider: "spotify",
+                    TrackUri: "spotify:track:toxic"
+                )
+            );
+        IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
+        blockedTracks
+            .BlockAsync(Broadcaster, Arg.Any<BlockTrackRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new BlockedTrackDto(
+                        Guid.CreateVersion7(),
+                        "spotify",
+                        "spotify:track:toxic",
+                        "Toxic",
+                        "Banned via !bansong",
+                        "mod-1",
+                        DateTime.UtcNow
+                    )
+                )
+            );
+        FakeChannelBuiltinReplies channel = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.BanSong.Banned,
+            "{track.name} is gone for good."
+        );
+        BanSongBuiltin sut = new(
+            music,
+            blockedTracks,
+            FakeComposer(channel),
+            MusicGateTestKit.Gate(false)
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context());
+
+        result.Value.Should().Be("Toxic is gone for good.");
     }
 
     [Fact]

@@ -14,18 +14,19 @@ using NomNomzBot.Domain.Identity.Enums;
 namespace NomNomzBot.Application.Commands.Builtin.Personality;
 
 /// <summary>
-/// The code-defined personality content: for each <c>(tone, builtinKey, slot)</c> a set of 2–4 VARIED
-/// templates written in that tone's voice, using the real template variables the built-in seeds. A tone is a
-/// named variation-set; <see cref="Pick"/> chooses one at random (the same "pick a random variation" idea the
-/// custom-command <c>PickResponse</c>/<c>PickRandomAsync</c> paths use).
+/// The code-defined reply content: for each <c>(builtinKey, slot)</c> the variables the built-in seeds and, per
+/// tone, a set of 1–4 VARIED templates written in that tone's voice. A tone is a named variation-set;
+/// <see cref="Pick"/> chooses one at random (the same "pick a random variation" idea the custom-command
+/// <c>PickResponse</c>/<c>PickRandomAsync</c> paths use). Every slot here is a reply a channel can re-word
+/// (commands-pipelines.md §11) — the catalogue the dashboard's reply editor lists.
 ///
 /// <para>
-/// Authoring is grouped by <c>(builtinKey, slot)</c>, each declaring all five tones. When a specific tone has
-/// no entry for a slot, resolution falls back to <see cref="PersonalityTone.Informative"/> so a channel always
-/// gets a sensible line; when the whole slot is absent the built-in's own neutral fallback is used instead.
+/// Authoring is grouped by <c>(builtinKey, slot)</c>, each declaring all five tones; the entries live in one
+/// partial file per domain. When a specific tone has no entry for a slot, resolution falls back to
+/// <see cref="PersonalityTone.Informative"/> so a channel always gets a sensible line.
 /// </para>
 /// </summary>
-public static class ToneTemplateCatalog
+public static partial class ToneTemplateCatalog
 {
     /// <summary>
     /// The variation-sets for <paramref name="tone"/> at <c>(<paramref name="builtinKey"/>,
@@ -34,19 +35,14 @@ public static class ToneTemplateCatalog
     /// </summary>
     public static IReadOnlyList<string> Get(string? tone, string builtinKey, string slot)
     {
-        if (
-            !Catalog.TryGetValue(
-                (builtinKey, slot),
-                out IReadOnlyDictionary<string, string[]>? byTone
-            )
-        )
+        if (!Catalog.TryGetValue((builtinKey, slot), out SlotEntry? entry))
             return [];
 
         string normalized = PersonalityTone.Normalize(tone);
-        if (byTone.TryGetValue(normalized, out string[]? variations) && variations.Length > 0)
+        if (entry.Tones.TryGetValue(normalized, out string[]? variations) && variations.Length > 0)
             return variations;
 
-        return byTone.TryGetValue(PersonalityTone.Informative, out string[]? informative)
+        return entry.Tones.TryGetValue(PersonalityTone.Informative, out string[]? informative)
             ? informative
             : [];
     }
@@ -66,7 +62,7 @@ public static class ToneTemplateCatalog
         );
     }
 
-    /// <summary>Every <c>(builtinKey, slot)</c> the catalog authors — the slots a platform admin may re-word.</summary>
+    /// <summary>Every <c>(builtinKey, slot)</c> the catalog authors, ordered by key then slot.</summary>
     public static IReadOnlyList<(string BuiltinKey, string Slot)> AllSlots() =>
         [
             .. Catalog
@@ -78,38 +74,67 @@ public static class ToneTemplateCatalog
     public static bool Contains(string builtinKey, string slot) =>
         Catalog.ContainsKey((builtinKey, slot));
 
+    /// <summary>The variables the built-in seeds for <c>(builtinKey, slot)</c> — empty for an unknown slot.</summary>
+    public static IReadOnlyList<string> Variables(string builtinKey, string slot) =>
+        Catalog.TryGetValue((builtinKey, slot), out SlotEntry? entry) ? entry.Variables : [];
+
     /// <summary>
     /// The shipped wording a channel on the default (Informative) tone sees for the slot — its first
     /// Informative variation — or null when the slot ships only flavoured tones (the built-in's own fallback).
     /// </summary>
     public static string? ShippedTemplate(string builtinKey, string slot) =>
-        Catalog.TryGetValue((builtinKey, slot), out IReadOnlyDictionary<string, string[]>? byTone)
-        && byTone.TryGetValue(PersonalityTone.Informative, out string[]? informative)
+        Catalog.TryGetValue((builtinKey, slot), out SlotEntry? entry)
+        && entry.Tones.TryGetValue(PersonalityTone.Informative, out string[]? informative)
         && informative.Length > 0
             ? informative[0]
             : null;
 
+    /// <summary>
+    /// A fixed example value for a declared variable — what the dashboard's live preview fills in. Data, not UI
+    /// copy: a name, a number, a track. Empty for a variable with no sample.
+    /// </summary>
+    public static string SampleValue(string variable) =>
+        Samples.GetValueOrDefault(variable, string.Empty);
+
+    private static readonly IReadOnlyDictionary<string, string> Samples = BuildSamples();
+
+    private static IReadOnlyDictionary<string, string> BuildSamples()
+    {
+        Dictionary<string, string> samples = new(StringComparer.OrdinalIgnoreCase);
+        AddMusicSamples(samples);
+        AddCoreSamples(samples);
+        AddCommunitySamples(samples);
+        return samples;
+    }
+
+    /// <summary>One slot's declared variables and its per-tone variation-sets.</summary>
+    private sealed record SlotEntry(
+        IReadOnlyList<string> Variables,
+        IReadOnlyDictionary<string, string[]> Tones
+    );
+
     // ─────────────────────────────────────────────────────────────────────────
-    //  Content. Grouped by (builtinKey, slot); every slot declares all five tones.
-    //  Templates use the variables the built-in seeds (see BuiltinResponseSlots docs).
+    //  Content. Grouped by (builtinKey, slot); every slot declares its variables and all five tones.
+    //  Templates use only the variables the slot declares (plus registered template helpers).
     // ─────────────────────────────────────────────────────────────────────────
     private static readonly IReadOnlyDictionary<
         (string BuiltinKey, string Slot),
-        IReadOnlyDictionary<string, string[]>
+        SlotEntry
     > Catalog = Build();
 
-    private static IReadOnlyDictionary<
-        (string, string),
-        IReadOnlyDictionary<string, string[]>
-    > Build()
+    private static IReadOnlyDictionary<(string, string), SlotEntry> Build()
     {
-        Dictionary<(string, string), IReadOnlyDictionary<string, string[]>> catalog = new();
+        Dictionary<(string, string), SlotEntry> catalog = new();
+        AddMusicSlots(catalog);
+        AddCoreSlots(catalog);
+        AddCommunitySlots(catalog);
 
         // ── !uptime / live ({uptime} = real elapsed time) ──────────────────────
         Add(
             catalog,
             BuiltinResponseSlots.Uptime.Key,
             BuiltinResponseSlots.Uptime.Live,
+            variables: ["uptime"],
             informative:
             [
                 "Live for {uptime}.",
@@ -148,6 +173,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Uptime.Key,
             BuiltinResponseSlots.Uptime.Offline,
+            variables: [],
             informative:
             [
                 "The stream is currently offline.",
@@ -181,6 +207,16 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Song.Key,
             BuiltinResponseSlots.Song.Playing,
+            variables:
+            [
+                "song.artist",
+                "song.attribution",
+                "song.name",
+                "song.provider",
+                "song.requester",
+                "song.source",
+                "song.status",
+            ],
             informative:
             [
                 "{song.status} {song.name} by {song.artist}",
@@ -219,6 +255,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Song.Key,
             BuiltinResponseSlots.Song.Nothing,
+            variables: [],
             informative:
             [
                 "Nothing is playing right now.",
@@ -252,6 +289,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Queue.Key,
             BuiltinResponseSlots.Queue.List,
+            variables: ["queue.count", "queue.list", "queue.more", "queue.next"],
             informative:
             [
                 "Queue ({queue.count}): {queue.list}",
@@ -290,6 +328,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Queue.Key,
             BuiltinResponseSlots.Queue.Empty,
+            variables: [],
             informative:
             [
                 "The queue is empty.",
@@ -326,6 +365,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.Added,
+            variables: ["track.artist", "track.link", "track.name", "user"],
             informative:
             [
                 "Added {track.name} by {track.artist} to the queue. {track.link}",
@@ -359,44 +399,43 @@ public static class ToneTemplateCatalog
             ]
         );
 
-        // ── !sr / duplicate ({user} {requested.by}) ────────────────────────────
-        // NOTE: no {track.name} here — the resolve failed, so the builtin genuinely does not have the
-        // title on this path. These lines are written to land without it rather than print an empty gap.
+        // ── !sr / duplicate ({track.name} {track.artist} {requested.by} {user}) ─
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.Duplicate,
+            variables: ["requested.by", "track.artist", "track.name", "user"],
             informative:
             [
-                "That track is already in the queue — {requested.by} requested it first.",
-                "Already queued by {requested.by}. Pick a different one and I will add it.",
-                "That one is waiting in the queue already, thanks to {requested.by}.",
+                "\"{track.name}\" is already in the queue (requested by {requested.by}).",
+                "\"{track.name}\" is already queued by {requested.by}. Pick a different one and I will add it.",
+                "\"{track.name}\" is waiting in the queue already, thanks to {requested.by}.",
             ],
             friendly:
             [
-                "Good taste! {requested.by} already queued that one — pick another and it is yours.",
-                "{requested.by} beat you to it! Got another in mind?",
-                "Already in the queue thanks to {requested.by} — hit me with a different one.",
+                "Good taste! {requested.by} already queued \"{track.name}\" — pick another and it is yours.",
+                "{requested.by} beat you to \"{track.name}\"! Got another in mind?",
+                "\"{track.name}\" is already in the queue thanks to {requested.by} — hit me with a different one.",
             ],
             sassy:
             [
-                "That is ALREADY in the queue. {requested.by} got there first. Try listening before requesting.",
-                "Again? {requested.by} already called that one. The queue is not a loop pedal.",
-                "Denied. {requested.by} queued it already. One copy is plenty, I promise.",
-                "I am not queueing that twice. {requested.by} beat you to it. Scroll up next time.",
-                "Groundbreaking choice — {requested.by} thought of it first. Pick something else.",
+                "\"{track.name}\" is ALREADY in the queue. {requested.by} got there first. Try listening before requesting.",
+                "Again? {requested.by} already called \"{track.name}\". The queue is not a loop pedal.",
+                "Denied. {requested.by} queued \"{track.name}\" already. One copy is plenty, I promise.",
+                "I am not queueing \"{track.name}\" twice. {requested.by} beat you to it. Scroll up next time.",
+                "Groundbreaking choice — {requested.by} thought of \"{track.name}\" first. Pick something else.",
             ],
             hype:
             [
-                "ALREADY IN THERE. {requested.by} CALLED IT. GIVE ME ANOTHER BANGER.",
-                "{requested.by} ALREADY QUEUED THAT ONE. GREAT MINDS. NEXT.",
-                "THAT IS LOCKED IN ALREADY — FIND ME A NEW ONE.",
+                "\"{track.name}\" IS ALREADY IN THERE. {requested.by} CALLED IT. GIVE ME ANOTHER BANGER.",
+                "{requested.by} ALREADY QUEUED \"{track.name}\". GREAT MINDS. NEXT.",
+                "\"{track.name}\" IS LOCKED IN ALREADY — FIND ME A NEW ONE.",
             ],
             chill:
             [
-                "that one is already in the queue. {requested.by} got it.",
+                "\"{track.name}\" is already in the queue. {requested.by} got it.",
                 "already queued by {requested.by}. pick another.",
-                "{requested.by} already asked for that one.",
+                "{requested.by} already asked for \"{track.name}\".",
             ]
         );
 
@@ -405,6 +444,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.AlreadyPlaying,
+            variables: ["track.artist", "track.name", "user"],
             informative:
             [
                 "That track is playing right now.",
@@ -443,6 +483,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.NotFound,
+            variables: ["query", "user"],
             informative:
             [
                 "No tracks found for \"{query}\".",
@@ -481,6 +522,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Skip.Key,
             BuiltinResponseSlots.Skip.Skipped,
+            variables: [],
             informative: ["Skipped.", "Track skipped.", "Skipped the current track."],
             friendly:
             [
@@ -504,46 +546,12 @@ public static class ToneTemplateCatalog
             chill: ["skipped.", "next one. skipped.", "gone. moving on."]
         );
 
-        // ── !stats / profile ({stats.user} {stats.messages} {stats.watchtime}
-        //    {stats.points} {stats.firstseen}) — Informative is intentionally OMITTED so the default tone
-        //    keeps the built-in's richer, conditional stats line (rank + streak). The four flavored tones
-        //    deviate from it. ──────────────────────────────────────────────────
-        AddFlavored(
-            catalog,
-            BuiltinResponseSlots.Stats.Key,
-            BuiltinResponseSlots.Stats.Profile,
-            friendly:
-            [
-                "{stats.user}, you've sent {stats.messages} messages and earned {stats.points} points — {stats.watchtime} watched together!",
-                "Look at {stats.user}: {stats.points} points, {stats.messages} messages, here since {stats.firstseen}!",
-                "{stats.user} has been amazing — {stats.watchtime} watched and {stats.points} points!",
-            ],
-            sassy:
-            [
-                "CLASSIFIED DOSSIER: {stats.user}. {stats.messages} messages. {stats.watchtime} watched. {stats.points} points. Threat level: chronically online.",
-                "{stats.user}: {stats.messages} messages, {stats.points} points, here since {stats.firstseen}. Impressive. Concerning. Both.",
-                "{stats.user} has {stats.watchtime} of watch time. I'm not judging. Actually, judging is most of my codebase. I'm judging.",
-                "{stats.user} in a nutshell: {stats.messages} messages, {stats.points} points, {stats.watchtime} watched. And somehow, none of it was quiet.",
-            ],
-            hype:
-            [
-                "{stats.user}: {stats.points} POINTS, {stats.messages} MESSAGES, {stats.watchtime} WATCHED. LEGEND STATUS.",
-                "BIG NUMBERS FOR {stats.user}: {stats.points} POINTS AND {stats.watchtime} WATCHED.",
-                "{stats.user} IS BUILT DIFFERENT: {stats.messages} MESSAGES, {stats.points} POINTS.",
-            ],
-            chill:
-            [
-                "{stats.user}: {stats.messages} msgs, {stats.watchtime}, {stats.points} pts.",
-                "{stats.user} — {stats.points} points, around since {stats.firstseen}.",
-                "{stats.user}: {stats.watchtime} watched, {stats.points} pts. solid.",
-            ]
-        );
-
         // ── !commands / !help (generic) / list ({user} {commands}) ─────────────
         Add(
             catalog,
             BuiltinResponseSlots.Commands.Key,
             BuiltinResponseSlots.Commands.List,
+            variables: ["commands", "user"],
             informative: ["@{user} available commands: {commands}"],
             friendly:
             [
@@ -564,6 +572,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Commands.Key,
             BuiltinResponseSlots.Commands.Empty,
+            variables: ["user"],
             informative: ["@{user} there are no commands enabled in this channel yet."],
             friendly: ["@{user} nothing enabled yet — check back soon!"],
             sassy: ["@{user} no commands enabled. It's quiet. Too quiet."],
@@ -576,6 +585,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Help.Key,
             BuiltinResponseSlots.Help.Described,
+            variables: ["command", "description", "user"],
             informative: ["@{user} !{command}: {description}"],
             friendly: ["@{user} good question! !{command}: {description}"],
             sassy: ["@{user} !{command}: {description}. You could've read the pins, but sure."],
@@ -588,6 +598,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Lurk.Key,
             BuiltinResponseSlots.Lurk.Lurking,
+            variables: ["user"],
             informative: ["@{user} is now lurking. Enjoy the stream!"],
             friendly: ["@{user} is lurking now — thanks for still being here!"],
             sassy: ["@{user} has entered lurk mode. Silent, watching, judging. Respect."],
@@ -600,6 +611,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Lurk.Key,
             BuiltinResponseSlots.Lurk.NotLurking,
+            variables: ["user"],
             informative: ["@{user} is no longer lurking. Welcome back!"],
             friendly: ["@{user} is back! Great to see you again!"],
             sassy: ["@{user} has emerged from the shadows. We saw nothing. We assume the worst."],
@@ -612,6 +624,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.AccountAge.Key,
             BuiltinResponseSlots.AccountAge.Age,
+            variables: ["age", "user"],
             informative: ["@{user} your Twitch account is {age} old."],
             friendly: ["@{user} your account has been around for {age} — nice!"],
             sassy: ["@{user} {age} old and still typing this into chat. Respect the commitment."],
@@ -624,6 +637,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Whisper.Key,
             BuiltinResponseSlots.Whisper.Usage,
+            variables: [],
             informative: ["Usage: !whisper <user> <message>"],
             friendly: ["Almost! Try: !whisper <user> <message>"],
             sassy: ["Usage: !whisper <user> <message>. Both parts. Every time. Not optional."],
@@ -636,6 +650,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Whisper.Key,
             BuiltinResponseSlots.Whisper.NotFound,
+            variables: ["user"],
             informative: ["Could not find a Twitch user named \"{user}\"."],
             friendly: ["Hmm, couldn't find a Twitch user named \"{user}\" — check the spelling?"],
             sassy: ["\"{user}\" is not a Twitch user. Checked. Twice. Try spelling it right."],
@@ -648,6 +663,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.BanSong.Key,
             BuiltinResponseSlots.BanSong.Nothing,
+            variables: [],
             informative: ["Nothing is playing right now — there's no track to ban."],
             friendly: ["Nothing's playing right now, so there's nothing to ban!"],
             sassy: ["Nothing is playing. Banning silence would be a bold new frontier. Let's not."],
@@ -660,6 +676,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.UpdateUserInfo.Key,
             BuiltinResponseSlots.UpdateUserInfo.NotFound,
+            variables: ["user"],
             informative: ["Could not find user '{user}' on Twitch."],
             friendly: ["Couldn't find '{user}' on Twitch — mind checking the spelling?"],
             sassy: ["'{user}' does not exist on Twitch. Not my fault. Check the name."],
@@ -672,6 +689,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Volume.Key,
             BuiltinResponseSlots.Volume.Usage,
+            variables: [],
             informative: ["Usage: !volume <0-100>"],
             friendly: ["Almost! Try: !volume <0-100>"],
             sassy: ["Usage: !volume <0-100>. A number. Between zero and a hundred. That's it."],
@@ -684,6 +702,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Volume.Key,
             BuiltinResponseSlots.Volume.CannotRead,
+            variables: [],
             informative: ["Can't read the current volume right now — nothing is playing."],
             friendly: ["Can't check the volume right now — nothing's playing to read it from!"],
             sassy: ["Can't read a volume off of silence. Get a track going first."],
@@ -696,6 +715,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Whisper.Key,
             BuiltinResponseSlots.Whisper.TwitchUnavailable,
+            variables: [],
             informative: ["Twitch did not answer just now — try again in a moment."],
             friendly: ["Twitch didn't answer just now — mind trying again in a moment?"],
             sassy: ["Twitch didn't answer. Not my fault. Try again in a moment."],
@@ -708,6 +728,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.Whisper.Key,
             BuiltinResponseSlots.Whisper.NotAvailable,
+            variables: [],
             informative: ["Whispering isn't available right now."],
             friendly: ["Whispering isn't available right now — sorry about that!"],
             sassy: ["Whispering isn't available right now. Take it up with the platform, not me."],
@@ -720,6 +741,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.BanSong.Key,
             BuiltinResponseSlots.BanSong.CouldNotBan,
+            variables: [],
             informative: ["Could not ban that track — try again in a moment."],
             friendly: ["Couldn't ban that track just now — mind trying again in a moment?"],
             sassy: ["Couldn't ban that track. It lives on. For now. Try again in a moment."],
@@ -732,6 +754,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.UpdateUserInfo.Key,
             BuiltinResponseSlots.UpdateUserInfo.TwitchUnavailable,
+            variables: ["user"],
             informative: ["@{user} Twitch did not answer just now — try again in a moment."],
             friendly: ["@{user} Twitch didn't answer just now — mind trying again in a moment?"],
             sassy: ["@{user} Twitch didn't answer. Not my fault. Try again in a moment."],
@@ -744,6 +767,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.UpdateUserInfo.Key,
             BuiltinResponseSlots.UpdateUserInfo.UpdateFailed,
+            variables: ["user"],
             informative: ["Something went wrong updating {user}."],
             friendly: ["Hmm, something went wrong updating {user} — mind trying again?"],
             sassy: ["Something went wrong updating {user}. Not my finest moment. Try again."],
@@ -756,6 +780,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.UpdateUserInfo.Key,
             BuiltinResponseSlots.UpdateUserInfo.LoginUnresolved,
+            variables: ["user"],
             informative: ["@{user} could not resolve your Twitch login."],
             friendly: ["@{user} couldn't figure out your Twitch login there — mind trying again?"],
             sassy: ["@{user} couldn't resolve your Twitch login. That's on you, not me."],
@@ -768,6 +793,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.UpdateUserInfo.Key,
             BuiltinResponseSlots.UpdateUserInfo.OwnInfoOnly,
+            variables: ["user"],
             informative:
             [
                 "@{user} you can only update your own info, or be a mod to update others.",
@@ -789,6 +815,7 @@ public static class ToneTemplateCatalog
             catalog,
             "coinflip",
             BuiltinResponseSlots.Game.AccountUnresolved,
+            variables: [],
             informative: ["Could not resolve your account — try again."],
             friendly: ["Couldn't find your account there — mind trying again?"],
             sassy: ["Couldn't resolve your account. Weird. Try again."],
@@ -801,6 +828,7 @@ public static class ToneTemplateCatalog
             catalog,
             "dice",
             BuiltinResponseSlots.Game.AccountUnresolved,
+            variables: [],
             informative: ["Could not resolve your account — try again."],
             friendly: ["Couldn't find your account there — mind trying again?"],
             sassy: ["Couldn't resolve your account. Weird. Try again."],
@@ -813,6 +841,7 @@ public static class ToneTemplateCatalog
             catalog,
             "slots",
             BuiltinResponseSlots.Game.AccountUnresolved,
+            variables: [],
             informative: ["Could not resolve your account — try again."],
             friendly: ["Couldn't find your account there — mind trying again?"],
             sassy: ["Couldn't resolve your account. Weird. Try again."],
@@ -825,6 +854,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequestErrors.Disabled,
+            variables: [],
             informative: ["This command is currently disabled."],
             friendly: ["This command isn't turned on right now — sorry!"],
             sassy: ["This command is currently disabled. Take it up with the streamer."],
@@ -837,6 +867,7 @@ public static class ToneTemplateCatalog
             catalog,
             BuiltinResponseSlots.BotStatus.Key,
             BuiltinResponseSlots.BotStatus.GoingOffline,
+            variables: [],
             informative: ["Restarting for an update — back in a moment."],
             friendly: ["Quick restart for an update — I'll be right back!"],
             sassy: ["Going down for a restart. Try not to miss me too much."],
@@ -847,53 +878,29 @@ public static class ToneTemplateCatalog
         return catalog;
     }
 
-    /// <summary>Registers one slot's five tone variation-sets. Every tone is required, keeping the catalog complete.</summary>
+    /// <summary>Registers one slot's variables and five tone variation-sets. Every tone is required, keeping the catalog complete.</summary>
     private static void Add(
-        Dictionary<(string, string), IReadOnlyDictionary<string, string[]>> catalog,
+        Dictionary<(string, string), SlotEntry> catalog,
         string builtinKey,
         string slot,
         string[] informative,
         string[] friendly,
         string[] sassy,
         string[] hype,
-        string[] chill
+        string[] chill,
+        string[]? variables = null
     )
     {
-        catalog[(builtinKey, slot)] = new Dictionary<string, string[]>(
-            StringComparer.OrdinalIgnoreCase
-        )
-        {
-            [PersonalityTone.Informative] = informative,
-            [PersonalityTone.Friendly] = friendly,
-            [PersonalityTone.Sassy] = sassy,
-            [PersonalityTone.Hype] = hype,
-            [PersonalityTone.Chill] = chill,
-        };
-    }
-
-    /// <summary>
-    /// Registers a slot's four FLAVORED tones with no Informative entry — so the default (Informative) tone
-    /// resolves to the built-in's own neutral fallback instead of a catalog template. Used where the built-in's
-    /// neutral line is already the ideal precise/default phrasing (e.g. the rich <c>!stats</c> line).
-    /// </summary>
-    private static void AddFlavored(
-        Dictionary<(string, string), IReadOnlyDictionary<string, string[]>> catalog,
-        string builtinKey,
-        string slot,
-        string[] friendly,
-        string[] sassy,
-        string[] hype,
-        string[] chill
-    )
-    {
-        catalog[(builtinKey, slot)] = new Dictionary<string, string[]>(
-            StringComparer.OrdinalIgnoreCase
-        )
-        {
-            [PersonalityTone.Friendly] = friendly,
-            [PersonalityTone.Sassy] = sassy,
-            [PersonalityTone.Hype] = hype,
-            [PersonalityTone.Chill] = chill,
-        };
+        catalog[(builtinKey, slot)] = new SlotEntry(
+            variables ?? [],
+            new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                [PersonalityTone.Informative] = informative,
+                [PersonalityTone.Friendly] = friendly,
+                [PersonalityTone.Sassy] = sassy,
+                [PersonalityTone.Hype] = hype,
+                [PersonalityTone.Chill] = chill,
+            }
+        );
     }
 }

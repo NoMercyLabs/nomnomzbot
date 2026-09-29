@@ -63,7 +63,11 @@ public sealed class WhisperBuiltinTests
                     template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
                 return Task.FromResult(template);
             });
-        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
     }
 
     private static TwitchUser Viewer1() =>
@@ -250,5 +254,61 @@ public sealed class WhisperBuiltinTests
             )
             .Should()
             .Contain(sassy.Value);
+    }
+
+    [Fact]
+    public async Task The_success_line_is_the_sent_slot_and_a_channel_override_rewords_only_it()
+    {
+        ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
+        twitchUsers
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([Viewer1()]));
+        IPlatformDirectMessageSender twitchSender = Substitute.For<IPlatformDirectMessageSender>();
+        twitchSender.Provider.Returns(AuthEnums.Platform.Twitch);
+        twitchSender
+            .SendAsync(Broadcaster, "999", "psst", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.Whisper.Key,
+            BuiltinResponseSlots.Whisper.Sent,
+            "Shhh, {user} got it."
+        );
+
+        Result<string> plain = await new WhisperBuiltin(
+            twitchUsers,
+            [twitchSender],
+            TestBuiltinComposer.Create()
+        ).ExecuteAsync(Context("viewer1 psst"));
+        Result<string> reworded = await new WhisperBuiltin(
+            twitchUsers,
+            [twitchSender],
+            TestBuiltinComposer.Create(replies)
+        ).ExecuteAsync(Context("viewer1 psst"));
+
+        plain.Value.Should().Be("Whispered Viewer1.");
+        reworded.Value.Should().Be("Shhh, Viewer1 got it.");
+    }
+
+    [Fact]
+    public async Task A_refused_whisper_replies_from_the_sendfailed_slot_not_the_senders_error_text()
+    {
+        ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
+        twitchUsers
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([Viewer1()]));
+        IPlatformDirectMessageSender twitchSender = Substitute.For<IPlatformDirectMessageSender>();
+        twitchSender.Provider.Returns(AuthEnums.Platform.Twitch);
+        twitchSender
+            .SendAsync(Broadcaster, "999", "psst", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("raw transport detail", "SEND_FAILED"));
+
+        Result<string> result = await new WhisperBuiltin(
+            twitchUsers,
+            [twitchSender],
+            TestBuiltinComposer.Create()
+        ).ExecuteAsync(Context("viewer1 psst"));
+
+        result.Value.Should().Be("Could not whisper Viewer1.");
     }
 }

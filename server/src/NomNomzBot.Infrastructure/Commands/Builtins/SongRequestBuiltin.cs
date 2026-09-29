@@ -20,8 +20,9 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
 /// <summary>
 /// !sr &lt;query&gt; — requests a song to be added to the queue. Delegates to IMusicService for search and
-/// queue management, then phrases the added / not-found outcome in the channel's personality tone. Pure
-/// usage and "could not add" errors stay neutral (functional).
+/// queue management. Every reply — success, usage and each refusal — is its own slot the streamer can
+/// re-word; refusals are phrased from the service's typed error code plus its structured data, never from
+/// the service's own sentence.
 /// </summary>
 public sealed class SongRequestBuiltin : IBuiltinCommand
 {
@@ -51,8 +52,15 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
     {
         string query = context.Args.Trim();
         if (string.IsNullOrWhiteSpace(query))
-            // Pure usage string — functional, never personality. Sent as a reply, so no "@user" prefix.
-            return Result.Success("Usage: !sr <song name or URL>");
+            return Result.Success(
+                await ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.SongRequest.Usage,
+                    "Usage: !sr <song name or URL>",
+                    null,
+                    ct
+                )
+            );
 
         // One resolve: a pasted track link lands on its exact track, a search phrase falls through to the
         // provider's search — then straight into the fair queue (music-sr.md §3.9).
@@ -68,95 +76,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         );
 
         if (requested.IsFailure)
-        {
-            if (requested.ErrorCode == "NOT_FOUND")
-            {
-                string notFound = await _composer.ComposeAsync(
-                    new()
-                    {
-                        BroadcasterId = context.BroadcasterId,
-                        Personality = context.Personality,
-                        BuiltinKey = BuiltinKey,
-                        Slot = BuiltinResponseSlots.SongRequest.NotFound,
-                        NeutralFallback = "No tracks found for \"{query}\".",
-                        Variables = new Dictionary<string, string>
-                        {
-                            ["user"] = context.TriggeringUserDisplayName,
-                            ["query"] = query,
-                        },
-                    },
-                    ct
-                );
-                return Result.Success(notFound);
-            }
-
-            // A duplicate is the ONE refusal that is about the channel's vibe rather than a fault, and
-            // it is the one viewers trigger most — so it speaks in the channel's chosen tone (sassy gets
-            // to be sassy) instead of a flat sentence. The original requester is named so chat can see
-            // someone genuinely got there first and it is not the bot glitching.
-            if (requested.ErrorCode == "DUPLICATE_TRACK")
-            {
-                string duplicate = await _composer.ComposeAsync(
-                    new()
-                    {
-                        BroadcasterId = context.BroadcasterId,
-                        Personality = context.Personality,
-                        BuiltinKey = BuiltinKey,
-                        Slot = BuiltinResponseSlots.SongRequest.Duplicate,
-                        NeutralFallback = requested.ErrorMessage!,
-                        // ErrorDetail is the original requester, set structurally by MusicService — the
-                        // track title is NOT available here (the resolve failed), so the toned templates
-                        // deliberately speak without it rather than parsing it back out of the sentence.
-                        Variables = new Dictionary<string, string>
-                        {
-                            ["user"] = context.TriggeringUserDisplayName,
-                            ["requested.by"] = string.IsNullOrWhiteSpace(requested.ErrorDetail)
-                                ? "someone"
-                                : requested.ErrorDetail,
-                        },
-                    },
-                    ct
-                );
-                return Result.Success(duplicate);
-            }
-
-            // Functional failures — stay neutral. Sent as a reply, so no "@user" prefix. Each refusal
-            // reason gets its own honest wording rather than one blanket "could not add": a blocked
-            // track carries its typed reason straight through, and anything else (a genuinely erroring
-            // provider — auth broken, API down) degrades to the same "try again" wording rather than a
-            // confusing internal error code.
-            if (requested.ErrorCode == "SERVICE_UNAVAILABLE")
-                return Result.Success(await NoProviderMessageAsync(context, ct));
-
-            return Result.Success(
-                requested.ErrorCode switch
-                {
-                    "SR_DISABLED" => requested.ErrorMessage!,
-                    "MIN_TRUST_LEVEL" => requested.ErrorMessage!,
-                    "TRACK_BLOCKED" => requested.ErrorMessage!,
-                    "DUPLICATE_TRACK" => requested.ErrorMessage!,
-                    "NO_ACTIVE_DEVICE" => requested.ErrorMessage!,
-                    "PREMIUM_REQUIRED" => requested.ErrorMessage!,
-                    "MUSIC_AUTH_FAILED" => requested.ErrorMessage!,
-                    "MUSIC_FORBIDDEN" => requested.ErrorMessage!,
-                    // Admission-gate refusals (MusicService.EnqueueResolvedAsync) — the requester is
-                    // over a real, configured limit, not facing an outage. Must never fall through to
-                    // the generic "couldn't reach the music service" wording below (S-OWN12).
-                    "QUEUE_FULL" => requested.ErrorMessage!,
-                    "PER_USER_LIMIT" => requested.ErrorMessage!,
-                    // The search/resolve itself never meaningfully ran (dead token/not connected, or a
-                    // live provider outage) — this must never be worded as "nothing matched", which would
-                    // claim the search ran cleanly and the song simply doesn't exist.
-                    "MISSING_SCOPE" => requested.ErrorMessage!,
-                    "PROVIDER_UNAVAILABLE" => requested.ErrorMessage!,
-                    // A real playlist/album/episode/show/artist link — never a search miss, so it must
-                    // never render as "No tracks found for <url>".
-                    "UNSUPPORTED_CONTENT_TYPE" => requested.ErrorMessage!,
-                    _ =>
-                        $"Couldn't reach the music service for \"{query}\" — try again in a moment.",
-                }
-            );
-        }
+            return Result.Success(await RefusalReplyAsync(context, query, requested, ct));
 
         MusicTrack track = requested.Value;
 
@@ -189,27 +109,269 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             );
         }
 
-        string message = await _composer.ComposeAsync(
-            new()
+        string message = await ComposeAsync(
+            context,
+            BuiltinResponseSlots.SongRequest.Added,
+            "Added {track.name} by {track.artist} to the queue. {track.link}",
+            new Dictionary<string, string>
             {
-                BroadcasterId = context.BroadcasterId,
-                Personality = context.Personality,
-                BuiltinKey = BuiltinKey,
-                Slot = BuiltinResponseSlots.SongRequest.Added,
-                OverrideTemplate = context.CustomResponseTemplate,
-                NeutralFallback = "Added {track.name} by {track.artist} to the queue. {track.link}",
-                Variables = new Dictionary<string, string>
-                {
-                    ["user"] = context.TriggeringUserDisplayName,
-                    ["track.name"] = track.Name,
-                    ["track.artist"] = track.Artist,
-                    ["track.link"] = trackLink,
-                },
+                ["user"] = context.TriggeringUserDisplayName,
+                ["track.name"] = track.Name,
+                ["track.artist"] = track.Artist,
+                ["track.link"] = trackLink,
             },
             ct
         );
         return Result.Success(message);
     }
+
+    /// <summary>
+    /// Phrases a refused request from its typed error code plus the structured
+    /// <see cref="MusicRequestRefusal"/> — every refusal is its own re-wordable reply slot. The service's
+    /// <see cref="Result.ErrorMessage"/> stays a log/API sentence and never reaches chat.
+    /// </summary>
+    private Task<string> RefusalReplyAsync(
+        BuiltinCommandContext context,
+        string query,
+        Result<MusicTrack> refusal,
+        CancellationToken ct
+    )
+    {
+        MusicRequestRefusal? data = refusal.ErrorData as MusicRequestRefusal;
+        string trackName = string.IsNullOrWhiteSpace(data?.TrackName) ? query : data.TrackName;
+
+        return refusal.ErrorCode switch
+        {
+            "NOT_FOUND" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NotFound,
+                "No tracks found for \"{query}\".",
+                new Dictionary<string, string>
+                {
+                    ["user"] = context.TriggeringUserDisplayName,
+                    ["query"] = query,
+                },
+                ct
+            ),
+            "DUPLICATE_TRACK" => DuplicateReplyAsync(context, trackName, data, ct),
+            "SERVICE_UNAVAILABLE" => NoProviderReplyAsync(context, ct),
+            "SR_DISABLED" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.RequestsOff,
+                "Song requests are turned off in this channel.",
+                null,
+                ct
+            ),
+            "MIN_TRUST_LEVEL" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.MinTrust,
+                "Song requests need at least {trust.level} right now.",
+                new Dictionary<string, string>
+                {
+                    ["trust.level"] = data?.TrustLevel ?? "a higher role",
+                },
+                ct
+            ),
+            "TRACK_BLOCKED" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.TrackBlocked,
+                "\"{track.name}\" is blocked in this channel.",
+                trackName,
+                ct
+            ),
+            "NO_ACTIVE_DEVICE" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NoActiveDevice,
+                "Couldn't queue \"{track.name}\" — nothing is playing on any device right now. Start playback and try again.",
+                trackName,
+                ct
+            ),
+            "PREMIUM_REQUIRED" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.PremiumRequired,
+                "Couldn't queue \"{track.name}\" — a Premium account is required for that.",
+                trackName,
+                ct
+            ),
+            "MUSIC_AUTH_FAILED" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.AuthFailed,
+                "Couldn't queue \"{track.name}\" — the music connection needs to be reconnected.",
+                trackName,
+                ct
+            ),
+            "MUSIC_FORBIDDEN" => TrackReplyAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.Forbidden,
+                "Couldn't queue \"{track.name}\" — the music connection doesn't have permission for that.",
+                trackName,
+                ct
+            ),
+            // Admission-gate refusals: the requester is over a real, configured limit, not facing an outage
+            // — they must never fall through to the generic "couldn't reach" wording below (S-OWN12).
+            "QUEUE_FULL" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.QueueFull,
+                "The queue is full ({queue.max} max) — try again once it's shorter.",
+                new Dictionary<string, string> { ["queue.max"] = LimitText(data) },
+                ct
+            ),
+            "PER_USER_LIMIT" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.PerUserLimit,
+                "You already have {request.limit} request(s) queued — wait for one to play before adding more.",
+                new Dictionary<string, string> { ["request.limit"] = LimitText(data) },
+                ct
+            ),
+            // The search/resolve never meaningfully ran (dead token, or a live outage) — this must never be
+            // worded as "nothing matched", which would claim the song simply doesn't exist.
+            "MISSING_SCOPE" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.MissingScope,
+                "The music connection needs to be reconnected.",
+                null,
+                ct
+            ),
+            "PROVIDER_UNAVAILABLE" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.ProviderUnavailable,
+                "The music provider is temporarily unavailable.",
+                null,
+                ct
+            ),
+            // A real playlist/album/episode/show/artist link — never a search miss.
+            "UNSUPPORTED_CONTENT_TYPE" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.UnsupportedContent,
+                "Song requests only take individual tracks — that link is a playlist, album, episode, show, or artist page. Paste a single track link, or just search by name instead.",
+                null,
+                ct
+            ),
+            _ => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.Unreachable,
+                "Couldn't reach the music service for \"{query}\" — try again in a moment.",
+                new Dictionary<string, string> { ["query"] = query },
+                ct
+            ),
+        };
+    }
+
+    /// <summary>
+    /// A duplicate is the ONE refusal that is about the channel's vibe rather than a fault, and the one viewers
+    /// trigger most — so it speaks in the channel's tone. A track playing right now has its own slot; a queued
+    /// track names its first requester so chat can see someone genuinely got there first and it is not the
+    /// bot glitching.
+    /// </summary>
+    private Task<string> DuplicateReplyAsync(
+        BuiltinCommandContext context,
+        string trackName,
+        MusicRequestRefusal? data,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = context.TriggeringUserDisplayName,
+            ["track.name"] = trackName,
+            ["track.artist"] = data?.Artist ?? string.Empty,
+        };
+
+        if (data?.IsPlayingNow == true)
+            return ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.AlreadyPlaying,
+                "\"{track.name}\" is playing right now.",
+                variables,
+                ct
+            );
+
+        variables["requested.by"] = string.IsNullOrWhiteSpace(data?.RequestedBy)
+            ? "someone"
+            : data.RequestedBy;
+        return ComposeAsync(
+            context,
+            BuiltinResponseSlots.SongRequest.Duplicate,
+            "\"{track.name}\" is already in the queue (requested by {requested.by}).",
+            variables,
+            ct
+        );
+    }
+
+    private Task<string> TrackReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        string trackName,
+        CancellationToken ct
+    ) =>
+        ComposeAsync(
+            context,
+            slot,
+            neutralFallback,
+            new Dictionary<string, string> { ["track.name"] = trackName },
+            ct
+        );
+
+    private static string LimitText(MusicRequestRefusal? data) =>
+        data?.Limit?.ToString() ?? "the limit";
+
+    /// <summary>
+    /// "No active music provider" is a different problem for a different person: only the broadcaster
+    /// can authorize a Spotify/YouTube connection (dashboard OAuth), so a viewer or mod telling them to
+    /// "connect Spotify" is telling them to do something they cannot do. The broadcaster gets the
+    /// actionable instruction; a mod gets told to flag it upward. A viewer gets no internal detail at
+    /// all — to them the command simply reads as disabled, same as any other command they don't have
+    /// the reward/config for (that viewer-facing line is tone-styled, S069i).
+    /// </summary>
+    private Task<string> NoProviderReplyAsync(BuiltinCommandContext context, CancellationToken ct)
+    {
+        if (context.RoleLevel >= PermissionLevel.Broadcaster.ToLevelValue())
+            return ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NoProviderBroadcaster,
+                "Song requests aren't connected yet — connect Spotify or YouTube in the dashboard.",
+                null,
+                ct
+            );
+
+        if (context.RoleLevel >= PermissionLevel.Moderator.ToLevelValue())
+            return ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NoProviderModerator,
+                "Song requests aren't connected — let the broadcaster know to connect Spotify or YouTube in the dashboard.",
+                null,
+                ct
+            );
+
+        return ComposeAsync(
+            context,
+            BuiltinResponseSlots.SongRequestErrors.Disabled,
+            "This command is currently disabled.",
+            null,
+            ct
+        );
+    }
+
+    private Task<string> ComposeAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        IReadOnlyDictionary<string, string>? variables,
+        CancellationToken ct
+    ) =>
+        _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinKey,
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+                Variables = variables,
+            },
+            ct
+        );
 
     /// <summary>
     /// A provider-agnostic, directly-clickable web URL for the track — YouTube's <see cref="MusicTrack.Uri"/>
@@ -223,37 +385,5 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         return track.Uri.StartsWith(spotifyUriPrefix, StringComparison.Ordinal)
             ? $"https://open.spotify.com/track/{track.Uri[spotifyUriPrefix.Length..]}"
             : track.Uri;
-    }
-
-    /// <summary>
-    /// "No active music provider" is a different problem for a different person: only the broadcaster
-    /// can authorize a Spotify/YouTube connection (dashboard OAuth), so a viewer or mod telling them to
-    /// "connect Spotify" is telling them to do something they cannot do. The broadcaster gets the
-    /// actionable instruction; a mod gets told to flag it upward. A viewer gets no internal detail at
-    /// all — to them the command simply reads as disabled, same as any other command they don't have
-    /// the reward/config for (that viewer-facing line is tone-styled, S069i).
-    /// </summary>
-    private async Task<string> NoProviderMessageAsync(
-        BuiltinCommandContext context,
-        CancellationToken ct
-    )
-    {
-        if (context.RoleLevel >= PermissionLevel.Broadcaster.ToLevelValue())
-            return "Song requests aren't connected yet — connect Spotify or YouTube in the dashboard.";
-
-        if (context.RoleLevel >= PermissionLevel.Moderator.ToLevelValue())
-            return "Song requests aren't connected — let the broadcaster know to connect Spotify or YouTube in the dashboard.";
-
-        return await _composer.ComposeAsync(
-            new()
-            {
-                BroadcasterId = context.BroadcasterId,
-                Personality = context.Personality,
-                BuiltinKey = BuiltinResponseSlots.SongRequest.Key,
-                Slot = BuiltinResponseSlots.SongRequestErrors.Disabled,
-                NeutralFallback = "This command is currently disabled.",
-            },
-            ct
-        );
     }
 }

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Games;
 using NomNomzBot.Domain.Chat.Events;
@@ -27,6 +28,7 @@ using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -359,7 +361,7 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
-    public async Task A_command_bound_to_a_disabled_pipeline_never_runs_from_chat()
+    public async Task A_command_bound_to_a_disabled_pipeline_never_runs_and_tells_the_caller_nothing_ran()
     {
         // ChannelRegistry caches no PipelineGraphJson for a command bound to a disabled Pipeline row —
         // the same "no executable graph" shape the handler already falls back to the builtin catalog for.
@@ -381,6 +383,15 @@ public sealed class ChatMessageHandlerTests
         builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
         IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
         IInboundOriginChatSender chat = NoopChatSender();
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(
             registry,
@@ -390,10 +401,11 @@ public sealed class ChatMessageHandlerTests
             pipelineEngine,
             builtins,
             Substitute.For<ITemplateResolver>(),
-            Substitute.For<IEventBus>(),
+            bus,
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -402,7 +414,27 @@ public sealed class ChatMessageHandlerTests
         await pipelineEngine
             .DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default!, Arg.Any<CancellationToken>());
+        // The caller hears the system/nothingran line once (its Informative wording), and the run is
+        // recorded as not succeeded.
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                ToneTemplateCatalog.ShippedTemplate(
+                    BuiltinResponseSlots.SystemReplies.Key,
+                    BuiltinResponseSlots.SystemReplies.NothingRan
+                )!,
+                Arg.Any<CancellationToken>()
+            );
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
+        await bus.Received(1)
+            .PublishAsync(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
+                    e.CommandName == "flow" && !e.Succeeded
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ── per-channel command prefix (Channel.CommandPrefix) ──────────────────
@@ -580,6 +612,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -593,13 +626,13 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
-    public async Task Builtin_context_carries_the_channel_personality_and_override_template()
+    public async Task Builtin_context_carries_the_channel_personality()
     {
-        // The handler resolves the channel's tone + the per-command OverridesJson template (both cached on
-        // ChannelContext) and hands them to the builtin — the seam the whole tone system hangs off.
+        // The handler resolves the channel's tone (cached on ChannelContext) and hands it to the builtin — the
+        // seam the whole tone system hangs off. Per-slot reply overrides are the composer's job (§11), never
+        // threaded through the context.
         ChannelContext ctx = NewChannelContext();
         ctx.Personality = PersonalityTone.Sassy;
-        ctx.BuiltinResponseOverrides[BuiltinKey] = "OVERRIDE {uptime}";
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -620,6 +653,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -627,13 +661,12 @@ public sealed class ChatMessageHandlerTests
 
         builtin.Captured.Should().NotBeNull();
         builtin.Captured!.Personality.Should().Be(PersonalityTone.Sassy);
-        builtin.Captured!.CustomResponseTemplate.Should().Be("OVERRIDE {uptime}");
     }
 
     [Fact]
-    public async Task Builtin_context_defaults_personality_to_informative_with_no_override()
+    public async Task Builtin_context_defaults_personality_to_informative()
     {
-        // A channel with no personality set and no override row: the default tone flows, override stays null.
+        // A channel with no personality set: the default tone flows.
         ChannelContext ctx = NewChannelContext();
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -655,6 +688,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -662,7 +696,6 @@ public sealed class ChatMessageHandlerTests
 
         builtin.Captured.Should().NotBeNull();
         builtin.Captured!.Personality.Should().Be(PersonalityTone.Informative);
-        builtin.Captured!.CustomResponseTemplate.Should().BeNull();
     }
 
     // ── session-first-message trigger (the "welcome them in" chain) ─────────
@@ -778,6 +811,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
         return (sut, executor);
@@ -990,6 +1024,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1169,6 +1204,94 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
+    public async Task A_channel_override_of_system_permissiondenied_changes_exactly_that_line()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["modonly"] = new()
+        {
+            Name = "modonly",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 10,
+            Tier = "template",
+        };
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.SystemReplies.Key,
+            BuiltinResponseSlots.SystemReplies.PermissionDenied,
+            "Mods only, friend."
+        );
+
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = BuildWithBus(
+            ctx,
+            TestBuiltinComposer.Create(replies)
+        );
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        await sut.HandleAsync(MessageEvent("!modonly"), CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                "Mods only, friend.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task The_permission_notice_speaks_in_the_channels_personality_tone()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Personality = PersonalityTone.Sassy;
+        ctx.Commands["modonly"] = new()
+        {
+            Name = "modonly",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 10,
+            Tier = "template",
+        };
+
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = BuildWithBus(ctx);
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        await sut.HandleAsync(MessageEvent("!modonly"), CancellationToken.None);
+
+        IReadOnlyList<string> sassy = ToneTemplateCatalog.Get(
+            PersonalityTone.Sassy,
+            BuiltinResponseSlots.SystemReplies.Key,
+            BuiltinResponseSlots.SystemReplies.PermissionDenied
+        );
+        sassy.Should().NotContain("You don't have permission to use that command.");
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                Arg.Is<string>(text => sassy.Contains(text)),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Cooldown_blocked_command_sends_exactly_one_cooldown_notice()
     {
         ChannelContext ctx = NewChannelContext();
@@ -1211,6 +1334,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1485,6 +1609,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1570,6 +1695,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1636,6 +1762,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -1701,6 +1828,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -2148,6 +2276,7 @@ public sealed class ChatMessageHandlerTests
             games,
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 
@@ -2164,7 +2293,7 @@ public sealed class ChatMessageHandlerTests
         ChatMessageHandler Sut,
         IInboundOriginChatSender Chat,
         IEventBus Bus
-    ) BuildWithBus(ChannelContext ctx)
+    ) BuildWithBus(ChannelContext ctx, IBuiltinResponseComposer? composer = null)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -2206,6 +2335,7 @@ public sealed class ChatMessageHandlerTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            composer ?? TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

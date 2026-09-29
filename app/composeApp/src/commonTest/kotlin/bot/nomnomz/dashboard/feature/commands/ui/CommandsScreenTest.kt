@@ -31,6 +31,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
+import bot.nomnomz.dashboard.core.network.BuiltinReply
+import bot.nomnomz.dashboard.core.network.BuiltinReplyGroup
+import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesController
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -91,6 +94,7 @@ class CommandsScreenTest {
                             controller = controller,
                             role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
                             templateHelpersApi = FakeTemplateHelpersApi(),
+                            repliesController = BuiltinRepliesController(FakeChannelsApi(), FakeBuiltinsApi()),
                         )
                     }
                 }
@@ -133,6 +137,7 @@ class CommandsScreenTest {
                             controller = controller,
                             role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
                             templateHelpersApi = FakeTemplateHelpersApi(),
+                            repliesController = BuiltinRepliesController(FakeChannelsApi(), FakeBuiltinsApi()),
                         )
                     }
                 }
@@ -176,6 +181,7 @@ class CommandsScreenTest {
                             controller = controller,
                             role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
                             templateHelpersApi = FakeTemplateHelpersApi(),
+                            repliesController = BuiltinRepliesController(FakeChannelsApi(), FakeBuiltinsApi()),
                         )
                     }
                 }
@@ -210,6 +216,7 @@ class CommandsScreenTest {
                                 controller = controller,
                                 role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
                                 templateHelpersApi = FakeTemplateHelpersApi(),
+                                repliesController = BuiltinRepliesController(FakeChannelsApi(), FakeBuiltinsApi()),
                             )
                         }
                     }
@@ -256,6 +263,7 @@ class CommandsScreenTest {
                             controller = controller,
                             role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
                             templateHelpersApi = FakeTemplateHelpersApi(),
+                            repliesController = BuiltinRepliesController(FakeChannelsApi(), FakeBuiltinsApi()),
                         )
                     }
                 }
@@ -320,11 +328,15 @@ private class FakeBuiltinsApi(private val builtins: List<BuiltinCommand> = empty
     override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> = ApiResult.Ok(builtins)
     override suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
-    override suspend fun setResponseOverride(
+    override suspend fun replies(channelId: String): ApiResult<List<BuiltinReplyGroup>> = ApiResult.Ok(emptyList())
+    override suspend fun setReply(
         channelId: String,
         builtinKey: String,
-        template: String?,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+        slot: String,
+        template: String,
+    ): ApiResult<BuiltinReply> = error("stub")
+    override suspend fun resetReply(channelId: String, builtinKey: String, slot: String): ApiResult<BuiltinReply> =
+        error("stub")
     override suspend fun setSpeakWithTts(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 }

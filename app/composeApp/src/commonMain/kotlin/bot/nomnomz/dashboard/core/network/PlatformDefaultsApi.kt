@@ -87,7 +87,7 @@ data class SetEventResponseDefaultRequest(
 /**
  * One built-in response slot's platform wording (backend `BuiltinReplyDefaultDto`): the wording a channel on the
  * default tone ships with (null = the built-in's own fallback), the admin's replacement (null = none) which wins
- * over every tone, whether a channel's own reply replaces this slot, and how many channels have one.
+ * over every tone, and how many channels have their own text for this exact slot.
  */
 @Serializable
 data class BuiltinReplyDefault(
@@ -95,7 +95,6 @@ data class BuiltinReplyDefault(
     val slot: String,
     val shippedTemplate: String? = null,
     val platformTemplate: String? = null,
-    val takesChannelOverride: Boolean = false,
     val channelsWithOwnReply: Int = 0,
 )
 

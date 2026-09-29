@@ -1229,3 +1229,88 @@ A generic **deferred-execution** primitive: "run pipeline P **once**, T seconds 
 | DELETE | `/scheduled/{scheduledId:guid}` | — | `StatusResponseDto<bool>` | management / Editor · `pipelines:write` |
 
 `GET /scheduled` lists the tenant's **pending** tasks soonest-due first (`ListPendingAsync`); `DELETE` calls `CancelAsync` (marks `cancelled`; `NOT_FOUND` when the id is unknown or already terminal). `ScheduledPipelineDto(Guid Id, Guid PipelineId, string PipelineName, DateTime DueAt, string? DedupeKey, string Status, Guid? TriggeredByUserId, DateTime CreatedAt)`.
+
+---
+
+## 11. Built-in reply catalogue — every reply editable per channel
+
+Owner directive (2026-09-29): the streamer edits **every** reply of **every** built-in from the dashboard, with the
+same control as the system overlay editor — see the default, edit, preview, reset to default. No built-in reply
+stays hardcoded. This section **supersedes** the single `CustomResponseTemplate` / `responseTemplate` field of
+§3.9–§4.5 (one override per built-in, applied to one reply only).
+
+**Slot model.** A *reply slot* is one reply case of one built-in, keyed `(builtinKey, slot)` — e.g. `(sr, added)`,
+`(sr, duplicate)`, `(sr, providerunavailable)`. Every sentence a built-in (or the chat handler on its behalf) can
+send is a slot: success lines, usage lines, refusals, and service errors alike. Each slot is declared once in
+`ToneTemplateCatalog` with:
+- all five tones (`informative` first — its first line is the shipped default wording);
+- its **declared variables** (the values the built-in seeds at runtime, e.g. `user`, `track.name`, `requested.by`).
+
+Constants live in `BuiltinResponseSlots` (one nested class per built-in). Services never return reply text: they
+return a typed error code plus data (`Result.ErrorCode` + `ErrorDetail`/typed value); the built-in maps the code to
+its slot and composes the reply. Replies not owned by one command use a group key: `system` (the chat handler's own
+lines, e.g. `system/permissiondenied`) and `botstatus`.
+
+**Precedence (the only rule — `IBuiltinResponseComposer`).**
+1. the channel's override for exactly this `(builtinKey, slot)`;
+2. the platform admin's reply for this slot (`PlatformBuiltinReplyDefault`, already per slot — no migration);
+3. a random variation of the channel's personality tone for this slot (Informative when the tone has none);
+4. the built-in's neutral fallback (a safety net only — every slot ships an Informative line).
+
+The composer looks the channel override up itself (`IChannelBuiltinReplyOverrides`, read from the channel
+registry cache). Built-ins no longer thread an override through `BuiltinCommandContext`, so no slot can be
+forgotten and no override leaks into a second slot (the old `!lurk` bug).
+
+**Storage.** `ChannelBuiltinCommand.OverridesJson` becomes
+`{ "responses": { "<slot>": "<template>" }, "speakWithTts": true }` on the row for `builtinKey` (group keys
+`system`/`botstatus` get a row too; such rows are ignored by the enable/disable list, which walks the code catalogue).
+The legacy `{ "responseTemplate": "..." }` is still read: it applies to the built-in's **legacy slots** (the slot
+the old field fed — `uptime/live`, `song/playing`, `queue/list`, `sr/added`, `commands/list`, `lurk/lurking` +
+`lurk/notlurking`, `accountage/age`, and the other built-ins that passed it) unless that slot has its own entry. The
+next write to the row rewrites the legacy value into `responses` and drops `responseTemplate` — the owner's existing
+override survives unchanged. No schema migration: the column already exists and the platform table is already per
+slot.
+
+**Locked slots.** A reserved data-rights built-in (`IsReserved`, gdpr-crypto.md §9) cannot be overridden by a
+channel — its rows show in the catalogue as `isLocked: true`, read-only. The one exception is `forgetme/done`, the
+streamer-stylable "clean slate" sentence §9 part 1 names; the mandatory re-entry clause is appended in code and is
+never part of any template.
+
+**Validation.** A write runs `ITemplateHelperValidator.Validate(template, TemplateHelperContext.Command,
+declaredVariables)`: every `{placeholder}` must be a declared slot variable or a registered template helper valid in
+the Command context. Unknown → `VALIDATION_FAILED` naming the placeholder (with a did-you-mean). Max 500 chars (the
+platform column's limit). Blank = reset.
+
+**API** (`BuiltinsController`, route base `api/v1/channels/{channelId}/builtins`; replaces `PUT {builtinKey}/response`,
+and `BuiltinCommandDto.responseOverride` is removed):
+
+| Method | Route suffix | Body | Response | Gate-2 action |
+|---|---|---|---|---|
+| GET | `/replies` | — | `StatusResponseDto<IReadOnlyList<BuiltinReplyGroupDto>>` | `commands:read` |
+| PUT | `/{builtinKey}/replies/{slot}` | `{ template: string }` | `StatusResponseDto<BuiltinReplyDto>` | `commands:write` |
+| DELETE | `/{builtinKey}/replies/{slot}` | — | `StatusResponseDto<BuiltinReplyDto>` (the reset row) | `commands:write` |
+
+```csharp
+sealed record BuiltinReplyGroupDto(string BuiltinKey, bool IsCommand, IReadOnlyList<BuiltinReplyDto> Replies);
+sealed record BuiltinReplyDto(string BuiltinKey, string Slot, LocalizedText Label, LocalizedText Description,
+    string EffectiveTemplate, string Source /* channel|platform|tone */, string DefaultTemplate,
+    IReadOnlyList<string> ToneVariations, IReadOnlyList<BuiltinReplyVariableDto> Variables,
+    bool IsOverridden, bool IsLocked);
+sealed record BuiltinReplyVariableDto(string Name, LocalizedText Description, string SampleValue);
+```
+- `DefaultTemplate` = what the slot says with no channel override (platform reply, else the tone's first line).
+- `ToneVariations` = the lines the channel's personality picks from (empty when a platform reply replaces them).
+- `EffectiveTemplate` = the channel override when set, else `DefaultTemplate`. `Source` names the winning layer.
+- Label/description keys: `builtin.reply.<builtinKey>.<slot>.label|.description`; variable keys
+  `builtin.reply.var.<name>`. All in `server/i18n/schema-i18n-keys.manifest.json`, en + nl in the dashboard's
+  `strings_builtin_replies*.xml`. `SampleValue` is a fixed English-neutral example (a name, a number, a track) the
+  preview substitutes; it is data, not UI copy.
+
+**Dashboard.** Commands page → each built-in row gets **Edit replies** (outline). It opens the built-in's reply
+editor: one card per slot showing the label, description, the effective text, and an *Overridden* badge when the
+channel has its own text. **Edit** (ghost) expands the slot inline: a textarea, the variable chips (click inserts
+`{name}` at the end), a live preview that fills the variables with their sample values, then **Save** (the one
+primary action of that slot) and **Cancel** (ghost). **Reset to default** is a destructive-ghost action shown only
+when overridden; it asks for confirmation, then DELETEs and shows the default again. Locked slots render read-only
+with a lock note. Reply groups that are not commands (`system`, `botstatus`) are reachable from a **Bot replies**
+row at the end of the built-in list.

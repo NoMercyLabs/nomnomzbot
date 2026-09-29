@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -18,6 +19,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity.Builtins;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity.Builtins;
@@ -42,7 +44,12 @@ public sealed class PermitBuiltinsTests
         IRoleResolver Roles
     );
 
-    private static Harness Build(bool mayIssue = true, bool targetExists = true)
+    private static Harness Build(
+        bool mayIssue = true,
+        bool targetExists = true,
+        bool refuseGrants = false,
+        FakeChannelBuiltinReplies? channelReplies = null
+    )
     {
         IUserService users = Substitute.For<IUserService>();
         users
@@ -94,7 +101,11 @@ public sealed class PermitBuiltinsTests
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success(Grant()));
+            .Returns(
+                refuseGrants
+                    ? Result.Failure<PermitGrantDto>("above your level", "FORBIDDEN")
+                    : Result.Success(Grant())
+            );
         permits
             .GrantCapabilityAsync(
                 Arg.Any<Guid>(),
@@ -105,7 +116,11 @@ public sealed class PermitBuiltinsTests
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success(Grant()));
+            .Returns(
+                refuseGrants
+                    ? Result.Failure<PermitGrantDto>("not delegable", "FORBIDDEN")
+                    : Result.Success(Grant())
+            );
         permits
             .RevokeAsync(
                 Arg.Any<Guid>(),
@@ -118,8 +133,15 @@ public sealed class PermitBuiltinsTests
 
         FakeTimeProvider clock = new(Now);
         return new(
-            new(permits, users, roles, twitchUsers, clock),
-            new(permits, users, roles, twitchUsers),
+            new(
+                permits,
+                users,
+                roles,
+                twitchUsers,
+                clock,
+                TestBuiltinComposer.Create(channelReplies)
+            ),
+            new(permits, users, roles, twitchUsers, TestBuiltinComposer.Create(channelReplies)),
             permits,
             roles
         );
@@ -290,4 +312,72 @@ public sealed class PermitBuiltinsTests
             CreatedAt: DateTime.UnixEpoch,
             LastLoginAt: DateTime.UnixEpoch
         );
+
+    // ─── Reply slots (commands-pipelines.md section 11) ───────────────────────
+
+    [Fact]
+    public async Task Permit_WithoutArguments_SpeaksTheUsageSlot()
+    {
+        Harness h = Build();
+
+        Result<string> reply = await h.Permit.ExecuteAsync(Context("@someone"));
+
+        reply.Value.Should().Be("Usage: !permit @user <role|capability> [minutes]");
+    }
+
+    [Fact]
+    public async Task An_unknown_mention_names_the_login_in_the_target_not_found_slot()
+    {
+        Harness h = Build(targetExists: false);
+
+        Result<string> reply = await h.Unpermit.ExecuteAsync(Context("@someone"));
+
+        reply.Value.Should().Be("unpermit: 'someone' was not found on Twitch");
+    }
+
+    [Fact]
+    public async Task A_refused_capability_grant_speaks_the_capability_denied_slot_with_the_capability()
+    {
+        Harness h = Build(refuseGrants: true);
+
+        Result<string> reply = await h.Permit.ExecuteAsync(Context("@someone quotes:write"));
+
+        reply
+            .Value.Should()
+            .Be(
+                "You can't permit 'quotes:write' — it must exist, be delegable, and be one you hold yourself."
+            );
+    }
+
+    [Fact]
+    public async Task A_refused_role_grant_speaks_the_role_too_high_slot()
+    {
+        Harness h = Build(refuseGrants: true);
+
+        Result<string> reply = await h.Permit.ExecuteAsync(Context("@someone mod"));
+
+        reply.Value.Should().Be("Cannot permit a role above your own level.");
+    }
+
+    [Fact]
+    public async Task A_channel_override_of_the_granted_role_slot_replaces_only_that_reply()
+    {
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Permit.Key,
+            BuiltinResponseSlots.Permit.GrantedRole,
+            "{user} is now {permit.role}, congrats!"
+        );
+        Harness h = Build(channelReplies: own);
+
+        Result<string> role = await h.Permit.ExecuteAsync(Context("@someone mod"));
+        Result<string> capability = await h.Permit.ExecuteAsync(
+            Context("@someone channel:title:write")
+        );
+        Result<string> revoked = await h.Unpermit.ExecuteAsync(Context("@someone"));
+
+        role.Value.Should().Be("Someone is now Moderator, congrats!");
+        capability.Value.Should().Be("Granted channel:title:write to Someone.");
+        revoked.Value.Should().Be("Revoked all permits from Someone.");
+    }
 }

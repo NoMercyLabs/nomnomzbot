@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<!-- Built-in reply catalogue (commands-pipelines.md section 11): music reply labels, descriptions and variables. -->
+<resources>
+    <string name="builtin_reply_song_playing_label">Now playing</string>
+    <string name="builtin_reply_song_playing_description">Someone asks which song is playing.</string>
+    <string name="builtin_reply_song_nothing_label">Nothing playing</string>
+    <string name="builtin_reply_song_nothing_description">Someone asks for the song, but nothing plays.</string>
+    <string name="builtin_reply_queue_list_label">Queue</string>
+    <string name="builtin_reply_queue_list_description">Someone asks what is in the song queue.</string>
+    <string name="builtin_reply_queue_empty_label">Queue empty</string>
+    <string name="builtin_reply_queue_empty_description">Someone asks for the queue, but it is empty.</string>
+    <string name="builtin_reply_sr_added_label">Song added</string>
+    <string name="builtin_reply_sr_added_description">A song request was added to the queue.</string>
+    <string name="builtin_reply_sr_notfound_label">Song not found</string>
+    <string name="builtin_reply_sr_notfound_description">No song matches the request.</string>
+    <string name="builtin_reply_sr_duplicate_label">Already in queue</string>
+    <string name="builtin_reply_sr_duplicate_description">The requested song is already in the queue.</string>
+    <string name="builtin_reply_sr_alreadyplaying_label">Already playing</string>
+    <string name="builtin_reply_sr_alreadyplaying_description">The requested song is playing right now.</string>
+    <string name="builtin_reply_sr_disabled_label">Requests turned off</string>
+    <string name="builtin_reply_sr_disabled_description">A viewer asks for a song while requests are off.</string>
+    <string name="builtin_reply_skip_skipped_label">Song skipped</string>
+    <string name="builtin_reply_skip_skipped_description">A song was skipped.</string>
+    <string name="builtin_reply_bansong_nothing_label">Nothing to ban</string>
+    <string name="builtin_reply_bansong_nothing_description">Nothing plays, so there is no song to ban.</string>
+    <string name="builtin_reply_bansong_couldnotban_label">Ban failed</string>
+    <string name="builtin_reply_bansong_couldnotban_description">The song could not be banned.</string>
+    <string name="builtin_reply_volume_usage_label">How to use</string>
+    <string name="builtin_reply_volume_usage_description">The volume command got a value it cannot read.</string>
+    <string name="builtin_reply_volume_cannotread_label">Volume unknown</string>
+    <string name="builtin_reply_volume_cannotread_description">The current volume cannot be read.</string>
+    <string name="builtin_reply_var_song_name">The song's title</string>
+    <string name="builtin_reply_var_song_artist">The song's artist</string>
+    <string name="builtin_reply_var_song_status">Playing or paused</string>
+    <string name="builtin_reply_var_track_name">The track's title</string>
+    <string name="builtin_reply_var_track_artist">The track's artist</string>
+    <string name="builtin_reply_var_track_link">A link to the track</string>
+    <string name="builtin_reply_var_requested_by">Who requested it first</string>
+    <string name="builtin_reply_var_query">What the viewer searched for</string>
+    <string name="builtin_reply_var_queue_list">The songs in the queue</string>
+    <string name="builtin_reply_var_queue_count">How many songs are queued</string>
+    <string name="builtin_reply_var_queue_next">The next song</string>
+    <string name="builtin_reply_var_queue_more">A note when more songs wait</string>
+    <string name="builtin_reply_sr_usage_label">How to use</string>
+    <string name="builtin_reply_sr_usage_description">A viewer types the song command with no song.</string>
+    <string name="builtin_reply_sr_requestsoff_label">Requests turned off</string>
+    <string name="builtin_reply_sr_requestsoff_description">A viewer asks for a song while requests are off.</string>
+    <string name="builtin_reply_sr_mintrust_label">Role too low</string>
+    <string name="builtin_reply_sr_mintrust_description">The viewer has a lower role than song requests need.</string>
+    <string name="builtin_reply_sr_trackblocked_label">Song blocked</string>
+    <string name="builtin_reply_sr_trackblocked_description">The requested song is on the block list.</string>
+    <string name="builtin_reply_sr_noactivedevice_label">Nothing is playing</string>
+    <string name="builtin_reply_sr_noactivedevice_description">The song cannot be queued because nothing plays on any device.</string>
+    <string name="builtin_reply_sr_premiumrequired_label">Premium needed</string>
+    <string name="builtin_reply_sr_premiumrequired_description">The music service needs a Premium account for this request.</string>
+    <string name="builtin_reply_sr_authfailed_label">Music login expired</string>
+    <string name="builtin_reply_sr_authfailed_description">The music connection lost its login and must be reconnected.</string>
+    <string name="builtin_reply_sr_forbidden_label">Music access denied</string>
+    <string name="builtin_reply_sr_forbidden_description">The music connection is not allowed to queue this song.</string>
+    <string name="builtin_reply_sr_queuefull_label">Queue full</string>
+    <string name="builtin_reply_sr_queuefull_description">The song queue is at its maximum size.</string>
+    <string name="builtin_reply_sr_peruserlimit_label">Viewer limit reached</string>
+    <string name="builtin_reply_sr_peruserlimit_description">The viewer already has the most requests allowed in the queue.</string>
+    <string name="builtin_reply_sr_missingscope_label">Reconnect music</string>
+    <string name="builtin_reply_sr_missingscope_description">The music connection must be reconnected before search works.</string>
+    <string name="builtin_reply_sr_providerunavailable_label">Music service down</string>
+    <string name="builtin_reply_sr_providerunavailable_description">The music service has an outage.</string>
+    <string name="builtin_reply_sr_unsupportedcontent_label">Track links only</string>
+    <string name="builtin_reply_sr_unsupportedcontent_description">A viewer pasted a playlist, album, show or artist link.</string>
+    <string name="builtin_reply_sr_unreachable_label">Music service error</string>
+    <string name="builtin_reply_sr_unreachable_description">The music service could not be reached for another reason.</string>
+    <string name="builtin_reply_sr_noproviderbroadcaster_label">No music connected (streamer)</string>
+    <string name="builtin_reply_sr_noproviderbroadcaster_description">The streamer asks for a song but no music service is connected.</string>
+    <string name="builtin_reply_sr_noprovidermoderator_label">No music connected (mod)</string>
+    <string name="builtin_reply_sr_noprovidermoderator_description">A moderator asks for a song but no music service is connected.</string>
+    <string name="builtin_reply_skip_failed_label">Skip failed</string>
+    <string name="builtin_reply_skip_failed_description">The skip did not work.</string>
+    <string name="builtin_reply_skip_noprovider_label">No music connected</string>
+    <string name="builtin_reply_skip_noprovider_description">A moderator skips but no music service is connected.</string>
+    <string name="builtin_reply_skip_premiumrequired_label">Premium needed</string>
+    <string name="builtin_reply_skip_premiumrequired_description">The music service needs a Premium account to skip.</string>
+    <string name="builtin_reply_skip_usage_label">How to use</string>
+    <string name="builtin_reply_skip_usage_description">The skip command got a value that is not a number.</string>
+    <string name="builtin_reply_skip_norequest_label">No request there</string>
+    <string name="builtin_reply_skip_norequest_description">A viewer names a queue position where they have no request.</string>
+    <string name="builtin_reply_skip_removefailed_label">Remove failed</string>
+    <string name="builtin_reply_skip_removefailed_description">A viewer request could not be removed from the queue.</string>
+    <string name="builtin_reply_skip_removed_label">Request removed</string>
+    <string name="builtin_reply_skip_removed_description">A viewer removed their own request from the queue.</string>
+    <string name="builtin_reply_volume_current_label">Volume level</string>
+    <string name="builtin_reply_volume_current_description">Someone asks for the volume and it can be read.</string>
+    <string name="builtin_reply_volume_set_label">Volume changed</string>
+    <string name="builtin_reply_volume_set_description">The volume was changed.</string>
+    <string name="builtin_reply_volume_setfailed_label">Volume change failed</string>
+    <string name="builtin_reply_volume_setfailed_description">The volume could not be changed.</string>
+    <string name="builtin_reply_volume_noprovider_label">No music connected</string>
+    <string name="builtin_reply_volume_noprovider_description">The volume is changed but no music service is connected.</string>
+    <string name="builtin_reply_volume_premiumrequired_label">Premium needed</string>
+    <string name="builtin_reply_volume_premiumrequired_description">The music service needs a Premium account to change the volume.</string>
+    <string name="builtin_reply_bansong_banned_label">Song banned</string>
+    <string name="builtin_reply_bansong_banned_description">A moderator banned the playing song.</string>
+    <string name="builtin_reply_playlist_empty_label">Nothing queued</string>
+    <string name="builtin_reply_playlist_empty_description">Someone asks for the playlist but nothing plays and the queue is empty.</string>
+    <string name="builtin_reply_playlist_summary_label">Playlist summary</string>
+    <string name="builtin_reply_playlist_summary_description">Someone asks for the playlist while music plays or waits.</string>
+    <string name="builtin_reply_var_queue_max">The most songs the queue holds</string>
+    <string name="builtin_reply_var_request_limit">The most requests one viewer may queue</string>
+    <string name="builtin_reply_var_request_position">The queue position the viewer typed</string>
+    <string name="builtin_reply_var_trust_level">The lowest role allowed to request</string>
+    <string name="builtin_reply_var_volume_level">The volume, from 0 to 100</string>
+    <string name="builtin_reply_var_playlist_nowplaying">The song playing now</string>
+    <string name="builtin_reply_var_playlist_upcoming">The songs coming up next</string>
+    <string name="builtin_reply_var_playlist_count">How many songs are queued</string>
+    <string name="builtin_reply_var_song_requester">Who requested the song</string>
+    <string name="builtin_reply_var_song_source">Request or autoplay</string>
+    <string name="builtin_reply_var_song_provider">The music service</string>
+    <string name="builtin_reply_var_song_attribution">Who requested it, or where it comes from</string>
+</resources>

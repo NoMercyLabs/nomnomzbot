@@ -46,7 +46,6 @@ import nomnomzbot.composeapp.generated.resources.platform_defaults_cancel
 import nomnomzbot.composeapp.generated.resources.platform_defaults_change
 import nomnomzbot.composeapp.generated.resources.platform_defaults_check_first
 import nomnomzbot.composeapp.generated.resources.platform_defaults_check_impact
-import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_counts_all
 import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_counts_overridable
 import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_edit_title
 import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_platform
@@ -118,11 +117,7 @@ private fun BuiltinReplyDefaultRow(row: BuiltinReplyDefault, onChange: () -> Uni
                 color = tokens.cardForeground,
             )
             Text(
-                text = if (row.takesChannelOverride) {
-                    stringResource(Res.string.platform_defaults_reply_counts_overridable, row.channelsWithOwnReply)
-                } else {
-                    stringResource(Res.string.platform_defaults_reply_counts_all)
-                },
+                text = stringResource(Res.string.platform_defaults_reply_counts_overridable, row.channelsWithOwnReply),
                 style = typography.xs,
                 color = tokens.mutedForeground,
             )

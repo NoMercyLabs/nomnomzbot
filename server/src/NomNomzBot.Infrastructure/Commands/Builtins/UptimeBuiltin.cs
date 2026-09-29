@@ -73,7 +73,6 @@ public sealed class UptimeBuiltin : IBuiltinCommand
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.Uptime.Live,
                 // The override customizes the primary (live) response; the offline state stays tone-driven.
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = "The stream has been live for {uptime}.",
                 Variables = new Dictionary<string, string> { ["uptime"] = uptime },
             },

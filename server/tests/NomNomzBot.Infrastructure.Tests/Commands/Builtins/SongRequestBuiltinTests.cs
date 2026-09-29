@@ -91,7 +91,8 @@ public sealed class SongRequestBuiltinTests
         SongRequestBuiltin sut = Build(
             requestResult: Result.Failure<MusicTrack>(
                 "\"Song Q\" is blocked in this channel.",
-                "TRACK_BLOCKED"
+                "TRACK_BLOCKED",
+                errorData: new MusicRequestRefusal("Song Q")
             )
         );
 
@@ -132,13 +133,117 @@ public sealed class SongRequestBuiltinTests
         SongRequestBuiltin sut = Build(
             requestResult: Result.Failure<MusicTrack>(
                 "\"Song Q\" is already in the queue (requested by viewer1).",
-                "DUPLICATE_TRACK"
+                "DUPLICATE_TRACK",
+                "viewer1",
+                new MusicRequestRefusal("Song Q", "Artist", "viewer1")
             )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
 
-        result.Value.Should().Be("\"Song Q\" is already in the queue (requested by viewer1).");
+        // The reply names the track and the FIRST requester, both taken from the typed refusal data.
+        result.Value.Should().Contain("Song Q").And.Contain("viewer1");
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.SongRequest.Key,
+                BuiltinResponseSlots.SongRequest.Duplicate
+            )
+            .Select(t => t.Replace("{track.name}", "Song Q").Replace("{requested.by}", "viewer1"))
+            .Should()
+            .Contain(result.Value);
+    }
+
+    [Fact]
+    public async Task A_track_that_is_playing_right_now_uses_the_already_playing_slot_not_the_queued_one()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "\"Song Q\" is playing right now.",
+                "DUPLICATE_TRACK",
+                errorData: new MusicRequestRefusal("Song Q", "Artist", IsPlayingNow: true)
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.SongRequest.Key,
+                BuiltinResponseSlots.SongRequest.AlreadyPlaying
+            )
+            .Should()
+            .Contain(result.Value);
+    }
+
+    [Fact]
+    public async Task A_provider_outage_answers_from_its_slot_never_the_services_own_sentence()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "upstream 503 detail 5531",
+                "PROVIDER_UNAVAILABLE"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result
+            .Value.Should()
+            .Be(
+                ToneTemplateCatalog.Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.ProviderUnavailable
+                )[0]
+            );
+        result.Value.Should().NotContain("5531");
+    }
+
+    [Fact]
+    public async Task A_channel_override_for_the_duplicate_slot_replaces_only_that_reply()
+    {
+        FakeChannelBuiltinReplies channel = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.Duplicate,
+            "{requested.by} already grabbed {track.name}, go again."
+        );
+        SongRequestBuiltin duplicate = BuildWithRealComposer(
+            Result.Failure<MusicTrack>(
+                "\"Song Q\" is already in the queue (requested by viewer1).",
+                "DUPLICATE_TRACK",
+                "viewer1",
+                new MusicRequestRefusal("Song Q", "Artist", "viewer1")
+            ),
+            channel
+        );
+        SongRequestBuiltin added = BuildWithRealComposer(
+            Result.Success(
+                new MusicTrack("spotify:track:q1", "Song Q", "Artist", null, null, 1000, "spotify")
+            ),
+            channel
+        );
+
+        Result<string> refused = await duplicate.ExecuteAsync(Context("song q", roleLevel: 0));
+        Result<string> accepted = await added.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        refused.Value.Should().Be("viewer1 already grabbed Song Q, go again.");
+        accepted.Value.Should().NotContain("go again");
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.SongRequest.Key,
+                BuiltinResponseSlots.SongRequest.Added
+            )
+            .Select(t =>
+                t.Replace("{track.name}", "Song Q")
+                    .Replace("{track.artist}", "Artist")
+                    .Replace("{track.link}", "https://open.spotify.com/track/q1")
+            )
+            .Should()
+            .Contain(accepted.Value);
     }
 
     [Fact]
@@ -188,7 +293,8 @@ public sealed class SongRequestBuiltinTests
         SongRequestBuiltin sut = Build(
             requestResult: Result.Failure<MusicTrack>(
                 "You already have 2 request(s) queued — wait for one to play before adding more.",
-                "PER_USER_LIMIT"
+                "PER_USER_LIMIT",
+                errorData: new MusicRequestRefusal(Limit: 2)
             )
         );
 
@@ -209,7 +315,8 @@ public sealed class SongRequestBuiltinTests
         SongRequestBuiltin sut = Build(
             requestResult: Result.Failure<MusicTrack>(
                 "The queue is full (50 max) — try again once it's shorter.",
-                "QUEUE_FULL"
+                "QUEUE_FULL",
+                errorData: new MusicRequestRefusal(Limit: 50)
             )
         );
 
@@ -334,29 +441,14 @@ public sealed class SongRequestBuiltinTests
         return new(music, composer, Substitute.For<IEventBus>());
     }
 
-    private static SongRequestBuiltin Build(Result<MusicTrack> requestResult)
-    {
-        IMusicService music = Substitute.For<IMusicService>();
-        music
-            .RequestTrackAsync(
-                Broadcaster.ToString(),
-                Arg.Any<string>(),
-                Arg.Any<string?>(),
-                Arg.Any<int?>(),
-                Arg.Any<CancellationToken>(),
-                Arg.Any<string?>()
-            )
-            .Returns(requestResult);
+    /// <summary>The refusal wording comes from the real composer and the shipped catalogue, never a stub.</summary>
+    private static SongRequestBuiltin Build(Result<MusicTrack> requestResult) =>
+        BuildWithRealComposer(requestResult);
 
-        IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
-        composer
-            .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
-            .Returns(ci => Task.FromResult(ci.Arg<BuiltinResponseRequest>().NeutralFallback));
-
-        return new(music, composer, Substitute.For<IEventBus>());
-    }
-
-    private static SongRequestBuiltin BuildWithRealComposer(Result<MusicTrack> requestResult)
+    private static SongRequestBuiltin BuildWithRealComposer(
+        Result<MusicTrack> requestResult,
+        IChannelBuiltinReplyOverrides? channelReplies = null
+    )
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
@@ -389,7 +481,11 @@ public sealed class SongRequestBuiltinTests
 
         return new(
             music,
-            new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance),
+            new BuiltinResponseComposer(
+                resolver,
+                NoPlatformBuiltinReplies.Instance,
+                channelReplies ?? FakeChannelBuiltinReplies.None
+            ),
             Substitute.For<IEventBus>()
         );
     }

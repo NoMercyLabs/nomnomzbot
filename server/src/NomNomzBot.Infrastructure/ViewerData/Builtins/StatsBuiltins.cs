@@ -10,7 +10,6 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -18,15 +17,17 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.ViewerData.Builtins;
 
 /// <summary>
 /// <c>!stats [@user]</c> (alias <c>!profile</c>) — a viewer's headline stats in chat, composing the
 /// EXISTING read-models (per-viewer-data.md D2/D4: analytics M.1 profile + M.3 streak + the economy
-/// wallet — no new projection). A custom response template (ChannelBuiltinCommand override) may use
+/// wallet — no new projection). A channel re-words the reply per slot (commands-pipelines.md §11) and may use
 /// <c>{stats.user}</c>, <c>{stats.messages}</c>, <c>{stats.watchtime}</c>, <c>{stats.points}</c>,
-/// <c>{stats.rank}</c>, <c>{stats.streak}</c>, <c>{stats.firstseen}</c>.
+/// <c>{stats.rank}</c>, <c>{stats.rankpart}</c>, <c>{stats.streak}</c>, <c>{stats.streakpart}</c>,
+/// <c>{stats.firstseen}</c>.
 /// </summary>
 public abstract class StatsBuiltinBase : IBuiltinCommand
 {
@@ -34,22 +35,24 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     private readonly ICurrencyAccountService _wallets;
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
-    private readonly ITemplateResolver _templates;
+    private readonly IBuiltinResponseComposer _composer;
 
     protected StatsBuiltinBase(
         IViewerAnalyticsService analytics,
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        ITemplateResolver templates
+        IBuiltinResponseComposer composer
     )
     {
         _analytics = analytics;
         _wallets = wallets;
         _users = users;
         _db = db;
-        _templates = templates;
+        _composer = composer;
     }
+
+    private const string AccountUnresolvedCode = "ACCOUNT_UNRESOLVED";
 
     public abstract string BuiltinKey { get; }
     public int DefaultCooldownSeconds => 5;
@@ -62,7 +65,15 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     {
         Result<(Guid UserId, string Label)> subject = await ResolveSubjectAsync(context, ct);
         if (subject.IsFailure)
-            return Result.Success(subject.ErrorMessage!);
+            return subject.ErrorCode == AccountUnresolvedCode
+                ? await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.Stats.AccountUnresolved,
+                    "stats: your account could not be resolved.",
+                    null,
+                    ct
+                )
+                : await NotSeenAsync(context, subject.ErrorDetail!, ct);
 
         (Guid viewerId, string label) = subject.Value;
 
@@ -79,7 +90,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
         Result<long> balance = await _wallets.GetBalanceAsync(context.BroadcasterId, viewerId, ct);
 
         if (profile.IsFailure && balance.IsFailure)
-            return Result.Success($"I haven't seen {label} chat here yet.");
+            return await NotSeenAsync(context, label, ct);
 
         long points = balance.IsSuccess ? balance.Value : 0;
         int? rank = balance.IsSuccess
@@ -92,44 +103,63 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
             ? profile.Value.FirstSeenAt?.ToString("yyyy-MM-dd") ?? "unknown"
             : "unknown";
 
-        // Personality precedence: an explicit per-command override wins; else the channel's tone template
-        // (only the four flavored tones author !stats — Informative intentionally has none, so the default
-        // keeps the richer conditional line below); else the neutral, precise stats line.
-        string? template = context.CustomResponseTemplate is { Length: > 0 } over
-            ? over
-            : ToneTemplateCatalog.Pick(
-                context.Personality,
-                BuiltinResponseSlots.Stats.Key,
-                BuiltinResponseSlots.Stats.Profile
-            );
-
-        if (template is not null)
+        // Precomputed pieces so the shipped line still reads right when the viewer has no rank or streak.
+        Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
         {
-            Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
-            {
-                ["stats.user"] = label,
-                ["stats.messages"] = messages.ToString(),
-                ["stats.watchtime"] = FormatWatchTime(watchSeconds),
-                ["stats.points"] = points.ToString(),
-                ["stats.rank"] = rank?.ToString() ?? "unranked",
-                ["stats.streak"] = currentStreak.ToString(),
-                ["stats.firstseen"] = firstSeen,
-            };
-            return Result.Success(_templates.Resolve(template, vars));
-        }
-
-        List<string> parts =
-        [
-            $"{messages} messages",
-            $"{FormatWatchTime(watchSeconds)} watched",
-            rank is not null ? $"{points} points (rank #{rank})" : $"{points} points",
-        ];
-        if (currentStreak > 0)
-            parts.Add($"{currentStreak}-stream streak");
-        parts.Add($"first seen {firstSeen}");
-
-        return Result.Success($"{label} · {string.Join(" · ", parts)}");
+            ["stats.user"] = label,
+            ["stats.messages"] = messages.ToString(),
+            ["stats.watchtime"] = FormatWatchTime(watchSeconds),
+            ["stats.points"] = points.ToString(),
+            ["stats.rank"] = rank?.ToString() ?? "unranked",
+            ["stats.rankpart"] = rank is not null ? $" (rank #{rank})" : string.Empty,
+            ["stats.streak"] = currentStreak.ToString(),
+            ["stats.streakpart"] =
+                currentStreak > 0 ? $" · {currentStreak}-stream streak" : string.Empty,
+            ["stats.firstseen"] = firstSeen,
+        };
+        return await ReplyAsync(
+            context,
+            BuiltinResponseSlots.Stats.Profile,
+            "{stats.user} · {stats.messages} messages · {stats.watchtime} watched · {stats.points} points{stats.rankpart}{stats.streakpart} · first seen {stats.firstseen}",
+            vars,
+            ct
+        );
     }
+
+    private Task<Result<string>> NotSeenAsync(
+        BuiltinCommandContext context,
+        string name,
+        CancellationToken ct
+    ) =>
+        ReplyAsync(
+            context,
+            BuiltinResponseSlots.Stats.NotSeen,
+            "I haven't seen {stats.user} chat here yet.",
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["stats.user"] = name,
+            },
+            ct
+        );
+
+    /// <summary>Every stats reply is a slot of the <c>stats</c> group, shared by <c>!stats</c> and <c>!profile</c>.</summary>
+    private async Task<Result<string>> ReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        IReadOnlyDictionary<string, string>? variables,
+        CancellationToken ct
+    ) =>
+        Result.Success(
+            await _composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Stats.Key,
+                slot,
+                neutralFallback,
+                variables,
+                ct
+            )
+        );
 
     /// <summary>
     /// No arg = the caller (get-or-create); <c>@name</c> = a KNOWN local viewer — stats about someone who
@@ -155,7 +185,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
             if (caller.IsFailure || !Guid.TryParse(caller.Value.Id, out Guid callerId))
                 return Result.Failure<(Guid, string)>(
                     "stats: your account could not be resolved.",
-                    "NOT_FOUND"
+                    AccountUnresolvedCode
                 );
             return Result.Success((callerId, context.TriggeringUserDisplayName));
         }
@@ -167,7 +197,11 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
             .Select(u => new { u.Id, u.DisplayName })
             .FirstOrDefaultAsync(ct);
         return known is null
-            ? Result.Failure<(Guid, string)>($"I haven't seen {mention} here yet.", "NOT_FOUND")
+            ? Result.Failure<(Guid, string)>(
+                $"I haven't seen {mention} here yet.",
+                "NOT_FOUND",
+                mention
+            )
             : Result.Success((known.Id, known.DisplayName ?? mention));
     }
 
@@ -197,9 +231,9 @@ public sealed class StatsBuiltin : StatsBuiltinBase
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        ITemplateResolver templates
+        IBuiltinResponseComposer composer
     )
-        : base(analytics, wallets, users, db, templates) { }
+        : base(analytics, wallets, users, db, composer) { }
 
     public override string BuiltinKey => "stats";
 }
@@ -212,9 +246,9 @@ public sealed class ProfileBuiltin : StatsBuiltinBase
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        ITemplateResolver templates
+        IBuiltinResponseComposer composer
     )
-        : base(analytics, wallets, users, db, templates) { }
+        : base(analytics, wallets, users, db, composer) { }
 
     public override string BuiltinKey => "profile";
 }

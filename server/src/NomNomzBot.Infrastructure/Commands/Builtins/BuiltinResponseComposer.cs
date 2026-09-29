@@ -24,14 +24,17 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
 {
     private readonly ITemplateResolver _templates;
     private readonly IPlatformBuiltinReplyDefaults _platformReplies;
+    private readonly IChannelBuiltinReplyOverrides _channelReplies;
 
     public BuiltinResponseComposer(
         ITemplateResolver templates,
-        IPlatformBuiltinReplyDefaults platformReplies
+        IPlatformBuiltinReplyDefaults platformReplies,
+        IChannelBuiltinReplyOverrides channelReplies
     )
     {
         _templates = templates;
         _platformReplies = platformReplies;
+        _channelReplies = channelReplies;
     }
 
     public async Task<string> ComposeAsync(
@@ -42,7 +45,8 @@ public sealed class BuiltinResponseComposer : IBuiltinResponseComposer
         // Precedence: the channel's own override, then the platform admin's reply text, then a tone
         // variation, then the neutral fallback.
         string template =
-            request.OverrideTemplate is { Length: > 0 } over && !string.IsNullOrWhiteSpace(over)
+            _channelReplies.Get(request.BroadcasterId, request.BuiltinKey, request.Slot) is { } over
+            && !string.IsNullOrWhiteSpace(over)
                 ? over
                 : await _platformReplies.GetAsync(
                     request.BuiltinKey,

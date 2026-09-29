@@ -60,7 +60,11 @@ public sealed class CommandsBuiltinTests
                     template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
                 return Task.FromResult(template);
             });
-        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
     }
 
     private static IServiceProvider FakeServiceProvider(IBuiltinCommandService builtins)
@@ -115,14 +119,14 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<BuiltinCommandDto>>([
-                    new BuiltinCommandDto("lurk", "lurk", true, 5, "Everyone", null, false),
+                    new BuiltinCommandDto("lurk", "lurk", true, 5, "Everyone", "lurk", false),
                     new BuiltinCommandDto(
                         "accountage",
                         "accountage",
                         true,
                         15,
                         "Everyone",
-                        null,
+                        "accountage",
                         false
                     ),
                 ])
@@ -164,7 +168,7 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<BuiltinCommandDto>>([
-                    new BuiltinCommandDto("lurk", "lurk", false, 5, "Everyone", null, false),
+                    new BuiltinCommandDto("lurk", "lurk", false, 5, "Everyone", "lurk", false),
                 ])
             );
 

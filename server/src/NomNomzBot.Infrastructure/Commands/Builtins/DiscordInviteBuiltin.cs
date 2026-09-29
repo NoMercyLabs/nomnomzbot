@@ -86,8 +86,7 @@ public sealed class DiscordInviteBuiltin(
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
                 BuiltinKey = BuiltinResponseSlots.Discord.Key,
-                Slot = "invite",
-                OverrideTemplate = context.CustomResponseTemplate,
+                Slot = BuiltinResponseSlots.Discord.Invite,
                 NeutralFallback = "Join the community on Discord: {discord.invite}",
                 Variables = new Dictionary<string, string>
                 {

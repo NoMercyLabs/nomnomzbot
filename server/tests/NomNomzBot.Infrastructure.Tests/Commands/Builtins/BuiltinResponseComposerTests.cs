@@ -50,14 +50,24 @@ public sealed class BuiltinResponseComposerTests
         return resolver;
     }
 
-    private static BuiltinResponseComposer Sut() =>
-        new(FakeResolver(), NoPlatformBuiltinReplies.Instance);
+    private static BuiltinResponseComposer Sut(FakeChannelBuiltinReplies? channelReplies = null) =>
+        new(
+            FakeResolver(),
+            NoPlatformBuiltinReplies.Instance,
+            channelReplies ?? FakeChannelBuiltinReplies.None
+        );
 
     [Fact]
     public async Task Override_wins_over_the_tone_template_and_is_rendered_with_the_variables()
     {
-        // Sassy uptime HAS tone templates, but an explicit override must beat them.
-        string result = await Sut()
+        // Sassy uptime HAS tone templates, but the channel's own text for the slot must beat them.
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Uptime.Key,
+            BuiltinResponseSlots.Uptime.Live,
+            "MY channel has been live {uptime}, deal with it."
+        );
+        string result = await Sut(own)
             .ComposeAsync(
                 new()
                 {
@@ -65,7 +75,6 @@ public sealed class BuiltinResponseComposerTests
                     Personality = PersonalityTone.Sassy,
                     BuiltinKey = BuiltinResponseSlots.Uptime.Key,
                     Slot = BuiltinResponseSlots.Uptime.Live,
-                    OverrideTemplate = "MY channel has been live {uptime}, deal with it.",
                     NeutralFallback = "The stream has been live for {uptime}.",
                     Variables = new Dictionary<string, string> { ["uptime"] = "2h 5m" },
                 }
@@ -81,6 +90,61 @@ public sealed class BuiltinResponseComposerTests
     }
 
     [Fact]
+    public async Task A_channel_override_changes_exactly_its_own_slot_and_no_other()
+    {
+        // The channel re-worded uptime/live only. uptime/offline (same built-in) and another channel's
+        // uptime/live must keep the shipped wording.
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Uptime.Key,
+            BuiltinResponseSlots.Uptime.Live,
+            "OWN live text"
+        );
+        BuiltinResponseComposer sut = Sut(own);
+
+        string offline = await sut.ComposeAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                Personality = PersonalityTone.Informative,
+                BuiltinKey = BuiltinResponseSlots.Uptime.Key,
+                Slot = BuiltinResponseSlots.Uptime.Offline,
+                NeutralFallback = "NEUTRAL",
+            }
+        );
+        string otherChannel = await sut.ComposeAsync(
+            new()
+            {
+                BroadcasterId = Guid.NewGuid(),
+                Personality = PersonalityTone.Informative,
+                BuiltinKey = BuiltinResponseSlots.Uptime.Key,
+                Slot = BuiltinResponseSlots.Uptime.Live,
+                NeutralFallback = "NEUTRAL",
+                Variables = new Dictionary<string, string> { ["uptime"] = "1h" },
+            }
+        );
+
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.Uptime.Key,
+                BuiltinResponseSlots.Uptime.Offline
+            )
+            .Should()
+            .Contain(offline);
+        otherChannel.Should().NotBe("OWN live text");
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.Uptime.Key,
+                BuiltinResponseSlots.Uptime.Live
+            )
+            .Select(t => t.Replace("{uptime}", "1h"))
+            .Should()
+            .Contain(otherChannel);
+    }
+
+    [Fact]
     public async Task Tone_template_wins_over_the_neutral_fallback_when_no_override()
     {
         string result = await Sut()
@@ -91,7 +155,6 @@ public sealed class BuiltinResponseComposerTests
                     Personality = PersonalityTone.Sassy,
                     BuiltinKey = BuiltinResponseSlots.Uptime.Key,
                     Slot = BuiltinResponseSlots.Uptime.Live,
-                    OverrideTemplate = null,
                     NeutralFallback = "NEUTRAL {uptime}",
                     Variables = new Dictionary<string, string> { ["uptime"] = "2h 5m" },
                 }
@@ -111,35 +174,6 @@ public sealed class BuiltinResponseComposerTests
 
         result.Should().NotBe("NEUTRAL 2h 5m");
         expected.Should().Contain(result);
-    }
-
-    [Fact]
-    public async Task Neutral_fallback_is_used_when_the_tone_has_no_template_for_the_slot()
-    {
-        // stats/profile is authored ONLY for the flavored tones — Informative deliberately has none, so the
-        // default tone falls through to the built-in's neutral line.
-        ToneTemplateCatalog
-            .Get(
-                PersonalityTone.Informative,
-                BuiltinResponseSlots.Stats.Key,
-                BuiltinResponseSlots.Stats.Profile
-            )
-            .Should()
-            .BeEmpty("Informative is intentionally omitted for !stats");
-
-        string result = await Sut()
-            .ComposeAsync(
-                new()
-                {
-                    BroadcasterId = Channel,
-                    Personality = PersonalityTone.Informative,
-                    BuiltinKey = BuiltinResponseSlots.Stats.Key,
-                    Slot = BuiltinResponseSlots.Stats.Profile,
-                    NeutralFallback = "Alice: 42 messages, 500 points.",
-                }
-            );
-
-        result.Should().Be("Alice: 42 messages, 500 points.");
     }
 
     [Fact]
@@ -164,7 +198,13 @@ public sealed class BuiltinResponseComposerTests
     public async Task A_blank_override_does_not_win_over_the_tone_template()
     {
         // Whitespace/empty override is treated as "no override" — the tone must still apply.
-        string result = await Sut()
+        FakeChannelBuiltinReplies blank = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Song.Key,
+            BuiltinResponseSlots.Song.Nothing,
+            "   "
+        );
+        string result = await Sut(blank)
             .ComposeAsync(
                 new()
                 {
@@ -172,7 +212,6 @@ public sealed class BuiltinResponseComposerTests
                     Personality = PersonalityTone.Chill,
                     BuiltinKey = BuiltinResponseSlots.Song.Key,
                     Slot = BuiltinResponseSlots.Song.Nothing,
-                    OverrideTemplate = "   ",
                     NeutralFallback = "NEUTRAL",
                 }
             );

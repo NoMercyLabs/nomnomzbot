@@ -1,0 +1,199 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+namespace NomNomzBot.Application.Commands.Builtin.Personality;
+
+/// <summary>Reply slots of the music built-ins (<c>!song</c>, <c>!queue</c>, <c>!sr</c>, <c>!skip</c>, …).</summary>
+public static partial class BuiltinResponseSlots
+{
+    /// <summary><c>!song</c> — the currently playing track.</summary>
+    public static class Song
+    {
+        public const string Key = "song";
+
+        /// <summary>A track is playing; <c>{song.name}</c>/<c>{song.artist}</c>/<c>{song.status}</c> are set.</summary>
+        public const string Playing = "playing";
+
+        /// <summary>Nothing is playing.</summary>
+        public const string Nothing = "nothing";
+    }
+
+    /// <summary><c>!queue</c> — the upcoming song queue.</summary>
+    public static class Queue
+    {
+        public const string Key = "queue";
+
+        /// <summary>Queue has tracks; <c>{queue.list}</c>/<c>{queue.count}</c>/<c>{queue.next}</c>/<c>{queue.more}</c> are set.</summary>
+        public const string List = "list";
+
+        /// <summary>Queue is empty.</summary>
+        public const string Empty = "empty";
+    }
+
+    /// <summary><c>!sr</c> — request a song.</summary>
+    public static class SongRequest
+    {
+        public const string Key = "sr";
+
+        /// <summary>Track added; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{user}</c> are set.</summary>
+        public const string Added = "added";
+
+        /// <summary>No track matched the query; <c>{query}</c>/<c>{user}</c> are set.</summary>
+        public const string NotFound = "notfound";
+
+        /// <summary>
+        /// The track is ALREADY pending in the queue; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{requested.by}</c>/
+        /// <c>{user}</c> are set.
+        /// </summary>
+        public const string Duplicate = "duplicate";
+
+        /// <summary>The track is playing RIGHT NOW; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{user}</c> are set.</summary>
+        public const string AlreadyPlaying = "alreadyplaying";
+
+        /// <summary>No song or link was given — no variables.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>Song requests are switched off in the channel — no variables.</summary>
+        public const string RequestsOff = "requestsoff";
+
+        /// <summary>The requester's role is below the channel's minimum; <c>{trust.level}</c> is set.</summary>
+        public const string MinTrust = "mintrust";
+
+        /// <summary>The track is on the channel's blocklist; <c>{track.name}</c> is set.</summary>
+        public const string TrackBlocked = "trackblocked";
+
+        /// <summary>Nothing plays on any device, so the track could not be queued; <c>{track.name}</c> is set.</summary>
+        public const string NoActiveDevice = "noactivedevice";
+
+        /// <summary>The music service needs a Premium account for this; <c>{track.name}</c> is set.</summary>
+        public const string PremiumRequired = "premiumrequired";
+
+        /// <summary>The music connection lost its login and must be reconnected; <c>{track.name}</c> is set.</summary>
+        public const string AuthFailed = "authfailed";
+
+        /// <summary>The music connection is not allowed to do this; <c>{track.name}</c> is set.</summary>
+        public const string Forbidden = "forbidden";
+
+        /// <summary>The queue holds its maximum; <c>{queue.max}</c> is set.</summary>
+        public const string QueueFull = "queuefull";
+
+        /// <summary>The requester already has their maximum in the queue; <c>{request.limit}</c> is set.</summary>
+        public const string PerUserLimit = "peruserlimit";
+
+        /// <summary>The music connection needs to be reconnected before search works — no variables.</summary>
+        public const string MissingScope = "missingscope";
+
+        /// <summary>The music service is having an outage — no variables.</summary>
+        public const string ProviderUnavailable = "providerunavailable";
+
+        /// <summary>The link is a playlist, album, show or artist, not a track — no variables.</summary>
+        public const string UnsupportedContent = "unsupportedcontent";
+
+        /// <summary>Any other failure reaching the music service; <c>{query}</c> is set.</summary>
+        public const string Unreachable = "unreachable";
+
+        /// <summary>No music service is connected and the caller is the broadcaster — no variables.</summary>
+        public const string NoProviderBroadcaster = "noproviderbroadcaster";
+
+        /// <summary>No music service is connected and the caller is a moderator — no variables.</summary>
+        public const string NoProviderModerator = "noprovidermoderator";
+    }
+
+    /// <summary><c>!skip</c> — skip the current track (mods+).</summary>
+    public static class Skip
+    {
+        public const string Key = "skip";
+
+        /// <summary>A track was skipped.</summary>
+        public const string Skipped = "skipped";
+
+        /// <summary>The skip failed or there was nothing to skip — no variables.</summary>
+        public const string Failed = "failed";
+
+        /// <summary>No music service is connected — no variables.</summary>
+        public const string NoProvider = "noprovider";
+
+        /// <summary>The music service needs a Premium account to skip — no variables.</summary>
+        public const string PremiumRequired = "premiumrequired";
+
+        /// <summary><c>!skip N</c> got a value that is not a positive number — no variables.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>The caller has no request at that position; <c>{user}</c>/<c>{request.position}</c> are set.</summary>
+        public const string NoRequest = "norequest";
+
+        /// <summary>The caller's request could not be removed; <c>{user}</c> is set.</summary>
+        public const string RemoveFailed = "removefailed";
+
+        /// <summary>The caller's own request was removed; <c>{user}</c>/<c>{track.name}</c>/<c>{track.artist}</c> are set.</summary>
+        public const string Removed = "removed";
+    }
+
+    /// <summary><c>!bansong</c> — usage/error tone slots (S069h).</summary>
+    public static class BanSong
+    {
+        public const string Key = "bansong";
+
+        /// <summary>Nothing is currently playing, so there is no track to ban — no variables.</summary>
+        public const string Nothing = "nothing";
+
+        /// <summary>The block write itself failed with no service-supplied reason — no variables.</summary>
+        public const string CouldNotBan = "couldnotban";
+
+        /// <summary>The playing track was banned; <c>{user}</c>/<c>{track.name}</c> are set.</summary>
+        public const string Banned = "banned";
+    }
+
+    /// <summary><c>!volume</c> — usage/error tone slots (S069h).</summary>
+    public static class Volume
+    {
+        public const string Key = "volume";
+
+        /// <summary>An unparsable argument was given — no variables.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>The current volume genuinely cannot be read (nothing playing) — no variables.</summary>
+        public const string CannotRead = "cannotread";
+
+        /// <summary>The current volume was read; <c>{volume.level}</c> is set.</summary>
+        public const string Current = "current";
+
+        /// <summary>The volume was changed; <c>{volume.level}</c> is set.</summary>
+        public const string Set = "set";
+
+        /// <summary>The volume change failed — no variables.</summary>
+        public const string SetFailed = "setfailed";
+
+        /// <summary>No music service is connected — no variables.</summary>
+        public const string NoProvider = "noprovider";
+
+        /// <summary>The music service needs a Premium account to change the volume — no variables.</summary>
+        public const string PremiumRequired = "premiumrequired";
+    }
+
+    /// <summary><c>!sr</c> — additional usage/error tone slot (S069i), beyond the personality slots above.</summary>
+    public static class SongRequestErrors
+    {
+        /// <summary>Song requests are disabled and the caller is a plain viewer — no variables.</summary>
+        public const string Disabled = "disabled";
+    }
+
+    /// <summary><c>!playlist</c> — the channel's playlist summary.</summary>
+    public static class Playlist
+    {
+        public const string Key = "playlist";
+
+        /// <summary>Nothing plays and the queue is empty — no variables.</summary>
+        public const string Empty = "empty";
+
+        /// <summary>The summary line; <c>{playlist.nowplaying}</c>/<c>{playlist.upcoming}</c>/<c>{playlist.count}</c> are set.</summary>
+        public const string Summary = "summary";
+    }
+}

@@ -1067,6 +1067,11 @@ public static class DependencyInjection
             IPlatformBuiltinReplyDefaults,
             Commands.Builtins.PlatformBuiltinReplyDefaultsReader
         >();
+        // A channel's own per-slot reply texts, read from the channel registry cache (§11).
+        services.AddSingleton<
+            IChannelBuiltinReplyOverrides,
+            Commands.Builtins.ChannelBuiltinReplyOverridesReader
+        >();
 
         // Built-in commands — scoped because some implementations consume scoped services
         // (e.g. IMusicService). The catalog is also scoped so it receives a consistent

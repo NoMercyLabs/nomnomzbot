@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<!-- Built-in reply catalogue (commands-pipelines.md section 11): music reply labels, descriptions and variables. -->
+<resources>
+    <string name="builtin_reply_song_playing_label">Nu speelt</string>
+    <string name="builtin_reply_song_playing_description">Iemand vraagt welk nummer er speelt.</string>
+    <string name="builtin_reply_song_nothing_label">Er speelt niets</string>
+    <string name="builtin_reply_song_nothing_description">Iemand vraagt het nummer, maar er speelt niets.</string>
+    <string name="builtin_reply_queue_list_label">Wachtrij</string>
+    <string name="builtin_reply_queue_list_description">Iemand vraagt wat er in de wachtrij staat.</string>
+    <string name="builtin_reply_queue_empty_label">Wachtrij leeg</string>
+    <string name="builtin_reply_queue_empty_description">Iemand vraagt de wachtrij, maar die is leeg.</string>
+    <string name="builtin_reply_sr_added_label">Nummer toegevoegd</string>
+    <string name="builtin_reply_sr_added_description">Een verzoeknummer is aan de wachtrij toegevoegd.</string>
+    <string name="builtin_reply_sr_notfound_label">Nummer niet gevonden</string>
+    <string name="builtin_reply_sr_notfound_description">Geen nummer past bij het verzoek.</string>
+    <string name="builtin_reply_sr_duplicate_label">Staat al in de wachtrij</string>
+    <string name="builtin_reply_sr_duplicate_description">Het gevraagde nummer staat al in de wachtrij.</string>
+    <string name="builtin_reply_sr_alreadyplaying_label">Speelt al</string>
+    <string name="builtin_reply_sr_alreadyplaying_description">Het gevraagde nummer speelt nu al.</string>
+    <string name="builtin_reply_sr_disabled_label">Verzoeken staan uit</string>
+    <string name="builtin_reply_sr_disabled_description">Een kijker vraagt een nummer terwijl verzoeken uit staan.</string>
+    <string name="builtin_reply_skip_skipped_label">Nummer overgeslagen</string>
+    <string name="builtin_reply_skip_skipped_description">Een nummer is overgeslagen.</string>
+    <string name="builtin_reply_bansong_nothing_label">Niets om te bannen</string>
+    <string name="builtin_reply_bansong_nothing_description">Er speelt niets, dus er is geen nummer om te bannen.</string>
+    <string name="builtin_reply_bansong_couldnotban_label">Bannen mislukt</string>
+    <string name="builtin_reply_bansong_couldnotban_description">Het nummer kon niet worden geband.</string>
+    <string name="builtin_reply_volume_usage_label">Zo gebruik je het</string>
+    <string name="builtin_reply_volume_usage_description">Het volumecommando kreeg een waarde die het niet kan lezen.</string>
+    <string name="builtin_reply_volume_cannotread_label">Volume onbekend</string>
+    <string name="builtin_reply_volume_cannotread_description">Het huidige volume kan niet worden gelezen.</string>
+    <string name="builtin_reply_var_song_name">De titel van het nummer</string>
+    <string name="builtin_reply_var_song_artist">De artiest van het nummer</string>
+    <string name="builtin_reply_var_song_status">Speelt of gepauzeerd</string>
+    <string name="builtin_reply_var_track_name">De titel van het nummer</string>
+    <string name="builtin_reply_var_track_artist">De artiest van het nummer</string>
+    <string name="builtin_reply_var_track_link">Een link naar het nummer</string>
+    <string name="builtin_reply_var_requested_by">Wie het als eerste aanvroeg</string>
+    <string name="builtin_reply_var_query">Waar de kijker naar zocht</string>
+    <string name="builtin_reply_var_queue_list">De nummers in de wachtrij</string>
+    <string name="builtin_reply_var_queue_count">Hoeveel nummers in de wachtrij staan</string>
+    <string name="builtin_reply_var_queue_next">Het volgende nummer</string>
+    <string name="builtin_reply_var_queue_more">Een melding als er meer nummers wachten</string>
+    <string name="builtin_reply_sr_usage_label">Zo gebruik je het</string>
+    <string name="builtin_reply_sr_usage_description">Een kijker typt het songcommando zonder nummer.</string>
+    <string name="builtin_reply_sr_requestsoff_label">Verzoeken staan uit</string>
+    <string name="builtin_reply_sr_requestsoff_description">Een kijker vraagt een nummer terwijl verzoeken uit staan.</string>
+    <string name="builtin_reply_sr_mintrust_label">Rol te laag</string>
+    <string name="builtin_reply_sr_mintrust_description">De kijker heeft een lagere rol dan verzoeknummers nodig hebben.</string>
+    <string name="builtin_reply_sr_trackblocked_label">Nummer geblokkeerd</string>
+    <string name="builtin_reply_sr_trackblocked_description">Het gevraagde nummer staat op de blokkeerlijst.</string>
+    <string name="builtin_reply_sr_noactivedevice_label">Er speelt niets</string>
+    <string name="builtin_reply_sr_noactivedevice_description">Het nummer kan niet in de wachtrij omdat er op geen enkel apparaat iets speelt.</string>
+    <string name="builtin_reply_sr_premiumrequired_label">Premium nodig</string>
+    <string name="builtin_reply_sr_premiumrequired_description">De muziekdienst heeft hiervoor een Premium-account nodig.</string>
+    <string name="builtin_reply_sr_authfailed_label">Muziekinlog verlopen</string>
+    <string name="builtin_reply_sr_authfailed_description">De muziekverbinding is uitgelogd en moet opnieuw verbonden worden.</string>
+    <string name="builtin_reply_sr_forbidden_label">Muziek geen toegang</string>
+    <string name="builtin_reply_sr_forbidden_description">De muziekverbinding mag dit nummer niet in de wachtrij zetten.</string>
+    <string name="builtin_reply_sr_queuefull_label">Wachtrij vol</string>
+    <string name="builtin_reply_sr_queuefull_description">De wachtrij is op zijn maximale grootte.</string>
+    <string name="builtin_reply_sr_peruserlimit_label">Kijkerlimiet bereikt</string>
+    <string name="builtin_reply_sr_peruserlimit_description">De kijker heeft al het maximum aantal verzoeken in de wachtrij.</string>
+    <string name="builtin_reply_sr_missingscope_label">Muziek opnieuw verbinden</string>
+    <string name="builtin_reply_sr_missingscope_description">De muziekverbinding moet opnieuw verbonden worden voordat zoeken werkt.</string>
+    <string name="builtin_reply_sr_providerunavailable_label">Muziekdienst niet bereikbaar</string>
+    <string name="builtin_reply_sr_providerunavailable_description">De muziekdienst heeft een storing.</string>
+    <string name="builtin_reply_sr_unsupportedcontent_label">Alleen nummerlinks</string>
+    <string name="builtin_reply_sr_unsupportedcontent_description">Een kijker plakte een afspeellijst-, album-, show- of artiestlink.</string>
+    <string name="builtin_reply_sr_unreachable_label">Muziekdienstfout</string>
+    <string name="builtin_reply_sr_unreachable_description">De muziekdienst was om een andere reden niet bereikbaar.</string>
+    <string name="builtin_reply_sr_noproviderbroadcaster_label">Geen muziek verbonden (streamer)</string>
+    <string name="builtin_reply_sr_noproviderbroadcaster_description">De streamer vraagt een nummer maar er is geen muziekdienst verbonden.</string>
+    <string name="builtin_reply_sr_noprovidermoderator_label">Geen muziek verbonden (mod)</string>
+    <string name="builtin_reply_sr_noprovidermoderator_description">Een moderator vraagt een nummer maar er is geen muziekdienst verbonden.</string>
+    <string name="builtin_reply_skip_failed_label">Overslaan mislukt</string>
+    <string name="builtin_reply_skip_failed_description">Het overslaan werkte niet.</string>
+    <string name="builtin_reply_skip_noprovider_label">Geen muziek verbonden</string>
+    <string name="builtin_reply_skip_noprovider_description">Een moderator slaat over maar er is geen muziekdienst verbonden.</string>
+    <string name="builtin_reply_skip_premiumrequired_label">Premium nodig</string>
+    <string name="builtin_reply_skip_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om over te slaan.</string>
+    <string name="builtin_reply_skip_usage_label">Zo gebruik je het</string>
+    <string name="builtin_reply_skip_usage_description">Het skipcommando kreeg een waarde die geen getal is.</string>
+    <string name="builtin_reply_skip_norequest_label">Geen verzoek daar</string>
+    <string name="builtin_reply_skip_norequest_description">Een kijker noemt een plek in de wachtrij waar hij geen verzoek heeft.</string>
+    <string name="builtin_reply_skip_removefailed_label">Verwijderen mislukt</string>
+    <string name="builtin_reply_skip_removefailed_description">Een verzoek van een kijker kon niet uit de wachtrij worden gehaald.</string>
+    <string name="builtin_reply_skip_removed_label">Verzoek verwijderd</string>
+    <string name="builtin_reply_skip_removed_description">Een kijker haalde zijn eigen verzoek uit de wachtrij.</string>
+    <string name="builtin_reply_volume_current_label">Volumeniveau</string>
+    <string name="builtin_reply_volume_current_description">Iemand vraagt het volume en het kan worden gelezen.</string>
+    <string name="builtin_reply_volume_set_label">Volume aangepast</string>
+    <string name="builtin_reply_volume_set_description">Het volume is aangepast.</string>
+    <string name="builtin_reply_volume_setfailed_label">Volume aanpassen mislukt</string>
+    <string name="builtin_reply_volume_setfailed_description">Het volume kon niet worden aangepast.</string>
+    <string name="builtin_reply_volume_noprovider_label">Geen muziek verbonden</string>
+    <string name="builtin_reply_volume_noprovider_description">Het volume wordt aangepast maar er is geen muziekdienst verbonden.</string>
+    <string name="builtin_reply_volume_premiumrequired_label">Premium nodig</string>
+    <string name="builtin_reply_volume_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om het volume aan te passen.</string>
+    <string name="builtin_reply_bansong_banned_label">Nummer geband</string>
+    <string name="builtin_reply_bansong_banned_description">Een moderator heeft het spelende nummer geband.</string>
+    <string name="builtin_reply_playlist_empty_label">Niets in de wachtrij</string>
+    <string name="builtin_reply_playlist_empty_description">Iemand vraagt de afspeellijst maar er speelt niets en de wachtrij is leeg.</string>
+    <string name="builtin_reply_playlist_summary_label">Afspeellijst-overzicht</string>
+    <string name="builtin_reply_playlist_summary_description">Iemand vraagt de afspeellijst terwijl er muziek speelt of wacht.</string>
+    <string name="builtin_reply_var_queue_max">Het maximale aantal nummers in de wachtrij</string>
+    <string name="builtin_reply_var_request_limit">Het maximale aantal verzoeken per kijker</string>
+    <string name="builtin_reply_var_request_position">De plek in de wachtrij die de kijker typte</string>
+    <string name="builtin_reply_var_trust_level">De laagste rol die mag aanvragen</string>
+    <string name="builtin_reply_var_volume_level">Het volume, van 0 tot 100</string>
+    <string name="builtin_reply_var_playlist_nowplaying">Het nummer dat nu speelt</string>
+    <string name="builtin_reply_var_playlist_upcoming">De nummers die hierna komen</string>
+    <string name="builtin_reply_var_playlist_count">Hoeveel nummers in de wachtrij staan</string>
+    <string name="builtin_reply_var_song_requester">Wie het nummer aanvroeg</string>
+    <string name="builtin_reply_var_song_source">Verzoek of automatisch</string>
+    <string name="builtin_reply_var_song_provider">De muziekdienst</string>
+    <string name="builtin_reply_var_song_attribution">Wie het aanvroeg, of waar het vandaan komt</string>
+</resources>

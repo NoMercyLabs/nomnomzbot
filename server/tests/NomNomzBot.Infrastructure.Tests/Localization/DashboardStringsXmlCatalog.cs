@@ -13,8 +13,8 @@ using System.Xml.Linq;
 namespace NomNomzBot.Infrastructure.Tests.Localization;
 
 /// <summary>
-/// Reads the dashboard's committed translation files directly — <c>strings.xml</c> (en) and
-/// <c>values-nl/strings.xml</c> (nl) under <c>app/composeApp/src/commonMain/composeResources</c> — the single
+/// Reads the dashboard's committed translation files directly — every <c>values/*.xml</c> (en) and
+/// <c>values-nl/*.xml</c> (nl) file under <c>app/composeApp/src/commonMain/composeResources</c> — the single
 /// home for every user-facing string in the product (S-SCHEMA-I18N-redesign). Walks up from the test binary's
 /// output folder to the repo root (mirrors <see cref="Widgets.WidgetAssetPaths"/>'s pattern) so the guard tests
 /// read the SAME files the dashboard build packages, not a copy. A backend <see cref="LocalizedText"/> key like
@@ -25,8 +25,10 @@ internal sealed class DashboardStringsXmlCatalog
 {
     private const string EnglishRelativePath =
         "app/composeApp/src/commonMain/composeResources/values/strings.xml";
-    private const string DutchRelativePath =
-        "app/composeApp/src/commonMain/composeResources/values-nl/strings.xml";
+    private const string EnglishRelativeDir =
+        "app/composeApp/src/commonMain/composeResources/values";
+    private const string DutchRelativeDir =
+        "app/composeApp/src/commonMain/composeResources/values-nl";
 
     private readonly IReadOnlyDictionary<string, string> _english;
     private readonly IReadOnlyDictionary<string, string> _dutch;
@@ -34,8 +36,8 @@ internal sealed class DashboardStringsXmlCatalog
     public DashboardStringsXmlCatalog()
     {
         string repoRoot = ResolveRepoRoot();
-        _english = LoadStrings(Path.Combine(repoRoot, EnglishRelativePath));
-        _dutch = LoadStrings(Path.Combine(repoRoot, DutchRelativePath));
+        _english = LoadStrings(Path.Combine(repoRoot, EnglishRelativeDir));
+        _dutch = LoadStrings(Path.Combine(repoRoot, DutchRelativeDir));
     }
 
     /// <summary>Converts a dot-separated backend translation key to its Compose Resources string name.</summary>
@@ -47,22 +49,22 @@ internal sealed class DashboardStringsXmlCatalog
     public bool TryGetDutch(string translationKey, out string value) =>
         _dutch.TryGetValue(ResourceNameFor(translationKey), out value!);
 
-    private static IReadOnlyDictionary<string, string> LoadStrings(string path)
+    /// <summary>
+    /// Every string of one language: Compose Resources merges all <c>*.xml</c> files of a values folder (e.g.
+    /// <c>strings.xml</c> plus <c>strings_builtin_replies*.xml</c>), so the guard reads them all the same way.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> LoadStrings(string directory)
     {
-        if (!File.Exists(path))
-            throw new FileNotFoundException(
-                $"Dashboard translation file not found: '{path}'.",
-                path
+        if (!Directory.Exists(directory))
+            throw new DirectoryNotFoundException(
+                $"Dashboard translation folder not found: '{directory}'."
             );
 
-        XDocument document = XDocument.Load(path);
-        return document
-            .Root!.Elements("string")
-            .ToDictionary(
-                element => element.Attribute("name")!.Value,
-                element => element.Value,
-                StringComparer.Ordinal
-            );
+        Dictionary<string, string> strings = new(StringComparer.Ordinal);
+        foreach (string path in Directory.EnumerateFiles(directory, "*.xml"))
+        foreach (XElement element in XDocument.Load(path).Root!.Elements("string"))
+            strings[element.Attribute("name")!.Value] = element.Value;
+        return strings;
     }
 
     private static string ResolveRepoRoot()

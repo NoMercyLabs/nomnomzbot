@@ -188,6 +188,7 @@ import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersController
 import bot.nomnomz.dashboard.feature.voicetriggers.state.VoiceTriggersController
+import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
 import bot.nomnomz.dashboard.feature.community.state.ViewerProfileController
@@ -564,6 +565,9 @@ class AppGraph {
             feedback = feedbackController,
             resourceLimits = billingApi::resourceLimits,
         )
+
+    val builtinRepliesController: BuiltinRepliesController =
+        BuiltinRepliesController(channelsApi = channelsApi, builtinsApi = builtinsApi)
 
     val chatTriggersController: ChatTriggersController =
         ChatTriggersController(

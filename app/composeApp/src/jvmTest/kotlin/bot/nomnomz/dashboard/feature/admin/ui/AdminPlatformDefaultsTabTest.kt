@@ -192,7 +192,6 @@ class AdminPlatformDefaultsTabTest {
             builtinKey = "uptime",
             slot = "live",
             shippedTemplate = "{channel} has been live for {uptime}.",
-            takesChannelOverride = true,
             channelsWithOwnReply = 2,
         )
         val api = FakePlatformDefaultsApi(emptyList(), replies = listOf(uptimeLive))

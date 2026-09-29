@@ -25,9 +25,8 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// the already-hydrated <see cref="User.AccountCreatedAt"/> (set once from Helix Get Users <c>created_at</c>
 /// by <see cref="UserProfileHydrationService"/>/login, per-viewer-data §D2); a row that was never hydrated
 /// falls back to one live Helix lookup and persists it, the same on-demand-refresh shape
-/// <see cref="UpdateUserInfoBuiltin"/> already uses. The successful reply renders in the channel's
-/// personality tone via <see cref="IBuiltinResponseComposer"/>; the error/unresolved paths stay neutral,
-/// same as every other built-in's usage/error strings.
+/// <see cref="UpdateUserInfoBuiltin"/> already uses. Every reply (the age and each error case) is
+/// its own slot, rendered through <see cref="IBuiltinResponseComposer"/> so the channel can re-word it.
 /// </summary>
 public sealed class AccountAgeBuiltin : IBuiltinCommand
 {
@@ -74,7 +73,12 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         );
         if (row is null)
             return Result.Success(
-                $"@{context.TriggeringUserDisplayName} your account could not be resolved."
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.AccountAge.AccountUnresolved,
+                    $"@{context.TriggeringUserDisplayName} your account could not be resolved.",
+                    ct
+                )
             );
 
         if (row.AccountCreatedAt is null)
@@ -85,13 +89,23 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
             );
             if (lookup.IsFailure)
                 return Result.Success(
-                    $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment."
+                    await ReplyAsync(
+                        context,
+                        BuiltinResponseSlots.AccountAge.TwitchUnavailable,
+                        $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment.",
+                        ct
+                    )
                 );
 
             TwitchUser? twitchUser = lookup.Value.FirstOrDefault();
             if (twitchUser is null)
                 return Result.Success(
-                    $"@{context.TriggeringUserDisplayName} could not find your account on Twitch."
+                    await ReplyAsync(
+                        context,
+                        BuiltinResponseSlots.AccountAge.NotFound,
+                        $"@{context.TriggeringUserDisplayName} could not find your account on Twitch.",
+                        ct
+                    )
                 );
 
             UserProfileHydrationService.ApplyProfile(row, twitchUser);
@@ -100,29 +114,53 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
 
         if (row.AccountCreatedAt is null)
             return Result.Success(
-                $"@{context.TriggeringUserDisplayName} your account age could not be determined."
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.AccountAge.Undetermined,
+                    $"@{context.TriggeringUserDisplayName} your account age could not be determined.",
+                    ct
+                )
             );
 
         string age = FormatAge(_clock.GetUtcNow().UtcDateTime - row.AccountCreatedAt.Value);
-        string reply = await _composer.ComposeAsync(
+        string reply = await ReplyAsync(
+            context,
+            BuiltinResponseSlots.AccountAge.Age,
+            $"@{context.TriggeringUserDisplayName} your Twitch account is {age} old.",
+            ct,
+            ("age", age)
+        );
+        return Result.Success(reply);
+    }
+
+    /// <summary>Composes one reply slot; {user} is always the caller, extra adds the rest.</summary>
+    private Task<string> ReplyAsync(
+        BuiltinCommandContext context,
+        string slot,
+        string neutralFallback,
+        CancellationToken ct,
+        params (string Name, string Value)[] extra
+    )
+    {
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = context.TriggeringUserDisplayName,
+        };
+        foreach ((string name, string value) in extra)
+            variables[name] = value;
+
+        return _composer.ComposeAsync(
             new()
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
                 BuiltinKey = BuiltinResponseSlots.AccountAge.Key,
-                Slot = BuiltinResponseSlots.AccountAge.Age,
-                OverrideTemplate = context.CustomResponseTemplate,
-                NeutralFallback =
-                    $"@{context.TriggeringUserDisplayName} your Twitch account is {age} old.",
-                Variables = new Dictionary<string, string>
-                {
-                    ["user"] = context.TriggeringUserDisplayName,
-                    ["age"] = age,
-                },
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+                Variables = variables,
             },
             ct
         );
-        return Result.Success(reply);
     }
 
     private static string FormatAge(TimeSpan span)

@@ -83,78 +83,6 @@ public sealed class BuiltinCommandServiceTests
         return (new BuiltinCommandService(catalog, db, bus, registry), db, registry);
     }
 
-    [Fact]
-    public async Task SetResponseOverride_persists_and_round_trips_through_ListAsync()
-    {
-        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
-
-        Result setResult = await sut.SetResponseOverrideAsync(
-            Channel.ToString(),
-            OrdinaryKey,
-            "go touch grass, {{user.name}}"
-        );
-        setResult.IsSuccess.Should().BeTrue();
-
-        // Persisted state: exactly one row, carrying the exact template inside OverridesJson.
-        ChannelBuiltinCommand row = await db.ChannelBuiltinCommands.SingleAsync(c =>
-            c.BroadcasterId == Channel && c.BuiltinKey == OrdinaryKey
-        );
-        row.OverridesJson.Should().NotBeNullOrWhiteSpace();
-        row.OverridesJson.Should().Contain("go touch grass, {{user.name}}");
-        row.IsEnabled.Should()
-            .BeTrue("a fresh override row must not silently disable the built-in");
-
-        // Retrieval: ListAsync must surface the same override text on the DTO.
-        IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
-        BuiltinCommandDto dto = listed.Single(d => d.BuiltinKey == OrdinaryKey);
-        dto.ResponseOverride.Should().Be("go touch grass, {{user.name}}");
-    }
-
-    [Fact]
-    public async Task SetResponseOverride_with_blank_template_clears_a_stored_override()
-    {
-        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
-
-        (await sut.SetResponseOverrideAsync(Channel.ToString(), OrdinaryKey, "custom text"))
-            .IsSuccess.Should()
-            .BeTrue();
-        (await sut.SetResponseOverrideAsync(Channel.ToString(), OrdinaryKey, "   "))
-            .IsSuccess.Should()
-            .BeTrue();
-
-        ChannelBuiltinCommand row = await db.ChannelBuiltinCommands.SingleAsync(c =>
-            c.BroadcasterId == Channel && c.BuiltinKey == OrdinaryKey
-        );
-        row.OverridesJson.Should().BeNull();
-
-        IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
-        listed.Single(d => d.BuiltinKey == OrdinaryKey).ResponseOverride.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task SetResponseOverride_on_a_reserved_builtin_fails_and_persists_nothing()
-    {
-        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
-
-        Result result = await sut.SetResponseOverrideAsync(Channel.ToString(), ReservedKey, "nope");
-
-        result.IsFailure.Should().BeTrue();
-        (await db.ChannelBuiltinCommands.AnyAsync(c => c.BuiltinKey == ReservedKey))
-            .Should()
-            .BeFalse();
-    }
-
-    [Fact]
-    public async Task SetResponseOverride_on_an_unknown_key_fails_with_NOT_FOUND()
-    {
-        (BuiltinCommandService sut, _, _) = Build();
-
-        Result result = await sut.SetResponseOverrideAsync(Channel.ToString(), "unknown", "x");
-
-        result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("NOT_FOUND");
-    }
-
     // ─── SetSpeakWithTtsAsync (S-OBS-12) ─────────────────────────────────────────
 
     [Fact]
@@ -201,35 +129,35 @@ public sealed class BuiltinCommandServiceTests
     }
 
     [Fact]
-    public async Task SetSpeakWithTts_coexists_with_an_existing_response_override_on_the_same_row()
+    public async Task SetSpeakWithTts_keeps_the_channel_reply_texts_on_the_same_row()
     {
         (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+        db.ChannelBuiltinCommands.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                BuiltinKey = OrdinaryKey,
+                IsEnabled = true,
+                OverridesJson = """{"responses":{"lurking":"grass, {user}"}}""",
+            }
+        );
+        await db.SaveChangesAsync();
 
-        (
-            await sut.SetResponseOverrideAsync(
-                Channel.ToString(),
-                OrdinaryKey,
-                "grass, {{user.name}}"
-            )
-        )
-            .IsSuccess.Should()
-            .BeTrue();
         (await sut.SetSpeakWithTtsAsync(Channel.ToString(), OrdinaryKey, true))
             .IsSuccess.Should()
             .BeTrue();
 
-        // Setting the TTS flag must NOT wipe out the previously stored response override — the read-merge-write
-        // fix this slice makes to the OverridesJson blob.
+        // Setting the TTS flag must NOT wipe out the stored reply text — read-merge-write on the blob.
         ChannelBuiltinCommand row = await db.ChannelBuiltinCommands.SingleAsync(c =>
             c.BroadcasterId == Channel && c.BuiltinKey == OrdinaryKey
         );
-        row.OverridesJson.Should().Contain("grass, {{user.name}}");
-        row.OverridesJson.Should().Contain("speakWithTts");
+        row.OverridesJson.Should()
+            .Be("""{"responses":{"lurking":"grass, {user}"},"speakWithTts":true}""");
 
         IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
         BuiltinCommandDto dto = listed.Single(d => d.BuiltinKey == OrdinaryKey);
-        dto.ResponseOverride.Should().Be("grass, {{user.name}}");
         dto.SpeakWithTts.Should().BeTrue();
+        dto.ReplyGroup.Should().Be("lurk");
     }
 
     [Fact]

@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
@@ -137,7 +138,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             return;
 
         ctx.DisabledBuiltins.Clear();
-        ctx.BuiltinResponseOverrides.Clear();
+        ctx.BuiltinReplyOverrides.Clear();
         ctx.BuiltinTtsEnabled.Clear();
         await LoadBuiltinTogglesAsync(ctx, ct);
 
@@ -596,8 +597,8 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        // One pass over the channel's builtin rows: disabled keys → DisabledBuiltins; any response-template
-        // override (OverridesJson) → BuiltinResponseOverrides; a "speakWithTts" override → BuiltinTtsEnabled.
+        // One pass over the channel's builtin rows: disabled keys → DisabledBuiltins; every per-slot reply
+        // override (OverridesJson) → BuiltinReplyOverrides; a "speakWithTts" override → BuiltinTtsEnabled.
         // Anonymous projection forces `var`.
         var rows = await db
             .ChannelBuiltinCommands.Where(c => c.BroadcasterId == ctx.BroadcasterId)
@@ -622,17 +623,25 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 disabledCount++;
             }
 
-            if (BuiltinOverridesJson.TryGetResponseTemplate(row.OverridesJson, out string template))
-                ctx.BuiltinResponseOverrides[key] = template;
+            // Replies are keyed by the reply group the built-in speaks with (!unlurk → lurk), per slot.
+            string replyGroup = BuiltinResponseSlots.ReplyGroupFor(key);
+            foreach (
+                KeyValuePair<string, string> reply in BuiltinOverridesJson.EffectiveResponses(
+                    key,
+                    row.OverridesJson
+                )
+            )
+                ctx.BuiltinReplyOverrides[ChannelContext.BuiltinReplyKey(replyGroup, reply.Key)] =
+                    reply.Value;
 
-            if (TryParseSpeakWithTtsOverride(row.OverridesJson))
+            if (BuiltinOverridesJson.SpeakWithTts(row.OverridesJson))
                 ctx.BuiltinTtsEnabled[key] = 0;
         }
 
         _logger.LogDebug(
-            "Loaded {DisabledCount} disabled builtin(s), {OverrideCount} response override(s) and {TtsCount} speak-with-tts override(s) for channel {BroadcasterId}",
+            "Loaded {DisabledCount} disabled builtin(s), {OverrideCount} reply override(s) and {TtsCount} speak-with-tts override(s) for channel {BroadcasterId}",
             disabledCount,
-            ctx.BuiltinResponseOverrides.Count,
+            ctx.BuiltinReplyOverrides.Count,
             ctx.BuiltinTtsEnabled.Count,
             ctx.BroadcasterId
         );
@@ -661,31 +670,6 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             ? "!"
             : settings.CommandPrefix;
         ctx.Timezone = settings?.Timezone;
-    }
-
-    /// <summary>
-    /// Extracts a built-in's "speak with TTS" override from its <c>OverridesJson</c> — schema
-    /// <c>{ "speakWithTts": true }</c> alongside <see cref="BuiltinOverridesJson.TryGetResponseTemplate"/>'s
-    /// <c>responseTemplate</c> field in the same object. Returns false for null/blank/malformed JSON, a
-    /// missing property, or an explicit <c>false</c> — the default is always off.
-    /// </summary>
-    private static bool TryParseSpeakWithTtsOverride(string? overridesJson)
-    {
-        if (string.IsNullOrWhiteSpace(overridesJson))
-            return false;
-
-        try
-        {
-            using JsonDocument doc = JsonDocument.Parse(overridesJson);
-            return doc.RootElement.ValueKind == JsonValueKind.Object
-                && doc.RootElement.TryGetProperty("speakWithTts", out JsonElement value)
-                && value.ValueKind == JsonValueKind.True;
-        }
-        catch (JsonException)
-        {
-            // Malformed override JSON — ignore; the built-in stays chat-only.
-            return false;
-        }
     }
 
     private void RunEviction(object? state)

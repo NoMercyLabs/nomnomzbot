@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 
@@ -45,8 +46,8 @@ public sealed class PlaylistBuiltin(IMusicService music, IBuiltinResponseCompose
                 {
                     BroadcasterId = context.BroadcasterId,
                     Personality = context.Personality,
-                    BuiltinKey = BuiltinKey,
-                    Slot = "empty",
+                    BuiltinKey = BuiltinResponseSlots.Playlist.Key,
+                    Slot = BuiltinResponseSlots.Playlist.Empty,
                     NeutralFallback = "Nothing is playing and the queue is empty.",
                 },
                 ct
@@ -67,9 +68,8 @@ public sealed class PlaylistBuiltin(IMusicService music, IBuiltinResponseCompose
             {
                 BroadcasterId = context.BroadcasterId,
                 Personality = context.Personality,
-                BuiltinKey = BuiltinKey,
-                Slot = "summary",
-                OverrideTemplate = context.CustomResponseTemplate,
+                BuiltinKey = BuiltinResponseSlots.Playlist.Key,
+                Slot = BuiltinResponseSlots.Playlist.Summary,
                 NeutralFallback =
                     "Now playing: {playlist.nowplaying} — up next: {playlist.upcoming} ({playlist.count} queued)",
                 Variables = new Dictionary<string, string>

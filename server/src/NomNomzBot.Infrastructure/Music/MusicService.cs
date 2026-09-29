@@ -520,7 +520,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 if (roleLevel < floor.ToLevelValue())
                     return Result.Failure<MusicTrack>(
                         $"Song requests need at least {config.MinTrustLevel} right now.",
-                        "MIN_TRUST_LEVEL"
+                        "MIN_TRUST_LEVEL",
+                        errorData: new MusicRequestRefusal(TrustLevel: config.MinTrustLevel)
                     );
             }
         }
@@ -562,7 +563,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Result.Failure<MusicTrack>(
                 enqueued.ErrorMessage!,
                 enqueued.ErrorCode,
-                enqueued.ErrorDetail
+                enqueued.ErrorDetail,
+                enqueued.ErrorData
             );
 
         return Result.Success(
@@ -659,7 +661,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (await _blockedTracks.IsBlockedAsync(tenantId, trackUri, cancellationToken))
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" is blocked in this channel.",
-                "TRACK_BLOCKED"
+                "TRACK_BLOCKED",
+                errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
             );
 
         FairQueue<SongRequestEntry> queue = _queueStore.GetOrCreate(broadcasterId);
@@ -675,7 +678,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             if (snapshot.Count >= config.MaxQueueSize)
                 return Result.Failure(
                     $"The queue is full ({config.MaxQueueSize} max) — try again once it's shorter.",
-                    "QUEUE_FULL"
+                    "QUEUE_FULL",
+                    errorData: new MusicRequestRefusal(Limit: config.MaxQueueSize)
                 );
 
             string ownerKey = requestedBy ?? "anonymous";
@@ -685,7 +689,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             if (ownedCount >= config.MaxRequestsPerUser)
                 return Result.Failure(
                     $"You already have {config.MaxRequestsPerUser} request(s) queued — wait for one to play before adding more.",
-                    "PER_USER_LIMIT"
+                    "PER_USER_LIMIT",
+                    errorData: new MusicRequestRefusal(Limit: config.MaxRequestsPerUser)
                 );
         }
 
@@ -740,7 +745,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" is already in the queue (requested by {alreadyQueued.Item?.RequestedBy ?? "someone"}).",
                 "DUPLICATE_TRACK",
-                alreadyQueued.Item?.RequestedBy ?? "someone"
+                alreadyQueued.Item?.RequestedBy ?? "someone",
+                new MusicRequestRefusal(
+                    trackInfo.TrackName,
+                    trackInfo.Artist,
+                    alreadyQueued.Item?.RequestedBy
+                )
             );
         }
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
@@ -1242,31 +1252,36 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private static Result NoActiveDeviceOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — nothing is playing on any device right now. Start playback and try again.",
-            "NO_ACTIVE_DEVICE"
+            "NO_ACTIVE_DEVICE",
+            errorData: new MusicRequestRefusal(trackName)
         );
 
     private static Result AuthFailedOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — the music connection needs to be reconnected.",
-            "MUSIC_AUTH_FAILED"
+            "MUSIC_AUTH_FAILED",
+            errorData: new MusicRequestRefusal(trackName)
         );
 
     private static Result ForbiddenOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — the music connection doesn't have permission for that.",
-            "MUSIC_FORBIDDEN"
+            "MUSIC_FORBIDDEN",
+            errorData: new MusicRequestRefusal(trackName)
         );
 
     private static Result PremiumRequiredOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — a Premium account is required for that.",
-            "PREMIUM_REQUIRED"
+            "PREMIUM_REQUIRED",
+            errorData: new MusicRequestRefusal(trackName)
         );
 
     private static Result ProviderErrorOnQueue(string trackName) =>
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — the music service had a problem. Try again in a moment.",
-            "PROVIDER_ERROR"
+            "PROVIDER_ERROR",
+            errorData: new MusicRequestRefusal(trackName)
         );
 
     public async Task<bool> RemoveFromQueueAsync(
@@ -1992,7 +2007,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (pending.Item is not null)
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" is already in the queue (requested by {pending.Item.RequestedBy}).",
-                "DUPLICATE_TRACK"
+                "DUPLICATE_TRACK",
+                pending.Item.RequestedBy,
+                new MusicRequestRefusal(
+                    trackInfo.TrackName,
+                    trackInfo.Artist,
+                    pending.Item.RequestedBy
+                )
             );
 
         // The probe is best-effort by contract: IMusicProvider.GetCurrentTrackAsync returns null for
@@ -2010,7 +2031,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         )
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" is playing right now.",
-                "DUPLICATE_TRACK"
+                "DUPLICATE_TRACK",
+                errorData: new MusicRequestRefusal(
+                    trackInfo.TrackName,
+                    trackInfo.Artist,
+                    IsPlayingNow: true
+                )
             );
 
         // The provider's OWN queue, not our fair queue's view of it — catches a track the streamer queued
@@ -2030,7 +2056,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         )
             return Result.Failure(
                 $"\"{trackInfo.TrackName}\" is already queued up.",
-                "DUPLICATE_TRACK"
+                "DUPLICATE_TRACK",
+                errorData: new MusicRequestRefusal(trackInfo.TrackName, trackInfo.Artist)
             );
 
         return null;

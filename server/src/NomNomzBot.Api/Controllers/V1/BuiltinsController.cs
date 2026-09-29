@@ -13,12 +13,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
-/// <summary>Manages the channel's built-in commands: listing and per-command enable/configure.</summary>
+/// <summary>Manages the channel's built-in commands: listing, per-command enable/configure, and every reply's wording.</summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId}/builtins")]
 [Authorize]
@@ -26,10 +27,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 public sealed class BuiltinsController : BaseController
 {
     private readonly IBuiltinCommandService _builtins;
+    private readonly IBuiltinReplyService _replies;
 
-    public BuiltinsController(IBuiltinCommandService builtins)
+    public BuiltinsController(IBuiltinCommandService builtins, IBuiltinReplyService replies)
     {
         _builtins = builtins;
+        _replies = replies;
     }
 
     /// <summary>
@@ -65,28 +68,64 @@ public sealed class BuiltinsController : BaseController
     }
 
     /// <summary>
-    /// Sets (or clears, when <c>template</c> is blank/omitted) a built-in's per-channel response-template
-    /// override — the S-OWN09 write path for the precedence ladder <see cref="Application.Commands.Builtin.IBuiltinResponseComposer"/>
-    /// already reads: this override wins over the personality tone template, which wins over the built-in's
-    /// neutral fallback.
+    /// The channel's built-in reply catalogue (commands-pipelines.md §11): every reply slot of every built-in,
+    /// what it says for this channel right now, which layer that text comes from (channel / platform / tone),
+    /// the default it falls back to, and the variables it can use.
+    /// </summary>
+    [RequireAction("commands:read")]
+    [HttpGet("replies")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<BuiltinReplyGroupDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListReplies(string channelId, CancellationToken ct)
+    {
+        Result<IReadOnlyList<BuiltinReplyGroupDto>> result = await _replies.ListAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Sets the channel's own text for exactly one reply slot. A blank template resets the slot. An unknown
+    /// variable, a locked data-rights reply, or text over 500 characters is rejected (400).
     /// </summary>
     [RequireAction("commands:write")]
-    [HttpPut("{builtinKey}/response")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [HttpPut("{builtinKey}/replies/{slot}")]
+    [ProducesResponseType<StatusResponseDto<BuiltinReplyDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> SetResponseOverride(
+    public async Task<IActionResult> SetReply(
         string channelId,
         string builtinKey,
-        [FromBody] SetBuiltinResponseOverrideRequest body,
+        string slot,
+        [FromBody] SetBuiltinReplyRequest body,
         CancellationToken ct
     )
     {
-        Result result = await _builtins.SetResponseOverrideAsync(
+        Result<BuiltinReplyDto> result = await _replies.SetAsync(
             channelId,
             builtinKey,
+            slot,
             body.Template,
             ct
         );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Resets one reply slot to its default; returns the slot as it now resolves.</summary>
+    [RequireAction("commands:write")]
+    [HttpDelete("{builtinKey}/replies/{slot}")]
+    [ProducesResponseType<StatusResponseDto<BuiltinReplyDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetReply(
+        string channelId,
+        string builtinKey,
+        string slot,
+        CancellationToken ct
+    )
+    {
+        Result<BuiltinReplyDto> result = await _replies.ResetAsync(channelId, builtinKey, slot, ct);
         return ResultResponse(result);
     }
 
@@ -118,6 +157,6 @@ public sealed class BuiltinsController : BaseController
 
 public sealed record SetBuiltinEnabledRequest(bool Enabled);
 
-public sealed record SetBuiltinResponseOverrideRequest(string? Template);
+public sealed record SetBuiltinReplyRequest(string? Template);
 
 public sealed record SetBuiltinSpeakWithTtsRequest(bool Enabled);

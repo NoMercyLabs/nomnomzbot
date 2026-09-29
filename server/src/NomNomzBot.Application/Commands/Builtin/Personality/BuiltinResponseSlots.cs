@@ -11,272 +11,62 @@
 namespace NomNomzBot.Application.Commands.Builtin.Personality;
 
 /// <summary>
-/// The response "slots" a built-in can render — a slot is the response CASE (e.g. "live" vs "offline" for
-/// uptime), each with its own tone variation-set in <see cref="ToneTemplateCatalog"/>. Grouped by built-in
-/// key so the catalog authoring and the built-in code reference one shared set of tokens (no drift). Only
-/// slots that carry PERSONALITY appear here — pure usage/error strings stay neutral in the built-in itself,
-/// UNLESS the slot is one of the system-owned usage/error slots below (S069h) — those are the bot's OWN
-/// usage/error copy for a built-in it owns end to end, so tone applies there too. This is distinct from a
-/// streamer's own custom command/pipeline template text, which is never tone-styled (owner directive,
-/// S069h): tone only touches copy the SYSTEM authors, never copy a streamer writes themselves.
+/// The reply "slots" a built-in can send — a slot is one reply CASE (e.g. "live" vs "offline" for uptime), each
+/// with its own tone variation-set and declared variables in <see cref="ToneTemplateCatalog"/>. Every sentence a
+/// built-in can send is a slot (success, usage, refusal and service-error lines alike), so a channel can re-word
+/// any of them (commands-pipelines.md §11). Grouped by reply-group key so the catalog authoring and the built-in
+/// code reference one shared set of tokens (no drift). The nested classes live in one partial file per domain.
+/// Tone only touches copy the SYSTEM authors — a streamer's own override is never tone-styled.
 /// </summary>
-public static class BuiltinResponseSlots
+public static partial class BuiltinResponseSlots
 {
     /// <summary>
-    /// The slots that receive a channel's own response override (<c>ChannelBuiltinCommand.OverridesJson</c>):
-    /// exactly the slots whose built-in passes <c>OverrideTemplate</c> to the composer. Every other slot always
-    /// renders the platform/tone text, so a platform reply change reaches every channel there.
+    /// Built-ins whose replies are authored under ANOTHER built-in's reply group — the trigger word differs but
+    /// the replies are the same (<c>!unlurk</c> speaks with the <c>lurk</c> lines, <c>!profile</c> with the
+    /// <c>stats</c> line). Every other built-in's reply group is its own key.
     /// </summary>
-    private static readonly HashSet<(string BuiltinKey, string Slot)> ChannelOverridable =
-    [
-        (Uptime.Key, Uptime.Live),
-        (Song.Key, Song.Playing),
-        (Queue.Key, Queue.List),
-        (SongRequest.Key, SongRequest.Added),
-        (Commands.Key, Commands.List),
-        (Lurk.Key, Lurk.Lurking),
-        (Lurk.Key, Lurk.NotLurking),
-        (AccountAge.Key, AccountAge.Age),
-    ];
-
-    /// <summary>True when a channel's own response override replaces this slot's text.</summary>
-    public static bool TakesChannelOverride(string builtinKey, string slot) =>
-        ChannelOverridable.Contains((builtinKey, slot));
-
-    /// <summary><c>!uptime</c> — how long the stream has been live.</summary>
-    public static class Uptime
+    private static readonly IReadOnlyDictionary<string, string> SharedReplyGroups = new Dictionary<
+        string,
+        string
+    >(StringComparer.OrdinalIgnoreCase)
     {
-        public const string Key = "uptime";
-
-        /// <summary>Stream is live; <c>{uptime}</c> carries the real elapsed time.</summary>
-        public const string Live = "live";
-
-        /// <summary>Stream is offline.</summary>
-        public const string Offline = "offline";
-    }
-
-    /// <summary><c>!song</c> — the currently playing track.</summary>
-    public static class Song
-    {
-        public const string Key = "song";
-
-        /// <summary>A track is playing; <c>{song.name}</c>/<c>{song.artist}</c>/<c>{song.status}</c> are set.</summary>
-        public const string Playing = "playing";
-
-        /// <summary>Nothing is playing.</summary>
-        public const string Nothing = "nothing";
-    }
-
-    /// <summary><c>!queue</c> — the upcoming song queue.</summary>
-    public static class Queue
-    {
-        public const string Key = "queue";
-
-        /// <summary>Queue has tracks; <c>{queue.list}</c>/<c>{queue.count}</c>/<c>{queue.next}</c>/<c>{queue.more}</c> are set.</summary>
-        public const string List = "list";
-
-        /// <summary>Queue is empty.</summary>
-        public const string Empty = "empty";
-    }
-
-    /// <summary><c>!sr</c> — request a song.</summary>
-    public static class SongRequest
-    {
-        public const string Key = "sr";
-
-        /// <summary>Track added; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{user}</c> are set.</summary>
-        public const string Added = "added";
-
-        /// <summary>No track matched the query; <c>{query}</c>/<c>{user}</c> are set.</summary>
-        public const string NotFound = "notfound";
-
-        /// <summary>The track is ALREADY pending in the queue; <c>{track.name}</c>/<c>{track.artist}</c>/
-        /// <c>{user}</c>/<c>{requested.by}</c> (whoever queued it first) are set.</summary>
-        public const string Duplicate = "duplicate";
-
-        /// <summary>The track is playing RIGHT NOW; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{user}</c>
-        /// are set.</summary>
-        public const string AlreadyPlaying = "alreadyplaying";
-    }
-
-    /// <summary><c>!skip</c> — skip the current track (mods+).</summary>
-    public static class Skip
-    {
-        public const string Key = "skip";
-
-        /// <summary>A track was skipped.</summary>
-        public const string Skipped = "skipped";
-    }
+        ["unlurk"] = Lurk.Key,
+        ["profile"] = Stats.Key,
+    };
 
     /// <summary>
-    /// <c>!forgetme</c> — self-service GDPR erasure (gdpr-crypto.md §9). Only the friendly completion
-    /// copy is customizable; the informed-re-entry clause is appended by the built-in itself and is
-    /// NOT part of any template.
+    /// The slots the pre-§11 single <c>responseTemplate</c> override fed, per reply group. A legacy override
+    /// stored on a <c>ChannelBuiltinCommand</c> row still applies to exactly these slots (unless the slot has its
+    /// own entry) until the next write rewrites it into the per-slot shape — so an existing override survives.
     /// </summary>
-    public static class Forgetme
-    {
-        public const string Key = "forgetme";
-
-        /// <summary>Erasure completed — the streamer-stylable "clean slate" sentence (part 1 of the reply).</summary>
-        public const string Done = "done";
-    }
-
-    /// <summary><c>!stats</c> / <c>!profile</c> — a viewer's headline stats line.</summary>
-    public static class Stats
-    {
-        public const string Key = "stats";
-
-        /// <summary>The composed profile line; <c>{stats.*}</c> variables are set.</summary>
-        public const string Profile = "profile";
-    }
-
-    /// <summary><c>!commands</c>/<c>!help</c> (generic fallback) — the enabled-trigger listing.</summary>
-    public static class Commands
-    {
-        public const string Key = "commands";
-
-        /// <summary>At least one trigger is enabled; <c>{user}</c>/<c>{commands}</c> are set.</summary>
-        public const string List = "list";
-
-        /// <summary>No triggers are enabled in the channel; <c>{user}</c> is set.</summary>
-        public const string Empty = "empty";
-    }
-
-    /// <summary><c>!help &lt;name&gt;</c> — an authored command's own description.</summary>
-    public static class Help
-    {
-        public const string Key = "help";
-
-        /// <summary>A described command was found; <c>{user}</c>/<c>{command}</c>/<c>{description}</c> are set.</summary>
-        public const string Described = "described";
-    }
-
-    /// <summary><c>!lurk</c>/<c>!unlurk</c> — the caller's lurking-flag flip.</summary>
-    public static class Lurk
-    {
-        public const string Key = "lurk";
-
-        /// <summary>The caller is now marked lurking; <c>{user}</c> is set.</summary>
-        public const string Lurking = "lurking";
-
-        /// <summary>The caller's lurking flag was cleared; <c>{user}</c> is set.</summary>
-        public const string NotLurking = "notlurking";
-    }
-
-    /// <summary><c>!accountage</c> — how long the caller's Twitch account has existed.</summary>
-    public static class AccountAge
-    {
-        public const string Key = "accountage";
-
-        /// <summary>The age was resolved; <c>{user}</c>/<c>{age}</c> are set.</summary>
-        public const string Age = "age";
-    }
+    private static readonly IReadOnlyDictionary<string, string[]> LegacyOverrideSlots =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            [Uptime.Key] = [Uptime.Live],
+            [Song.Key] = [Song.Playing],
+            [Queue.Key] = [Queue.List],
+            [SongRequest.Key] = [SongRequest.Added],
+            [Commands.Key] = [Commands.List],
+            [Lurk.Key] = [Lurk.Lurking, Lurk.NotLurking],
+            [AccountAge.Key] = [AccountAge.Age],
+            [Discord.Key] = [Discord.Invite],
+            [Leaderboard.Key] = [Leaderboard.Top],
+            [Playlist.Key] = [Playlist.Summary],
+            [Forgetme.Key] = [Forgetme.Done],
+            [Stats.Key] = [Stats.Profile],
+        };
 
     /// <summary>
-    /// <c>!whisper &lt;user&gt; &lt;message&gt;</c> — usage/error tone slots (S069h). Success has no slot of
-    /// its own (the reply just names who got whispered — plain confirmation, not worth tone-styling).
+    /// The reply group a built-in speaks with — its own key unless it shares another built-in's replies. Leading
+    /// "!" and case are normalized away, matching how the chat handler parses a trigger.
     /// </summary>
-    public static class Whisper
+    public static string ReplyGroupFor(string builtinKey)
     {
-        public const string Key = "whisper";
-
-        /// <summary>Too few arguments were given — no variables.</summary>
-        public const string Usage = "usage";
-
-        /// <summary>No Twitch user matched the given login; <c>{user}</c> is set.</summary>
-        public const string NotFound = "notfound";
-
-        /// <summary>The Helix lookup call itself failed (Twitch did not answer) — no variables.</summary>
-        public const string TwitchUnavailable = "twitchunavailable";
-
-        /// <summary>No direct-message sender is bound for the target platform — no variables.</summary>
-        public const string NotAvailable = "notavailable";
+        string normalized = builtinKey.TrimStart('!').ToLowerInvariant();
+        return SharedReplyGroups.GetValueOrDefault(normalized, normalized);
     }
 
-    /// <summary><c>!bansong</c> — usage/error tone slots (S069h).</summary>
-    public static class BanSong
-    {
-        public const string Key = "bansong";
-
-        /// <summary>Nothing is currently playing, so there is no track to ban — no variables.</summary>
-        public const string Nothing = "nothing";
-
-        /// <summary>The block write itself failed with no service-supplied reason — no variables.</summary>
-        public const string CouldNotBan = "couldnotban";
-    }
-
-    /// <summary><c>!discord</c> — legacy parity (S068 command diff): points viewers at the channel's linked
-    /// Discord server via a live-created invite.</summary>
-    public static class Discord
-    {
-        public const string Key = "discord";
-
-        /// <summary>No active Discord guild link for this channel — no variables.</summary>
-        public const string NotConnected = "notconnected";
-
-        /// <summary>The link exists but no invitable channel/invite could be created — no variables.</summary>
-        public const string Unavailable = "unavailable";
-    }
-
-    /// <summary><c>!update</c> — usage/error tone slots (S069h).</summary>
-    public static class UpdateUserInfo
-    {
-        public const string Key = "update";
-
-        /// <summary>No Twitch user matched the given login; <c>{user}</c> is set.</summary>
-        public const string NotFound = "notfound";
-
-        /// <summary>The Helix lookup call itself failed (Twitch did not answer); <c>{user}</c> is set.</summary>
-        public const string TwitchUnavailable = "twitchunavailable";
-
-        /// <summary>The refresh write itself failed; <c>{user}</c> is set.</summary>
-        public const string UpdateFailed = "updatefailed";
-
-        /// <summary>The requested login could not be resolved (empty caller login); <c>{user}</c> is set.</summary>
-        public const string LoginUnresolved = "loginunresolved";
-
-        /// <summary>A sub-moderator caller tried to update someone else; <c>{user}</c> is set.</summary>
-        public const string OwnInfoOnly = "owninfoonly";
-    }
-
-    /// <summary><c>!volume</c> — usage/error tone slots (S069h).</summary>
-    public static class Volume
-    {
-        public const string Key = "volume";
-
-        /// <summary>An unparsable argument was given — no variables.</summary>
-        public const string Usage = "usage";
-
-        /// <summary>The current volume genuinely cannot be read (nothing playing) — no variables.</summary>
-        public const string CannotRead = "cannotread";
-    }
-
-    /// <summary>
-    /// <c>!coinflip</c>/<c>!dice</c>/<c>!slots</c> — usage/error tone slots (S069h). Registered per-game
-    /// under each game's own <c>BuiltinKey</c> (the chat trigger word) since the three share this base but
-    /// are distinct built-ins.
-    /// </summary>
-    public static class Game
-    {
-        /// <summary>The caller's own account could not be resolved/created — no variables.</summary>
-        public const string AccountUnresolved = "accountunresolved";
-    }
-
-    /// <summary>
-    /// The bot's own status lines — not a chat command, but spoken in the channel's personality like one.
-    /// </summary>
-    public static class BotStatus
-    {
-        public const string Key = "botstatus";
-
-        /// <summary>The bot is stopping with no successor taking over (restart / crash-restart / manual stop).</summary>
-        public const string GoingOffline = "goingoffline";
-    }
-
-    /// <summary><c>!sr</c> — additional usage/error tone slot (S069i), beyond the personality slots above.</summary>
-    public static class SongRequestErrors
-    {
-        /// <summary>Song requests are disabled and the caller is a plain viewer — no variables.</summary>
-        public const string Disabled = "disabled";
-    }
+    /// <summary>The slots a legacy <c>responseTemplate</c> on a row for <paramref name="builtinKey"/> applies to.</summary>
+    public static IReadOnlyList<string> LegacySlotsFor(string builtinKey) =>
+        LegacyOverrideSlots.GetValueOrDefault(ReplyGroupFor(builtinKey)) ?? [];
 }

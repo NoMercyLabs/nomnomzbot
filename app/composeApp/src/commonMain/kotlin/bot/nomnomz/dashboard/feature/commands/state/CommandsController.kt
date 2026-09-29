@@ -326,16 +326,6 @@ class CommandsController(
     }
 
     /**
-     * Set (non-blank [template]) or clear (blank) a built-in command's per-channel response-template
-     * override (S-OWN09) — generalizes the S-OWN17 "editable built-in response" pattern to every built-in.
-     * Reloads on success.
-     */
-    suspend fun setBuiltinResponseOverride(builtinKey: String, template: String) {
-        val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(builtinsApi.setResponseOverride(channel, builtinKey, template.takeIf { it.isNotBlank() }))
-    }
-
-    /**
      * Enable or disable a built-in command's "speak with TTS" option (S-OBS-12, e.g. "quote") — off by
      * default. Reloads on success.
      */

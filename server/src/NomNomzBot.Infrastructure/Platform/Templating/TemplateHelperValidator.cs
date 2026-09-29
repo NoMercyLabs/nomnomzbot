@@ -28,7 +28,14 @@ public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
     [GeneratedRegex(@"\{([^{}]+)\}")]
     private static partial Regex PlaceholderPattern();
 
-    public Result Validate(string? template, TemplateHelperContext context)
+    public Result Validate(string? template, TemplateHelperContext context) =>
+        Validate(template, context, []);
+
+    public Result Validate(
+        string? template,
+        TemplateHelperContext context,
+        IReadOnlyCollection<string> extraKeys
+    )
     {
         if (string.IsNullOrEmpty(template))
             return Result.Success();
@@ -44,7 +51,9 @@ public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
             if (key.Length == 0)
                 continue;
 
-            bool valid = validForContext.Any(entry => entry.Matches(key));
+            bool valid =
+                extraKeys.Contains(key, StringComparer.OrdinalIgnoreCase)
+                || validForContext.Any(entry => entry.Matches(key));
             if (!valid && !unknownKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
                 unknownKeys.Add(key);
         }
@@ -54,7 +63,7 @@ public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
 
         List<string> messages =
         [
-            .. unknownKeys.Select(key => DescribeUnknownKey(key, validForContext)),
+            .. unknownKeys.Select(key => DescribeUnknownKey(key, validForContext, extraKeys)),
         ];
         return Errors.ValidationFailed(
             $"Unknown template helper(s): {string.Join("; ", messages)}."
@@ -63,10 +72,14 @@ public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
 
     private static string DescribeUnknownKey(
         string key,
-        IReadOnlyList<TemplateHelperEntry> validForContext
+        IReadOnlyList<TemplateHelperEntry> validForContext,
+        IReadOnlyCollection<string> extraKeys
     )
     {
-        string? nearest = FindNearestKey(key, validForContext);
+        string? nearest = FindNearestKey(
+            key,
+            [.. extraKeys, .. validForContext.Where(e => e.Prefix is null).Select(e => e.Key)]
+        );
         return nearest is null
             ? $"'{{{key}}}' is not a recognized template helper"
             : $"'{{{key}}}' is not a recognized template helper (did you mean '{{{nearest}}}'?)";
@@ -74,19 +87,19 @@ public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
 
     /// <summary>Cheapest-possible nearest-match: the registered literal key with the smallest Levenshtein
     /// distance, capped so an unrelated key is never suggested as a "did you mean".</summary>
-    private static string? FindNearestKey(string key, IReadOnlyList<TemplateHelperEntry> candidates)
+    private static string? FindNearestKey(string key, IReadOnlyList<string> candidates)
     {
         const int maxDistance = 3;
         string? best = null;
         int bestDistance = int.MaxValue;
 
-        foreach (TemplateHelperEntry entry in candidates.Where(e => e.Prefix is null))
+        foreach (string candidate in candidates)
         {
-            int distance = LevenshteinDistance(key, entry.Key);
+            int distance = LevenshteinDistance(key, candidate);
             if (distance < bestDistance)
             {
                 bestDistance = distance;
-                best = entry.Key;
+                best = candidate;
             }
         }
 

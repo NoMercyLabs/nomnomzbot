@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -94,7 +95,11 @@ public sealed class LeaderboardBuiltinTests
 
         LeaderboardBuiltin sut = new(
             leaderboards,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context());
@@ -116,7 +121,11 @@ public sealed class LeaderboardBuiltinTests
 
         LeaderboardBuiltin sut = new(
             leaderboards,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context());
@@ -132,5 +141,65 @@ public sealed class LeaderboardBuiltinTests
                 Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_channel_override_of_the_top_slot_rewords_the_ranking_reply_only()
+    {
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.Leaderboard.Key,
+            BuiltinResponseSlots.Leaderboard.Top,
+            "Hall of fame ({leaderboard.count}): {leaderboard.list}"
+        );
+        IEconomyLeaderboardService withRanking = LeaderboardWith([
+            new(1, Guid.NewGuid(), Guid.NewGuid(), "TopFan", 900),
+        ]);
+        IEconomyLeaderboardService withoutConfig = Substitute.For<IEconomyLeaderboardService>();
+        withoutConfig
+            .ListConfigsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<LeaderboardConfigDto>>([]));
+
+        Result<string> top = await new LeaderboardBuiltin(
+            withRanking,
+            TestBuiltinComposer.Create(replies)
+        ).ExecuteAsync(Context());
+        Result<string> none = await new LeaderboardBuiltin(
+            withoutConfig,
+            TestBuiltinComposer.Create(replies)
+        ).ExecuteAsync(Context());
+
+        top.Value.Should().Be("Hall of fame (1): #1 TopFan (900)");
+        none.Value.Should().Be("No leaderboard is configured for this channel yet.");
+    }
+
+    [Fact]
+    public async Task A_channel_override_of_the_empty_slot_rewords_the_no_entries_reply()
+    {
+        FakeChannelBuiltinReplies replies = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.Leaderboard.Key,
+            BuiltinResponseSlots.Leaderboard.Empty,
+            "Nobody yet - be the first!"
+        );
+
+        Result<string> result = await new LeaderboardBuiltin(
+            LeaderboardWith([]),
+            TestBuiltinComposer.Create(replies)
+        ).ExecuteAsync(Context());
+
+        result.Value.Should().Be("Nobody yet - be the first!");
+    }
+
+    private static IEconomyLeaderboardService LeaderboardWith(List<LeaderboardEntryDto> entries)
+    {
+        IEconomyLeaderboardService leaderboards = Substitute.For<IEconomyLeaderboardService>();
+        leaderboards
+            .ListConfigsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<LeaderboardConfigDto>>([Config(isPublic: true)]));
+        leaderboards
+            .GetRankingAsync(Broadcaster, ConfigId, 5, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<LeaderboardEntryDto>>(entries));
+        return leaderboards;
     }
 }
