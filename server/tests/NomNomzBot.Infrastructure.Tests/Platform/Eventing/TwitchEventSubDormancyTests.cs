@@ -176,6 +176,71 @@ public sealed class TwitchEventSubDormancyTests
         await incoming.StopAsync(CancellationToken.None);
     }
 
+    [Fact]
+    public async Task A_standby_opens_no_session_and_takes_over_within_seconds_of_the_handover()
+    {
+        ConcurrentDictionary<string, byte> sharedLeases = new();
+        IEventSubTransport liveTransport = Substitute.For<IEventSubTransport>();
+        liveTransport.StartAsync(Arg.Any<CancellationToken>()).Returns(Started());
+        // The chat lease must still be HELD while the outgoing sockets close — otherwise both colours read chat.
+        bool leaseHeldWhileSocketsClosed = false;
+        liveTransport
+            .When(t => t.StopAsync(Arg.Any<CancellationToken>()))
+            .Do(_ =>
+                leaseHeldWhileSocketsClosed = sharedLeases.ContainsKey("eventsub-chat-ingest")
+            );
+        TwitchEventSubHostedService live = Build(true, liveTransport, new(), sharedLeases);
+
+        IEventSubTransport standbyTransport = Substitute.For<IEventSubTransport>();
+        standbyTransport.StartAsync(Arg.Any<CancellationToken>()).Returns(Started());
+        TwitchEventSubHostedService standby = Build(true, standbyTransport, new(), sharedLeases);
+
+        await live.StartAsync(CancellationToken.None);
+        await standby.StartAsync(CancellationToken.None);
+
+        standby.IsActiveInstance.Should().BeFalse();
+        live.IsActiveInstance.Should().BeTrue();
+        (await live.HasWaitingSuccessorAsync(CancellationToken.None)).Should().BeTrue();
+
+        // A standby subscribe must not open a Twitch session (that IS the second chat session).
+        Result<EventSubSubscriptionDto> refused = await standby.SubscribeAsync(
+            Guid.NewGuid(),
+            "channel.chat.message"
+        );
+        refused.IsFailure.Should().BeTrue();
+        await standbyTransport
+            .DidNotReceive()
+            .EnsureSessionAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+
+        await live.StopAsync(CancellationToken.None);
+        live.IsActiveInstance.Should().BeFalse();
+        leaseHeldWhileSocketsClosed.Should().BeTrue();
+
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        await standby.WaitUntilActiveAsync(timeout.Token);
+        standby.IsActiveInstance.Should().BeTrue();
+        await standbyTransport.Received(1).StartAsync(Arg.Any<CancellationToken>());
+
+        await standby.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_lone_instance_has_no_successor_so_its_stop_is_a_real_outage()
+    {
+        IEventSubTransport transport = Substitute.For<IEventSubTransport>();
+        transport.StartAsync(Arg.Any<CancellationToken>()).Returns(Started());
+        TwitchEventSubHostedService service = Build(true, transport, new());
+        await service.StartAsync(CancellationToken.None);
+
+        (await service.HasWaitingSuccessorAsync(CancellationToken.None)).Should().BeFalse();
+        // The probe gave the standby claim straight back: a later successor can still take it.
+        (await service.HasWaitingSuccessorAsync(CancellationToken.None))
+            .Should()
+            .BeFalse();
+
+        await service.StopAsync(CancellationToken.None);
+    }
+
     private static Result<EventSubTransportHandle> Started() =>
         Result.Success(
             new EventSubTransportHandle

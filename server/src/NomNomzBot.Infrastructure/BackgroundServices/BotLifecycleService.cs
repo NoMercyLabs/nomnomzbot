@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
@@ -162,8 +163,15 @@ public sealed class BotLifecycleService : BackgroundService
     {
         _logger.LogInformation("BotLifecycleService starting.");
 
-        // Initial join on startup
-        await SyncChannelsAsync(stoppingToken);
+        // During a blue/green overlap the incoming instance is a standby until the outgoing one hands chat
+        // ingest over. Subscribing before that would open a second chat session, so the first sync waits for
+        // the takeover — and then runs at once instead of up to one 5-minute tick later.
+        IActiveInstanceGate? instanceGate = _serviceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is not null)
+            await instanceGate.WaitUntilActiveAsync(stoppingToken);
+
+        // Initial join on startup (or on takeover). Heals topics the previous instance left behind.
+        await SyncChannelsAsync(stoppingToken, reconcileStale: true);
 
         // Periodic sync every 5 minutes to detect dynamic channel changes
         using PeriodicTimer timer = new(TimeSpan.FromMinutes(5));
@@ -171,7 +179,7 @@ public sealed class BotLifecycleService : BackgroundService
         {
             try
             {
-                await SyncChannelsAsync(stoppingToken);
+                await SyncChannelsAsync(stoppingToken, reconcileStale: false);
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
@@ -180,7 +188,7 @@ public sealed class BotLifecycleService : BackgroundService
         }
     }
 
-    private async Task SyncChannelsAsync(CancellationToken ct)
+    private async Task SyncChannelsAsync(CancellationToken ct, bool reconcileStale)
     {
         using IServiceScope scope = _serviceProvider.CreateScope();
         IApplicationDbContext db =
@@ -241,7 +249,17 @@ public sealed class BotLifecycleService : BackgroundService
             try
             {
                 // Declaratively reconcile this channel's EventSub subscription set to the desired topics.
-                await eventSub.EnsureSubscribedAsync(channel.Id, ChannelEventTypes, ct);
+                Result subscribed = await eventSub.EnsureSubscribedAsync(
+                    channel.Id,
+                    ChannelEventTypes,
+                    ct
+                );
+
+                // After a restart or handover the previous process's subscriptions linger at Twitch on its
+                // dead session (~1 min), so our creates 409 and park as "pending" until the next 5-minute tick —
+                // minutes of a deaf bot. Reconcile deletes those stale-session topics and re-creates ours now.
+                if (reconcileStale && subscribed.IsFailure)
+                    await eventSub.ReconcileAsync(channel.Id, ct);
 
                 if (!toSubscribe.Contains(channel.Id))
                     continue;

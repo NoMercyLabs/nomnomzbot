@@ -28,5 +28,10 @@
 		health_interval 5s
 		health_timeout 3s
 		health_status 200
+		# Between two active health polls (up to 5s) Caddy can still pick a colour that just got SIGTERM and
+		# already stopped accepting connections. Without a retry that request is a 502 on the dashboard.
+		# lb_try_duration makes Caddy retry a failed dial on the other upstream instead.
+		lb_try_duration 10s
+		lb_try_interval 250ms
 	}
 }

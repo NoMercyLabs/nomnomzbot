@@ -1679,6 +1679,10 @@ public static class DependencyInjection
         services.AddSingleton<IEventSource>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
+        // The chat-ingest lease doubles as the blue/green "which instance is active" signal.
+        services.AddSingleton<IActiveInstanceGate>(sp =>
+            sp.GetRequiredService<TwitchEventSubHostedService>()
+        );
         services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
 
         // ── Event store (event-store §7) ─────────────────────────────────────

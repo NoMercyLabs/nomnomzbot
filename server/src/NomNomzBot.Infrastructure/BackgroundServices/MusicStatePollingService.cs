@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
@@ -186,6 +187,14 @@ public sealed class MusicStatePollingService : BackgroundService
     internal async Task PollAllChannelsOnceAsync(CancellationToken cancellationToken)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
+
+        // Blue/green overlap: only the ACTIVE instance hands the next request to the player. A standby (or an
+        // instance that has already handed over while it drains) skipping the tick is what stops the same
+        // song request being handed over twice by two instances.
+        IActiveInstanceGate? instanceGate = scope.ServiceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is { IsActiveInstance: false })
+            return;
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();

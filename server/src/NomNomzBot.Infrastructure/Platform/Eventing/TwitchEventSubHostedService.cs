@@ -43,6 +43,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 public sealed class TwitchEventSubHostedService
     : ITwitchEventSubService,
         IEventSubNotificationSink,
+        IActiveInstanceGate,
         IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -89,6 +90,24 @@ public sealed class TwitchEventSubHostedService
     // How often the dormancy waiter re-checks the readiness gate while waiting for onboarding to complete.
     private static readonly TimeSpan ReadinessPollInterval = TimeSpan.FromSeconds(20);
 
+    // How often a STANDBY re-tries the chat-ingest lease during a deploy overlap. The lease probe is one cheap
+    // pg_try_advisory_lock, and every second spent waiting here is a second chat is not read after the
+    // outgoing colour lets go — so this is short, unlike the onboarding poll above.
+    private static readonly TimeSpan StandbyPollInterval = TimeSpan.FromSeconds(2);
+
+    private const string LeadershipResource = "eventsub-chat-ingest";
+
+    // Held by a standby for as long as it waits. The outgoing instance probes it at shutdown: held means a
+    // successor is about to take over (blue/green handover), free means nobody is coming (a real outage).
+    private const string StandbyResource = "eventsub-chat-ingest-standby";
+
+    private IAsyncDisposable? _standbyClaim;
+    private volatile bool _standby;
+    private volatile bool _handedOver;
+    private readonly TaskCompletionSource _activated = new(
+        TaskCreationOptions.RunContinuationsAsynchronously
+    );
+
     public TwitchEventSubHostedService(
         IServiceScopeFactory scopeFactory,
         IEventSubTransport transport,
@@ -132,42 +151,46 @@ public sealed class TwitchEventSubHostedService
             CancellationToken dormancyToken = dormancyCts.Token;
             _dormancyCts = dormancyCts;
             _dormancyWaiter = Task.Run(
-                () => WaitForReadinessThenStartAsync(dormancyToken),
+                () => WaitForReadinessThenStartAsync(ReadinessPollInterval, dormancyToken),
                 dormancyToken
             );
+            // Not a standby: nothing else owns the bot, the bot just is not onboarded yet.
+            _activated.TrySetResult();
             return;
         }
 
         // A configured instance still may not simply connect: during a switchover BOTH colours are
         // configured, so whoever loses the lease has to wait rather than open a second chat session. Losing
-        // it is not a fault — it re-checks on the same waiter as the dormant path.
-        _leadership = await TryAcquireLeadershipAsync(cancellationToken);
+        // it is not a fault — it re-checks on a short standby poll.
+        _leadership = await TryAcquireAsync(LeadershipResource, cancellationToken);
         if (_leadership is null)
         {
             _logger.LogInformation(
                 "EventSub: another instance holds chat ingest (deploy overlap) — waiting for handover."
             );
+            _standby = true;
+            _standbyClaim = await TryAcquireAsync(StandbyResource, cancellationToken);
             CancellationTokenSource waitCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken
             );
             CancellationToken waitToken = waitCts.Token;
             _dormancyCts = waitCts;
-            _dormancyWaiter = Task.Run(() => WaitForReadinessThenStartAsync(waitToken), waitToken);
+            _dormancyWaiter = Task.Run(
+                () => WaitForReadinessThenStartAsync(StandbyPollInterval, waitToken),
+                waitToken
+            );
             return;
         }
 
+        _activated.TrySetResult();
         await StartTransportAsync(cancellationToken);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        // Release chat ingest FIRST: the incoming colour is already polling for it, so handing it back here
-        // is the difference between a seamless switchover and a gap the length of the lease TTL.
-        if (_leadership is not null)
-        {
-            await _leadership.DisposeAsync();
-            _leadership = null;
-        }
+        // From here on this instance is no longer the active one: single-instance workers (the music
+        // hand-over poller) stop acting, so they never overlap with the successor that is about to take over.
+        _handedOver = true;
 
         await _lifetime.CancelAsync();
 
@@ -205,7 +228,45 @@ public sealed class TwitchEventSubHostedService
             _logger.LogWarning(ex, "EventSub transport failed to stop cleanly during shutdown.");
         }
 
+        // Release chat ingest only AFTER our sockets are closed, so the successor (polling every
+        // StandbyPollInterval) never has both instances reading the same chat, and it never has to wait out
+        // a lease TTL either — the advisory lock frees the instant it is released.
+        await ReleaseLeasesAsync();
+
         await WhenWelcomeWorkIdleAsync();
+    }
+
+    private async Task ReleaseLeasesAsync()
+    {
+        if (_leadership is not null)
+        {
+            await _leadership.DisposeAsync();
+            _leadership = null;
+        }
+
+        if (_standbyClaim is not null)
+        {
+            await _standbyClaim.DisposeAsync();
+            _standbyClaim = null;
+        }
+    }
+
+    // ── IActiveInstanceGate ─────────────────────────────────────────────────
+
+    public bool IsActiveInstance => !_standby && !_handedOver;
+
+    public Task WaitUntilActiveAsync(CancellationToken ct) => _activated.Task.WaitAsync(ct);
+
+    public async Task<bool> HasWaitingSuccessorAsync(CancellationToken ct)
+    {
+        // A standby holds the standby claim for as long as it waits, so failing to take it means someone is
+        // queued behind us. Taking it means nobody is — give it straight back.
+        IAsyncDisposable? probe = await TryAcquireAsync(StandbyResource, ct);
+        if (probe is null)
+            return true;
+
+        await probe.DisposeAsync();
+        return false;
     }
 
     /// <summary>
@@ -233,11 +294,11 @@ public sealed class TwitchEventSubHostedService
     /// transport the first time the platform bot is configured (onboarding completed). No per-tick logging — the
     /// single "waiting" line was logged once at startup; the next line is the steady-state "transport started".
     /// </summary>
-    private async Task WaitForReadinessThenStartAsync(CancellationToken ct)
+    private async Task WaitForReadinessThenStartAsync(TimeSpan pollInterval, CancellationToken ct)
     {
         try
         {
-            using PeriodicTimer timer = new(ReadinessPollInterval);
+            using PeriodicTimer timer = new(pollInterval);
             while (await timer.WaitForNextTickAsync(ct))
             {
                 if (!await IsPlatformBotConfiguredAsync(ct))
@@ -249,10 +310,22 @@ public sealed class TwitchEventSubHostedService
                 // opens its own sessions, receives the same channel.chat.message, and answers every command
                 // a second time. That is the "two bots" the owner saw, on every deploy. TimerService already
                 // takes this same lease for the same reason; the chat ingest path never did.
-                _leadership = await TryAcquireLeadershipAsync(ct);
+                _leadership = await TryAcquireAsync(LeadershipResource, ct);
                 if (_leadership is null)
+                {
+                    _standby = true;
+                    _standbyClaim ??= await TryAcquireAsync(StandbyResource, ct);
                     continue;
+                }
 
+                // Took over: stop advertising as a waiting successor, then open the chat sessions.
+                if (_standbyClaim is not null)
+                {
+                    await _standbyClaim.DisposeAsync();
+                    _standbyClaim = null;
+                }
+                _standby = false;
+                _activated.TrySetResult();
                 await StartTransportAsync(ct);
                 return;
             }
@@ -270,12 +343,23 @@ public sealed class TwitchEventSubHostedService
     /// </summary>
     private IAsyncDisposable? _leadership;
 
-    private async Task<IAsyncDisposable?> TryAcquireLeadershipAsync(CancellationToken ct)
+    private async Task<IAsyncDisposable?> TryAcquireAsync(string resource, CancellationToken ct)
     {
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IRunOnceGuard guard = scope.ServiceProvider.GetRequiredService<IRunOnceGuard>();
-        return await guard.TryAcquireAsync("eventsub-chat-ingest", LeadershipTtl, ct);
+        return await guard.TryAcquireAsync(resource, LeadershipTtl, ct);
     }
+
+    /// <summary>
+    /// A standby must not open Twitch sessions or create subscriptions: that is exactly the second chat
+    /// session the lease exists to prevent, and its creates would 409 against the live instance's topics and
+    /// sit "pending" until a later reconcile. The active instance's takeover sync subscribes everything.
+    /// </summary>
+    private static Result<T> StandbyRefusal<T>() =>
+        Result.Failure<T>(StandbyMessage, "SERVICE_UNAVAILABLE");
+
+    private const string StandbyMessage =
+        "This instance is a standby during a deploy overlap; the active instance owns EventSub.";
 
     /// <summary>Nominal only: the Postgres guard backs this with an advisory lock on its OWN connection, so
     /// the hold lasts as long as the process and a hard kill releases it automatically — there is no window
@@ -735,6 +819,9 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
+        if (_standby)
+            return StandbyRefusal<EventSubSubscriptionDto>();
+
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -1225,6 +1312,9 @@ public sealed class TwitchEventSubHostedService
 
     public async Task<Result> ReconnectAsync(CancellationToken ct = default)
     {
+        if (_standby)
+            return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
+
         // A WebSocket session is per-OWNER (twitch-eventsub §3.3 — Twitch forbids different users' subs on one
         // session), so a full reconnect must re-open EVERY owner's session, not just the bot's default one.
         // Capture the known owner set BEFORE stopping: the WebSocket transport's StopAsync clears its session
