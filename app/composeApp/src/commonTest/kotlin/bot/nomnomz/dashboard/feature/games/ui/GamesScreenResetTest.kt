@@ -12,9 +12,8 @@ package bot.nomnomz.dashboard.feature.games.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -65,9 +64,8 @@ class GamesScreenResetTest {
 
         onNodeWithContentDescription("Edit coinflip").performClick()
         waitForIdle()
-        // The config dialog is taller than the test window, so its footer is off-screen: invoke the button's click
-        // action directly rather than a pointer tap at coordinates outside the window.
-        onNodeWithTag("game-reset").performSemanticsAction(SemanticsActions.OnClick)
+        // A real pointer tap: the footer must be on screen even though the settings are taller than the window.
+        onNodeWithTag("game-reset").performClick()
         waitForIdle()
 
         onNodeWithText(
@@ -80,6 +78,28 @@ class GamesScreenResetTest {
         waitForIdle()
 
         assertEquals(listOf("coinflip"), api.resets)
+    }
+
+    // The settings are taller than the window. The body scrolls and the footer stays pinned and visible, so
+    // Save and Reset can be reached without scrolling the whole dialog off the screen.
+    @Test
+    fun the_footer_stays_on_screen_when_the_settings_are_taller_than_the_window() = runComposeUiTest {
+        val game = GameSummary(id = "g1", gameType = "coinflip", category = "gambling", isEnabled = true)
+        val controller = GamesController(PrimaryChannelOnly(), RecordingGamesApi(ApiResult.Ok(listOf(game))))
+
+        setContent {
+            NomNomzTheme {
+                AppEnvironment("en") {
+                    withLifecycle { GamesScreen(controller = controller, role = ManagementRole.Broadcaster) }
+                }
+            }
+        }
+        waitForIdle()
+        onNodeWithContentDescription("Edit coinflip").performClick()
+        waitForIdle()
+
+        onNodeWithTag("game-reset").assertIsDisplayed()
+        onNodeWithTag("game-save").assertIsDisplayed()
     }
 }
 
