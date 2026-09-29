@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
@@ -63,6 +64,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly LiveGameSessionRegistry _gameSessions;
     private readonly TimeProvider _timeProvider;
     private readonly IOutboundSanctionAccessor _sanctions;
+    private readonly IBuiltinResponseComposer _composer;
     private readonly ILogger<ChatMessageHandler> _logger;
 
     public ChatMessageHandler(
@@ -77,6 +79,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         LiveGameSessionRegistry gameSessions,
         TimeProvider timeProvider,
         IOutboundSanctionAccessor sanctions,
+        IBuiltinResponseComposer composer,
         ILogger<ChatMessageHandler> logger
     )
     {
@@ -91,6 +94,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _gameSessions = gameSessions;
         _timeProvider = timeProvider;
         _sanctions = sanctions;
+        _composer = composer;
         _logger = logger;
     }
 
@@ -273,13 +277,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 )
             )
             {
-                await SendPermissionDeniedNoticeAsync(@event, cancellationToken);
+                await SendPermissionDeniedNoticeAsync(@event, ctx, cancellationToken);
                 return;
             }
 
             if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName, IsCooldownExempt(@event)))
             {
-                await SendCooldownNoticeAsync(@event, cancellationToken);
+                await SendCooldownNoticeAsync(@event, ctx, cancellationToken);
                 return;
             }
 
@@ -317,7 +321,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
 
             if (builtinOutcome == BuiltinOutcome.SendFailed)
-                await SendBuiltinFailureNoticeAsync(@event, cancellationToken);
+                await SendBuiltinFailureNoticeAsync(@event, ctx, cancellationToken);
 
             await PublishExecutedAsync(
                 @event,
@@ -337,7 +341,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.UserDisplayName,
                 @event.BroadcasterId
             );
-            await SendPermissionDeniedNoticeAsync(@event, cancellationToken);
+            await SendPermissionDeniedNoticeAsync(@event, ctx, cancellationToken);
             return;
         }
 
@@ -353,7 +357,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 commandName,
                 @event.BroadcasterId
             );
-            await SendCooldownNoticeAsync(@event, cancellationToken);
+            await SendCooldownNoticeAsync(@event, ctx, cancellationToken);
             return;
         }
 
@@ -374,7 +378,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.UserDisplayName,
                 @event.BroadcasterId
             );
-            await SendCooldownNoticeAsync(@event, cancellationToken);
+            await SendCooldownNoticeAsync(@event, ctx, cancellationToken);
             return;
         }
 
@@ -460,7 +464,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 bool pipelineSucceeded =
                     pipelineResult.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped;
                 if (!pipelineSucceeded)
-                    await SendPipelineFailureNoticeAsync(@event, cancellationToken);
+                    await SendPipelineFailureNoticeAsync(@event, ctx, cancellationToken);
 
                 await PublishExecutedAsync(
                     @event,
@@ -484,7 +488,22 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     // Reuses the catalog lookup done up front (reserved built-ins never reach here —
                     // they short-circuit before the authored-command path).
                     if (builtin is null)
+                    {
+                        // A pipeline command with no graph and no template has nothing to answer with —
+                        // say so instead of leaving the caller guessing whether the bot saw the message.
+                        if (isPipelineBound)
+                        {
+                            await SendNothingRanNoticeAsync(@event, ctx, cancellationToken);
+                            await PublishExecutedAsync(
+                                @event,
+                                command.Name,
+                                false,
+                                cancellationToken
+                            );
+                        }
+
                         return;
+                    }
 
                     if (IsBuiltinDisabled(ctx, commandName))
                         return;
@@ -513,7 +532,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     );
 
                     if (builtinFallbackOutcome == BuiltinOutcome.SendFailed)
-                        await SendBuiltinFailureNoticeAsync(@event, cancellationToken);
+                        await SendBuiltinFailureNoticeAsync(@event, ctx, cancellationToken);
 
                     await PublishExecutedAsync(
                         @event,
@@ -540,7 +559,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // defect class S008 fixed for pipelines and S008c fixed for builtins.
                 bool templateSent = await SendResponseAsync(@event, resolved, cancellationToken);
                 if (!templateSent)
-                    await SendBuiltinFailureNoticeAsync(@event, cancellationToken);
+                    await SendBuiltinFailureNoticeAsync(@event, ctx, cancellationToken);
 
                 await PublishExecutedAsync(@event, command.Name, templateSent, cancellationToken);
             }
@@ -736,37 +755,102 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     }
 
     /// <summary>
-    /// The single fixed notice sent to the invoker when a gate silently blocked their command before —
+    /// The single notice sent to the invoker when a gate silently blocked their command before —
     /// cooldown and permission-denied used to return with no chat line at all, leaving the caller guessing
     /// whether the bot even saw the message. Exactly ONE line per gated invocation, never zero, never both.
+    /// Every notice is a slot of the <c>system</c> reply group, so the channel can re-word it.
     /// </summary>
-    private Task SendCooldownNoticeAsync(ChatMessageReceivedEvent @event, CancellationToken ct) =>
-        SendResponseAsync(@event, "That command is still on cooldown.", ct);
+    private Task SendCooldownNoticeAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        CancellationToken ct
+    ) =>
+        SendSystemNoticeAsync(
+            @event,
+            ctx,
+            BuiltinResponseSlots.SystemReplies.Cooldown,
+            "That command is still on cooldown.",
+            ct
+        );
 
     private Task SendPermissionDeniedNoticeAsync(
         ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
         CancellationToken ct
-    ) => SendResponseAsync(@event, "You don't have permission to use that command.", ct);
+    ) =>
+        SendSystemNoticeAsync(
+            @event,
+            ctx,
+            BuiltinResponseSlots.SystemReplies.PermissionDenied,
+            "You don't have permission to use that command.",
+            ct
+        );
 
     /// <summary>
-    /// The single fixed notice sent to the invoker when a pipeline-backed command run PartiallyFailed
+    /// The single notice sent to the invoker when a pipeline-backed command run PartiallyFailed
     /// (a step broke the run early) — without this the invoker has no way to know their command hit a snag,
     /// since a partially-run pipeline may have sent nothing to chat itself before failing.
     /// </summary>
     private Task SendPipelineFailureNoticeAsync(
         ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
         CancellationToken ct
-    ) => SendResponseAsync(@event, "Sorry, that command hit a snag and didn't finish.", ct);
+    ) =>
+        SendSystemNoticeAsync(
+            @event,
+            ctx,
+            BuiltinResponseSlots.SystemReplies.Failed,
+            "Sorry, that command hit a snag and didn't finish.",
+            ct
+        );
 
     /// <summary>
-    /// The single fixed notice sent to the invoker when a builtin's reply never actually reached chat
+    /// The single notice sent to the invoker when a builtin's reply never actually reached chat
     /// (<see cref="BuiltinOutcome.SendFailed"/>) — mirrors <see cref="SendPipelineFailureNoticeAsync"/> so a
     /// builtin whose transport send failed is never left silent even though its logic ran fine.
     /// </summary>
     private Task SendBuiltinFailureNoticeAsync(
         ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
         CancellationToken ct
-    ) => SendResponseAsync(@event, "Sorry, that command hit a snag and didn't finish.", ct);
+    ) => SendPipelineFailureNoticeAsync(@event, ctx, ct);
+
+    /// <summary>The notice for a pipeline command that has no saved pipeline to run.</summary>
+    private Task SendNothingRanNoticeAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        CancellationToken ct
+    ) =>
+        SendSystemNoticeAsync(
+            @event,
+            ctx,
+            BuiltinResponseSlots.SystemReplies.NothingRan,
+            "That command has nothing set up to run yet.",
+            ct
+        );
+
+    /// <summary>Renders one <c>system</c> slot in the channel's voice (channel override, platform text, tone) and replies with it.</summary>
+    private async Task<bool> SendSystemNoticeAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        string slot,
+        string neutralFallback,
+        CancellationToken ct
+    )
+    {
+        string text = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = @event.BroadcasterId,
+                Personality = ctx.Personality,
+                BuiltinKey = BuiltinResponseSlots.SystemReplies.Key,
+                Slot = slot,
+                NeutralFallback = neutralFallback,
+            },
+            ct
+        );
+        return await SendResponseAsync(@event, text, ct);
+    }
 
     /// <summary>
     /// Runs a builtin and, when it produced a reply, sends it — returning the REAL outcome so the caller

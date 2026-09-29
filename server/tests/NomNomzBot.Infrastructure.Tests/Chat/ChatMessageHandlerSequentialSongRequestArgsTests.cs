@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -123,6 +124,7 @@ public sealed class ChatMessageHandlerSequentialSongRequestArgsTests
             new LiveGameSessionRegistry(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

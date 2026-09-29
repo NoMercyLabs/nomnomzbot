@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -141,6 +142,7 @@ public sealed class SoundTriggerMatchingTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
         return (sut, clips, overlay, chat);

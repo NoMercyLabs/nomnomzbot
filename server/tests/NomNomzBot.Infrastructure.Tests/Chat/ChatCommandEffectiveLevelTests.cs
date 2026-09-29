@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -351,6 +352,7 @@ public sealed class ChatCommandEffectiveLevelTests
             new(),
             clock,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

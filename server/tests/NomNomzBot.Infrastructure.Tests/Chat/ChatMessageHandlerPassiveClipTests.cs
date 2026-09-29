@@ -29,6 +29,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.MediaShare;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.MediaShare;
 using NSubstitute;
 
@@ -151,6 +152,7 @@ public sealed class ChatMessageHandlerPassiveClipTests
             new(),
             TimeProvider.System,
             new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
             NullLogger<ChatMessageHandler>.Instance
         );
 

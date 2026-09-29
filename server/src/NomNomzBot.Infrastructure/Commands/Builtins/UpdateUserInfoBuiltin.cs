@@ -193,6 +193,18 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
             await _db.SaveChangesAsync(ct);
         }
 
-        return Result.Success($"Updated user info for {twitchUser.DisplayName}!");
+        string updated = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
+                Slot = BuiltinResponseSlots.UpdateUserInfo.Updated,
+                NeutralFallback = $"Updated user info for {twitchUser.DisplayName}!",
+                Variables = new Dictionary<string, string> { ["user"] = twitchUser.DisplayName },
+            },
+            ct
+        );
+        return Result.Success(updated);
     }
 }

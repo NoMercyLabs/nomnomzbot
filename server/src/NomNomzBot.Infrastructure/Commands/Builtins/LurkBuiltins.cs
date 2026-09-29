@@ -63,7 +63,22 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
         );
         if (caller.IsFailure)
             return Result.Success(
-                $"@{context.TriggeringUserDisplayName} your account could not be resolved."
+                await _composer.ComposeAsync(
+                    new()
+                    {
+                        BroadcasterId = context.BroadcasterId,
+                        Personality = context.Personality,
+                        BuiltinKey = BuiltinResponseSlots.Lurk.Key,
+                        Slot = BuiltinResponseSlots.Lurk.AccountUnresolved,
+                        NeutralFallback =
+                            $"@{context.TriggeringUserDisplayName} your account could not be resolved.",
+                        Variables = new Dictionary<string, string>
+                        {
+                            ["user"] = context.TriggeringUserDisplayName,
+                        },
+                    },
+                    ct
+                )
             );
 
         User? row = await _db.Users.FirstOrDefaultAsync(
