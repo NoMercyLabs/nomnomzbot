@@ -122,6 +122,45 @@ public class TtsConfigService : ITtsConfigService
         return Result.Success(await ToDtoAsync(config, cancellationToken));
     }
 
+    public async Task<Result<TtsConfigDto>> GetDefaultConfigAsync(
+        CancellationToken cancellationToken = default
+    ) => Result.Success(await ToDtoAsync(new TtsConfig(), cancellationToken));
+
+    public async Task<Result<TtsConfigDto>> ResetConfigAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId,
+            cancellationToken
+        );
+        // No row = the channel already reads as the defaults; a reset never creates one.
+        if (config is null)
+            return await GetDefaultConfigAsync(cancellationToken);
+
+        // The entity's own initializers ARE the defaults, so a reset can never drift from a fresh channel.
+        // Deliberately untouched: the default voice (its own reset is FollowPlatformDefaultVoice), the BYOK
+        // cipher envelope + region, and the lexicon / per-viewer voices (other tables).
+        TtsConfig defaults = new();
+        config.IsEnabled = defaults.IsEnabled;
+        config.Mode = defaults.Mode;
+        config.DefaultProvider = defaults.DefaultProvider;
+        config.MaxCharacters = defaults.MaxCharacters;
+        config.MinPermission = defaults.MinPermission;
+        config.SkipBotMessages = defaults.SkipBotMessages;
+        config.ReadUsernames = defaults.ReadUsernames;
+        config.ProfanityCensorEnabled = defaults.ProfanityCensorEnabled;
+        config.ModApprovalRequired = defaults.ModApprovalRequired;
+        config.MinBitsToTts = defaults.MinBitsToTts;
+        config.ViewerVoiceSelfServiceEnabled = defaults.ViewerVoiceSelfServiceEnabled;
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await PublishConfigChangedAsync(broadcasterId, cancellationToken);
+
+        return Result.Success(await ToDtoAsync(config, cancellationToken));
+    }
+
     public async Task<Result<TtsConfigDto>> SetByokKeyAsync(
         Guid broadcasterId,
         string provider,

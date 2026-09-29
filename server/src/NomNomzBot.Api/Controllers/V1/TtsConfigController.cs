@@ -224,6 +224,37 @@ public class TtsConfigController : BaseController
         return Ok(new StatusResponseDto<TtsConfigDto> { Data = result.Value });
     }
 
+    /// <summary>
+    /// The defaults a channel's TTS settings return to on reset — read-only, so the dashboard can show
+    /// "current → default" before it writes.
+    /// </summary>
+    [HttpGet("config/defaults")]
+    [RequireAction("tts:config:read")]
+    [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetConfigDefaults(string channelId, CancellationToken ct)
+    {
+        Result<TtsConfigDto> result = await _ttsConfigService.GetDefaultConfigAsync(ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Reset the channel's TTS settings to the defaults and return the resulting config. Leaves the BYOK keys,
+    /// the default voice, the pronunciation lexicon, and per-viewer voice assignments untouched.
+    /// </summary>
+    [NotDestructive(
+        "Resets the settings columns of the channel's one TtsConfig row in place - the row, BYOK keys, default voice, lexicon and per-viewer voice rows are never removed; no entity carries a TtsConfigId FK."
+    )]
+    [HttpPost("config/reset")]
+    [RequireAction("tts:config:write")]
+    [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResetConfig(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<TtsConfigDto> result = await _ttsConfigService.ResetConfigAsync(broadcasterId, ct);
+        return ResultResponse(result);
+    }
+
     /// <summary>Store a BYOK provider API key (azure | elevenlabs). Vault-encrypted at rest; never echoed back.</summary>
     [HttpPut("config/byok/{provider}")]
     [RequireAction("tts:config:write")]

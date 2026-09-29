@@ -28,6 +28,24 @@ public interface ITtsConfigService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// The defaults a channel's settings return to on <see cref="ResetConfigAsync"/> — the same values a
+    /// channel with no row reads as. Lets the dashboard show "current → default" before a reset writes.
+    /// </summary>
+    Task<Result<TtsConfigDto>> GetDefaultConfigAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Put the channel's TTS settings (enabled, mode, provider, max characters, minimum permission, skip-bot,
+    /// read-usernames, profanity censor, mod approval, bits gate, viewer voice self-service) back to the
+    /// defaults and return the resulting config. Never touches the BYOK keys, the default voice, the
+    /// pronunciation lexicon, or per-viewer voice assignments. A channel with no row is already at the
+    /// defaults — nothing is written.
+    /// </summary>
+    Task<Result<TtsConfigDto>> ResetConfigAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Vault-encrypt and store a BYOK provider API key (azure | elevenlabs) on the channel's config.</summary>
     Task<Result<TtsConfigDto>> SetByokKeyAsync(
         Guid broadcasterId,
