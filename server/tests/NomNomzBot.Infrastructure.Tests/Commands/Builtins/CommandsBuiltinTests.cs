@@ -119,16 +119,8 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<BuiltinCommandDto>>([
-                    new BuiltinCommandDto("lurk", "lurk", true, 5, "Everyone", "lurk", false),
-                    new BuiltinCommandDto(
-                        "accountage",
-                        "accountage",
-                        true,
-                        15,
-                        "Everyone",
-                        "accountage",
-                        false
-                    ),
+                    Dto("lurk", enabled: true, cooldown: 5),
+                    Dto("accountage", enabled: true, cooldown: 15),
                 ])
             );
 
@@ -168,7 +160,7 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<BuiltinCommandDto>>([
-                    new BuiltinCommandDto("lurk", "lurk", false, 5, "Everyone", "lurk", false),
+                    Dto("lurk", enabled: false, cooldown: 5),
                 ])
             );
 
@@ -201,9 +193,7 @@ public sealed class CommandsBuiltinTests
         CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
 
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
-        Result<string> informative = await builtin.ExecuteAsync(
-            Context(PersonalityTone.Informative)
-        );
+        Result<string> informative = await builtin.ExecuteAsync(Context());
 
         string oldHardcodedString = "@Stoney_Eagle available commands: sr";
         sassy.Value.Should().NotBe(oldHardcodedString);
@@ -222,4 +212,7 @@ public sealed class CommandsBuiltinTests
         // Default tone still reads exactly as it did before this slice (regression).
         informative.Value.Should().Be(oldHardcodedString);
     }
+
+    private static BuiltinCommandDto Dto(string key, bool enabled, int cooldown) =>
+        new(key, key, enabled, cooldown, "Everyone", key, false, false, null, null, 0);
 }

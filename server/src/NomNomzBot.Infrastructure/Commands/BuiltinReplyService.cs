@@ -202,9 +202,12 @@ public sealed class BuiltinReplyService : IBuiltinReplyService
             )
                 responses.TryAdd(reply.Key, reply.Value);
 
+            // The sibling keeps its own behaviour settings (TTS, cooldown, floor); only its replies move.
             sibling.OverridesJson = BuiltinOverridesJson.Serialize(
-                new Dictionary<string, string>(),
-                BuiltinOverridesJson.SpeakWithTts(sibling.OverridesJson)
+                BuiltinOverridesJson.Read(sibling.BuiltinKey, sibling.OverridesJson) with
+                {
+                    Responses = new Dictionary<string, string>(),
+                }
             );
         }
 
@@ -214,8 +217,10 @@ public sealed class BuiltinReplyService : IBuiltinReplyService
             responses[slot] = template;
 
         string? overridesJson = BuiltinOverridesJson.Serialize(
-            responses,
-            BuiltinOverridesJson.SpeakWithTts(groupRow?.OverridesJson)
+            BuiltinOverridesJson.Read(replyGroup, groupRow?.OverridesJson) with
+            {
+                Responses = responses,
+            }
         );
 
         if (groupRow is null)

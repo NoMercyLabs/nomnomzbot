@@ -27,9 +27,31 @@ import kotlinx.serialization.Serializable
 //         the default)
 //   PUT   /api/v1/channels/{channelId}/builtins/{key}/tts      → StatusResponseDto<Unit> (S-OBS-12: toggle
 //         the per-channel "speak with TTS" option for a built-in that supports it, e.g. !quote)
+//   GET   /api/v1/channels/{channelId}/builtins/{key}          → StatusResponseDto<BuiltinCommand> (one built-in)
+//   PUT   /api/v1/channels/{channelId}/builtins/{key}/settings → StatusResponseDto<BuiltinCommand> (the channel's
+//         cooldown + permission floor; null = the default)
+//   DELETE /api/v1/channels/{channelId}/builtins/{key}/settings → StatusResponseDto<BuiltinCommand> (everything
+//         back to default: enabled, TTS off, cooldown, permission, every reply of its reply group)
 interface BuiltinsApi {
     /** Lists all platform-defined built-in commands for the channel, with their enabled state. */
     suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>>
+
+    /** One built-in as the channel sees it — defaults plus the channel's own settings. */
+    suspend fun get(channelId: String, builtinKey: String): ApiResult<BuiltinCommand>
+
+    /**
+     * Sets the channel's cooldown (seconds) and permission floor (rung name) for a built-in; null = use the
+     * default. Returns the built-in as it now resolves.
+     */
+    suspend fun updateSettings(
+        channelId: String,
+        builtinKey: String,
+        cooldownSeconds: Int?,
+        minPermissionLevel: String?,
+    ): ApiResult<BuiltinCommand>
+
+    /** Puts a built-in back on every default for the channel; returns it as it now resolves. */
+    suspend fun reset(channelId: String, builtinKey: String): ApiResult<BuiltinCommand>
 
     /** Enable or disable a single builtin by its [builtinKey] (e.g. "sr", "skip"). */
     suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit>
@@ -55,6 +77,23 @@ class RestBuiltinsApi(private val client: ApiClient) : BuiltinsApi {
     // with getEnvelope which unwraps the `data` field.
     override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> =
         client.getEnvelope("api/v1/channels/$channelId/builtins")
+
+    override suspend fun get(channelId: String, builtinKey: String): ApiResult<BuiltinCommand> =
+        client.getEnvelope("api/v1/channels/$channelId/builtins/$builtinKey")
+
+    override suspend fun updateSettings(
+        channelId: String,
+        builtinKey: String,
+        cooldownSeconds: Int?,
+        minPermissionLevel: String?,
+    ): ApiResult<BuiltinCommand> =
+        client.putEnvelope(
+            "api/v1/channels/$channelId/builtins/$builtinKey/settings",
+            UpdateBuiltinSettingsBody(cooldownSeconds, minPermissionLevel),
+        )
+
+    override suspend fun reset(channelId: String, builtinKey: String): ApiResult<BuiltinCommand> =
+        client.deleteEnvelope("api/v1/channels/$channelId/builtins/$builtinKey/settings")
 
     override suspend fun setEnabled(
         channelId: String,
@@ -98,7 +137,9 @@ class RestBuiltinsApi(private val client: ApiClient) : BuiltinsApi {
  * A platform-defined built-in command (backend `BuiltinCommandDto`): what it is ([builtinKey] / [name]),
  * whether it is enabled for this channel ([isEnabled]), its defaults, the reply group it speaks with
  * ([replyGroup] — e.g. `unlurk` speaks with the `lurk` replies), and its "speak with TTS" toggle
- * ([speakWithTts], S-OBS-12, default off).
+ * ([speakWithTts], S-OBS-12, default off). [cooldownSecondsOverride] / [minPermissionLevelOverride] are the
+ * channel's own settings (null = the default applies); [isReserved] data-rights commands are locked;
+ * [replyOverrideCount] is how many replies the channel has reworded.
  */
 @Serializable
 data class BuiltinCommand(
@@ -109,7 +150,22 @@ data class BuiltinCommand(
     val defaultMinPermissionLevel: String = "Everyone",
     val replyGroup: String = "",
     val speakWithTts: Boolean = false,
-)
+    val isReserved: Boolean = false,
+    val cooldownSecondsOverride: Int? = null,
+    val minPermissionLevelOverride: String? = null,
+    val replyOverrideCount: Int = 0,
+) {
+    /** The cooldown chat actually gets — the channel's own, else the default. */
+    val cooldownSeconds: Int get() = cooldownSecondsOverride ?: defaultCooldownSeconds
+
+    /** Who can use it right now — the channel's own floor, else the default. */
+    val minPermissionLevel: String get() = minPermissionLevelOverride ?: defaultMinPermissionLevel
+
+    /** True when anything differs from the defaults — what a reset would undo. */
+    val isCustomized: Boolean
+        get() = !isEnabled || speakWithTts || cooldownSecondsOverride != null ||
+            minPermissionLevelOverride != null || replyOverrideCount > 0
+}
 
 /**
  * One reply group of the built-in reply catalogue (backend `BuiltinReplyGroupDto`): the replies of one built-in,
@@ -161,3 +217,7 @@ private data class SetBuiltinReplyBody(val template: String?)
 /** Speak-with-TTS request body (backend `SetBuiltinSpeakWithTtsRequest`). */
 @Serializable
 private data class SetBuiltinSpeakWithTtsBody(val enabled: Boolean)
+
+/** Cooldown + permission request body (backend `UpdateBuiltinSettingsRequest`); null = use the default. */
+@Serializable
+private data class UpdateBuiltinSettingsBody(val cooldownSeconds: Int?, val minPermissionLevel: String?)

@@ -188,6 +188,7 @@ import bot.nomnomz.dashboard.feature.chat.state.ChatController
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersController
 import bot.nomnomz.dashboard.feature.voicetriggers.state.VoiceTriggersController
+import bot.nomnomz.dashboard.feature.commands.state.BuiltinDetailController
 import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.community.state.CommunityController
@@ -568,6 +569,14 @@ class AppGraph {
 
     val builtinRepliesController: BuiltinRepliesController =
         BuiltinRepliesController(channelsApi = channelsApi, builtinsApi = builtinsApi)
+
+    // A built-in's detail edit refetches the Commands list so its row (on/off, "Changed") matches at once.
+    val builtinDetailController: BuiltinDetailController =
+        BuiltinDetailController(
+            channelsApi = channelsApi,
+            builtinsApi = builtinsApi,
+            onChanged = { commandsController.load() },
+        )
 
     val chatTriggersController: ChatTriggersController =
         ChatTriggersController(

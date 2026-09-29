@@ -86,9 +86,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun BuiltinRepliesDialog(state: BuiltinRepliesState, controller: BuiltinRepliesController) {
     val openGroup: String = state.openGroup ?: return
-    val spacing = LocalSpacing.current
-    val tokens = LocalTokens.current
-    var pendingReset: BuiltinReply? by remember { mutableStateOf(null) }
 
     Dialog(onDismissRequest = controller::close) {
         DialogTitle(
@@ -99,30 +96,44 @@ fun BuiltinRepliesDialog(state: BuiltinRepliesState, controller: BuiltinRepliesC
             },
         )
         DialogDescription(text = stringResource(Res.string.builtin_replies_intro))
-        state.error?.let { InlineError(message = it) }
-        if (state.loading) {
-            Spinner(color = tokens.mutedForeground)
-        } else {
-            val replies: List<BuiltinReply> = state.visibleGroups.flatMap(BuiltinReplyGroup::replies)
-            Column(
-                modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(spacing.s3),
-            ) {
-                replies.forEachIndexed { index, reply ->
-                    ReplySlotRow(
-                        reply = reply,
-                        edit = state.editing?.takeIf { it.builtinKey == reply.builtinKey && it.slot == reply.slot },
-                        showGroup = openGroup == BOT_REPLIES_GROUP,
-                        controller = controller,
-                        onReset = { pendingReset = reply },
-                    )
-                    if (index < replies.lastIndex) Separator()
-                }
-            }
+        Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+            BuiltinReplyList(state = state, controller = controller)
         }
         DialogFooter {
             Button(onClick = controller::close, variant = ButtonVariant.Outline) {
                 Text(text = stringResource(Res.string.builtin_replies_close), maxLines = 1)
+            }
+        }
+    }
+}
+
+/**
+ * Every reply slot of the open reply group, each editable in place, with the confirmed per-slot reset. The
+ * caller owns the scrolling container, so the same list sits in the bot-replies dialog and in a built-in's
+ * detail dialog.
+ */
+@Composable
+fun BuiltinReplyList(state: BuiltinRepliesState, controller: BuiltinRepliesController) {
+    val openGroup: String = state.openGroup ?: return
+    val spacing = LocalSpacing.current
+    val tokens = LocalTokens.current
+    var pendingReset: BuiltinReply? by remember { mutableStateOf(null) }
+
+    state.error?.let { InlineError(message = it) }
+    if (state.loading) {
+        Spinner(color = tokens.mutedForeground)
+    } else {
+        val replies: List<BuiltinReply> = state.visibleGroups.flatMap(BuiltinReplyGroup::replies)
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            replies.forEachIndexed { index, reply ->
+                ReplySlotRow(
+                    reply = reply,
+                    edit = state.editing?.takeIf { it.builtinKey == reply.builtinKey && it.slot == reply.slot },
+                    showGroup = openGroup == BOT_REPLIES_GROUP,
+                    controller = controller,
+                    onReset = { pendingReset = reply },
+                )
+                if (index < replies.lastIndex) Separator()
             }
         }
     }

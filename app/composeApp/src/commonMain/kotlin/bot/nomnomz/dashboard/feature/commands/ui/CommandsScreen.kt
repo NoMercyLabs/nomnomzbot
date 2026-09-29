@@ -82,6 +82,8 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.feature.commands.state.BOT_REPLIES_GROUP
+import bot.nomnomz.dashboard.feature.commands.state.BuiltinDetailController
+import bot.nomnomz.dashboard.feature.commands.state.BuiltinDetailState
 import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesController
 import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesState
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
@@ -112,8 +114,7 @@ import nomnomzbot.composeapp.generated.resources.commands_bot_replies_open
 import nomnomzbot.composeapp.generated.resources.commands_builtin_row_type
 import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
 import nomnomzbot.composeapp.generated.resources.commands_builtin_edit_response
-import nomnomzbot.composeapp.generated.resources.commands_builtin_speak_with_tts_label
-import nomnomzbot.composeapp.generated.resources.commands_builtin_speak_with_tts_toggle
+import nomnomzbot.composeapp.generated.resources.builtin_detail_customized
 import nomnomzbot.composeapp.generated.resources.commands_delete_action
 import nomnomzbot.composeapp.generated.resources.commands_delete_cancel
 import nomnomzbot.composeapp.generated.resources.commands_delete_confirm
@@ -199,10 +200,12 @@ fun CommandsScreen(
     role: ManagementRole?,
     templateHelpersApi: TemplateHelpersApi,
     repliesController: BuiltinRepliesController,
+    detailController: BuiltinDetailController,
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: CommandsState by controller.state.collectAsStateWithLifecycle()
     val repliesState: BuiltinRepliesState by repliesController.state.collectAsStateWithLifecycle()
+    val detailState: BuiltinDetailState by detailController.state.collectAsStateWithLifecycle()
     val customCommandsUsage: ResourceUsage? by controller.customCommandsUsage.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -211,6 +214,13 @@ fun CommandsScreen(
 
     var editor: CommandEditor? by remember { mutableStateOf(null) }
     var pendingDelete: CommandSummary? by remember { mutableStateOf(null) }
+
+    // Opens a built-in's detail dialog: the detail first (so the stand-alone replies dialog never flashes up),
+    // then its reply group's replies, both loaded side by side.
+    val openBuiltin: (BuiltinCommand) -> Unit = { builtin ->
+        scope.launch { detailController.open(builtin.builtinKey) }
+        scope.launch { repliesController.open(builtin.replyGroup.ifBlank { builtin.builtinKey }) }
+    }
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {
@@ -241,9 +251,7 @@ fun CommandsScreen(
                     onEditBuiltinReplies = { replyGroup ->
                         scope.launch { repliesController.open(replyGroup) }
                     },
-                    onSetBuiltinSpeakWithTts = { builtinKey, enabled ->
-                        scope.launch { controller.setBuiltinSpeakWithTts(builtinKey, enabled) }
-                    },
+                    onOpenBuiltin = openBuiltin,
                 )
             is CommandsState.Ready ->
                 ManagedContent(
@@ -264,14 +272,22 @@ fun CommandsScreen(
                     onEditBuiltinReplies = { replyGroup ->
                         scope.launch { repliesController.open(replyGroup) }
                     },
-                    onSetBuiltinSpeakWithTts = { builtinKey, enabled ->
-                        scope.launch { controller.setBuiltinSpeakWithTts(builtinKey, enabled) }
-                    },
+                    onOpenBuiltin = openBuiltin,
                 )
         }
     }
 
-    BuiltinRepliesDialog(state = repliesState, controller = repliesController)
+    // A built-in's detail dialog carries its replies too, so the stand-alone replies dialog only shows the bot's
+    // own lines (the "Bot replies" header action) — never both at once.
+    if (detailState.openKey == null) {
+        BuiltinRepliesDialog(state = repliesState, controller = repliesController)
+    }
+    BuiltinDetailDialog(
+        detail = detailState,
+        detailController = detailController,
+        replies = repliesState,
+        repliesController = repliesController,
+    )
 
     editor?.let { open ->
         val pipelines: List<PipelineSummary> = when (val s: CommandsState = state) {
@@ -354,7 +370,7 @@ private fun ManagedContent(
     onDelete: (CommandSummary) -> Unit,
     onToggleBuiltin: (builtinKey: String, Boolean) -> Unit,
     onEditBuiltinReplies: (replyGroup: String) -> Unit,
-    onSetBuiltinSpeakWithTts: (builtinKey: String, Boolean) -> Unit,
+    onOpenBuiltin: (BuiltinCommand) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -502,10 +518,7 @@ private fun ManagedContent(
                             builtin = builtin,
                             manage = manage,
                             onToggle = { enabled -> onToggleBuiltin(builtin.builtinKey, enabled) },
-                            onEditReplies = { onEditBuiltinReplies(builtin.replyGroup.ifBlank { builtin.builtinKey }) },
-                            onSetSpeakWithTts = { enabled ->
-                                onSetBuiltinSpeakWithTts(builtin.builtinKey, enabled)
-                            },
+                            onOpen = { onOpenBuiltin(builtin) },
                         )
                         if (index < filteredBuiltins.lastIndex) {
                             Separator()
@@ -608,16 +621,15 @@ private fun CommandTableRow(
     }
 }
 
-// Built-in command row — toggle plus the reply editor (commands-pipelines.md §11: every reply of every built-in
-// is editable per channel, slot by slot); platform built-ins still can't be renamed or deleted, only
-// enabled/disabled and re-worded.
+// Built-in command row — the on/off switch plus Edit, which opens the built-in's detail dialog (every setting:
+// TTS, cooldown, who can use it, every reply, reset — commands-pipelines.md §4.5 + §11). A "Changed" badge marks
+// a built-in that no longer runs on its defaults. Platform built-ins still can't be renamed or deleted.
 @Composable
 private fun BuiltinTableRow(
     builtin: BuiltinCommand,
     manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
-    onEditReplies: () -> Unit,
-    onSetSpeakWithTts: (Boolean) -> Unit,
+    onOpen: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -629,10 +641,7 @@ private fun BuiltinTableRow(
             discriminatorSource = builtin.builtinKey,
         )
     val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtinDisplayName)
-    val editResponseLabel: String =
-        stringResource(Res.string.commands_builtin_edit_response, builtinDisplayName)
-    val speakWithTtsLabel: String =
-        stringResource(Res.string.commands_builtin_speak_with_tts_toggle, builtinDisplayName)
+    val editLabel: String = stringResource(Res.string.commands_builtin_edit_response, builtinDisplayName)
 
     Row(
         modifier = Modifier
@@ -649,28 +658,13 @@ private fun BuiltinTableRow(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                icon = EditGlyph,
-                label = editResponseLabel,
-                onClick = onEditReplies,
-                enabled = enabled,
-            )
+        if (builtin.isCustomized) {
+            Badge(variant = BadgeVariant.Secondary) {
+                Text(text = stringResource(Res.string.builtin_detail_customized))
+            }
         }
-        // "Speak quotes with TTS" (S-OBS-12) — a neutral, opt-in setting alongside the enable switch, not a
-        // second primary action; it never carries the accent that a page's one primary task would.
-        Text(
-            text = stringResource(Res.string.commands_builtin_speak_with_tts_label),
-            style = typography.xs,
-            color = tokens.mutedForeground,
-        )
         ManageGate(decision = manage) { enabled ->
-            Switch(
-                checked = builtin.speakWithTts,
-                onCheckedChange = onSetSpeakWithTts,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = speakWithTtsLabel },
-            )
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onOpen, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             Switch(

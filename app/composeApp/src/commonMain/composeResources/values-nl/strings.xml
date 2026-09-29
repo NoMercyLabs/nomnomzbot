@@ -457,7 +457,7 @@
     <string name="commands_row_type">Opdracht</string>
     <string name="commands_builtins_section">Ingebouwde opdrachten</string>
     <string name="commands_builtins_toggle">%1$s in-/uitschakelen</string>
-    <string name="commands_builtin_edit_response">Antwoorden van %1$s bewerken</string>
+    <string name="commands_builtin_edit_response">%1$s bewerken</string>
     <string name="commands_bot_replies_open">Botantwoorden</string>
     <string name="builtin_replies_title_command">Antwoorden van %1$s</string>
     <string name="builtin_replies_title_bot">Botantwoorden</string>
@@ -477,8 +477,25 @@
     <string name="builtin_replies_locked">Dit antwoord staat vast. Het beschermt de gegevensrechten van de kijker.</string>
     <string name="builtin_replies_variations">De bot kiest een van %1$d zinnen in de persoonlijkheid van je kanaal.</string>
     <string name="builtin_replies_close">Sluiten</string>
-    <string name="commands_builtin_speak_with_tts_toggle">%1$s met TTS uitspreken</string>
-    <string name="commands_builtin_speak_with_tts_label">TTS</string>
+    <string name="builtin_detail_title">%1$s bewerken</string>
+    <string name="builtin_detail_intro">Pas aan hoe dit commando in je kanaal werkt. Wat je niet verandert, houdt zijn standaard.</string>
+    <string name="builtin_detail_settings">Instellingen</string>
+    <string name="builtin_detail_replies">Antwoorden</string>
+    <string name="builtin_detail_enabled">Aan in de chat</string>
+    <string name="builtin_detail_tts">Lees het antwoord ook voor met TTS</string>
+    <string name="builtin_detail_cooldown">Wachttijd in seconden</string>
+    <string name="builtin_detail_cooldown_hint">Laat leeg voor de standaard: %1$d seconden.</string>
+    <string name="builtin_detail_cooldown_invalid">Gebruik een getal van 0 tot 3600.</string>
+    <string name="builtin_detail_permission">Wie het mag gebruiken</string>
+    <string name="builtin_detail_permission_default">Standaard (%1$s)</string>
+    <string name="builtin_detail_permission_floor">Dit commando vraagt minstens %1$s. Je kunt dit verhogen, niet verlagen.</string>
+    <string name="builtin_detail_save">Instellingen opslaan</string>
+    <string name="builtin_detail_reserved">Dit commando beschermt de gegevensrechten van kijkers. Het staat altijd aan en de instellingen liggen vast.</string>
+    <string name="builtin_detail_reset">Standaard herstellen</string>
+    <string name="builtin_detail_reset_title">%1$s terugzetten naar de standaard?</string>
+    <string name="builtin_detail_reset_message">%1$s gaat terug naar de standaard: aan in de chat, niet voorgelezen met TTS, %2$d seconden wachttijd, te gebruiken door %3$s. %4$d aangepaste antwoorden krijgen weer hun standaardtekst.</string>
+    <string name="builtin_detail_reset_confirm">Herstellen</string>
+    <string name="builtin_detail_customized">Aangepast</string>
     <string name="timers_loading">Je timers laden…</string>
     <string name="timers_empty">Nog geen timers</string>
     <string name="timers_error">Kon timers niet laden: %1$s</string>
@@ -1165,6 +1182,10 @@
     <string name="games_perm_broadcaster">Streamer</string>
     <string name="games_dialog_save">Opslaan</string>
     <string name="games_dialog_cancel">Annuleren</string>
+    <string name="games_dialog_reset">Standaard herstellen</string>
+    <string name="games_reset_title">%1$s terugzetten naar de standaard?</string>
+    <string name="games_reset_message">%1$s krijgt weer de standaard kansen, uitbetaling, inzetgrenzen, wachttijd, wie mag spelen en eigen instellingen. De 18+ controle gaat uit. Of het spel aan of uit staat, verandert niet.</string>
+    <string name="games_reset_confirm">Herstellen</string>
     <string name="games_history_title">Speelgeschiedenis</string>
     <string name="games_history_empty">Nog geen spellen geregistreerd</string>
     <!-- Spellenpagina — de twee secties: directe gokminigames vs live overlay-spellen. -->
