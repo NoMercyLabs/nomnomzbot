@@ -1,0 +1,69 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet csharpier *)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(tail -n 20 /tmp_csharpier_check.txt)",
+      "Bash(rm -f /tmp_csharpier_check.txt)",
+      "Bash(dotnet build *)",
+      "Bash(tail -80 /tmp_build.log)",
+      "Bash(rm -f /tmp_build.log)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Projects/NoMercy/.claude/scripts/restore-guard.mjs\"",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Projects/NoMercy/.claude/scripts/attribution-guard.mjs\"",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Projects/NoMercy/.claude/scripts/executor-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "RULES_REGISTRY=\"$CLAUDE_PROJECT_DIR/.claude/rules/scoped-rules.json\" node \"C:/Projects/NoMercy/.claude/scripts/rules-gate.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "RULES_REGISTRY=\"$CLAUDE_PROJECT_DIR/.claude/rules/scoped-rules.json\" node \"C:/Projects/NoMercy/.claude/scripts/rules-gate.mjs\"",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
