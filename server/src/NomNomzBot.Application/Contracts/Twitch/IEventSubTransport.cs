@@ -80,6 +80,15 @@ public interface IEventSubTransport
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// <c>DELETE /eventsub/subscriptions?id=</c> for a conduit subscription. It belongs to the app, so only the
+    /// app access token can delete it. Idempotent (404 → Success).
+    /// </summary>
+    Task<Result> DeleteConduitSubscriptionAsync(
+        string twitchSubscriptionId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Lists the app/user's current subscriptions at Twitch (paged, follows cursor). For reconcile.</summary>
     Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListSubscriptionsAsync(
         Guid broadcasterId,

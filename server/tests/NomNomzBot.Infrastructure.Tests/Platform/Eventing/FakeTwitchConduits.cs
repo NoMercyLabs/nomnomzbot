@@ -171,6 +171,16 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
         return Task.FromResult(Result.Success(new TwitchConduitShardUpdateResult(updated, errors)));
     }
 
+    /// <summary>Adds a non-Helix step (a socket closing, a create) to the same ordered timeline.</summary>
+    public void Note(string step) => Record(step);
+
+    /// <summary>How many shards Twitch would deliver to right now.</summary>
+    public int EnabledShardCount(string conduitId)
+    {
+        lock (_lock)
+            return _conduits[conduitId].Count(s => s.Status == "enabled");
+    }
+
     private void Record(string call)
     {
         lock (_lock)

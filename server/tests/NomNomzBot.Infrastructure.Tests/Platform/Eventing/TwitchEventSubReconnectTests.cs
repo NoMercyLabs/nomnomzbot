@@ -980,6 +980,16 @@ public sealed class TwitchEventSubReconnectTests
             return Task.FromResult(Result.Success());
         }
 
+        public Task<Result> DeleteConduitSubscriptionAsync(
+            string twitchSubscriptionId,
+            CancellationToken ct = default
+        )
+        {
+            Deletes.Add(twitchSubscriptionId);
+            DeleteOwners.Add(null);
+            return Task.FromResult(Result.Success());
+        }
+
         public Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListSubscriptionsAsync(
             Guid broadcasterId,
             CancellationToken ct = default

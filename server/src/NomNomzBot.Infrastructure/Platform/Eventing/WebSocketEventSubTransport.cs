@@ -169,6 +169,9 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             OutboundSanction.PlatformConfiguration("eventsub_subscription_lifecycle")
         );
 
+        if (handle is { Kind: EventSubTransportKind.Conduit, ConduitId: { } conduitId })
+            return await CreateConduitSubscriptionAsync(request, conduitId, ct);
+
         if (handle.SessionId is null)
             return Result.Failure<TwitchSubscriptionResult>(
                 "Cannot create a WebSocket subscription without a session id.",
@@ -218,6 +221,78 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 SessionId = handle.SessionId,
             }
         );
+    }
+
+    /// <summary>
+    /// Creates the subscription on the conduit (twitch-eventsub §10). Twitch only accepts a conduit transport on
+    /// the app access token; the user authorization it checks is the grant the broadcaster (or, for chat, the
+    /// bot plus the broadcaster's <c>channel:bot</c> or the bot's moderator status) gave this client id.
+    /// </summary>
+    private async Task<Result<TwitchSubscriptionResult>> CreateConduitSubscriptionAsync(
+        EventSubSubscriptionRequest request,
+        string conduitId,
+        CancellationToken ct
+    )
+    {
+        var body = new
+        {
+            type = request.EventType,
+            version = request.Version,
+            condition = request.Condition,
+            transport = new { method = "conduit", conduit_id = conduitId },
+        };
+
+        TwitchHelixRequest helixRequest = new(
+            HttpMethod.Post,
+            "eventsub/subscriptions",
+            TwitchHelixAuth.BotApp,
+            Body: body
+        );
+
+        Result<TwitchEventSubWireSubscription> sent = await WithHelixAsync(helix =>
+            helix.SendWithResultAsync<TwitchEventSubWireSubscription>(helixRequest, ct)
+        );
+        if (sent.IsFailure)
+            return Result.Failure<TwitchSubscriptionResult>(
+                sent.ErrorMessage!,
+                sent.ErrorCode,
+                sent.ErrorDetail
+            );
+
+        TwitchEventSubWireSubscription wire = sent.Value;
+        return Result.Success(
+            new TwitchSubscriptionResult
+            {
+                TwitchSubscriptionId = wire.Id ?? string.Empty,
+                Type = wire.Type ?? request.EventType,
+                Version = wire.Version ?? request.Version,
+                Status = wire.Status ?? "enabled",
+                Cost = wire.Cost ?? 0,
+                ConduitId = conduitId,
+            }
+        );
+    }
+
+    public async Task<Result> DeleteConduitSubscriptionAsync(
+        string twitchSubscriptionId,
+        CancellationToken ct = default
+    )
+    {
+        using IDisposable sanction = _sanctions.Begin(
+            OutboundSanction.PlatformConfiguration("eventsub_subscription_lifecycle")
+        );
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Delete,
+            "eventsub/subscriptions",
+            TwitchHelixAuth.BotApp,
+            Query: [new("id", twitchSubscriptionId)]
+        );
+
+        Result deleted = await WithHelixAsync(helix => helix.SendAsync(request, ct));
+        return deleted is { IsFailure: true, ErrorCode: TwitchErrorCodes.NotFound }
+            ? Result.Success()
+            : deleted;
     }
 
     public async Task<Result> DeleteSubscriptionAsync(
