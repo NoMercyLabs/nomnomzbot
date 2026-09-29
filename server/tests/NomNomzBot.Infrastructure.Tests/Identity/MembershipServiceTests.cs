@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -38,7 +39,12 @@ public sealed class MembershipServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
         FakeTimeProvider clock = new(Now);
-        MembershipService sut = new(db, new RoleResolver(db, clock), bus, clock);
+        MembershipService sut = new(
+            db,
+            new RoleResolver(db, clock, Substitute.For<IActAsMembershipOverlay>()),
+            bus,
+            clock
+        );
         return (sut, db, bus);
     }
 

@@ -68,16 +68,25 @@ internal sealed class ActAsTestHost : IAsyncDisposable
     private readonly IHost _host;
     private readonly SqliteConnection _connection;
 
-    private ActAsTestHost(IHost host, SqliteConnection connection, IEventBus eventBus)
+    private ActAsTestHost(
+        IHost host,
+        SqliteConnection connection,
+        IEventBus eventBus,
+        ITwitchModeratorsApi moderators
+    )
     {
         _host = host;
         _connection = connection;
         EventBus = eventBus;
+        Moderators = moderators;
     }
 
     public TestServer Server => _host.GetTestServer();
     public HttpClient Client { get; private set; } = null!;
     public IEventBus EventBus { get; }
+
+    /// <summary>Twitch's "channels I moderate" answer. Offline (a failure) unless a test says otherwise.</summary>
+    public ITwitchModeratorsApi Moderators { get; }
 
     /// <summary>The IAM principal the admin operator acts through.</summary>
     public static readonly Guid AdminPrincipalId = Guid.Parse(
@@ -101,12 +110,22 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         JwtTokenService jwt = new(config, TimeProvider.System);
         IEventBus eventBus = Substitute.For<IEventBus>();
         IAuthService authService = Substitute.For<IAuthService>();
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetModeratedChannelsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchPage<TwitchModeratedChannel>>("offline", "NOT_FOUND"));
 
         IHostBuilder builder = new HostBuilder().ConfigureWebHost(web =>
             web.UseTestServer()
                 .ConfigureServices(services =>
-                    Register(services, config, jwt, eventBus, authService, adminUserId, connection)
-                )
+                {
+                    Register(services, config, jwt, eventBus, authService, adminUserId, connection);
+                    services.AddSingleton(moderators);
+                })
                 .Configure(Pipeline)
         );
 
@@ -118,7 +137,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
                 .ServiceProvider.GetRequiredService<AppDbContext>()
                 .Database.EnsureCreatedAsync();
 
-        ActAsTestHost testHost = new(host, connection, eventBus);
+        ActAsTestHost testHost = new(host, connection, eventBus, moderators);
         testHost.Client = host.GetTestClient();
         return testHost;
     }
@@ -250,6 +269,8 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddScoped<IChannelService, ChannelService>();
         services.AddScoped<IChannelAccessService, ChannelAccessService>();
         services.AddScoped<IRoleResolver, RoleResolver>();
+        services.AddScoped<IActAsMembershipOverlay, ActAsMembershipOverlay>();
+        services.AddScoped<IMembershipService, MembershipService>();
         services.AddScoped<IActionAuthorizationService, ActionAuthorizationService>();
         services.AddScoped<IActionRequiredInboxService, ActionRequiredInboxService>();
         services.AddScoped<ITenantMemberDirectoryService, TenantMemberDirectoryService>();
@@ -295,16 +316,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
             .Returns(Result.Success(AdminPrincipalId));
         services.AddSingleton(principals);
 
-        // The outside world.
-        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
-        moderators
-            .GetModeratedChannelsAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<TwitchPageRequest>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(Result.Failure<TwitchPage<TwitchModeratedChannel>>("offline", "NOT_FOUND"));
-        services.AddSingleton(moderators);
+        // The outside world (Twitch's moderators API is registered by StartAsync, which keeps it for the tests).
         services.AddSingleton(eventBus);
         services.AddSingleton(Substitute.For<IChannelRegistry>());
         services.AddSingleton(Substitute.For<ITwitchEventSubService>());
@@ -312,7 +324,6 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton(Substitute.For<IBuiltinResponseComposer>());
         services.AddSingleton(Substitute.For<IChannelDeletePreviewService>());
         services.AddSingleton(Substitute.For<IDatabaseMigrator>());
-        services.AddSingleton(Substitute.For<IMembershipService>());
         services.AddSingleton(Substitute.For<IUserIdentityService>());
         services.AddSingleton(Substitute.For<IActionRequiredChangeNotifier>());
         services.AddSingleton(Substitute.For<IOperatorChatSender>());

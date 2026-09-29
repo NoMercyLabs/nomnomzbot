@@ -307,7 +307,7 @@ public sealed class ChatCommandEffectiveLevelTests
         FakeTimeProvider clock = new(Now);
         // A spy over the REAL resolver: forwards to RoleResolver(db) so the outcome is the true ladder
         // resolution, while NSubstitute still counts calls for the short-circuit assertions.
-        RoleResolver realResolver = new(db, clock);
+        RoleResolver realResolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
         IRoleResolver resolver = Substitute.For<IRoleResolver>();
         resolver
             .ResolveEffectiveLevelAsync(

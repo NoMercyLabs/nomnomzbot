@@ -1581,6 +1581,13 @@ public static class DependencyInjection
             Identity.RoleResolver
         >();
 
+        // The memberships an act-as session computes instead of writing (the resolver reads it). Scoped: it
+        // memoizes the impersonated user's Twitch moderated list for one request.
+        services.AddScoped<
+            Application.Contracts.Authorization.IActAsMembershipOverlay,
+            Identity.ActAsMembershipOverlay
+        >();
+
         // Twitch management snapshot builder (moderators + editors) — shared by the onboarding seed and the
         // periodic ManagementRoleReconcileService. Not an I<X>Service; scoped (composes IUserService + Helix).
         services.AddScoped<

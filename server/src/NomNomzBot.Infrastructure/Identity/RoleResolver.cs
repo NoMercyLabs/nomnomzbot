@@ -21,9 +21,15 @@ namespace NomNomzBot.Infrastructure.Identity;
 /// <summary>
 /// Resolves the effective authorization level (roles-permissions §3.2) by reading the channel's
 /// community-standing, management-membership, and active permit rows and taking the <c>MAX</c> on the unified
-/// ladder. The <c>!permit</c> filter excludes revoked, soft-deleted, and expired grants. Pure read.
+/// ladder. The <c>!permit</c> filter excludes revoked, soft-deleted, and expired grants. Pure read: while a
+/// request acts as someone, a membership their own login would have written comes from
+/// <see cref="IActAsMembershipOverlay"/> instead of a row.
 /// </summary>
-public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) : IRoleResolver
+public sealed class RoleResolver(
+    IApplicationDbContext db,
+    TimeProvider clock,
+    IActAsMembershipOverlay actAsOverlay
+) : IRoleResolver
 {
     private const int BroadcasterLevel = 40;
 
@@ -173,14 +179,22 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
             ct
         );
 
+        // Acting as someone: the membership their own login would hold here, computed, never written.
+        ManagementRole? actingRole =
+            membership is null && !isChannelOwner
+                ? await actAsOverlay.ResolveAsync(userId, broadcasterId, ct)
+                : null;
+
         int communityLevel = standing?.LevelValue ?? 0;
         // The channel owner IS the Broadcaster on their own channel — no membership row needed (schema A.2:
         // one channel per owner). This is what lets a fresh self-host streamer use their own dashboard out of
         // the box, instead of being a role-less user on the channel they own.
         ManagementRole? managementRole =
-            membership?.ManagementRole ?? (isChannelOwner ? ManagementRole.Broadcaster : null);
+            membership?.ManagementRole
+            ?? actingRole
+            ?? (isChannelOwner ? ManagementRole.Broadcaster : null);
         int managementLevel = Math.Max(
-            membership?.LevelValue ?? 0,
+            membership?.LevelValue ?? actingRole?.ToLevel() ?? 0,
             isChannelOwner ? BroadcasterLevel : 0
         );
 

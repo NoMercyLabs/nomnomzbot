@@ -11,11 +11,13 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Infrastructure.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -37,7 +39,7 @@ public sealed class ActionAuthorizationServiceTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
         FakeTimeProvider clock = new(Now);
-        RoleResolver resolver = new(db, clock);
+        RoleResolver resolver = new(db, clock, Substitute.For<IActAsMembershipOverlay>());
         ActionAuthorizationService sut = new(db, resolver, bus, clock);
         return (sut, db, bus);
     }

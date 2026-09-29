@@ -16,6 +16,8 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Identifiers;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -44,6 +46,13 @@ public sealed class ActAsIdentitySwapTests : IAsyncLifetime
         "0192b000-0000-7000-8000-000000000c02"
     );
     private static readonly Guid SupportGrant = Guid.Parse("0192b000-0000-7000-8000-00000000d001");
+
+    // A channel anda_six moderates on Twitch only: no ChannelModerators row, no membership row. Her own
+    // channel list grants the Moderator row; act-as must answer the same without writing it.
+    private static readonly Guid FourthOwner = Guid.Parse("0192b000-0000-7000-8000-000000000e01");
+    private static readonly Guid TwitchOnlyChannel = Guid.Parse(
+        "0192b000-0000-7000-8000-000000000e02"
+    );
 
     private ActAsTestHost _host = null!;
 
@@ -114,6 +123,51 @@ public sealed class ActAsIdentitySwapTests : IAsyncLifetime
         JsonNode? me = JsonNode.Parse((await ReadAsync("/api/v1/auth/me", actAs)).body)!["data"];
         me!["username"]!.GetValue<string>().Should().Be("anda_six");
         me["isAdmin"]!.GetValue<bool>().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_channel_she_moderates_only_on_Twitch_answers_as_her_own_login_without_a_write()
+    {
+        _host
+            .Moderators.GetModeratedChannelsAsync(
+                TargetChannel,
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModeratedChannel>(
+                        [new(TwitchId(TwitchOnlyChannel), "fourth_owner", "fourth_owner")],
+                        null,
+                        1
+                    )
+                )
+            );
+        const string channels = "/api/v1/channels?page=1&pageSize=100";
+        string effective = $"/api/v1/channels/{TwitchOnlyChannel}/roles/effective/me";
+        string adminOwn = (await _host.LoginAsync(Admin, AdminChannel)).AccessToken;
+        string actAs = (await StartActAsAsync(adminOwn)).AccessToken;
+
+        (HttpStatusCode status, string body) actingList = await ReadAsync(channels, actAs);
+        (HttpStatusCode status, string body) actingRole = await ReadAsync(effective, actAs);
+
+        (await HasMembershipAsync(Target, TwitchOnlyChannel))
+            .Should()
+            .BeFalse("an act-as session writes no role row on the user's behalf");
+
+        string targetOwn = (await _host.LoginAsync(Target, TargetChannel)).AccessToken;
+        (HttpStatusCode status, string body) ownList = await ReadAsync(channels, targetOwn);
+        (HttpStatusCode status, string body) ownRole = await ReadAsync(effective, targetOwn);
+
+        (await HasMembershipAsync(Target, TwitchOnlyChannel))
+            .Should()
+            .BeTrue("her own login grants the Moderator row, so the comparison below is real");
+        actingList.Should().Be(ownList, "act-as lists her channels exactly as her own login");
+        actingRole.Should().Be(ownRole, "act-as resolves her role exactly as her own login");
+        JsonNode.Parse(actingRole.body)!["data"]!["managementRole"]!
+            .GetValue<string>()
+            .Should()
+            .Be("Moderator");
     }
 
     [Fact]
@@ -377,6 +431,14 @@ public sealed class ActAsIdentitySwapTests : IAsyncLifetime
         return string.IsNullOrEmpty(value) ? null : value;
     }
 
+    private Task<bool> HasMembershipAsync(Guid userId, Guid channelId) =>
+        _host.ReadAsync(db =>
+            db.ChannelMemberships.IgnoreQueryFilters()
+                .AnyAsync(m => m.UserId == userId && m.BroadcasterId == channelId)
+        );
+
+    private static string TwitchId(Guid channelId) => channelId.ToString("N")[^12..];
+
     private static Guid Decode(JsonNode id) =>
         GuidUlidCodec.TryDecode(id.GetValue<string>(), out Guid guid)
             ? guid
@@ -388,12 +450,14 @@ public sealed class ActAsIdentitySwapTests : IAsyncLifetime
         db.Users.AddRange(
             User(Admin, "Stoney_Eagle", isAdmin: true),
             User(Target, "anda_six", isAdmin: false),
-            User(ThirdOwner, "third_owner", isAdmin: false)
+            User(ThirdOwner, "third_owner", isAdmin: false),
+            User(FourthOwner, "fourth_owner", isAdmin: false)
         );
         db.Channels.AddRange(
             Channel(AdminChannel, Admin, "stoney_eagle"),
             Channel(TargetChannel, Target, "anda_six"),
-            Channel(ModeratedChannel, ThirdOwner, "third_owner")
+            Channel(ModeratedChannel, ThirdOwner, "third_owner"),
+            Channel(TwitchOnlyChannel, FourthOwner, "fourth_owner")
         );
         db.ChannelModerators.Add(
             new()
@@ -471,7 +535,7 @@ public sealed class ActAsIdentitySwapTests : IAsyncLifetime
             OwnerUserId = owner,
             Name = name,
             NameNormalized = name,
-            TwitchChannelId = id.ToString("N")[^12..],
+            TwitchChannelId = TwitchId(id),
             ExternalChannelId = id.ToString("N")[^12..],
             IsOnboarded = true,
         };
