@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<!-- Built-in reply catalogue (commands-pipelines.md section 11): core reply labels, descriptions and variables. -->
+<resources>
+    <string name="builtin_reply_uptime_live_label">Stream is live</string>
+    <string name="builtin_reply_uptime_live_description">Someone asks for the uptime while you are live.</string>
+    <string name="builtin_reply_uptime_offline_label">Stream is offline</string>
+    <string name="builtin_reply_uptime_offline_description">Someone asks for the uptime while you are offline.</string>
+    <string name="builtin_reply_commands_list_label">Command list</string>
+    <string name="builtin_reply_commands_list_description">Someone asks which commands this channel has.</string>
+    <string name="builtin_reply_commands_empty_label">No commands</string>
+    <string name="builtin_reply_commands_empty_description">Someone asks for the commands, but none are turned on.</string>
+    <string name="builtin_reply_help_described_label">Command help</string>
+    <string name="builtin_reply_help_described_description">Someone asks what one command does.</string>
+    <string name="builtin_reply_lurk_lurking_label">Now lurking</string>
+    <string name="builtin_reply_lurk_lurking_description">A viewer says they are lurking.</string>
+    <string name="builtin_reply_lurk_notlurking_label">Back from lurking</string>
+    <string name="builtin_reply_lurk_notlurking_description">A viewer says they are back.</string>
+    <string name="builtin_reply_accountage_age_label">Account age</string>
+    <string name="builtin_reply_accountage_age_description">A viewer asks how old their account is.</string>
+    <string name="builtin_reply_whisper_usage_label">How to use</string>
+    <string name="builtin_reply_whisper_usage_description">The command was used without a name or message.</string>
+    <string name="builtin_reply_whisper_notfound_label">User not found</string>
+    <string name="builtin_reply_whisper_notfound_description">No account matches the given name.</string>
+    <string name="builtin_reply_whisper_twitchunavailable_label">Twitch did not answer</string>
+    <string name="builtin_reply_whisper_twitchunavailable_description">Twitch did not answer the lookup.</string>
+    <string name="builtin_reply_whisper_notavailable_label">Whispers not available</string>
+    <string name="builtin_reply_whisper_notavailable_description">The bot cannot send whispers on this platform.</string>
+    <string name="builtin_reply_update_notfound_label">User not found</string>
+    <string name="builtin_reply_update_notfound_description">No account matches the given name.</string>
+    <string name="builtin_reply_update_twitchunavailable_label">Twitch did not answer</string>
+    <string name="builtin_reply_update_twitchunavailable_description">Twitch did not answer the lookup.</string>
+    <string name="builtin_reply_update_updatefailed_label">Update failed</string>
+    <string name="builtin_reply_update_updatefailed_description">The new info could not be saved.</string>
+    <string name="builtin_reply_update_loginunresolved_label">Name unknown</string>
+    <string name="builtin_reply_update_loginunresolved_description">The name to update could not be found.</string>
+    <string name="builtin_reply_update_owninfoonly_label">Own info only</string>
+    <string name="builtin_reply_update_owninfoonly_description">A viewer tried to update someone else.</string>
+    <string name="builtin_reply_coinflip_accountunresolved_label">Account not found</string>
+    <string name="builtin_reply_coinflip_accountunresolved_description">The player's account could not be found.</string>
+    <string name="builtin_reply_dice_accountunresolved_label">Account not found</string>
+    <string name="builtin_reply_dice_accountunresolved_description">The player's account could not be found.</string>
+    <string name="builtin_reply_slots_accountunresolved_label">Account not found</string>
+    <string name="builtin_reply_slots_accountunresolved_description">The player's account could not be found.</string>
+    <string name="builtin_reply_botstatus_goingoffline_label">Bot restarting</string>
+    <string name="builtin_reply_botstatus_goingoffline_description">The bot stops and no other bot takes over.</string>
+    <string name="builtin_reply_var_user">The viewer's display name</string>
+    <string name="builtin_reply_var_uptime">How long the stream has been live</string>
+    <string name="builtin_reply_var_commands">The list of commands</string>
+    <string name="builtin_reply_var_command">The command's name</string>
+    <string name="builtin_reply_var_description">What the command does</string>
+    <string name="builtin_reply_var_age">How old the account is</string>
+</resources>

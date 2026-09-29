@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Platform.Caching;
 using NomNomzBot.Infrastructure.PlatformDefaults;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -47,7 +48,8 @@ public sealed class BuiltinReplyDefaultsAdminServiceTests
     private sealed record Harness(
         AuthDbContext Db,
         BuiltinReplyDefaultsAdminService Sut,
-        BuiltinResponseComposer Composer
+        ITemplateResolver Templates,
+        PlatformBuiltinReplyDefaultsReader Reader
     );
 
     private static async Task<Harness> BuildAsync()
@@ -83,7 +85,8 @@ public sealed class BuiltinReplyDefaultsAdminServiceTests
         return new(
             db,
             new(db, reader, new FakeTimeProvider(DateTimeOffset.UtcNow)),
-            new(templates, reader)
+            templates,
+            reader
         );
     }
 
@@ -99,18 +102,22 @@ public sealed class BuiltinReplyDefaultsAdminServiceTests
             Status = AuthEnums.ChannelStatus.Active,
         };
 
-    private static Task<string> ComposeAsync(Harness h, string slot, string? channelOverride) =>
-        h.Composer.ComposeAsync(
+    private static Task<string> ComposeAsync(Harness h, string slot, string? channelOverride)
+    {
+        FakeChannelBuiltinReplies own = channelOverride is null
+            ? FakeChannelBuiltinReplies.None
+            : new FakeChannelBuiltinReplies().Set(Follower, Key, slot, channelOverride);
+        return new BuiltinResponseComposer(h.Templates, h.Reader, own).ComposeAsync(
             new()
             {
                 BroadcasterId = Follower,
                 Personality = PersonalityTone.Sassy,
                 BuiltinKey = Key,
                 Slot = slot,
-                OverrideTemplate = channelOverride,
                 NeutralFallback = "neutral",
             }
         );
+    }
 
     [Fact]
     public async Task An_admin_text_replaces_the_tone_lines_but_a_channel_override_still_wins()
@@ -148,7 +155,6 @@ public sealed class BuiltinReplyDefaultsAdminServiceTests
 
         set.PlatformTemplate.Should().Be("On air {uptime}");
         set.ShippedTemplate.Should().Be(ToneTemplateCatalog.ShippedTemplate(Key, Live));
-        set.TakesChannelOverride.Should().BeTrue();
         set.ChannelsWithOwnReply.Should().Be(1);
         cleared.PlatformTemplate.Should().BeNull();
         (await h.Db.PlatformBuiltinReplyDefaults.CountAsync()).Should().Be(0);
@@ -217,9 +223,11 @@ public sealed class BuiltinReplyDefaultsAdminServiceTests
         BuiltinReplyDefaultDto live = rows.Single(r => r.BuiltinKey == Key && r.Slot == Live);
         live.ShippedTemplate.Should().NotBeNullOrWhiteSpace();
         live.PlatformTemplate.Should().BeNull();
+        live.ChannelsWithOwnReply.Should()
+            .Be(1, "bravo's legacy single override still counts for the live slot it fed");
         rows.Single(r => r.BuiltinKey == Key && r.Slot == Offline)
-            .TakesChannelOverride.Should()
-            .BeFalse();
+            .ChannelsWithOwnReply.Should()
+            .Be(0);
     }
 
     private sealed class SingleContextScopeFactory(IApplicationDbContext db) : IServiceScopeFactory

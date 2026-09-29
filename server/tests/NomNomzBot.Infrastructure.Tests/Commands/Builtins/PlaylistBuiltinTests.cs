@@ -85,7 +85,11 @@ public sealed class PlaylistBuiltinTests
 
         PlaylistBuiltin sut = new(
             music,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context());
@@ -107,7 +111,11 @@ public sealed class PlaylistBuiltinTests
 
         PlaylistBuiltin sut = new(
             music,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context());

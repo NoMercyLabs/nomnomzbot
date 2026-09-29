@@ -196,7 +196,6 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.SongRequest.Added,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = "Added {track.name} by {track.artist} to the queue. {track.link}",
                 Variables = new Dictionary<string, string>
                 {

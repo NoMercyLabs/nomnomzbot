@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<!-- Built-in reply catalogue (commands-pipelines.md section 11): community reply labels, descriptions and variables. -->
+<resources>
+    <string name="builtin_reply_stats_profile_label">Kijkerstatistieken</string>
+    <string name="builtin_reply_stats_profile_description">Een kijker vraagt hun statistieken.</string>
+    <string name="builtin_reply_var_stats_user">De naam van de kijker</string>
+    <string name="builtin_reply_var_stats_messages">Verstuurde berichten</string>
+    <string name="builtin_reply_var_stats_watchtime">Kijktijd</string>
+    <string name="builtin_reply_var_stats_points">Punten</string>
+    <string name="builtin_reply_var_stats_rank">Plaats op het klassement</string>
+    <string name="builtin_reply_var_stats_streak">Streams op rij</string>
+    <string name="builtin_reply_var_stats_firstseen">Eerst gezien op</string>
+</resources>

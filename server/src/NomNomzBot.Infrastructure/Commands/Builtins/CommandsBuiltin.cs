@@ -102,7 +102,6 @@ public sealed class CommandsBuiltin : IBuiltinCommand
                 Personality = context.Personality,
                 BuiltinKey = BuiltinResponseSlots.Commands.Key,
                 Slot = BuiltinResponseSlots.Commands.List,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback =
                     $"@{context.TriggeringUserDisplayName} available commands: {string.Join(", ", triggers)}",
                 Variables = new Dictionary<string, string>

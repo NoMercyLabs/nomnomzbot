@@ -16,7 +16,8 @@ namespace NomNomzBot.Application.Commands.Builtin;
 /// response built-in phrases itself identically:
 ///
 /// <list type="number">
-///   <item>the channel's explicit per-command override (<c>ChannelBuiltinCommand.OverridesJson</c>), if set;</item>
+///   <item>the channel's own text for exactly <c>(builtinKey, slot)</c> (<see cref="IChannelBuiltinReplyOverrides"/>);</item>
+///   <item>the platform admin's text for the slot (<see cref="IPlatformBuiltinReplyDefaults"/>);</item>
 ///   <item>a random variation from the channel's personality tone for <c>(tone, builtinKey, slot)</c>;</item>
 ///   <item>the built-in's own neutral fallback string.</item>
 /// </list>
@@ -44,12 +45,6 @@ public sealed record BuiltinResponseRequest
 
     /// <summary>The response case within the built-in (e.g. "live"/"offline") — the tone catalog slot.</summary>
     public required string Slot { get; init; }
-
-    /// <summary>
-    /// The channel's explicit per-command override template for this response, or null. Wins over the tone
-    /// template when non-blank (populated by the handler from <c>ChannelBuiltinCommand.OverridesJson</c>).
-    /// </summary>
-    public string? OverrideTemplate { get; init; }
 
     /// <summary>Neutral fallback used when neither an override nor a tone template exists — never null.</summary>
     public required string NeutralFallback { get; init; }

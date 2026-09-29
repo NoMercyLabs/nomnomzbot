@@ -41,7 +41,7 @@ public sealed class BuiltinReplyDefaultsAdminService(
         Dictionary<(string, string), string> platform = await db
             .PlatformBuiltinReplyDefaults.AsNoTracking()
             .ToDictionaryAsync(d => (d.BuiltinKey, d.Slot), d => d.Template, ct);
-        Dictionary<string, List<Guid>> ownReplies = await ChannelsWithOwnReplyByKeyAsync(ct);
+        Dictionary<string, List<Guid>> ownReplies = await ChannelsWithOwnReplyBySlotAsync(ct);
 
         List<BuiltinReplyDefaultDto> rows =
         [
@@ -144,7 +144,7 @@ public sealed class BuiltinReplyDefaultsAdminService(
             .Select(d => d.Template)
             .FirstOrDefaultAsync(ct);
         return Result.Success(
-            ToDto(builtinKey, slot, saved, await ChannelsWithOwnReplyByKeyAsync(ct))
+            ToDto(builtinKey, slot, saved, await ChannelsWithOwnReplyBySlotAsync(ct))
         );
     }
 
@@ -177,14 +177,10 @@ public sealed class BuiltinReplyDefaultsAdminService(
             Normalize(proposed),
             StringComparison.Ordinal
         );
-        // A channel's own response override only protects the slots that receive it; on every other slot every
-        // active channel feels the change.
-        IReadOnlyCollection<Guid> keeping = BuiltinResponseSlots.TakesChannelOverride(
-            builtinKey,
-            slot
-        )
-            ? (await ChannelsWithOwnReplyByKeyAsync(ct)).GetValueOrDefault(builtinKey) ?? []
-            : [];
+        // A channel with its own text for this exact slot keeps it; every other active channel feels the change.
+        IReadOnlyCollection<Guid> keeping =
+            (await ChannelsWithOwnReplyBySlotAsync(ct)).GetValueOrDefault(SlotKey(builtinKey, slot))
+            ?? [];
         return await PlatformDefaultBlastRadius.CountAsync(
             db,
             keeping,
@@ -195,10 +191,10 @@ public sealed class BuiltinReplyDefaultsAdminService(
     }
 
     /// <summary>
-    /// Per built-in key, the channels whose own response override is set — the same parse the channel registry
-    /// applies at runtime (keys normalised the same way: no leading "!", lower case).
+    /// Per reply slot (<see cref="SlotKey"/>), the channels with their own text for it — the same parse the channel
+    /// registry applies at runtime (reply group resolved the same way, legacy single override included).
     /// </summary>
-    private async Task<Dictionary<string, List<Guid>>> ChannelsWithOwnReplyByKeyAsync(
+    private async Task<Dictionary<string, List<Guid>>> ChannelsWithOwnReplyBySlotAsync(
         CancellationToken ct
     )
     {
@@ -213,18 +209,28 @@ public sealed class BuiltinReplyDefaultsAdminService(
                 c.OverridesJson,
             })
             .ToListAsync(ct);
-        Dictionary<string, List<Guid>> byKey = new(StringComparer.Ordinal);
+        Dictionary<string, List<Guid>> bySlot = new(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            if (!BuiltinOverridesJson.TryGetResponseTemplate(row.OverridesJson, out string _))
-                continue;
-            string key = row.BuiltinKey.TrimStart('!').ToLowerInvariant();
-            if (!byKey.TryGetValue(key, out List<Guid>? channels))
-                byKey[key] = channels = [];
-            channels.Add(row.BroadcasterId);
+            string group = BuiltinResponseSlots.ReplyGroupFor(row.BuiltinKey);
+            foreach (
+                string slot in BuiltinOverridesJson
+                    .EffectiveResponses(row.BuiltinKey, row.OverridesJson)
+                    .Keys
+            )
+            {
+                string key = SlotKey(group, slot);
+                if (!bySlot.TryGetValue(key, out List<Guid>? channels))
+                    bySlot[key] = channels = [];
+                if (!channels.Contains(row.BroadcasterId))
+                    channels.Add(row.BroadcasterId);
+            }
         }
-        return byKey;
+        return bySlot;
     }
+
+    private static string SlotKey(string replyGroup, string slot) =>
+        replyGroup + "|" + slot.ToLowerInvariant();
 
     private async Task<PlatformBuiltinReplyDefault?> FindAsync(
         string builtinKey,
@@ -243,14 +249,12 @@ public sealed class BuiltinReplyDefaultsAdminService(
         Dictionary<string, List<Guid>> ownReplies
     )
     {
-        bool takesOverride = BuiltinResponseSlots.TakesChannelOverride(builtinKey, slot);
         return new(
             builtinKey,
             slot,
             ToneTemplateCatalog.ShippedTemplate(builtinKey, slot),
             platformTemplate,
-            takesOverride,
-            takesOverride ? ownReplies.GetValueOrDefault(builtinKey)?.Count ?? 0 : 0
+            ownReplies.GetValueOrDefault(SlotKey(builtinKey, slot))?.Count ?? 0
         );
     }
 }

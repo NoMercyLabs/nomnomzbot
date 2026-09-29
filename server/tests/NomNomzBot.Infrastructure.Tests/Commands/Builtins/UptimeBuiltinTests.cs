@@ -59,7 +59,13 @@ public sealed class UptimeBuiltinTests
         registry.Get(Channel).Returns(ctx);
         return new(
             registry,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance),
+            // The real channel-override reader over the same registry: an override lives on the ChannelContext
+            // exactly where ChannelRegistry loads it.
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                new ChannelBuiltinReplyOverridesReader(registry)
+            ),
             new FakeTimeProvider(Now)
         );
     }
@@ -74,7 +80,7 @@ public sealed class UptimeBuiltinTests
             WentLiveAt = Now - since,
         };
 
-    private static BuiltinCommandContext Ctx(string personality, string? overrideTemplate = null) =>
+    private static BuiltinCommandContext Ctx(string personality) =>
         new()
         {
             BroadcasterId = Channel,
@@ -82,7 +88,6 @@ public sealed class UptimeBuiltinTests
             TriggeringUserDisplayName = "Viewer",
             TriggeringUserLogin = "viewer",
             Personality = personality,
-            CustomResponseTemplate = overrideTemplate,
         };
 
     [Fact]
@@ -121,8 +126,15 @@ public sealed class UptimeBuiltinTests
     [Fact]
     public async Task Override_wins_and_is_rendered_with_the_real_uptime()
     {
-        Result<string> result = await Sut(LiveContext(TimeSpan.FromMinutes(125)))
-            .ExecuteAsync(Ctx(PersonalityTone.Sassy, overrideTemplate: "up {uptime} baby"));
+        ChannelContext ctx = LiveContext(TimeSpan.FromMinutes(125));
+        ctx.BuiltinReplyOverrides[
+            ChannelContext.BuiltinReplyKey(
+                BuiltinResponseSlots.Uptime.Key,
+                BuiltinResponseSlots.Uptime.Live
+            )
+        ] = "up {uptime} baby";
+
+        Result<string> result = await Sut(ctx).ExecuteAsync(Ctx(PersonalityTone.Sassy));
 
         result.Value.Should().Be("up 2h 5m baby");
     }

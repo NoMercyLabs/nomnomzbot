@@ -112,7 +112,6 @@ public sealed class GdprSelfServiceExecutor
                 Personality = context.Personality,
                 BuiltinKey = BuiltinResponseSlots.Forgetme.Key,
                 Slot = BuiltinResponseSlots.Forgetme.Done,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = DefaultErasedCopy,
             },
             ct

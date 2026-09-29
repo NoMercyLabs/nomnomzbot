@@ -63,7 +63,11 @@ public sealed class LurkBuiltinsTests
                     template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
                 return Task.FromResult(template);
             });
-        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
     }
 
     private static IUserService FakeUsers() =>

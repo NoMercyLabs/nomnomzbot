@@ -19,6 +19,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.ViewerData.Builtins;
 using NSubstitute;
 
@@ -109,7 +110,15 @@ public sealed class StatsBuiltinTests
             });
     }
 
-    private StatsBuiltin Sut() => new(_analytics, _wallets, _users, _db, _templates);
+    private StatsBuiltin Sut(FakeChannelBuiltinReplies? channelReplies = null) =>
+        new(
+            _analytics,
+            _wallets,
+            _users,
+            _db,
+            _templates,
+            channelReplies ?? FakeChannelBuiltinReplies.None
+        );
 
     private static BuiltinCommandContext Context(string args = "") =>
         new()
@@ -258,12 +267,16 @@ public sealed class StatsBuiltinTests
             TriggeringUserDisplayName = "Alice",
             TriggeringUserLogin = "alice",
             Args = string.Empty,
-            CustomResponseTemplate =
-                "{stats.user}: {stats.points} pts (#{stats.rank}), {stats.messages} msgs, "
-                + "{stats.watchtime}, streak {stats.streak}, since {stats.firstseen}",
         };
+        FakeChannelBuiltinReplies own = new FakeChannelBuiltinReplies().Set(
+            Channel,
+            BuiltinResponseSlots.Stats.Key,
+            BuiltinResponseSlots.Stats.Profile,
+            "{stats.user}: {stats.points} pts (#{stats.rank}), {stats.messages} msgs, "
+                + "{stats.watchtime}, streak {stats.streak}, since {stats.firstseen}"
+        );
 
-        Result<string> reply = await Sut().ExecuteAsync(ctx);
+        Result<string> reply = await Sut(own).ExecuteAsync(ctx);
 
         reply.Value.Should().Be("Alice: 500 pts (#3), 42 msgs, 2h 1m, streak 3, since 2026-01-05");
     }
@@ -334,7 +347,14 @@ public sealed class StatsBuiltinTests
     public async Task Profile_IsTheLegacyParityAliasOfStats()
     {
         SeedAliceStats();
-        ProfileBuiltin alias = new(_analytics, _wallets, _users, _db, _templates);
+        ProfileBuiltin alias = new(
+            _analytics,
+            _wallets,
+            _users,
+            _db,
+            _templates,
+            FakeChannelBuiltinReplies.None
+        );
 
         alias.BuiltinKey.Should().Be("profile");
         Result<string> reply = await alias.ExecuteAsync(Context());

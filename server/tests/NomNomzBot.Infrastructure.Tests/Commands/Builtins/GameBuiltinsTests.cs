@@ -60,7 +60,11 @@ public sealed class GameBuiltinsTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
-        return new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance);
+        return new BuiltinResponseComposer(
+            resolver,
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
     }
 
     private static GameConfigDto Config(bool enabled) =>

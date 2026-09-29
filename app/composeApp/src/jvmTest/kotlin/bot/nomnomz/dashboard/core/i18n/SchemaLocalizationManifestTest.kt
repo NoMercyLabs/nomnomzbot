@@ -46,8 +46,8 @@ class SchemaLocalizationManifestTest {
         val keys: List<String> = readManifestKeys()
         assertTrue(keys.isNotEmpty(), "the manifest should carry the real backend schema's translation keys")
 
-        val englishNames: Set<String> = stringNamesIn(stringsXmlFile("values"))
-        val dutchNames: Set<String> = stringNamesIn(stringsXmlFile("values-nl"))
+        val englishNames: Set<String> = stringNamesInFolder("values")
+        val dutchNames: Set<String> = stringNamesInFolder("values-nl")
 
         val missingEnglish: List<String> = keys.filter { schemaResourceName(it) !in englishNames }
         val missingDutch: List<String> = keys.filter { schemaResourceName(it) !in dutchNames }
@@ -171,8 +171,13 @@ class SchemaLocalizationManifestTest {
     /** Walk up from the test working directory to the committed manifest, so the test is location-independent. */
     private fun manifestFile(): File = fromRepoRoot("server/i18n/schema-i18n-keys.manifest.json")
 
-    private fun stringsXmlFile(variant: String): File =
-        fromRepoRoot("app/composeApp/src/commonMain/composeResources/$variant/strings.xml")
+    // Compose Resources merges every *.xml of a values folder (strings.xml, strings_builtin_replies*.xml, …).
+    private fun stringNamesInFolder(variant: String): Set<String> =
+        fromRepoRoot("app/composeApp/src/commonMain/composeResources/$variant")
+            .listFiles { file -> file.extension == "xml" }
+            .orEmpty()
+            .flatMap { stringNamesIn(it) }
+            .toSet()
 
     private fun fromRepoRoot(relative: String): File {
         var dir: File? = File(System.getProperty("user.dir"))

@@ -78,14 +78,6 @@ public sealed class BuiltinCommandContext
     public string? ReplyParentUserName { get; init; }
 
     /// <summary>
-    /// The channel's explicit per-command response-template override, parsed from
-    /// <c>ChannelBuiltinCommand.OverridesJson</c> by the chat handler. When set (non-blank) it WINS over the
-    /// personality tone template; when null the built-in falls back to its tone template, then its neutral
-    /// string. Populated by the handler — a built-in only reads it.
-    /// </summary>
-    public string? CustomResponseTemplate { get; init; }
-
-    /// <summary>
     /// The channel's personality tone (<see cref="PersonalityTone"/>) — the voice the built-in phrases its
     /// response in. Defaults to <see cref="PersonalityTone.Informative"/>; set by the handler from the
     /// channel's resolved <c>Personality</c>.

@@ -16,6 +16,7 @@ using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -148,6 +149,11 @@ public sealed class SchemaLocalizationManifestTests
         // S042: every template helper registry entry's description key, same real-schema-walk contract.
         foreach (TemplateHelperEntry helper in TemplateHelperRegistry.All)
             keys.Add(helper.Description.Key);
+
+        // Commands-pipelines.md §11: every built-in reply slot's label/description and every reply variable's
+        // description — the dashboard's reply editor renders them.
+        foreach (LocalizedText text in BuiltinReplyLabels.All())
+            keys.Add(text.Key);
 
         return [.. keys.Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal)];
     }

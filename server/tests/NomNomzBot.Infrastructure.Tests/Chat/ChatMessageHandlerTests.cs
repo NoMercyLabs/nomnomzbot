@@ -593,13 +593,13 @@ public sealed class ChatMessageHandlerTests
     }
 
     [Fact]
-    public async Task Builtin_context_carries_the_channel_personality_and_override_template()
+    public async Task Builtin_context_carries_the_channel_personality()
     {
-        // The handler resolves the channel's tone + the per-command OverridesJson template (both cached on
-        // ChannelContext) and hands them to the builtin — the seam the whole tone system hangs off.
+        // The handler resolves the channel's tone (cached on ChannelContext) and hands it to the builtin — the
+        // seam the whole tone system hangs off. Per-slot reply overrides are the composer's job (§11), never
+        // threaded through the context.
         ChannelContext ctx = NewChannelContext();
         ctx.Personality = PersonalityTone.Sassy;
-        ctx.BuiltinResponseOverrides[BuiltinKey] = "OVERRIDE {uptime}";
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -627,13 +627,12 @@ public sealed class ChatMessageHandlerTests
 
         builtin.Captured.Should().NotBeNull();
         builtin.Captured!.Personality.Should().Be(PersonalityTone.Sassy);
-        builtin.Captured!.CustomResponseTemplate.Should().Be("OVERRIDE {uptime}");
     }
 
     [Fact]
-    public async Task Builtin_context_defaults_personality_to_informative_with_no_override()
+    public async Task Builtin_context_defaults_personality_to_informative()
     {
-        // A channel with no personality set and no override row: the default tone flows, override stays null.
+        // A channel with no personality set: the default tone flows.
         ChannelContext ctx = NewChannelContext();
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -662,7 +661,6 @@ public sealed class ChatMessageHandlerTests
 
         builtin.Captured.Should().NotBeNull();
         builtin.Captured!.Personality.Should().Be(PersonalityTone.Informative);
-        builtin.Captured!.CustomResponseTemplate.Should().BeNull();
     }
 
     // ── session-first-message trigger (the "welcome them in" chain) ─────────

@@ -33,23 +33,9 @@ public interface IBuiltinCommandService
     );
 
     /// <summary>
-    /// Sets (or, when <paramref name="template"/> is null/blank, clears) the channel's response-template
-    /// override for a built-in — the same <c>ChannelBuiltinCommand.OverridesJson</c> / <c>{ "responseTemplate": "..." }</c>
-    /// shape the channel registry already loads into <c>BuiltinCommandContext.CustomResponseTemplate</c>
-    /// (<see cref="Builtin.IBuiltinResponseComposer"/> precedence). Generalizes the per-command override write
-    /// path across every built-in, not just one.
-    /// </summary>
-    Task<Result> SetResponseOverrideAsync(
-        string broadcasterId,
-        string builtinKey,
-        string? template,
-        CancellationToken ct = default
-    );
-
-    /// <summary>
     /// Enables or disables the channel's "speak with TTS" option for a built-in that supports it (S-OBS-12,
-    /// e.g. <c>!quote</c>) — stored alongside <see cref="SetResponseOverrideAsync"/>'s response-template
-    /// override in the same <c>ChannelBuiltinCommand.OverridesJson</c> blob, merged so setting one never
+    /// e.g. <c>!quote</c>) — stored alongside the channel's reply texts (<see cref="IBuiltinReplyService"/>)
+    /// in the same <c>ChannelBuiltinCommand.OverridesJson</c> blob, merged so setting one never
     /// clears the other. Default off: the built-in posts to chat only until explicitly turned on.
     /// </summary>
     Task<Result> SetSpeakWithTtsAsync(
@@ -66,6 +52,6 @@ public sealed record BuiltinCommandDto(
     bool IsEnabled,
     int DefaultCooldownSeconds,
     string DefaultMinPermissionLevel,
-    string? ResponseOverride,
+    string ReplyGroup,
     bool SpeakWithTts
 );

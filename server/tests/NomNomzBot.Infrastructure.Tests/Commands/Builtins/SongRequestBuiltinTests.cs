@@ -389,7 +389,11 @@ public sealed class SongRequestBuiltinTests
 
         return new(
             music,
-            new BuiltinResponseComposer(resolver, NoPlatformBuiltinReplies.Instance),
+            new BuiltinResponseComposer(
+                resolver,
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            ),
             Substitute.For<IEventBus>()
         );
     }

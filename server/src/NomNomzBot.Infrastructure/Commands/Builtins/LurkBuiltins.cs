@@ -85,7 +85,6 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
                 Slot = _lurking
                     ? BuiltinResponseSlots.Lurk.Lurking
                     : BuiltinResponseSlots.Lurk.NotLurking,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = _lurking
                     ? $"@{context.TriggeringUserDisplayName} is now lurking. Enjoy the stream!"
                     : $"@{context.TriggeringUserDisplayName} is no longer lurking. Welcome back!",

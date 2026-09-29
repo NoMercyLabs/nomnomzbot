@@ -111,7 +111,6 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                 Personality = context.Personality,
                 BuiltinKey = BuiltinResponseSlots.AccountAge.Key,
                 Slot = BuiltinResponseSlots.AccountAge.Age,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback =
                     $"@{context.TriggeringUserDisplayName} your Twitch account is {age} old.",
                 Variables = new Dictionary<string, string>

@@ -94,7 +94,11 @@ public sealed class LeaderboardBuiltinTests
 
         LeaderboardBuiltin sut = new(
             leaderboards,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context());
@@ -116,7 +120,11 @@ public sealed class LeaderboardBuiltinTests
 
         LeaderboardBuiltin sut = new(
             leaderboards,
-            new BuiltinResponseComposer(FakeResolver(), NoPlatformBuiltinReplies.Instance)
+            new BuiltinResponseComposer(
+                FakeResolver(),
+                NoPlatformBuiltinReplies.Instance,
+                FakeChannelBuiltinReplies.None
+            )
         );
 
         Result<string> result = await sut.ExecuteAsync(Context());

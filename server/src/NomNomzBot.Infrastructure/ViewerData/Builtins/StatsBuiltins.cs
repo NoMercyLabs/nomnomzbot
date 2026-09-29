@@ -35,13 +35,15 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
     private readonly ITemplateResolver _templates;
+    private readonly IChannelBuiltinReplyOverrides _channelReplies;
 
     protected StatsBuiltinBase(
         IViewerAnalyticsService analytics,
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        ITemplateResolver templates
+        ITemplateResolver templates,
+        IChannelBuiltinReplyOverrides channelReplies
     )
     {
         _analytics = analytics;
@@ -49,6 +51,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
         _users = users;
         _db = db;
         _templates = templates;
+        _channelReplies = channelReplies;
     }
 
     public abstract string BuiltinKey { get; }
@@ -95,9 +98,13 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
         // Personality precedence: an explicit per-command override wins; else the channel's tone template
         // (only the four flavored tones author !stats — Informative intentionally has none, so the default
         // keeps the richer conditional line below); else the neutral, precise stats line.
-        string? template = context.CustomResponseTemplate is { Length: > 0 } over
-            ? over
-            : ToneTemplateCatalog.Pick(
+        string? template =
+            _channelReplies.Get(
+                context.BroadcasterId,
+                BuiltinResponseSlots.Stats.Key,
+                BuiltinResponseSlots.Stats.Profile
+            )
+            ?? ToneTemplateCatalog.Pick(
                 context.Personality,
                 BuiltinResponseSlots.Stats.Key,
                 BuiltinResponseSlots.Stats.Profile
@@ -197,9 +204,10 @@ public sealed class StatsBuiltin : StatsBuiltinBase
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        ITemplateResolver templates
+        ITemplateResolver templates,
+        IChannelBuiltinReplyOverrides channelReplies
     )
-        : base(analytics, wallets, users, db, templates) { }
+        : base(analytics, wallets, users, db, templates, channelReplies) { }
 
     public override string BuiltinKey => "stats";
 }
@@ -212,9 +220,10 @@ public sealed class ProfileBuiltin : StatsBuiltinBase
         ICurrencyAccountService wallets,
         IUserService users,
         IApplicationDbContext db,
-        ITemplateResolver templates
+        ITemplateResolver templates,
+        IChannelBuiltinReplyOverrides channelReplies
     )
-        : base(analytics, wallets, users, db, templates) { }
+        : base(analytics, wallets, users, db, templates, channelReplies) { }
 
     public override string BuiltinKey => "profile";
 }

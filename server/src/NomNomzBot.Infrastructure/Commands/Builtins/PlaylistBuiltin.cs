@@ -69,7 +69,6 @@ public sealed class PlaylistBuiltin(IMusicService music, IBuiltinResponseCompose
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
                 Slot = "summary",
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback =
                     "Now playing: {playlist.nowplaying} — up next: {playlist.upcoming} ({playlist.count} queued)",
                 Variables = new Dictionary<string, string>

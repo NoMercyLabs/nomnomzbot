@@ -127,13 +127,16 @@ public class ChannelContext
     public string? Timezone { get; set; }
 
     /// <summary>
-    /// Per-channel built-in response-template overrides: key = the built-in's bare catalog key (lowercase,
-    /// no leading "!"), value = the override template parsed from <c>ChannelBuiltinCommand.OverridesJson</c>.
-    /// Absence = no override (fall back to the tone template). Populated by <c>ChannelRegistry</c> alongside
-    /// the builtin toggles.
+    /// Per-channel built-in reply overrides, one per reply slot (commands-pipelines.md §11): key =
+    /// <see cref="BuiltinReplyKey"/> of the reply group and slot, value = the channel's template parsed from
+    /// <c>ChannelBuiltinCommand.OverridesJson</c>. Absence = no override (the slot keeps its default). Populated
+    /// by <c>ChannelRegistry</c> alongside the builtin toggles.
     /// </summary>
-    public ConcurrentDictionary<string, string> BuiltinResponseOverrides { get; } =
+    public ConcurrentDictionary<string, string> BuiltinReplyOverrides { get; } =
         new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The <see cref="BuiltinReplyOverrides"/> key for one reply slot.</summary>
+    public static string BuiltinReplyKey(string replyGroup, string slot) => replyGroup + "|" + slot;
 
     public bool IsLive { get; set; }
     public string? CurrentStreamId { get; set; }

@@ -100,7 +100,6 @@ public sealed class LeaderboardBuiltin(
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
                 Slot = "top",
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = "Top {leaderboard.metric}: {leaderboard.list}",
                 Variables = new Dictionary<string, string>
                 {

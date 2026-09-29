@@ -191,7 +191,6 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.Queue.List,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = "Queue: {queue.list}",
                 Variables = new Dictionary<string, string>
                 {
@@ -337,7 +336,6 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
                 Personality = context.Personality,
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.Song.Playing,
-                OverrideTemplate = context.CustomResponseTemplate,
                 NeutralFallback = "{song.status} {song.name} by {song.artist} {song.attribution}",
                 Variables = new Dictionary<string, string>
                 {

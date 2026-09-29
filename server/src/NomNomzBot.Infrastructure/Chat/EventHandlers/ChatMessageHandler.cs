@@ -302,12 +302,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // A reply carries the parent message + author so a built-in can capture it (e.g. !quote add).
                 ReplyParentMessageBody = @event.ReplyParentMessageBody,
                 ReplyParentUserName = @event.ReplyParentUserName,
-                // Personality tone + explicit per-command override (OverridesJson) drive the built-in's
-                // response phrasing: override wins, else the tone template, else the built-in's neutral.
+                // The personality tone drives the built-in's phrasing; the channel's own per-slot reply
+                // overrides are applied by the response composer itself (commands-pipelines.md §11).
                 Personality = ctx.Personality,
-                CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
-                    commandName
-                ),
                 SpeakWithTts = ctx.BuiltinTtsEnabled.ContainsKey(commandName),
                 CancellationToken = cancellationToken,
             };
@@ -504,9 +501,6 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         ReplyParentMessageBody = @event.ReplyParentMessageBody,
                         ReplyParentUserName = @event.ReplyParentUserName,
                         Personality = ctx.Personality,
-                        CustomResponseTemplate = ctx.BuiltinResponseOverrides.GetValueOrDefault(
-                            commandName
-                        ),
                         SpeakWithTts = ctx.BuiltinTtsEnabled.ContainsKey(commandName),
                         CancellationToken = cancellationToken,
                     };
