@@ -84,6 +84,12 @@ class ConnectController(
     // Ends an active act-as session (restoring the operator and revoking the grant) — [logout] runs it first so
     // the sign-out revokes the OPERATOR's session rather than sending the act-as token.
     private val endActAs: suspend () -> Unit = {},
+    // Boot step run before the operator's own restore: when an act-as session was carried across a reload, open
+    // the target's session instead (true = the target's session is live). See ActAsCoordinator.resume.
+    private val resumeActAs: suspend (ConnectionProfile, SessionTokens?) -> Boolean = { _, _ -> false },
+    // Runs after a logout that ended an act-as session: the app reloads so none of the target's in-memory data
+    // outlives the session it belonged to.
+    private val reloadAfterActAsLogout: () -> Unit = {},
 ) {
     // The web build is single-origin: default the backend URL to the SERVED ORIGIN so it matches wherever the
     // dashboard is opened (localhost, the LAN, or the public tunnel) instead of a hardcoded localhost. Native
@@ -335,9 +341,11 @@ class ConnectController(
      * network call: local custody is dropped regardless, so even an offline logout returns the gate to Connect.
      */
     suspend fun logout() {
-        if (sessionStore.isActingAs) endActAs()
+        val wasActingAs: Boolean = sessionStore.isActingAs
+        if (wasActingAs) endActAs()
         authApi.logout()
         sessionStore.disconnect()
+        if (wasActingAs) reloadAfterActAsLogout()
     }
 
     /**
@@ -685,6 +693,10 @@ class ConnectController(
         // refresh need its base URL, and on a fresh boot the store has no active profile yet — so without this
         // the ApiClient short-circuits to "no connection" and refresh never reaches the network.
         sessionStore.pin(profile)
+
+        // 0. An act-as session carried across a reload boots as the TARGET — never the operator first, so not one
+        //    request, socket or screen resolves under the operator's identity while acting.
+        if (resumeActAs(profile, stored)) return true
 
         // 1. A stored access token (the native vault, or a same-tab web reload) — prove it first.
         if (stored != null && attachSession(profile, stored)) return true

@@ -330,7 +330,7 @@ data class AdminInvoice(
  * remaining time server-side. [sessionId] is what [AdminApi.endImpersonation] ends the session with.
  * [user] is the backend `UserDto`; reuses [UserSearchResult] (the contract-guarded `UserDto` map) rather
  * than [AdminUser] — the latter's required `login`/`role`/`channelCount` are absent from `UserDto` and
- * would fail deserialization. Only [UserSearchResult.displayName] is needed here (the "Acting as …" banner).
+ * would fail deserialization. Only [UserSearchResult.displayName] is needed here (kept with the act-as session).
  */
 @Serializable
 data class ImpersonationTokenDto(

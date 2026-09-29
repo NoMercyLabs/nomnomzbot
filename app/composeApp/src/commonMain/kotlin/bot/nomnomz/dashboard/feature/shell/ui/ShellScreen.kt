@@ -151,6 +151,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.NavPage
 import bot.nomnomz.dashboard.feature.shell.nav.ShellNav
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
+import bot.nomnomz.dashboard.feature.shell.state.ShellRouteMemory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -350,14 +351,15 @@ fun ShellScreen(
     // less), so the content host can never render — or crash on — a page the sidebar is hiding. Routing responds to
     // permission changes with no reload. The route persisted to the URL is the coerced one, so a reload never
     // restores a page the caller has since lost.
-    // Keyed on the identity generation: an act-as begin/end re-seeds the route from the operator's last SAVED page
-    // (the Admin console act-as started from), and routes are never saved while acting, so the operator lands back
-    // where they left and the target's pages never leak into the operator's history.
+    // The saved route is the signed-in account's alone; an act-as session neither reads nor writes it (see
+    // ShellRouteMemory).
     val identityGeneration: Int by graph.sessionStore.identityGeneration.collectAsStateWithLifecycle()
     val actingAs: ImpersonationInfo? by graph.sessionStore.impersonating.collectAsStateWithLifecycle()
-    var requestedRoute: ShellRoute by remember(identityGeneration) { mutableStateOf(routeStore.initialRoute()) }
+    val routeMemory: ShellRouteMemory =
+        remember(routeStore) { ShellRouteMemory(routeStore::initialRoute, routeStore::save, graph.sessionStore) }
+    var requestedRoute: ShellRoute by remember(identityGeneration) { mutableStateOf(routeMemory.openingRoute()) }
     val selected: ShellRoute = if (requestedRoute in allowedRoutes) requestedRoute else fallbackRoute
-    LaunchedEffect(selected, actingAs == null) { if (actingAs == null) routeStore.save(selected) }
+    LaunchedEffect(selected, actingAs == null) { routeMemory.save(selected) }
     // The multi-watch page runs on a DEDICATED hub connection (see AppGraph). Open it (joining the active channel
     // as the socket-opening primary — the controller filters the feed to the channels actually watched) only while
     // that page is selected, and close it on leave so an idle session holds just the one shell socket.
@@ -374,7 +376,9 @@ fun ShellScreen(
             graph.multiChatHubClient.disconnect()
         }
     }
-    LaunchedEffect(routeStore) { routeStore.externalChanges.collect { requestedRoute = it } }
+    LaunchedEffect(routeStore) {
+        routeStore.externalChanges.collect { route -> routeMemory.externalMove(route)?.let { requestedRoute = it } }
+    }
     // Surface hub signals that affect the whole shell frame regardless of the active page.
     val hubEvents = graph.dashboardHubClient.events
     LaunchedEffect(hubEvents) {

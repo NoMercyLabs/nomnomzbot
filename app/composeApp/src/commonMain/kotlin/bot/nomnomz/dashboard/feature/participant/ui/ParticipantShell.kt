@@ -126,7 +126,7 @@ fun ParticipantShell(
     val visible: List<ParticipantPage> = ShellNav.participantPagesFor(access.standing)
 
     // The manager's preview banner rides ABOVE the participant surface (hidden for an ordinary viewer). The act-as
-    // banner is not here: it is the app frame's first row (App.kt), above every shell state.
+    // Exit control is not here: it floats over the app frame (App.kt), above every shell state.
     Column(modifier = Modifier.fillMaxSize()) {
         onExitPreview?.let { PreviewBanner(onExit = it) }
 
@@ -199,7 +199,7 @@ fun ParticipantShell(
 }
 
 // A thin banner above the participant surface telling a manager they are PREVIEWING the viewer experience, with an
-// Exit back to their dashboard. Mirrors the act-as [ImpersonationBanner] styling; only rendered in preview mode.
+// Exit back to their dashboard. Only rendered in preview mode.
 @Composable
 private fun PreviewBanner(onExit: () -> Unit) {
     val tokens = LocalTokens.current
