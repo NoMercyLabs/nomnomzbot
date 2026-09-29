@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 
@@ -44,6 +45,7 @@ public sealed class EventSubConduitShardCoordinatorTests : IDisposable
         return new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             TimeProvider.System,
+            new OutboundSanctionAccessor(),
             NullLogger<EventSubConduitShardCoordinator>.Instance
         );
     }
@@ -91,7 +93,7 @@ public sealed class EventSubConduitShardCoordinatorTests : IDisposable
     public async Task A_conduit_Twitch_no_longer_has_is_replaced_in_the_same_row()
     {
         string first = (await NewInstance().EnsureConduitAsync()).Value;
-        await _twitch.DeleteConduitAsync(first); // e.g. deleted after 72 h with no enabled shard
+        _twitch.DropOnTwitch(first); // e.g. deleted after 72 h with no enabled shard
 
         Result<string> replaced = await NewInstance().EnsureConduitAsync();
 
@@ -104,7 +106,7 @@ public sealed class EventSubConduitShardCoordinatorTests : IDisposable
     public async Task A_drifted_shard_count_is_corrected_to_two()
     {
         string conduit = (await NewInstance().EnsureConduitAsync()).Value;
-        await _twitch.UpdateConduitAsync(conduit, 5);
+        _twitch.ResizeOnTwitch(conduit, 5);
         _twitch.Calls.Clear();
 
         await NewInstance().EnsureConduitAsync();

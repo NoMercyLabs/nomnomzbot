@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Entities;
 
@@ -31,10 +32,16 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 public sealed class EventSubConduitShardCoordinator(
     IServiceScopeFactory scopeFactory,
     TimeProvider clock,
+    IOutboundSanctionAccessor sanctions,
     ILogger<EventSubConduitShardCoordinator> logger
 ) : IEventSubConduitShardCoordinator
 {
     private const string Provider = "twitch";
+
+    // The conduit and its shards are the deployment's own delivery plumbing, not a broadcaster's state: the
+    // same platform-level basis the per-owner WebSocket transport claims for its subscription lifecycle.
+    private static readonly OutboundSanction ConduitLifecycle =
+        OutboundSanction.PlatformConfiguration("eventsub_conduit_lifecycle");
 
     // Two instances booting at once must not both create a conduit: the loser would persist a second one and
     // split the subscriptions. Only the create path takes this lease; reusing the persisted conduit does not.
@@ -56,6 +63,7 @@ public sealed class EventSubConduitShardCoordinator(
 
     public async Task<Result<string>> EnsureConduitAsync(CancellationToken ct = default)
     {
+        using IDisposable sanction = sanctions.Begin(ConduitLifecycle);
         if (_conduitId is { } cached)
             return Result.Success(cached);
 
@@ -227,6 +235,7 @@ public sealed class EventSubConduitShardCoordinator(
         CancellationToken ct = default
     )
     {
+        using IDisposable sanction = sanctions.Begin(ConduitLifecycle);
         Result<string> conduit = await EnsureConduitAsync(ct);
         if (conduit.IsFailure)
             return conduit;

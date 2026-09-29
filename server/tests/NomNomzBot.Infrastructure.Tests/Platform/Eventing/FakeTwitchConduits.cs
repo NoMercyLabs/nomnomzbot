@@ -9,19 +9,24 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 
 /// <summary>
 /// An in-memory model of Twitch's conduit state for one app: conduits, their shards, and which WebSocket
 /// session each shard is bound to. Shared between the "instances" of a test the way Twitch is shared between
-/// two colours. Every call is recorded in order so a test can assert the exact Helix sequence.
+/// two colours. Every call is recorded in order so a test can assert the exact Helix sequence. Like the real
+/// Helix transport, a write with no outbound sanction in force is refused — the production failure mode that
+/// kept conduit mode off in the first deploy.
 /// </summary>
 internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
 {
     private readonly Lock _lock = new();
     private readonly Dictionary<string, List<ShardState>> _conduits = [];
+    private readonly IOutboundSanctionAccessor _sanctions = new OutboundSanctionAccessor();
     private int _nextConduit = 1;
 
     public List<string> Calls { get; } = [];
@@ -46,6 +51,34 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
             [
                 .. Enumerable.Range(0, shardCount).Select(i => new ShardState(i.ToString())),
             ];
+    }
+
+    /// <summary>Models Twitch dropping a conduit on its own (e.g. 72 h with no enabled shard).</summary>
+    public void DropOnTwitch(string conduitId)
+    {
+        lock (_lock)
+            _conduits.Remove(conduitId);
+    }
+
+    /// <summary>Models a conduit's shard count drifting outside this deployment (another tool resized it).</summary>
+    public void ResizeOnTwitch(string conduitId, int shardCount)
+    {
+        lock (_lock)
+            _conduits[conduitId] =
+            [
+                .. Enumerable.Range(0, shardCount).Select(i => new ShardState(i.ToString())),
+            ];
+    }
+
+    /// <summary>Models a shard already bound to a session before the test's instance starts.</summary>
+    public void BindOnTwitch(string conduitId, string shardId, string sessionId)
+    {
+        lock (_lock)
+        {
+            ShardState shard = _conduits[conduitId].Single(s => s.Id == shardId);
+            shard.SessionId = sessionId;
+            shard.Status = "enabled";
+        }
     }
 
     /// <summary>Models Twitch noticing a WebSocket closed: the shard bound to it turns disabled.</summary>
@@ -86,6 +119,8 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
         CancellationToken ct = default
     )
     {
+        if (_sanctions.Current is null)
+            return Task.FromResult(Unsanctioned<TwitchConduit>());
         Record($"POST conduits {shardCount}");
         string id;
         lock (_lock)
@@ -100,6 +135,8 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
         CancellationToken ct = default
     )
     {
+        if (_sanctions.Current is null)
+            return Task.FromResult(Unsanctioned<TwitchConduit>());
         Record($"PATCH conduits {conduitId} {shardCount}");
         lock (_lock)
         {
@@ -114,6 +151,8 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
 
     public Task<Result> DeleteConduitAsync(string conduitId, CancellationToken ct = default)
     {
+        if (_sanctions.Current is null)
+            return Task.FromResult(Result.Failure("unsanctioned", "UNSANCTIONED_WRITE"));
         Record($"DELETE conduits {conduitId}");
         lock (_lock)
             _conduits.Remove(conduitId);
@@ -147,6 +186,8 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
         CancellationToken ct = default
     )
     {
+        if (_sanctions.Current is null)
+            return Task.FromResult(Unsanctioned<TwitchConduitShardUpdateResult>());
         Record(
             $"PATCH shards {conduitId} "
                 + string.Join(",", shards.Select(s => $"{s.Id}->{s.SessionId}"))
@@ -179,6 +220,12 @@ internal sealed class FakeTwitchConduits : ITwitchEventSubConduitsApi
     {
         lock (_lock)
             return _conduits[conduitId].Count(s => s.Status == "enabled");
+    }
+
+    private Result<T> Unsanctioned<T>()
+    {
+        Record("REFUSED unsanctioned write");
+        return Result.Failure<T>("unsanctioned", "UNSANCTIONED_WRITE");
     }
 
     private void Record(string call)

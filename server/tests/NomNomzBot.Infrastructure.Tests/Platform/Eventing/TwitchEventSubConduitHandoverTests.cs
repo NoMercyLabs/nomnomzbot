@@ -27,6 +27,7 @@ using NomNomzBot.Domain.Platform.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Platform.Eventing.EventHandlers;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
@@ -91,6 +92,7 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
             new EventSubConduitShardCoordinator(
                 scopes,
                 TimeProvider.System,
+                new OutboundSanctionAccessor(),
                 NullLogger<EventSubConduitShardCoordinator>.Instance
             ),
             sharedInbox ? new DatabaseEventSubInbox(scopes) : null
@@ -153,10 +155,7 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         (TwitchEventSubHostedService blue, _) = NewInstance("blue");
         await StartAsync(blue);
         // A third session squats the free shard: the incoming instance cannot bind one.
-        await _twitch.UpdateConduitShardsAsync(
-            ConduitId,
-            [TwitchConduitShardAssignment.ForWebSocket("1", "squatter")]
-        );
+        _twitch.BindOnTwitch(ConduitId, "1", "squatter");
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
         (TwitchEventSubHostedService green, _) = NewInstance("green", serviceClock: clock);
 
@@ -278,13 +277,8 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         _twitch.Seed("conduit-pre", 2);
         _db.EventSubConduits.Add(new EventSubConduit { ConduitId = "conduit-pre", ShardCount = 2 });
         await _db.SaveChangesAsync();
-        await _twitch.UpdateConduitShardsAsync(
-            "conduit-pre",
-            [
-                TwitchConduitShardAssignment.ForWebSocket("0", "squatter-a"),
-                TwitchConduitShardAssignment.ForWebSocket("1", "squatter-b"),
-            ]
-        );
+        _twitch.BindOnTwitch("conduit-pre", "0", "squatter-a");
+        _twitch.BindOnTwitch("conduit-pre", "1", "squatter-b");
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
         (TwitchEventSubHostedService lone, _) = NewInstance("lone", serviceClock: clock);
 
