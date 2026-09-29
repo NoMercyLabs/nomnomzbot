@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -435,41 +434,16 @@ public sealed class PlatformAdminService(
                 "TARGET_OUTSIDE_SESSION"
             );
 
-        // The target's own broadcaster channel scopes the `tenant` claim, exactly like the target's own login
-        // — null when the target owns no channel (a moderator or viewer). Ordered so a user who owns several
-        // channels always resolves the same one.
-        Guid? tenantId = await db
-            .Channels.Where(c => c.OwnerUserId == targetUserId)
-            .OrderBy(c => c.CreatedAt)
-            .ThenBy(c => c.Id)
-            .Select(c => (Guid?)c.Id)
-            .FirstOrDefaultAsync(ct);
-
-        // The acting operator is named ONLY on the non-authoritative `act` claim, never as a role.
-        IamPrincipal? actor = await db.IamPrincipals.FirstOrDefaultAsync(
-            p => p.Id == actingPrincipalId,
+        // The target's identity, tenant and roles exactly as their own login mints them; the operator rides
+        // only the non-authoritative `act` claim. An access token whose `sid` is the GRANT id: closing the grant
+        // (EndImpersonationAsync, EndTenantAccessAsync, expiry) ends it, and it never outlives the grant.
+        ImpersonationTokenDto token = await ImpersonationTokenMinter.MintAsync(
+            db,
+            jwt,
+            grant,
+            target,
             ct
         );
-        string actorUserId = (actor?.UserId ?? actingPrincipalId).ToString();
-
-        // CRITICAL INVARIANT: roles + identity are the TARGET's, computed the same way SessionService.RolesFor
-        // does for a normal login. The operator's `admin` role is NEVER carried onto an impersonation token —
-        // an access-only token (no refresh) that grants exactly the impersonated user's access. `sid` is the
-        // GRANT id itself: ending the grant (EndImpersonationAsync) revokes this exact session, and the
-        // token's lifetime is clamped to never outlive the grant.
-        string accessToken = jwt.GenerateAccessToken(
-            target.Id,
-            target.Username,
-            tenantId,
-            accessGrantId,
-            RolesFor(target),
-            idp: target.Platform,
-            actorUserId: actorUserId,
-            actorUsername: actor?.Name,
-            maxExpiresAt: grant.ExpiresAt
-        );
-
-        DateTime expiresAt = new JwtSecurityTokenHandler().ReadJwtToken(accessToken).ValidTo;
 
         await eventBus.PublishAsync(
             new ImpersonationStartedEvent
@@ -478,14 +452,12 @@ public sealed class PlatformAdminService(
                 OperatorPrincipalId = actingPrincipalId,
                 TargetUserId = targetUserId,
                 AccessGrantId = accessGrantId,
-                ExpiresAt = expiresAt,
+                ExpiresAt = token.ExpiresAt,
             },
             ct
         );
 
-        return Result.Success(
-            new ImpersonationTokenDto(accessToken, expiresAt, accessGrantId, ToDto(target))
-        );
+        return Result.Success(token);
     }
 
     public async Task<Result<PagedList<TenantMemberDto>>> ListTenantMembersAsync(
@@ -873,14 +845,6 @@ public sealed class PlatformAdminService(
     }
 
     /// <summary>
-    /// The role set an access token carries for <paramref name="user"/> — identical to
-    /// <c>SessionService.RolesFor</c>, the normal-login source of truth. Reused verbatim for the TARGET of an
-    /// impersonation so the minted token grants exactly the impersonated user's access, never the operator's.
-    /// </summary>
-    private static IEnumerable<string> RolesFor(User user) =>
-        user.IsPlatformPrincipal ? ["user", "admin"] : ["user"];
-
-    /// <summary>
     /// Recovers the target user id from the <c>"user:{id}|session:{id}"</c> <c>TargetResource</c> shape
     /// written by <see cref="StartImpersonationAsync"/>'s audit row — the only durable record linking a
     /// session id back to who was impersonated under it.
@@ -898,18 +862,6 @@ public sealed class PlatformAdminService(
             ? userId
             : null;
     }
-
-    /// <summary>The impersonated user's profile, mirroring <c>UserService.ToDto</c> (LastLoginAt = UpdatedAt).</summary>
-    private static UserDto ToDto(User u) =>
-        new(
-            u.Id.ToString(),
-            u.Username,
-            u.DisplayName,
-            u.ProfileImageUrl,
-            null,
-            u.CreatedAt,
-            u.UpdatedAt
-        );
 
     private Task PublishSuspensionChangedAsync(
         Guid principalId,

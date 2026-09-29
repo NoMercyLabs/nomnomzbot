@@ -34,9 +34,11 @@ public sealed record OAuthCallbackDto
 /// <summary>
 /// Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and
 /// relies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they
-/// hold in their own vault.
+/// hold in their own vault. A native client acting as another user also sends the act-as token it holds
+/// (<see cref="ActAsToken"/>, possibly expired): while that session is open the refresh hands back the SAME
+/// impersonated user, never the operator. The served-web dashboard keeps that token in an HttpOnly cookie.
 /// </summary>
-public sealed record RefreshTokenRequest(string? RefreshToken);
+public sealed record RefreshTokenRequest(string? RefreshToken, string? ActAsToken = null);
 
 /// <summary>The request fingerprint captured for a login session (identity-auth §4).</summary>
 public sealed record AuthContextDto(string ClientType, string? IpAddress, string? UserAgent);

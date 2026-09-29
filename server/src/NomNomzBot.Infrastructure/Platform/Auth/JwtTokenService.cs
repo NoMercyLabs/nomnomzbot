@@ -40,9 +40,6 @@ public sealed class JwtTokenService : IJwtTokenService
     /// </summary>
     public const string ActorClaim = "act";
 
-    /// <summary>The acting operator's display name, alongside <see cref="ActorClaim"/>. Non-authoritative.</summary>
-    public const string ActorNameClaim = "act_name";
-
     private readonly string _issuer;
     private readonly string _audience;
     private readonly TimeSpan _expiration;
@@ -92,7 +89,6 @@ public sealed class JwtTokenService : IJwtTokenService
         IEnumerable<string>? roles = null,
         string? idp = null,
         string? actorUserId = null,
-        string? actorUsername = null,
         DateTime? maxExpiresAt = null
     )
     {
@@ -120,14 +116,11 @@ public sealed class JwtTokenService : IJwtTokenService
         if (!string.IsNullOrEmpty(idp))
             claims.Add(new("idp", idp));
 
-        // Act-as (impersonation): the operator behind the token. Non-authoritative — recorded for audit
-        // and UI banners only. The roles/sub above stay the impersonated user's, never the operator's.
+        // Act-as (impersonation): the operator behind the token, by id only. Non-authoritative — read for the
+        // audit trail and to end the session, never for access. The roles/sub above stay the impersonated
+        // user's; the operator's name is deliberately absent, since the token lives in the acting browser.
         if (!string.IsNullOrEmpty(actorUserId))
-        {
             claims.Add(new(ActorClaim, actorUserId));
-            if (!string.IsNullOrEmpty(actorUsername))
-                claims.Add(new(ActorNameClaim, actorUsername));
-        }
 
         DateTime defaultExpiry = _timeProvider.GetUtcNow().UtcDateTime.Add(_expiration);
         DateTime expires = maxExpiresAt is { } cap && cap < defaultExpiry ? cap : defaultExpiry;

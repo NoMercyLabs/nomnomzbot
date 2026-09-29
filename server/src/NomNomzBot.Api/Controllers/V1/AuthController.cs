@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Primitives;
+using NomNomzBot.Api.Authentication;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
@@ -46,6 +47,7 @@ public class AuthController : BaseController
     private readonly IExternalLoginService _externalLogin;
     private readonly ISessionService _sessions;
     private readonly ISystemCredentialsProvider _credentials;
+    private readonly IImpersonationSessionService _impersonation;
 
     public AuthController(
         IUserService userService,
@@ -60,7 +62,8 @@ public class AuthController : BaseController
         IEnumerable<IAuthCodeLoginProvider> authCodeImpls,
         IExternalLoginService externalLogin,
         ISessionService sessions,
-        ISystemCredentialsProvider credentials
+        ISystemCredentialsProvider credentials,
+        IImpersonationSessionService impersonation
     )
     {
         _userService = userService;
@@ -76,6 +79,7 @@ public class AuthController : BaseController
         _externalLogin = externalLogin;
         _sessions = sessions;
         _credentials = credentials;
+        _impersonation = impersonation;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
@@ -658,6 +662,7 @@ public class AuthController : BaseController
                 Path = "/",
             }
         );
+        ActAsCookie.Clear(HttpContext, _config);
     }
 
     /// <summary>
@@ -1104,6 +1109,13 @@ public class AuthController : BaseController
     /// cookie-borne refresh additionally requires an allowed Origin: <c>SameSite=Lax</c> alone still lets a
     /// top-level cross-site navigation attach the cookie, so a forged Origin/Referer is rejected outright. A
     /// body-borne (native) refresh carries no ambient browser credential, so it is not subject to that check.
+    /// <para>
+    /// While an act-as session is open (the <c>nnz_act_as</c> cookie on web, <c>actAsToken</c> in the body on
+    /// native), the refresh hands back the SAME impersonated user under the same support session — the response
+    /// then carries <c>impersonation</c> and no refresh token, and the operator's own refresh token is left
+    /// untouched. Once that session is over the act-as cookie is cleared and the operator's own session is
+    /// refreshed instead, so the dashboard reloads as the operator.
+    /// </para>
     /// </summary>
     [HttpPost("refresh")]
     [AllowAnonymous]
@@ -1115,15 +1127,126 @@ public class AuthController : BaseController
     )
     {
         string? cookieRefreshToken = Request.Cookies["nnz_refresh_token"];
-        bool isWebClient = !string.IsNullOrWhiteSpace(cookieRefreshToken);
+        string? cookieActAsToken = ActAsCookie.Read(Request);
+        bool isWebClient =
+            !string.IsNullOrWhiteSpace(cookieRefreshToken) || cookieActAsToken is not null;
 
         if (isWebClient && !HasAllowedOrigin())
             return UnauthenticatedResponse("Refresh rejected: untrusted origin.");
+
+        string? actAsToken = isWebClient ? cookieActAsToken : request?.ActAsToken;
+        if (!string.IsNullOrWhiteSpace(actAsToken))
+        {
+            Result<ImpersonationTokenDto> actAs = await _impersonation.RefreshAsync(actAsToken, ct);
+            if (actAs.IsSuccess)
+                return ActAsSessionResponse(actAs.Value, isWebClient);
+            if (isWebClient)
+                ActAsCookie.Clear(HttpContext, _config);
+        }
 
         string? refreshToken = isWebClient ? cookieRefreshToken : request?.RefreshToken;
         if (string.IsNullOrWhiteSpace(refreshToken))
             return UnauthenticatedResponse();
 
+        return await RefreshOperatorSessionAsync(refreshToken, isWebClient, ct);
+    }
+
+    /// <summary>
+    /// Leave an act-as session from inside it (the Exit button while acting): closes the support session the
+    /// act-as token runs under — the same audited end, <c>sid</c> revocation and owner notice as ending it with
+    /// the operator's token — clears the act-as cookie, and hands back the OPERATOR's own session. Web gets it
+    /// through the normal HttpOnly refresh cookie; native sends its own refresh token in the body. With no
+    /// operator refresh token to resume, the session still ends and the response carries no token.
+    /// </summary>
+    [HttpPost("impersonation/exit")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ExitImpersonation(
+        [FromBody] RefreshTokenRequest? request,
+        [FromServices] IPlatformAdminService platformAdmin,
+        CancellationToken ct
+    )
+    {
+        string? cookieRefreshToken = Request.Cookies["nnz_refresh_token"];
+        bool isWebClient = !string.IsNullOrWhiteSpace(cookieRefreshToken);
+        if (isWebClient && !HasAllowedOrigin())
+            return UnauthenticatedResponse("Exit rejected: untrusted origin.");
+
+        Result ended = await EndActAsSessionAsync(platformAdmin, ct);
+        if (ended.IsFailure)
+            return ResultResponse(ended);
+
+        string? refreshToken = isWebClient ? cookieRefreshToken : request?.RefreshToken;
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Ok(new StatusResponseDto<object> { Status = "ok" });
+
+        return await RefreshOperatorSessionAsync(refreshToken, isWebClient, ct);
+    }
+
+    /// <summary>
+    /// Ends the act-as session the current token runs under, through the operator's own end-impersonation path,
+    /// and clears the act-as cookie. <c>INVALID_STATE</c> when the token is not an act-as token; a session that
+    /// is already over is a success.
+    /// </summary>
+    private async Task<Result> EndActAsSessionAsync(
+        IPlatformAdminService platformAdmin,
+        CancellationToken ct
+    )
+    {
+        if (!ImpersonationSessionCheck.TryReadActAs(User, out Guid grantId, out string actor))
+            return Result.Failure("This session is not acting as anyone.", "INVALID_STATE");
+
+        Result<Guid> operatorPrincipal = await _impersonation.FindOperatorAsync(grantId, actor, ct);
+        Result ended = operatorPrincipal switch
+        {
+            { IsSuccess: true } => await platformAdmin.EndImpersonationAsync(
+                operatorPrincipal.Value,
+                grantId,
+                ct
+            ),
+            { ErrorCode: "IMPERSONATION_ENDED" } => Result.Success(),
+            _ => operatorPrincipal,
+        };
+        if (ended.IsSuccess)
+            ActAsCookie.Clear(HttpContext, _config);
+        return ended;
+    }
+
+    /// <summary>
+    /// The act-as refresh response: the re-minted act-as token for the SAME target, the target's profile, and the
+    /// session it runs under. Never a refresh token — the operator's own one is not consumed while acting.
+    /// </summary>
+    private IActionResult ActAsSessionResponse(ImpersonationTokenDto token, bool isWebClient)
+    {
+        if (isWebClient)
+            ActAsCookie.Set(HttpContext, _config, token.AccessToken);
+
+        int expiresIn = (int)(token.ExpiresAt - _timeProvider.GetUtcNow().UtcDateTime).TotalSeconds;
+        return Ok(
+            new StatusResponseDto<object>
+            {
+                Data = new
+                {
+                    accessToken = token.AccessToken,
+                    expiresIn,
+                    user = token.User,
+                    impersonation = new
+                    {
+                        sessionId = token.SessionId,
+                        expiresAt = token.ExpiresAt,
+                    },
+                },
+            }
+        );
+    }
+
+    /// <summary>Rotates the operator's own refresh token into a fresh session, per the request's custody.</summary>
+    private async Task<IActionResult> RefreshOperatorSessionAsync(
+        string refreshToken,
+        bool isWebClient,
+        CancellationToken ct
+    )
+    {
         Result<AuthResultDto> result = await _authService.RefreshTokenAsync(
             refreshToken,
             BuildAuthContext(),
@@ -1237,11 +1360,21 @@ public class AuthController : BaseController
         );
     }
 
-    /// <summary>Log out the current session, revoking its refresh tokens.</summary>
+    /// <summary>
+    /// Log out the current session, revoking its refresh tokens. While acting as someone the person logging out
+    /// is the OPERATOR: the act-as session ends and the operator's own web session (the refresh cookie) is
+    /// revoked — the impersonated user's own sessions are never touched.
+    /// </summary>
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout(CancellationToken ct)
+    public async Task<IActionResult> Logout(
+        [FromServices] IPlatformAdminService platformAdmin,
+        CancellationToken ct
+    )
     {
+        if (ImpersonationSessionCheck.IsActAsToken(User))
+            return await LogoutOperatorWhileActingAsync(platformAdmin, everywhere: false, ct);
+
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         string? sessionId = User.FindFirstValue("sid");
         if (
@@ -1255,11 +1388,21 @@ public class AuthController : BaseController
         return ResultResponse(result);
     }
 
-    /// <summary>Log out of all the current user's sessions, revoking every refresh token they hold.</summary>
+    /// <summary>
+    /// Log out of all the current user's sessions, revoking every refresh token they hold. While acting as
+    /// someone this is the OPERATOR's "everywhere": the act-as session ends and every session of the operator
+    /// behind the refresh cookie is revoked — never the impersonated user's.
+    /// </summary>
     [HttpPost("logout/all")]
     [Authorize]
-    public async Task<IActionResult> LogoutAll(CancellationToken ct)
+    public async Task<IActionResult> LogoutAll(
+        [FromServices] IPlatformAdminService platformAdmin,
+        CancellationToken ct
+    )
     {
+        if (ImpersonationSessionCheck.IsActAsToken(User))
+            return await LogoutOperatorWhileActingAsync(platformAdmin, everywhere: true, ct);
+
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userId, out Guid userGuid))
             return UnauthenticatedResponse();
@@ -1267,6 +1410,41 @@ public class AuthController : BaseController
         Result<int> result = await _authService.LogoutAllAsync(userGuid, ct);
         ClearRefreshTokenCookie();
         return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// A logout pressed while acting: ends the act-as session, then revokes the operator's own session(s) found
+    /// through the web refresh cookie (a native client drops its own vault). The act-as token's subject and
+    /// <c>sid</c> are the impersonated user and the support grant, so the plain logout path would otherwise
+    /// revoke the wrong thing and leave the support session open.
+    /// </summary>
+    private async Task<IActionResult> LogoutOperatorWhileActingAsync(
+        IPlatformAdminService platformAdmin,
+        bool everywhere,
+        CancellationToken ct
+    )
+    {
+        Result ended = await EndActAsSessionAsync(platformAdmin, ct);
+
+        string? cookieRefreshToken = Request.Cookies["nnz_refresh_token"];
+        if (!string.IsNullOrWhiteSpace(cookieRefreshToken))
+        {
+            Result<AuthSessionDto> operatorSession = await _sessions.PeekSessionAsync(
+                cookieRefreshToken,
+                ct
+            );
+            if (operatorSession.IsSuccess && everywhere)
+                await _authService.LogoutAllAsync(operatorSession.Value.UserId, ct);
+            else if (operatorSession.IsSuccess)
+                await _authService.LogoutAsync(
+                    operatorSession.Value.UserId,
+                    operatorSession.Value.Id,
+                    ct
+                );
+        }
+
+        ClearRefreshTokenCookie();
+        return ResultResponse(ended);
     }
 
     // ── Bot account OAuth ─────────────────────────────────────────────────────

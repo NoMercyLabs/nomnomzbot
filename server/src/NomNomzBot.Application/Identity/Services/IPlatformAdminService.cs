@@ -80,8 +80,7 @@ public interface IPlatformAdminService
     /// <summary>
     /// Begins an act-as impersonation of a registered user: mints an ACCESS-ONLY JWT (no refresh) carrying the
     /// TARGET user's identity, tenant and roles — computed exactly as a normal login for the target, NEVER the
-    /// operator's — with the acting operator recorded only in the non-authoritative <c>act</c>/<c>act_name</c>
-    /// claims. <paramref name="accessGrantId"/> must name an OPEN, time-boxed support-access grant
+    /// operator's — with the acting operator recorded only in the non-authoritative <c>act</c> claim (id only). <paramref name="accessGrantId"/> must name an OPEN, time-boxed support-access grant
     /// (<see cref="BeginTenantAccessAsync"/>) belonging to the caller: minting is refused without one, and the
     /// token's expiry is clamped to the grant's remaining time, never longer. The target must belong to the
     /// grant's channel (owner or any member, see <see cref="ListTenantMembersAsync"/>) — otherwise

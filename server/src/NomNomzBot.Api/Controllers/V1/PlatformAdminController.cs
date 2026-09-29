@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authentication;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
@@ -42,7 +43,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class PlatformAdminController(
     IPlatformAdminService admin,
     ICurrentUserService currentUser,
-    IIamCallerPrincipalResolverService actingPrincipalResolver
+    IIamCallerPrincipalResolverService actingPrincipalResolver,
+    IConfiguration configuration
 ) : BaseController
 {
     /// <summary>Paged tenant listing with search/status/live filters.</summary>
@@ -208,15 +210,19 @@ public class PlatformAdminController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting.WithValue<ImpersonationTokenDto>(null!));
-        return ResultResponse(
-            await admin.StartImpersonationAsync(
-                acting.Value,
-                userId,
-                req.AccessGrantId,
-                req.Justification,
-                ct
-            )
+
+        Result<ImpersonationTokenDto> started = await admin.StartImpersonationAsync(
+            acting.Value,
+            userId,
+            req.AccessGrantId,
+            req.Justification,
+            ct
         );
+        // Served-web custody: a reload now comes back as the target (auth/refresh re-mints from this cookie)
+        // until the session ends. A native client ignores the cookie and keeps the token it was handed.
+        if (started.IsSuccess)
+            ActAsCookie.Set(HttpContext, configuration, started.Value.AccessToken);
+        return ResultResponse(started);
     }
 
     /// <summary>Ends an impersonation session — the minted token fails authentication on its next request.</summary>
@@ -231,7 +237,11 @@ public class PlatformAdminController(
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
         if (acting.IsFailure)
             return ResultResponse(acting);
-        return ResultResponse(await admin.EndImpersonationAsync(acting.Value, accessGrantId, ct));
+
+        Result ended = await admin.EndImpersonationAsync(acting.Value, accessGrantId, ct);
+        if (ended.IsSuccess)
+            ActAsCookie.Clear(HttpContext, configuration);
+        return ResultResponse(ended);
     }
 
     /// <summary>Paged Plane-C audit search by principal/tenant/permission/outcome/time.</summary>

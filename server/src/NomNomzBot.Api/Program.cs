@@ -15,7 +15,6 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
@@ -321,43 +320,14 @@ try
 
     builder
         .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        // Hub query-string tokens + the session-end checks (revoked sid, closed act-as grant) live in
+        // DashboardJwtBearer so tests authenticate through the exact same pipeline.
         .AddJwtBearer(options =>
-        {
-            options.TokenValidationParameters = bearerValidationParameters;
-
-            options.Events = new()
-            {
-                // Allow JWT from SignalR query string
-                OnMessageReceived = ctx =>
-                {
-                    StringValues accessToken = ctx.Request.Query["access_token"];
-                    PathString path = ctx.HttpContext.Request.Path;
-                    if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
-                        ctx.Token = accessToken;
-                    return Task.CompletedTask;
-                },
-                // Immediate session revocation (S098b, owner decision): logout / impersonation-end revoke
-                // the token's `sid` claim; a still-unexpired access token carrying a revoked sid must stop
-                // authenticating on its very next request, without shortening the 60-minute access-token
-                // lifetime. The revocation check is cached (ISessionRevocationService), so this costs one
-                // fast local-cache lookup per request, not a store round-trip every time.
-                OnTokenValidated = async ctx =>
-                {
-                    NomNomzBot.Application.Abstractions.Auth.ISessionRevocationService revocation =
-                        ctx.HttpContext.RequestServices.GetRequiredService<NomNomzBot.Application.Abstractions.Auth.ISessionRevocationService>();
-                    if (
-                        await NomNomzBot.Api.Authentication.SessionRevocationCheck.IsSessionRevokedAsync(
-                            ctx.Principal,
-                            revocation,
-                            ctx.HttpContext.RequestAborted
-                        )
-                    )
-                    {
-                        ctx.Fail("Session has been revoked.");
-                    }
-                },
-            };
-        })
+            NomNomzBot.Api.Authentication.DashboardJwtBearer.Configure(
+                options,
+                bearerValidationParameters
+            )
+        )
         // Automation data plane (automation-api.md D3/D4): channel API tokens over the
         // Authorization header — a separate scheme so /automation/v1 never accepts a dashboard JWT.
         .AddScheme<
