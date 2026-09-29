@@ -19,8 +19,9 @@ namespace NomNomzBot.Application.Contracts.Twitch;
 public interface IEventSubHandoverReadiness
 {
     /// <summary>
-    /// True once the shard is bound, or once <c>ShardReadyTimeout</c> has passed since start — a Twitch
-    /// outage must not hold a deploy forever; the outgoing instance's own bounded wait covers that case.
+    /// Always true for an instance that is not a standby (a lone instance is the only upstream; holding it
+    /// back would 503 the port). For a standby behind a live lease holder: true once the shard is bound, or
+    /// once <c>ShardReadyTimeout</c> has passed since start — a Twitch outage must not hold a deploy forever.
     /// </summary>
     bool IsReadyForHandover { get; }
 }

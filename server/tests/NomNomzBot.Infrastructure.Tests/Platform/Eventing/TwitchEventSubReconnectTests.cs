@@ -98,6 +98,9 @@ public sealed class TwitchEventSubReconnectTests
             TimeProvider.System,
             NullLogger<TwitchEventSubHostedService>.Instance
         );
+        // These tests drive the registry directly as the live instance; the lease decision is covered by
+        // the dormancy and conduit-handover tests.
+        service.AssumeLeaseHolderForTests();
 
         return (service, db);
     }

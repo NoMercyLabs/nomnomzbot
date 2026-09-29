@@ -21,10 +21,12 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Eventing.EventHandlers;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
@@ -216,6 +218,83 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         wire.Creates.Should().BeEmpty();
         wire.Steps.Should().NotContain(s => s.StartsWith("delete"));
         await service.StopAsync(CancellationToken.None);
+    }
+
+    private static IntegrationTokenRefreshedEvent TokenRefreshed() =>
+        new()
+        {
+            BroadcasterId = Channel,
+            ConnectionId = Guid.NewGuid(),
+            Provider = "twitch",
+            ExpiresAt = DateTime.UtcNow.AddHours(4),
+        };
+
+    [Fact]
+    public async Task Re_auth_recovery_on_a_standby_touches_no_subscription_and_opens_no_session()
+    {
+        // Production, 2026-09-29: the incoming colour's token-refresh recovery opened a broadcaster session
+        // and deleted 28 of the LIVE colour's subscriptions ~20 s into the overlap.
+        (TwitchEventSubHostedService blue, _) = NewInstance("blue");
+        await StartAsync(blue);
+        (TwitchEventSubHostedService green, ShardTransport greenWire) = NewInstance("green");
+        await StartAsync(green);
+
+        await new EventSubResubscribeOnTokenRefreshedHandler(
+            green,
+            NullLogger<EventSubResubscribeOnTokenRefreshedHandler>.Instance
+        ).HandleAsync(TokenRefreshed());
+
+        greenWire.Steps.Should().BeEmpty();
+        greenWire.EnsuredOwners.Should().OnlyContain(o => o == EventSubOwnerKeys.ConduitShard);
+        (await _db.EventSubSubscriptions.AsNoTracking().CountAsync()).Should().Be(0);
+        await blue.StopAsync(CancellationToken.None);
+        await green.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Re_auth_recovery_before_the_lease_is_decided_touches_nothing()
+    {
+        // The gate defaults to closed: until StartAsync knows whether this instance is the standby, nothing
+        // may open a session, create or delete.
+        (TwitchEventSubHostedService undecided, ShardTransport wire) = NewInstance("booting");
+
+        await new EventSubResubscribeOnTokenRefreshedHandler(
+            undecided,
+            NullLogger<EventSubResubscribeOnTokenRefreshedHandler>.Instance
+        ).HandleAsync(TokenRefreshed());
+
+        undecided.IsActiveInstance.Should().BeFalse();
+        wire.Steps.Should().BeEmpty();
+        wire.EnsuredOwners.Should().BeEmpty();
+        (await undecided.ReconcileAsync(Channel)).IsFailure.Should().BeTrue();
+        (await undecided.UnsubscribeAllAsync(Channel)).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_lone_instance_is_ready_at_once_even_with_its_shard_unbound()
+    {
+        // Both shards are taken by other sessions, so this instance cannot bind one — yet it holds the lease,
+        // so it is the only upstream behind the proxy: holding readiness back would 503 the whole port.
+        _twitch.Seed("conduit-pre", 2);
+        _db.EventSubConduits.Add(new EventSubConduit { ConduitId = "conduit-pre", ShardCount = 2 });
+        await _db.SaveChangesAsync();
+        await _twitch.UpdateConduitShardsAsync(
+            "conduit-pre",
+            [
+                TwitchConduitShardAssignment.ForWebSocket("0", "squatter-a"),
+                TwitchConduitShardAssignment.ForWebSocket("1", "squatter-b"),
+            ]
+        );
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        (TwitchEventSubHostedService lone, _) = NewInstance("lone", serviceClock: clock);
+
+        await StartAsync(lone);
+
+        lone.IsActiveInstance.Should().BeTrue();
+        _twitch.Shard("conduit-pre", "0").SessionId.Should().Be("squatter-a");
+        _twitch.Shard("conduit-pre", "1").SessionId.Should().Be("squatter-b");
+        lone.IsReadyForHandover.Should().BeTrue();
+        await lone.StopAsync(CancellationToken.None);
     }
 
     [Fact]

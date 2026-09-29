@@ -149,9 +149,23 @@ public sealed class TwitchEventSubHostedService
         {
             if (_handoverReady)
                 return true;
-            // Not before StartAsync has decided conduit mode: "not conduit mode yet" is not "no shard needed".
+
+            // Only a STANDBY — an instance that lost the chat-ingest lease to a live holder, which is still
+            // serving behind the proxy — may hold readiness back. A lone instance (fresh boot, crash-restart,
+            // single-instance self-host, Twitch down at boot) is the only upstream: holding it back would 503
+            // the whole port, so it is ready at once whatever its shard is doing. The lease cannot be probed
+            // here without taking it, so the standby flag — refreshed on every 2 s lease retry — is the signal.
+            if (!_standby)
+            {
+                // Latch only once StartAsync has decided: a would-be standby must not latch in the moment
+                // before it discovers the lease is taken.
+                if (_startDecided)
+                    _handoverReady = true;
+                return true;
+            }
+
             bool ready =
-                (_startDecided && !_conduitMode)
+                !_conduitMode
                 || _conduits?.ClaimedShardId is not null
                 || _clock.GetUtcNow() - _constructedAt >= ShardReadyTimeout;
             if (ready)
@@ -218,7 +232,6 @@ public sealed class TwitchEventSubHostedService
         }
 
         await EnterConduitModeAsync(cancellationToken);
-        _startDecided = true;
 
         // A configured instance still may not simply connect: during a switchover BOTH colours are
         // configured, so whoever loses the lease has to wait rather than open a second chat session. Losing
@@ -230,6 +243,7 @@ public sealed class TwitchEventSubHostedService
                 "EventSub: another instance holds chat ingest (deploy overlap) — waiting for handover."
             );
             _standby = true;
+            _startDecided = true;
             _standbyClaim = await TryAcquireAsync(StandbyResource, cancellationToken);
             await OpenStandbyShardAsync(cancellationToken);
             CancellationTokenSource waitCts = CancellationTokenSource.CreateLinkedTokenSource(
@@ -244,6 +258,7 @@ public sealed class TwitchEventSubHostedService
             return;
         }
 
+        _startDecided = true;
         _activated.TrySetResult();
         await StartTransportAsync(cancellationToken);
     }
@@ -401,7 +416,23 @@ public sealed class TwitchEventSubHostedService
 
     // ── IActiveInstanceGate ─────────────────────────────────────────────────
 
-    public bool IsActiveInstance => !_standby && !_handedOver;
+    // Not active until StartAsync has decided: before that this instance may well be a standby.
+    public bool IsActiveInstance => _startDecided && !_standby && !_handedOver;
+
+    /// <summary>
+    /// The one gate for every path that opens an owner session, creates or deletes a subscription (re-auth
+    /// recovery, onboarding seed, reconcile, scope handlers, dashboard resubscribe, BotLifecycleService sync —
+    /// they all go through this service). Closed until StartAsync has decided whether this instance holds the
+    /// lease: in production a token-refresh recovery ran in that window on the INCOMING colour and deleted
+    /// the live colour's subscriptions. Closed for a standby and after hand-over.
+    /// </summary>
+    private bool MayOwnSubscriptions => IsActiveInstance;
+
+    /// <summary>
+    /// Test seam: declares this instance the decided lease holder without running StartAsync, for tests that
+    /// drive the subscription registry directly. Production decides only in StartAsync.
+    /// </summary>
+    internal void AssumeLeaseHolderForTests() => _startDecided = true;
 
     public Task WaitUntilActiveAsync(CancellationToken ct) => _activated.Task.WaitAsync(ct);
 
@@ -648,6 +679,11 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct
     )
     {
+        // Deleting "stale" subscriptions and re-registering is the live instance's job; a standby (or an
+        // instance not yet sure it is not one) would delete the live instance's subscriptions.
+        if (!MayOwnSubscriptions)
+            return;
+
         // A fresh welcome for this OWNER means its previous WebSocket session is dead. Twitch keeps that session's
         // subscriptions in a `websocket_disconnected` state for ~1 minute, and a re-create's 409-conflict key
         // is (type + condition) — session-independent — so those lingering subs would 409 every re-create and
@@ -1093,6 +1129,9 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
+        if (!MayOwnSubscriptions)
+            return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
+
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -1151,7 +1190,7 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
-        if (_standby)
+        if (!MayOwnSubscriptions)
             return StandbyRefusal<EventSubSubscriptionDto>();
 
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
@@ -1658,6 +1697,9 @@ public sealed class TwitchEventSubHostedService
 
     public async Task<Result> UnsubscribeAsync(Guid subscriptionId, CancellationToken ct = default)
     {
+        if (!MayOwnSubscriptions)
+            return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
+
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -1722,6 +1764,9 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
+        if (!MayOwnSubscriptions)
+            return StandbyRefusal<EventSubReconcileReportDto>();
+
         Result<IReadOnlyList<TwitchSubscriptionResult>> listed =
             await _transport.ListSubscriptionsAsync(broadcasterId, ct);
         if (listed.IsFailure)
@@ -1923,7 +1968,7 @@ public sealed class TwitchEventSubHostedService
 
     public async Task<Result> ReconnectAsync(CancellationToken ct = default)
     {
-        if (_standby)
+        if (!MayOwnSubscriptions)
             return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
 
         // A WebSocket session is per-OWNER (twitch-eventsub §3.3 — Twitch forbids different users' subs on one
