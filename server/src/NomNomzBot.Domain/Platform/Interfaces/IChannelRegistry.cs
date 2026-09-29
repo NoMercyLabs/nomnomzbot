@@ -217,6 +217,34 @@ public class ChannelContext
     public ConcurrentDictionary<string, byte> BuiltinTtsEnabled { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The channel's own cooldown (seconds) per built-in, keyed by the bare catalog key. Absence = the
+    /// built-in's catalog cooldown. Populated by <c>ChannelRegistry</c> from <c>OverridesJson.cooldownSeconds</c>.
+    /// </summary>
+    public ConcurrentDictionary<string, int> BuiltinCooldownOverrides { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The channel's own permission floor (unified-ladder value) per built-in, keyed by the bare catalog key.
+    /// Absence = the built-in's catalog floor. Populated by <c>ChannelRegistry</c> from
+    /// <c>OverridesJson.minPermissionLevel</c>; the write path never stores a value below the catalog floor.
+    /// </summary>
+    public ConcurrentDictionary<string, int> BuiltinMinPermissionOverrides { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The cooldown this channel applies to a built-in: its own when set, else <paramref name="catalogDefault"/>.</summary>
+    public int BuiltinCooldownSeconds(string builtinKey, int catalogDefault) =>
+        BuiltinCooldownOverrides.TryGetValue(builtinKey, out int own) ? own : catalogDefault;
+
+    /// <summary>
+    /// The permission floor this channel applies to a built-in: its own when set, else
+    /// <paramref name="catalogDefault"/>. Never below the catalog floor, even for a hand-edited blob.
+    /// </summary>
+    public int BuiltinMinPermissionLevel(string builtinKey, int catalogDefault) =>
+        BuiltinMinPermissionOverrides.TryGetValue(builtinKey, out int own)
+            ? Math.Max(own, catalogDefault)
+            : catalogDefault;
+
     // Per-channel active pipelines: key = executionId
     public ConcurrentDictionary<string, CancellationTokenSource> ActivePipelines { get; } = new();
 

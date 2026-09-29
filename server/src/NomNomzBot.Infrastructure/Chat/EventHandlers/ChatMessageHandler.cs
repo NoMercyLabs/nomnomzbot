@@ -269,13 +269,16 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             if (!isReserved && IsBuiltinDisabled(ctx, commandName))
                 return;
 
-            if (
-                !await HasPermissionAsync(
-                    @event,
-                    builtin.DefaultMinPermissionLevel,
-                    cancellationToken
-                )
-            )
+            // The channel's own floor and cooldown for this built-in (dashboard → Commands → built-in),
+            // falling back to the catalogue's. The rights floor ignores channel settings entirely.
+            int minPermissionLevel = isReserved
+                ? builtin.DefaultMinPermissionLevel
+                : ctx.BuiltinMinPermissionLevel(commandName, builtin.DefaultMinPermissionLevel);
+            int cooldownSeconds = isReserved
+                ? builtin.DefaultCooldownSeconds
+                : ctx.BuiltinCooldownSeconds(commandName, builtin.DefaultCooldownSeconds);
+
+            if (!await HasPermissionAsync(@event, minPermissionLevel, cancellationToken))
             {
                 await SendPermissionDeniedNoticeAsync(@event, ctx, cancellationToken);
                 return;
@@ -287,11 +290,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 return;
             }
 
-            if (builtin.DefaultCooldownSeconds > 0)
+            if (cooldownSeconds > 0)
                 _cooldowns.SetCooldown(
                     cooldownChannelKey,
                     commandName,
-                    TimeSpan.FromSeconds(builtin.DefaultCooldownSeconds)
+                    TimeSpan.FromSeconds(cooldownSeconds)
                 );
 
             BuiltinCommandContext builtinCtx = new()
@@ -1337,7 +1340,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 _ => text.Contains(trigger.Pattern, comparison),
             };
         }
-        catch (System.Text.RegularExpressions.RegexMatchTimeoutException)
+        catch (RegexMatchTimeoutException)
         {
             // A pathological pattern burned its 100ms budget — treat as no match, never stall chat.
             return false;

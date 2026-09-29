@@ -164,9 +164,40 @@ public sealed class BuiltinReplyServiceTests
     }
 
     [Fact]
+    public async Task A_reply_write_and_reset_keep_the_channel_cooldown_floor_and_tts()
+    {
+        Harness h = Build();
+        h.Db.ChannelBuiltinCommands.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                BuiltinKey = Sr,
+                IsEnabled = true,
+                OverridesJson =
+                    """{"speakWithTts":true,"cooldownSeconds":120,"minPermissionLevel":2}""",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        (await h.Sut.SetAsync(Channel.ToString(), Sr, Duplicate, "Dupe, {user}."))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await h.Db.ChannelBuiltinCommands.AsNoTracking().SingleAsync())
+            .OverridesJson.Should()
+            .Be(
+                """{"responses":{"duplicate":"Dupe, {user}."},"speakWithTts":true,"cooldownSeconds":120,"minPermissionLevel":2}"""
+            );
+
+        (await h.Sut.ResetAsync(Channel.ToString(), Sr, Duplicate)).IsSuccess.Should().BeTrue();
+        (await h.Db.ChannelBuiltinCommands.AsNoTracking().SingleAsync())
+            .OverridesJson.Should()
+            .Be("""{"speakWithTts":true,"cooldownSeconds":120,"minPermissionLevel":2}""");
+    }
+
+    [Fact]
     public async Task Reset_restores_the_tone_default_and_clears_the_stored_text()
     {
-        Harness h = Build(PersonalityTone.Informative);
+        Harness h = Build();
         await h.Sut.SetAsync(Channel.ToString(), Sr, Added, "Mine: {track.name}");
 
         Result<BuiltinReplyDto> reset = await h.Sut.ResetAsync(Channel.ToString(), Sr, Added);

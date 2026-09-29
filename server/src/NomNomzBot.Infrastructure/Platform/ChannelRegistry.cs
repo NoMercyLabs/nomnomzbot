@@ -140,6 +140,8 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         ctx.DisabledBuiltins.Clear();
         ctx.BuiltinReplyOverrides.Clear();
         ctx.BuiltinTtsEnabled.Clear();
+        ctx.BuiltinCooldownOverrides.Clear();
+        ctx.BuiltinMinPermissionOverrides.Clear();
         await LoadBuiltinTogglesAsync(ctx, ct);
 
         _logger.LogDebug(
@@ -597,9 +599,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        // One pass over the channel's builtin rows: disabled keys → DisabledBuiltins; every per-slot reply
-        // override (OverridesJson) → BuiltinReplyOverrides; a "speakWithTts" override → BuiltinTtsEnabled.
-        // Anonymous projection forces `var`.
+        // One pass over the channel's builtin rows (ApplyBuiltinRow). Anonymous projection forces `var`.
         var rows = await db
             .ChannelBuiltinCommands.Where(c => c.BroadcasterId == ctx.BroadcasterId)
             .Select(c => new
@@ -610,41 +610,56 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             })
             .ToListAsync(ct);
 
-        int disabledCount = 0;
         foreach (var row in rows)
-        {
-            // Normalizes away the leading "!" some rows carry (DefaultCommandsSeeder writes bang-prefixed
-            // keys) so the lookup always matches ChatMessageHandler's bare, lowercased parsed command name.
-            string key = row.BuiltinKey.TrimStart('!').ToLowerInvariant();
-
-            if (!row.IsEnabled)
-            {
-                ctx.DisabledBuiltins[key] = 0;
-                disabledCount++;
-            }
-
-            // Replies are keyed by the reply group the built-in speaks with (!unlurk → lurk), per slot.
-            string replyGroup = BuiltinResponseSlots.ReplyGroupFor(key);
-            foreach (
-                KeyValuePair<string, string> reply in BuiltinOverridesJson.EffectiveResponses(
-                    key,
-                    row.OverridesJson
-                )
-            )
-                ctx.BuiltinReplyOverrides[ChannelContext.BuiltinReplyKey(replyGroup, reply.Key)] =
-                    reply.Value;
-
-            if (BuiltinOverridesJson.SpeakWithTts(row.OverridesJson))
-                ctx.BuiltinTtsEnabled[key] = 0;
-        }
+            ApplyBuiltinRow(ctx, row.BuiltinKey, row.IsEnabled, row.OverridesJson);
 
         _logger.LogDebug(
-            "Loaded {DisabledCount} disabled builtin(s), {OverrideCount} reply override(s) and {TtsCount} speak-with-tts override(s) for channel {BroadcasterId}",
-            disabledCount,
+            "Loaded {DisabledCount} disabled builtin(s), {OverrideCount} reply override(s), {TtsCount} speak-with-tts, {CooldownCount} cooldown and {FloorCount} permission override(s) for channel {BroadcasterId}",
+            ctx.DisabledBuiltins.Count,
             ctx.BuiltinReplyOverrides.Count,
             ctx.BuiltinTtsEnabled.Count,
+            ctx.BuiltinCooldownOverrides.Count,
+            ctx.BuiltinMinPermissionOverrides.Count,
             ctx.BroadcasterId
         );
+    }
+
+    /// <summary>
+    /// Projects one <c>ChannelBuiltinCommand</c> row onto the channel's runtime caches: a disabled key →
+    /// <see cref="ChannelContext.DisabledBuiltins"/>; each per-slot reply →
+    /// <see cref="ChannelContext.BuiltinReplyOverrides"/> (keyed by the reply group, so !unlurk's text lands under
+    /// lurk); TTS, cooldown and permission floor → their own maps. Pure, so the row-to-runtime contract is
+    /// unit-tested without a database.
+    /// </summary>
+    internal static void ApplyBuiltinRow(
+        ChannelContext ctx,
+        string builtinKey,
+        bool isEnabled,
+        string? overridesJson
+    )
+    {
+        // Normalizes away the leading "!" some rows carry (DefaultCommandsSeeder once wrote bang-prefixed
+        // keys) so the lookup always matches ChatMessageHandler's bare, lowercased parsed command name.
+        string key = builtinKey.TrimStart('!').ToLowerInvariant();
+
+        if (!isEnabled)
+            ctx.DisabledBuiltins[key] = 0;
+
+        BuiltinOverrides overrides = BuiltinOverridesJson.Read(key, overridesJson);
+
+        string replyGroup = BuiltinResponseSlots.ReplyGroupFor(key);
+        foreach (KeyValuePair<string, string> reply in overrides.Responses)
+            ctx.BuiltinReplyOverrides[ChannelContext.BuiltinReplyKey(replyGroup, reply.Key)] =
+                reply.Value;
+
+        if (overrides.SpeakWithTts)
+            ctx.BuiltinTtsEnabled[key] = 0;
+
+        if (overrides.CooldownSeconds is { } cooldown)
+            ctx.BuiltinCooldownOverrides[key] = cooldown;
+
+        if (overrides.MinPermissionLevel is { } floor)
+            ctx.BuiltinMinPermissionOverrides[key] = floor;
     }
 
     private async Task LoadChannelSettingsAsync(ChannelContext ctx, CancellationToken ct)
