@@ -19,9 +19,12 @@ import kotlinx.serialization.Serializable
 // Backend routes (BuiltinsController):
 //   GET   /api/v1/channels/{channelId}/builtins                → StatusResponseDto<List<BuiltinCommand>>
 //   PATCH /api/v1/channels/{channelId}/builtins/{builtinKey}   → StatusResponseDto<Unit> (toggle enabled)
-//   PUT   /api/v1/channels/{channelId}/builtins/{key}/response → StatusResponseDto<Unit> (S-OWN09: set/clear
-//         the per-channel response-template override — the precedence-ladder write path
-//         IBuiltinResponseComposer already reads, generalized across every built-in)
+//   GET   /api/v1/channels/{channelId}/builtins/replies        → StatusResponseDto<List<BuiltinReplyGroup>>
+//         (commands-pipelines.md §11: every reply slot of every built-in, as this channel sees it now)
+//   PUT   /api/v1/channels/{channelId}/builtins/{key}/replies/{slot} → StatusResponseDto<BuiltinReply> (the
+//         channel's own text for exactly one slot)
+//   DELETE /api/v1/channels/{channelId}/builtins/{key}/replies/{slot} → StatusResponseDto<BuiltinReply> (back to
+//         the default)
 //   PUT   /api/v1/channels/{channelId}/builtins/{key}/tts      → StatusResponseDto<Unit> (S-OBS-12: toggle
 //         the per-channel "speak with TTS" option for a built-in that supports it, e.g. !quote)
 interface BuiltinsApi {
@@ -31,12 +34,14 @@ interface BuiltinsApi {
     /** Enable or disable a single builtin by its [builtinKey] (e.g. "sr", "skip"). */
     suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit>
 
-    /**
-     * Set (non-blank [template]) or clear (blank/null) a built-in's per-channel response-template
-     * override — wins over the channel's personality tone template, which wins over the built-in's neutral
-     * fallback.
-     */
-    suspend fun setResponseOverride(channelId: String, builtinKey: String, template: String?): ApiResult<Unit>
+    /** Every reply slot of every built-in, resolved for the channel's current personality. */
+    suspend fun replies(channelId: String): ApiResult<List<BuiltinReplyGroup>>
+
+    /** Sets the channel's own text for one reply slot; returns the slot as it now resolves. */
+    suspend fun setReply(channelId: String, builtinKey: String, slot: String, template: String): ApiResult<BuiltinReply>
+
+    /** Removes the channel's own text for one reply slot; returns the slot back on its default. */
+    suspend fun resetReply(channelId: String, builtinKey: String, slot: String): ApiResult<BuiltinReply>
 
     /**
      * Enable or disable the channel's "speak with TTS" option for a built-in that supports it (S-OBS-12,
@@ -61,15 +66,22 @@ class RestBuiltinsApi(private val client: ApiClient) : BuiltinsApi {
             SetBuiltinEnabledBody(enabled),
         )
 
-    override suspend fun setResponseOverride(
+    override suspend fun replies(channelId: String): ApiResult<List<BuiltinReplyGroup>> =
+        client.getEnvelope("api/v1/channels/$channelId/builtins/replies")
+
+    override suspend fun setReply(
         channelId: String,
         builtinKey: String,
-        template: String?,
-    ): ApiResult<Unit> =
-        client.putUnit(
-            "api/v1/channels/$channelId/builtins/$builtinKey/response",
-            SetBuiltinResponseOverrideBody(template),
+        slot: String,
+        template: String,
+    ): ApiResult<BuiltinReply> =
+        client.putEnvelope(
+            "api/v1/channels/$channelId/builtins/$builtinKey/replies/$slot",
+            SetBuiltinReplyBody(template),
         )
+
+    override suspend fun resetReply(channelId: String, builtinKey: String, slot: String): ApiResult<BuiltinReply> =
+        client.deleteEnvelope("api/v1/channels/$channelId/builtins/$builtinKey/replies/$slot")
 
     override suspend fun setSpeakWithTts(
         channelId: String,
@@ -84,9 +96,9 @@ class RestBuiltinsApi(private val client: ApiClient) : BuiltinsApi {
 
 /**
  * A platform-defined built-in command (backend `BuiltinCommandDto`): what it is ([builtinKey] / [name]),
- * whether it is enabled for this channel ([isEnabled]), its defaults, its per-channel response-template
- * override ([responseOverride]) if one is set (S-OWN09), and its "speak with TTS" toggle ([speakWithTts],
- * S-OBS-12, default off).
+ * whether it is enabled for this channel ([isEnabled]), its defaults, the reply group it speaks with
+ * ([replyGroup] — e.g. `unlurk` speaks with the `lurk` replies), and its "speak with TTS" toggle
+ * ([speakWithTts], S-OBS-12, default off).
  */
 @Serializable
 data class BuiltinCommand(
@@ -95,17 +107,56 @@ data class BuiltinCommand(
     val isEnabled: Boolean = true,
     val defaultCooldownSeconds: Int = 0,
     val defaultMinPermissionLevel: String = "Everyone",
-    val responseOverride: String? = null,
+    val replyGroup: String = "",
     val speakWithTts: Boolean = false,
+)
+
+/**
+ * One reply group of the built-in reply catalogue (backend `BuiltinReplyGroupDto`): the replies of one built-in,
+ * or of the bot itself when [commandKeys] is empty (the `system` and `botstatus` groups).
+ */
+@Serializable
+data class BuiltinReplyGroup(
+    val builtinKey: String = "",
+    val commandKeys: List<String> = emptyList(),
+    val replies: List<BuiltinReply> = emptyList(),
+)
+
+/**
+ * One reply slot as this channel sees it (backend `BuiltinReplyDto`). [effectiveTemplate] is what the bot sends;
+ * [source] names where it comes from (`channel`, `platform`, `tone`); [defaultTemplate] is what it sends after a
+ * reset. [isLocked] replies (data-rights wording) are read-only.
+ */
+@Serializable
+data class BuiltinReply(
+    val builtinKey: String = "",
+    val slot: String = "",
+    val label: LocalizedTextDto = LocalizedTextDto(),
+    val description: LocalizedTextDto = LocalizedTextDto(),
+    val effectiveTemplate: String = "",
+    val source: String = "",
+    val defaultTemplate: String = "",
+    val toneVariations: List<String> = emptyList(),
+    val variables: List<BuiltinReplyVariable> = emptyList(),
+    val isOverridden: Boolean = false,
+    val isLocked: Boolean = false,
+)
+
+/** A value a reply can use, with the example the preview fills in (backend `BuiltinReplyVariableDto`). */
+@Serializable
+data class BuiltinReplyVariable(
+    val name: String = "",
+    val description: LocalizedTextDto = LocalizedTextDto(),
+    val sampleValue: String = "",
 )
 
 /** Toggle request body (backend `SetBuiltinEnabledRequest`). */
 @Serializable
 private data class SetBuiltinEnabledBody(val enabled: Boolean)
 
-/** Response-override request body (backend `SetBuiltinResponseOverrideRequest`). */
+/** Reply-text request body (backend `SetBuiltinReplyRequest`). */
 @Serializable
-private data class SetBuiltinResponseOverrideBody(val template: String?)
+private data class SetBuiltinReplyBody(val template: String?)
 
 /** Speak-with-TTS request body (backend `SetBuiltinSpeakWithTtsRequest`). */
 @Serializable

@@ -113,7 +113,6 @@ class PlatformDefaultsSectionsRenderTest {
                     slot = "live",
                     shippedTemplate = "{channel} has been live for {uptime}.",
                     platformTemplate = null,
-                    takesChannelOverride = true,
                     channelsWithOwnReply = 2,
                 ),
             ),

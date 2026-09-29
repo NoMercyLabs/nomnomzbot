@@ -198,7 +198,7 @@ internal class FakePlatformDefaultsApi(
         val changes: Boolean = row.platformTemplate != change.template
         return PlatformDefaultBlastRadius(
             channelsAffected = if (changes) followers else 0,
-            channelsKeepingOwnSetting = if (row.takesChannelOverride) row.channelsWithOwnReply else 0,
+            channelsKeepingOwnSetting = row.channelsWithOwnReply,
             sampleChannelNames = if (changes) sample else emptyList(),
         )
     }

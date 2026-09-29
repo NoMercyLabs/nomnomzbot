@@ -619,6 +619,7 @@ private fun ShellContent(
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                     templateHelpersApi = graph.templateHelpersApi,
+                    repliesController = graph.builtinRepliesController,
                 )
             ShellRoute.ChatTriggers ->
                 ChatTriggersScreen(controller = graph.chatTriggersController, role = role, templateHelpersApi = graph.templateHelpersApi)

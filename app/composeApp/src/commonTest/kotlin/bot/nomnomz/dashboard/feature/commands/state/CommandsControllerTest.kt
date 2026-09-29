@@ -15,6 +15,8 @@ import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
+import bot.nomnomz.dashboard.core.network.BuiltinReply
+import bot.nomnomz.dashboard.core.network.BuiltinReplyGroup
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -264,32 +266,6 @@ class CommandsControllerTest {
         // A delete says "deleted", not the generic "saved" — the success message is action-specific.
         assertEquals(FeedbackKind.Success, feedback.only.kind)
         assertEquals(Res.string.feedback_command_deleted, feedback.only.label)
-    }
-
-    @Test
-    fun setBuiltinResponseOverride_sends_the_trimmed_template_and_reloads() = runTest {
-        val builtinsApi = FakeBuiltinsApi()
-        val feedback = RecordingFeedback()
-        val controller = makeController(builtinsApi = builtinsApi, feedback = feedback)
-        controller.load()
-
-        controller.setBuiltinResponseOverride("lurk", "brb, {{user.name}} is out")
-
-        assertEquals("ch1", builtinsApi.lastResponseOverrideChannel)
-        assertEquals("lurk", builtinsApi.lastResponseOverrideKey)
-        assertEquals("brb, {{user.name}} is out", builtinsApi.lastResponseOverrideTemplate)
-        assertEquals(FeedbackKind.Success, feedback.only.kind)
-    }
-
-    @Test
-    fun setBuiltinResponseOverride_with_a_blank_template_clears_it() = runTest {
-        val builtinsApi = FakeBuiltinsApi()
-        val controller = makeController(builtinsApi = builtinsApi)
-        controller.load()
-
-        controller.setBuiltinResponseOverride("lurk", "   ")
-
-        assertNull(builtinsApi.lastResponseOverrideTemplate)
     }
 
     @Test
@@ -656,9 +632,6 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 }
 
 private class FakeBuiltinsApi : BuiltinsApi {
-    var lastResponseOverrideChannel: String? = null
-    var lastResponseOverrideKey: String? = null
-    var lastResponseOverrideTemplate: String? = null
     var lastSpeakWithTtsChannel: String? = null
     var lastSpeakWithTtsKey: String? = null
     var lastSpeakWithTtsEnabled: Boolean? = null
@@ -672,16 +645,15 @@ private class FakeBuiltinsApi : BuiltinsApi {
         enabled: Boolean,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun setResponseOverride(
+    override suspend fun replies(channelId: String): ApiResult<List<BuiltinReplyGroup>> = ApiResult.Ok(emptyList())
+    override suspend fun setReply(
         channelId: String,
         builtinKey: String,
-        template: String?,
-    ): ApiResult<Unit> {
-        lastResponseOverrideChannel = channelId
-        lastResponseOverrideKey = builtinKey
-        lastResponseOverrideTemplate = template
-        return ApiResult.Ok(Unit)
-    }
+        slot: String,
+        template: String,
+    ): ApiResult<BuiltinReply> = error("stub")
+    override suspend fun resetReply(channelId: String, builtinKey: String, slot: String): ApiResult<BuiltinReply> =
+        error("stub")
 
     override suspend fun setSpeakWithTts(
         channelId: String,
