@@ -59,6 +59,7 @@ class ApiContractTest {
             CommunityMember.serializer() to "CommunityUserDto",
             ViewerOption.serializer() to "ViewerOptionDto",
             CommandSummary.serializer() to "CommandDto",
+            CommandPreset.serializer() to "CommandPresetDto",
             CreateCommandBody.serializer() to "CreateCommandDto",
             UpdateCommandBody.serializer() to "UpdateCommandDto",
             TimerSummary.serializer() to "TimerListItem",

@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -87,6 +88,7 @@ import bot.nomnomz.dashboard.feature.commands.state.BuiltinDetailState
 import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesController
 import bot.nomnomz.dashboard.feature.commands.state.BuiltinRepliesState
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
+import bot.nomnomz.dashboard.core.network.CommandPreset
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
@@ -117,6 +119,9 @@ import nomnomzbot.composeapp.generated.resources.commands_builtin_edit_response
 import nomnomzbot.composeapp.generated.resources.builtin_detail_customized
 import nomnomzbot.composeapp.generated.resources.commands_delete_action
 import nomnomzbot.composeapp.generated.resources.commands_delete_cancel
+import nomnomzbot.composeapp.generated.resources.commands_preset_description
+import nomnomzbot.composeapp.generated.resources.commands_preset_reset
+import nomnomzbot.composeapp.generated.resources.commands_preset_title
 import nomnomzbot.composeapp.generated.resources.commands_delete_confirm
 import nomnomzbot.composeapp.generated.resources.commands_delete_message
 import nomnomzbot.composeapp.generated.resources.commands_delete_title
@@ -214,6 +219,8 @@ fun CommandsScreen(
 
     var editor: CommandEditor? by remember { mutableStateOf(null) }
     var pendingDelete: CommandSummary? by remember { mutableStateOf(null) }
+    var pendingPresetReset: CommandSummary? by remember { mutableStateOf(null) }
+    val presets: Map<String, CommandPreset> = (state as? CommandsState.Ready)?.presets.orEmpty()
 
     // Opens a built-in's detail dialog: the detail first (so the stand-alone replies dialog never flashes up),
     // then its reply group's replies, both loaded side by side.
@@ -316,6 +323,19 @@ fun CommandsScreen(
             codeScripts = codeScripts,
             builtins = builtinsForDialog,
             templateHelpersApi = templateHelpersApi,
+            // Only a command seeded from a preset the server still ships can be reset — the confirm needs the
+            // preset to name what changes.
+            onResetToPreset =
+                open.presetKey
+                    ?.takeIf { open.isEdit && it in presets }
+                    ?.let {
+                        {
+                            val current: CommandSummary? =
+                                (state as? CommandsState.Ready)?.commands?.firstOrNull { c -> c.name == open.name }
+                            editor = null
+                            pendingPresetReset = current
+                        }
+                    },
             onDismiss = { editor = null },
             onSubmit = { input ->
                 editor = null
@@ -353,6 +373,19 @@ fun CommandsScreen(
                 scope.launch { controller.deleteCommand(command.name) }
             },
             onDismiss = { pendingDelete = null },
+        )
+    }
+
+    pendingPresetReset?.let { command ->
+        val preset: CommandPreset = command.presetKey?.let { presets[it] } ?: return@let
+        PresetResetDialog(
+            command = command,
+            preset = preset,
+            onConfirm = {
+                pendingPresetReset = null
+                scope.launch { controller.resetToPreset(command.name) }
+            },
+            onDismiss = { pendingPresetReset = null },
         )
     }
 }
@@ -691,6 +724,7 @@ private fun CommandFormDialog(
     codeScripts: List<CodeScriptSummary>,
     builtins: List<BuiltinCommand>,
     templateHelpersApi: TemplateHelpersApi,
+    onResetToPreset: (() -> Unit)?,
     onDismiss: () -> Unit,
     onSubmit: (CommandInput) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
@@ -801,6 +835,22 @@ private fun CommandFormDialog(
                 modifier = Modifier.heightIn(max = spacing.s24 * 5).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
+                val presetKey: String? = editor.presetKey
+                if (onResetToPreset != null && presetKey != null) {
+                    // A seeded fun command says where it came from, with the way back beside it. The dialog's own
+                    // Save stays the one primary; the reset is a quiet destructive sibling that confirms first.
+                    Alert(modifier = Modifier.fillMaxWidth()) {
+                        AlertTitle(text = stringResource(Res.string.commands_preset_title, presetKey))
+                        AlertDescription(text = stringResource(Res.string.commands_preset_description))
+                        Button(
+                            onClick = onResetToPreset,
+                            variant = ButtonVariant.DestructiveGhost,
+                            modifier = Modifier.testTag("command-preset-reset"),
+                        ) {
+                            Text(text = stringResource(Res.string.commands_preset_reset), maxLines = 1)
+                        }
+                    }
+                }
                 AppTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -1324,6 +1374,8 @@ private data class CommandEditor(
     val description: String,
     val aliases: List<String>,
     val isEnabled: Boolean,
+    // The fun-command preset an edited command was seeded from; null on create and for a channel-written command.
+    val presetKey: String? = null,
 ) {
     companion object {
         fun create(): CommandEditor =
@@ -1366,6 +1418,7 @@ private data class CommandEditor(
                 description = command.description.orEmpty(),
                 aliases = command.aliases,
                 isEnabled = command.isEnabled,
+                presetKey = command.presetKey,
             )
     }
 }

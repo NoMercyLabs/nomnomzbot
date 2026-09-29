@@ -1140,6 +1140,8 @@ private class FakeCommandsApi(
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+    override suspend fun presets(channelId: String) = error("stub")
+    override suspend fun resetToPreset(channelId: String, commandName: String) = error("stub")
 }
 
 /** One recorded resolve call — asserted against to prove the exact wire payload each action sends. */

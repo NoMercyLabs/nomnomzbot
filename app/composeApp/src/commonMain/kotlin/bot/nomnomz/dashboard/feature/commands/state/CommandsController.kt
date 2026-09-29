@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
+import bot.nomnomz.dashboard.core.network.CommandPreset
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
@@ -119,6 +120,7 @@ class CommandsController(
         val pipelinesResult: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)
         val pickListsResult: ApiResult<List<PickList>> = pickListsApi.list()
         val codeScriptsResult: ApiResult<List<CodeScriptSummary>>? = codeScriptsApi?.list()
+        val presetsResult: ApiResult<List<CommandPreset>> = commandsApi.presets(channel.id)
 
         when (commandsResult) {
             is ApiResult.Failure -> {
@@ -142,6 +144,10 @@ class CommandsController(
         // just with nothing to pick yet); it must never block the commands page.
         val codeScripts: List<CodeScriptSummary> =
             if (codeScriptsResult is ApiResult.Ok) codeScriptsResult.value else emptyList()
+        // The fun-command presets, keyed by preset key, for the edit dialog's "Reset to preset". A failure hides
+        // the reset (it cannot show its consequence without the preset); it never blocks the page.
+        val presets: Map<String, CommandPreset> =
+            if (presetsResult is ApiResult.Ok) presetsResult.value.associateBy { it.key } else emptyMap()
 
         // Best-effort: a failure to fetch the limits report just leaves the create affordance unblocked (never
         // fails the page) — the backend still enforces the real limit on the write itself either way.
@@ -161,6 +167,7 @@ class CommandsController(
                     pipelines = pipelines,
                     pickListNames = pickListNames,
                     codeScripts = codeScripts,
+                    presets = presets,
                 )
     }
 
@@ -319,6 +326,12 @@ class CommandsController(
         afterWrite(commandsApi.delete(channel, name), success = Res.string.feedback_command_deleted)
     }
 
+    /** Put a seeded fun command, addressed by its current [name], back on its preset. Reloads on success. */
+    suspend fun resetToPreset(name: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(commandsApi.resetToPreset(channel, name))
+    }
+
     /** Enable or disable a built-in command by its [builtinKey]. Reloads on success. */
     suspend fun toggleBuiltin(builtinKey: String, enabled: Boolean) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
@@ -469,6 +482,8 @@ sealed interface CommandsState {
         val pipelines: List<PipelineSummary> = emptyList(),
         val pickListNames: List<String> = emptyList(),
         val codeScripts: List<CodeScriptSummary> = emptyList(),
+        // The fun-command presets by key — what "Reset to preset" writes back over a seeded command.
+        val presets: Map<String, CommandPreset> = emptyMap(),
     ) : CommandsState
 
     /**

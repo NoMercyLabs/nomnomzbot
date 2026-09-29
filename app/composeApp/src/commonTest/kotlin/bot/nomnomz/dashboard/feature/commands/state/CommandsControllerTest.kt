@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.BuiltinsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.CommandPreset
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
@@ -110,6 +111,38 @@ class CommandsControllerTest {
         controller.load()
 
         assertTrue(controller.state.value is CommandsState.Error)
+    }
+
+    @Test
+    fun reset_to_preset_calls_the_api_by_name_then_reloads_with_the_preset_back_and_presets_in_state() = runTest {
+        val preset =
+            CommandPreset(key = "8ball", description = "Ask the 8-ball.", templateResponses = listOf("Yes.", "No."))
+        val commandsApi =
+            RecordingCommandsApi(
+                ApiResult.Ok(
+                    listOf(
+                        CommandSummary(
+                            id = "c8",
+                            name = "ball",
+                            templateResponses = listOf("always yes"),
+                            description = "mine",
+                            presetKey = "8ball",
+                        )
+                    )
+                )
+            )
+        commandsApi.presetList = listOf(preset)
+        val controller = makeController(commandsApi = commandsApi)
+        controller.load()
+        assertEquals(mapOf("8ball" to preset), (controller.state.value as CommandsState.Ready).presets)
+
+        controller.resetToPreset("ball")
+
+        assertEquals(listOf("ball"), commandsApi.presetResets)
+        val reloaded: CommandSummary = (controller.state.value as CommandsState.Ready).commands.single()
+        assertEquals("ball", reloaded.name)
+        assertEquals(listOf("Yes.", "No."), reloaded.templateResponses)
+        assertEquals("Ask the 8-ball.", reloaded.description)
     }
 
     @Test
@@ -861,6 +894,29 @@ private class RecordingCommandsApi(
         deleted += commandName
         if (writeResult is ApiResult.Ok) {
             store.removeAll { it.name == commandName }
+        }
+        return writeResult
+    }
+
+    var presetList: List<CommandPreset> = emptyList()
+    val presetResets: MutableList<String> = mutableListOf()
+
+    override suspend fun presets(channelId: String): ApiResult<List<CommandPreset>> = ApiResult.Ok(presetList)
+
+    // A successful reset writes the preset back onto the stored row, as the backend does (name + on/off kept).
+    override suspend fun resetToPreset(channelId: String, commandName: String): ApiResult<Unit> {
+        presetResets += commandName
+        if (writeResult is ApiResult.Ok) {
+            val index: Int = store.indexOfFirst { it.name == commandName }
+            val preset: CommandPreset? = store.getOrNull(index)?.presetKey?.let { key -> presetList.firstOrNull { it.key == key } }
+            if (preset != null) {
+                store[index] =
+                    store[index].copy(
+                        templateResponse = preset.templateResponse,
+                        templateResponses = preset.templateResponses,
+                        description = preset.description,
+                    )
+            }
         }
         return writeResult
     }
