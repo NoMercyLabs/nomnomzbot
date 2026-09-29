@@ -1490,6 +1490,10 @@ public static class DependencyInjection
             Platform.Transport.Helix.SubClients.TwitchPredictionsApi
         >();
         services.AddScoped<ITwitchRaidsApi, Platform.Transport.Helix.SubClients.TwitchRaidsApi>();
+        services.AddScoped<
+            ITwitchEventSubConduitsApi,
+            Platform.Transport.Helix.SubClients.TwitchEventSubConduitsApi
+        >();
         services.AddScoped<ITwitchChatApi, Platform.Transport.Helix.SubClients.TwitchChatApi>();
         services.AddScoped<
             ITwitchChatAssetsApi,
