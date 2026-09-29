@@ -85,6 +85,17 @@ public interface IAuthService
     );
 
     /// <summary>
+    /// Begin a bot device login for ONE channel's own bot: the same code as
+    /// <see cref="StartBotDeviceLoginAsync"/>, minted only when the channel's plan includes its own bot. Fails
+    /// <c>NOT_ENTITLED</c> otherwise, before Twitch is asked for a code. Complete it with
+    /// <see cref="PollChannelBotDeviceLoginAsync"/>.
+    /// </summary>
+    Task<Result<DeviceCodeStartDto>> StartChannelBotDeviceLoginAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Poll a bot device login once. On <c>authorized</c> the SHARED platform bot is connected + vaulted.
     /// This is the platform-wide identity every channel without its own bot speaks through — connecting it
     /// replaces the bot for the whole deployment, so it refuses a takeover when one is already established.

@@ -114,6 +114,33 @@ public sealed class EntitlementGrantControllerTests
         return (db, baseTier, proTier);
     }
 
+    // A per-tenant override keeps winning after the grant, so a key it covers is not a change the grant makes.
+    [Fact]
+    public async Task The_grant_preview_does_not_count_a_limit_a_tenant_override_holds()
+    {
+        (BillingTierChangeTestDbContext db, _, BillingTier proTier) =
+            await SeedChannelOnBaseTierAsync();
+        db.TenantLimitOverrides.Add(
+            new TenantLimitOverride
+            {
+                BroadcasterId = Broadcaster,
+                LimitKey = "custom_commands",
+                LimitValue = 42,
+                Reason = "support case",
+            }
+        );
+        await db.SaveChangesAsync();
+        FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-09-05T00:00:00Z"));
+        BuildController(db, clock, out IEntitlementGrantService grantService);
+
+        EntitlementGrantPreviewDto preview = (
+            await grantService.PreviewGrantAsync(Broadcaster, proTier.Id)
+        ).Value;
+
+        preview.ChangedLimitCount.Should().Be(0);
+        preview.ChangedLimitKeys.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Issuing_a_grant_persists_it_and_writes_an_audit_entry()
     {

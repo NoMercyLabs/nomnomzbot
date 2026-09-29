@@ -1545,6 +1545,20 @@ public class AuthController : BaseController
     }
 
     /// <summary>
+    /// Begin a bot device login for ONE channel's own bot. The shared start above is admin-only once setup is
+    /// complete, so a streamer could never begin connecting their own bot; this one is gated like the channel
+    /// poll (Gate-2 <c>integration:write</c> on this channel) and refuses a plan without its own bot.
+    /// </summary>
+    [HttpPost("twitch/channels/{channelId:guid}/bot/device")]
+    [RequireAction("integration:write")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartChannelBotDeviceLogin(
+        Guid channelId,
+        CancellationToken ct
+    ) => ResultResponse(await _authService.StartChannelBotDeviceLoginAsync(channelId, ct));
+
+    /// <summary>
     /// Poll a bot device login for ONE channel; on <c>authorized</c> that channel gets its own custom bot,
     /// vaulted against it and authorized for it, leaving the shared platform bot untouched.
     /// <para>

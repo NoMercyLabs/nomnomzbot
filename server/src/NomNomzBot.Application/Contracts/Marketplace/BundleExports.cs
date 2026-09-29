@@ -50,6 +50,10 @@ public sealed record CommandExport
     public string? PipelineName { get; init; }
 
     public int CooldownSeconds { get; init; }
+
+    /// <summary>The per-chatter window, applied when <see cref="CooldownPerUser"/> is true.</summary>
+    public int UserCooldownSeconds { get; init; }
+
     public bool CooldownPerUser { get; init; }
     public string? Description { get; init; }
     public IReadOnlyList<string> Aliases { get; init; } = [];

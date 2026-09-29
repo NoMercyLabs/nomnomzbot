@@ -711,7 +711,7 @@ class AppGraph {
             feedback = feedbackController,
         )
 
-    val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi)
+    val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi, entitlement = billingApi::entitlement)
 
     val billingController: BillingController =
         BillingController(channelsApi = channelsApi, billingApi = billingApi)

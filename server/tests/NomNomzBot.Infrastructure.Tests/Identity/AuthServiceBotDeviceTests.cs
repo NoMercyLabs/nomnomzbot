@@ -15,6 +15,8 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -119,11 +121,160 @@ public sealed class AuthServiceBotDeviceTests
         redirect.Value.Should().Contain("client_id=public-id");
     }
 
+    // ─── a channel's own bot is a plan feature ─────────────────────────────────
+
+    [Fact]
+    public async Task GetTwitchChannelBotOAuthUrl_IsRefused_WhenThePlanExcludesAnOwnBot_AndBuilds_WhenItIncludesOne()
+    {
+        Guid channel = Guid.NewGuid();
+        IConfiguration config = ConfigWith(clientId: "public-id", secret: "shh");
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+
+        AuthService excluded = Build(config, deviceCode, Plan(channel, allowsOwnBot: false));
+        Result<string> refused = await excluded.GetTwitchChannelBotOAuthUrl(
+            channel,
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("NOT_ENTITLED");
+
+        AuthService included = Build(config, deviceCode, Plan(channel, allowsOwnBot: true));
+        Result<string> built = await included.GetTwitchChannelBotOAuthUrl(
+            channel,
+            state: "nonce",
+            baseUrl: "https://api.example.test"
+        );
+
+        built.IsSuccess.Should().BeTrue(built.ErrorMessage);
+        built.Value.Should().StartWith("https://id.twitch.tv/oauth2/authorize");
+    }
+
+    [Fact]
+    public async Task HandleTwitchChannelBotCallback_IsRefused_BeforeTheCodeIsExchanged_WhenThePlanExcludesAnOwnBot()
+    {
+        Guid channel = Guid.NewGuid();
+        ITwitchAuthService twitchAuth = Substitute.For<ITwitchAuthService>();
+        AuthService service = Build(
+            ConfigWith(clientId: "public-id", secret: "shh"),
+            Substitute.For<ITwitchDeviceCodeService>(),
+            Plan(channel, allowsOwnBot: false),
+            twitchAuth
+        );
+
+        Result<BotStatusDto> result = await service.HandleTwitchChannelBotCallbackAsync(
+            channel,
+            new() { Code = "code-from-twitch", State = "nonce" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_ENTITLED");
+        // No token is ever obtained for a channel that may not have its own bot.
+        twitchAuth.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StartChannelBotDeviceLogin_MintsTheBotCode_OnlyWhenThePlanIncludesAnOwnBot()
+    {
+        Guid channel = Guid.NewGuid();
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+        deviceCode
+            .RequestDeviceCodeAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new DeviceCodeResult(
+                    "DEV-BOT-2",
+                    "ABCD-1234",
+                    "https://www.twitch.tv/activate",
+                    5,
+                    DateTime.UtcNow.AddMinutes(30)
+                )
+            );
+        IConfiguration config = ConfigWith(clientId: "public-id", secret: null);
+
+        Result<DeviceCodeStartDto> refused = await Build(
+                config,
+                deviceCode,
+                Plan(channel, allowsOwnBot: false)
+            )
+            .StartChannelBotDeviceLoginAsync(channel);
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("NOT_ENTITLED");
+        deviceCode
+            .ReceivedCalls()
+            .Should()
+            .BeEmpty("no code is minted for a channel that may not use it");
+
+        Result<DeviceCodeStartDto> started = await Build(
+                config,
+                deviceCode,
+                Plan(channel, allowsOwnBot: true)
+            )
+            .StartChannelBotDeviceLoginAsync(channel);
+
+        started.IsSuccess.Should().BeTrue(started.ErrorMessage);
+        started.Value.DeviceCode.Should().Be("DEV-BOT-2");
+        await deviceCode
+            .Received(1)
+            .RequestDeviceCodeAsync(
+                Arg.Is<IReadOnlyList<string>>(s =>
+                    s.Contains("user:write:chat") && s.Contains("user:read:chat")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task PollChannelBotDeviceLogin_EndsInError_WithoutPollingTwitch_WhenThePlanExcludesAnOwnBot()
+    {
+        Guid channel = Guid.NewGuid();
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+        AuthService service = Build(
+            ConfigWith(clientId: "public-id", secret: null),
+            deviceCode,
+            Plan(channel, allowsOwnBot: false)
+        );
+
+        Result<DeviceBotPollDto> result = await service.PollChannelBotDeviceLoginAsync(
+            channel,
+            "DEV-BOT-1"
+        );
+
+        // A terminal status the poll loop stops on, never a failure it would tolerate until the code expires.
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(DeviceLoginStatus.Error);
+        deviceCode.ReceivedCalls().Should().BeEmpty();
+    }
+
     // ─── scaffolding ───────────────────────────────────────────────────────────
 
-    // Only the credentials + device-code service are load-bearing for these two methods (neither writes the DB),
-    // so the rest of AuthService's collaborators are inert substitutes — a reach into them would fail the build.
-    private static AuthService Build(IConfiguration config, ITwitchDeviceCodeService deviceCode)
+    private static IBillingTierService Plan(Guid channel, bool allowsOwnBot)
+    {
+        IBillingTierService tiers = Substitute.For<IBillingTierService>();
+        tiers
+            .GetEntitlementAsync(channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new EntitlementDto(
+                        "base",
+                        allowsOwnBot,
+                        PrioritySupport: false,
+                        new Dictionary<string, long>()
+                    )
+                )
+            );
+        return tiers;
+    }
+
+    // Only the credentials + device-code service (and the plan, for a channel's own bot) are load-bearing for
+    // these methods (none writes the DB), so the rest of AuthService's collaborators are inert substitutes.
+    private static AuthService Build(
+        IConfiguration config,
+        ITwitchDeviceCodeService deviceCode,
+        IBillingTierService? tiers = null,
+        ITwitchAuthService? twitchAuth = null
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
@@ -135,7 +286,7 @@ public sealed class AuthServiceBotDeviceTests
 
         return new(
             db,
-            Substitute.For<ITwitchAuthService>(),
+            twitchAuth ?? Substitute.For<ITwitchAuthService>(),
             deviceCode,
             Substitute.For<IIntegrationTokenVault>(),
             Substitute.For<ISessionService>(),
@@ -148,6 +299,7 @@ public sealed class AuthServiceBotDeviceTests
             TimeProvider.System,
             new(),
             Substitute.For<IPlatformOwnerPrincipalMinter>(),
+            tiers ?? Substitute.For<IBillingTierService>(),
             NullLogger<AuthService>.Instance
         );
     }

@@ -515,9 +515,14 @@ A5. Template updates reach tenants: platform content is copied at install and ne
     force overwrites all, and a copy the installer refuses is recorded on the job and shown (6c4157d server).
     Gallery widget installs now stamp the hash the publish compares against, so they count as untouched
     instead of edited (0a25a2a). The definition detail reports installed / behind / edited counts from the
-    same copy listing (9581266 server, app commit after it). Owed: a per-copy "update available" badge on
-    the channel's own timers/event-responses/rewards/pick-lists (the widget side has it as
-    `GalleryUpdateAvailable`); today a channel that edited its copy is only counted on the admin side.
+    same copy listing (9581266 server, app commit after it). The channel side now exists for every kind:
+    `GET channels/{id}/platform-templates/updates?kind=` lists this channel's copies behind the current
+    version (edited or not), and `POST …/{definitionId}/copies/{rowId}/update` takes the new version into
+    one copy through the kind's own save path, gated by its write key (PlatformTemplateUpdateService).
+    Owed: the dashboard half — an "update available" badge + Update action (with "replaces your edits"
+    when edited) on the timers and pick-lists pages. Blocked only on regenerating server/openapi/v1.json
+    through scripts/refresh-openapi.ps1 (port 5080 was held by a running API; ApiRouteContractTest needs
+    the routes in the snapshot before the Kotlin client may call them).
 A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:1533-1554); trace
     save → runtime reader for billing, spam defense and trust-safety (owed by the audit).
     Status 2026-09-27: DONE. Flag overrides are listed per flag from the server's read-back (channel
@@ -527,12 +532,10 @@ A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:
     platform spam-defense save was tenant-stamped onto the admin's own channel (saved outside the ambient
     tenant now; the channel page shows the defaults it tracks); a removed tier limit was re-inserted by
     the seeder beside its soft-deleted row on the next boot and re-adding it collided (restore in place
-    now). Owed, ranked: `AllowsCustomBotName`/`PrioritySupport` on a tier are display-only (no gate on
-    white-label bot connect); a network block bans only the tenants found at apply, later channels and
-    chat ingest never check it; spam-defense fields nothing reads (Lockdown*, FollowSpike/JoinBurst,
-    SemiTrustedWatchHours*, NonLatinScriptGate, NetworkSubscribe/Contribute) and the 7-day
-    `EnforcementEligibleAt` window is never enforced; tier-change preview counts Subscriptions only
-    (base-tier and grant-lifted tenants missed); TTS/sandbox limits skip `TenantLimitOverride`; flag
+    now). Owed, ranked: `PrioritySupport` on a tier is display-only; a network block bans only the
+    tenants found at apply, later channels and chat ingest never check it; spam-defense fields nothing
+    reads (Lockdown*, FollowSpike/JoinBurst, SemiTrustedWatchHours*, NonLatinScriptGate,
+    NetworkSubscribe/Contribute) and the 7-day `EnforcementEligibleAt` window is never enforced; flag
     gating lags tier edits by the 60s flag cache; confirming a spam detection has no runtime effect.
 A7. GDPR admin console: list and monitor export/erasure requests (GdprController.cs) platform-wide.
     Status 2026-09-27: DONE. The compliance plane's list (`GET /compliance/erasure`, audit:read) narrows by
@@ -540,8 +543,8 @@ A7. GDPR admin console: list and monitor export/erasure requests (GdprController
     gained a Safety tab "Data requests" that shows the counts, both filters, every request's kind, state,
     requester, scope and rows, and a failed request's recorded failure reason on its row (f06908d). Owed:
     acting on a request from that tab (re-running a failed erasure) still goes through the subject's own
-    page, and the Audit tab's "All" outcome chip never clears the filter (loadAudit keeps the old value
-    when passed null) — both for the admin walk.
+    page — for the admin walk. (The Audit tab's "All" chip clears the filter: `loadAudit` takes the
+    outcome explicitly, AdminControllerFilterTest.)
 A8. Publish the SDK types as a versioned npm package built by CI from `SdkTypeEmitter` output.
 Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, automation/IPC keys tab.
 
@@ -550,8 +553,9 @@ Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, autom
 15. V-B3.1 catalog purchase runs the item pipeline (refund on failure). 16. V-B3.2 watch-time earning
 sweep. 17. V-B3.3 chat-earning role scale. 18. V-B2.1 typed pipeline params from backend descriptors
 (+ accept numeric strings). 19. V-B6.2 push `WidgetSettingsChanged`; V-B6.1 stop the double alert.
-20. V-B2.10 `UserCooldownSeconds` enforced. 21. V-B3 giveaway open/draw announced; game seeding per
-type; `WinChance ?? 0` refused. 22. V-B8.1 Integrations bot row → channel bot endpoints.
+21. V-B3 giveaway open/draw announced; game seeding per
+type; `WinChance ?? 0` refused. 22. V-B8.1 Integrations bot row: status, Disconnect and the channel device-start route done; the client's
+Connect still calls the shared start (switch it once v1.json is regenerated).
 23. V-B5.4 `!sr` instrumentation (query, message id, resolved uri) + atomic in-flight claim + hand over
 the head; address queue entries by code, not position.
 

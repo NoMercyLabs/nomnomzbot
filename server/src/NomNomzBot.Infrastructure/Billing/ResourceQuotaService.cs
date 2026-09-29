@@ -47,23 +47,17 @@ public sealed class ResourceQuotaService(
         // A per-tenant override (S-ADMIN-3) wins over BOTH the NEAR_FREE safety baseline and the
         // tier-resolved COST_DRIVING limit — it is the one operator-granted exception for this tenant alone,
         // never a way to reconfigure a tier. An expired or absent row falls through to normal resolution.
-        DateTime now = clock.GetUtcNow().UtcDateTime;
-        long? overrideLimit = await db
-            .TenantLimitOverrides.Where(o =>
-                o.BroadcasterId == broadcasterId
-                && o.LimitKey == limitKey
-                && (o.ExpiresAt == null || o.ExpiresAt > now)
-            )
-            .Select(o => (long?)o.LimitValue)
-            .FirstOrDefaultAsync(ct);
+        Dictionary<string, long> overrides = await LiveLimitOverrides.LoadAsync(
+            db,
+            broadcasterId,
+            clock.GetUtcNow().UtcDateTime,
+            ct
+        );
 
         long limit =
-            overrideLimit
-            ?? (
-                descriptor.Class == ResourceClass.NearFree
-                    ? descriptor.SafetyBaseline
-                    : (await tiers.GetLimitAsync(broadcasterId, limitKey, ct)).Value
-            );
+            overrides.TryGetValue(limitKey, out long overrideLimit) ? overrideLimit
+            : descriptor.Class == ResourceClass.NearFree ? descriptor.SafetyBaseline
+            : (await tiers.GetLimitAsync(broadcasterId, limitKey, ct)).Value;
 
         bool allowed = limit == -1 || resultingCount <= limit;
         long remaining = limit == -1 ? -1 : Math.Max(0, limit - resultingCount);
@@ -136,6 +130,15 @@ public sealed class ResourceQuotaService(
             StringComparer.Ordinal
         );
 
+        // A NEAR_FREE key never reaches the tier service, so its override is applied here, exactly as CheckAsync
+        // enforces it; a COST_DRIVING key's override already arrives through the tier service's limits.
+        Dictionary<string, long> overrides = await LiveLimitOverrides.LoadAsync(
+            db,
+            broadcasterId,
+            clock.GetUtcNow().UtcDateTime,
+            ct
+        );
+
         List<ResourceUsageDto> report = [];
         foreach (LimitedResourceDescriptor descriptor in LimitedResourceRegistry.Resources)
         {
@@ -154,7 +157,7 @@ public sealed class ResourceQuotaService(
                         descriptor.Class,
                         descriptor.DisplayName,
                         countResult.Value,
-                        descriptor.SafetyBaseline,
+                        overrides.GetValueOrDefault(descriptor.LimitKey, descriptor.SafetyBaseline),
                         descriptor.SafetyBaseline
                     )
                 );

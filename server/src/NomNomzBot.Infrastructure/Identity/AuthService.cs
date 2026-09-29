@@ -17,6 +17,8 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -67,6 +69,9 @@ public sealed class AuthService : IAuthService
     // IamPrincipalBackfillSeeder can reuse the identical, idempotent row-building logic for pre-existing
     // IsPlatformPrincipal users that predate this fix — never duplicated.
     private readonly IPlatformOwnerPrincipalMinter _principalMinter;
+
+    // A channel's own (white-label) bot is a plan feature: the tier's AllowsCustomBotName decides it.
+    private readonly IBillingTierService _billingTiers;
 
     // SelfHostLite is single-streamer: a second login attaches to the existing channel instead of creating one.
     private readonly DeploymentMode _deploymentMode;
@@ -124,9 +129,11 @@ public sealed class AuthService : IAuthService
         TimeProvider timeProvider,
         TwitchScopeRegistry scopeRegistry,
         IPlatformOwnerPrincipalMinter principalMinter,
+        IBillingTierService billingTiers,
         ILogger<AuthService> logger
     )
     {
+        _billingTiers = billingTiers;
         _db = db;
         _twitchAuth = twitchAuth;
         _deviceCode = deviceCode;
@@ -583,6 +590,17 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     ) => StartDeviceLoginAsync(BotScopes, cancellationToken);
 
+    public async Task<Result<DeviceCodeStartDto>> StartChannelBotDeviceLoginAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result entitled = await RequireCustomBotEntitlementAsync(broadcasterId, cancellationToken);
+        if (entitled.IsFailure)
+            return entitled.WithValue<DeviceCodeStartDto>(null!);
+        return await StartDeviceLoginAsync(BotScopes, cancellationToken);
+    }
+
     private async Task<Result<DeviceCodeStartDto>> StartDeviceLoginAsync(
         string[] scopes,
         CancellationToken cancellationToken
@@ -660,17 +678,56 @@ public sealed class AuthService : IAuthService
             cancellationToken
         );
 
-    public Task<Result<DeviceBotPollDto>> PollChannelBotDeviceLoginAsync(
+    public async Task<Result<DeviceBotPollDto>> PollChannelBotDeviceLoginAsync(
         Guid broadcasterId,
         string deviceCode,
         CancellationToken cancellationToken = default
-    ) =>
-        PollBotDeviceCoreAsync(
+    )
+    {
+        // Refused before Twitch is polled, so no token is ever issued to a channel whose plan lacks its own
+        // bot. Terminal Error (HTTP 200), never a failure the poll loop would tolerate until the code expires.
+        Result entitled = await RequireCustomBotEntitlementAsync(broadcasterId, cancellationToken);
+        if (entitled.IsFailure)
+        {
+            _logger.LogWarning(
+                "Channel bot device login refused for {BroadcasterId}: {Error} ({Code})",
+                broadcasterId,
+                entitled.ErrorMessage,
+                entitled.ErrorCode
+            );
+            return Result.Success(new DeviceBotPollDto(DeviceLoginStatus.Error));
+        }
+
+        return await PollBotDeviceCoreAsync(
             deviceCode,
             (botUser, tokens, ct) => EstablishChannelBotAsync(broadcasterId, botUser, tokens, ct),
             "channel",
             cancellationToken
         );
+    }
+
+    /// <summary>
+    /// A channel may register its own bot only when its plan allows it (<c>AllowsCustomBotName</c>; self-host
+    /// always does). Fails <c>NOT_ENTITLED</c> otherwise, and passes on the entitlement lookup's own failure.
+    /// </summary>
+    private async Task<Result> RequireCustomBotEntitlementAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<EntitlementDto> entitlement = await _billingTiers.GetEntitlementAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (entitlement.IsFailure)
+            return Result.Failure(entitlement.ErrorMessage, entitlement.ErrorCode);
+        return entitlement.Value.AllowsCustomBotName
+            ? Result.Success()
+            : Result.Failure(
+                "This channel's plan does not include its own bot account.",
+                "NOT_ENTITLED"
+            );
+    }
 
     /// <summary>
     /// The half both bot device polls share: poll Twitch, resolve the approving account, then hand off to the
@@ -1001,12 +1058,24 @@ public sealed class AuthService : IAuthService
 
     // ─── Custom (white-label) per-channel bot ──────────────────────────────────
 
-    public Task<Result<string>> GetTwitchChannelBotOAuthUrl(
+    public async Task<Result<string>> GetTwitchChannelBotOAuthUrl(
         Guid broadcasterId,
         string? state = null,
         string? baseUrl = null,
         CancellationToken cancellationToken = default
-    ) => BuildAuthorizeUrlAsync(BotScopes, state, baseUrl, forceVerify: true, cancellationToken);
+    )
+    {
+        Result entitled = await RequireCustomBotEntitlementAsync(broadcasterId, cancellationToken);
+        if (entitled.IsFailure)
+            return entitled.WithValue<string>(null!);
+        return await BuildAuthorizeUrlAsync(
+            BotScopes,
+            state,
+            baseUrl,
+            forceVerify: true,
+            cancellationToken
+        );
+    }
 
     public async Task<Result<BotStatusDto>> HandleTwitchChannelBotCallbackAsync(
         Guid broadcasterId,
@@ -1014,6 +1083,12 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken = default
     )
     {
+        // Checked again here, before the code is exchanged: the plan can change between start and callback,
+        // and a refused channel must never hold a bot token it is not entitled to.
+        Result entitled = await RequireCustomBotEntitlementAsync(broadcasterId, cancellationToken);
+        if (entitled.IsFailure)
+            return entitled.WithValue<BotStatusDto>(null!);
+
         Result<(TwitchUserInfo Bot, TokenResult Tokens)> exchange = await ExchangeBotCodeAsync(
             callback,
             cancellationToken

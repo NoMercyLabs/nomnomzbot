@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.AuthPayload
 import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelBotStatusDetail
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.CurrentUser
@@ -58,6 +59,9 @@ class IntegrationsControllerTest {
 
     private val channel = ChannelSummary(id = "chan-guid-1", login = "stoney_eagle", displayName = "Stoney_Eagle")
 
+    // The channel-bot endpoints of the controller last built by [controller].
+    private var channelBot: ChannelBotOverChannels? = null
+
     private fun controller(
         channels: ChannelsApi,
         bot: BotAuthApi,
@@ -84,9 +88,11 @@ class IntegrationsControllerTest {
                 source = ProfileSource.Manual,
             )
         )
+        val channelsWithBot = ChannelBotOverChannels(channels, bot as FakeBotAuthApi)
+        channelBot = channelsWithBot
         return IntegrationsController(
             session,
-            channels,
+            channelsWithBot,
             bot,
             integrations,
             launcher,
@@ -196,8 +202,12 @@ class IntegrationsControllerTest {
 
         controller.disconnectBot()
 
-        // The backend disconnect ran, and the post-disconnect re-read shows it (no optimistic flip).
-        assertTrue(bot.disconnectCalled)
+        // THIS channel's bot was disconnected, and the post-disconnect re-read shows it (no optimistic flip).
+        // The deployment-wide bot is never read or cleared from a channel screen (V-B8.1).
+        assertEquals("chan-guid-1", channelBot?.disconnectedChannelId)
+        assertEquals("chan-guid-1", channelBot?.statusReadFor)
+        assertFalse(bot.disconnectCalled)
+        assertFalse(bot.platformStatusRead)
         assertEquals(false, (controller.state.value as IntegrationsState.Ready).bot.connected)
     }
 
@@ -881,6 +891,31 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
+/**
+ * The channel's OWN bot, served through the channel endpoints. It reads and clears the same [FakeBotAuthApi.status]
+ * the tests set up (that fake stands for "the server's bot record for this channel"), and records which channel
+ * was disconnected. The platform-wide [FakeBotAuthApi.status]/[FakeBotAuthApi.disconnect] record their own use,
+ * so a test proves the screen never touches the deployment-wide bot.
+ */
+private class ChannelBotOverChannels(
+    private val channels: ChannelsApi,
+    private val bot: FakeBotAuthApi,
+) : ChannelsApi by channels {
+    var statusReadFor: String? = null
+    var disconnectedChannelId: String? = null
+
+    override suspend fun channelBotStatus(channelId: String): ApiResult<ChannelBotStatusDetail> {
+        statusReadFor = channelId
+        return ApiResult.Ok(bot.status)
+    }
+
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> {
+        disconnectedChannelId = channelId
+        bot.status = BotStatus(connected = false) // the refresh() re-read then reflects the disconnect.
+        return ApiResult.Ok(Unit)
+    }
+}
+
 private class FakeBotAuthApi(
     var status: BotStatus,
     private val authorizeUrl: String = "https://id.twitch.tv/authorize?bot",
@@ -936,13 +971,18 @@ private class FakeBotAuthApi(
         return ApiResult.Ok(DeviceBotPoll(status = pollStatus, bot = bot))
     }
 
-    override suspend fun status(): ApiResult<BotStatus> = ApiResult.Ok(status)
-
+    // The deployment-wide bot: an admin surface the channel's Integrations screen must never read or clear.
+    var platformStatusRead: Boolean = false
     var disconnectCalled: Boolean = false
+
+    override suspend fun status(): ApiResult<BotStatus> {
+        platformStatusRead = true
+        return ApiResult.Ok(status)
+    }
 
     override suspend fun disconnect(): ApiResult<Unit> {
         disconnectCalled = true
-        status = BotStatus(connected = false) // the refresh() re-read then reflects the disconnect.
+        status = BotStatus(connected = false)
         return ApiResult.Ok(Unit)
     }
 }

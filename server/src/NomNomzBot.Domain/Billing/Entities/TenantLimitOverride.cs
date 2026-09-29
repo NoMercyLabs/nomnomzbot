@@ -18,7 +18,8 @@ namespace NomNomzBot.Domain.Billing.Entities;
 /// limit for that tenant alone. <c>LimitValue = -1</c> means unlimited. Distinct from <see cref="TierLimit"/>,
 /// which is GLOBAL per tier — this row exists for the one operator-granted exception (a support case, a
 /// negotiated deal, a temporary abuse-response tightening), never as a way to reconfigure a tier itself.
-/// An expired or soft-deleted row stops applying; the quota-check service is the only reader.
+/// An expired or soft-deleted row stops applying. Read through <c>LiveLimitOverrides</c> by entitlement
+/// resolution and the quota check, so every enforcer of a limit sees the override.
 /// </summary>
 public class TenantLimitOverride : SoftDeletableEntity, ITenantScoped
 {

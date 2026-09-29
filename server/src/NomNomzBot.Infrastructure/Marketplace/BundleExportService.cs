@@ -273,6 +273,7 @@ public class BundleExportService : IBundleExportService
                     TemplateResponses = command.TemplateResponses,
                     PipelineName = pipelineName,
                     CooldownSeconds = command.CooldownSeconds,
+                    UserCooldownSeconds = command.UserCooldownSeconds,
                     CooldownPerUser = command.CooldownPerUser,
                     Description = command.Description,
                     Aliases = command.Aliases,

@@ -21,14 +21,12 @@ namespace NomNomzBot.Infrastructure.Billing;
 /// <summary>
 /// Tier catalogue + entitlement resolution (monetization-billing.md §3.2). Self-host (Channel.DeploymentMode =
 /// <c>self_host_*</c>) resolves every limit to unlimited; a SaaS channel resolves through its active subscription
-/// (or the <c>base</c> entry tier when none is active — grandfathered, additions only). An unseeded limit key is
-/// treated as unlimited.
+/// (or the <c>base</c> entry tier when none is active — grandfathered, additions only). A live per-tenant
+/// override replaces the resolved limit for its key. An unseeded limit key is treated as unlimited.
 /// </summary>
 public sealed class BillingTierService(IApplicationDbContext db, TimeProvider clock)
     : IBillingTierService
 {
-    private const string SelfHostPrefix = "self_host";
-    private const string BaseTierKey = "base";
     private const string SelfHostTierKey = "free";
 
     public async Task<Result<IReadOnlyList<TierDto>>> GetPublicTiersAsync(
@@ -73,6 +71,15 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
         CancellationToken ct = default
     )
     {
+        // An operator's per-tenant override wins over the tier's limit for its key, so every reader of these
+        // limits (TTS cap, sandbox and TTS metering, the channel's own usage page) enforces the same number.
+        Dictionary<string, long> overrides = await LiveLimitOverrides.LoadAsync(
+            db,
+            broadcasterId,
+            clock.GetUtcNow().UtcDateTime,
+            ct
+        );
+
         if (await IsSelfHostAsync(broadcasterId, ct))
         {
             List<string> keys = await db
@@ -84,7 +91,7 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
                     SelfHostTierKey,
                     AllowsCustomBotName: true,
                     PrioritySupport: false,
-                    keys.ToDictionary(k => k, _ => -1L)
+                    LiveLimitOverrides.Overlay(keys.ToDictionary(k => k, _ => -1L), overrides)
                 )
             );
         }
@@ -97,7 +104,12 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
             .TierLimits.Where(l => l.TierId == tier.Id && l.DeletedAt == null)
             .ToDictionaryAsync(l => l.LimitKey, l => l.LimitValue, ct);
         return Result.Success(
-            new EntitlementDto(tier.Key, tier.AllowsCustomBotName, tier.PrioritySupport, limits)
+            new EntitlementDto(
+                tier.Key,
+                tier.AllowsCustomBotName,
+                tier.PrioritySupport,
+                LiveLimitOverrides.Overlay(limits, overrides)
+            )
         );
     }
 
@@ -142,8 +154,7 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
             .Channels.Where(c => c.Id == broadcasterId)
             .Select(c => c.DeploymentMode)
             .FirstOrDefaultAsync(ct);
-        return mode is not null
-            && mode.StartsWith(SelfHostPrefix, StringComparison.OrdinalIgnoreCase);
+        return EffectiveTierRule.IsSelfHost(mode);
     }
 
     private async Task<BillingTier?> ResolveTierAsync(Guid broadcasterId, CancellationToken ct)
@@ -162,16 +173,12 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
         BillingTier? billedTier = tierId is { } id
             ? await db.BillingTiers.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct)
             : await db.BillingTiers.FirstOrDefaultAsync(
-                t => t.Key == BaseTierKey && t.DeletedAt == null,
+                t => t.Key == EffectiveTierRule.BaseTierKey && t.DeletedAt == null,
                 ct
             );
 
         BillingTier? compedTier = await ResolveLiveGrantTierAsync(broadcasterId, ct);
-        if (compedTier is null)
-            return billedTier;
-        if (billedTier is null || compedTier.SortOrder > billedTier.SortOrder)
-            return compedTier;
-        return billedTier;
+        return EffectiveTierRule.Pick(billedTier, compedTier);
     }
 
     /// <summary>

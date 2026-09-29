@@ -244,6 +244,43 @@ public sealed class ResourceQuotaServiceTests
         afterExpiry.Limit.Should().Be(1500);
     }
 
+    [Fact]
+    public async Task The_usage_report_shows_the_overridden_limit_the_check_enforces()
+    {
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        await new BillingTierSeeder(db).SeedAsync();
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "custom_commands",
+                LimitValue = 5000,
+                Reason = "negotiated support exception",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "sandbox_exec_ms",
+                LimitValue = 1000,
+                Reason = "abuse-response tightening",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<ResourceUsageDto> report = (await sut.GetUsageReportAsync(Channel)).Value;
+
+        ResourceUsageDto commands = report.Single(r => r.LimitKey == "custom_commands");
+        commands.Limit.Should().Be(5000);
+        commands.SafetyBaseline.Should().Be(1500);
+        report.Single(r => r.LimitKey == "sandbox_exec_ms").Limit.Should().Be(1000);
+        (await sut.CheckAsync(Channel, "custom_commands", 5000)).Value.Limit.Should().Be(5000);
+    }
+
     // ─── truthful usage: unknown key refuses loud, never silently allows ───────
 
     [Fact]

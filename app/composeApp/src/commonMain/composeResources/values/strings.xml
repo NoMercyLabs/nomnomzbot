@@ -1408,6 +1408,7 @@
     <string name="settings_channel_bot_connected_as">Connected as %1$s</string>
     <string name="settings_channel_bot_not_connected">Not connected</string>
     <string name="settings_channel_bot_connect">Connect</string>
+    <string name="settings_channel_bot_plan_excludes">Your plan does not include your own bot account. Your bot messages come from the platform bot. Upgrade your plan on the Billing page to connect your own.</string>
     <string name="settings_channel_bot_disconnect">Disconnect</string>
     <string name="settings_channel_bot_disconnect_title">Disconnect white-label bot?</string>
     <string name="settings_channel_bot_disconnect_message">The bot will fall back to the shared NomNomzBot identity for chat messages.</string>

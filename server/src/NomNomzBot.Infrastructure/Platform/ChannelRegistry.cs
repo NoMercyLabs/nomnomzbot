@@ -445,6 +445,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.TemplateResponse,
                 c.CooldownPerUser,
                 c.CooldownSeconds,
+                c.UserCooldownSeconds,
                 c.MinPermissionLevel,
                 c.Tier,
                 // A command bound to a DISABLED pipeline caches no graph — the chat path's existing
@@ -515,8 +516,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 {
                     Name = c.Name,
                     TemplateResponses = NormalizeResponses(c.TemplateResponses, c.TemplateResponse),
-                    GlobalCooldown = c.CooldownPerUser ? 0 : c.CooldownSeconds,
-                    UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
+                    // Two windows, as the command form sets them: the global spam guard always, and a
+                    // separate per-chatter window when the per-user switch is on.
+                    GlobalCooldown = c.CooldownSeconds,
+                    UserCooldown = c.CooldownPerUser ? c.UserCooldownSeconds : 0,
                     MinPermissionLevel = c.MinPermissionLevel,
                     Tier = c.Tier,
                     PipelineGraphJson = pipelineGraphJson,

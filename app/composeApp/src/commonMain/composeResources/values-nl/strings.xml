@@ -1405,6 +1405,7 @@
     <string name="settings_channel_bot_connected_as">Verbonden als %1$s</string>
     <string name="settings_channel_bot_not_connected">Niet verbonden</string>
     <string name="settings_channel_bot_connect">Verbinden</string>
+    <string name="settings_channel_bot_plan_excludes">Je abonnement bevat geen eigen botaccount. Je botberichten komen van de platformbot. Upgrade je abonnement op de pagina Facturatie om je eigen bot te verbinden.</string>
     <string name="settings_channel_bot_disconnect">Verbreken</string>
     <string name="settings_channel_bot_disconnect_title">White-label bot verbreken?</string>
     <string name="settings_channel_bot_disconnect_message">De bot valt terug op de gedeelde NomNomzBot-identiteit voor chatberichten.</string>

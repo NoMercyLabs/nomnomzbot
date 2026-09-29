@@ -132,4 +132,66 @@ public sealed class BillingTierServiceTests
         entitlement.TierKey.Should().Be("base");
         entitlement.Limits["tts_max_characters"].Should().Be(500);
     }
+
+    // A6 admin truth: an operator's per-tenant override is what the TTS cap and the sandbox/TTS metering
+    // enforce, because they all read their limit here — not only the create-path quota check.
+    [Fact]
+    public async Task A_live_tenant_override_replaces_the_tier_limit_for_every_reader()
+    {
+        (BillingTierService sut, AuthDbContext db) = Build();
+        await SeedTiersAsync(db);
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        AddOverride(db, "tts_max_characters", 4000, expiresAt: DateTime.UtcNow.AddDays(7));
+        AddOverride(db, "sandbox_exec_ms", 1000, expiresAt: null);
+        await db.SaveChangesAsync();
+
+        EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
+
+        entitlement.TierKey.Should().Be("base");
+        entitlement.Limits["tts_max_characters"].Should().Be(4000);
+        entitlement.Limits["sandbox_exec_ms"].Should().Be(1000);
+        (await sut.GetLimitAsync(Channel, "tts_max_characters")).Value.Should().Be(4000);
+
+        // The consequence at the enforcer: the sandbox metering check now refuses what the tier would allow.
+        UsageMeteringService metering = new(db, sut, new RecordingEventBus(), TimeProvider.System);
+        QuotaCheckDto sandbox = (await metering.CheckAsync(Channel, "sandbox_exec_ms", 5000)).Value;
+        sandbox.Allowed.Should().BeFalse();
+        sandbox.Limit.Should().Be(1000);
+    }
+
+    [Fact]
+    public async Task An_expired_or_cleared_tenant_override_no_longer_applies()
+    {
+        (BillingTierService sut, AuthDbContext db) = Build();
+        await SeedTiersAsync(db);
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        AddOverride(db, "tts_max_characters", 4000, expiresAt: DateTime.UtcNow.AddMinutes(-1));
+        TenantLimitOverride cleared = AddOverride(db, "sandbox_exec_ms", 1000, expiresAt: null);
+        cleared.DeletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
+
+        entitlement.Limits["tts_max_characters"].Should().Be(500);
+        entitlement.Limits["sandbox_exec_ms"].Should().Be(300_000);
+    }
+
+    private static TenantLimitOverride AddOverride(
+        AuthDbContext db,
+        string limitKey,
+        long value,
+        DateTime? expiresAt
+    )
+    {
+        TenantLimitOverride row = new()
+        {
+            BroadcasterId = Channel,
+            LimitKey = limitKey,
+            LimitValue = value,
+            Reason = "support case",
+            ExpiresAt = expiresAt,
+        };
+        db.TenantLimitOverrides.Add(row);
+        return row;
+    }
 }

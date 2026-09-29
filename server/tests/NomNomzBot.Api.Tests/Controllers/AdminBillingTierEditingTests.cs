@@ -236,6 +236,123 @@ public sealed class AdminBillingTierEditingTests
         preview.Value.SampleChannelNames.Should().HaveCount(3);
     }
 
+    // A6 admin truth: the blast radius is every channel the edit reaches, which is the channels whose
+    // EFFECTIVE tier is this one — not only the ones with a subscription row pointing at it.
+    [Fact]
+    public async Task Preview_counts_every_channel_whose_effective_tier_is_the_edited_one()
+    {
+        using BillingTierChangeTestDbContext db = BillingTierChangeTestDbContext.New();
+        BillingTier baseTier = AddTier(db, "base", sortOrder: 0);
+        BillingTier pro = AddTier(db, "pro", sortOrder: 1);
+        BillingTier premium = AddTier(db, "premium", sortOrder: 2);
+        DateTime now = DateTime.UtcNow;
+
+        AddChannel(db, "subscribed-pro", subscribedTo: pro);
+        AddChannel(db, "no-subscription");
+        AddChannel(
+            db,
+            "base-comped-to-pro",
+            subscribedTo: baseTier,
+            compedTo: (pro, now.AddDays(7))
+        );
+        AddChannel(
+            db,
+            "pro-comped-to-premium",
+            subscribedTo: pro,
+            compedTo: (premium, now.AddDays(7))
+        );
+        AddChannel(db, "expired-comp-to-pro", compedTo: (pro, now.AddDays(-1)));
+        AddChannel(db, "cancelled-pro", subscribedTo: pro, status: SubscriptionStatus.Canceled);
+        AddChannel(db, "self-hosted", mode: AuthEnums.DeploymentMode.SelfHostLite);
+        await db.SaveChangesAsync();
+        BuildController(db, out IBillingTierAdminService tierAdmin);
+
+        TierChangePreviewDto proPreview = (
+            await tierAdmin.PreviewTierChangeAsync(pro.Id, CancellationToken.None)
+        ).Value;
+        TierChangePreviewDto basePreview = (
+            await tierAdmin.PreviewTierChangeAsync(baseTier.Id, CancellationToken.None)
+        ).Value;
+        TierChangePreviewDto premiumPreview = (
+            await tierAdmin.PreviewTierChangeAsync(premium.Id, CancellationToken.None)
+        ).Value;
+
+        proPreview.AffectedTenantCount.Should().Be(2);
+        proPreview
+            .SampleChannelNames.Should()
+            .BeEquivalentTo("subscribed-pro", "base-comped-to-pro");
+        basePreview.AffectedTenantCount.Should().Be(3);
+        basePreview
+            .SampleChannelNames.Should()
+            .BeEquivalentTo("no-subscription", "expired-comp-to-pro", "cancelled-pro");
+        premiumPreview.SampleChannelNames.Should().BeEquivalentTo("pro-comped-to-premium");
+
+        // The count is the set the entitlement resolver actually puts on the tier: same rule, no drift.
+        BillingTierService resolver = new(db, TimeProvider.System);
+        foreach (Channel channel in await db.Channels.ToListAsync())
+        {
+            EntitlementDto entitlement = (await resolver.GetEntitlementAsync(channel.Id)).Value;
+            (entitlement.TierKey == "pro")
+                .Should()
+                .Be(proPreview.SampleChannelNames.Contains(channel.Name), channel.Name);
+        }
+    }
+
+    private static BillingTier AddTier(BillingTierChangeTestDbContext db, string key, int sortOrder)
+    {
+        BillingTier tier = new()
+        {
+            Key = key,
+            DisplayName = key,
+            Currency = "usd",
+            IsPublic = true,
+            SortOrder = sortOrder,
+        };
+        db.BillingTiers.Add(tier);
+        return tier;
+    }
+
+    private static void AddChannel(
+        BillingTierChangeTestDbContext db,
+        string name,
+        BillingTier? subscribedTo = null,
+        SubscriptionStatus status = SubscriptionStatus.Active,
+        (BillingTier Tier, DateTime ExpiresAt)? compedTo = null,
+        string mode = AuthEnums.DeploymentMode.Saas
+    )
+    {
+        Guid channelId = Guid.CreateVersion7();
+        db.Channels.Add(
+            new()
+            {
+                Id = channelId,
+                Name = name,
+                NameNormalized = name,
+                DeploymentMode = mode,
+            }
+        );
+        if (subscribedTo is not null)
+            db.Subscriptions.Add(
+                new()
+                {
+                    BroadcasterId = channelId,
+                    TierId = subscribedTo.Id,
+                    Status = status,
+                }
+            );
+        if (compedTo is { } comp)
+            db.EntitlementGrants.Add(
+                new()
+                {
+                    BroadcasterId = channelId,
+                    GrantedTierId = comp.Tier.Id,
+                    Reason = "support",
+                    ExpiresAt = comp.ExpiresAt,
+                    IssuedAt = comp.ExpiresAt.AddDays(-30),
+                }
+            );
+    }
+
     [Fact]
     public async Task Update_with_a_stale_confirmed_count_fails_closed_and_does_not_apply()
     {
