@@ -45,7 +45,9 @@ public sealed class VolumeBuiltinTests
             Personality = personality,
         };
 
-    private static IBuiltinResponseComposer FakeComposer()
+    private static IBuiltinResponseComposer FakeComposer(
+        IChannelBuiltinReplyOverrides? channelReplies = null
+    )
     {
         ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
         resolver
@@ -55,11 +57,19 @@ public sealed class VolumeBuiltinTests
                 Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
         return new BuiltinResponseComposer(
             resolver,
             NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
+            channelReplies ?? FakeChannelBuiltinReplies.None
         );
     }
 
@@ -138,6 +148,49 @@ public sealed class VolumeBuiltinTests
         await music
             .Received(1)
             .SetVolumeAsync(Broadcaster.ToString(), 55, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_volume_change_the_provider_refuses_answers_from_its_slot_never_the_services_own_sentence()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SetVolumeAsync(Broadcaster.ToString(), 30, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("internal provider detail 4410", "PREMIUM_REQUIRED"));
+        VolumeBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(true));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx("30"));
+
+        result
+            .Value.Should()
+            .Be(
+                ToneTemplateCatalog.Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.Volume.Key,
+                    BuiltinResponseSlots.Volume.PremiumRequired
+                )[0]
+            );
+        result.Value.Should().NotContain("4410");
+    }
+
+    [Fact]
+    public async Task A_channel_can_reword_the_volume_confirmation_and_the_level_still_fills_in()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SetVolumeAsync(Broadcaster.ToString(), 70, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        FakeChannelBuiltinReplies channel = new FakeChannelBuiltinReplies().Set(
+            Broadcaster,
+            BuiltinResponseSlots.Volume.Key,
+            BuiltinResponseSlots.Volume.Set,
+            "Cranked to {volume.level} percent."
+        );
+        VolumeBuiltin sut = new(music, FakeComposer(channel), MusicGateTestKit.Gate(true));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx("70"));
+
+        result.Value.Should().Be("Cranked to 70 percent.");
     }
 
     [Fact]

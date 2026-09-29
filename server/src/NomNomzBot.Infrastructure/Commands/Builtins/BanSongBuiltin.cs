@@ -43,7 +43,7 @@ public sealed class BanSongBuiltin(
     )
     {
         if (!await gate.IsAllowedAsync(context, ct))
-            return Result.Success("You don't have permission to use that command.");
+            return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
 
         NowPlaying? nowPlaying = await music.GetNowPlayingAsync(
             context.BroadcasterId.ToString(),
@@ -80,9 +80,7 @@ public sealed class BanSongBuiltin(
 
         if (blocked.IsFailure)
         {
-            if (blocked.ErrorMessage is not null)
-                return Result.Success(blocked.ErrorMessage);
-
+            // The service's own sentence (a validation detail) stays in logs — chat gets the re-wordable slot.
             string couldNotBan = await composer.ComposeAsync(
                 new()
                 {
@@ -97,8 +95,18 @@ public sealed class BanSongBuiltin(
             return Result.Success(couldNotBan);
         }
 
-        return Result.Success(
-            $"@{context.TriggeringUserDisplayName} banned \"{blocked.Value.Title}\" from song requests."
+        string banned = await composer.ComposeAsync(
+            context,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.BanSong.Banned,
+            "@{user} banned \"{track.name}\" from song requests.",
+            new Dictionary<string, string>
+            {
+                ["user"] = context.TriggeringUserDisplayName,
+                ["track.name"] = blocked.Value.Title,
+            },
+            ct
         );
+        return Result.Success(banned);
     }
 }

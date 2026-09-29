@@ -61,28 +61,53 @@ public sealed class SkipBuiltin(
         // Moderator badge OR the music:queue:moderate grant — the same Gate-2 action the dashboard's
         // POST /music/skip requires, so one grant works in both places (MusicModerationGate).
         if (!await gate.IsAllowedAsync(context, ct))
-            // Same wording ChatMessageHandler's own permission-denied notice uses — stays neutral,
-            // never personality.
-            return Result.Success("You don't have permission to use that command.");
+            // The chat handler's own permission-denied line (system/permissiondenied).
+            return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
 
         Result skipped = await music.SkipAsync(context.BroadcasterId.ToString(), ct);
         if (!skipped.IsSuccess)
-            // Functional error — stays neutral, never personality.
-            return Result.Success(skipped.ErrorMessage ?? "Nothing to skip or skip failed.");
+            return Result.Success(await SkipFailureReplyAsync(context, skipped, ct));
 
         string message = await composer.ComposeAsync(
-            new()
-            {
-                BroadcasterId = context.BroadcasterId,
-                Personality = context.Personality,
-                BuiltinKey = BuiltinKey,
-                Slot = BuiltinResponseSlots.Skip.Skipped,
-                NeutralFallback = "Skipped.",
-            },
-            ct
+            context,
+            BuiltinKey,
+            BuiltinResponseSlots.Skip.Skipped,
+            "Skipped.",
+            ct: ct
         );
         return Result.Success(message);
     }
+
+    /// <summary>Phrases a failed skip from the service's typed error code — the service's own sentence stays in logs.</summary>
+    private Task<string> SkipFailureReplyAsync(
+        BuiltinCommandContext context,
+        Result skipped,
+        CancellationToken ct
+    ) =>
+        skipped.ErrorCode switch
+        {
+            "SERVICE_UNAVAILABLE" => composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.NoProvider,
+                "No active music provider.",
+                ct: ct
+            ),
+            "PREMIUM_REQUIRED" => composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.PremiumRequired,
+                "The music service needs a Premium account to skip.",
+                ct: ct
+            ),
+            _ => composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.Failed,
+                "Nothing to skip or skip failed.",
+                ct: ct
+            ),
+        };
 
     /// <summary>
     /// <c>!skip N</c> — removes the CALLING viewer's own Nth pending request from the queue. N counts
@@ -100,7 +125,13 @@ public sealed class SkipBuiltin(
     {
         if (!int.TryParse(args, out int n) || n < 1)
             return Result.Success(
-                "Usage: !skip <N> — removes YOUR Nth queued request. !skip with no number skips the current track (mods+)."
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinKey,
+                    BuiltinResponseSlots.Skip.Usage,
+                    "Usage: !skip <N> — removes YOUR Nth queued request. !skip with no number skips the current track (mods+).",
+                    ct: ct
+                )
             );
 
         string broadcasterId = context.BroadcasterId.ToString();
@@ -125,17 +156,47 @@ public sealed class SkipBuiltin(
 
         if (item is null)
             return Result.Success(
-                $"@{context.TriggeringUserDisplayName} You don't have a request at position {n}."
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinKey,
+                    BuiltinResponseSlots.Skip.NoRequest,
+                    "@{user} You don't have a request at position {request.position}.",
+                    new Dictionary<string, string>
+                    {
+                        ["user"] = context.TriggeringUserDisplayName,
+                        ["request.position"] = n.ToString(),
+                    },
+                    ct
+                )
             );
 
         bool removed = await music.RemoveFromQueueAsync(broadcasterId, position, ct);
         if (!removed)
             return Result.Success(
-                $"@{context.TriggeringUserDisplayName} Couldn't remove that request — try again."
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinKey,
+                    BuiltinResponseSlots.Skip.RemoveFailed,
+                    "@{user} Couldn't remove that request — try again.",
+                    new Dictionary<string, string> { ["user"] = context.TriggeringUserDisplayName },
+                    ct
+                )
             );
 
         return Result.Success(
-            $"@{context.TriggeringUserDisplayName} Removed your request: {item.TrackName} by {item.Artist}"
+            await composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.Removed,
+                "@{user} Removed your request: {track.name} by {track.artist}",
+                new Dictionary<string, string>
+                {
+                    ["user"] = context.TriggeringUserDisplayName,
+                    ["track.name"] = item.TrackName,
+                    ["track.artist"] = item.Artist,
+                },
+                ct
+            )
         );
     }
 
@@ -230,7 +291,7 @@ public sealed class VolumeBuiltin(
     )
     {
         if (!await gate.IsAllowedAsync(context, ct))
-            return Result.Success("You don't have permission to use that command.");
+            return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
 
         if (string.IsNullOrWhiteSpace(context.Args))
         {
@@ -243,7 +304,19 @@ public sealed class VolumeBuiltin(
                 ct
             );
             if (nowPlaying is not null)
-                return Result.Success($"Volume is at {nowPlaying.Volume}%.");
+                return Result.Success(
+                    await composer.ComposeAsync(
+                        context,
+                        BuiltinResponseSlots.Volume.Key,
+                        BuiltinResponseSlots.Volume.Current,
+                        "Volume is at {volume.level}%.",
+                        new Dictionary<string, string>
+                        {
+                            ["volume.level"] = nowPlaying.Volume.ToString(),
+                        },
+                        ct
+                    )
+                );
 
             string cannotRead = await composer.ComposeAsync(
                 new()
@@ -280,10 +353,48 @@ public sealed class VolumeBuiltin(
         Result volume = await music.SetVolumeAsync(context.BroadcasterId.ToString(), level, ct);
         return Result.Success(
             volume.IsSuccess
-                ? $"Volume set to {level}%."
-                : volume.ErrorMessage ?? "Failed to set volume."
+                ? await composer.ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.Volume.Key,
+                    BuiltinResponseSlots.Volume.Set,
+                    "Volume set to {volume.level}%.",
+                    new Dictionary<string, string> { ["volume.level"] = level.ToString() },
+                    ct
+                )
+                : await VolumeFailureReplyAsync(context, volume, ct)
         );
     }
+
+    /// <summary>Phrases a failed volume change from the service's typed error code — the service's own sentence stays in logs.</summary>
+    private Task<string> VolumeFailureReplyAsync(
+        BuiltinCommandContext context,
+        Result failure,
+        CancellationToken ct
+    ) =>
+        failure.ErrorCode switch
+        {
+            "SERVICE_UNAVAILABLE" => composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Volume.Key,
+                BuiltinResponseSlots.Volume.NoProvider,
+                "No active music provider.",
+                ct: ct
+            ),
+            "PREMIUM_REQUIRED" => composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Volume.Key,
+                BuiltinResponseSlots.Volume.PremiumRequired,
+                "The music service needs a Premium account to change the volume.",
+                ct: ct
+            ),
+            _ => composer.ComposeAsync(
+                context,
+                BuiltinResponseSlots.Volume.Key,
+                BuiltinResponseSlots.Volume.SetFailed,
+                "Failed to set volume.",
+                ct: ct
+            ),
+        };
 }
 
 /// <summary>!song — shows the currently playing track in the channel's tone.</summary>
