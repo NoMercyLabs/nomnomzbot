@@ -22,11 +22,19 @@ public sealed record EventResponseDefaultDto(
     IReadOnlyList<string> Variables,
     int ChannelsFollowing,
     int ChannelsWithOwnResponse,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    bool SpeakWithTts
 );
 
-/// <summary>A proposed platform default for one event type — the body of both the preview and the save.</summary>
-public sealed record EventResponseDefaultChange(bool IsEnabled, string? Message);
+/// <summary>
+/// A proposed platform default for one event type — the body of both the preview and the save.
+/// <paramref name="SpeakWithTts"/>: following channels also speak the message through their TTS.
+/// </summary>
+public sealed record EventResponseDefaultChange(
+    bool IsEnabled,
+    string? Message,
+    bool SpeakWithTts = false
+);
 
 /// <summary>
 /// Saves a platform default. <paramref name="ConfirmedChannelsAffected"/> must equal the preview's live count.
@@ -34,5 +42,6 @@ public sealed record EventResponseDefaultChange(bool IsEnabled, string? Message)
 public sealed record SetEventResponseDefaultRequest(
     bool IsEnabled,
     string? Message,
-    int ConfirmedChannelsAffected
+    int ConfirmedChannelsAffected,
+    bool SpeakWithTts = false
 );

@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 
@@ -22,7 +24,8 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// <summary>
 /// <see cref="IEventResponseExecutor"/> over the tenant's <see cref="EventResponse"/> rows:
 /// <c>chat_message</c> resolves the operator's template against the trigger's variables and sends it via
-/// the chat provider; <c>overlay</c> resolves the same template and pushes it (plus the operator's metadata)
+/// the chat provider — and, when the response opts in (<c>SpeakWithTts</c>), hands the same resolved text
+/// to the channel's TTS, whose failure never holds back the chat message; <c>overlay</c> resolves the same template and pushes it (plus the operator's metadata)
 /// to the broadcaster's overlay clients — it never also posts to chat; <c>pipeline</c> runs the bound
 /// pipeline's cached graph with the variables seeded; <c>none</c> (or a disabled/absent row) does nothing.
 /// Scoped — trigger sources resolve it from their own scope (hosted-service handlers) or take it by
@@ -35,6 +38,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     private readonly ITemplateResolver _templateResolver;
     private readonly IChatProvider _chatProvider;
     private readonly IEventResponseOverlayNotifier _overlayNotifier;
+    private readonly ITtsDispatchService _tts;
     private readonly ILogger<EventResponseExecutor> _logger;
 
     public EventResponseExecutor(
@@ -43,6 +47,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         ITemplateResolver templateResolver,
         IChatProvider chatProvider,
         IEventResponseOverlayNotifier overlayNotifier,
+        ITtsDispatchService tts,
         ILogger<EventResponseExecutor> logger
     )
     {
@@ -51,6 +56,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         _templateResolver = templateResolver;
         _chatProvider = chatProvider;
         _overlayNotifier = overlayNotifier;
+        _tts = tts;
         _logger = logger;
     }
 
@@ -105,7 +111,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 row.ResponseType,
                 row.Message,
                 row.PipelineId,
-                row.MetadataJson
+                row.MetadataJson,
+                row.SpeakWithTts
             ),
         };
         if (config is not { IsEnabled: true })
@@ -125,7 +132,9 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 case "chat_message":
                     await SendChatMessageAsync(
                         broadcasterId,
+                        eventTypeKey,
                         config.Message,
+                        config.SpeakWithTts,
                         variables,
                         cancellationToken
                     );
@@ -184,7 +193,14 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             );
         return platform is null
             ? null
-            : new(platform.IsEnabled, "chat_message", platform.Message, null, []);
+            : new(
+                platform.IsEnabled,
+                "chat_message",
+                platform.Message,
+                null,
+                [],
+                platform.SpeakWithTts
+            );
     }
 
     /// <summary>The response the runtime actually performs — the channel's own row or the platform default.</summary>
@@ -193,12 +209,15 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         string ResponseType,
         string? Message,
         Guid? PipelineId,
-        Dictionary<string, string> Metadata
+        Dictionary<string, string> Metadata,
+        bool SpeakWithTts
     );
 
     private async Task SendChatMessageAsync(
         Guid broadcasterId,
+        string eventTypeKey,
         string? messageTemplate,
+        bool speakWithTts,
         Dictionary<string, string> variables,
         CancellationToken ct
     )
@@ -212,9 +231,68 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             broadcasterId,
             ct
         );
+        if (string.IsNullOrWhiteSpace(message))
+            return;
 
-        if (!string.IsNullOrWhiteSpace(message))
-            await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
+        await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
+
+        if (speakWithTts)
+            await SpeakAsync(broadcasterId, eventTypeKey, message, variables, ct);
+    }
+
+    /// <summary>
+    /// Hands the resolved chat line to the channel's TTS. The line is the channel's own announcement, so it
+    /// reads in the channel's default voice (no viewer named) with the broadcaster's standing — the same
+    /// choice the shoutout announcement makes. Every other gate (TTS enabled, bits, character cap, censor,
+    /// moderator approval) belongs to the dispatch service, exactly as for a pipeline's play_tts step. A
+    /// rejection or an exception is logged and never escapes; whether anything could PLAY the line is
+    /// reported by the tts_speak broadcaster, so nothing here claims it was heard.
+    /// </summary>
+    private async Task SpeakAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        string text,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            Result<TtsDispatchOutcome> result = await _tts.RequestSpeakAsync(
+                new(
+                    BroadcasterId: broadcasterId,
+                    RequestedByUserId: Guid.Empty,
+                    RequestedByTwitchUserId: string.Empty,
+                    RequestedByDisplayName: string.Empty,
+                    Text: text,
+                    VoiceIdOverride: null,
+                    BitsAmount: variables.TryGetValue("user.bits", out string? bits)
+                    && int.TryParse(bits, out int bitsAmount)
+                        ? bitsAmount
+                        : 0,
+                    CommunityStanding: "broadcaster",
+                    SourceMessageId: null,
+                    StreamId: null
+                ),
+                ct
+            );
+            if (result.IsFailure)
+                _logger.LogWarning(
+                    "Event response {EventType} in {Channel} went to chat but was not spoken: {Reason}",
+                    eventTypeKey,
+                    broadcasterId,
+                    result.ErrorMessage
+                );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Event response {EventType} in {Channel} failed to reach TTS after its chat message",
+                eventTypeKey,
+                broadcasterId
+            );
+        }
     }
 
     private async Task SendOverlayAsync(

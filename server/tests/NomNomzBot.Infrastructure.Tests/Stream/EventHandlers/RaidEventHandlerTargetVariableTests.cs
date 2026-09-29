@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
@@ -69,6 +70,7 @@ public sealed class RaidEventHandlerTargetVariableTests
         services.AddSingleton<IEventResponseOverlayNotifier>(
             Substitute.For<IEventResponseOverlayNotifier>()
         );
+        services.AddSingleton(Substitute.For<ITtsDispatchService>());
         services.AddSingleton<IPipelineEngine>(Substitute.For<IPipelineEngine>());
         services.AddSingleton<ILogger<EventResponseExecutor>>(
             NullLogger<EventResponseExecutor>.Instance

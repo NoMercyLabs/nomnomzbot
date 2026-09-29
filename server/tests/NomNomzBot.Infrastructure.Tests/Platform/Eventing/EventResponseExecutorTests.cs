@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Supporters;
@@ -38,7 +40,7 @@ public sealed class EventResponseExecutorTests
         IChatProvider Chat,
         IPipelineEngine Engine,
         IEventResponseOverlayNotifier Overlay
-    ) Build()
+    ) Build(ITtsDispatchService? tts = null)
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
 
@@ -65,6 +67,7 @@ public sealed class EventResponseExecutorTests
             templates,
             chat,
             overlay,
+            tts ?? Substitute.For<ITtsDispatchService>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         return (executor, db, chat, engine, overlay);
@@ -76,7 +79,8 @@ public sealed class EventResponseExecutorTests
         string responseType,
         string? message = null,
         Guid? pipelineId = null,
-        bool enabled = true
+        bool enabled = true,
+        bool speakWithTts = false
     )
     {
         db.EventResponses.Add(
@@ -89,6 +93,7 @@ public sealed class EventResponseExecutorTests
                 Message = message,
                 PipelineId = pipelineId,
                 IsEnabled = enabled,
+                SpeakWithTts = speakWithTts,
             }
         );
         await db.SaveChangesAsync();
@@ -111,6 +116,146 @@ public sealed class EventResponseExecutorTests
 
         await chat.Received(1)
             .SendMessageAsync(Tenant, "resolved:We're live!", Arg.Any<CancellationToken>());
+    }
+
+    private static readonly Dictionary<string, string> GiftVariables = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        ["user"] = "Gifter",
+        ["count"] = "5",
+    };
+
+    [Fact]
+    public async Task A_chat_message_row_with_tts_sends_chat_and_speaks_the_same_resolved_text_in_the_channel_voice()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "voice",
+                        "edge",
+                        10,
+                        1000,
+                        null
+                    )
+                )
+            );
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(tts);
+        await SeedResponseAsync(
+            db,
+            "channel.subscription.gift",
+            "chat_message",
+            message: "{user} gifted {count} subs!",
+            speakWithTts: true
+        );
+
+        await executor.ExecuteAsync(
+            Tenant,
+            "channel.subscription.gift",
+            userId: "123",
+            userDisplayName: "Gifter",
+            GiftVariables
+        );
+
+        await chat.Received(1)
+            .SendMessageAsync(
+                Tenant,
+                "resolved:{user} gifted {count} subs!",
+                Arg.Any<CancellationToken>()
+            );
+        await tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.BroadcasterId == Tenant
+                    && r.Text == "resolved:{user} gifted {count} subs!"
+                    && r.RequestedByTwitchUserId == string.Empty
+                    && r.VoiceIdOverride == null
+                    && r.CommunityStanding == "broadcaster"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_chat_message_row_without_tts_never_reaches_tts()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(tts);
+        await SeedResponseAsync(
+            db,
+            "channel.subscription.gift",
+            "chat_message",
+            message: "{user} gifted {count} subs!"
+        );
+
+        await executor.ExecuteAsync(
+            Tenant,
+            "channel.subscription.gift",
+            userId: "123",
+            userDisplayName: "Gifter",
+            GiftVariables
+        );
+
+        await chat.Received(1)
+            .SendMessageAsync(Tenant, Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task A_tts_rejection_or_crash_still_sends_the_chat_message()
+    {
+        ITtsDispatchService rejecting = Substitute.For<ITtsDispatchService>();
+        rejecting
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TtsDispatchOutcome>(
+                    "TTS is disabled for this channel.",
+                    "FEATURE_DISABLED"
+                )
+            );
+        ITtsDispatchService crashing = Substitute.For<ITtsDispatchService>();
+        crashing
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns<Task<Result<TtsDispatchOutcome>>>(_ =>
+                throw new InvalidOperationException("synth down")
+            );
+
+        foreach (ITtsDispatchService tts in new[] { rejecting, crashing })
+        {
+            (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+                Build(tts);
+            await SeedResponseAsync(
+                db,
+                "channel.subscription.gift.received",
+                "chat_message",
+                message: "Thanks for the gift!",
+                speakWithTts: true
+            );
+
+            Func<Task> act = () =>
+                executor.ExecuteAsync(
+                    Tenant,
+                    "channel.subscription.gift.received",
+                    userId: "123",
+                    userDisplayName: "Gifter",
+                    GiftVariables
+                );
+
+            await act.Should().NotThrowAsync();
+            await chat.Received(1)
+                .SendMessageAsync(
+                    Tenant,
+                    "resolved:Thanks for the gift!",
+                    Arg.Any<CancellationToken>()
+                );
+            await tts.Received(1)
+                .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+        }
     }
 
     [Fact]

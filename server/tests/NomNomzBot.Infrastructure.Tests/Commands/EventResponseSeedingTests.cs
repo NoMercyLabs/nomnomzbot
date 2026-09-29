@@ -262,6 +262,50 @@ public sealed class EventResponseSeedingTests
         follow.Message.Should().BeNull();
     }
 
+    // ─── Speak with TTS: persisted, left alone when absent, cleared by a reset ──
+
+    [Fact]
+    public async Task Speak_with_tts_persists_survives_a_save_that_omits_it_and_is_cleared_by_reset()
+    {
+        (
+            EventResponseService service,
+            EventResponseDefaultsSeeder seeder,
+            SupporterTestDbContext db
+        ) = Build();
+        await seeder.SeedAsync(Tenant);
+        const string gift = "channel.subscription.gift";
+
+        EventResponseDto switchedOn = (
+            await service.UpsertAsync(
+                Tenant.ToString(),
+                gift,
+                new UpdateEventResponseDto
+                {
+                    IsEnabled = true,
+                    Message = "{user} gifted subs!",
+                    SpeakWithTts = true,
+                }
+            )
+        ).Value;
+        await service.UpsertAsync(
+            Tenant.ToString(),
+            gift,
+            new UpdateEventResponseDto { Message = "{user} gifted {count} subs!" }
+        );
+        EventResponseDto readBack = (
+            await service.GetByEventTypeAsync(Tenant.ToString(), gift)
+        ).Value;
+        await service.ResetToDefaultAsync(Tenant.ToString(), gift);
+        EventResponse afterReset = await db
+            .EventResponses.AsNoTracking()
+            .SingleAsync(r => r.EventType == gift);
+
+        switchedOn.SpeakWithTts.Should().BeTrue();
+        readBack.SpeakWithTts.Should().BeTrue("a save that leaves the flag out keeps it");
+        readBack.Message.Should().Be("{user} gifted {count} subs!");
+        afterReset.SpeakWithTts.Should().BeFalse("reset returns the row to the opt-in default");
+    }
+
     // ─── Pipeline ownership: a request must not bind a pipeline id from another channel ──
 
     [Fact]

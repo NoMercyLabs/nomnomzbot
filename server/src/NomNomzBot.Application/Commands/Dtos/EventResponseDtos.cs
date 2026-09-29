@@ -27,7 +27,8 @@ public sealed record EventResponseDto(
     Dictionary<string, string> Metadata,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    bool FollowsPlatformDefault
+    bool FollowsPlatformDefault,
+    bool SpeakWithTts
 );
 
 /// <summary>
@@ -72,4 +73,7 @@ public sealed record UpdateEventResponseDto
     public Guid? PipelineId { get; init; }
 
     public Dictionary<string, string>? Metadata { get; init; }
+
+    /// <summary>A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged.</summary>
+    public bool? SpeakWithTts { get; init; }
 }

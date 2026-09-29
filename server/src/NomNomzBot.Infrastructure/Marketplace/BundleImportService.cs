@@ -539,6 +539,7 @@ public class BundleImportService : IBundleImportService
                             ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
                             : null,
                         Metadata = export.Metadata.ToDictionary(kv => kv.Key, kv => kv.Value),
+                        SpeakWithTts = export.SpeakWithTts,
                     },
                     ct
                 );
