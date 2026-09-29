@@ -33,6 +33,11 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         ["channel.follow"] = "Welcome {user}! Thanks for the follow!",
         ["channel.subscribe"] = "{user} just subscribed! Thank you for the support!",
         ["channel.subscription.gift"] = "{user} gifted {count} sub(s)! How generous!",
+        ["channel.subscription.gift.anonymous"] =
+            "An anonymous gifter gave {count} sub(s) to the community!",
+        ["channel.subscription.gift.received"] = "{user} was gifted a sub by {gifter}!",
+        ["channel.subscription.gift.received.anonymous"] =
+            "An anonymous gifter gave a sub to {user}!",
         ["channel.subscription.message"] =
             "{user} resubscribed for {months} months! Thank you!{also_said}",
         ["channel.cheer"] = "{user} cheered {bits} bits! Thank you!",

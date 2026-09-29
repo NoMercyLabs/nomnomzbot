@@ -59,8 +59,51 @@ public sealed class NewSubscriptionEventHandler
             ["provider"] = e.Provider,
         };
 
+    /// <summary>A gifted recipient did not subscribe themselves, so "just subscribed" must not fire for them —
+    /// they are announced through <see cref="GiftSubscriptionReceivedEventHandler"/> instead.</summary>
     public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default) =>
-        HandleCoreAsync(@event, ct);
+        @event.IsGift ? Task.CompletedTask : HandleCoreAsync(@event, ct);
+}
+
+/// <summary>Announces a gift recipient together with their gifter — the "X was gifted a sub by Y" response.</summary>
+public sealed class GiftSubscriptionReceivedEventHandler
+    : TwitchAlertHandlerBase<GiftSubscriptionReceivedEvent>,
+        IEventHandler<GiftSubscriptionReceivedEvent>
+{
+    protected override string EventTypeKey => "channel.subscription.gift.received";
+
+    /// <summary>An anonymous gifter has no name to put in the sentence, so it gets its own response wording.</summary>
+    protected override string ResponseKeyFor(GiftSubscriptionReceivedEvent e) =>
+        e.IsAnonymous ? "channel.subscription.gift.received.anonymous" : EventTypeKey;
+
+    public GiftSubscriptionReceivedEventHandler(
+        IServiceScopeFactory s,
+        IPipelineEngine p,
+        ILogger<GiftSubscriptionReceivedEventHandler> l
+    )
+        : base(s, p, l) { }
+
+    protected override string? GetUserId(GiftSubscriptionReceivedEvent e) => e.RecipientUserId;
+
+    protected override string? GetUserDisplayName(GiftSubscriptionReceivedEvent e) =>
+        e.RecipientDisplayName;
+
+    protected override Dictionary<string, string> BuildVariables(GiftSubscriptionReceivedEvent e) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["user"] = e.RecipientDisplayName,
+            ["user.id"] = e.RecipientUserId,
+            ["gifter"] = e.IsAnonymous ? "Anonymous" : e.GifterDisplayName,
+            ["gifter.id"] = e.GifterUserId,
+            ["tier"] = TwitchSubTier.ToLabel(e.Tier),
+            ["anonymous"] = e.IsAnonymous ? "true" : "false",
+            ["provider"] = e.Provider,
+        };
+
+    /// <summary>A gift bomb is announced once by its <see cref="GiftSubscriptionEvent"/>; announcing each of its
+    /// (up to hundreds of) recipients too would flood chat, so only standalone gifts are announced here.</summary>
+    public Task HandleAsync(GiftSubscriptionReceivedEvent @event, CancellationToken ct = default) =>
+        @event.CommunityGiftId is null ? HandleCoreAsync(@event, ct) : Task.CompletedTask;
 }
 
 /// <summary>Handles resubscription events.</summary>
@@ -112,6 +155,10 @@ public sealed class GiftSubscriptionEventHandler
         IEventHandler<GiftSubscriptionEvent>
 {
     protected override string EventTypeKey => "channel.subscription.gift";
+
+    /// <summary>An anonymous gifter has no name to put in the sentence, so it gets its own response wording.</summary>
+    protected override string ResponseKeyFor(GiftSubscriptionEvent e) =>
+        e.IsAnonymous ? "channel.subscription.gift.anonymous" : EventTypeKey;
 
     public GiftSubscriptionEventHandler(
         IServiceScopeFactory s,

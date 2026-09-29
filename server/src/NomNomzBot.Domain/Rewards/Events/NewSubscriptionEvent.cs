@@ -27,4 +27,11 @@ public sealed class NewSubscriptionEvent : DomainEventBase, IProviderScopedEvent
 
     /// <summary>"1000", "2000", or "3000"</summary>
     public required string Tier { get; init; }
+
+    /// <summary>
+    /// True when this subscription was GIFTED to <see cref="UserId"/> (Twitch <c>channel.subscribe</c> with
+    /// <c>is_gift = true</c>) rather than bought by them. The gifter is not on this event — see
+    /// <see cref="GiftSubscriptionReceivedEvent"/> for the announced recipient/gifter pairing.
+    /// </summary>
+    public bool IsGift { get; init; }
 }

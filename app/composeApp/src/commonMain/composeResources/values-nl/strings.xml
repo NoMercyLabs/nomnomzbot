@@ -3358,6 +3358,9 @@
     <string name="event_type_channel_follow">Nieuwe volger</string>
     <string name="event_type_channel_subscribe">Nieuw abonnement</string>
     <string name="event_type_channel_subscription_gift">Cadeauabonnement</string>
+    <string name="event_type_channel_subscription_gift_received">Cadeau ontvangen</string>
+    <string name="event_type_channel_subscription_gift_anonymous">Anoniem cadeauabonnement</string>
+    <string name="event_type_channel_subscription_gift_received_anonymous">Anoniem cadeau ontvangen</string>
     <string name="event_type_channel_subscription_message">Hernieuwingsmelding</string>
     <string name="event_type_channel_cheer">Cheer</string>
     <string name="event_type_channel_raid">Binnenkomende raid</string>
@@ -5289,6 +5292,9 @@
     <string name="eventresponse_preset_channel_subscribe_template">Welkom bij de sub-squad, {user}!</string>
     <string name="eventresponse_preset_channel_subscription_message_template">{user} heeft opnieuw geabonneerd — al {months} maanden!</string>
     <string name="eventresponse_preset_channel_subscription_gift_template">{user} heeft {count} subs cadeau gegeven — bedankt!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_received_template">{user} heeft een sub cadeau gekregen van {gifter}!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_anonymous_template">Een anonieme gever heeft {count} subs aan de community gegeven — bedankt!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_received_anonymous_template">Een anonieme gever heeft {user} een sub cadeau gedaan!</string>
     <string name="eventresponse_preset_channel_cheer_template">{user} heeft {bits} bits gecheerd — bedankt!</string>
     <string name="eventresponse_preset_channel_raid_template">{user} raidt met {viewers} kijkers — welkom, raiders!</string>
     <string name="eventresponse_preset_channel_channel_points_custom_reward_redemption_add_template">{user} heeft {reward} ingewisseld!</string>

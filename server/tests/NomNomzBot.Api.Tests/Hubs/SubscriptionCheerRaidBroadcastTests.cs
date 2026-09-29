@@ -89,6 +89,34 @@ public sealed class SubscriptionCheerRaidBroadcastTests
     }
 
     [Fact]
+    public async Task A_gifted_recipient_is_not_broadcast_as_a_self_subscription()
+    {
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        NewSubscriptionBroadcastHandler handler = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>()
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = Guid.CreateVersion7(),
+                UserId = "u1",
+                UserDisplayName = "Lucky",
+                Tier = "1000",
+                IsGift = true,
+            }
+        );
+
+        Assert.Empty(notifier.ReceivedCalls());
+        Assert.Empty(widgets.ReceivedCalls());
+    }
+
+    [Fact]
     public async Task NewSubscription_reaches_a_subscribed_widget_with_the_typed_dto()
     {
         (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();

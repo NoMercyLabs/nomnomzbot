@@ -200,6 +200,7 @@ public sealed class TwitchChannelEventLogProjection(IApplicationDbContext db) : 
                     ("UserDisplayName", "userDisplayName"),
                     ("Tier", "tier")
                 );
+                CopyBool(source, data, ("IsGift", "isGift"));
                 break;
             case "ResubscriptionEvent":
                 Copy(

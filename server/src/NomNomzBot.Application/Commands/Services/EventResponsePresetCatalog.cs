@@ -50,6 +50,17 @@ public static class EventResponsePresetCatalog
             ["user", "user.id", "tier", "months", "streak", "message", "also_said"]
         ),
         Preset("channel.subscription.gift", ["user", "user.id", "tier", "count", "anonymous"]),
+        // A gift batch from an anonymous gifter — the wording differs, so it is its own response.
+        Preset("channel.subscription.gift.anonymous", ["user", "tier", "count", "anonymous"]),
+        // One gift RECIPIENT paired with their gifter — {user} is the recipient, {gifter} who gave the sub.
+        Preset(
+            "channel.subscription.gift.received",
+            ["user", "user.id", "gifter", "gifter.id", "tier", "anonymous"]
+        ),
+        Preset(
+            "channel.subscription.gift.received.anonymous",
+            ["user", "user.id", "tier", "anonymous"]
+        ),
         Preset("channel.cheer", ["user", "user.id", "bits", "message", "anonymous"]),
         Preset("channel.raid", ["user", "user.id", "user.name", "viewers"]),
         Preset(

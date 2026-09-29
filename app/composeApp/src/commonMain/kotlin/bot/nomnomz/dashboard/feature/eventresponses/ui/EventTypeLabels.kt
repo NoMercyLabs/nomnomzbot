@@ -22,6 +22,9 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_out
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_start
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscribe
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift
+import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift_anonymous
+import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift_received
+import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift_received_anonymous
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_message
 import nomnomzbot.composeapp.generated.resources.event_type_engagement_first_time_chatter
 import nomnomzbot.composeapp.generated.resources.event_type_engagement_session_first_message
@@ -37,6 +40,12 @@ internal fun String.toEventLabel(): String =
         "channel.follow" -> stringResource(Res.string.event_type_channel_follow)
         "channel.subscribe" -> stringResource(Res.string.event_type_channel_subscribe)
         "channel.subscription.gift" -> stringResource(Res.string.event_type_channel_subscription_gift)
+        "channel.subscription.gift.received" ->
+            stringResource(Res.string.event_type_channel_subscription_gift_received)
+        "channel.subscription.gift.anonymous" ->
+            stringResource(Res.string.event_type_channel_subscription_gift_anonymous)
+        "channel.subscription.gift.received.anonymous" ->
+            stringResource(Res.string.event_type_channel_subscription_gift_received_anonymous)
         "channel.subscription.message" -> stringResource(Res.string.event_type_channel_subscription_message)
         "channel.cheer" -> stringResource(Res.string.event_type_channel_cheer)
         "channel.raid" -> stringResource(Res.string.event_type_channel_raid)

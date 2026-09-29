@@ -3374,6 +3374,9 @@
     <string name="event_type_channel_follow">New Follow</string>
     <string name="event_type_channel_subscribe">New Subscription</string>
     <string name="event_type_channel_subscription_gift">Gift Subscription</string>
+    <string name="event_type_channel_subscription_gift_received">Gift Received</string>
+    <string name="event_type_channel_subscription_gift_anonymous">Anonymous Gift Subscription</string>
+    <string name="event_type_channel_subscription_gift_received_anonymous">Anonymous Gift Received</string>
     <string name="event_type_channel_subscription_message">Resubscription Message</string>
     <string name="event_type_channel_cheer">Cheer</string>
     <string name="event_type_channel_raid">Incoming Raid</string>
@@ -5305,6 +5308,9 @@
     <string name="eventresponse_preset_channel_subscribe_template">Welcome to the sub squad, {user}!</string>
     <string name="eventresponse_preset_channel_subscription_message_template">{user} resubscribed — {months} months and counting!</string>
     <string name="eventresponse_preset_channel_subscription_gift_template">{user} just gifted {count} subs — thank you!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_received_template">{user} was gifted a sub by {gifter}!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_anonymous_template">An anonymous gifter just gave {count} subs to the community — thank you!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_received_anonymous_template">An anonymous gifter gave a sub to {user}!</string>
     <string name="eventresponse_preset_channel_cheer_template">{user} cheered {bits} bits — thank you!</string>
     <string name="eventresponse_preset_channel_raid_template">{user} is raiding with {viewers} viewers — welcome, raiders!</string>
     <string name="eventresponse_preset_channel_channel_points_custom_reward_redemption_add_template">{user} redeemed {reward}!</string>

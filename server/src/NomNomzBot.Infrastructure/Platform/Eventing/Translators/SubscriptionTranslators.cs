@@ -17,8 +17,10 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
 /// <summary>
 /// Translates <c>channel.subscribe</c> into <see cref="NewSubscriptionEvent"/>. Payload fields:
-/// <c>user_id</c>, <c>user_name</c>, <c>tier</c> (<c>is_gift</c> is carried by the payload but the
-/// new-subscription event does not surface it — gifts fan out through <c>channel.subscription.gift</c>).
+/// <c>user_id</c>, <c>user_name</c>, <c>tier</c>, <c>is_gift</c>. Twitch fires this once per gift RECIPIENT with
+/// <c>is_gift = true</c> and does NOT name the gifter, so the flag is surfaced as
+/// <see cref="NewSubscriptionEvent.IsGift"/> — a recipient is never a self-subscriber. The gifter/recipient
+/// pairing comes from the <c>sub_gift</c> chat notice (<see cref="GiftSubscriptionReceivedEvent"/>).
 /// </summary>
 public sealed class ChannelSubscribeTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)
@@ -38,6 +40,7 @@ public sealed class ChannelSubscribeTranslator(IEventBus bus, TimeProvider clock
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
             Tier = payload.GetRequiredString("tier"),
+            IsGift = payload.GetBool("is_gift"),
         };
 
         return PublishAsync(subscribed, ct);

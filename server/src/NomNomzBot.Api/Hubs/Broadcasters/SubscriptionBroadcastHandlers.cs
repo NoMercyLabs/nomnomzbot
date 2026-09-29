@@ -43,7 +43,8 @@ public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscript
 
     public async Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default)
     {
-        if (@event.BroadcasterId == Guid.Empty)
+        // A gifted recipient did not subscribe themselves; the gifter's batch alert already covers them.
+        if (@event.BroadcasterId == Guid.Empty || @event.IsGift)
             return;
 
         SubscriptionAlertDto dto = new(@event.UserId, @event.UserDisplayName, @event.Tier);

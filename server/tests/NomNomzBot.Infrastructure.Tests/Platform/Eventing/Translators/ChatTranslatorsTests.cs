@@ -862,6 +862,100 @@ public sealed class ChatTranslatorsTests
         published.Text.Should().Be("suspicious text");
     }
 
+    private static string SubGiftNotice(
+        string chatterFields,
+        bool anonymous,
+        string communityGiftId
+    ) =>
+        $$"""
+            {
+                "broadcaster_user_id": "broadcaster-99",
+                {{chatterFields}}
+                "chatter_is_anonymous": {{(anonymous ? "true" : "false")}},
+                "message_id": "n-gift",
+                "message": { "text": "", "fragments": [] },
+                "notice_type": "sub_gift",
+                "system_message": "Gifter gifted a Tier 1 sub to Lucky_Viewer!",
+                "sub_gift": {
+                    "duration_months": 1,
+                    "cumulative_total": null,
+                    "recipient_user_id": "777",
+                    "recipient_user_name": "Lucky_Viewer",
+                    "recipient_user_login": "lucky_viewer",
+                    "sub_tier": "1000",
+                    "community_gift_id": {{communityGiftId}}
+                }
+            }
+            """;
+
+    [Fact]
+    public async Task ChatNotification_SubGift_PublishesRecipientPairedWithTheGifter()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                SubGiftNotice(
+                    """
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "generous_gifter",
+                    "chatter_user_name": "Generous_Gifter",
+                    """,
+                    anonymous: false,
+                    communityGiftId: "null"
+                )
+            )
+        );
+
+        GiftSubscriptionReceivedEvent published = bus.EventsOf<GiftSubscriptionReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        published.BroadcasterId.Should().Be(Tenant);
+        published.RecipientUserId.Should().Be("777");
+        published.RecipientDisplayName.Should().Be("Lucky_Viewer");
+        published.GifterUserId.Should().Be("555");
+        published.GifterDisplayName.Should().Be("Generous_Gifter");
+        published.IsAnonymous.Should().BeFalse();
+        published.Tier.Should().Be("1000");
+        published.CommunityGiftId.Should().BeNull();
+        bus.EventsOf<NewSubscriptionEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ChatNotification_AnonymousSubGift_HasNoGifterIdentityAndKeepsTheBatchId()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                SubGiftNotice(
+                    """
+                    "chatter_user_id": "274598607",
+                    "chatter_user_login": "ananonymouscheerer",
+                    "chatter_user_name": "ananonymouscheerer",
+                    """,
+                    anonymous: true,
+                    communityGiftId: "\"batch-42\""
+                )
+            )
+        );
+
+        GiftSubscriptionReceivedEvent published = bus.EventsOf<GiftSubscriptionReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        published.IsAnonymous.Should().BeTrue();
+        published.GifterUserId.Should().BeEmpty();
+        published.GifterDisplayName.Should().BeEmpty();
+        published.RecipientDisplayName.Should().Be("Lucky_Viewer");
+        published.CommunityGiftId.Should().Be("batch-42");
+    }
+
     [Fact]
     public async Task ChatNotification_WatchStreak_PublishesWatchStreakReceivedEvent()
     {

@@ -78,6 +78,41 @@ public sealed class SubscriptionTranslatorsTests
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
     }
 
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    public async Task ChannelSubscribe_CarriesIsGift_SoARecipientIsNeverTakenForASelfSubscriber(
+        string isGiftJson,
+        bool expected
+    )
+    {
+        CapturingEventBus bus = new();
+        ChannelSubscribeTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                Guid.NewGuid(),
+                "channel.subscribe",
+                $$"""
+                {
+                    "user_id": "1234",
+                    "user_login": "lucky_viewer",
+                    "user_name": "Lucky_Viewer",
+                    "broadcaster_user_id": "broadcaster-99",
+                    "tier": "1000",
+                    "is_gift": {{isGiftJson}}
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<NewSubscriptionEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.IsGift.Should()
+            .Be(expected);
+    }
+
     [Fact]
     public async Task ChannelSubscriptionMessage_PublishesResubscriptionEvent_WithNestedMessageText()
     {

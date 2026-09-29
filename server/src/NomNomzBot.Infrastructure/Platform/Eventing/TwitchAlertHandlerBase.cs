@@ -45,6 +45,13 @@ public abstract class TwitchAlertHandlerBase<TEvent>
         Logger = logger;
     }
 
+    /// <summary>
+    /// The event-response key whose configured response runs for this event. Defaults to <see cref="EventTypeKey"/>
+    /// (which still names the logged <c>ChannelEvents</c> row); a handler overrides it when one event needs a
+    /// differently-worded response — e.g. an anonymous gifter — so that wording stays an editable template.
+    /// </summary>
+    protected virtual string ResponseKeyFor(TEvent @event) => EventTypeKey;
+
     protected abstract string? GetUserId(TEvent @event);
     protected abstract string? GetUserDisplayName(TEvent @event);
     protected abstract Dictionary<string, string> BuildVariables(TEvent @event);
@@ -81,7 +88,7 @@ public abstract class TwitchAlertHandlerBase<TEvent>
             scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
         await executor.ExecuteAsync(
             broadcasterId,
-            EventTypeKey,
+            ResponseKeyFor(@event),
             GetUserId(@event),
             GetUserDisplayName(@event),
             SeedTargetAlias(BuildVariables(@event)),

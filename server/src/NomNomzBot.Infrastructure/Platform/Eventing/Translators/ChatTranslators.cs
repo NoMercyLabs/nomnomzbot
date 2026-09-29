@@ -378,6 +378,27 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
         };
         await PublishAsync(notice, ct);
 
+        // A sub_gift notice is the one Twitch signal that names BOTH the recipient and the gifter (channel.subscribe
+        // carries only the recipient). An anonymous gifter arrives as a placeholder chatter, so identity is dropped.
+        if (noticeType == "sub_gift" && payload.GetObject("sub_gift") is { } gift)
+            await PublishAsync(
+                new GiftSubscriptionReceivedEvent
+                {
+                    BroadcasterId = notification.BroadcasterId,
+                    OccurredAt = Clock.GetUtcNow(),
+                    RecipientUserId = gift.GetRequiredString("recipient_user_id"),
+                    RecipientDisplayName = gift.GetRequiredString("recipient_user_name"),
+                    GifterUserId = notice.IsAnonymous ? string.Empty : notice.ChatterUserId,
+                    GifterDisplayName = notice.IsAnonymous
+                        ? string.Empty
+                        : notice.ChatterDisplayName,
+                    IsAnonymous = notice.IsAnonymous,
+                    Tier = gift.GetRequiredString("sub_tier"),
+                    CommunityGiftId = gift.GetString("community_gift_id"),
+                },
+                ct
+            );
+
         // A watch_streak notice also carries the milestone — surface it as the WatchStreakReceivedEvent the
         // WatchStreak read model folds. This is the EventSub source for watch streaks (the IRC service no longer
         // parses inbound events). watch_streak.streak_count = consecutive broadcasts watched.
