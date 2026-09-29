@@ -173,7 +173,7 @@ endpoints, and the onboarding friction walk.
 - [ ] `DEAD` Discord/Rewards/Assets `*OptionProvider.cs` — no action field uses their kinds.
 - [ ] `DEAD` PipelinesController.cs:232-243 — `POST pipelines/validate` never called.
 - [ ] PipelinesScreen.kt:2685-2691 — template helper omits step-produced variables (set_variable, check_balance set_var, run_pipeline params, wait_for_event payload).
-- [ ] `TRUTH` ChannelRegistry.cs:511-512 — `UserCooldownSeconds` saved, never enforced; form (CommandsScreen.kt:1121-1144) promises both windows.
+- [x] `TRUTH` ChannelRegistry.cs:511-512 — `UserCooldownSeconds` saved, never enforced; form (CommandsScreen.kt:1121-1144) promises both windows.
 - [ ] CommandService.cs:83-97,200-215 — regex not compile-checked (ChatTriggerService.cs:208-221 does); bad pattern logged and skipped (ChannelRegistry.cs:496-503); client only checks blank (CommandsScreen.kt:828); no tester; no capture groups as args (ChatMessageHandler.cs:611-614).
 - [ ] ChatMessageHandler.cs:416-425,~481-487 — missing/disabled pipeline → warning + no reply; no save-time rule.
 - [ ] CommandService.cs:284-285 — PipelineId cannot be cleared (timers/triggers/responses accept Guid.Empty, TimerManagementService.cs:234-236).

@@ -481,6 +481,7 @@ public class BundleImportService : IBundleImportService
                         ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
                         : null,
                     CooldownSeconds = export.CooldownSeconds,
+                    UserCooldownSeconds = export.UserCooldownSeconds,
                     CooldownPerUser = export.CooldownPerUser,
                     Description = export.Description,
                     Aliases = [.. export.Aliases],

@@ -107,6 +107,7 @@ public sealed class ProviderImportServiceTests
                     Command = "!so",
                     Response = "Check out {{args.1}}",
                     AccessLevel = 500,
+                    Cooldown = 5,
                     UserCooldown = 15,
                 },
             ],
@@ -163,7 +164,9 @@ public sealed class ProviderImportServiceTests
         shoutout
             .MinPermissionLevel.Should()
             .Be(PermissionLevel.Broadcaster.ToLevelValue(), "accessLevel 500 → broadcaster");
-        shoutout.CooldownSeconds.Should().Be(15, "the per-user cooldown wins when present");
+        // Both SE windows carry over: the global guard and the separate per-chatter window.
+        shoutout.CooldownSeconds.Should().Be(5);
+        shoutout.UserCooldownSeconds.Should().Be(15);
         shoutout.CooldownPerUser.Should().BeTrue();
 
         List<NomNomzBot.Domain.Quotes.Entities.Quote> storedQuotes = await read
