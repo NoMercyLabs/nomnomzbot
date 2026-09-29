@@ -27,8 +27,6 @@ namespace NomNomzBot.Infrastructure.Billing;
 public sealed class BillingTierService(IApplicationDbContext db, TimeProvider clock)
     : IBillingTierService
 {
-    private const string SelfHostPrefix = "self_host";
-    private const string BaseTierKey = "base";
     private const string SelfHostTierKey = "free";
 
     public async Task<Result<IReadOnlyList<TierDto>>> GetPublicTiersAsync(
@@ -142,8 +140,7 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
             .Channels.Where(c => c.Id == broadcasterId)
             .Select(c => c.DeploymentMode)
             .FirstOrDefaultAsync(ct);
-        return mode is not null
-            && mode.StartsWith(SelfHostPrefix, StringComparison.OrdinalIgnoreCase);
+        return EffectiveTierRule.IsSelfHost(mode);
     }
 
     private async Task<BillingTier?> ResolveTierAsync(Guid broadcasterId, CancellationToken ct)
@@ -162,16 +159,12 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
         BillingTier? billedTier = tierId is { } id
             ? await db.BillingTiers.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct)
             : await db.BillingTiers.FirstOrDefaultAsync(
-                t => t.Key == BaseTierKey && t.DeletedAt == null,
+                t => t.Key == EffectiveTierRule.BaseTierKey && t.DeletedAt == null,
                 ct
             );
 
         BillingTier? compedTier = await ResolveLiveGrantTierAsync(broadcasterId, ct);
-        if (compedTier is null)
-            return billedTier;
-        if (billedTier is null || compedTier.SortOrder > billedTier.SortOrder)
-            return compedTier;
-        return billedTier;
+        return EffectiveTierRule.Pick(billedTier, compedTier);
     }
 
     /// <summary>

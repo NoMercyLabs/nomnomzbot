@@ -244,21 +244,81 @@ public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvid
         );
     }
 
+    /// <summary>
+    /// The channels an edit to <paramref name="tierId"/> reaches: every SaaS channel whose effective tier
+    /// (<see cref="EffectiveTierRule"/>) is this one. That includes channels on the base tier because they have
+    /// no subscription, and channels a live comp grant lifts onto it; it excludes a subscriber a higher grant
+    /// lifts away. Resolved in bulk, four queries whatever the channel count.
+    /// </summary>
     private async Task<TierChangePreviewDto> ComputePreviewAsync(Guid tierId, CancellationToken ct)
     {
-        List<string> sampleNames = await db
-            .Subscriptions.Where(s =>
-                s.TierId == tierId
-                && s.DeletedAt == null
-                && (
-                    s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Trialing
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+
+        Dictionary<Guid, BillingTier> tiers = await db
+            .BillingTiers.Where(t => t.DeletedAt == null)
+            .ToDictionaryAsync(t => t.Id, ct);
+        BillingTier? baseTier = tiers.Values.FirstOrDefault(t =>
+            t.Key == EffectiveTierRule.BaseTierKey
+        );
+
+        Dictionary<Guid, Guid> billedTierIdByChannel = (
+            await db
+                .Subscriptions.Where(s =>
+                    s.DeletedAt == null
+                    && (
+                        s.Status == SubscriptionStatus.Active
+                        || s.Status == SubscriptionStatus.Trialing
+                    )
                 )
-            )
-            .Join(db.Channels, s => s.BroadcasterId, c => c.Id, (s, c) => c.Name)
+                .Select(s => new KeyValuePair<Guid, Guid>(s.BroadcasterId, s.TierId))
+                .ToListAsync(ct)
+        )
+            .GroupBy(pair => pair.Key)
+            .ToDictionary(group => group.Key, group => group.First().Value);
+
+        Dictionary<Guid, BillingTier> compedTierByChannel = (
+            await db
+                .EntitlementGrants.Where(g => g.DeletedAt == null && g.ExpiresAt > now)
+                .Select(g => new KeyValuePair<Guid, Guid>(g.BroadcasterId, g.GrantedTierId))
+                .ToListAsync(ct)
+        )
+            .Where(pair => tiers.ContainsKey(pair.Value))
+            .GroupBy(pair => pair.Key)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(pair => tiers[pair.Value]).MaxBy(t => t.SortOrder)!
+            );
+
+        List<TenantRow> channels = await db
+            .Channels.Where(c => c.DeletedAt == null)
+            .OrderBy(c => c.Name)
+            .Select(c => new TenantRow(c.Id, c.Name, c.DeploymentMode))
             .ToListAsync(ct);
 
-        return new TierChangePreviewDto(sampleNames.Count, [.. sampleNames.Take(10)]);
+        List<string> affectedNames = [];
+        foreach (TenantRow channel in channels)
+        {
+            if (EffectiveTierRule.IsSelfHost(channel.DeploymentMode))
+                continue;
+
+            BillingTier? billed = billedTierIdByChannel.TryGetValue(
+                channel.Id,
+                out Guid billedTierId
+            )
+                ? tiers.GetValueOrDefault(billedTierId)
+                : baseTier;
+            BillingTier? effective = EffectiveTierRule.Pick(
+                billed,
+                compedTierByChannel.GetValueOrDefault(channel.Id)
+            );
+            if (effective?.Id == tierId)
+                affectedNames.Add(channel.Name);
+        }
+
+        return new TierChangePreviewDto(affectedNames.Count, [.. affectedNames.Take(10)]);
     }
+
+    private sealed record TenantRow(Guid Id, string Name, string DeploymentMode);
 
     private static TierDto ToDto(
         BillingTier tier,
