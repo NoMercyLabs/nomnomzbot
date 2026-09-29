@@ -25,6 +25,12 @@ public static class EventSubOwnerKeys
     public const string Bot = "bot";
 
     /// <summary>
+    /// The session bound to this instance's conduit shard (twitch-eventsub §10). It carries no subscription of
+    /// its own — the conduit routes every conduit subscription's notifications to it — so no token owns it.
+    /// </summary>
+    public const string ConduitShard = "conduit-shard";
+
+    /// <summary>
     /// The owner key for a subscription: the broadcaster's tenant Guid when it rides the broadcaster's token,
     /// otherwise <see cref="Bot"/>. Mirrors <c>IEventSubConditionBuilder.RequiresBroadcasterToken</c> so the
     /// session bucket and the token that creates the sub always agree.

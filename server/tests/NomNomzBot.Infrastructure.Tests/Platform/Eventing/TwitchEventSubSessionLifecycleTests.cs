@@ -223,6 +223,7 @@ public sealed class TwitchEventSubSessionLifecycleTests
                 clock,
                 NullLogger<TwitchEventSubHostedService>.Instance
             );
+            service.AssumeLeaseHolderForTests();
 
             return new()
             {

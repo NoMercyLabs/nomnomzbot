@@ -213,7 +213,13 @@ public static class DependencyInjection
         // keeps the in-process no-op. Rate-limiter counter store (§3.7) — in-memory per-instance on lite, Redis
         // cluster-wide on full/SaaS.
         if (dbProvider == DbProviderKind.Postgres)
+        {
             services.AddSingleton<IRunOnceGuard, PostgresRunOnceGuard>();
+            // Same axis for the EventSub inbox (twitch-eventsub §10.1): two overlapping instances each hold
+            // a conduit shard, so their notifications meet in the shared database and only the lease holder
+            // processes them. SQLite has one instance, which processes what it receives directly.
+            services.AddSingleton<IEventSubInbox, DatabaseEventSubInbox>();
+        }
         else
             services.AddSingleton<IRunOnceGuard, NoOpRunOnceGuard>();
 
@@ -1495,6 +1501,10 @@ public static class DependencyInjection
             Platform.Transport.Helix.SubClients.TwitchPredictionsApi
         >();
         services.AddScoped<ITwitchRaidsApi, Platform.Transport.Helix.SubClients.TwitchRaidsApi>();
+        services.AddScoped<
+            ITwitchEventSubConduitsApi,
+            Platform.Transport.Helix.SubClients.TwitchEventSubConduitsApi
+        >();
         services.AddScoped<ITwitchChatApi, Platform.Transport.Helix.SubClients.TwitchChatApi>();
         services.AddScoped<
             ITwitchChatAssetsApi,
@@ -1673,6 +1683,10 @@ public static class DependencyInjection
         services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
         services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
 
+        // The conduit + shard owner behind the zero-downtime blue/green handover (twitch-eventsub §10).
+        // Inert without an app secret: EnsureConduitAsync then fails no_token and the per-owner sessions stay.
+        services.AddSingleton<IEventSubConduitShardCoordinator, EventSubConduitShardCoordinator>();
+
         // Reconnect gap backfill (twitch-eventsub §7): sweeps redemptions + follows for the window a dropped
         // WebSocket session silently missed, deterministically deduped, then replayed through the ordinary
         // IEventBus path. Scoped — touches the scoped Helix sub-clients and the scoped journal.
@@ -1681,6 +1695,9 @@ public static class DependencyInjection
         // The lifecycle host: one instance behind ITwitchEventSubService + IEventSource + IHostedService.
         services.AddSingleton<TwitchEventSubHostedService>();
         services.AddSingleton<ITwitchEventSubService>(sp =>
+            sp.GetRequiredService<TwitchEventSubHostedService>()
+        );
+        services.AddSingleton<IEventSubHandoverReadiness>(sp =>
             sp.GetRequiredService<TwitchEventSubHostedService>()
         );
         services.AddSingleton<IEventSource>(sp =>

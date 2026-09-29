@@ -43,6 +43,9 @@ The bot uses `wss://eventsub.wss.twitch.tv/ws` — **no public HTTPS URL require
 - Reconnects with exponential backoff on disconnect
 - Re-registers all subscriptions after reconnect
 - Twitch sends a `reconnect` message every ~5 minutes (normal behavior, not a bug)
+- When a Twitch app secret is configured, subscriptions live on an EventSub **conduit** (2 WebSocket
+  shards, one per running instance) so a blue/green deploy hands over without losing an event — see
+  `.claude/docs/design/spec/twitch-eventsub.md` §10
 
 **EventSub topics (sample — 74 topics subscribed):**
 - `stream.online` / `stream.offline`

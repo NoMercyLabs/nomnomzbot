@@ -44,6 +44,7 @@ public sealed class TwitchEventSubHostedService
     : ITwitchEventSubService,
         IEventSubNotificationSink,
         IActiveInstanceGate,
+        IEventSubHandoverReadiness,
         IHostedService
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -108,21 +109,91 @@ public sealed class TwitchEventSubHostedService
         TaskCreationOptions.RunContinuationsAsynchronously
     );
 
+    // Conduit mode (twitch-eventsub §10): subscriptions live on the deployment's conduit and this instance
+    // holds one of its two shards, so a blue/green handover never drops an event. Null coordinator (tests) or
+    // no app token (a secret-less self-host) keeps the per-owner WebSocket sessions.
+    private readonly IEventSubConduitShardCoordinator? _conduits;
+    private volatile bool _conduitMode;
+
+    // How long the outgoing instance waits for its successor's shard to show enabled before it closes its
+    // own. The successor claimed its shard at boot, long before the deploy stops us, so this normally ends
+    // on the first poll; the bound keeps a broken successor from holding shutdown past docker's stop -t 25.
+    private static readonly TimeSpan SuccessorShardWait = TimeSpan.FromSeconds(10);
+
+    // The shared inbox (twitch-eventsub §10.1): with two instances each holding a shard, the receiver is not
+    // necessarily the processor. Every receiver stores here; only the lease holder drains. Null on SQLite,
+    // where the single instance processes what it receives directly.
+    private readonly IEventSubInbox? _inbox;
+    private readonly SemaphoreSlim _inboxSignal = new(0);
+    private CancellationTokenSource? _drainCts;
+    private Task? _drainLoop;
+    private const int InboxBatchSize = 50;
+
+    // A standby's notifications reach the active instance only through the database, so the drain also
+    // polls; the active instance's own notifications wake it at once through _inboxSignal.
+    private static readonly TimeSpan InboxPollInterval = TimeSpan.FromMilliseconds(250);
+
+    private bool UsesInbox => _conduitMode && _inbox is not null;
+
+    // How long an incoming instance may report "not ready" while its shard is unbound. The deploy polls
+    // /health/ready for up to 300 s; 60 s is many shard-claim retries yet leaves the deploy most of its
+    // budget, and past it the outgoing instance's own bounded successor wait still protects the handover.
+    internal static readonly TimeSpan ShardReadyTimeout = TimeSpan.FromSeconds(60);
+    private readonly DateTimeOffset _constructedAt;
+    private volatile bool _handoverReady;
+    private volatile bool _startDecided;
+
+    public bool IsReadyForHandover
+    {
+        get
+        {
+            if (_handoverReady)
+                return true;
+
+            // Only a STANDBY — an instance that lost the chat-ingest lease to a live holder, which is still
+            // serving behind the proxy — may hold readiness back. A lone instance (fresh boot, crash-restart,
+            // single-instance self-host, Twitch down at boot) is the only upstream: holding it back would 503
+            // the whole port, so it is ready at once whatever its shard is doing. The lease cannot be probed
+            // here without taking it, so the standby flag — refreshed on every 2 s lease retry — is the signal.
+            if (!_standby)
+            {
+                // Latch only once StartAsync has decided: a would-be standby must not latch in the moment
+                // before it discovers the lease is taken.
+                if (_startDecided)
+                    _handoverReady = true;
+                return true;
+            }
+
+            bool ready =
+                !_conduitMode
+                || _conduits?.ClaimedShardId is not null
+                || _clock.GetUtcNow() - _constructedAt >= ShardReadyTimeout;
+            if (ready)
+                _handoverReady = true;
+            return ready;
+        }
+    }
+
     public TwitchEventSubHostedService(
         IServiceScopeFactory scopeFactory,
         IEventSubTransport transport,
         IEventSubConditionBuilder conditionBuilder,
         IEventBus eventBus,
         TimeProvider clock,
-        ILogger<TwitchEventSubHostedService> logger
+        ILogger<TwitchEventSubHostedService> logger,
+        IEventSubConduitShardCoordinator? conduits = null,
+        IEventSubInbox? inbox = null
     )
     {
+        _inbox = inbox;
+        _constructedAt = clock.GetUtcNow();
         _scopeFactory = scopeFactory;
         _transport = transport;
         _conditionBuilder = conditionBuilder;
         _eventBus = eventBus;
         _clock = clock;
         _logger = logger;
+        _conduits = conduits;
 
         if (_transport is WebSocketEventSubTransport ws)
             ws.BindSink(this);
@@ -156,8 +227,11 @@ public sealed class TwitchEventSubHostedService
             );
             // Not a standby: nothing else owns the bot, the bot just is not onboarded yet.
             _activated.TrySetResult();
+            _startDecided = true;
             return;
         }
+
+        await EnterConduitModeAsync(cancellationToken);
 
         // A configured instance still may not simply connect: during a switchover BOTH colours are
         // configured, so whoever loses the lease has to wait rather than open a second chat session. Losing
@@ -169,7 +243,9 @@ public sealed class TwitchEventSubHostedService
                 "EventSub: another instance holds chat ingest (deploy overlap) — waiting for handover."
             );
             _standby = true;
+            _startDecided = true;
             _standbyClaim = await TryAcquireAsync(StandbyResource, cancellationToken);
+            await OpenStandbyShardAsync(cancellationToken);
             CancellationTokenSource waitCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken
             );
@@ -182,6 +258,7 @@ public sealed class TwitchEventSubHostedService
             return;
         }
 
+        _startDecided = true;
         _activated.TrySetResult();
         await StartTransportAsync(cancellationToken);
     }
@@ -191,6 +268,11 @@ public sealed class TwitchEventSubHostedService
         // From here on this instance is no longer the active one: single-instance workers (the music
         // hand-over poller) stop acting, so they never overlap with the successor that is about to take over.
         _handedOver = true;
+
+        // Takeover order (twitch-eventsub §10.1): stop processing FIRST — the notification in hand finishes,
+        // everything still waiting stays in the inbox — and only after our sockets close is the lease
+        // released, which is the moment the successor starts draining. Never both, never neither.
+        await StopInboxDrainAsync();
 
         await _lifetime.CancelAsync();
 
@@ -219,6 +301,7 @@ public sealed class TwitchEventSubHostedService
         // HostOptions.ShutdownTimeout drain → normal StopAsync sequence), so the transport keeps consuming
         // EventSub notifications while this instance drains. Exception-safe: a transport fault here must
         // never abort the rest of host teardown (Z4).
+        await AwaitSuccessorShardAsync(cancellationToken);
         try
         {
             await _transport.StopAsync(cancellationToken);
@@ -227,6 +310,7 @@ public sealed class TwitchEventSubHostedService
         {
             _logger.LogWarning(ex, "EventSub transport failed to stop cleanly during shutdown.");
         }
+        _conduits?.ReleaseClaim();
 
         // Release chat ingest only AFTER our sockets are closed, so the successor (polling every
         // StandbyPollInterval) never has both instances reading the same chat, and it never has to wait out
@@ -234,6 +318,85 @@ public sealed class TwitchEventSubHostedService
         await ReleaseLeasesAsync();
 
         await WhenWelcomeWorkIdleAsync();
+    }
+
+    /// <summary>
+    /// The zero-downtime half of the handover (twitch-eventsub §10): when a successor is waiting, do not close
+    /// our shard's session until Twitch shows the successor's shard enabled. From then on a notification routed
+    /// to our (now disabled) shard is resent to the successor's, so closing loses nothing. A lone instance has
+    /// no successor and closes at once — that stop is a real outage, and it is announced as one.
+    /// </summary>
+    private async Task AwaitSuccessorShardAsync(CancellationToken ct)
+    {
+        if (!_conduitMode || _conduits?.ClaimedShardId is null)
+            return;
+
+        try
+        {
+            if (!await HasWaitingSuccessorAsync(ct))
+                return;
+
+            bool successorLive = await _conduits.WaitForSuccessorShardAsync(SuccessorShardWait, ct);
+            _logger.LogInformation(
+                successorLive
+                    ? "EventSub: successor shard is live — handing over without a gap."
+                    : "EventSub: successor shard did not come up; closing our shard anyway."
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "EventSub: successor shard check failed; closing our shard.");
+        }
+        catch (OperationCanceledException)
+        {
+            // Shutdown budget ran out; closing now is all that is left.
+        }
+    }
+
+    /// <summary>
+    /// Decides conduit mode once per process: on when the conduit coordinator is present and Twitch hands this
+    /// app its conduit (an app access token exists). Otherwise the per-owner WebSocket sessions stay in charge.
+    /// </summary>
+    private async Task EnterConduitModeAsync(CancellationToken ct)
+    {
+        if (_conduitProbed || _conduits is null)
+            return;
+        _conduitProbed = true;
+
+        Result<string> conduit = await _conduits.EnsureConduitAsync(ct);
+        if (conduit.IsFailure)
+        {
+            _logger.LogWarning(
+                "EventSub: conduit unavailable ({Error}) — using per-owner WebSocket sessions; deploys keep a short handover gap.",
+                conduit.ErrorMessage
+            );
+            return;
+        }
+
+        _conduitMode = true;
+        _logger.LogInformation("EventSub: conduit mode on (conduit {ConduitId}).", conduit.Value);
+    }
+
+    private volatile bool _conduitProbed;
+
+    /// <summary>
+    /// A standby in conduit mode opens its shard session straight away: it then receives its half of the
+    /// notifications from the moment it is up, and the outgoing instance can hand over without a gap.
+    /// </summary>
+    private async Task OpenStandbyShardAsync(CancellationToken ct)
+    {
+        if (!_conduitMode)
+            return;
+
+        Result<EventSubTransportHandle> opened = await _transport.EnsureSessionAsync(
+            EventSubOwnerKeys.ConduitShard,
+            ct
+        );
+        if (opened.IsFailure)
+            _logger.LogWarning(
+                "EventSub: standby could not open its conduit shard session: {Error}",
+                opened.ErrorMessage
+            );
     }
 
     private async Task ReleaseLeasesAsync()
@@ -253,7 +416,23 @@ public sealed class TwitchEventSubHostedService
 
     // ── IActiveInstanceGate ─────────────────────────────────────────────────
 
-    public bool IsActiveInstance => !_standby && !_handedOver;
+    // Not active until StartAsync has decided: before that this instance may well be a standby.
+    public bool IsActiveInstance => _startDecided && !_standby && !_handedOver;
+
+    /// <summary>
+    /// The one gate for every path that opens an owner session, creates or deletes a subscription (re-auth
+    /// recovery, onboarding seed, reconcile, scope handlers, dashboard resubscribe, BotLifecycleService sync —
+    /// they all go through this service). Closed until StartAsync has decided whether this instance holds the
+    /// lease: in production a token-refresh recovery ran in that window on the INCOMING colour and deleted
+    /// the live colour's subscriptions. Closed for a standby and after hand-over.
+    /// </summary>
+    private bool MayOwnSubscriptions => IsActiveInstance;
+
+    /// <summary>
+    /// Test seam: declares this instance the decided lease holder without running StartAsync, for tests that
+    /// drive the subscription registry directly. Production decides only in StartAsync.
+    /// </summary>
+    internal void AssumeLeaseHolderForTests() => _startDecided = true;
 
     public Task WaitUntilActiveAsync(CancellationToken ct) => _activated.Task.WaitAsync(ct);
 
@@ -278,7 +457,14 @@ public sealed class TwitchEventSubHostedService
         if (_transportStarted)
             return;
 
-        Result<EventSubTransportHandle> started = await _transport.StartAsync(ct);
+        // Only the lease holder gets here, so this is the one instance that processes the inbox.
+        StartInboxDrain();
+
+        // In conduit mode the shard session IS the transport: every conduit subscription's notifications
+        // arrive on it, so the bot's own session is only opened later if a topic falls back to it.
+        Result<EventSubTransportHandle> started = _conduitMode
+            ? await _transport.EnsureSessionAsync(EventSubOwnerKeys.ConduitShard, ct)
+            : await _transport.StartAsync(ct);
         if (started.IsFailure)
         {
             _logger.LogWarning("EventSub transport failed to start: {Error}", started.ErrorMessage);
@@ -304,6 +490,8 @@ public sealed class TwitchEventSubHostedService
                 if (!await IsPlatformBotConfiguredAsync(ct))
                     continue;
 
+                await EnterConduitModeAsync(ct);
+
                 // ONE instance reads chat. A blue/green switchover deliberately runs both colours at once
                 // (the new one must pass /health/ready before the old is drained), which is harmless for
                 // HTTP because Caddy picks one — but EventSub is not request-scoped: a second instance
@@ -315,6 +503,7 @@ public sealed class TwitchEventSubHostedService
                 {
                     _standby = true;
                     _standbyClaim ??= await TryAcquireAsync(StandbyResource, ct);
+                    await OpenStandbyShardAsync(ct);
                     continue;
                 }
 
@@ -438,7 +627,9 @@ public sealed class TwitchEventSubHostedService
         );
         try
         {
-            if (handoffFromSessionId is null)
+            if (ownerKey == EventSubOwnerKeys.ConduitShard)
+                await HandleShardWelcomeAsync(sessionId, linked.Token);
+            else if (handoffFromSessionId is null)
                 await HandleFreshWelcomeAsync(sessionId, ownerKey, linked.Token);
             else
                 await HandleHandoffWelcomeAsync(
@@ -463,12 +654,36 @@ public sealed class TwitchEventSubHostedService
         }
     }
 
+    /// <summary>
+    /// Binds a shard to the shard session's welcome — fresh or after a <c>session_reconnect</c>. Twitch closes a
+    /// session no shard claims within 10 s of its welcome, so this runs first and alone; if every shard is taken
+    /// the close that follows re-dials with backoff and this retries on the next welcome.
+    /// </summary>
+    private async Task HandleShardWelcomeAsync(string sessionId, CancellationToken ct)
+    {
+        if (_conduits is null)
+            return;
+
+        Result<string> claimed = await _conduits.ClaimShardAsync(sessionId, ct);
+        if (claimed.IsFailure)
+            _logger.LogWarning(
+                "EventSub: no conduit shard for session {SessionId}: {Error}",
+                sessionId,
+                claimed.ErrorMessage
+            );
+    }
+
     private async Task HandleFreshWelcomeAsync(
         string sessionId,
         string ownerKey,
         CancellationToken ct
     )
     {
+        // Deleting "stale" subscriptions and re-registering is the live instance's job; a standby (or an
+        // instance not yet sure it is not one) would delete the live instance's subscriptions.
+        if (!MayOwnSubscriptions)
+            return;
+
         // A fresh welcome for this OWNER means its previous WebSocket session is dead. Twitch keeps that session's
         // subscriptions in a `websocket_disconnected` state for ~1 minute, and a re-create's 409-conflict key
         // is (type + condition) — session-independent — so those lingering subs would 409 every re-create and
@@ -547,6 +762,10 @@ public sealed class TwitchEventSubHostedService
 
     public async Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct)
     {
+        // The shard session carries every conduit subscription; it always comes back.
+        if (ownerKey == EventSubOwnerKeys.ConduitShard)
+            return true;
+
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -558,6 +777,16 @@ public sealed class TwitchEventSubHostedService
         [
             .. rows.Where(r => OwnerKeyFor(r.BroadcasterId, r.EventType) == ownerKey),
         ];
+
+        // In conduit mode an owner session only carries the topics that fell back from the conduit. With
+        // none left it would sit empty and Twitch would close it every 10 s — so it stays closed.
+        if (_conduitMode)
+        {
+            owned = [.. owned.Where(r => r.ConduitId is null)];
+            if (owned.Count == 0)
+                return false;
+        }
+
         if (owned.Count == 0)
             return true;
 
@@ -581,6 +810,145 @@ public sealed class TwitchEventSubHostedService
     }
 
     public async Task OnNotificationAsync(
+        string messageId,
+        DateTimeOffset messageTimestamp,
+        string subscriptionType,
+        string subscriptionVersion,
+        string twitchBroadcasterUserId,
+        JsonElement @event,
+        CancellationToken ct
+    )
+    {
+        if (!UsesInbox)
+        {
+            await ProcessNotificationAsync(
+                messageId,
+                messageTimestamp,
+                subscriptionType,
+                subscriptionVersion,
+                twitchBroadcasterUserId,
+                @event,
+                ct
+            );
+            return;
+        }
+
+        // Receiving is not processing: store it, and let whichever instance holds the lease dispatch it.
+        _lastEventAt = _clock.GetUtcNow();
+        await _inbox!.EnqueueAsync(
+            new EventSubInboxMessage
+            {
+                MessageId = messageId,
+                MessageTimestamp = messageTimestamp.UtcDateTime,
+                SubscriptionType = subscriptionType,
+                SubscriptionVersion = subscriptionVersion,
+                TwitchBroadcasterUserId = twitchBroadcasterUserId,
+                EventJson = @event.GetRawText(),
+                ReceivedAt = _clock.GetUtcNow().UtcDateTime,
+            },
+            CancellationToken.None
+        );
+        _inboxSignal.Release();
+    }
+
+    // ── Inbox drain (twitch-eventsub §10.1) ─────────────────────────────────
+
+    /// <summary>
+    /// Starts draining the inbox. Called only once this instance holds the chat-ingest lease, so exactly one
+    /// instance drains at any time.
+    /// </summary>
+    private void StartInboxDrain()
+    {
+        if (!UsesInbox || _drainLoop is not null)
+            return;
+
+        _drainCts = new();
+        CancellationToken token = _drainCts.Token;
+        _drainLoop = Task.Run(() => DrainInboxAsync(token), CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Stops the drain and waits for the notification in hand to finish dispatching. Runs BEFORE the lease is
+    /// released: whatever is still waiting stays in the inbox for the successor, nothing is dispatched twice.
+    /// </summary>
+    private async Task StopInboxDrainAsync()
+    {
+        if (_drainCts is null || _drainLoop is null)
+            return;
+
+        await _drainCts.CancelAsync();
+        await _drainLoop;
+        _drainCts.Dispose();
+        _drainCts = null;
+        _drainLoop = null;
+    }
+
+    private async Task DrainInboxAsync(CancellationToken stop)
+    {
+        while (!stop.IsCancellationRequested)
+        {
+            try
+            {
+                await DrainBatchAsync(stop);
+                await _inboxSignal.WaitAsync(InboxPollInterval, stop);
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                // The database blinked; the rows are still there. Retry after a pause, never drop them.
+                _logger.LogWarning(ex, "EventSub inbox drain failed; retrying.");
+                try
+                {
+                    await Task.Delay(InboxPollInterval, _clock, stop);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>Dispatches every waiting notification in arrival order; the stop token is honoured between
+    /// notifications, never in the middle of one.</summary>
+    internal async Task DrainBatchAsync(CancellationToken stop)
+    {
+        while (!stop.IsCancellationRequested)
+        {
+            IReadOnlyList<EventSubInboxMessage> batch = await _inbox!.PeekAsync(
+                InboxBatchSize,
+                CancellationToken.None
+            );
+            if (batch.Count == 0)
+                return;
+
+            foreach (EventSubInboxMessage message in batch)
+            {
+                if (stop.IsCancellationRequested)
+                    return;
+
+                using JsonDocument document = JsonDocument.Parse(message.EventJson);
+                await ProcessNotificationAsync(
+                    message.MessageId,
+                    new DateTimeOffset(
+                        DateTime.SpecifyKind(message.MessageTimestamp, DateTimeKind.Utc)
+                    ),
+                    message.SubscriptionType,
+                    message.SubscriptionVersion,
+                    message.TwitchBroadcasterUserId,
+                    document.RootElement.Clone(),
+                    CancellationToken.None
+                );
+                await _inbox.RemoveAsync(message.Id, CancellationToken.None);
+            }
+        }
+    }
+
+    /// <summary>Resolves the tenant, then journals and fans the notification out through the dispatcher.</summary>
+    private async Task ProcessNotificationAsync(
         string messageId,
         DateTimeOffset messageTimestamp,
         string subscriptionType,
@@ -761,6 +1129,9 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
+        if (!MayOwnSubscriptions)
+            return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
+
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -772,11 +1143,7 @@ public sealed class TwitchEventSubHostedService
         foreach (EventSubSubscription row in rows)
         {
             if (row.TwitchSubscriptionId is { } id)
-                await _transport.DeleteSubscriptionAsync(
-                    id,
-                    DeleteOwnerFor(row.EventType, row.BroadcasterId),
-                    ct
-                );
+                await DeleteAtTwitchAsync(row, id, ct);
 
             string old = row.Status;
             row.Status = "revoked";
@@ -795,9 +1162,13 @@ public sealed class TwitchEventSubHostedService
         {
             // Connected once the bot session (which carries every channel's chat-read topics) has a session id;
             // non-WebSocket transports report connected via their own liveness.
-            bool connected =
-                (_transport as WebSocketEventSubTransport)?.SessionId is not null
-                || _transport.Kind != EventSubTransportKind.WebSocket;
+            // In conduit mode the shard session carries every subscription, so "connected" means that session
+            // is open AND bound to a shard — an unbound session receives nothing.
+            bool connected = _conduitMode
+                ? _transport.CurrentSessionId(EventSubOwnerKeys.ConduitShard) is not null
+                    && _conduits?.ClaimedShardId is not null
+                : (_transport as WebSocketEventSubTransport)?.SessionId is not null
+                    || _transport.Kind != EventSubTransportKind.WebSocket;
             DateTimeOffset? lastReconnect = (
                 _transport as WebSocketEventSubTransport
             )?.LastReconnectAt;
@@ -819,7 +1190,7 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
-        if (_standby)
+        if (!MayOwnSubscriptions)
             return StandbyRefusal<EventSubSubscriptionDto>();
 
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
@@ -859,6 +1230,25 @@ public sealed class TwitchEventSubHostedService
         if (row is not null && await GrantGateHoldAsync(db, row, tokenOwner, ct) is { } heldCode)
             return Result.Failure<EventSubSubscriptionDto>(row.LastError!, heldCode);
 
+        // Conduit mode: the topic lives on the conduit, where it outlives every session (twitch-eventsub §10).
+        // A topic the conduit refuses for want of a grant falls through to its owner's WebSocket session below.
+        if (_conduitMode && _conduits?.ConduitId is { } conduitId)
+        {
+            (Result<EventSubSubscriptionDto>? onConduit, row) = await SubscribeOnConduitAsync(
+                db,
+                row,
+                broadcasterId,
+                eventType,
+                version,
+                twitchId,
+                tokenOwner,
+                conduitId,
+                ct
+            );
+            if (onConduit is not null)
+                return onConduit;
+        }
+
         // Ensure the WebSocket session this topic must ride is live, and post the create onto it. A topic rides
         // its token owner's session: bot-owned topics (chat-read) ride the bot's session; a broadcaster's
         // authorized topics ride that broadcaster's OWN session — Twitch rejects subs from different users on one
@@ -876,20 +1266,12 @@ public sealed class TwitchEventSubHostedService
         // (chat-read + the bot's whispers). Broadcaster-owned topics ignore it (they key on the broadcaster).
         // When no dedicated bot account is configured (streamer IS the bot), it is null and the broadcaster id
         // fills the slot as a single-account-self-host fallback.
-        string? botTwitchUserId = await db
-            .IntegrationConnections.Where(c =>
-                c.Provider == "twitch_bot" && c.BroadcasterId == null
-            )
-            .Select(c => c.ProviderAccountId)
-            .FirstOrDefaultAsync(ct);
+        string? botTwitchUserId = await LoadBotTwitchUserIdAsync(db, ct);
 
         // A platform-plane subscription IS the bot identity's — without a platform bot there is nothing to
         // subscribe as (and no fallback: the broadcaster-id fallback below is a per-channel concept).
         if (isPlatformTenant && botTwitchUserId is null)
-            return Result.Failure<EventSubSubscriptionDto>(
-                "No platform bot identity for a platform-plane subscription.",
-                "NOT_FOUND"
-            );
+            return NoPlatformBotIdentity();
 
         // Idempotent upsert on (BroadcasterId, Provider, EventType, Version).
         bool isNew = row is null;
@@ -900,29 +1282,7 @@ public sealed class TwitchEventSubHostedService
             twitchId ?? botTwitchUserId!,
             botTwitchUserId
         );
-
-        if (row is null)
-        {
-            row = new()
-            {
-                BroadcasterId = broadcasterId,
-                Provider = "twitch",
-                EventType = eventType,
-                Version = version,
-                Condition = new(condition),
-                Transport = _transport.Kind.ToString().ToLowerInvariant(),
-                Status = "pending",
-                Enabled = true,
-            };
-            await db.EventSubSubscriptions.AddAsync(row, ct);
-        }
-        else
-        {
-            row.Enabled = true;
-            row.Condition = new(condition);
-        }
-
-        await db.SaveChangesAsync(ct);
+        row = await UpsertRowAsync(db, row, broadcasterId, eventType, version, condition, ct);
         string oldStatus = isNew ? "none" : row.Status;
 
         // Idempotent adopt (skip the Twitch POST) only for an already-`enabled` row on the CURRENT session — it is
@@ -977,125 +1337,27 @@ public sealed class TwitchEventSubHostedService
                     return Result.Success(ToDto(row));
             }
 
-            // Map the failure to a retryable / terminal status instead of a permanent "failed":
-            //  - Conflict (409): an identical sub still lingers from a dead session inside Twitch's ~1-min GC
-            //    window → "pending" so the next reconcile retries once it clears (expected, transient).
-            //  - RateLimited (429): a transient burst limit while re-registering a channel's ~50 topics → "pending"
-            //    so the reconcile retries. (Per-broadcaster sessions removed the old cost-cap 429: a broadcaster's
-            //    topics are cost-0 on their OWN per-user-token budget, so a 429 is always transient rate-limiting,
-            //    never a permanent cost exhaustion — the previous "deferred / park for the conduit" was obsolete.)
-            //  - otherwise → "failed" (keeps the 403 missing-scope / authorization paths below intact).
-            string? missingScope = ExtractMissingScope(created.ErrorDetail);
-            bool authorizationFailure =
-                missingScope is null && IsMissingAuthorizationMessage(created.ErrorDetail);
-            string? previousError = row.LastError;
-            row.Status = created.ErrorCode switch
-            {
-                TwitchErrorCodes.Conflict => "pending",
-                TwitchErrorCodes.RateLimited => "pending",
-                _ => "failed",
-            };
-            // A missing-scope failure stores the parseable scope message so the pre-create gate above holds
-            // the topic until the grant changes. An unnamed authorization failure stores Twitch's own message
-            // plus the grant-set fingerprint at the moment of failure, so the gate can tell a stale retry
-            // (same grants) apart from a genuine re-grant attempt (different grants). Anything else keeps
-            // Twitch's error message as-is.
-            if (missingScope is not null)
-                row.LastError = $"Missing required scope {missingScope}";
-            else if (authorizationFailure)
-            {
-                List<string>? grantedAtFailure = await GetOwnerGrantedScopesAsync(
-                    db,
-                    broadcasterId,
-                    tokenOwner,
-                    ct
-                );
-                row.LastError =
-                    $"{created.ErrorDetail} [grants:{GrantFingerprint(grantedAtFailure)}]";
-            }
-            else
-                row.LastError = created.ErrorMessage;
-            await db.SaveChangesAsync(ct);
-
-            // Journal / log / notify only an actual TRANSITION. A reconcile re-hitting the same failure is a
-            // no-op fact — publishing it every cycle flooded the journal (~84k rows/day at 60 blocked topics
-            // × 5 channels × 288 cycles) and re-spammed the reauth surface.
-            bool transitioned =
-                oldStatus != row.Status
-                || !string.Equals(previousError, row.LastError, StringComparison.Ordinal);
-            if (transitioned)
-            {
-                await PublishStatusChangedAsync(row, oldStatus, row.Status, row.LastError, ct);
-
-                // Log the full Twitch error body to diagnose real failures (400/403/etc.). A 409 conflict is
-                // the expected transient during the stale-session GC window — don't spam the log with it.
-                if (
-                    !string.IsNullOrEmpty(created.ErrorDetail)
-                    && created.ErrorCode != TwitchErrorCodes.Conflict
-                )
-                    _logger.LogWarning(
-                        "EventSub subscription {EventType} for {BroadcasterId} error detail: {Detail}",
-                        eventType,
-                        broadcasterId,
-                        created.ErrorDetail
-                    );
-
-                // When Twitch 403 body says "Missing required scope <scope>", publish the reauth event so
-                // MissingScopeRecordingHandler can record it and the dashboard can surface an action-required
-                // flow — once per discovery, not once per reconcile.
-                if (missingScope is not null)
-                {
-                    _logger.LogWarning(
-                        "EventSub subscription {EventType} for {BroadcasterId} blocked: missing scope '{Scope}'",
-                        eventType,
-                        broadcasterId,
-                        missingScope
-                    );
-                    await _eventBus.PublishAsync(
-                        new TwitchHelixReauthRequiredEvent
-                        {
-                            BroadcasterId = broadcasterId,
-                            Provider = "twitch",
-                            ServiceName = "twitch",
-                            Reason = "missing_scope",
-                            MissingScope = missingScope,
-                        },
-                        ct
-                    );
-                }
-                // "subscription missing proper authorization" is Twitch's OTHER terminal 403 for a create —
-                // it names no specific scope (unlike the branch above), so it is surfaced as a plain
-                // unauthorized re-grant prompt instead of a scope gap. Same one-shot-per-transition rule.
-                else if (authorizationFailure)
-                {
-                    _logger.LogWarning(
-                        "EventSub subscription {EventType} for {BroadcasterId} blocked: missing proper authorization",
-                        eventType,
-                        broadcasterId
-                    );
-                    await _eventBus.PublishAsync(
-                        new TwitchHelixReauthRequiredEvent
-                        {
-                            BroadcasterId = broadcasterId,
-                            Provider = "twitch",
-                            ServiceName = "twitch",
-                            Reason = "unauthorized",
-                            MissingScope = null,
-                        },
-                        ct
-                    );
-                }
-            }
-
-            return Result.Failure<EventSubSubscriptionDto>(
-                created.ErrorMessage!,
-                created.ErrorCode,
-                created.ErrorDetail
+            return await RecordCreateFailureAsync(
+                db,
+                row,
+                oldStatus,
+                created,
+                broadcasterId,
+                eventType,
+                tokenOwner,
+                ct
             );
         }
 
+        // A topic that fell back from the conduit (or a conduit-mode instance that lost its app token) leaves
+        // its conduit subscription behind; it would only feed a conduit nobody reads, so retire it.
+        if (row is { ConduitId: not null, TwitchSubscriptionId: { } conduitSubscriptionId })
+            await _transport.DeleteConduitSubscriptionAsync(conduitSubscriptionId, ct);
+
         row.TwitchSubscriptionId = created.Value.TwitchSubscriptionId;
         row.SessionId = created.Value.SessionId;
+        row.ConduitId = null;
+        row.Transport = EventSubTransportKind.WebSocket.ToString().ToLowerInvariant();
         row.Cost = created.Value.Cost;
         row.Status = created.Value.Status == "enabled" ? "enabled" : created.Value.Status;
         row.LastError = null;
@@ -1108,8 +1370,336 @@ public sealed class TwitchEventSubHostedService
         return Result.Success(ToDto(row));
     }
 
+    /// <summary>
+    /// Records a failed create on its registry row and raises the reauth prompt it implies — once per
+    /// transition, never once per reconcile. Shared by the WebSocket and the conduit create paths.
+    /// </summary>
+    private async Task<Result<EventSubSubscriptionDto>> RecordCreateFailureAsync(
+        IApplicationDbContext db,
+        EventSubSubscription row,
+        string oldStatus,
+        Result<TwitchSubscriptionResult> created,
+        Guid broadcasterId,
+        string eventType,
+        EventSubTokenOwnerKind tokenOwner,
+        CancellationToken ct
+    )
+    {
+        // Map the failure to a retryable / terminal status instead of a permanent "failed":
+        //  - Conflict (409): an identical sub still lingers from a dead session inside Twitch's ~1-min GC
+        //    window → "pending" so the next reconcile retries once it clears (expected, transient).
+        //  - RateLimited (429): a transient burst limit while re-registering a channel's ~50 topics → "pending"
+        //    so the reconcile retries. (Per-broadcaster sessions removed the old cost-cap 429: a broadcaster's
+        //    topics are cost-0 on their OWN per-user-token budget, so a 429 is always transient rate-limiting,
+        //    never a permanent cost exhaustion — the previous "deferred / park for the conduit" was obsolete.)
+        //  - otherwise → "failed" (keeps the 403 missing-scope / authorization paths below intact).
+        string? missingScope = ExtractMissingScope(created.ErrorDetail);
+        bool authorizationFailure =
+            missingScope is null && IsMissingAuthorizationMessage(created.ErrorDetail);
+        string? previousError = row.LastError;
+        row.Status = created.ErrorCode switch
+        {
+            TwitchErrorCodes.Conflict => "pending",
+            TwitchErrorCodes.RateLimited => "pending",
+            _ => "failed",
+        };
+        // A missing-scope failure stores the parseable scope message so the pre-create gate above holds
+        // the topic until the grant changes. An unnamed authorization failure stores Twitch's own message
+        // plus the grant-set fingerprint at the moment of failure, so the gate can tell a stale retry
+        // (same grants) apart from a genuine re-grant attempt (different grants). Anything else keeps
+        // Twitch's error message as-is.
+        if (missingScope is not null)
+            row.LastError = $"Missing required scope {missingScope}";
+        else if (authorizationFailure)
+        {
+            List<string>? grantedAtFailure = await GetOwnerGrantedScopesAsync(
+                db,
+                broadcasterId,
+                tokenOwner,
+                ct
+            );
+            row.LastError = $"{created.ErrorDetail} [grants:{GrantFingerprint(grantedAtFailure)}]";
+        }
+        else
+            row.LastError = created.ErrorMessage;
+        await db.SaveChangesAsync(ct);
+
+        // Journal / log / notify only an actual TRANSITION. A reconcile re-hitting the same failure is a
+        // no-op fact — publishing it every cycle flooded the journal (~84k rows/day at 60 blocked topics
+        // × 5 channels × 288 cycles) and re-spammed the reauth surface.
+        bool transitioned =
+            oldStatus != row.Status
+            || !string.Equals(previousError, row.LastError, StringComparison.Ordinal);
+        if (transitioned)
+        {
+            await PublishStatusChangedAsync(row, oldStatus, row.Status, row.LastError, ct);
+
+            // Log the full Twitch error body to diagnose real failures (400/403/etc.). A 409 conflict is
+            // the expected transient during the stale-session GC window — don't spam the log with it.
+            if (
+                !string.IsNullOrEmpty(created.ErrorDetail)
+                && created.ErrorCode != TwitchErrorCodes.Conflict
+            )
+                _logger.LogWarning(
+                    "EventSub subscription {EventType} for {BroadcasterId} error detail: {Detail}",
+                    eventType,
+                    broadcasterId,
+                    created.ErrorDetail
+                );
+
+            // When Twitch 403 body says "Missing required scope <scope>", publish the reauth event so
+            // MissingScopeRecordingHandler can record it and the dashboard can surface an action-required
+            // flow — once per discovery, not once per reconcile.
+            if (missingScope is not null)
+            {
+                _logger.LogWarning(
+                    "EventSub subscription {EventType} for {BroadcasterId} blocked: missing scope '{Scope}'",
+                    eventType,
+                    broadcasterId,
+                    missingScope
+                );
+                await _eventBus.PublishAsync(
+                    new TwitchHelixReauthRequiredEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        Provider = "twitch",
+                        ServiceName = "twitch",
+                        Reason = "missing_scope",
+                        MissingScope = missingScope,
+                    },
+                    ct
+                );
+            }
+            // "subscription missing proper authorization" is Twitch's OTHER terminal 403 for a create —
+            // it names no specific scope (unlike the branch above), so it is surfaced as a plain
+            // unauthorized re-grant prompt instead of a scope gap. Same one-shot-per-transition rule.
+            else if (authorizationFailure)
+            {
+                _logger.LogWarning(
+                    "EventSub subscription {EventType} for {BroadcasterId} blocked: missing proper authorization",
+                    eventType,
+                    broadcasterId
+                );
+                await _eventBus.PublishAsync(
+                    new TwitchHelixReauthRequiredEvent
+                    {
+                        BroadcasterId = broadcasterId,
+                        Provider = "twitch",
+                        ServiceName = "twitch",
+                        Reason = "unauthorized",
+                        MissingScope = null,
+                    },
+                    ct
+                );
+            }
+        }
+
+        return Result.Failure<EventSubSubscriptionDto>(
+            created.ErrorMessage!,
+            created.ErrorCode,
+            created.ErrorDetail
+        );
+    }
+
+    /// <summary>
+    /// Subscribes one topic on the conduit. Returns a null outcome when the conduit refused it for want of a
+    /// grant (the app-token path needs e.g. the broadcaster's <c>channel:bot</c> or the bot's <c>user:bot</c>):
+    /// the caller then keeps the channel working on the owner's WebSocket session instead.
+    /// </summary>
+    private async Task<(
+        Result<EventSubSubscriptionDto>? Outcome,
+        EventSubSubscription? Row
+    )> SubscribeOnConduitAsync(
+        IApplicationDbContext db,
+        EventSubSubscription? row,
+        Guid broadcasterId,
+        string eventType,
+        string version,
+        string? twitchId,
+        EventSubTokenOwnerKind tokenOwner,
+        string conduitId,
+        CancellationToken ct
+    )
+    {
+        string? botTwitchUserId = await LoadBotTwitchUserIdAsync(db, ct);
+        if (twitchId is null && botTwitchUserId is null)
+            return (NoPlatformBotIdentity(), row);
+
+        bool isNew = row is null;
+        IReadOnlyDictionary<string, string> condition = _conditionBuilder.BuildCondition(
+            eventType,
+            twitchId ?? botTwitchUserId!,
+            botTwitchUserId
+        );
+        row = await UpsertRowAsync(db, row, broadcasterId, eventType, version, condition, ct);
+        string oldStatus = isNew ? "none" : row.Status;
+
+        // Already live on this conduit: nothing to do, whichever instance created it. This is what makes a
+        // takeover free — the successor's startup reconcile adopts every row without one Twitch call.
+        if (
+            !isNew
+            && row is { Status: "enabled", TwitchSubscriptionId: not null }
+            && row.ConduitId == conduitId
+        )
+            return (Result.Success(ToDto(row)), row);
+
+        await RetireStaleSubscriptionAsync(db, row, ct);
+
+        EventSubSubscriptionRequest request = new()
+        {
+            BroadcasterId = broadcasterId,
+            TwitchBroadcasterUserId = twitchId ?? botTwitchUserId!,
+            EventType = _conditionBuilder.GetWireType(eventType),
+            Version = version,
+            Condition = condition,
+            UserAccessTokenOwner = tokenOwner,
+        };
+        Result<TwitchSubscriptionResult> created = await _transport.CreateSubscriptionAsync(
+            request,
+            new EventSubTransportHandle
+            {
+                Kind = EventSubTransportKind.Conduit,
+                ConduitId = conduitId,
+            },
+            ct
+        );
+
+        if (created.IsFailure)
+        {
+            if (IsConduitRefusal(created))
+            {
+                _logger.LogInformation(
+                    "EventSub: conduit refused {EventType} for {BroadcasterId} ({Detail}) — it rides the owner's WebSocket session instead",
+                    eventType,
+                    broadcasterId,
+                    created.ErrorDetail ?? created.ErrorMessage
+                );
+                return (null, row);
+            }
+
+            return (
+                await RecordCreateFailureAsync(
+                    db,
+                    row,
+                    oldStatus,
+                    created,
+                    broadcasterId,
+                    eventType,
+                    tokenOwner,
+                    ct
+                ),
+                row
+            );
+        }
+
+        row.TwitchSubscriptionId = created.Value.TwitchSubscriptionId;
+        row.ConduitId = conduitId;
+        row.SessionId = null;
+        row.Transport = EventSubTransportKind.Conduit.ToString().ToLowerInvariant();
+        row.Cost = created.Value.Cost;
+        row.Status = created.Value.Status == "enabled" ? "enabled" : created.Value.Status;
+        row.LastError = null;
+        await db.SaveChangesAsync(ct);
+
+        if (oldStatus != row.Status)
+            await PublishStatusChangedAsync(row, oldStatus, row.Status, null, ct);
+        return (Result.Success(ToDto(row)), row);
+    }
+
+    /// <summary>
+    /// A conduit create the app token cannot make for this channel yet: no app token at all, or Twitch's 401/403
+    /// for a grant the app-token path needs and the owner's own token does not (twitch-eventsub §10 point 8).
+    /// </summary>
+    private static bool IsConduitRefusal(Result<TwitchSubscriptionResult> created) =>
+        created.ErrorCode is TwitchErrorCodes.NoToken or TwitchErrorCodes.Unauthorized
+        || ExtractMissingScope(created.ErrorDetail) is not null
+        || IsMissingAuthorizationMessage(created.ErrorDetail);
+
+    /// <summary>
+    /// Moves a row off its old subscription before it is created on the current conduit: a per-owner
+    /// WebSocket one (the migration of twitch-eventsub §10 point 10, deleted with the owner's own token) or
+    /// one on a conduit this deployment replaced (deleted with the app token). The topic never exists twice
+    /// and never delivers twice.
+    /// </summary>
+    private async Task RetireStaleSubscriptionAsync(
+        IApplicationDbContext db,
+        EventSubSubscription row,
+        CancellationToken ct
+    )
+    {
+        if (row.TwitchSubscriptionId is not { } staleSubscriptionId)
+            return;
+
+        // Either a per-owner WebSocket subscription, or one on a conduit this deployment replaced.
+        await DeleteAtTwitchAsync(row, staleSubscriptionId, ct);
+        row.TwitchSubscriptionId = null;
+        row.SessionId = null;
+        row.ConduitId = null;
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// The platform bot's Twitch user id: fills the user_id / moderator_user_id slot of BOT-OWNED topics
+    /// (chat-read + the bot's whispers). Null when the streamer IS the bot (single-account self-host).
+    /// </summary>
+    private static Task<string?> LoadBotTwitchUserIdAsync(
+        IApplicationDbContext db,
+        CancellationToken ct
+    ) =>
+        db
+            .IntegrationConnections.Where(c =>
+                c.Provider == "twitch_bot" && c.BroadcasterId == null
+            )
+            .Select(c => c.ProviderAccountId)
+            .FirstOrDefaultAsync(ct);
+
+    private static Result<EventSubSubscriptionDto> NoPlatformBotIdentity() =>
+        Result.Failure<EventSubSubscriptionDto>(
+            "No platform bot identity for a platform-plane subscription.",
+            "NOT_FOUND"
+        );
+
+    /// <summary>Idempotent upsert of the registry row on (BroadcasterId, Provider, EventType, Version).</summary>
+    private async Task<EventSubSubscription> UpsertRowAsync(
+        IApplicationDbContext db,
+        EventSubSubscription? row,
+        Guid broadcasterId,
+        string eventType,
+        string version,
+        IReadOnlyDictionary<string, string> condition,
+        CancellationToken ct
+    )
+    {
+        if (row is null)
+        {
+            row = new()
+            {
+                BroadcasterId = broadcasterId,
+                Provider = "twitch",
+                EventType = eventType,
+                Version = version,
+                Condition = new(condition),
+                Transport = _transport.Kind.ToString().ToLowerInvariant(),
+                Status = "pending",
+                Enabled = true,
+            };
+            await db.EventSubSubscriptions.AddAsync(row, ct);
+        }
+        else
+        {
+            row.Enabled = true;
+            row.Condition = new(condition);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return row;
+    }
+
     public async Task<Result> UnsubscribeAsync(Guid subscriptionId, CancellationToken ct = default)
     {
+        if (!MayOwnSubscriptions)
+            return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
+
         await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -1123,11 +1713,7 @@ public sealed class TwitchEventSubHostedService
 
         if (row.TwitchSubscriptionId is { } id)
         {
-            Result deleted = await _transport.DeleteSubscriptionAsync(
-                id,
-                DeleteOwnerFor(row.EventType, row.BroadcasterId),
-                ct
-            );
+            Result deleted = await DeleteAtTwitchAsync(row, id, ct);
             if (deleted.IsFailure)
                 return deleted;
         }
@@ -1178,6 +1764,9 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct = default
     )
     {
+        if (!MayOwnSubscriptions)
+            return StandbyRefusal<EventSubReconcileReportDto>();
+
         Result<IReadOnlyList<TwitchSubscriptionResult>> listed =
             await _transport.ListSubscriptionsAsync(broadcasterId, ct);
         if (listed.IsFailure)
@@ -1194,6 +1783,16 @@ public sealed class TwitchEventSubHostedService
         List<EventSubSubscription> registry = await db
             .EventSubSubscriptions.Where(s => s.BroadcasterId == broadcasterId)
             .ToListAsync(ct);
+
+        // Conduit subscriptions belong to the app, so the broadcaster's token above never lists them.
+        (List<TwitchSubscriptionResult> withConduit, bool conduitListed) =
+            await AddConduitSubscriptionsAsync(
+                scope.ServiceProvider,
+                broadcasterId,
+                listed.Value,
+                ct
+            );
+        listed = Result.Success<IReadOnlyList<TwitchSubscriptionResult>>(withConduit);
 
         Dictionary<string, TwitchSubscriptionResult> liveById = listed
             .Value.Where(s => !string.IsNullOrEmpty(s.TwitchSubscriptionId))
@@ -1233,15 +1832,23 @@ public sealed class TwitchEventSubHostedService
                 !string.IsNullOrEmpty(live.SessionId)
                 && currentSession is not null
                 && live.SessionId != currentSession;
+            // A conduit subscription on a conduit this deployment no longer uses (a replaced conduit, a
+            // different client id) feeds nobody.
+            bool staleConduit =
+                live.ConduitId is not null
+                && _conduits?.ConduitId is { } currentConduit
+                && live.ConduitId != currentConduit;
             bool notDesired = !owned.Enabled || owned.DeletedAt.HasValue;
-            if (!staleSession && !notDesired)
+            if (!staleSession && !staleConduit && !notDesired)
                 continue;
 
-            Result del = await _transport.DeleteSubscriptionAsync(
-                live.TwitchSubscriptionId,
-                DeleteOwnerFor(owned.EventType, owned.BroadcasterId),
-                ct
-            );
+            Result del = live.ConduitId is not null
+                ? await _transport.DeleteConduitSubscriptionAsync(live.TwitchSubscriptionId, ct)
+                : await _transport.DeleteSubscriptionAsync(
+                    live.TwitchSubscriptionId,
+                    DeleteOwnerFor(owned.EventType, owned.BroadcasterId),
+                    ct
+                );
             if (del.IsFailure)
             {
                 errors.Add($"delete {live.TwitchSubscriptionId}: {del.ErrorMessage}");
@@ -1285,6 +1892,16 @@ public sealed class TwitchEventSubHostedService
             if (liveExists)
                 continue;
 
+            // Twitch listed this conduit's subscriptions and this row's is not among them (removed at
+            // Twitch without a revocation reaching us): forget it, or the subscribe below would adopt it.
+            if (conduitListed && row.ConduitId is not null)
+            {
+                row.TwitchSubscriptionId = null;
+                row.ConduitId = null;
+                row.Status = "pending";
+                await db.SaveChangesAsync(ct);
+            }
+
             Result<EventSubSubscriptionDto> recreated = await SubscribeAsync(
                 broadcasterId,
                 row.EventType,
@@ -1303,6 +1920,45 @@ public sealed class TwitchEventSubHostedService
     }
 
     /// <summary>
+    /// Adds this broadcaster's conduit subscriptions to the live set reconcile compares against. A failed
+    /// app-token listing degrades to the user-token set: conduit rows then take the adopt path, as before.
+    /// </summary>
+    private async Task<(
+        List<TwitchSubscriptionResult> Live,
+        bool ConduitListed
+    )> AddConduitSubscriptionsAsync(
+        IServiceProvider services,
+        Guid broadcasterId,
+        IReadOnlyList<TwitchSubscriptionResult> userListed,
+        CancellationToken ct
+    )
+    {
+        List<TwitchSubscriptionResult> live = [.. userListed];
+        if (!_conduitMode)
+            return (live, false);
+
+        ITwitchIdentityResolver resolver = services.GetRequiredService<ITwitchIdentityResolver>();
+        string? twitchId = await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
+        if (twitchId is null)
+            return (live, false);
+
+        Result<IReadOnlyList<TwitchSubscriptionResult>> conduitListed =
+            await _transport.ListConduitSubscriptionsAsync(twitchId, ct);
+        if (conduitListed.IsFailure)
+        {
+            _logger.LogWarning(
+                "EventSub reconcile: conduit subscriptions for {BroadcasterId} could not be listed: {Error}",
+                broadcasterId,
+                conduitListed.ErrorMessage
+            );
+            return (live, false);
+        }
+
+        live.AddRange(conduitListed.Value);
+        return (live, true);
+    }
+
+    /// <summary>
     /// The registry's enabled-subscription count for one token owner's session, refreshed on that owner's
     /// last RECONNECT welcome (twitch-eventsub §7). 0 for an owner that has never welcomed (including a
     /// brand-new process, where the startup reconcile — not a welcome — subscribed the desired set).
@@ -1312,7 +1968,7 @@ public sealed class TwitchEventSubHostedService
 
     public async Task<Result> ReconnectAsync(CancellationToken ct = default)
     {
-        if (_standby)
+        if (!MayOwnSubscriptions)
             return Result.Failure(StandbyMessage, "SERVICE_UNAVAILABLE");
 
         // A WebSocket session is per-OWNER (twitch-eventsub §3.3 — Twitch forbids different users' subs on one
@@ -1432,6 +2088,23 @@ public sealed class TwitchEventSubHostedService
     /// </summary>
     private Guid? DeleteOwnerFor(string eventType, Guid broadcasterId) =>
         _conditionBuilder.RequiresBroadcasterToken(eventType) ? broadcasterId : null;
+
+    /// <summary>
+    /// Deletes a registry row's live subscription with the identity that owns it: the app for a conduit
+    /// subscription, the creating user (<see cref="DeleteOwnerFor"/>) for a WebSocket one.
+    /// </summary>
+    private Task<Result> DeleteAtTwitchAsync(
+        EventSubSubscription row,
+        string twitchSubscriptionId,
+        CancellationToken ct
+    ) =>
+        row.ConduitId is not null
+            ? _transport.DeleteConduitSubscriptionAsync(twitchSubscriptionId, ct)
+            : _transport.DeleteSubscriptionAsync(
+                twitchSubscriptionId,
+                DeleteOwnerFor(row.EventType, row.BroadcasterId),
+                ct
+            );
 
     /// <summary>
     /// Deletes THIS owner's subscriptions still registered at Twitch under a DEAD WebSocket session before

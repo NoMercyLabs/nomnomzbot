@@ -8779,6 +8779,60 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("EventSubConduitShards");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubInboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EventJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MessageId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("MessageTimestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SubscriptionType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SubscriptionVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TwitchBroadcasterUserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EventSubInboxMessage_MessageId");
+
+                    b.HasIndex("ReceivedAt", "Id")
+                        .HasDatabaseName("IX_EventSubInboxMessage_ReceivedAt_Id");
+
+                    b.ToTable("EventSubInboxMessages");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Platform.Entities.EventSubSubscription", b =>
                 {
                     b.Property<Guid>("Id")

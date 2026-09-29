@@ -535,6 +535,14 @@ try
         .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["db", "ready"])
         .AddCheck<EventSubReadinessHealthCheck>("eventsub", tags: ["eventsub"]);
 
+    // The one EventSub fact that IS a serving prerequisite during a deploy: the incoming instance's conduit
+    // shard is bound. A start-up latch with a bounded wait (twitch-eventsub §10), never a live signal, so it
+    // cannot pull a running instance out of the proxy pool the way the check above would.
+    healthChecks.AddCheck<EventSubHandoverReadinessHealthCheck>(
+        "eventsub-handover",
+        tags: ["eventsub", "ready"]
+    );
+
     // Zero-downtime deploys (Z4): the moment graceful shutdown starts, /health/ready must fail so the
     // reverse proxy stops routing new traffic here — while /health/live (untouched by this check) stays
     // healthy so in-flight and already-routed requests keep draining for the configured shutdown window.
