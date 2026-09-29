@@ -86,6 +86,8 @@ data class TimerSummary(
     val messageCount: Int = 0,
     // ISO-8601 UTC instant (matches TimerListItem.LastFiredAt), null when the timer has never fired.
     val lastFiredAt: String? = null,
+    // True when the timer was installed from a platform template, so it can be restored to it.
+    val hasPlatformDefault: Boolean = false,
 )
 
 /**

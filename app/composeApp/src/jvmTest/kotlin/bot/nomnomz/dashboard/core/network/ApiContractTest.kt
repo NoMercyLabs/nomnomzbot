@@ -60,6 +60,8 @@ class ApiContractTest {
             ViewerOption.serializer() to "ViewerOptionDto",
             CommandSummary.serializer() to "CommandDto",
             CommandPreset.serializer() to "CommandPresetDto",
+            PlatformDefaultPreview.serializer() to "PlatformDefaultPreviewDto",
+            PlatformDefaultChange.serializer() to "PlatformDefaultChangeDto",
             CreateCommandBody.serializer() to "CreateCommandDto",
             UpdateCommandBody.serializer() to "UpdateCommandDto",
             TimerSummary.serializer() to "TimerListItem",

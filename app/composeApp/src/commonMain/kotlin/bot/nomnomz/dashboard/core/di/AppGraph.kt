@@ -133,6 +133,8 @@ import bot.nomnomz.dashboard.core.network.TenantMembersApi
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
+import bot.nomnomz.dashboard.core.network.RestRestoreDefaultsApi
+import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.PlatformIamApiImpl
@@ -433,6 +435,7 @@ class AppGraph {
     val platformDefaultsApi: PlatformDefaultsApi = RestPlatformDefaultsApi(apiClient)
     val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
     val platformTemplatesApi: PlatformTemplatesApi = PlatformTemplatesApiImpl(apiClient)
+    val restoreDefaultsApi: RestoreDefaultsApi = RestRestoreDefaultsApi(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
     val obsApi: ObsApi = RestObsApi(apiClient)
     val vtsApi: VtsApi = RestVtsApi(apiClient)
@@ -603,6 +606,7 @@ class AppGraph {
             platformTemplatesApi = platformTemplatesApi,
             feedback = feedbackController,
             resourceLimits = billingApi::resourceLimits,
+            restoreDefaultsApi = restoreDefaultsApi,
         )
 
     val moderationController: ModerationController =
