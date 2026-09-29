@@ -357,6 +357,7 @@ class ApiContractTest {
             TtsVoiceCandidate.serializer() to "TtsVoiceCandidateDto",
             TtsVoiceDefaultChange.serializer() to "TtsVoiceDefaultChange",
             SetTtsVoiceDefaultRequest.serializer() to "SetTtsVoiceDefaultRequest",
+            BuiltinCommand.serializer() to "BuiltinCommandDto",
         )
 
     @Test
