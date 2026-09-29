@@ -221,6 +221,8 @@ data class PipelineSummary(
      * argument editor.
      */
     val parameterNames: List<String>? = null,
+    // True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to that default.
+    val hasPlatformDefault: Boolean = false,
 )
 
 /**

@@ -911,6 +911,7 @@ class AppGraph {
             quotesApi = quotesApi,
             pipelineOptionsApi = pipelineOptionsApi,
             feedback = feedbackController,
+            restoreDefaultsApi = restoreDefaultsApi,
         )
 
     val pipelineExecutionHistoryController: bot.nomnomz.dashboard.feature.pipelines.state.PipelineExecutionHistoryController =
