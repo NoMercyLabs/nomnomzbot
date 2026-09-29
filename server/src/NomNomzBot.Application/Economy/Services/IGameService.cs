@@ -33,6 +33,17 @@ public interface IGameService
     );
 
     /// <summary>
+    /// Puts one built-in game's settings back on the platform defaults (odds, payout, bet limits, cooldown floor,
+    /// permission, 18+ gate off, no custom knobs) and keeps whether it is on or off. <c>NOT_FOUND</c> when the
+    /// channel has no config for <paramref name="gameType"/> or the game has no platform default.
+    /// </summary>
+    Task<Result<GameConfigDto>> ResetGameAsync(
+        Guid broadcasterId,
+        string gameType,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Settles one play: loads the config (<c>GAMBLING_DISABLED</c> if disabled); when (and only when)
     /// <c>Requires18Plus</c>, verifies the 18+ gate (<c>AGE_CONSENT_REQUIRED</c>); checks the permission floor,
     /// bet range (<c>BET_OUT_OF_RANGE</c>), and cooldown (<c>ON_COOLDOWN</c>); debits the bet

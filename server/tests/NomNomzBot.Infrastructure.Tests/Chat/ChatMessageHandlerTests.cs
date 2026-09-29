@@ -26,6 +26,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
+using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -111,6 +112,113 @@ public sealed class ChatMessageHandlerTests
                 BuiltinResponse,
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    // ─── Channel settings for a built-in (commands-pipelines.md §4.5) ─────────────────────────────────
+    // Each test starts from the stored OverridesJson blob the dashboard writes, projects it through the
+    // registry's real row loader (ChannelRegistry.ApplyBuiltinRow), then runs the chat command — so the chain
+    // "saved on the dashboard → what the chat command does" is proven, not a hand-set cache.
+
+    [Fact]
+    public async Task A_channel_permission_floor_on_a_builtin_stops_a_viewer_below_it()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ChannelRegistry.ApplyBuiltinRow(ctx, BuiltinKey, true, """{"minPermissionLevel":2}""");
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        // The catalogue says Everyone; the channel raised it to Subscriber — a plain viewer gets no answer.
+        await chat.DidNotReceive()
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_channel_permission_floor_on_a_builtin_lets_a_viewer_at_it_through()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ChannelRegistry.ApplyBuiltinRow(ctx, BuiltinKey, true, """{"minPermissionLevel":2}""");
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
+
+        await sut.HandleAsync(
+            MessageEvent($"!{BuiltinKey}", isSubscriber: true),
+            CancellationToken.None
+        );
+
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_channel_cooldown_on_a_builtin_replaces_the_catalogue_cooldown()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ChannelRegistry.ApplyBuiltinRow(ctx, BuiltinKey, true, """{"cooldownSeconds":45}""");
+        ICooldownManager cooldowns = Substitute.For<ICooldownManager>();
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = BuildWithBus(
+            ctx,
+            cooldowns: cooldowns
+        );
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        // The stub's catalogue cooldown is 0 (none) — the channel's 45 s is what gets armed.
+        cooldowns
+            .Received(1)
+            .SetCooldown(Broadcaster.ToString(), BuiltinKey, TimeSpan.FromSeconds(45));
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Without_channel_settings_a_builtin_arms_no_cooldown_and_answers_everyone()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ChannelRegistry.ApplyBuiltinRow(ctx, BuiltinKey, true, null);
+        ICooldownManager cooldowns = Substitute.For<ICooldownManager>();
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = BuildWithBus(
+            ctx,
+            cooldowns: cooldowns
+        );
+
+        await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
+
+        cooldowns.DidNotReceiveWithAnyArgs().SetCooldown(default!, default!, default);
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void A_stored_floor_below_the_catalogue_floor_never_lowers_it()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ChannelRegistry.ApplyBuiltinRow(ctx, "whisper", true, """{"minPermissionLevel":0}""");
+
+        ctx.BuiltinMinPermissionLevel("whisper", catalogDefault: 10).Should().Be(10);
     }
 
     [Fact]
@@ -2293,7 +2401,11 @@ public sealed class ChatMessageHandlerTests
         ChatMessageHandler Sut,
         IInboundOriginChatSender Chat,
         IEventBus Bus
-    ) BuildWithBus(ChannelContext ctx, IBuiltinResponseComposer? composer = null)
+    ) BuildWithBus(
+        ChannelContext ctx,
+        IBuiltinResponseComposer? composer = null,
+        ICooldownManager? cooldowns = null
+    )
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -2326,7 +2438,7 @@ public sealed class ChatMessageHandlerTests
         ChatMessageHandler sut = new(
             registry,
             Substitute.For<IServiceScopeFactory>(),
-            Substitute.For<ICooldownManager>(),
+            cooldowns ?? Substitute.For<ICooldownManager>(),
             chat,
             Substitute.For<IPipelineEngine>(),
             builtins,
@@ -2342,7 +2454,10 @@ public sealed class ChatMessageHandlerTests
         return (sut, chat, bus);
     }
 
-    private static ChatMessageReceivedEvent MessageEvent(string message) =>
+    private static ChatMessageReceivedEvent MessageEvent(
+        string message,
+        bool isSubscriber = false
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
@@ -2354,7 +2469,7 @@ public sealed class ChatMessageHandlerTests
             Message = message,
             Fragments = [],
             Badges = [],
-            IsSubscriber = false,
+            IsSubscriber = isSubscriber,
             IsVip = false,
             IsModerator = false,
             IsBroadcaster = false,

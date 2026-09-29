@@ -100,22 +100,83 @@ public sealed class GameService(
 
     private static List<GameConfig> SeedDefaultGames(Guid broadcasterId) =>
         [
-            .. DefaultGames.Select(g => new GameConfig
+            .. DefaultGames.Select(g =>
             {
-                BroadcasterId = broadcasterId,
-                GameType = g.GameType,
-                Category = g.Category,
-                IsEnabled = false,
-                Requires18Plus = false,
-                WinChancePercent = g.WinChance,
-                HouseEdgePercent = g.HouseEdge,
-                PayoutMultiplier = g.PayoutMultiplier,
-                // Gambling seeds at the safe floor (never 0); minigames need no cooldown.
-                CooldownSeconds =
-                    g.Category == GameCategory.Gambling ? GamblingCooldownFloorSeconds : 0,
-                Permission = "Everyone",
+                GameConfig game = new()
+                {
+                    BroadcasterId = broadcasterId,
+                    GameType = g.GameType,
+                    IsEnabled = false,
+                };
+                ApplyDefaults(game, g);
+                return game;
             }),
         ];
+
+    /// <summary>
+    /// Writes one catalog entry's default settings onto a config — the single definition both the first-list
+    /// seed and a reset use, so a reset can never restore something the seed would not have written.
+    /// Leaves <see cref="GameConfig.IsEnabled"/> alone.
+    /// </summary>
+    private static void ApplyDefaults(
+        GameConfig game,
+        (
+            string GameType,
+            GameCategory Category,
+            decimal? WinChance,
+            decimal? HouseEdge,
+            decimal? PayoutMultiplier
+        ) defaults
+    )
+    {
+        game.Category = defaults.Category;
+        game.Requires18Plus = false;
+        game.MinBet = null;
+        game.MaxBet = null;
+        game.WinChancePercent = defaults.WinChance;
+        game.HouseEdgePercent = defaults.HouseEdge;
+        game.PayoutMultiplier = defaults.PayoutMultiplier;
+        // Gambling seeds at the safe floor (never 0); minigames need no cooldown.
+        game.CooldownSeconds =
+            defaults.Category == GameCategory.Gambling ? GamblingCooldownFloorSeconds : 0;
+        game.MaxPlaysPerStream = null;
+        game.Permission = nameof(CommunityStanding.Everyone);
+        game.ConfigJson = null;
+    }
+
+    public async Task<Result<GameConfigDto>> ResetGameAsync(
+        Guid broadcasterId,
+        string gameType,
+        CancellationToken ct = default
+    )
+    {
+        int index = Array.FindIndex(
+            DefaultGames,
+            g => string.Equals(g.GameType, gameType, StringComparison.OrdinalIgnoreCase)
+        );
+        if (index < 0)
+            return Result.Failure<GameConfigDto>(
+                $"'{gameType}' has no platform default to reset to.",
+                "NOT_FOUND"
+            );
+
+        GameConfig? game = await db.GameConfigs.FirstOrDefaultAsync(
+            g =>
+                g.BroadcasterId == broadcasterId
+                && g.GameType == DefaultGames[index].GameType
+                && g.DeletedAt == null,
+            ct
+        );
+        if (game is null)
+            return Result.Failure<GameConfigDto>(
+                $"This channel has no '{gameType}' game.",
+                "NOT_FOUND"
+            );
+
+        ApplyDefaults(game, DefaultGames[index]);
+        await db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(game));
+    }
 
     public async Task<Result<GameConfigDto>> UpsertGameAsync(
         Guid broadcasterId,

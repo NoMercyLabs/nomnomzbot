@@ -300,4 +300,111 @@ public sealed class GameServiceTests
         // … but the dashboard is told the value actually enforced (the 5-minute floor), never a misleading 0.
         result.Value.CooldownSeconds.Should().Be(300);
     }
+
+    // ─── ResetGameAsync — a channel's game back on the platform defaults ─────────────────────────────
+
+    private static UpsertGameConfigRequest CustomCoinflip() =>
+        new(
+            "coinflip",
+            "gambling",
+            IsEnabled: true,
+            Requires18Plus: true,
+            MinBet: 10,
+            MaxBet: 50,
+            HouseEdgePercent: 1,
+            WinChancePercent: 70,
+            PayoutMultiplier: 3,
+            CooldownSeconds: 900,
+            MaxPlaysPerStream: 2,
+            Permission: "Subscriber",
+            Config: new Dictionary<string, object?> { ["flavour"] = "gold" }
+        );
+
+    [Fact]
+    public async Task Reset_puts_every_setting_back_on_the_default_and_keeps_the_game_on()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
+        (await sut.ListGamesAsync(Channel)).IsSuccess.Should().BeTrue(); // the first list seeds the catalog
+        (await sut.UpsertGameAsync(Channel, CustomCoinflip())).IsSuccess.Should().BeTrue();
+
+        Result<GameConfigDto> result = await sut.ResetGameAsync(Channel, "coinflip");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        GameConfigDto dto = result.Value;
+        dto.IsEnabled.Should().BeTrue("a reset changes the settings, never whether the game is on");
+        dto.Requires18Plus.Should().BeFalse();
+        dto.MinBet.Should().BeNull();
+        dto.MaxBet.Should().BeNull();
+        dto.WinChancePercent.Should().Be(50m);
+        dto.HouseEdgePercent.Should().Be(5m);
+        dto.PayoutMultiplier.Should().Be(1.9m);
+        dto.CooldownSeconds.Should().Be(300);
+        dto.MaxPlaysPerStream.Should().BeNull();
+        dto.Permission.Should().Be("Everyone");
+        dto.Config.Should().BeNull();
+
+        db.ChangeTracker.Clear();
+        GameConfig row = db.GameConfigs.Single(g =>
+            g.BroadcasterId == Channel && g.GameType == "coinflip"
+        );
+        row.WinChancePercent.Should().Be(50m);
+        row.Permission.Should().Be("Everyone");
+        row.ConfigJson.Should().BeNull();
+        db.GameConfigs.Count(g => g.BroadcasterId == Channel && g.GameType == "coinflip")
+            .Should()
+            .Be(1, "a reset edits the channel's row, it never adds a second one");
+    }
+
+    [Fact]
+    public async Task After_a_reset_a_viewer_below_the_old_permission_can_play_again()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, _, _) = New(database, roll: 0.1);
+        (await sut.ListGamesAsync(Channel)).IsSuccess.Should().BeTrue();
+        GameConfigDto custom = (
+            await sut.UpsertGameAsync(Channel, CustomCoinflip() with { Requires18Plus = false })
+        ).Value;
+
+        // Role level 0 (Everyone) is below the channel's Subscriber floor.
+        (await sut.PlayAsync(Channel, new(custom.Id, Player, 10, 0)))
+            .IsFailure.Should()
+            .BeTrue();
+
+        (await sut.ResetGameAsync(Channel, "coinflip")).IsSuccess.Should().BeTrue();
+
+        (await sut.PlayAsync(Channel, new(custom.Id, Player, 10, 0)))
+            .IsSuccess.Should()
+            .BeTrue("the default permission is Everyone");
+    }
+
+    [Fact]
+    public async Task Listing_again_never_overwrites_a_channel_edit()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, _, _) = New(database, roll: 0.1);
+        (await sut.ListGamesAsync(Channel)).IsSuccess.Should().BeTrue();
+        (await sut.UpsertGameAsync(Channel, CustomCoinflip())).IsSuccess.Should().BeTrue();
+
+        IReadOnlyList<GameConfigDto> listed = (await sut.ListGamesAsync(Channel)).Value;
+
+        GameConfigDto coinflip = listed.Single(g => g.GameType == "coinflip");
+        coinflip.WinChancePercent.Should().Be(70m);
+        coinflip.Permission.Should().Be("Subscriber");
+        listed.Count(g => g.GameType == "coinflip").Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("coinflip")] // a catalog game the channel has no row for yet
+    [InlineData("my_custom_game")] // not a catalog game at all
+    public async Task Reset_without_a_row_or_a_default_is_not_found(string gameType)
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (GameService sut, EventStoreTestDbContext db, _) = New(database, roll: 0.1);
+
+        Result<GameConfigDto> result = await sut.ResetGameAsync(Channel, gameType);
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        db.GameConfigs.Any().Should().BeFalse();
+    }
 }

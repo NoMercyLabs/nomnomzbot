@@ -50,6 +50,71 @@ public sealed class BuiltinsController : BaseController
     }
 
     /// <summary>
+    /// One built-in as the channel sees it: its defaults, the channel's own cooldown / permission / TTS settings,
+    /// and how many reworded replies a reset would put back.
+    /// </summary>
+    [RequireAction("commands:read")]
+    [HttpGet("{builtinKey}")]
+    [ProducesResponseType<StatusResponseDto<BuiltinCommandDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetBuiltin(
+        string channelId,
+        string builtinKey,
+        CancellationToken ct
+    )
+    {
+        Result<BuiltinCommandDto> result = await _builtins.GetAsync(channelId, builtinKey, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Sets the channel's cooldown (0–3600 s) and permission floor for a built-in. A null field, or a value equal
+    /// to the default, inherits the default. The floor can be raised but never lowered below the built-in's own
+    /// (400); reserved data-rights built-ins cannot be changed (400).
+    /// </summary>
+    [RequireAction("commands:write")]
+    [HttpPut("{builtinKey}/settings")]
+    [ProducesResponseType<StatusResponseDto<BuiltinCommandDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateSettings(
+        string channelId,
+        string builtinKey,
+        [FromBody] UpdateBuiltinSettingsRequest body,
+        CancellationToken ct
+    )
+    {
+        Result<BuiltinCommandDto> result = await _builtins.UpdateSettingsAsync(
+            channelId,
+            builtinKey,
+            new BuiltinSettingsUpdate(body.CooldownSeconds, body.MinPermissionLevel),
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Resets a built-in to its defaults for the channel: enabled, TTS off, default cooldown and permission, and
+    /// the default wording for every reply it speaks with. Returns the built-in as it now resolves.
+    /// </summary>
+    [NotDestructive(
+        "Clears one built-in's per-channel settings (OverridesJson + the enabled flag); the catalogue defaults take over, nothing references the cleared values, and every setting can be set again at any time. The dashboard shows what will be reset before it confirms."
+    )]
+    [RequireAction("commands:write")]
+    [HttpDelete("{builtinKey}/settings")]
+    [ProducesResponseType<StatusResponseDto<BuiltinCommandDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetBuiltin(
+        string channelId,
+        string builtinKey,
+        CancellationToken ct
+    )
+    {
+        Result<BuiltinCommandDto> result = await _builtins.ResetAsync(channelId, builtinKey, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
     /// Enables or disables a specific built-in command for the channel.
     /// </summary>
     [RequireAction("commands:write")]
@@ -163,3 +228,6 @@ public sealed record SetBuiltinEnabledRequest(bool Enabled);
 public sealed record SetBuiltinReplyRequest(string? Template);
 
 public sealed record SetBuiltinSpeakWithTtsRequest(bool Enabled);
+
+/// <summary>The channel's cooldown and permission floor for a built-in; null = use the default.</summary>
+public sealed record UpdateBuiltinSettingsRequest(int? CooldownSeconds, string? MinPermissionLevel);

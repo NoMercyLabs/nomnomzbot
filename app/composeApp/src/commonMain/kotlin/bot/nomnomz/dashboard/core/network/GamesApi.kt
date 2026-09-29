@@ -38,6 +38,12 @@ interface GamesApi {
     /** Upsert a game's config (full PUT, addressed by [UpsertGameConfigBody.gameType]). */
     suspend fun upsert(channelId: String, body: UpsertGameConfigBody): ApiResult<Unit>
 
+    /**
+     * Put one game's settings back on the platform defaults (backend `POST games/{gameType}/reset`); whether the
+     * game is on or off is kept.
+     */
+    suspend fun reset(channelId: String, gameType: String): ApiResult<Unit>
+
     /** Paginated game-play history for this channel (Moderator+). Optionally filter by game or player. */
     suspend fun history(channelId: String, page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<GamePlayEntry>>
 
@@ -71,6 +77,9 @@ class RestGamesApi(private val client: ApiClient) : GamesApi {
     // every write, so the body is irrelevant here — any 2xx is success.
     override suspend fun upsert(channelId: String, body: UpsertGameConfigBody): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/economy/games", body)
+
+    override suspend fun reset(channelId: String, gameType: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/games/$gameType/reset")
 
     override suspend fun history(
         channelId: String,

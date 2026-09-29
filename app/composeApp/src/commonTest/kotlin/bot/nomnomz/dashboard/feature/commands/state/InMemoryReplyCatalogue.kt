@@ -23,9 +23,11 @@ import bot.nomnomz.dashboard.core.network.LocalizedTextDto
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 
 /**
- * A reply catalogue that behaves like the backend's (commands-pipelines.md §11): a slot's effective text is the
- * channel's own text when set, else its default; a template naming a variable the slot does not have is refused
- * with a validation error. Records every write so a test can assert what reached the "server".
+ * The channel's built-ins as the backend keeps them (commands-pipelines.md §4.5 + §11). Replies: a slot's
+ * effective text is the channel's own text when set, else its default; a template naming a variable the slot does
+ * not have is refused. Settings: a cooldown outside 0–3600 or a floor below the built-in's own is refused, a value
+ * equal to the default stores nothing, and a reset puts every setting and every reply of the group back. Records
+ * every write so a test can assert what reached the "server".
  */
 internal class InMemoryReplyCatalogue : BuiltinsApi {
     val writes: MutableList<String> = mutableListOf()
@@ -37,13 +39,71 @@ internal class InMemoryReplyCatalogue : BuiltinsApi {
             Triple("system", emptyList(), listOf("permissiondenied" to "You don't have permission to use that command.")),
         )
 
-    override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> = ApiResult.Ok(emptyList())
+    // The catalogue defaults: !sr for everyone every 5 s, !whisper moderator-only (a safety floor).
+    private val catalogue: List<BuiltinCommand> =
+        listOf(
+            BuiltinCommand("sr", "!sr", defaultCooldownSeconds = 5, defaultMinPermissionLevel = "Everyone", replyGroup = "sr"),
+            BuiltinCommand("whisper", "!whisper", defaultCooldownSeconds = 3, defaultMinPermissionLevel = "Moderator", replyGroup = "whisper"),
+        )
+    private val settings: MutableMap<String, BuiltinCommand> = catalogue.associateBy { it.builtinKey }.toMutableMap()
 
-    override suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> =
+        ApiResult.Ok(catalogue.map { resolve(it.builtinKey) })
 
-    override suspend fun setSpeakWithTts(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun get(channelId: String, builtinKey: String): ApiResult<BuiltinCommand> =
+        if (builtinKey in settings) ApiResult.Ok(resolve(builtinKey)) else notFound(builtinKey)
+
+    override suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> {
+        writes += "enabled $builtinKey=$enabled"
+        settings[builtinKey] = settings.getValue(builtinKey).copy(isEnabled = enabled)
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun setSpeakWithTts(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> {
+        writes += "tts $builtinKey=$enabled"
+        settings[builtinKey] = settings.getValue(builtinKey).copy(speakWithTts = enabled)
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun updateSettings(
+        channelId: String,
+        builtinKey: String,
+        cooldownSeconds: Int?,
+        minPermissionLevel: String?,
+    ): ApiResult<BuiltinCommand> {
+        val current: BuiltinCommand = settings[builtinKey] ?: return notFound(builtinKey)
+        if (cooldownSeconds != null && cooldownSeconds !in 0..3600) return invalid("A cooldown must be between 0 and 3600 seconds.")
+        val rungs: List<String> = listOf("Everyone", "Subscriber", "Vip", "Artist", "Moderator", "LeadModerator", "Editor", "Broadcaster")
+        if (minPermissionLevel != null && rungs.indexOf(minPermissionLevel) < rungs.indexOf(current.defaultMinPermissionLevel)) {
+            return invalid("!$builtinKey needs at least ${current.defaultMinPermissionLevel} — that floor cannot be lowered.")
+        }
+        writes += "settings $builtinKey cooldown=$cooldownSeconds permission=$minPermissionLevel"
+        settings[builtinKey] =
+            current.copy(
+                cooldownSecondsOverride = cooldownSeconds?.takeIf { it != current.defaultCooldownSeconds },
+                minPermissionLevelOverride = minPermissionLevel?.takeIf { it != current.defaultMinPermissionLevel },
+            )
+        return ApiResult.Ok(resolve(builtinKey))
+    }
+
+    override suspend fun reset(channelId: String, builtinKey: String): ApiResult<BuiltinCommand> {
+        val current: BuiltinCommand = settings[builtinKey] ?: return notFound(builtinKey)
+        writes += "reset $builtinKey"
+        settings[builtinKey] = catalogue.first { it.builtinKey == builtinKey }
+        own.keys.removeAll { it.first == current.replyGroup }
+        return ApiResult.Ok(resolve(builtinKey))
+    }
+
+    private fun resolve(builtinKey: String): BuiltinCommand {
+        val stored: BuiltinCommand = settings.getValue(builtinKey)
+        return stored.copy(replyOverrideCount = own.keys.count { it.first == stored.replyGroup })
+    }
+
+    private fun notFound(builtinKey: String): ApiResult.Failure =
+        ApiResult.Failure(ApiError(status = 404, code = "NOT_FOUND", message = "Unknown built-in command '$builtinKey'."))
+
+    private fun invalid(message: String): ApiResult.Failure =
+        ApiResult.Failure(ApiError(status = 400, code = "VALIDATION_FAILED", message = message))
 
     override suspend fun replies(channelId: String): ApiResult<List<BuiltinReplyGroup>> =
         ApiResult.Ok(

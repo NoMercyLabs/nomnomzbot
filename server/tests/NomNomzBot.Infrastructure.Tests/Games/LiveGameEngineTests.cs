@@ -217,6 +217,12 @@ public sealed class LiveGameEngineTests
             CancellationToken ct = default
         ) => inner.UpsertGameAsync(broadcasterId, request, ct);
 
+        public Task<Result<GameConfigDto>> ResetGameAsync(
+            Guid broadcasterId,
+            string gameType,
+            CancellationToken ct = default
+        ) => inner.ResetGameAsync(broadcasterId, gameType, ct);
+
         public Task<Result<GamePlayResultDto>> PlayAsync(
             Guid broadcasterId,
             PlayGameRequest request,
