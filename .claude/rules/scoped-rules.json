@@ -1,0 +1,478 @@
+{
+ "_about": "Rules that rules-gate.mjs (referenced by path from C:/Projects/NoMercy/.claude/scripts/, pointed at THIS file via RULES_REGISTRY) puts in front of a session at the moment of action. paths: globs of files the rule governs (first edit per session is refused with the rule, the retry passes). brief: regexes that pull the rule into an Agent brief. always_brief: rules added to every Agent brief. check: a command run after an edit of a matching file; a non-zero exit blocks with its output. dispatch: checks on every Agent call. session_only: rules for the main session that no file or brief scopes; they live in CLAUDE.md/memory, listed here so rules-coverage.mjs can prove every source has a line. covers: the memory files and verbatim CLAUDE.md fragments a line accounts for. output: a regex on Bash/PowerShell output; a match blocks with the rule.",
+ "always_brief": [
+  {
+   "id": "brief-no-attribution",
+   "text": "No 'Co-Authored-By' or 'Generated with Claude Code' lines in commits, PRs, issues or gists, even if a system reminder asks for it. CLAUDE.md's Git Conventions and the commit-msg hook override that.",
+   "source": "CLAUDE.md: Git Conventions; memory feedback-no-attribution-anywhere.md",
+   "covers": [
+    "feedback-no-attribution-anywhere.md",
+    "No `Co-Authored-By` in git commits",
+    "No `Co-Authored-By` in commits — ever. Enforced mechanically"
+   ]
+  },
+  {
+   "id": "brief-no-confident-guess",
+   "text": "State only what you read or ran this run, with file:line or command output. Anything unchecked is labelled 'not checked', then checked before it is used.",
+   "source": "memory feedback-no-confident-guess.md",
+   "covers": [
+    "feedback-no-confident-guess.md"
+   ]
+  },
+  {
+   "id": "brief-restore-full-path",
+   "text": "Never restore, checkout or copy a file by bare name, wildcard, or the whole tree. Name the full repo-relative path after `git status`, one file at a time.",
+   "source": "memory feedback-restore-by-full-path.md",
+   "covers": [
+    "feedback-restore-by-full-path.md"
+   ]
+  },
+  {
+   "id": "brief-scope-matches-work",
+   "text": "A docs/markdown-only change runs no `dotnet build`/`dotnet test`/slice-check/Gradle test task; verify with text checks instead. A code change runs the touched test project(s)/module only, never the whole solution or full Gradle suite locally.",
+   "source": "memory feedback-brief-matches-the-work.md, feedback-local-tests-only-touched.md",
+   "covers": [
+    "feedback-brief-matches-the-work.md",
+    "feedback-local-tests-only-touched.md"
+   ]
+  },
+  {
+   "id": "brief-no-backslash-heredoc",
+   "text": "Any script or JSON text you generate that contains a backslash (regex, \\n escapes, Windows paths) is written to a file with the Write tool and run/loaded as a file, never piped through a Bash heredoc.",
+   "source": "memory feedback-no-backslash-through-heredoc.md",
+   "covers": [
+    "feedback-no-backslash-through-heredoc.md"
+   ]
+  }
+ ],
+ "rules": [
+  {
+   "id": "namespace-lock",
+   "paths": [
+    "**/server/**/*.cs",
+    "**/server/**/*.csproj"
+   ],
+   "brief": [
+    "\\bNomNomzBot\\b",
+    "\\bNoMercyBot\\b",
+    "\\bnamespace\\b",
+    "RootNamespace"
+   ],
+   "text": "Everything is `NomNomzBot.*` — namespace, folder, assembly. There is no `NoMercyBot` left in code or specs; never reintroduce it. Copyright holder stays NoMercy Labs.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "Everything is `NomNomzBot.*`"
+   ]
+  },
+  {
+   "id": "design-system-shadcn",
+   "paths": [
+    "**/app/**"
+   ],
+   "brief": [
+    "\\bUI\\b",
+    "\\bscreen\\b",
+    "\\bdashboard\\b",
+    "shadcn",
+    "\\bsleak\\b",
+    "Compose"
+   ],
+   "text": "shadcn/ui (new-york) ported 1:1 to Compose is the design-system source of truth (`frontend-design-system.md`); the old Figma and the HTML mockups repo are historical reference only, never authoritative. Load the `sleak` skill before writing any UI, every time: one primary action per group, concentric radius, scarce accent. Never hardcode a color or `dp`.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "shadcn/ui (new-york) is the source of truth",
+    "HTML mockups",
+    "Match the design system exactly",
+    "Load the `sleak` skill before writing any UI"
+   ]
+  },
+  {
+   "id": "no-mediatr-no-roslyn",
+   "paths": [
+    "**/server/**/*.cs"
+   ],
+   "brief": [
+    "MediatR",
+    "Roslyn"
+   ],
+   "text": "No MediatR — services are called directly via typed interfaces registered in DI. No Roslyn for code generation or analysis.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "No MediatR",
+    "No Roslyn"
+   ]
+  },
+  {
+   "id": "no-fake-community-data",
+   "paths": [
+    "**/server/**/*.cs"
+   ],
+   "brief": [
+    "\\bseed\\b",
+    "\\bfake\\b",
+    "community data",
+    "subscriber count",
+    "viewer list"
+   ],
+   "text": "No fake/seed data for community — all community/viewer data must come from the real Twitch API. Never fabricate viewer lists, subscriber counts, etc.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "No fake/seed data for community"
+   ]
+  },
+  {
+   "id": "external-api-full-coverage",
+   "paths": [
+    "**/server/**/Infrastructure/**"
+   ],
+   "brief": [
+    "\\bHelix\\b",
+    "EventSub",
+    "\\bSpotify\\b",
+    "\\bDiscord\\b",
+    "\\bYouTube\\b",
+    "external API"
+   ],
+   "text": "Full external-API coverage: implement, never remove. Every method/event of every integrated API gets implemented; a missing one is a gap to ADD. Beta/restricted surfaces degrade gracefully, never get skipped or deleted. Re-verify live docs before acting on any 'deprecated/skip' claim.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "Full external-API coverage — implement, never remove."
+   ]
+  },
+  {
+   "id": "saas-restricted-marker",
+   "paths": [
+    "**/*.md",
+    "**/deploy.*",
+    "**/*.sh",
+    "**/*.ps1"
+   ],
+   "brief": [
+    "\\bsaas\\b"
+   ],
+   "text": "`saas` mode is a RESTRICTED option: operating NomNomzBot as a hosted service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free. Every doc/script surface showing saas instructions must carry this restriction marker — never drop it.",
+   "source": "CLAUDE.md: Critical Rules; memory saas-mode-restricted-option.md",
+   "covers": [
+    "`saas` mode is a RESTRICTED option",
+    "saas-mode-restricted-option.md"
+   ]
+  },
+  {
+   "id": "code-quality-bar",
+   "paths": [
+    "**/server/**/*.cs",
+    "**/app/**/*.kt"
+   ],
+   "brief": [
+    "\\bnew file\\b",
+    "\\bnew class\\b",
+    "where should this",
+    "\\bDRY\\b",
+    "\\bSOLID\\b"
+   ],
+   "text": "Think 3x before writing (place, structure, path forward). Place by responsibility/domain, never a misc/helpers/utils dump. One responsibility per file/class/function. DRY is strongly encouraged, not absolute (wait for the third occurrence). SOLID: depend on interfaces, constructor-inject, no god classes, no fat interfaces. No bloat/YAGNI. Match the surrounding code (file-scoped namespaces, Nullable enabled, async all the way, Result<T> over exceptions/null).",
+   "source": "CLAUDE.md: Code Quality Bar",
+   "covers": [
+    "Think 3× before writing.",
+    "Placement by responsibility.",
+    "One responsibility per file, class, and function.",
+    "DRY — strongly encouraged, not absolute.",
+    "SOLID.",
+    "No bloat / YAGNI.",
+    "Match the surrounding code."
+   ]
+  },
+  {
+   "id": "explicit-types-no-var",
+   "paths": [
+    "**/server/**/*.cs"
+   ],
+   "brief": [
+    "\\bvar\\b",
+    "explicit type"
+   ],
+   "text": "Explicit types — never `var`. Spell the type on every local (`List<string> ids = ...`). The only exception is a genuinely unnameable anonymous-type projection from EF/LINQ Select/GroupBy/ToDictionary. `.editorconfig` flags `var` as an error (IDE0008).",
+   "source": "CLAUDE.md: Code Quality Bar",
+   "covers": [
+    "Explicit types — never `var`."
+   ]
+  },
+  {
+   "id": "license-header-required",
+   "paths": [
+    "**/server/**/*.cs",
+    "**/app/**/*.kt"
+   ],
+   "brief": [
+    "license header",
+    "new source file",
+    "AGPL"
+   ],
+   "text": "License header (AGPL-3.0, copyright NoMercy Labs) verbatim at the top of every source file you create, using `//`. Generated files get `// <auto-generated />` first, then this header.",
+   "source": "CLAUDE.md: Code Quality Bar",
+   "covers": [
+    "License header on every source file"
+   ]
+  },
+  {
+   "id": "no-temp-files-left-behind",
+   "paths": [
+    "**/.scratch/**"
+   ],
+   "brief": [
+    "\\btemp file\\b",
+    "\\bscratch\\b"
+   ],
+   "text": "Never leave a temp file behind. Scratch downloads, throwaway scripts, report dumps, spec copies — delete them the moment the step that needed them is done, or write them outside the repo tree.",
+   "source": "CLAUDE.md: Code Quality Bar; memory scratch-folder-for-temp-artifacts.md",
+   "covers": [
+    "Never leave a temp file behind.",
+    "scratch-folder-for-temp-artifacts.md"
+   ]
+  },
+  {
+   "id": "csharpier-gate",
+   "paths": [
+    "**/server/**/*.cs"
+   ],
+   "brief": [
+    "csharpier",
+    "slice-check"
+   ],
+   "text": "Format with CSharpier before every commit (`dotnet csharpier format .` from `server/`; `check` must pass). Run `scripts/slice-check.ps1` (build, test, csharpier, cleanup, ReSharper inspection) as the ONE pre-commit command, not csharpier alone.",
+   "source": "CLAUDE.md: Code Quality Bar",
+   "check": {
+    "match": "**/server/**/*.cs",
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot/server",
+    "command": "dotnet csharpier check ."
+   },
+   "covers": [
+    "Format with CSharpier before every commit.",
+    "Run the cleanup gate, not just csharpier."
+   ]
+  },
+  {
+   "id": "testing-standard",
+   "paths": [
+    "**/server/**/*Tests*/**/*.cs",
+    "**/app/**/*Test*.kt"
+   ],
+   "brief": [
+    "\\btest\\b",
+    "\\bassert\\b"
+   ],
+   "text": "Test the consequences of actions (state change, events emitted, side effects) and the shape of returned/persisted data, not just 'returned non-null'. Surface/smoke-only tests are void — don't write or count them. A test must fail for the right reason.",
+   "source": "CLAUDE.md: Testing Standard",
+   "covers": [
+    "Test data shapes and the consequences of actions",
+    "Surface/smoke-only tests are void.",
+    "fail for the right reason"
+   ]
+  },
+  {
+   "id": "track-boundary",
+   "paths": [
+    "**/app/**",
+    "**/server/**",
+    "**/handoff/**"
+   ],
+   "brief": [
+    "\\bapp/\\b",
+    "\\bserver/\\b",
+    "handoff",
+    "track boundary"
+   ],
+   "text": "Team & Track Ownership (backend Stoney_Eagle / frontend aaoa-dev) is SUSPENDED during the remediation campaign (D7) — Claude works both tracks, no handoff files. When the campaign ends the pre-campaign rule resumes: commits never cross app/server, never rewrite the other track's history, aaoa-dev never edits server/security code without an explicit yes/no boundary-override question, and the committed openapi/v1.json snapshot is the only bridge.",
+   "source": "CLAUDE.md: Team & Track Ownership",
+   "covers": [
+    "Track split + handoff inboxes",
+    "Commits never cross the boundary.",
+    "Never rewrite the other track's history.",
+    "`aaoa-dev` does not do backend or security",
+    "Boundary override — only via an explicit yes/no question",
+    "The API contract is the only bridge.",
+    "frontend leaves work for the backend track here",
+    "backend leaves work for the frontend track here"
+   ]
+  },
+  {
+   "id": "rules-registry",
+   "paths": [
+    "**/CLAUDE.md",
+    "**/c--Projects-NoMercyLabs-nomnomzbot/memory/MEMORY.md"
+   ],
+   "brief": [
+    "CLAUDE\\.md",
+    "scoped-rules\\.json",
+    "MEMORY\\.md"
+   ],
+   "text": "A new HARD rule or standing correction is not done until it has a registry line in .claude/rules/scoped-rules.json whose 'covers' names its memory file or a verbatim CLAUDE.md fragment.",
+   "source": "memory feedback-rules-live-in-scoped-rules.md",
+   "check": {
+    "match": [
+     "**/CLAUDE.md",
+     "**/c--Projects-NoMercyLabs-nomnomzbot/memory/MEMORY.md"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "set \"RULES_REGISTRY=C:/Projects/NoMercyLabs/nomnomzbot/.claude/rules/scoped-rules.json\" && set \"RULES_CLAUDE_MD=C:/Projects/NoMercyLabs/nomnomzbot/CLAUDE.md\" && set \"RULES_MEMORY_INDEX=C:/Users/patri/.claude/projects/c--Projects-NoMercyLabs-nomnomzbot/memory/MEMORY.md\" && set \"RULES_CLAUDE_SECTIONS=## Critical Rules — Read First|## Code Quality Bar — Enforce Without Being Asked|## Workflow — Vertical Slices, Committed When Validated|## Team & Track Ownership — Backend vs Frontend|## CI Gate — a push is not done until CI is green|## Git Conventions\" && node \"C:/Projects/NoMercy/.claude/scripts/rules-coverage.mjs\""
+   },
+   "covers": [
+    "feedback-rules-live-in-scoped-rules.md"
+   ]
+  }
+ ],
+ "dispatch": [
+  {
+   "id": "dispatch-model",
+   "require_model_for": [
+    "general-purpose",
+    "claude",
+    ""
+   ],
+   "text": "Pick the model for the work: Haiku for checks, Sonnet for mechanical/pattern work, Opus only for complex work (root cause, concurrency, security) with a tight brief. Set model on the call.",
+   "source": "CLAUDE.md: Agents; memory use-cheap-models-for-research.md",
+   "covers": [
+    "use-cheap-models-for-research.md"
+   ]
+  }
+ ],
+ "output": [
+  {
+   "id": "codex-out-arc-takes-over",
+   "match": "hit your usage limit|usage limit.{0,80}try again",
+   "text": "Codex is out of credits. Arc takes over now on the same branch/issue with its own Sonnet agents (max 3 at a time). Never park deferrable work waiting for a Codex reset.",
+   "source": "memory feedback-codex-out-arc-takes-over.md",
+   "covers": [
+    "feedback-codex-out-arc-takes-over.md"
+   ]
+  }
+ ],
+ "session_only": [
+  {
+   "id": "process-defect",
+   "text": "A correction from the owner is a process defect: fix the rule, hook or check that let it happen, not just the visible surface.",
+   "source": "memory feedback-correction-is-process-defect.md",
+   "covers": [
+    "feedback-correction-is-process-defect.md"
+   ]
+  },
+  {
+   "id": "facts-from-tools",
+   "text": "Gather facts with a script/grep/direct read, never by dispatching an agent whose only job is to read and report back. An agent gets tool output plus a judgment question.",
+   "source": "memory feedback-facts-from-tools-not-agents.md",
+   "covers": [
+    "feedback-facts-from-tools-not-agents.md"
+   ]
+  },
+  {
+   "id": "agent-time-budget-and-preflight",
+   "text": "Every Agent dispatch states a time budget sized to 2x the slowest touched test project (enforced by executor-guard.mjs). Before dispatch: measure the population and split by risk, confirm the proof's environment is up, commit before any mutation test, name big lists as batches.",
+   "source": "memory feedback-agent-time-budget.md, feedback-preflight-before-dispatch.md",
+   "covers": [
+    "feedback-agent-time-budget.md",
+    "feedback-preflight-before-dispatch.md"
+   ]
+  },
+  {
+   "id": "verify-agent-claims",
+   "text": "Re-run every gate a dispatched agent reports and read its full diff yourself (git diff --stat, re-run slice-check/Gradle test, mutation-test the claimed fix). A green summary is a claim, not evidence.",
+   "source": "memory feedback-verify-agent-gate-claims.md",
+   "covers": [
+    "feedback-verify-agent-gate-claims.md"
+   ]
+  },
+  {
+   "id": "research-coverage-ledger",
+   "text": "Research/audit work is done only against a coverage ledger: every source listed with N of M checked, not an empty personal to-do list.",
+   "source": "memory feedback-research-needs-coverage-ledger.md",
+   "covers": [
+    "feedback-research-needs-coverage-ledger.md"
+   ]
+  },
+  {
+   "id": "skill-standard-and-usage",
+   "text": "A skill is trigger -> one self-verifying command, nothing else: no stories, no guessed command syntax, no absolute paths. A skill that never fires is measured and fixed or dropped, not left alongside more unused skills.",
+   "source": "memory feedback-skill-standard-nomnomzbot.md, feedback-skills-must-fire-or-die.md",
+   "covers": [
+    "feedback-skill-standard-nomnomzbot.md",
+    "feedback-skills-must-fire-or-die.md"
+   ]
+  },
+  {
+   "id": "reply-english",
+   "text": "Reply to the owner in English even when their message is in Dutch.",
+   "source": "memory feedback-reply-in-english.md",
+   "covers": [
+    "feedback-reply-in-english.md"
+   ]
+  },
+  {
+   "id": "disk-guard-already-global",
+   "text": "Disk space is guarded machine-wide via ~/.claude/settings.json (disk-guard.mjs); do not add a project-local disk-guard hook here.",
+   "source": "memory reference-disk-guard-machine-wide.md",
+   "covers": [
+    "reference-disk-guard-machine-wide.md"
+   ]
+  },
+  {
+   "id": "username-lock",
+   "text": "Username is `Stoney_Eagle` — underscore, not hyphen. Never change this.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "Username is `Stoney_Eagle`"
+   ]
+  },
+  {
+   "id": "no-permission-to-fix-continue",
+   "text": "Don't ask permission to fix bugs — find it, fix it, move on. Don't ask 'should I continue?' or 'want me to fix this?' — just do it.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "Don't ask permission to fix bugs",
+    "want me to fix this?"
+   ]
+  },
+  {
+   "id": "test-everything-no-half-assed",
+   "text": "Test every interactive element — never claim something 'works' without full validation. No half-assed work — seed ALL data, test EVERY button, run parallel where possible.",
+   "source": "CLAUDE.md: Critical Rules",
+   "covers": [
+    "Test every interactive element",
+    "No half-assed work"
+   ]
+  },
+  {
+   "id": "ci-gate-and-work-queue",
+   "text": "CI green before sign-off: run the full test suite before every commit; after every push, `gh run watch <run-id> --exit-status` and fix failures immediately. Work queue is `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`, top to bottom (stabilize before adding).",
+   "source": "CLAUDE.md: Critical Rules, CI Gate",
+   "covers": [
+    "CI green before sign-off",
+    "Work queue = `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`"
+   ]
+  },
+  {
+   "id": "vertical-slice-workflow",
+   "text": "Work in small, complete vertical slices end to end, not scattered edits. Define the slice's start and finish up front. Commit each validated scope when proven (not merely compiling). Never let the working tree pile up uncommitted changes.",
+   "source": "CLAUDE.md: Workflow",
+   "covers": [
+    "One executable step at a time.",
+    "A slice is the smallest change",
+    "Commit each validated scope.",
+    "Never scatter, never pile up."
+   ]
+  },
+  {
+   "id": "git-conventions",
+   "text": "Conventional commit messages preferred. Main branch is `master` (never `main`). `origin` = NoMercyLabs/nomnomzbot canonical, `fork` = personal. Feature branches `feat/description` or `fix/description`. All code in this monorepo (server/, app/); backend and frontend commits never mix `server/` and `app/` files. Tests pass before every commit; every push is followed by `gh run watch`.",
+   "source": "CLAUDE.md: Git Conventions",
+   "covers": [
+    "Conventional commit messages preferred",
+    "Main branch: `master`",
+    "Remotes: `origin`",
+    "Feature branches:",
+    "All code lives in this monorepo",
+    "commits never mix `server/` and `app/`",
+    "Tests pass before every commit"
+   ]
+  }
+ ]
+}
