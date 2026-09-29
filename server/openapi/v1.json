@@ -24857,6 +24857,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/command-presets": {
+      "get": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "The fun-command presets (`!8ball`, `!hug`, …) exactly as a reset writes them back, so the\ndashboard can show what a reset changes before the streamer confirms it. Its own path, not\n`commands/presets`, so it can never shadow a command the streamer named \"presets\".",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfCommandPresetDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/commands": {
       "get": {
         "tags": [
@@ -25454,6 +25552,112 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/commands/{commandName}/reset-to-preset": {
+      "post": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "Reset a seeded fun command back to its preset. Keeps the command's name and on/off state; everything\nelse (responses, description, permission, cooldowns, aliases, matching) goes back to the preset.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commandName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCommandDto"
+                }
+              }
             }
           }
         }
@@ -96153,6 +96357,13 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "presetKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The fun-command preset this command was seeded from; null when the channel wrote it."
           }
         },
         "description": "Full command detail for viewing/editing."
@@ -96281,9 +96492,94 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "presetKey": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The fun-command preset this command was seeded from; null when the channel wrote it."
           }
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\n            form can pre-fill without a separate detail fetch."
+      },
+      "CommandPresetDto": {
+        "required": [
+          "key",
+          "tier",
+          "description",
+          "templateResponse",
+          "templateResponses",
+          "minPermissionLevel",
+          "cooldownSeconds",
+          "userCooldownSeconds",
+          "cooldownPerUser",
+          "aliases",
+          "prefixMode",
+          "matchMode"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateResponse": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "templateResponses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minPermissionLevel": {
+            "type": "string"
+          },
+          "cooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "userCooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cooldownPerUser": {
+            "type": "boolean"
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "prefixMode": {
+            "type": "string"
+          },
+          "matchMode": {
+            "type": "string"
+          }
+        },
+        "description": "One fun-command preset exactly as a reset writes it back — every field a reset restores, so the dashboard\ncan show the streamer what changes before they confirm. The command's own name and its on/off state are\nnever part of a reset (the streamer may have renamed or switched it off on purpose)."
       },
       "CommunityStatsDto": {
         "required": [
@@ -116912,6 +117208,42 @@
             ],
             "items": {
               "$ref": "#/components/schemas/CustomDataSourceOptionDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfCommandPresetDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CommandPresetDto"
             }
           },
           "message": {

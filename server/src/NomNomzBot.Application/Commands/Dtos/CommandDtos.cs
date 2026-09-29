@@ -35,7 +35,11 @@ public sealed record CommandDto(
     long UseCount,
     DateTime CreatedAt,
     DateTime UpdatedAt
-);
+)
+{
+    /// <summary>The fun-command preset this command was seeded from; null when the channel wrote it.</summary>
+    public string? PresetKey { get; init; }
+}
 
 /// <summary>Lightweight command info for list views — includes the response text and pipeline id so the edit
 /// form can pre-fill without a separate detail fetch.</summary>
@@ -59,7 +63,11 @@ public sealed record CommandListItem(
     string? TemplateResponse,
     List<string>? TemplateResponses,
     Guid? PipelineId
-);
+)
+{
+    /// <summary>The fun-command preset this command was seeded from; null when the channel wrote it.</summary>
+    public string? PresetKey { get; init; }
+}
 
 /// <summary>Request to create a new command.</summary>
 public sealed record CreateCommandDto

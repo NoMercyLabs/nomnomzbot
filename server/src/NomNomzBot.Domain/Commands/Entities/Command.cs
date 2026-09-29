@@ -90,6 +90,13 @@ public class Command : SoftDeletableEntity, ITenantScoped
     /// <summary>True for built-in platform commands; false for broadcaster-authored ones.</summary>
     public bool IsPlatform { get; set; }
 
+    /// <summary>
+    /// The fun-command preset this row was seeded from (e.g. <c>8ball</c>), so the channel can reset it back
+    /// to that preset. Null = the channel wrote this command itself; it has no preset to go back to.
+    /// </summary>
+    [MaxLength(50)]
+    public string? PresetKey { get; set; }
+
     public long UseCount { get; set; }
 
     public DateTime? LastUsedAt { get; set; }

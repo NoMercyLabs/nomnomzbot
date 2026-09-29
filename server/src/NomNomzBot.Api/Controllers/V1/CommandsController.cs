@@ -30,10 +30,52 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class CommandsController : BaseController
 {
     private readonly ICommandService _commandService;
+    private readonly ICommandPresetService _presetService;
 
-    public CommandsController(ICommandService commandService)
+    public CommandsController(ICommandService commandService, ICommandPresetService presetService)
     {
         _commandService = commandService;
+        _presetService = presetService;
+    }
+
+    /// <summary>
+    /// The fun-command presets (<c>!8ball</c>, <c>!hug</c>, …) exactly as a reset writes them back, so the
+    /// dashboard can show what a reset changes before the streamer confirms it. Its own path, not
+    /// <c>commands/presets</c>, so it can never shadow a command the streamer named "presets".
+    /// </summary>
+    [RequireAction("commands:read")]
+    [HttpGet("~/api/v{version:apiVersion}/channels/{channelId}/command-presets")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<CommandPresetDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public IActionResult ListPresets(string channelId) =>
+        Ok(
+            new StatusResponseDto<IReadOnlyList<CommandPresetDto>>
+            {
+                Data = _presetService.ListPresets(),
+            }
+        );
+
+    /// <summary>
+    /// Reset a seeded fun command back to its preset. Keeps the command's name and on/off state; everything
+    /// else (responses, description, permission, cooldowns, aliases, matching) goes back to the preset.
+    /// </summary>
+    [NotDestructive(
+        "Overwrites one Command row's own settings with its preset; the row, its id and every reference to it stay."
+    )]
+    [RequireAction("commands:write")]
+    [HttpPost("{commandName}/reset-to-preset")]
+    [ProducesResponseType<StatusResponseDto<CommandDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResetToPreset(
+        string channelId,
+        string commandName,
+        CancellationToken ct
+    )
+    {
+        Result<CommandDto> result = await _presetService.ResetAsync(channelId, commandName, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
     }
 
     /// <summary>List the channel's custom commands, paginated, for the dashboard's commands page.</summary>

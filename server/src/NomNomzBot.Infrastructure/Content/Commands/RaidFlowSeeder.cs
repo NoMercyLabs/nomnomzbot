@@ -47,7 +47,8 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// </summary>
 /// <remarks>
 /// Idempotent: upserts by the natural key <c>(BroadcasterId, NameNormalized)</c>. A channel that already
-/// has a <c>raid</c> command is left completely alone — the streamer's own edits are never overwritten.
+/// has a <c>raid</c> command is left completely alone — the streamer's own edits are never overwritten — and
+/// a channel that deleted its <c>raid</c> command never gets it back.
 /// Order 82 — after <see cref="DefaultCommandsSeeder"/> (80), because it FK-references Channel rows.
 /// </remarks>
 public sealed class RaidFlowSeeder : ISeeder
@@ -107,9 +108,27 @@ public sealed class RaidFlowSeeder : ISeeder
                 .Select(c => c.BroadcasterId),
         ];
 
+        // A channel that deleted its raid command made a choice; this seeder runs on every boot and must
+        // never bring the command back. The soft-delete filter hides the tombstone, so it is read explicitly.
+        HashSet<Guid> deletedByChannel =
+        [
+            .. await _db
+                .Commands.IgnoreQueryFilters()
+                .Where(c =>
+                    channelIds.Contains(c.BroadcasterId)
+                    && c.NameNormalized == CommandName
+                    && c.DeletedAt != null
+                )
+                .Select(c => c.BroadcasterId)
+                .ToListAsync(ct),
+        ];
+
         foreach (Guid channelId in channelIds)
         {
             if (alreadyBuilt.Contains(channelId))
+                continue;
+
+            if (deletedByChannel.Contains(channelId) && !stubs.ContainsKey(channelId))
                 continue;
 
             stubs.TryGetValue(channelId, out Command? stub);
