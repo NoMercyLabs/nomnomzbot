@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -46,7 +47,7 @@ public sealed class BotJoinOnOnboardingHandler(
     IApplicationDbContext db,
     ITwitchModeratorsApi moderators,
     IConfiguration configuration,
-    NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor sanctions,
+    IOutboundSanctionAccessor sanctions,
     ILogger<BotJoinOnOnboardingHandler> logger
 ) : IEventHandler<ChannelOnboardedEvent>
 {
@@ -72,6 +73,54 @@ public sealed class BotJoinOnOnboardingHandler(
             );
 
         return false;
+    }
+
+    /// <summary>
+    /// An id-pin mismatch is a different account and stays an Error. A username-pin mismatch is usually a Twitch
+    /// rename the deployment config never caught up with, so it is a Warning that names the fix.
+    /// </summary>
+    private void LogRefusal(Guid broadcasterId, BotAccount bot)
+    {
+        string? expectedUserId = configuration["Twitch:BotUserId"];
+        if (!string.IsNullOrWhiteSpace(expectedUserId))
+        {
+            logger.LogError(
+                "Onboarding seed (bot join): REFUSED to grant moderator in {BroadcasterId} — the registered "
+                    + "shared bot {BotUsername} ({BotUserId}) is not the configured SaaS bot (Twitch:BotUserId = "
+                    + "{ExpectedUserId}). Granting a moderator role to an unexpected account is exactly the "
+                    + "2026-09-04 incident.",
+                broadcasterId,
+                bot.BotUsername,
+                bot.BotUserId,
+                expectedUserId.Trim()
+            );
+            return;
+        }
+
+        string? expectedUsername = configuration["Twitch:BotUsername"];
+        if (!string.IsNullOrWhiteSpace(expectedUsername))
+        {
+            logger.LogWarning(
+                "Onboarding seed (bot join): not granting moderator in {BroadcasterId} — the registered shared "
+                    + "bot is {BotUsername} ({BotUserId}) but Twitch:BotUsername is {ExpectedUsername}. If the bot "
+                    + "was renamed on Twitch, pin it by id instead: set Twitch:BotUserId (TWITCH_BOT_USER_ID) to "
+                    + "{BotUserId}.",
+                broadcasterId,
+                bot.BotUsername,
+                bot.BotUserId,
+                expectedUsername.Trim(),
+                bot.BotUserId
+            );
+            return;
+        }
+
+        logger.LogWarning(
+            "Onboarding seed (bot join): not granting moderator in {BroadcasterId} — no SaaS bot is pinned. Set "
+                + "Twitch:BotUserId (TWITCH_BOT_USER_ID) to {BotUserId} to auto-grant {BotUsername}.",
+            broadcasterId,
+            bot.BotUserId,
+            bot.BotUsername
+        );
     }
 
     public async Task HandleAsync(ChannelOnboardedEvent @event, CancellationToken ct = default)
@@ -102,19 +151,12 @@ public sealed class BotJoinOnOnboardingHandler(
 
             if (!IsConfiguredSaasBot(sharedBot))
             {
-                logger.LogError(
-                    "Onboarding seed (bot join): REFUSED to grant moderator in {BroadcasterId} — the registered "
-                        + "shared bot {BotUsername} ({BotUserId}) is not this deployment's configured SaaS bot. "
-                        + "Granting a moderator role to an unexpected account is exactly the 2026-09-04 incident.",
-                    @event.BroadcasterId,
-                    sharedBot.BotUsername,
-                    sharedBot.BotUserId
-                );
+                LogRefusal(@event.BroadcasterId, sharedBot);
                 return;
             }
 
             using IDisposable sanction = sanctions.Begin(
-                NomNomzBot.Application.Contracts.Security.OutboundSanction.PlatformConfiguration(
+                OutboundSanction.PlatformConfiguration(
                     $"saas_bot_moderator_grant:{sharedBot.BotUsername}"
                 )
             );

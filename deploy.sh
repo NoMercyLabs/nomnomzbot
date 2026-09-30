@@ -89,9 +89,11 @@ ensure_env() {
     read -r -p "  TWITCH_CLIENT_ID     : " tw_id || true
     read -r -p "  TWITCH_CLIENT_SECRET : " tw_secret || true
     read -r -p "  TWITCH_BOT_USERNAME  : " tw_bot || true
+    read -r -p "  TWITCH_BOT_USER_ID   : " tw_bot_id || true
     [ -n "${tw_id:-}" ]     && env_set TWITCH_CLIENT_ID "$tw_id"
     [ -n "${tw_secret:-}" ] && env_set TWITCH_CLIENT_SECRET "$tw_secret"
     [ -n "${tw_bot:-}" ]    && env_set TWITCH_BOT_USERNAME "$tw_bot"
+    [ -n "${tw_bot_id:-}" ] && env_set TWITCH_BOT_USER_ID "$tw_bot_id"
   else
     echo
     echo "  >> .env created (secrets generated). Edit it to set TWITCH_CLIENT_ID,"

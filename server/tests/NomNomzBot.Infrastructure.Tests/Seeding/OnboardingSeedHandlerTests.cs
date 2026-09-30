@@ -34,6 +34,7 @@ using NomNomzBot.Infrastructure.Identity.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Eventing.EventHandlers;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Security;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -426,7 +427,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig("tw-bot-1"),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 
@@ -448,7 +449,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig("tw-bot-1"),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 
@@ -481,7 +482,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig("tw-bot-1"),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 
@@ -508,7 +509,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig("tw-bot-1"),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 
@@ -1041,7 +1042,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig("some-other-bot-id"),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 
@@ -1050,6 +1051,77 @@ public sealed class OnboardingSeedHandlerTests
         await moderators
             .DidNotReceive()
             .AddModeratorAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        log.Entries.Should()
+            .ContainSingle(e => e.Level == LogLevel.Error)
+            .Which.Message.Should()
+            .Contain(
+                "some-other-bot-id",
+                "the operator must see the pinned id next to the registered one"
+            )
+            .And.Contain("tw-bot-1");
+    }
+
+    [Fact]
+    public async Task BotJoin_handler_refuses_a_renamed_bot_under_a_stale_username_pin_and_names_the_fix()
+    {
+        // Production 2026-09-30: the bot was renamed on Twitch (nomercybot_ -> nomz_bot, same user id) and the
+        // deployment still pinned the old name. Refusing is right, but it is config drift, not an incident:
+        // the log must show the stale pin, the real name, and the id pin that survives a rename.
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.BotAccounts.Add(SharedBot());
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        ListLogger<BotJoinOnOnboardingHandler> log = new();
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig(username: "nomercybot_"),
+            TestSanction.Held(),
+            log
+        );
+
+        await sut.HandleAsync(Event());
+
+        await moderators
+            .DidNotReceive()
+            .AddModeratorAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        log.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
+        log.Entries.Should()
+            .ContainSingle(e => e.Level == LogLevel.Warning)
+            .Which.Message.Should()
+            .Contain("nomercybot_")
+            .And.Contain("nomnomzbot")
+            .And.Contain("tw-bot-1")
+            .And.Contain("Twitch:BotUserId");
+    }
+
+    [Fact]
+    public async Task BotJoin_handler_keeps_granting_a_renamed_bot_when_its_id_is_pinned()
+    {
+        // The id pin wins over a stale username: a Twitch rename keeps the user id, so the grant survives it.
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.BotAccounts.Add(SharedBot());
+        await db.SaveChangesAsync();
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        ListLogger<BotJoinOnOnboardingHandler> log = new();
+        BotJoinOnOnboardingHandler sut = new(
+            db,
+            moderators,
+            SaasBotConfig(userId: "tw-bot-1", username: "nomercybot_"),
+            TestSanction.Held(),
+            log
+        );
+
+        await sut.HandleAsync(Event());
+
+        await moderators
+            .Received(1)
+            .AddModeratorAsync(Broadcaster, "tw-bot-1", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -1067,7 +1139,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig(),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 
@@ -1096,7 +1168,7 @@ public sealed class OnboardingSeedHandlerTests
             db,
             moderators,
             SaasBotConfig(username: "NomNomzBot"),
-            NomNomzBot.Infrastructure.Tests.Platform.Security.TestSanction.Held(),
+            TestSanction.Held(),
             log
         );
 

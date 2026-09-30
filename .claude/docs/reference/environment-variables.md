@@ -13,6 +13,7 @@
 | `TWITCH_CLIENT_ID` | recommended | — | From Twitch Developer Console (may be blank: wizard collects it; shared public client works for device-code login; BYOC encouraged) |
 | `TWITCH_CLIENT_SECRET` | recommended | — | From Twitch Developer Console |
 | `TWITCH_BOT_USERNAME` | no | `NomNomzBot` | Twitch username of the account the bot posts chat as |
+| `TWITCH_BOT_USER_ID` | no | — | Numeric Twitch user id of the bot. Pins the one account auto-granted moderator on onboarded channels; wins over `TWITCH_BOT_USERNAME` and survives a Twitch rename |
 | `POSTGRES_DB` | no | `nomnomzbot` | PostgreSQL database name |
 | `REDIS_PASSWORD` | no | — | Optional Redis password; when set the API appends it to the connection string automatically |
 | `API_BASE_URL` | no | `http://localhost:5080` | Public URL the API is reachable at; OAuth redirect URIs derive from it (`App__BaseUrl`) |

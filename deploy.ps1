@@ -107,9 +107,11 @@ function Initialize-EnvFile {
         [string]$twId = Read-Host '  TWITCH_CLIENT_ID    '
         [string]$twSecret = Read-Host '  TWITCH_CLIENT_SECRET'
         [string]$twBot = Read-Host '  TWITCH_BOT_USERNAME '
+        [string]$twBotId = Read-Host '  TWITCH_BOT_USER_ID  '
         if ($twId) { Set-EnvValue 'TWITCH_CLIENT_ID' $twId }
         if ($twSecret) { Set-EnvValue 'TWITCH_CLIENT_SECRET' $twSecret }
         if ($twBot) { Set-EnvValue 'TWITCH_BOT_USERNAME' $twBot }
+        if ($twBotId) { Set-EnvValue 'TWITCH_BOT_USER_ID' $twBotId }
         return $true
     }
 
