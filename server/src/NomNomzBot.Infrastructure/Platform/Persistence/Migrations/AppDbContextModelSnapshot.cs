@@ -9299,6 +9299,65 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("Storages");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.PlatformContent.Entities.PlatformAudioAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UploadedByPrincipalId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentHash");
+
+                    b.ToTable("PlatformAudioAssets");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9862,6 +9921,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("integer");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 
@@ -9882,6 +9954,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("PlatformSourceDefinitionId")
+                        .HasDatabaseName("IX_SoundClip_PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "Name")
                         .IsUnique();

@@ -120,6 +120,7 @@ public sealed class PlatformTemplateCatalogService(
 
         PlatformTemplateInstall install = new(
             broadcasterId,
+            callerUserId,
             new PlatformTemplateSource(definition.Id, version.Version),
             version.PayloadJson,
             request.PipelineId

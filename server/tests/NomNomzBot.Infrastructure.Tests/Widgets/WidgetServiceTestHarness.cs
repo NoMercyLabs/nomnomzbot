@@ -118,7 +118,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(WidgetGallerySubmissionEvent)
                 && t != typeof(PlatformContentDefinition)
                 && t != typeof(PlatformContentVersion)
-                && t != typeof(NomNomzBot.Domain.Alerts.Entities.AlertQueueEntry)
+                && t != typeof(AlertQueueEntry)
             ),
     ];
 
@@ -378,8 +378,9 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
+    public DbSet<PlatformAudioAsset> PlatformAudioAssets => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>

@@ -575,6 +575,8 @@ internal sealed class ReplayTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Domain.Billing.Entities.InviteCode> InviteCodes =>
         throw new NotSupportedException();
+    public DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets =>
+        throw new NotSupportedException();
     public DbSet<Domain.Federation.Entities.FederationPeer> FederationPeers =>
         throw new NotSupportedException();
     public DbSet<Domain.Federation.Entities.FederationPeerKey> FederationPeerKeys =>

@@ -90,17 +90,17 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<InstalledBundle> InstalledBundles => Set<InstalledBundle>();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        throw new NotSupportedException();
+    public DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets =>
         throw new NotSupportedException();
     public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
-        throw new NotSupportedException();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
+    public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>
@@ -110,10 +110,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-        Set<NomNomzBot.Domain.Commands.Entities.VoiceTrigger>();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
-        Set<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment>();
+    public DbSet<VoiceTrigger> VoiceTriggers => Set<VoiceTrigger>();
+    public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments => Set<VoiceTranscriptSegment>();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         Set<NomNomzBot.Domain.PickLists.Entities.PickList>();
     public DbSet<CodeScript> CodeScripts => Set<CodeScript>();

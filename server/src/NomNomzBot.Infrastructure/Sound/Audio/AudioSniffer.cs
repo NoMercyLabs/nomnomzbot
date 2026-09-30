@@ -61,8 +61,89 @@ internal static class AudioSniffer
         {
             "audio/wav" or "audio/wave" or "audio/x-wav" => ProbeWavDurationMs(stream),
             "audio/mpeg" => ProbeMp3DurationMs(stream),
-            _ => 0, // OGG needs a full Vorbis parser; return 0 (action caps WaitForFinish to 60s)
+            "audio/ogg" => ProbeOggDurationMs(stream),
+            _ => 0,
         };
+    }
+
+    /// <summary>
+    /// Ogg length = the last page's granule position (samples) over the stream's sample rate. The rate comes
+    /// from the first packet: a Vorbis identification header carries it; Opus always counts granules at
+    /// 48 kHz and starts after its pre-skip. Any other codec returns 0 (unknown).
+    /// </summary>
+    private static int ProbeOggDurationMs(System.IO.Stream stream)
+    {
+        try
+        {
+            if (stream.Length < 64)
+                return 0;
+
+            byte[] first = new byte[(int)Math.Min(stream.Length, 512)];
+            stream.Position = 0;
+            stream.ReadExactly(first, 0, first.Length);
+            if (!IsMatch(first, OggMagic))
+                return 0;
+
+            int packetStart = 27 + first[26];
+            if (packetStart + 19 > first.Length)
+                return 0;
+
+            long sampleRate;
+            long preSkip = 0;
+            if (first[packetStart] == 0x01 && HasAscii(first, packetStart + 1, "vorbis"))
+                sampleRate = BitConverter.ToUInt32(first, packetStart + 12);
+            else if (HasAscii(first, packetStart, "OpusHead"))
+            {
+                sampleRate = 48_000;
+                preSkip = BitConverter.ToUInt16(first, packetStart + 10);
+            }
+            else
+                return 0;
+
+            if (sampleRate <= 0)
+                return 0;
+
+            long granule = LastOggGranule(stream);
+            return granule <= preSkip ? 0 : (int)((granule - preSkip) * 1000 / sampleRate);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>The granule position of the last Ogg page, found by scanning the file tail backwards.</summary>
+    private static long LastOggGranule(System.IO.Stream stream)
+    {
+        int tailLength = (int)Math.Min(stream.Length, 65_536);
+        byte[] tail = new byte[tailLength];
+        stream.Position = stream.Length - tailLength;
+        stream.ReadExactly(tail, 0, tailLength);
+
+        for (int i = tailLength - 14; i >= 0; i--)
+        {
+            if (
+                tail[i] == 0x4F
+                && tail[i + 1] == 0x67
+                && tail[i + 2] == 0x67
+                && tail[i + 3] == 0x53
+            )
+                return BitConverter.ToInt64(tail, i + 6);
+        }
+
+        return 0;
+    }
+
+    private static bool HasAscii(byte[] data, int offset, string text)
+    {
+        if (offset + text.Length > data.Length)
+            return false;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (data[offset + i] != text[i])
+                return false;
+        }
+        return true;
     }
 
     private static int ProbeWavDurationMs(System.IO.Stream stream)

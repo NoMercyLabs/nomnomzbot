@@ -37,11 +37,11 @@ public sealed class EventResponseTemplateInstaller(
 
     public string WriteActionKey => "eventresponses:write";
 
-    public Result ValidatePayload(string payloadJson)
+    public Task<Result> ValidatePayloadAsync(string payloadJson, CancellationToken ct = default)
     {
         Result<EventResponseTemplatePayload> parsed =
             PlatformTemplateJson.Parse<EventResponseTemplatePayload>(payloadJson);
-        return parsed.IsFailure ? parsed : Validate(parsed.Value);
+        return Task.FromResult(parsed.IsFailure ? parsed : Validate(parsed.Value));
     }
 
     public async Task<Result<InstalledPlatformTemplateDto>> InstallAsync(

@@ -171,10 +171,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
-        throw new NotSupportedException();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
+    public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => Set<Service>();
@@ -183,10 +181,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<RedemptionTimer> RedemptionTimers => Set<RedemptionTimer>();
     public DbSet<ChatTrigger> ChatTriggers => Set<ChatTrigger>();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-        Set<NomNomzBot.Domain.Commands.Entities.VoiceTrigger>();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
-        Set<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment>();
+    public DbSet<VoiceTrigger> VoiceTriggers => Set<VoiceTrigger>();
+    public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments => Set<VoiceTranscriptSegment>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SharedBanSettings> SharedBanSettings =>
@@ -412,10 +408,12 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle>();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        throw new NotSupportedException();
+    public DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets =>
         throw new NotSupportedException();
 }

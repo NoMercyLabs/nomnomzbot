@@ -12,7 +12,8 @@ namespace NomNomzBot.Infrastructure.Content.PlatformContent.Templates;
 
 /// <summary>
 /// Install is a copy, never an overwrite of the channel's own work: a template whose name is already taken in
-/// the channel is installed under the first free "Name 2", "Name 3", … instead.
+/// the channel is installed under the first free "Name 2", "Name 3", … instead. A name that is a slug passes
+/// <c>separator: "-"</c> and gets "name-2", "name-3", ….
 /// </summary>
 internal static class PlatformTemplateNames
 {
@@ -21,7 +22,8 @@ internal static class PlatformTemplateNames
     public static async Task<string?> FreeNameAsync(
         string baseName,
         int maxLength,
-        Func<string, Task<bool>> isTaken
+        Func<string, Task<bool>> isTaken,
+        string separator = " "
     )
     {
         string trimmed = baseName.Trim();
@@ -30,7 +32,7 @@ internal static class PlatformTemplateNames
 
         for (int n = 2; n <= MaxAttempts; n++)
         {
-            string suffix = $" {n}";
+            string suffix = $"{separator}{n}";
             string head =
                 trimmed.Length + suffix.Length > maxLength
                     ? trimmed[..(maxLength - suffix.Length)]

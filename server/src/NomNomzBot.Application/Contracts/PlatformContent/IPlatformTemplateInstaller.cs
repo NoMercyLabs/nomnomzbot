@@ -14,7 +14,7 @@ namespace NomNomzBot.Application.Contracts.PlatformContent;
 
 /// <summary>
 /// One installable platform-template kind (timer, event response, …). The admin side calls
-/// <see cref="ValidatePayload"/> before a version is stored or published; the channel side calls
+/// <see cref="ValidatePayloadAsync"/> before a version is stored or published; the channel side calls
 /// <see cref="InstallAsync"/> to copy a published version into the channel's own feature rows, through that
 /// feature's own service so its validation and side effects run exactly as for a hand-made row.
 /// </summary>
@@ -26,8 +26,11 @@ public interface IPlatformTemplateInstaller
     /// <summary>The Gate-2 action key a caller needs in the target channel to install this kind.</summary>
     string WriteActionKey { get; }
 
-    /// <summary>Checks the payload shape without touching any channel. Failure code: <c>VALIDATION_FAILED</c>.</summary>
-    Result ValidatePayload(string payloadJson);
+    /// <summary>
+    /// Checks the payload without touching any channel: its shape, and anything platform-side it names (e.g. a
+    /// platform audio file). Failure code: <c>VALIDATION_FAILED</c>.
+    /// </summary>
+    Task<Result> ValidatePayloadAsync(string payloadJson, CancellationToken ct = default);
 
     Task<Result<InstalledPlatformTemplateDto>> InstallAsync(
         PlatformTemplateInstall install,
@@ -50,6 +53,14 @@ public interface IPlatformTemplateInstaller
     /// <c>VALIDATION_FAILED</c> and leaves the copy as it was.
     /// </summary>
     Task<Result> UpdateCopyAsync(PlatformTemplateCopyUpdate update, CancellationToken ct = default);
+
+    /// <summary>
+    /// Runs after a definition of this kind is retired: frees whatever platform-side resource only that
+    /// definition held (a <c>sound_clip</c> template's audio file). Installed copies are never touched.
+    /// Most kinds hold nothing, so the default does nothing.
+    /// </summary>
+    Task<Result> ReleaseRetiredAsync(Guid definitionId, CancellationToken ct = default) =>
+        Task.FromResult(Result.Success());
 }
 
 /// <summary>
@@ -74,9 +85,13 @@ public sealed record PlatformTemplateCopyUpdate(
 /// <summary>The published version being installed — stamped onto the installed row as provenance.</summary>
 public sealed record PlatformTemplateSource(Guid DefinitionId, int Version);
 
-/// <summary>One install request, already authorized and resolved to a published version.</summary>
+/// <summary>
+/// One install request, already authorized and resolved to a published version. <see cref="ActorUserId"/> is
+/// the user installing — recorded as the creator on kinds that keep one.
+/// </summary>
 public sealed record PlatformTemplateInstall(
     Guid BroadcasterId,
+    Guid ActorUserId,
     PlatformTemplateSource Source,
     string PayloadJson,
     Guid? PipelineId

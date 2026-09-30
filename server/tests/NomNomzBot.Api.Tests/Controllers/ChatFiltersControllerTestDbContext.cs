@@ -85,25 +85,20 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
 
     public DbSet<ChatFilter> ChatFilters => Set<ChatFilter>();
     public DbSet<ModerationQueueItem> ModerationQueueItems => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
+    public DbSet<Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
-        throw new NotSupportedException();
-
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies =>
+    public DbSet<Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
         throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
-        throw new NotSupportedException();
+    public DbSet<SpamDefensePolicy> SpamDefensePolicies => throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns =>
-        throw new NotSupportedException();
+    public DbSet<SpamDetection> SpamDetections => throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
-        throw new NotSupportedException();
+    public DbSet<SpamCampaignRecord> SpamCampaigns => throw new NotSupportedException();
 
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
-        throw new NotSupportedException();
+    public DbSet<FollowBotBlock> FollowBotBlocks => throw new NotSupportedException();
+
+    public DbSet<SpamSignature> SpamSignatures => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -135,10 +130,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
-        throw new NotSupportedException();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
+    public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
@@ -147,9 +140,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+    public DbSet<VoiceTrigger> VoiceTriggers => throw new NotSupportedException();
+    public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments =>
         throw new NotSupportedException();
     public DbSet<ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
@@ -160,7 +152,7 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<NetworkBlock> NetworkBlocks => throw new NotSupportedException();
     public DbSet<UserModerationHistory> UserModerationHistories =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationHistoryEntry> ModerationHistoryEntries =>
+    public DbSet<ModerationHistoryEntry> ModerationHistoryEntries =>
         throw new NotSupportedException();
     public DbSet<UserTrustScore> UserTrustScores => throw new NotSupportedException();
     public DbSet<ModerationEscalationPolicy> ModerationEscalationPolicies =>
@@ -302,11 +294,13 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<GamePlay> GamePlays => throw new NotSupportedException();
     public DbSet<Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        throw new NotSupportedException();
+    public DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets =>
         throw new NotSupportedException();
     public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();

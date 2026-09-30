@@ -64,9 +64,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
         public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-            throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        public DbSet<VoiceTrigger> VoiceTriggers => throw new NotSupportedException();
+        public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
@@ -408,9 +407,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<NomNomzBot.Domain.Rewards.Entities.RedemptionTimer> RedemptionTimers =>
             throw new NotSupportedException();
         public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTrigger> VoiceTriggers =>
-            throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.Commands.Entities.VoiceTranscriptSegment> VoiceTranscriptSegments =>
+        public DbSet<VoiceTrigger> VoiceTriggers => throw new NotSupportedException();
+        public DbSet<VoiceTranscriptSegment> VoiceTranscriptSegments =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Moderation.Entities.ChannelModerationStanding> ChannelModerationStandings =>
             throw new NotSupportedException();
@@ -661,11 +659,13 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
             throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+        public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
             throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+        public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
             throw new NotSupportedException();
-        public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+            throw new NotSupportedException();
+        public DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
             throw new NotSupportedException();

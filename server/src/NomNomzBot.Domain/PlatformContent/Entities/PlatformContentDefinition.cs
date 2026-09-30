@@ -75,6 +75,9 @@ public static class PlatformContentKinds
     /// <summary>A preset named pick list ({list.pick.name} entries); installing it adds the list.</summary>
     public const string PickList = "pick_list";
 
+    /// <summary>A preset sound clip over a platform audio file; installing it copies the audio into the channel.</summary>
+    public const string SoundClip = "sound_clip";
+
     public static bool IsKnown(string? kind) =>
         kind
             is Command
@@ -84,8 +87,9 @@ public static class PlatformContentKinds
                 or EventResponse
                 or Timer
                 or Reward
-                or PickList;
+                or PickList
+                or SoundClip;
 
     public static IReadOnlyList<string> All { get; } =
-    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer, Reward, PickList];
+    [Command, Widget, Pipeline, CodeScript, EventResponse, Timer, Reward, PickList, SoundClip];
 }

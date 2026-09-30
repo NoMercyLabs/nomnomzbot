@@ -45,12 +45,12 @@ public sealed partial class RewardTemplateInstaller(
 
     public string WriteActionKey => "reward:manage";
 
-    public Result ValidatePayload(string payloadJson)
+    public Task<Result> ValidatePayloadAsync(string payloadJson, CancellationToken ct = default)
     {
         Result<RewardTemplatePayload> parsed = PlatformTemplateJson.Parse<RewardTemplatePayload>(
             payloadJson
         );
-        return parsed.IsFailure ? parsed : Validate(parsed.Value);
+        return Task.FromResult(parsed.IsFailure ? parsed : Validate(parsed.Value));
     }
 
     public async Task<Result<InstalledPlatformTemplateDto>> InstallAsync(

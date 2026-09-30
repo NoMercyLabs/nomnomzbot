@@ -432,6 +432,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
+    public DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets =>
+        throw new NotSupportedException();
 }
 
 /// <summary>

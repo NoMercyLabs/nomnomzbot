@@ -39,6 +39,7 @@ using NomNomzBot.Infrastructure.PickLists.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Rewards.Persistence;
+using NomNomzBot.Infrastructure.Sound.Persistence;
 using NomNomzBot.Infrastructure.Widgets.Persistence;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
@@ -108,6 +109,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<PlatformContentVersion> PlatformContentVersions => Set<PlatformContentVersion>();
     public DbSet<PlatformContentPublishJob> PlatformContentPublishJobs =>
         Set<PlatformContentPublishJob>();
+    public DbSet<PlatformAudioAsset> PlatformAudioAssets => Set<PlatformAudioAsset>();
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
 
@@ -129,6 +131,9 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<PickList> PickLists => Set<PickList>();
+
+    // The sound_clip template kind: the channel's clip rows and the platform audio library they install from.
+    public DbSet<SoundClip> SoundClips => Set<SoundClip>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -171,6 +176,9 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.ApplyConfiguration(new TimerConfiguration());
         b.ApplyConfiguration(new RewardConfiguration());
         b.ApplyConfiguration(new PickListConfiguration());
+        b.Entity<SoundClip>(e => e.Ignore(c => c.CreatedByUser));
+        b.ApplyConfiguration(new SoundClipConfiguration());
+        b.ApplyConfiguration(new PlatformAudioAssetConfiguration());
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
@@ -209,6 +217,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(DomainTimer),
         typeof(Reward),
         typeof(PickList),
+        typeof(SoundClip),
+        typeof(PlatformAudioAsset),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -443,7 +453,6 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     // executes real source, never infers "runs the same sandbox" from a row value).
     public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
     public DbSet<CodeScriptVersion> CodeScriptVersions => Set<CodeScriptVersion>();
-    public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();

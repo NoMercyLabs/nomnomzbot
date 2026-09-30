@@ -13,6 +13,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.PlatformContent;
 
 namespace NomNomzBot.Domain.Sound.Entities;
 
@@ -24,7 +25,7 @@ namespace NomNomzBot.Domain.Sound.Entities;
 /// <see cref="SizeBytes"/> against the <c>sound_clip_storage_bytes</c> COST_DRIVING limit.
 /// </summary>
 [CountedResource("sound_clip_storage_bytes", ResourceClass.CostDriving)]
-public class SoundClip : SoftDeletableEntity, ITenantScoped
+public class SoundClip : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -77,6 +78,15 @@ public class SoundClip : SoftDeletableEntity, ITenantScoped
     public string? TriggerWord { get; set; }
 
     public Guid CreatedByUserId { get; set; }
+
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    public int? PlatformSourceVersion { get; set; }
+
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    public DateTime? PlatformSourceSyncedAt { get; set; }
 
     // ── Navigations ─────────────────────────────────────────────────────────────
 
