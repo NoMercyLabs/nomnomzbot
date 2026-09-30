@@ -1182,6 +1182,22 @@ public sealed class TwitchEventSubReconnectTests
             return Task.FromResult(Result.Success());
         }
 
+        public Task<Result<TwitchSubscriptionResult?>> GetSubscriptionAsync(
+            string twitchSubscriptionId,
+            Guid? ownerBroadcasterId = null,
+            CancellationToken ct = default
+        ) =>
+            Task.FromResult(
+                Result.Success<TwitchSubscriptionResult?>(
+                    (list ?? []).FirstOrDefault(s => s.TwitchSubscriptionId == twitchSubscriptionId)
+                )
+            );
+
+        public Task<Result<TwitchSubscriptionResult?>> GetConduitSubscriptionAsync(
+            string twitchSubscriptionId,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Success<TwitchSubscriptionResult?>(null));
+
         public Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListSubscriptionsAsync(
             Guid broadcasterId,
             CancellationToken ct = default

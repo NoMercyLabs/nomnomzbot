@@ -359,24 +359,77 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 );
 
             foreach (TwitchEventSubWireSubscription wire in page.Value.Items)
-                all.Add(
-                    new()
-                    {
-                        TwitchSubscriptionId = wire.Id ?? string.Empty,
-                        Type = wire.Type ?? string.Empty,
-                        Version = wire.Version ?? "1",
-                        Status = wire.Status ?? "enabled",
-                        Cost = wire.Cost ?? 0,
-                        SessionId = wire.Transport?.SessionId,
-                        Condition = wire.Condition,
-                    }
-                );
+                all.Add(ToResult(wire));
 
             cursor = page.Value.NextCursor;
         } while (!string.IsNullOrEmpty(cursor));
 
         return Result.Success<IReadOnlyList<TwitchSubscriptionResult>>(all);
     }
+
+    public Task<Result<TwitchSubscriptionResult?>> GetSubscriptionAsync(
+        string twitchSubscriptionId,
+        Guid? ownerBroadcasterId = null,
+        CancellationToken ct = default
+    ) =>
+        // Same identity rule as DeleteSubscriptionAsync: Twitch lists only the calling token's own
+        // subscriptions, so the lookup is signed as the user that created it.
+        GetByIdAsync(
+            new TwitchHelixRequest(
+                HttpMethod.Get,
+                "eventsub/subscriptions",
+                ownerBroadcasterId is null ? TwitchHelixAuth.App : TwitchHelixAuth.UserStrict,
+                ownerBroadcasterId,
+                Query: [new("subscription_id", twitchSubscriptionId)]
+            ),
+            ct
+        );
+
+    public Task<Result<TwitchSubscriptionResult?>> GetConduitSubscriptionAsync(
+        string twitchSubscriptionId,
+        CancellationToken ct = default
+    ) =>
+        GetByIdAsync(
+            new TwitchHelixRequest(
+                HttpMethod.Get,
+                "eventsub/subscriptions",
+                TwitchHelixAuth.BotApp,
+                Query: [new("subscription_id", twitchSubscriptionId)]
+            ),
+            ct
+        );
+
+    private async Task<Result<TwitchSubscriptionResult?>> GetByIdAsync(
+        TwitchHelixRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<TwitchPage<TwitchEventSubWireSubscription>> page = await WithHelixAsync(helix =>
+            helix.GetPageAsync<TwitchEventSubWireSubscription>(request, ct)
+        );
+        if (page.IsFailure)
+            return Result.Failure<TwitchSubscriptionResult?>(
+                page.ErrorMessage!,
+                page.ErrorCode,
+                page.ErrorDetail
+            );
+
+        TwitchEventSubWireSubscription? wire = page.Value.Items.FirstOrDefault();
+        return Result.Success<TwitchSubscriptionResult?>(wire is null ? null : ToResult(wire));
+    }
+
+    private static TwitchSubscriptionResult ToResult(TwitchEventSubWireSubscription wire) =>
+        new()
+        {
+            TwitchSubscriptionId = wire.Id ?? string.Empty,
+            Type = wire.Type ?? string.Empty,
+            Version = wire.Version ?? "1",
+            Status = wire.Status ?? "enabled",
+            Cost = wire.Cost ?? 0,
+            SessionId = wire.Transport?.SessionId,
+            ConduitId = wire.Transport?.ConduitId,
+            Condition = wire.Condition,
+        };
 
     public async Task<
         Result<IReadOnlyList<TwitchSubscriptionResult>>
@@ -407,19 +460,8 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 );
 
             foreach (TwitchEventSubWireSubscription wire in page.Value.Items)
-                if (wire.Transport?.ConduitId is { } conduitId)
-                    all.Add(
-                        new()
-                        {
-                            TwitchSubscriptionId = wire.Id ?? string.Empty,
-                            Type = wire.Type ?? string.Empty,
-                            Version = wire.Version ?? "1",
-                            Status = wire.Status ?? "enabled",
-                            Cost = wire.Cost ?? 0,
-                            ConduitId = conduitId,
-                            Condition = wire.Condition,
-                        }
-                    );
+                if (wire.Transport?.ConduitId is not null)
+                    all.Add(ToResult(wire));
 
             cursor = page.Value.NextCursor;
         } while (!string.IsNullOrEmpty(cursor));

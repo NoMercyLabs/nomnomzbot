@@ -89,6 +89,27 @@ public interface IEventSubTransport
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// <c>GET /eventsub/subscriptions?subscription_id=</c> on the token that CREATED it (the bot for
+    /// <c>null</c>, else that broadcaster's own token). <c>null</c> when that token owns no such subscription.
+    /// The lookup a create's 409 needs: Twitch names the subscription it collided with, and only its owner
+    /// can see it.
+    /// </summary>
+    Task<Result<TwitchSubscriptionResult?>> GetSubscriptionAsync(
+        string twitchSubscriptionId,
+        Guid? ownerBroadcasterId = null,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// <c>GET /eventsub/subscriptions?subscription_id=</c> on the app access token, which is the only token
+    /// that sees a conduit subscription. <c>null</c> when the app owns no such subscription.
+    /// </summary>
+    Task<Result<TwitchSubscriptionResult?>> GetConduitSubscriptionAsync(
+        string twitchSubscriptionId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Lists the app/user's current subscriptions at Twitch (paged, follows cursor). For reconcile.</summary>
     Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListSubscriptionsAsync(
         Guid broadcasterId,

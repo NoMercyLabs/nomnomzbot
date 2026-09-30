@@ -559,6 +559,148 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         await service.StopAsync(CancellationToken.None);
     }
 
+    private static Result<TwitchSubscriptionResult> Conflict(string existingId) =>
+        Result.Failure<TwitchSubscriptionResult>(
+            "Twitch request failed (409).",
+            TwitchErrorCodes.Conflict,
+            $"subscription already exists; id={existingId}"
+        );
+
+    [Fact]
+    public async Task A_409_against_a_subscription_live_on_our_conduit_adopts_it_and_stops_posting()
+    {
+        // Dev box, 2026-09-30: ten rows sat `pending` with "Twitch request failed (409)" and were re-POSTed
+        // every five minutes, while Twitch held every one of them live on our conduit under an id no row
+        // knew. The 409 names that id; the row must take it, not park.
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            handle =>
+                handle.Kind == EventSubTransportKind.Conduit
+                    ? Conflict("live-on-conduit")
+                    : ShardTransport.Created(handle)
+        );
+        await StartAsync(service);
+        wire.ConduitListed.Add(
+            new()
+            {
+                TwitchSubscriptionId = "live-on-conduit",
+                Type = ChatTopic,
+                Version = "1",
+                Status = "enabled",
+                Cost = 0,
+                ConduitId = ConduitId,
+            }
+        );
+
+        Result<EventSubSubscriptionDto> subscribed = await service.SubscribeAsync(
+            Channel,
+            ChatTopic
+        );
+
+        subscribed.IsSuccess.Should().BeTrue(subscribed.ErrorMessage);
+        subscribed.Value.TwitchSubscriptionId.Should().Be("live-on-conduit");
+        EventSubSubscription row = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
+        (row.Status, row.TwitchSubscriptionId, row.ConduitId, row.Transport, row.LastError)
+            .Should()
+            .Be(("enabled", "live-on-conduit", ConduitId, "conduit", null));
+        wire.Steps.Should()
+            .Equal($"create {ChatTopic} on conduit {ConduitId}", "get live-on-conduit as app");
+
+        // Healed: the next reconcile finds the row bound to what Twitch lists and posts nothing.
+        wire.Steps.Clear();
+        Result<EventSubReconcileReportDto> report = await service.ReconcileAsync(Channel);
+        report.Value.Created.Should().Be(0);
+        wire.Steps.Should().BeEmpty();
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_409_against_a_stale_websocket_subscription_deletes_it_and_lands_on_the_conduit()
+    {
+        // The row forgot its old WebSocket subscription, but Twitch still holds it under the same key. The
+        // app token cannot see a WebSocket subscription; the creating user's token can. Delete it as that
+        // user, then the conduit create goes through.
+        int conduitCreates = 0;
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            handle =>
+                handle.Kind == EventSubTransportKind.Conduit && ++conduitCreates == 1
+                    ? Conflict("ws-stale")
+                    : ShardTransport.Created(handle)
+        );
+        await StartAsync(service);
+        wire.UserListed.Add(
+            new()
+            {
+                TwitchSubscriptionId = "ws-stale",
+                Type = ChatTopic,
+                Version = "1",
+                Status = "enabled",
+                Cost = 0,
+                SessionId = "an-older-session",
+            }
+        );
+
+        Result<EventSubSubscriptionDto> subscribed = await service.SubscribeAsync(
+            Channel,
+            ChatTopic
+        );
+
+        subscribed.IsSuccess.Should().BeTrue(subscribed.ErrorMessage);
+        wire.Steps.Should()
+            .Equal(
+                $"create {ChatTopic} on conduit {ConduitId}",
+                "get ws-stale as app",
+                "get ws-stale as bot",
+                "delete ws-stale as bot",
+                $"create {ChatTopic} on conduit {ConduitId}"
+            );
+        EventSubSubscription row = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
+        (row.Status, row.ConduitId, row.Transport, row.SessionId, row.LastError)
+            .Should()
+            .Be(("enabled", ConduitId, "conduit", null, null));
+        row.TwitchSubscriptionId.Should().NotBe("ws-stale");
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_concurrent_winners_enabled_row_is_not_downgraded_by_the_losers_409()
+    {
+        // At a takeover the channel sync and the onboarding seed both create the same topic. The winner
+        // saves its row enabled; the loser's 409 arrives against a tracked copy that still says pending,
+        // and used to write that copy back over the winner's binding.
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            handle =>
+            {
+                if (handle.Kind != EventSubTransportKind.Conduit)
+                    return ShardTransport.Created(handle);
+                // The winner lands while this create is in flight, on its own context as in production.
+                using EventSubTestDbContext winner = EventSubTestDbContext.Shared(_dbName);
+                EventSubSubscription saved = winner.EventSubSubscriptions.Single();
+                saved.Status = "enabled";
+                saved.TwitchSubscriptionId = "winner-sub";
+                saved.ConduitId = handle.ConduitId;
+                saved.Transport = "conduit";
+                winner.SaveChanges();
+                return Conflict("winner-sub");
+            }
+        );
+        await StartAsync(service);
+
+        Result<EventSubSubscriptionDto> loser = await service.SubscribeAsync(Channel, ChatTopic);
+
+        loser.IsSuccess.Should().BeTrue(loser.ErrorMessage);
+        loser.Value.TwitchSubscriptionId.Should().Be("winner-sub");
+        EventSubSubscription row = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
+        (row.Status, row.TwitchSubscriptionId, row.ConduitId, row.LastError)
+            .Should()
+            .Be(("enabled", "winner-sub", ConduitId, null));
+        // The database already answered; no lookup, no second create.
+        wire.Steps.Should().Equal($"create {ChatTopic} on conduit {ConduitId}");
+        await service.StopAsync(CancellationToken.None);
+    }
+
     [Fact]
     public async Task A_topic_the_conduit_refuses_for_a_grant_keeps_working_on_the_owner_session()
     {
@@ -703,6 +845,40 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
 
         /// <summary>What Twitch reports as this app's conduit subscriptions (reconcile's live set).</summary>
         public List<TwitchSubscriptionResult> ConduitListed { get; } = [];
+
+        /// <summary>What Twitch holds for a user token: this instance's WebSocket subscriptions.</summary>
+        public List<TwitchSubscriptionResult> UserListed { get; } = [];
+
+        public Task<Result<TwitchSubscriptionResult?>> GetSubscriptionAsync(
+            string twitchSubscriptionId,
+            Guid? ownerBroadcasterId = null,
+            CancellationToken ct = default
+        )
+        {
+            Steps.Add(
+                $"get {twitchSubscriptionId} as {(ownerBroadcasterId is null ? "bot" : "broadcaster")}"
+            );
+            return Task.FromResult(
+                Result.Success<TwitchSubscriptionResult?>(
+                    UserListed.FirstOrDefault(s => s.TwitchSubscriptionId == twitchSubscriptionId)
+                )
+            );
+        }
+
+        public Task<Result<TwitchSubscriptionResult?>> GetConduitSubscriptionAsync(
+            string twitchSubscriptionId,
+            CancellationToken ct = default
+        )
+        {
+            Steps.Add($"get {twitchSubscriptionId} as app");
+            return Task.FromResult(
+                Result.Success<TwitchSubscriptionResult?>(
+                    ConduitListed.FirstOrDefault(s =>
+                        s.TwitchSubscriptionId == twitchSubscriptionId
+                    )
+                )
+            );
+        }
 
         public Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListConduitSubscriptionsAsync(
             string twitchUserId,

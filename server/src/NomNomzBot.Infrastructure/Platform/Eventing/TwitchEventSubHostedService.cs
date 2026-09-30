@@ -1611,15 +1611,53 @@ public sealed class TwitchEventSubHostedService
             Condition = condition,
             UserAccessTokenOwner = tokenOwner,
         };
-        Result<TwitchSubscriptionResult> created = await _transport.CreateSubscriptionAsync(
+        Result<TwitchSubscriptionResult> created = await CreateOnConduitAsync(
             request,
-            new EventSubTransportHandle
-            {
-                Kind = EventSubTransportKind.Conduit,
-                ConduitId = conduitId,
-            },
+            conduitId,
             ct
         );
+
+        if (created is { IsFailure: true, ErrorCode: TwitchErrorCodes.Conflict })
+        {
+            // Twitch already holds this exact key. Two creates race at a takeover (the channel sync and the
+            // onboarding seed both post it); the loser's 409 must never park the winner's saved row pending —
+            // that re-POSTs, and 409s, every reconcile forever while the topic is live and delivering.
+            EventSubSubscription? winner = await ReadEnabledOnConduitAsync(
+                db,
+                row.Id,
+                conduitId,
+                ct
+            );
+            if (winner is not null)
+                return (Result.Success(ToDto(winner)), row);
+
+            Guid? creator = DeleteOwnerFor(eventType, broadcasterId);
+            TwitchSubscriptionResult? existing = await FindConflictingSubscriptionAsync(
+                created.ErrorDetail,
+                request,
+                creator,
+                conduitId,
+                ct
+            );
+            if (existing is { Status: "enabled" } && existing.ConduitId == conduitId)
+            {
+                // Ours, live on this conduit, and the registry lost its id: bind the row to it.
+                await AdoptLiveAsync(db, row, existing, oldStatus, ct);
+                return (Result.Success(ToDto(row)), row);
+            }
+
+            if (existing is { SessionId: not null })
+            {
+                // A stale WebSocket subscription of ours holds the key (twitch-eventsub §10 point 10, for a
+                // row that had already forgotten it). Delete it as its creator, then post the create once more.
+                await _transport.DeleteSubscriptionAsync(
+                    existing.TwitchSubscriptionId,
+                    creator,
+                    ct
+                );
+                created = await CreateOnConduitAsync(request, conduitId, ct);
+            }
+        }
 
         if (created.IsFailure)
         {
@@ -1671,6 +1709,113 @@ public sealed class TwitchEventSubHostedService
         created.ErrorCode is TwitchErrorCodes.NoToken or TwitchErrorCodes.Unauthorized
         || ExtractMissingScope(created.ErrorDetail) is not null
         || IsMissingAuthorizationMessage(created.ErrorDetail);
+
+    private Task<Result<TwitchSubscriptionResult>> CreateOnConduitAsync(
+        EventSubSubscriptionRequest request,
+        string conduitId,
+        CancellationToken ct
+    ) =>
+        _transport.CreateSubscriptionAsync(
+            request,
+            new EventSubTransportHandle
+            {
+                Kind = EventSubTransportKind.Conduit,
+                ConduitId = conduitId,
+            },
+            ct
+        );
+
+    /// <summary>
+    /// The row as the database holds it NOW, when a concurrent create already enabled it on this conduit —
+    /// or null. Read untracked: the caller's tracked copy predates the winner's save.
+    /// </summary>
+    private static async Task<EventSubSubscription?> ReadEnabledOnConduitAsync(
+        IApplicationDbContext db,
+        Guid rowId,
+        string conduitId,
+        CancellationToken ct
+    )
+    {
+        EventSubSubscription? fresh = await db
+            .EventSubSubscriptions.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == rowId, ct);
+        return
+            fresh is { Status: "enabled", TwitchSubscriptionId: not null }
+            && fresh.ConduitId == conduitId
+            ? fresh
+            : null;
+    }
+
+    /// <summary>
+    /// The subscription a conduit create 409'd against, or null when no token of ours can see one. Twitch names
+    /// it in the error body (<c>subscription already exists; id=…</c>): the app token sees it when it is a
+    /// conduit subscription, the creating user's token when it is a WebSocket one. A body without an id falls
+    /// back to the conduit listing for this user, matched on the 409 key (type + version + condition).
+    /// </summary>
+    private async Task<TwitchSubscriptionResult?> FindConflictingSubscriptionAsync(
+        string? errorDetail,
+        EventSubSubscriptionRequest request,
+        Guid? creatorBroadcasterId,
+        string conduitId,
+        CancellationToken ct
+    )
+    {
+        string? conflictingId = ExtractConflictingSubscriptionId(errorDetail);
+        if (conflictingId is null)
+            return await FindLiveOnConduitAsync(request, conduitId, ct);
+
+        Result<TwitchSubscriptionResult?> onApp = await _transport.GetConduitSubscriptionAsync(
+            conflictingId,
+            ct
+        );
+        if (onApp is { IsSuccess: true, Value: not null })
+            return onApp.Value;
+
+        Result<TwitchSubscriptionResult?> onCreator = await _transport.GetSubscriptionAsync(
+            conflictingId,
+            creatorBroadcasterId,
+            ct
+        );
+        return onCreator.IsSuccess ? onCreator.Value : null;
+    }
+
+    private async Task<TwitchSubscriptionResult?> FindLiveOnConduitAsync(
+        EventSubSubscriptionRequest request,
+        string conduitId,
+        CancellationToken ct
+    )
+    {
+        Result<IReadOnlyList<TwitchSubscriptionResult>> listed =
+            await _transport.ListConduitSubscriptionsAsync(request.TwitchBroadcasterUserId, ct);
+        return listed.IsFailure
+            ? null
+            : listed.Value.FirstOrDefault(s =>
+                s.Status == "enabled"
+                && s.ConduitId == conduitId
+                && s.Type == request.EventType
+                && s.Version == request.Version
+                && s.Condition is not null
+                && SameCondition(s.Condition, request.Condition)
+            );
+    }
+
+    /// <summary>The <c>id=…</c> Twitch appends to a 409 body, or null when the body names none.</summary>
+    private static string? ExtractConflictingSubscriptionId(string? errorDetail)
+    {
+        const string marker = "id=";
+        int start = errorDetail?.IndexOf(marker, StringComparison.OrdinalIgnoreCase) ?? -1;
+        if (start < 0)
+            return null;
+
+        start += marker.Length;
+        int end = start;
+        while (
+            end < errorDetail!.Length
+            && (char.IsAsciiLetterOrDigit(errorDetail[end]) || errorDetail[end] == '-')
+        )
+            end++;
+        return end > start ? errorDetail[start..end] : null;
+    }
 
     /// <summary>
     /// Moves a row off its old subscription before it is created on the current conduit: a per-owner
@@ -2063,7 +2208,10 @@ public sealed class TwitchEventSubHostedService
             && string.Equals(value, pair.Value, StringComparison.Ordinal)
         );
 
-    /// <summary>Binds the row to the subscription Twitch already holds for it — no create, no 409.</summary>
+    /// <summary>
+    /// Binds the row to the subscription Twitch already holds for it — no create, no 409 — on whichever
+    /// transport Twitch reports it: a conduit when it names one, else a WebSocket session.
+    /// </summary>
     private async Task AdoptLiveAsync(
         IApplicationDbContext db,
         EventSubSubscription row,
@@ -2072,10 +2220,13 @@ public sealed class TwitchEventSubHostedService
         CancellationToken ct
     )
     {
+        EventSubTransportKind kind = live.ConduitId is null
+            ? EventSubTransportKind.WebSocket
+            : EventSubTransportKind.Conduit;
         row.TwitchSubscriptionId = live.TwitchSubscriptionId;
         row.SessionId = live.SessionId;
-        row.ConduitId = null;
-        row.Transport = EventSubTransportKind.WebSocket.ToString().ToLowerInvariant();
+        row.ConduitId = live.ConduitId;
+        row.Transport = kind.ToString().ToLowerInvariant();
         row.Cost = live.Cost;
         row.Status = "enabled";
         row.LastError = null;
