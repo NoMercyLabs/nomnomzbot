@@ -92,9 +92,8 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
     // string live. `LocalSpacing` (from NomNomzTheme) stays in scope for the content beneath it.
     val chatAccentColor: String? by graph.chatAccentColor.collectAsStateWithLifecycle()
 
-    // The emoji-rendering-style override — a per-install preference resolved reactively so a switch swaps the
-    // whole type scale's emoji font live (color Twemoji vs monochrome Noto). Read here at the theme root so the
-    // change flows through NomNomzTheme's `appTypography(emojiColor)` to every text style at once.
+    // The emoji-rendering-style override — a per-install preference (color Twemoji vs monochrome Noto), read at
+    // the theme root, which registers the chosen face as the emoji fallback for all text.
     val emojiStyle: EmojiStyle by graph.emojiStyleController.current.collectAsStateWithLifecycle()
     NomNomzTheme(
         scheme = Scheme.Dark,

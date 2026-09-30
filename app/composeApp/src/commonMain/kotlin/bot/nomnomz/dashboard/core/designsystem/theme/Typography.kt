@@ -18,16 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.inter
-import nomnomzbot.composeapp.generated.resources.noto_emoji
-import nomnomzbot.composeapp.generated.resources.noto_sans
-import nomnomzbot.composeapp.generated.resources.noto_sans_arabic
-import nomnomzbot.composeapp.generated.resources.noto_sans_canadian_aboriginal
-import nomnomzbot.composeapp.generated.resources.noto_sans_cherokee
-import nomnomzbot.composeapp.generated.resources.noto_sans_kr
-import nomnomzbot.composeapp.generated.resources.noto_sans_math
-import nomnomzbot.composeapp.generated.resources.noto_sans_sc
-import nomnomzbot.composeapp.generated.resources.noto_sans_thai
-import nomnomzbot.composeapp.generated.resources.twemoji_color
 import org.jetbrains.compose.resources.Font
 
 // The fixed type scale (frontend-design-system.md §1.3). Feature code reads
@@ -46,58 +36,16 @@ data class Typography(
 
 internal val DefaultTypography: Typography = Typography()
 
-// The bundled type face: Inter (the design-system's intended sans, §1.3) with bundled script-fallback and
-// emoji faces so text renders as real glyphs instead of □ tofu — INCLUDING in editable text fields, where
-// the inline-image [EmojiText] path cannot reach. Every [Typography] style carries this family, so all app
-// text (and the fields that read `typography.*`) shares the same coverage. Skia/Wasm has no system fonts,
-// so every fallback only works because its face is bundled here — there is nothing else to fall through to.
-//
-// Inter (Latin only) covers the app's own UI languages (en, nl), but chat messages and viewer-entered
-// content (display names, quotes, custom command text) can be in ANY script regardless of the app's UI
-// language. FontFamily resolves per-glyph, in list order: for each character, Skia walks the fonts below
-// until one has that glyph, so a mixed-script string (e.g. Latin + Cyrillic in one line) renders correctly
-// without the app knowing the language in advance. Coverage was verified against each face's actual cmap
-// (fontTools), not assumed from the family name:
-// - Noto Sans (variable): Cyrillic, Greek, Vietnamese, Devanagari, extended Latin
-// - Noto Sans Arabic: Arabic script (incl. Persian/Urdu extensions)
-// - Noto Sans Thai: Thai script
-// - Noto Sans SC: Han ideographs (Simplified + Traditional codepoints) + Hiragana/Katakana + Bopomofo —
-//   covers Chinese and the Han/Kana portion of Japanese; Han glyph *shapes* default to the Simplified
-//   style even for Traditional-only codepoints, so Traditional Chinese/Japanese text stays legible but
-//   won't always show the regionally-preferred stroke form
-// - Noto Sans KR: Hangul syllables + Jamo — Noto Sans SC does NOT include Hangul, so Korean needs this
-//   separate face
-// - Noto Sans Math: Mathematical Alphanumeric Symbols (𝑻 𝖦 𝚂 — U+1D400–1D7FF) and Letterlike symbols
-// - Noto Sans Canadian Aboriginal: Unified Canadian Aboriginal Syllabics (ᑎ ᐯ ᗯ ᖇ — U+1400–167F)
-// - Noto Sans Cherokee: Cherokee (Ꮩ — U+13A0–13FF)
-// The last three exist because spam bots spell blocked words with look-alike letters from exactly these
-// blocks (`ᐯＩ𝖤ᗯᴇᖇ𝚂`), and a Twitch blocked-terms list full of tofu boxes cannot be moderated. Fullwidth
-// forms (Ｉ) come from SC/KR and small-capital phonetic letters (ᴇ) from Noto Sans, both already bundled.
-// Not covered by this set (a scope call, not an oversight): Armenian, Georgian, Hebrew, Runic, Ogham and
-// scripts outside those above. Compose Multiplatform's automatic on-demand Noto fallback for web only
-// exists from 1.12.0; on the pinned 1.9.0 the documented path is to bundle the face and list it here.
-// All Noto faces are SIL Open Font License 1.1 — see composeResources/files/licenses/OFL-fonts.txt.
-//
-// [colorEmoji] picks the emoji face live from the operator's persisted EmojiStyle preference: the color
-// (Twemoji COLR) face by default, or the monochrome (Noto Emoji) face as the fallback for a browser/Skia
-// build that can't render COLR glyphs. Inter's weights are unchanged either way.
+// The bundled type face: Inter, the design system's sans (§1.3). Inter covers Latin only; every other script
+// and emoji comes from the faces in FallbackFonts.kt, which the theme root registers as per-glyph fallbacks.
 @Composable
-fun appTypography(colorEmoji: Boolean): Typography {
+fun appTypography(): Typography {
     val family: FontFamily =
         FontFamily(
             Font(Res.font.inter, FontWeight.Normal),
             Font(Res.font.inter, FontWeight.Medium),
             Font(Res.font.inter, FontWeight.SemiBold),
             Font(Res.font.inter, FontWeight.Bold),
-            Font(Res.font.noto_sans),
-            Font(Res.font.noto_sans_arabic),
-            Font(Res.font.noto_sans_thai),
-            Font(Res.font.noto_sans_sc),
-            Font(Res.font.noto_sans_kr),
-            Font(Res.font.noto_sans_math),
-            Font(Res.font.noto_sans_canadian_aboriginal),
-            Font(Res.font.noto_sans_cherokee),
-            Font(if (colorEmoji) Res.font.twemoji_color else Res.font.noto_emoji),
         )
     return Typography(
         xs = DefaultTypography.xs.copy(fontFamily = family),
