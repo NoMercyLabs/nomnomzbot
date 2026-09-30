@@ -409,11 +409,9 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 1 — runtime stability
 
-- **S-CONDUIT-LIVE** the dev box runs conduit mode (`EVENTSUB_CONDUITS_ENABLED=true`). Left: (1) a conduit
-  create that 409s against a live subscription the registry lost must adopt it (or clear a stale WebSocket
-  one) instead of parking the row `pending` and re-POSTing every tick; (2) a switchover with event traffic
-  shows every event exactly once (event journal by EventSub message id); (3) make
-  `EventSub:Conduits:Enabled` default-on or remove the flag. Done-when: all three hold.
+- **S-CONDUIT-LIVE** the dev box runs conduit mode (`EVENTSUB_CONDUITS_ENABLED=true`). Left: (1) a switchover
+  with event traffic shows every event exactly once (event journal by EventSub message id); (2) make
+  `EventSub:Conduits:Enabled` default-on or remove the flag. Done-when: both hold.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
