@@ -168,6 +168,10 @@ data class SpamSettingDescriptor(
     val minimum: Double? = null,
     val maximum: Double? = null,
     val isToggle: Boolean = false,
+    /** The slice that wires this setting into the engine; null when the engine already reads it. */
+    val pendingSlice: String? = null,
+    /** Resource key for why the setting has no effect yet; null when it is live. */
+    val inactiveReasonKey: String? = null,
 )
 
 /** A protection the operator gets for free and cannot turn off. */

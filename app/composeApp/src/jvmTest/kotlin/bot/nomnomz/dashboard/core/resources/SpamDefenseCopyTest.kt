@@ -83,6 +83,32 @@ class SpamDefenseCopyTest {
     }
 
     @Test
+    fun every_setting_the_engine_does_not_read_yet_says_why_in_the_map() {
+        // The server marks these "not yet active" (SpamSettingCatalogue pending slices) and sends a
+        // reason key. A reason with no copy would render the badge with no explanation.
+        val inactive: List<String> =
+            listOf(
+                "semi_trusted_watch_hours_here",
+                "semi_trusted_watch_hours_instance",
+                "non_latin_script_gate",
+                "follow_spike_factor",
+                "join_burst_factor",
+                "lockdown_minutes",
+                "lockdown_auto_extend",
+                "lockdown_max_minutes",
+                "network_subscribe",
+                "network_contribute",
+            )
+
+        val missing: List<String> =
+            inactive
+                .map { "spam_setting_${it}_inactive" }
+                .filter { SpamDefenseCopy.resource(it) == null }
+
+        if (missing.isNotEmpty()) fail("Not-active settings with no reason copy: ${missing.joinToString()}")
+    }
+
+    @Test
     fun every_invariant_explains_the_guarantee_it_gives() {
         // The five protections that have no switch. They are shown so an operator can see what they get
         // for free rather than having to ask, which only works if the copy exists.

@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -39,6 +41,8 @@ import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
 import bot.nomnomz.dashboard.core.network.SpamSettingDescriptor
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_trust_save
+import nomnomzbot.composeapp.generated.resources.spam_inactive_arrives_with
+import nomnomzbot.composeapp.generated.resources.spam_inactive_badge
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -149,6 +153,11 @@ private fun SpamSettingRow(
         modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s2),
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
+        descriptor.pendingSlice?.let {
+            Badge(variant = BadgeVariant.Outline) {
+                Text(text = stringResource(Res.string.spam_inactive_badge), style = typography.xs)
+            }
+        }
         if (descriptor.isToggle) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -195,6 +204,19 @@ private fun SpamSettingRow(
         // into something an operator can tune honestly rather than guess at.
         cost?.let {
             Text(text = stringResource(it), style = typography.sm, color = tokens.mutedForeground)
+        }
+
+        // A setting the engine does not read yet says so, why, and which work item makes it count —
+        // rather than accepting a value that silently changes nothing.
+        descriptor.pendingSlice?.let { slice ->
+            descriptor.inactiveReasonKey?.let(SpamDefenseCopy::resource)?.let { reason ->
+                Text(text = stringResource(reason), style = typography.sm, color = tokens.mutedForeground)
+            }
+            Text(
+                text = stringResource(Res.string.spam_inactive_arrives_with, slice),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
         }
     }
 }

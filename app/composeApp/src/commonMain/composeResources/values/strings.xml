@@ -5759,6 +5759,18 @@
     <string name="spam_group_bursts">Sudden activity</string>
     <string name="spam_group_lockdown">Raid lockdown</string>
     <string name="spam_group_network">Shared spam list</string>
+    <string name="spam_inactive_badge">Not yet active</string>
+    <string name="spam_inactive_arrives_with">It starts to work with work item %1$s. Your value is saved and used from then on.</string>
+    <string name="spam_setting_semi_trusted_watch_hours_here_inactive">The bot does not count watch hours yet, so nobody earns protection this way today.</string>
+    <string name="spam_setting_semi_trusted_watch_hours_instance_inactive">The bot does not count watch hours yet, so nobody earns protection this way today.</string>
+    <string name="spam_setting_non_latin_script_gate_inactive">The bot does not check what each trust level may post yet, so this switch changes nothing today.</string>
+    <string name="spam_setting_follow_spike_factor_inactive">Follows are not measured against your normal rate yet, so no spike is noticed today.</string>
+    <string name="spam_setting_join_burst_factor_inactive">Chat arrivals are not measured against your normal rate yet, so no burst is noticed today.</string>
+    <string name="spam_setting_lockdown_minutes_inactive">Nothing tightens the room during a raid yet, so there is no lockdown for this to time.</string>
+    <string name="spam_setting_lockdown_auto_extend_inactive">Nothing tightens the room during a raid yet, so there is no lockdown for this to extend.</string>
+    <string name="spam_setting_lockdown_max_minutes_inactive">Nothing tightens the room during a raid yet, so there is no lockdown for this to limit.</string>
+    <string name="spam_setting_network_subscribe_inactive">The shared spam list service does not exist yet, so there is nothing to pull from.</string>
+    <string name="spam_setting_network_contribute_inactive">The shared spam list service does not exist yet, so nothing is sent anywhere.</string>
     <!-- Spam defence: the verdict log and the review queue. -->
     <string name="spam_detections_title">Spam detections</string>
     <string name="spam_detections_empty">Nothing detected yet. Every verdict the bot reaches will appear here with the reason it reached it.</string>

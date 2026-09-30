@@ -94,6 +94,16 @@ import nomnomzbot.composeapp.generated.resources.spam_setting_trust_thresholds_l
 import nomnomzbot.composeapp.generated.resources.spam_setting_window_seconds_cost
 import nomnomzbot.composeapp.generated.resources.spam_setting_window_seconds_explanation
 import nomnomzbot.composeapp.generated.resources.spam_setting_window_seconds_label
+import nomnomzbot.composeapp.generated.resources.spam_setting_follow_spike_factor_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_join_burst_factor_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_lockdown_auto_extend_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_lockdown_max_minutes_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_lockdown_minutes_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_network_contribute_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_network_subscribe_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_non_latin_script_gate_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_semi_trusted_watch_hours_here_inactive
+import nomnomzbot.composeapp.generated.resources.spam_setting_semi_trusted_watch_hours_instance_inactive
 
 // The backend sends resource KEYS, never words, because the product ships in English and Dutch and a
 // server that returned sentences would show a Dutch streamer English. Compose Resources resolves
@@ -189,6 +199,16 @@ object SpamDefenseCopy {
             "spam_setting_window_seconds_cost" to Res.string.spam_setting_window_seconds_cost,
             "spam_setting_window_seconds_explanation" to Res.string.spam_setting_window_seconds_explanation,
             "spam_setting_window_seconds_label" to Res.string.spam_setting_window_seconds_label,
+            "spam_setting_follow_spike_factor_inactive" to Res.string.spam_setting_follow_spike_factor_inactive,
+            "spam_setting_join_burst_factor_inactive" to Res.string.spam_setting_join_burst_factor_inactive,
+            "spam_setting_lockdown_auto_extend_inactive" to Res.string.spam_setting_lockdown_auto_extend_inactive,
+            "spam_setting_lockdown_max_minutes_inactive" to Res.string.spam_setting_lockdown_max_minutes_inactive,
+            "spam_setting_lockdown_minutes_inactive" to Res.string.spam_setting_lockdown_minutes_inactive,
+            "spam_setting_network_contribute_inactive" to Res.string.spam_setting_network_contribute_inactive,
+            "spam_setting_network_subscribe_inactive" to Res.string.spam_setting_network_subscribe_inactive,
+            "spam_setting_non_latin_script_gate_inactive" to Res.string.spam_setting_non_latin_script_gate_inactive,
+            "spam_setting_semi_trusted_watch_hours_here_inactive" to Res.string.spam_setting_semi_trusted_watch_hours_here_inactive,
+            "spam_setting_semi_trusted_watch_hours_instance_inactive" to Res.string.spam_setting_semi_trusted_watch_hours_instance_inactive,
         )
 
     /** The resource for a key, or null when the backend knows a setting this build has no copy for. */
