@@ -1061,6 +1061,7 @@
     <string name="timers_dialog_schedule_last_fired">Laatst afgevuurd: %1$s</string>
     <string name="timers_dialog_schedule_next_fire_due">Nu verschuldigd</string>
     <string name="timers_dialog_schedule_next_fire_in">Volgende keer over %1$dm</string>
+    <string name="timers_dialog_schedule_next_fire_in_hours">Volgende keer over %1$du %2$dm</string>
     <string name="timers_dialog_schedule_rotation">Bericht %1$d van %2$d in de rotatie</string>
     <string name="timers_dialog_min_chat_activity">Min. chatberichten tussen keren</string>
     <string name="timers_dialog_min_chat_activity_hint">Alleen afvuren als er sinds de vorige keer zoveel chatberichten zijn geweest. Leeg = altijd afvuren.</string>

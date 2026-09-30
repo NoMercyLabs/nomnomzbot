@@ -51,6 +51,10 @@ object TimerSchedule {
         return (next - now).inWholeMinutes
     }
 
+    /** A positive countdown split into whole hours and the minutes left over; hours is 0 under an hour. */
+    fun countdownParts(minutesLeft: Long): Pair<Int, Int> =
+        (minutesLeft / MinutesPerHour).toInt() to (minutesLeft % MinutesPerHour).toInt()
+
     /**
      * The 1-based rotation position (current message index, message count) — e.g. `2 of 5`. Null
      * when there is nothing to rotate through (zero or one message), matching [TimerService]'s
@@ -61,4 +65,6 @@ object TimerSchedule {
         val position: Int = (nextMessageIndex % messageCount) + 1
         return position to messageCount
     }
+
+    private const val MinutesPerHour: Long = 60
 }

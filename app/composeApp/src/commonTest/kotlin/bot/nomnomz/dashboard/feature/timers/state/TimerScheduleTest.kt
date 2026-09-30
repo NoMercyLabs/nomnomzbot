@@ -86,6 +86,18 @@ class TimerScheduleTest {
         assertTrue((minutesLeft ?: 0L) <= 0L)
     }
 
+    @Test
+    fun a_countdown_of_an_hour_or_more_splits_into_hours_and_leftover_minutes() {
+        // Intervals run up to 1440 minutes; "Next fire in 1439m" is unreadable.
+        assertEquals(23 to 59, TimerSchedule.countdownParts(1439))
+        assertEquals(1 to 0, TimerSchedule.countdownParts(60))
+    }
+
+    @Test
+    fun a_countdown_under_an_hour_has_no_hours_part() {
+        assertEquals(0 to 45, TimerSchedule.countdownParts(45))
+    }
+
     // --- Rotation position ----------------------------------------------------------------------------------
 
     @Test

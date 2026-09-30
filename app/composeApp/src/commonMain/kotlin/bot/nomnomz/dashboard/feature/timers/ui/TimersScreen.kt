@@ -122,6 +122,7 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_never_fi
 import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_last_fired
 import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_next_fire_due
 import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_next_fire_in
+import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_next_fire_in_hours
 import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_rotation
 import nomnomzbot.composeapp.generated.resources.timers_dialog_add_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message
@@ -858,7 +859,12 @@ private fun TimerScheduleInfo(intervalMinutes: Int?, detail: TimerDetail?) {
             if (minutesLeft <= 0) {
                 stringResource(Res.string.timers_dialog_schedule_next_fire_due)
             } else {
-                stringResource(Res.string.timers_dialog_schedule_next_fire_in, minutesLeft.toInt())
+                val (hours: Int, minutes: Int) = TimerSchedule.countdownParts(minutesLeft)
+                if (hours == 0) {
+                    stringResource(Res.string.timers_dialog_schedule_next_fire_in, minutes)
+                } else {
+                    stringResource(Res.string.timers_dialog_schedule_next_fire_in_hours, hours, minutes)
+                }
             }
         }
 
