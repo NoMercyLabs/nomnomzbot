@@ -92,6 +92,7 @@ x-api-service: &api-service
     - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
     - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
     - Twitch__BotUserId=${TWITCH_BOT_USER_ID:-}
+    - EventSub__Conduits__Enabled=${EVENTSUB_CONDUITS_ENABLED:-false}
     - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
     - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
     - Discord__ClientId=${DISCORD_CLIENT_ID:-}

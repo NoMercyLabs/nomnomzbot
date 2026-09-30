@@ -58,7 +58,7 @@ Not mapped in `.env` or the compose file. Set them as environment variables or i
 
 | Key | Env var | Default | Description |
 |-----|---------|---------|-------------|
-| `EventSub:Conduits:Enabled` | `EventSub__Conduits__Enabled` | `false` | Opt-in EventSub conduit mode. Off by default: the 2026-09-29 conduit deploy made the bot deaf |
+| `EventSub:Conduits:Enabled` | `EventSub__Conduits__Enabled` (compose: `EVENTSUB_CONDUITS_ENABLED`) | `false` | Opt-in EventSub conduit mode. Off by default: the 2026-09-29 conduit deploy made the bot deaf |
 
 For local `dotnet run` dev (not Docker): put Twitch credentials in `appsettings.Development.json` instead. All other settings fall back to `appsettings.json` defaults.
 
