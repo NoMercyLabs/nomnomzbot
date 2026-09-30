@@ -699,6 +699,56 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Block a term in the operator's own channel AND every channel Twitch says they moderate, AS THE OPERATOR (their
+    /// own token), best-effort per channel — the same sweep as the <c>all_moderated</c> ban, so Twitch decides where
+    /// it is permitted. Returns one outcome row per channel.
+    /// </summary>
+    [RequireAction("moderation:blocklist:write")]
+    [HttpPost("blocked-terms/all-moderated")]
+    [ProducesResponseType<StatusResponseDto<NetworkBanResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddBlockedTermEverywhere(
+        [FromBody] AddTermRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<NetworkBanResult> sweep = await _networkBan.BlockTermAcrossModeratedAsync(
+            operatorUserId,
+            request.Term,
+            ct
+        );
+        if (sweep.IsFailure)
+            return ResultResponse(sweep);
+
+        return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = ToDto(sweep.Value) });
+    }
+
+    /// <summary>The reversal of <see cref="AddBlockedTermEverywhere"/>: removes the term from every one of those channels.</summary>
+    [RequireAction("moderation:blocklist:write")]
+    [NotDestructive(
+        "Removes one blocked term per channel on the platform; no entity carries a blocked-term FK."
+    )]
+    [HttpDelete("blocked-terms/all-moderated/{term}")]
+    [ProducesResponseType<StatusResponseDto<NetworkBanResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveBlockedTermEverywhere(string term, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid operatorUserId))
+            return UnauthenticatedResponse();
+
+        Result<NetworkBanResult> sweep = await _networkBan.UnblockTermAcrossModeratedAsync(
+            operatorUserId,
+            term,
+            ct
+        );
+        if (sweep.IsFailure)
+            return ResultResponse(sweep);
+
+        return Ok(new StatusResponseDto<NetworkBanResultDto> { Data = ToDto(sweep.Value) });
+    }
+
     public record AddTermRequest(string Term);
 
     // ─── Unban requests ───────────────────────────────────────────────────────

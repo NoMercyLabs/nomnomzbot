@@ -910,6 +910,8 @@ The keys are seeded global `ActionDefinitions` (schema B.3) with `Plane=Manageme
 | GET | `/blocked-terms` | — | `StatusResponseDto<List<string>>` | management / Moderator · `moderation:filter:read` |
 | POST | `/blocked-terms` | `AddTermRequest` | `StatusResponseDto<List<string>>` | management / LeadModerator · `moderation:blocklist:write` |
 | DELETE | `/blocked-terms/{term}` | — | `StatusResponseDto<List<string>>` | management / LeadModerator · `moderation:blocklist:write` |
+| POST | `/blocked-terms/all-moderated` | `AddTermRequest` | `StatusResponseDto<NetworkBanResultDto>` | management / LeadModerator · `moderation:blocklist:write` |
+| DELETE | `/blocked-terms/all-moderated/{term}` | — | `StatusResponseDto<NetworkBanResultDto>` | management / LeadModerator · `moderation:blocklist:write` |
 | GET | `/chat-filters` | `PaginationParams` (query) | `PaginatedResponse<ChatFilterDto>` | management / Moderator · `moderation:filter:read` |
 | POST | `/chat-filters` | `CreateChatFilterRequest` | `StatusResponseDto<ChatFilterDto>` (201) | management / LeadModerator · `moderation:filter:write` |
 | POST | `/chat-filters/test` | `TestChatFilterRequest` | `StatusResponseDto<ChatFilterTestResult>` | management / Moderator · `moderation:filter:read` |

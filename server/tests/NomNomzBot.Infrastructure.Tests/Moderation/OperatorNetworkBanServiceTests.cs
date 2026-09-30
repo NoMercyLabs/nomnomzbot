@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -32,8 +33,241 @@ public sealed class OperatorNetworkBanServiceTests
     private static OperatorNetworkBanService Build(
         IChannelAccessService access,
         ITwitchModeratorsApi moderators,
-        ITwitchModerationApi moderation
-    ) => new(access, moderators, moderation, NullLogger<OperatorNetworkBanService>.Instance);
+        ITwitchModerationApi moderation,
+        IApplicationDbContext? db = null
+    ) =>
+        new(
+            access,
+            moderators,
+            moderation,
+            db ?? ModerationServiceTestDbContext.New(),
+            NullLogger<OperatorNetworkBanService>.Instance
+        );
+
+    private static readonly Guid OwnChannel = Guid.NewGuid();
+
+    /// <summary>The operator owns "stoney" (Twitch id own1) and moderates alpha (b1) and bravo (b2).</summary>
+    private static (
+        IChannelAccessService Access,
+        ITwitchModeratorsApi Moderators,
+        IApplicationDbContext Db
+    ) OwnerWhoModeratesTwoChannels()
+    {
+        IChannelAccessService access = Substitute.For<IChannelAccessService>();
+        access
+            .ResolveOwnChannelAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(OwnChannel);
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetModeratedChannelsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchModeratedChannel>(
+                        [new("b1", "alpha", "Alpha"), new("b2", "bravo", "Bravo")],
+                        NextCursor: null,
+                        Total: 2
+                    )
+                )
+            );
+
+        ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        db.Channels.Add(
+            new()
+            {
+                Id = OwnChannel,
+                TwitchChannelId = "own1",
+                Name = "stoney",
+                NameNormalized = "stoney",
+            }
+        );
+        db.SaveChanges();
+        return (access, moderators, db);
+    }
+
+    private static TwitchBlockedTerm Term(string broadcasterId, string id, string text) =>
+        new(
+            broadcasterId,
+            "mod",
+            id,
+            text,
+            DateTimeOffset.UnixEpoch,
+            DateTimeOffset.UnixEpoch,
+            null
+        );
+
+    [Fact]
+    public async Task Blocks_a_term_in_the_operators_own_channel_and_every_channel_they_moderate()
+    {
+        (IChannelAccessService access, ITwitchModeratorsApi moderators, IApplicationDbContext db) =
+            OwnerWhoModeratesTwoChannels();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .AddBlockedTermAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => Result.Success(Term(call.ArgAt<string>(1), "t", "twitchstar*")));
+        moderation
+            .AddBlockedTermAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "b2",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<TwitchBlockedTerm>("Missing scope.", "FORBIDDEN"));
+
+        Result<NetworkBanResult> result = await Build(access, moderators, moderation, db)
+            .BlockTermAcrossModeratedAsync(Operator, "  twitchstar*  ");
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Attempted.Should()
+            .Be(3, "the operator's own channel is one they moderate too");
+        result.Value.Succeeded.Should().Be(2);
+        result
+            .Value.Channels.Select(c => c.BroadcasterLogin)
+            .Should()
+            .BeEquivalentTo(["stoney", "alpha", "bravo"]);
+        result
+            .Value.Channels.Single(c => c.BroadcasterLogin == "bravo")
+            .Error.Should()
+            .Be("Missing scope.");
+        await moderation
+            .Received(1)
+            .AddBlockedTermAsOperatorAsync(
+                Operator,
+                "own1",
+                "twitchstar*",
+                Arg.Any<CancellationToken>()
+            );
+        await moderation
+            .Received(1)
+            .AddBlockedTermAsOperatorAsync(
+                Operator,
+                "b1",
+                "twitchstar*",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("x")]
+    [InlineData(" ")]
+    public async Task A_term_Twitch_would_reject_is_refused_before_any_channel_is_touched(
+        string text
+    )
+    {
+        (IChannelAccessService access, ITwitchModeratorsApi moderators, IApplicationDbContext db) =
+            OwnerWhoModeratesTwoChannels();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+
+        Result<NetworkBanResult> result = await Build(access, moderators, moderation, db)
+            .BlockTermAcrossModeratedAsync(Operator, text);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .AddBlockedTermAsOperatorAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Unblocking_a_term_removes_its_own_id_in_each_channel_and_passes_channels_without_it()
+    {
+        (IChannelAccessService access, ITwitchModeratorsApi moderators, IApplicationDbContext db) =
+            OwnerWhoModeratesTwoChannels();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .GetBlockedTermsAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchBlockedTerm>([], null, 0)));
+        // alpha holds the term on its second page, in a different case; the operator's own channel on page one.
+        moderation
+            .GetBlockedTermsAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "b1",
+                Arg.Is<TwitchPageRequest>(p => p.After == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBlockedTerm>([Term("b1", "x1", "other")], "page2", 0)
+                )
+            );
+        moderation
+            .GetBlockedTermsAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "b1",
+                Arg.Is<TwitchPageRequest>(p => p.After == "page2"),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBlockedTerm>([Term("b1", "a-id", "TwitchStar*")], null, 0)
+                )
+            );
+        moderation
+            .GetBlockedTermsAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "own1",
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBlockedTerm>(
+                        [Term("own1", "o-id", "twitchstar*")],
+                        null,
+                        0
+                    )
+                )
+            );
+        moderation
+            .RemoveBlockedTermAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+
+        Result<NetworkBanResult> result = await Build(access, moderators, moderation, db)
+            .UnblockTermAcrossModeratedAsync(Operator, "twitchstar*");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Attempted.Should().Be(3);
+        result.Value.Succeeded.Should().Be(3, "a channel that never had the term is already clean");
+        await moderation
+            .Received(1)
+            .RemoveBlockedTermAsOperatorAsync(Operator, "b1", "a-id", Arg.Any<CancellationToken>());
+        await moderation
+            .Received(1)
+            .RemoveBlockedTermAsOperatorAsync(
+                Operator,
+                "own1",
+                "o-id",
+                Arg.Any<CancellationToken>()
+            );
+        await moderation
+            .DidNotReceive()
+            .RemoveBlockedTermAsOperatorAsync(
+                Arg.Any<Guid>(),
+                "b2",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
 
     [Fact]
     public async Task Bans_every_moderated_channel_as_the_operator_and_reports_per_channel_outcomes()

@@ -42,6 +42,27 @@ public interface IOperatorNetworkBanService
         string targetTwitchUserId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Adds <paramref name="text"/> to the Twitch blocked-terms list of the operator's own channel and of every
+    /// channel Twitch says they moderate, AS THE OPERATOR, best-effort per channel. Twitch returns the existing term
+    /// when it is already blocked, so a repeat is harmless. Text must be 2–500 characters after trimming.
+    /// </summary>
+    Task<Result<NetworkBanResult>> BlockTermAcrossModeratedAsync(
+        Guid operatorUserId,
+        string text,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The reversal of <see cref="BlockTermAcrossModeratedAsync"/>: in each of the same channels, finds the term by
+    /// its text (case-insensitive) and removes it. A channel that does not hold the term counts as done.
+    /// </summary>
+    Task<Result<NetworkBanResult>> UnblockTermAcrossModeratedAsync(
+        Guid operatorUserId,
+        string text,
+        CancellationToken ct = default
+    );
 }
 
 /// <summary>The outcome of a network ban: how many channels were attempted, how many succeeded, and per-channel detail.</summary>

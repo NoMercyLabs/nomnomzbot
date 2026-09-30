@@ -8,7 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -27,18 +29,25 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
     private readonly IChannelAccessService _channelAccess;
     private readonly ITwitchModeratorsApi _moderators;
     private readonly ITwitchModerationApi _moderation;
+    private readonly IApplicationDbContext _db;
     private readonly ILogger<OperatorNetworkBanService> _logger;
+
+    // Twitch's own bounds for a blocked term (Add Blocked Term: "a minimum of 2 characters … a maximum of 500").
+    private const int MinTermLength = 2;
+    private const int MaxTermLength = 500;
 
     public OperatorNetworkBanService(
         IChannelAccessService channelAccess,
         ITwitchModeratorsApi moderators,
         ITwitchModerationApi moderation,
+        IApplicationDbContext db,
         ILogger<OperatorNetworkBanService> logger
     )
     {
         _channelAccess = channelAccess;
         _moderators = moderators;
         _moderation = moderation;
+        _db = db;
         _logger = logger;
     }
 
@@ -88,6 +97,113 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
             ct
         );
 
+    public Task<Result<NetworkBanResult>> BlockTermAcrossModeratedAsync(
+        Guid operatorUserId,
+        string text,
+        CancellationToken ct = default
+    )
+    {
+        string term = text.Trim();
+        if (term.Length is < MinTermLength or > MaxTermLength)
+            return Task.FromResult(InvalidTerm());
+
+        return FanOutAsync(
+            operatorUserId,
+            "block-term",
+            async channel =>
+            {
+                Result<TwitchBlockedTerm> added = await _moderation.AddBlockedTermAsOperatorAsync(
+                    operatorUserId,
+                    channel.BroadcasterId,
+                    term,
+                    ct
+                );
+                return added.IsSuccess
+                    ? Result.Success()
+                    : Result.Failure(
+                        added.ErrorMessage ?? "Twitch rejected the blocked term.",
+                        added.ErrorCode ?? "TWITCH_ERROR"
+                    );
+            },
+            ct
+        );
+    }
+
+    public Task<Result<NetworkBanResult>> UnblockTermAcrossModeratedAsync(
+        Guid operatorUserId,
+        string text,
+        CancellationToken ct = default
+    )
+    {
+        string term = text.Trim();
+        if (term.Length is < MinTermLength or > MaxTermLength)
+            return Task.FromResult(InvalidTerm());
+
+        return FanOutAsync(
+            operatorUserId,
+            "unblock-term",
+            async channel =>
+            {
+                Result<string?> termId = await FindBlockedTermIdAsync(
+                    operatorUserId,
+                    channel.BroadcasterId,
+                    term,
+                    ct
+                );
+                if (termId.IsFailure)
+                    return termId;
+                return termId.Value is null
+                    ? Result.Success()
+                    : await _moderation.RemoveBlockedTermAsOperatorAsync(
+                        operatorUserId,
+                        channel.BroadcasterId,
+                        termId.Value,
+                        ct
+                    );
+            },
+            ct
+        );
+    }
+
+    private static Result<NetworkBanResult> InvalidTerm() =>
+        Result.Failure<NetworkBanResult>(
+            $"A blocked term must be {MinTermLength} to {MaxTermLength} characters.",
+            "VALIDATION_FAILED"
+        );
+
+    // Remove Blocked Term takes the term's id, not its text, so each channel's list is paged until the text matches.
+    private async Task<Result<string?>> FindBlockedTermIdAsync(
+        Guid operatorUserId,
+        string broadcasterTwitchId,
+        string term,
+        CancellationToken ct
+    )
+    {
+        string? cursor = null;
+        do
+        {
+            Result<TwitchPage<TwitchBlockedTerm>> page =
+                await _moderation.GetBlockedTermsAsOperatorAsync(
+                    operatorUserId,
+                    broadcasterTwitchId,
+                    new(After: cursor),
+                    ct
+                );
+            if (page.IsFailure)
+                return page.WithValue<string?>(null);
+
+            TwitchBlockedTerm? match = page.Value.Items.FirstOrDefault(blocked =>
+                string.Equals(blocked.Text, term, StringComparison.OrdinalIgnoreCase)
+            );
+            if (match is not null)
+                return Result.Success<string?>(match.Id);
+
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor));
+
+        return Result.Success<string?>(null);
+    }
+
     // The shared fan-out both directions ride: resolve the operator's Twitch-authoritative moderated-channel set
     // (Get Moderated Channels, not the local DB), apply <paramref name="perChannel"/> to each AS THE OPERATOR, and
     // aggregate — best-effort, so a channel that fails is recorded and the sweep continues. An operator who owns no
@@ -106,8 +222,10 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
         if (operatorChannelId == Guid.Empty)
             return Result.Success(new NetworkBanResult(0, 0, []));
 
-        Result<IReadOnlyList<TwitchModeratedChannel>> channels =
-            await ResolveModeratedChannelsAsync(operatorChannelId, ct);
+        Result<IReadOnlyList<TwitchModeratedChannel>> channels = await ResolveChannelsAsync(
+            operatorChannelId,
+            ct
+        );
         if (channels.IsFailure)
             return channels.WithValue<NetworkBanResult>(default!);
 
@@ -136,6 +254,29 @@ public sealed class OperatorNetworkBanService : IOperatorNetworkBanService
 
         int succeeded = outcomes.Count(outcome => outcome.Succeeded);
         return Result.Success(new NetworkBanResult(outcomes.Count, succeeded, outcomes));
+    }
+
+    // "Every channel I moderate" includes the one the operator owns: Get Moderated Channels never lists it, so it is
+    // added first from the local channel row (skipped while that row has no Twitch id yet).
+    private async Task<Result<IReadOnlyList<TwitchModeratedChannel>>> ResolveChannelsAsync(
+        Guid operatorChannelId,
+        CancellationToken ct
+    )
+    {
+        Result<IReadOnlyList<TwitchModeratedChannel>> moderated =
+            await ResolveModeratedChannelsAsync(operatorChannelId, ct);
+        if (moderated.IsFailure)
+            return moderated;
+
+        TwitchModeratedChannel? own = await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == operatorChannelId && c.TwitchChannelId != null)
+            .Select(c => new TwitchModeratedChannel(c.TwitchChannelId!, c.Name, c.Name))
+            .FirstOrDefaultAsync(ct);
+        if (own is null || moderated.Value.Any(c => c.BroadcasterId == own.BroadcasterId))
+            return moderated;
+
+        return Result.Success<IReadOnlyList<TwitchModeratedChannel>>([own, .. moderated.Value]);
     }
 
     // Pages through every channel Twitch says the operator moderates. A first-page failure surfaces (e.g. the operator
