@@ -37,5 +37,9 @@ public class SoundClipConfiguration : IEntityTypeConfiguration<SoundClip>
         // One soundboard trigger word per channel. A NULL TriggerWord is DISTINCT under both Postgres and
         // SQLite unique indexes, so many clips can leave the trigger unset while a set word stays unique.
         builder.HasIndex(e => new { e.BroadcasterId, e.TriggerWord }).IsUnique();
+
+        builder
+            .HasIndex(e => e.PlatformSourceDefinitionId)
+            .HasDatabaseName("IX_SoundClip_PlatformSourceDefinitionId");
     }
 }

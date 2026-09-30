@@ -244,9 +244,10 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles { get; }
 
     // Platform content authoring + propagation (platform-admin.md §3) — global, NOT tenant-scoped.
-    DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions { get; }
-    DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions { get; }
-    DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs { get; }
+    DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions { get; }
+    DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions { get; }
+    DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs { get; }
+    DbSet<Domain.PlatformContent.Entities.PlatformAudioAsset> PlatformAudioAssets { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

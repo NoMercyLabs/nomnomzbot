@@ -217,6 +217,9 @@ public abstract class BaseController : ControllerBase
                 result.ErrorCode
             ),
             "VALIDATION_FAILED"
+            // Sound clip file rules (SoundClipAudioRules): not a supported audio format / over the size cap.
+            or "INVALID_FORMAT"
+            or "SIZE_EXCEEDED"
             or "BET_OUT_OF_RANGE"
             or "TWITCH_NOT_CONFIGURED"
             or "INVALID_ID"
@@ -249,6 +252,12 @@ public abstract class BaseController : ControllerBase
             ),
             "ALREADY_EXISTS"
             or "ALREADY_CURRENT"
+            // A platform audio file a non-retired template still names; sound clip install conflicts.
+            or "ASSET_IN_USE"
+            or "DUPLICATE_NAME"
+            or "DUPLICATE_TRIGGER"
+            or "LIMIT_REACHED"
+            or "CHANNEL_BUDGET_EXCEEDED"
             or "MIGRATION_PENDING_EXTERNAL_REMOVAL"
             or TwitchErrorCodes.NoToken
             or "INSUFFICIENT_FUNDS"

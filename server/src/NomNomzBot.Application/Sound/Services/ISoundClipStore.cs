@@ -28,6 +28,18 @@ public interface ISoundClipStore
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Persists an audio file the platform owns (a <c>sound_clip</c> template's source) in the store's platform
+    /// area, apart from every channel's clips, and returns its <c>StorageKey</c>. Open, delete and playback URLs
+    /// work on that key exactly as on a channel clip's key.
+    /// </summary>
+    Task<Result<string>> PutPlatformAssetAsync(
+        string fileName,
+        Stream content,
+        string mimeType,
+        CancellationToken ct = default
+    );
+
     /// <summary>Opens the clip stream for reading (e.g. to serve a direct download).</summary>
     Task<Result<Stream>> OpenAsync(string storageKey, CancellationToken ct = default);
 

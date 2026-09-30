@@ -40,12 +40,12 @@ public sealed class TimerTemplateInstaller(
 
     public string WriteActionKey => "timers:write";
 
-    public Result ValidatePayload(string payloadJson)
+    public Task<Result> ValidatePayloadAsync(string payloadJson, CancellationToken ct = default)
     {
         Result<TimerTemplatePayload> parsed = PlatformTemplateJson.Parse<TimerTemplatePayload>(
             payloadJson
         );
-        return parsed.IsFailure ? parsed : Validate(parsed.Value);
+        return Task.FromResult(parsed.IsFailure ? parsed : Validate(parsed.Value));
     }
 
     public async Task<Result<InstalledPlatformTemplateDto>> InstallAsync(

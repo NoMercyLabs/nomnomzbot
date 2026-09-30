@@ -27,18 +27,8 @@ namespace NomNomzBot.Infrastructure.Sound;
 
 internal sealed class SoundClipService : ISoundClipService
 {
-    private const int MaxSizeBytes = 10 * 1024 * 1024; // 10 MB per clip (spec D4 safe baseline)
     private const int MaxClipsPerChannel = 100;
     private const int MaxCooldownSeconds = 86_400; // one day (mirrors ChatTriggerService)
-
-    private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "audio/mpeg",
-        "audio/ogg",
-        "audio/wav",
-        "audio/wave",
-        "audio/x-wav",
-    };
 
     private readonly IApplicationDbContext _db;
     private readonly ISoundClipStore _store;
@@ -111,37 +101,16 @@ internal sealed class SoundClipService : ISoundClipService
         CancellationToken ct = default
     )
     {
-        // Sniff the first bytes to validate format before doing anything else.
-        byte[] header = new byte[12];
-        int read = await request.Content.ReadAsync(header, 0, header.Length, ct);
-        if (read < 4)
-            return Result<SoundClipDto>.Failure(
-                "Upload too small to be a valid audio file.",
-                "INVALID_FORMAT"
-            );
-
-        string? sniffedMime = AudioSniffer.Sniff(header);
-        if (sniffedMime is null)
-            return Result<SoundClipDto>.Failure(
-                "File content is not a supported audio format (mp3, ogg, wav).",
-                "INVALID_FORMAT"
-            );
-
-        // Reconstruct stream: header bytes + remainder.
-        System.IO.Stream combined = new CombinedReadStream(header, read, request.Content);
-
-        // Read entire content to validate size and probe duration.
-        using MemoryStream ms = new();
-        await combined.CopyToAsync(ms, ct);
-        ms.Position = 0;
-
-        // Per-file abuse guard — a fixed safety baseline, never tier-scaled, so a single huge
-        // upload is refused on every plan including self-host.
-        if (ms.Length > MaxSizeBytes)
-            return Result<SoundClipDto>.Failure(
-                $"Clip exceeds the {MaxSizeBytes / 1024 / 1024} MB size limit.",
-                "SIZE_EXCEEDED"
-            );
+        // Format, size and duration — the same rules a platform audio file passed, run again here.
+        Result<ValidatedAudio> validated = await SoundClipAudioRules.ValidateAsync(
+            request.Content,
+            ct
+        );
+        if (validated.IsFailure)
+            return validated.WithValue<SoundClipDto>(null!);
+        await using ValidatedAudio audio = validated.Value;
+        MemoryStream ms = audio.Content;
+        string sniffedMime = audio.MimeType;
 
         // Validate clip count per channel.
         int clipCount = await _db.SoundClips.CountAsync(c => c.BroadcasterId == broadcasterId, ct);
@@ -175,9 +144,6 @@ internal sealed class SoundClipService : ISoundClipService
                 ),
                 "CHANNEL_BUDGET_EXCEEDED"
             );
-
-        int durationMs = AudioSniffer.ProbeDurationMs(ms, sniffedMime);
-        ms.Position = 0;
 
         // Validate name uniqueness.
         bool nameExists = await _db.SoundClips.AnyAsync(
@@ -228,7 +194,7 @@ internal sealed class SoundClipService : ISoundClipService
             DisplayName = request.DisplayName,
             StorageKey = storeResult.Value,
             MimeType = sniffedMime,
-            DurationMs = durationMs,
+            DurationMs = audio.DurationMs,
             SizeBytes = ms.Length,
             DefaultVolume = Math.Clamp(request.DefaultVolume, 0, 100),
             IsEnabled = true,

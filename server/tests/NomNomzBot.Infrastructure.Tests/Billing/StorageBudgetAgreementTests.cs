@@ -24,6 +24,7 @@ using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Sound;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Sound;
 
 namespace NomNomzBot.Infrastructure.Tests.Billing;
 
@@ -57,7 +58,7 @@ public sealed class StorageBudgetAgreementTests
         ResourceQuotaService quota = new(tiers, metering, db, new FakeTimeProvider());
         SoundClipService soundClips = new(
             db,
-            new FakeSoundClipStore(),
+            new InMemorySoundClipStore(),
             new FakeOverlayNotifier(),
             new FakeChannelRegistry(),
             quota,
@@ -352,30 +353,6 @@ public sealed class StorageBudgetAgreementTests
     }
 
     // ── Test doubles ─────────────────────────────────────────────────────────────
-
-    private sealed class FakeSoundClipStore : ISoundClipStore
-    {
-        public Task<Result<string>> PutAsync(
-            Guid broadcasterId,
-            string fileName,
-            System.IO.Stream content,
-            string mimeType,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<string>.Success($"key/{Guid.NewGuid()}"));
-
-        public Task<Result<System.IO.Stream>> OpenAsync(
-            string storageKey,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<System.IO.Stream>.Success(new MemoryStream()));
-
-        public Task<Result> DeleteAsync(string storageKey, CancellationToken ct = default) =>
-            Task.FromResult(Result.Success());
-
-        public Task<Result<string>> GetPlaybackUrlAsync(
-            string storageKey,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<string>.Success($"/play/{storageKey}"));
-    }
 
     private sealed class FakeOverlayNotifier : ISoundClipOverlayNotifier
     {

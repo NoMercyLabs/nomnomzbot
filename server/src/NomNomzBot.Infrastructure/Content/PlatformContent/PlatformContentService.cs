@@ -179,7 +179,11 @@ public sealed class PlatformContentService(
                 "VALIDATION_FAILED"
             );
 
-        Result payloadOk = ValidateTemplatePayload(request.Kind, request.PayloadJson);
+        Result payloadOk = await ValidateTemplatePayloadAsync(
+            request.Kind,
+            request.PayloadJson,
+            ct
+        );
         if (payloadOk.IsFailure)
             return payloadOk.WithValue<PlatformContentDefinitionDto>(null!);
 
@@ -247,7 +251,11 @@ public sealed class PlatformContentService(
                 "NOT_FOUND"
             );
 
-        Result payloadOk = ValidateTemplatePayload(definition.Kind, request.PayloadJson);
+        Result payloadOk = await ValidateTemplatePayloadAsync(
+            definition.Kind,
+            request.PayloadJson,
+            ct
+        );
         if (payloadOk.IsFailure)
             return payloadOk.WithValue<PlatformContentVersionDto>(null!);
 
@@ -442,7 +450,11 @@ public sealed class PlatformContentService(
                 return compileGate.WithValue<PlatformContentPublishJobDto>(null!);
         }
 
-        Result templateGate = ValidateTemplatePayload(definition.Kind, version.PayloadJson);
+        Result templateGate = await ValidateTemplatePayloadAsync(
+            definition.Kind,
+            version.PayloadJson,
+            ct
+        );
         if (templateGate.IsFailure)
             return templateGate.WithValue<PlatformContentPublishJobDto>(null!);
 
@@ -628,7 +640,11 @@ public sealed class PlatformContentService(
 
         definition.RetiredAt = DateTime.UtcNow;
         await uow.SaveChangesAsync(ct);
-        return Result.Success();
+
+        IPlatformTemplateInstaller? installer = FindTemplateInstaller(definition.Kind);
+        return installer is null
+            ? Result.Success()
+            : await installer.ReleaseRetiredAsync(definition.Id, ct);
     }
 
     public async Task<Result<IReadOnlyList<EventResponsePresetDto>>> ListEventResponseTypesAsync(
@@ -649,8 +665,13 @@ public sealed class PlatformContentService(
 
     /// <summary>For an installable template kind, checks the payload shape through the kind's own
     /// <see cref="IPlatformTemplateInstaller"/> — the same rules install applies. Other kinds pass.</summary>
-    private Result ValidateTemplatePayload(string kind, string payloadJson) =>
-        FindTemplateInstaller(kind)?.ValidatePayload(payloadJson) ?? Result.Success();
+    private Task<Result> ValidateTemplatePayloadAsync(
+        string kind,
+        string payloadJson,
+        CancellationToken ct
+    ) =>
+        FindTemplateInstaller(kind)?.ValidatePayloadAsync(payloadJson, ct)
+        ?? Task.FromResult(Result.Success());
 
     private IPlatformTemplateInstaller? FindTemplateInstaller(string kind) =>
         templateInstallers.FirstOrDefault(i => i.Kind == kind);

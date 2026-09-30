@@ -394,6 +394,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         throw new NotSupportedException();
     public DbSet<PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
+    public DbSet<PlatformAudioAsset> PlatformAudioAssets => throw new NotSupportedException();
     public DbSet<GameSession> GameSessions => throw new NotSupportedException();
     public DbSet<ViewerAgeConsent> ViewerAgeConsents => throw new NotSupportedException();
     public DbSet<SavingsJar> SavingsJars => throw new NotSupportedException();

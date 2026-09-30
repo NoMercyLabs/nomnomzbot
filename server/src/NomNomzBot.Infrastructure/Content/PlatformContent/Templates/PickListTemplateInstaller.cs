@@ -44,11 +44,11 @@ public sealed partial class PickListTemplateInstaller(
 
     public string WriteActionKey => "picklists:write";
 
-    public Result ValidatePayload(string payloadJson)
+    public Task<Result> ValidatePayloadAsync(string payloadJson, CancellationToken ct = default)
     {
         Result<PickListTemplatePayload> parsed =
             PlatformTemplateJson.Parse<PickListTemplatePayload>(payloadJson);
-        return parsed.IsFailure ? parsed : Validate(parsed.Value);
+        return Task.FromResult(parsed.IsFailure ? parsed : Validate(parsed.Value));
     }
 
     public async Task<Result<InstalledPlatformTemplateDto>> InstallAsync(

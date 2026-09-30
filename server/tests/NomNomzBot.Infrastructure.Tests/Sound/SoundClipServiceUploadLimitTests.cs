@@ -39,11 +39,11 @@ public sealed class SoundClipServiceUploadLimitTests
     private static (
         SoundClipService Service,
         PipelineOptionsTestDbContext Db,
-        FakeSoundClipStore Store
+        InMemorySoundClipStore Store
     ) Build()
     {
         PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
-        FakeSoundClipStore store = new();
+        InMemorySoundClipStore store = new();
         IResourceQuotaService quota = Substitute.For<IResourceQuotaService>();
         quota
             .GetCurrentCountAsync(
@@ -96,7 +96,7 @@ public sealed class SoundClipServiceUploadLimitTests
     [Fact]
     public async Task Upload_over_the_10mb_size_cap_is_rejected_and_not_persisted()
     {
-        (SoundClipService service, PipelineOptionsTestDbContext db, FakeSoundClipStore store) =
+        (SoundClipService service, PipelineOptionsTestDbContext db, InMemorySoundClipStore store) =
             Build();
         byte[] tooBig = Mp3Bytes(MaxSizeBytes + 1);
 
@@ -117,7 +117,7 @@ public sealed class SoundClipServiceUploadLimitTests
     [Fact]
     public async Task Upload_within_the_10mb_size_cap_succeeds_and_persists_the_clip_and_blob()
     {
-        (SoundClipService service, PipelineOptionsTestDbContext db, FakeSoundClipStore store) =
+        (SoundClipService service, PipelineOptionsTestDbContext db, InMemorySoundClipStore store) =
             Build();
         byte[] withinLimit = Mp3Bytes(MaxSizeBytes - 1);
 
@@ -143,47 +143,5 @@ public sealed class SoundClipServiceUploadLimitTests
         row.SizeBytes.Should().Be(withinLimit.Length);
         store.Blobs.Should().ContainKey(row.StorageKey);
         store.Blobs[row.StorageKey].Should().HaveCount(withinLimit.Length);
-    }
-
-    /// <summary>An in-memory <see cref="ISoundClipStore"/> that records blobs by storage key.</summary>
-    private sealed class FakeSoundClipStore : ISoundClipStore
-    {
-        public Dictionary<string, byte[]> Blobs { get; } = [];
-
-        public async Task<Result<string>> PutAsync(
-            Guid broadcasterId,
-            string fileName,
-            System.IO.Stream content,
-            string mimeType,
-            CancellationToken ct = default
-        )
-        {
-            using MemoryStream ms = new();
-            await content.CopyToAsync(ms, ct);
-            string key = $"{broadcasterId:N}/{Guid.NewGuid():N}{Path.GetExtension(fileName)}";
-            Blobs[key] = ms.ToArray();
-            return Result<string>.Success(key);
-        }
-
-        public Task<Result<System.IO.Stream>> OpenAsync(
-            string storageKey,
-            CancellationToken ct = default
-        ) =>
-            Task.FromResult(
-                Blobs.TryGetValue(storageKey, out byte[]? bytes)
-                    ? Result<System.IO.Stream>.Success(new MemoryStream(bytes))
-                    : Result<System.IO.Stream>.Failure("Sound clip file not found.")
-            );
-
-        public Task<Result> DeleteAsync(string storageKey, CancellationToken ct = default)
-        {
-            Blobs.Remove(storageKey);
-            return Task.FromResult(Result.Success());
-        }
-
-        public Task<Result<string>> GetPlaybackUrlAsync(
-            string storageKey,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<string>.Success($"/api/v1/sound-clips/stream/{storageKey}"));
     }
 }

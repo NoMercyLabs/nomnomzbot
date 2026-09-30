@@ -44,7 +44,7 @@ public sealed class SoundClipServicePreviewTests
 
         SoundClipService service = new(
             db,
-            new FakeSoundClipStore(),
+            new InMemorySoundClipStore(),
             overlay,
             Substitute.For<IChannelRegistry>(),
             quota,
@@ -123,30 +123,5 @@ public sealed class SoundClipServicePreviewTests
                 Arg.Any<SoundPlaybackDto>(),
                 Arg.Any<CancellationToken>()
             );
-    }
-
-    /// <summary>A minimal <see cref="ISoundClipStore"/> that resolves any storage key to a stream URL.</summary>
-    private sealed class FakeSoundClipStore : ISoundClipStore
-    {
-        public Task<Result<string>> PutAsync(
-            Guid broadcasterId,
-            string fileName,
-            System.IO.Stream content,
-            string mimeType,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<string>.Success($"{broadcasterId:N}/{fileName}"));
-
-        public Task<Result<System.IO.Stream>> OpenAsync(
-            string storageKey,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<System.IO.Stream>.Success(new MemoryStream()));
-
-        public Task<Result> DeleteAsync(string storageKey, CancellationToken ct = default) =>
-            Task.FromResult(Result.Success());
-
-        public Task<Result<string>> GetPlaybackUrlAsync(
-            string storageKey,
-            CancellationToken ct = default
-        ) => Task.FromResult(Result<string>.Success($"/api/v1/sound-clips/stream/{storageKey}"));
     }
 }

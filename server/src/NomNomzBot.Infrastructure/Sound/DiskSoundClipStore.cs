@@ -19,10 +19,14 @@ namespace NomNomzBot.Infrastructure.Sound;
 /// <summary>
 /// Self-host implementation of <see cref="ISoundClipStore"/>. Clips are persisted under
 /// <c>NOMNOMZ_DATA_DIR/sound-clips/{broadcasterId}/</c>. The storage key is the relative path
-/// <c>{broadcasterId}/{uniqueFileName}</c>, which doubles as the path fragment for the playback URL.
+/// <c>{broadcasterId}/{uniqueFileName}</c>, which doubles as the path fragment for the playback URL. Platform
+/// audio files (<see cref="PutPlatformAssetAsync"/>) live beside them under <c>platform/</c>.
 /// </summary>
 internal sealed class DiskSoundClipStore : ISoundClipStore
 {
+    /// <summary>The folder for audio the platform owns. A channel folder is a 32-char hex id, so it never collides.</summary>
+    private const string PlatformArea = "platform";
+
     private readonly string _root = SelfHostDataPaths.SoundClipsDirectory;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IConfiguration _configuration;
@@ -36,26 +40,39 @@ internal sealed class DiskSoundClipStore : ISoundClipStore
         _configuration = configuration;
     }
 
-    public async Task<Result<string>> PutAsync(
+    public Task<Result<string>> PutAsync(
         Guid broadcasterId,
         string fileName,
         System.IO.Stream content,
         string mimeType,
         CancellationToken ct = default
+    ) => WriteAsync(broadcasterId.ToString("N"), fileName, content, ct);
+
+    public Task<Result<string>> PutPlatformAssetAsync(
+        string fileName,
+        System.IO.Stream content,
+        string mimeType,
+        CancellationToken ct = default
+    ) => WriteAsync(PlatformArea, fileName, content, ct);
+
+    /// <summary>Writes the stream under <c>{area}/{unique}{ext}</c> and returns that relative path as the key.</summary>
+    private async Task<Result<string>> WriteAsync(
+        string area,
+        string fileName,
+        System.IO.Stream content,
+        CancellationToken ct
     )
     {
-        string channelDir = Path.Combine(_root, broadcasterId.ToString("N"));
-        Directory.CreateDirectory(channelDir);
+        string areaDir = Path.Combine(_root, area);
+        Directory.CreateDirectory(areaDir);
 
-        string ext = Path.GetExtension(fileName);
-        string uniqueName = $"{Guid.NewGuid():N}{ext}";
-        string fullPath = Path.Combine(channelDir, uniqueName);
-        string storageKey = $"{broadcasterId:N}/{uniqueName}";
+        string uniqueName = $"{Guid.NewGuid():N}{Path.GetExtension(fileName)}";
+        string fullPath = Path.Combine(areaDir, uniqueName);
 
         await using FileStream fs = File.Create(fullPath);
         await content.CopyToAsync(fs, ct);
 
-        return Result<string>.Success(storageKey);
+        return Result<string>.Success($"{area}/{uniqueName}");
     }
 
     public Task<Result<System.IO.Stream>> OpenAsync(
