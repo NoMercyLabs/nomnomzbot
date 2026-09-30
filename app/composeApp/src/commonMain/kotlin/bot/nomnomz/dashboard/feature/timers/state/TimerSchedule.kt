@@ -51,10 +51,6 @@ object TimerSchedule {
         return (next - now).inWholeMinutes
     }
 
-    /** Whole minutes since the timer last fired, or null when it has never fired. */
-    fun minutesSinceLastFire(lastFiredAt: String?, now: Instant): Long? =
-        RelativeTime.minutesSince(lastFiredAt, now)
-
     /**
      * The 1-based rotation position (current message index, message count) — e.g. `2 of 5`. Null
      * when there is nothing to rotate through (zero or one message), matching [TimerService]'s

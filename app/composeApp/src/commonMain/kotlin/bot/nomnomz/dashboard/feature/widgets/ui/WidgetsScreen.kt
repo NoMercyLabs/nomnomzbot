@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.io.captureWindowSupported
 import bot.nomnomz.dashboard.core.io.openCaptureWindow
 import bot.nomnomz.dashboard.core.time.RelativeTime
+import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -726,8 +727,8 @@ private fun WidgetRow(
     // ran looked identical to one that had never been asked to run at all.
     val now = remember { Clock.System.now() }
     val lastRanText: String =
-        RelativeTime.minutesSince(widget.lastRanAt, now)?.let { minutesAgo ->
-            stringResource(Res.string.widgets_last_ran, minutesAgo.coerceAtLeast(0).toInt())
+        RelativeTime.elapsedSince(widget.lastRanAt, now)?.let { elapsed ->
+            stringResource(Res.string.widgets_last_ran, elapsedText(elapsed))
         } ?: stringResource(Res.string.widgets_never_ran)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
 

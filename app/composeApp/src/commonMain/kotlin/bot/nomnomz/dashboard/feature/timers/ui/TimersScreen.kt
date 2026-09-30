@@ -78,6 +78,8 @@ import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
+import bot.nomnomz.dashboard.core.time.RelativeTime
+import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunController
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunUiState
 import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestAction
@@ -847,8 +849,8 @@ private fun TimerScheduleInfo(intervalMinutes: Int?, detail: TimerDetail?) {
     val now = remember { Clock.System.now() }
 
     val lastFiredText: String =
-        TimerSchedule.minutesSinceLastFire(detail.lastFiredAt, now)?.let { minutesAgo ->
-            stringResource(Res.string.timers_dialog_schedule_last_fired, minutesAgo.coerceAtLeast(0).toInt())
+        RelativeTime.elapsedSince(detail.lastFiredAt, now)?.let { elapsed ->
+            stringResource(Res.string.timers_dialog_schedule_last_fired, elapsedText(elapsed))
         } ?: stringResource(Res.string.timers_dialog_schedule_never_fired)
 
     val nextFireText: String? =

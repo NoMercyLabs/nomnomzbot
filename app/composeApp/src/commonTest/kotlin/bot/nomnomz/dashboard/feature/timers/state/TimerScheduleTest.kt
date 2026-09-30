@@ -58,7 +58,6 @@ class TimerScheduleTest {
                 now = Instant.parse("2026-08-29T12:00:00Z"),
             )
         )
-        assertNull(TimerSchedule.minutesSinceLastFire(lastFiredAt = null, now = Instant.parse("2026-08-29T12:00:00Z")))
     }
 
     @Test
@@ -73,7 +72,6 @@ class TimerScheduleTest {
         val lastFired = "2026-08-29T12:00:00Z"
         val now = Instant.parse("2026-08-29T12:10:00Z")
 
-        assertEquals(10L, TimerSchedule.minutesSinceLastFire(lastFired, now))
         assertEquals(20L, TimerSchedule.minutesUntilNextFire(lastFired, intervalMinutes = 30, now = now))
     }
 

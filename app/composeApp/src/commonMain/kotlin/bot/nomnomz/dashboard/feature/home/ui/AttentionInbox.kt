@@ -44,6 +44,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.time.Elapsed
+import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.feature.attention.ui.AttentionGroupedList
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
@@ -61,10 +62,7 @@ import nomnomzbot.composeapp.generated.resources.home_held_block
 import nomnomzbot.composeapp.generated.resources.home_held_block_term
 import nomnomzbot.composeapp.generated.resources.home_held_bulk_title
 import nomnomzbot.composeapp.generated.resources.home_held_close
-import nomnomzbot.composeapp.generated.resources.home_held_modal_held_just_now
-import nomnomzbot.composeapp.generated.resources.home_held_modal_held_minutes
-import nomnomzbot.composeapp.generated.resources.home_held_modal_held_hours
-import nomnomzbot.composeapp.generated.resources.home_held_modal_held_days
+import nomnomzbot.composeapp.generated.resources.home_held_modal_held
 import nomnomzbot.composeapp.generated.resources.home_held_modal_repeated
 import nomnomzbot.composeapp.generated.resources.home_held_modal_category
 import nomnomzbot.composeapp.generated.resources.home_held_modal_empty
@@ -415,15 +413,10 @@ private fun HeldMessageGroupRow(
     }
 }
 
-/** The translated wording for a bucketed age — the unit choice is made in [RelativeTime]. */
+/** "Held 3h ago": the shared bucketed age, framed for the held-message row. */
 @Composable
 private fun heldAgoText(elapsed: Elapsed): String =
-    when (elapsed) {
-        is Elapsed.JustNow -> stringResource(Res.string.home_held_modal_held_just_now)
-        is Elapsed.Minutes -> stringResource(Res.string.home_held_modal_held_minutes, elapsed.value)
-        is Elapsed.Hours -> stringResource(Res.string.home_held_modal_held_hours, elapsed.value)
-        is Elapsed.Days -> stringResource(Res.string.home_held_modal_held_days, elapsed.value)
-    }
+    stringResource(Res.string.home_held_modal_held, elapsedText(elapsed))
 
 // The four resolve actions. Timeout expands its preset row (60s/10m/1h/1d) instead of firing blind; every
 // button rides the caller's `moderation:queue:resolve` decision — disabled with a reason below the floor.

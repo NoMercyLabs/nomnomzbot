@@ -41,7 +41,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.io.playSoundPreview
-import bot.nomnomz.dashboard.feature.tts.state.TtsOverlaySchedule
 import bot.nomnomz.dashboard.feature.tts.state.ttsResetChanges
 import nomnomzbot.composeapp.generated.resources.tts_reset_action
 import bot.nomnomz.dashboard.feature.tts.state.VoiceBrowserState
@@ -86,6 +85,8 @@ import bot.nomnomz.dashboard.core.network.TtsOverlay
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.time.RelativeTime
+import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -1900,8 +1901,8 @@ private fun OverlayCard(
     val now = remember { Clock.System.now() }
 
     val lastRanText: String =
-        TtsOverlaySchedule.minutesSinceLastRan(overlay.lastRanAt, now)?.let { minutesAgo ->
-            stringResource(Res.string.tts_overlay_last_ran, minutesAgo.coerceAtLeast(0).toInt())
+        RelativeTime.elapsedSince(overlay.lastRanAt, now)?.let { elapsed ->
+            stringResource(Res.string.tts_overlay_last_ran, elapsedText(elapsed))
         } ?: stringResource(Res.string.tts_overlay_never_ran)
 
     Card(modifier = Modifier.fillMaxWidth()) {

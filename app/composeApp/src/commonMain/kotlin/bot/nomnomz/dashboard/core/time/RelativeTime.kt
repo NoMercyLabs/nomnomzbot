@@ -11,6 +11,9 @@
 package bot.nomnomz.dashboard.core.time
 
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Pure "how long ago" math shared by every "last ran / last fired" badge in the dashboard (timers,
@@ -23,45 +26,49 @@ object RelativeTime {
     fun parseOrNull(value: String?): Instant? =
         value?.let { runCatching { Instant.parse(it) }.getOrNull() }
 
-    /** Whole minutes from [iso] until [now], or null when [iso] is null/unparseable (never happened yet). */
-    fun minutesSince(iso: String?, now: Instant): Long? {
-        val then: Instant = parseOrNull(iso) ?: return null
-        return (now - then).inWholeMinutes
-    }
-
     /**
      * The same elapsed time, bucketed for display. Raw minutes are honest and unreadable past an
-     * hour — "1450m ago" is a day, and nobody reads it as one. The bucket carries a unit and a
+     * hour: "105790m ago" is months, and nobody reads it as that. The bucket carries a unit and a
      * number; the UI layer picks the translated wording, so no English lives here.
+     *
+     * Buckets roll up: seconds under a minute, minutes under an hour, hours under a day, days under
+     * [DaysBeforeDate], then the calendar date in [zone].
      *
      * Clock skew (a timestamp in the future) collapses to [Elapsed.JustNow] rather than a negative
      * count, because a negative age is never the useful thing to show someone.
      */
-    fun elapsedSince(iso: String?, now: Instant): Elapsed? {
-        val minutes: Long = minutesSince(iso, now) ?: return null
-        val whole: Long = minutes.coerceAtLeast(0)
+    fun elapsedSince(iso: String?, now: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Elapsed? {
+        val then: Instant = parseOrNull(iso) ?: return null
+        val seconds: Long = (now - then).inWholeSeconds.coerceAtLeast(0)
         return when {
-            whole < 1 -> Elapsed.JustNow
-            whole < MinutesPerHour -> Elapsed.Minutes(whole.toInt())
-            whole < MinutesPerDay * 2 -> Elapsed.Hours((whole / MinutesPerHour).toInt())
-            else -> Elapsed.Days((whole / MinutesPerDay).toInt())
+            seconds < JustNowSeconds -> Elapsed.JustNow
+            seconds < SecondsPerMinute -> Elapsed.Seconds(seconds.toInt())
+            seconds < SecondsPerHour -> Elapsed.Minutes((seconds / SecondsPerMinute).toInt())
+            seconds < SecondsPerDay -> Elapsed.Hours((seconds / SecondsPerHour).toInt())
+            seconds < SecondsPerDay * DaysBeforeDate -> Elapsed.Days((seconds / SecondsPerDay).toInt())
+            else -> Elapsed.Date(then.toLocalDateTime(zone).date)
         }
     }
 
-    private const val MinutesPerHour: Long = 60
-    private const val MinutesPerDay: Long = 60 * 24
+    private const val JustNowSeconds: Long = 10
+    private const val SecondsPerMinute: Long = 60
+    private const val SecondsPerHour: Long = 60 * 60
+    private const val SecondsPerDay: Long = 60 * 60 * 24
+    private const val DaysBeforeDate: Long = 30
 }
 
-/**
- * How long ago something happened, at the coarseness a person reads it at. Hours stay hours until
- * two days so "31 hours ago" is still available where it matters; past that, days.
- */
+/** How long ago something happened, at the coarseness a person reads it at. */
 sealed interface Elapsed {
     data object JustNow : Elapsed
+
+    data class Seconds(val value: Int) : Elapsed
 
     data class Minutes(val value: Int) : Elapsed
 
     data class Hours(val value: Int) : Elapsed
 
     data class Days(val value: Int) : Elapsed
+
+    /** Too old for a count to read well: the calendar day it happened. */
+    data class Date(val date: LocalDate) : Elapsed
 }

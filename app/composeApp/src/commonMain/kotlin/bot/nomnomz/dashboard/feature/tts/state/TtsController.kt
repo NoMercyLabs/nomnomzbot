@@ -17,7 +17,6 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
-import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
@@ -33,7 +32,6 @@ import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.datetime.Instant
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.tts_lexicon_error
 
@@ -551,13 +549,3 @@ data class ViewerVoiceState(
     val busy: Boolean = false,
     val error: String? = null,
 )
-
-/**
- * Pure "how long ago" math for [TtsOverlay.lastRanAt] (ISO-8601 UTC, same shape as `TimerSchedule`'s
- * `lastFiredAt`) — no network or Compose dependency, so it is tested directly against fixed instants.
- */
-object TtsOverlaySchedule {
-    /** Whole minutes since the overlay last ran, or null when it has never reported running. */
-    fun minutesSinceLastRan(lastRanAt: String?, now: Instant): Long? =
-        RelativeTime.minutesSince(lastRanAt, now)
-}

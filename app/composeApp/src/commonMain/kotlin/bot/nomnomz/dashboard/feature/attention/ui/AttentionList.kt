@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.time.RelativeTime
+import bot.nomnomz.dashboard.core.time.elapsedText
 import bot.nomnomz.dashboard.feature.attention.state.AttentionSeverity
 import bot.nomnomz.dashboard.feature.attention.state.groupBySeverity
 import kotlinx.datetime.Clock
@@ -42,7 +43,6 @@ import nomnomzbot.composeapp.generated.resources.home_action_required_severity_c
 import nomnomzbot.composeapp.generated.resources.home_action_required_severity_info
 import nomnomzbot.composeapp.generated.resources.home_action_required_severity_warning
 import nomnomzbot.composeapp.generated.resources.home_attention_count_badge
-import nomnomzbot.composeapp.generated.resources.home_attention_detected_ago
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -166,12 +166,9 @@ fun AttentionItemRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            RelativeTime.minutesSince(item.detectedAt, now)?.let { minutesAgo ->
+            RelativeTime.elapsedSince(item.detectedAt, now)?.let { elapsed ->
                 Text(
-                    text = stringResource(
-                        Res.string.home_attention_detected_ago,
-                        minutesAgo.coerceAtLeast(0).toInt(),
-                    ),
+                    text = elapsedText(elapsed),
                     style = typography.xs,
                     color = tokens.mutedForeground,
                 )
