@@ -30,7 +30,9 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 public sealed class CommandsBuiltinTests
 {
     private static BuiltinCommandContext Context(
-        string personality = PersonalityTone.Informative
+        string personality = PersonalityTone.Informative,
+        int roleLevel = 0,
+        string commandPrefix = "!"
     ) =>
         new()
         {
@@ -39,6 +41,8 @@ public sealed class CommandsBuiltinTests
             TriggeringUserDisplayName = "Stoney_Eagle",
             TriggeringUserLogin = "stoney_eagle",
             Personality = personality,
+            RoleLevel = roleLevel,
+            CommandPrefix = commandPrefix,
         };
 
     private static IBuiltinResponseComposer FakeComposer()
@@ -74,16 +78,23 @@ public sealed class CommandsBuiltinTests
         return serviceProvider;
     }
 
-    private static CommandListItem FakeCommand(string name, bool isEnabled) =>
+    private static CommandListItem FakeCommand(
+        string name,
+        bool isEnabled,
+        string minPermissionLevel = "Everyone",
+        string prefixMode = "Default",
+        string? customPrefix = null,
+        string matchMode = "StartsWith"
+    ) =>
         new(
             Guid.CreateVersion7(),
             name,
             "template",
-            "Everyone",
+            minPermissionLevel,
             isEnabled,
-            "Default",
-            null,
-            "StartsWith",
+            prefixMode,
+            customPrefix,
+            matchMode,
             null,
             0,
             0,
@@ -205,14 +216,81 @@ public sealed class CommandsBuiltinTests
                     BuiltinResponseSlots.Commands.Key,
                     BuiltinResponseSlots.Commands.List
                 )
-                .Select(t => t.Replace("{user}", "Stoney_Eagle").Replace("{commands}", "sr")),
+                .Select(t => t.Replace("{user}", "Stoney_Eagle").Replace("{commands}", "!sr")),
         ];
         sassyVariants.Should().Contain(sassy.Value);
 
         // Default tone still reads exactly as it did before this slice (regression).
-        informative.Value.Should().Be(oldHardcodedString);
+        informative.Value.Should().Be("@Stoney_Eagle available commands: !sr");
     }
 
-    private static BuiltinCommandDto Dto(string key, bool enabled, int cooldown) =>
-        new(key, key, enabled, cooldown, "Everyone", key, false, false, null, null, 0);
+    private static BuiltinCommandDto Dto(
+        string key,
+        bool enabled,
+        int cooldown,
+        string floor = "Everyone",
+        string? floorOverride = null
+    ) => new(key, key, enabled, cooldown, floor, key, false, false, null, floorOverride, 0);
+
+    private static CommandsBuiltin BuiltinOver(
+        IReadOnlyList<CommandListItem> custom,
+        IReadOnlyList<BuiltinCommandDto> builtinDtos
+    )
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(new PagedList<CommandListItem>([.. custom], 1, 100, custom.Count))
+            );
+        IBuiltinCommandService builtins = Substitute.For<IBuiltinCommandService>();
+        builtins
+            .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(builtinDtos));
+        return new(commands, FakeServiceProvider(builtins), FakeComposer());
+    }
+
+    [Fact]
+    public async Task A_viewer_sees_only_what_a_viewer_can_run_and_a_moderator_sees_the_rest_too()
+    {
+        CommandsBuiltin builtin = BuiltinOver(
+            [
+                FakeCommand("lurk", isEnabled: true),
+                FakeCommand("raid", isEnabled: true, minPermissionLevel: "Moderator"),
+            ],
+            [
+                Dto("uptime", enabled: true, cooldown: 5),
+                Dto("title", enabled: true, cooldown: 5, floor: "Moderator"),
+                Dto("followage", enabled: true, cooldown: 5, floorOverride: "Moderator"),
+            ]
+        );
+
+        Result<string> viewer = await builtin.ExecuteAsync(Context(roleLevel: 0));
+        Result<string> moderator = await builtin.ExecuteAsync(Context(roleLevel: 10));
+
+        viewer.Value.Should().Be("@Stoney_Eagle available commands: !lurk, !uptime");
+        moderator
+            .Value.Should()
+            .Be("@Stoney_Eagle available commands: !followage, !lurk, !raid, !title, !uptime");
+    }
+
+    [Fact]
+    public async Task Each_command_is_shown_the_way_it_is_typed_and_regex_triggers_are_left_out()
+    {
+        CommandsBuiltin builtin = BuiltinOver(
+            [
+                FakeCommand("discord", isEnabled: true),
+                FakeCommand("hug", isEnabled: true, prefixMode: "Custom", customPrefix: "#"),
+                FakeCommand("hello", isEnabled: true, prefixMode: "None"),
+                FakeCommand("pattern", isEnabled: true, matchMode: "Regex"),
+            ],
+            [Dto("uptime", enabled: true, cooldown: 5)]
+        );
+
+        Result<string> result = await builtin.ExecuteAsync(Context(commandPrefix: "?"));
+
+        result
+            .Value.Should()
+            .Be("@Stoney_Eagle available commands: ?discord, hello, #hug, ?uptime");
+    }
 }

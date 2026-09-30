@@ -84,7 +84,7 @@ public sealed class HelpBuiltin : IBuiltinCommand
         }
 
         IReadOnlyList<string> triggers = await _commandsListing.ResolveEnabledTriggersAsync(
-            context.BroadcasterId,
+            context,
             ct
         );
 

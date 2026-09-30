@@ -14,6 +14,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -57,10 +58,7 @@ public sealed class CommandsBuiltin : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        IReadOnlyList<string> triggers = await ResolveEnabledTriggersAsync(
-            context.BroadcasterId,
-            ct
-        );
+        IReadOnlyList<string> triggers = await ResolveEnabledTriggersAsync(context, ct);
 
         string reply = await ComposeListingAsync(context, triggers, ct);
         return Result.Success(reply);
@@ -115,23 +113,31 @@ public sealed class CommandsBuiltin : IBuiltinCommand
     }
 
     /// <summary>
-    /// Merges enabled authored-command names with enabled built-in keys into one sorted, de-duplicated
-    /// trigger list. Shared by <see cref="CommandsBuiltin"/> and <see cref="HelpBuiltin"/>'s generic fallback.
+    /// The enabled authored commands and built-ins the caller's level may run, each written as it is typed
+    /// in chat (its own prefix), sorted by name and de-duplicated. A Regex-matched command has no typeable
+    /// trigger, so it is left out. Shared by <see cref="CommandsBuiltin"/> and <see cref="HelpBuiltin"/>'s
+    /// generic fallback.
     /// </summary>
     internal async Task<IReadOnlyList<string>> ResolveEnabledTriggersAsync(
-        Guid broadcasterId,
+        BuiltinCommandContext context,
         CancellationToken ct
     )
     {
-        string broadcasterIdText = broadcasterId.ToString();
+        string broadcasterIdText = context.BroadcasterId.ToString();
 
         Result<PagedList<CommandListItem>> customResult = await _commands.ListAsync(
             broadcasterIdText,
             new PaginationParams(Page: 1, PageSize: PaginationParams.MaxPageSize),
             ct
         );
-        IEnumerable<string> customNames = customResult.IsSuccess
-            ? customResult.Value.Items.Where(c => c.IsEnabled).Select(c => c.Name)
+        IEnumerable<(string Name, string Trigger)> custom = customResult.IsSuccess
+            ? customResult
+                .Value.Items.Where(c =>
+                    c.IsEnabled
+                    && c.MatchMode != "Regex"
+                    && CallerMeets(context, c.MinPermissionLevel)
+                )
+                .Select(c => (c.Name, PrefixOf(c, context.CommandPrefix) + c.Name))
             : [];
 
         IBuiltinCommandService builtins =
@@ -140,14 +146,35 @@ public sealed class CommandsBuiltin : IBuiltinCommand
             broadcasterIdText,
             ct
         );
-        IEnumerable<string> builtinKeys = builtinResult.IsSuccess
-            ? builtinResult.Value.Where(b => b.IsEnabled).Select(b => b.BuiltinKey)
+        IEnumerable<(string Name, string Trigger)> builtin = builtinResult.IsSuccess
+            ? builtinResult
+                .Value.Where(b =>
+                    b.IsEnabled
+                    && CallerMeets(
+                        context,
+                        b.MinPermissionLevelOverride ?? b.DefaultMinPermissionLevel
+                    )
+                )
+                .Select(b => (b.BuiltinKey, context.CommandPrefix + b.BuiltinKey))
             : [];
 
-        return customNames
-            .Concat(builtinKeys)
+        return custom
+            .Concat(builtin)
+            .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(entry => entry.Trigger)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    private static bool CallerMeets(BuiltinCommandContext context, string floorName) =>
+        (PermissionLevelNames.ToLevelValue(floorName) ?? 0) <= context.RoleLevel;
+
+    // Mirrors the dispatcher's trigger model (ChatMessageHandler.ResolveAuthoredCommand).
+    private static string PrefixOf(CommandListItem command, string channelPrefix) =>
+        command.PrefixMode switch
+        {
+            "Custom" => command.CustomPrefix ?? string.Empty,
+            "None" => string.Empty,
+            _ => channelPrefix,
+        };
 }

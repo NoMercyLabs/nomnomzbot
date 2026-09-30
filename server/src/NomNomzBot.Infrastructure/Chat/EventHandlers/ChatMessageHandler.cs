@@ -305,6 +305,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 TriggeringUserLogin = @event.UserLogin,
                 MessageId = @event.MessageId,
                 RoleLevel = BadgeLevel(@event),
+                CommandPrefix = ctx.CommandPrefix,
                 Args = args,
                 // A reply carries the parent message + author so a built-in can capture it (e.g. !quote add).
                 ReplyParentMessageBody = @event.ReplyParentMessageBody,
@@ -519,6 +520,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         TriggeringUserLogin = @event.UserLogin,
                         MessageId = @event.MessageId,
                         RoleLevel = BadgeLevel(@event),
+                        CommandPrefix = ctx.CommandPrefix,
                         Args = args,
                         ReplyParentMessageBody = @event.ReplyParentMessageBody,
                         ReplyParentUserName = @event.ReplyParentUserName,

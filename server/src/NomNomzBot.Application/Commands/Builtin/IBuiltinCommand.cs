@@ -61,6 +61,9 @@ public sealed class BuiltinCommandContext
     /// </summary>
     public int RoleLevel { get; init; }
 
+    /// <summary>The channel's command prefix (<c>Channel.CommandPrefix</c>), so a listing shows triggers as typed.</summary>
+    public string CommandPrefix { get; init; } = "!";
+
     /// <summary>Arguments after the command trigger (e.g. "!followage @someone" → "@someone").</summary>
     public string Args { get; init; } = string.Empty;
 
