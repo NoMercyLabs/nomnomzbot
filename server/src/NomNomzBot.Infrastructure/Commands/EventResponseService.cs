@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -66,11 +67,16 @@ public class EventResponseService : IEventResponseService
             rows,
             cancellationToken
         );
+        string tone = await PersonalityAsync(broadcaster, cancellationToken);
         List<EventResponseListItem> items =
         [
             .. rows.Select(e =>
             {
-                EventResponseDto effective = ToDto(e, defaults.GetValueOrDefault(e.EventType));
+                EventResponseDto effective = ToDto(
+                    e,
+                    defaults.GetValueOrDefault(e.EventType),
+                    tone
+                );
                 return new EventResponseListItem(
                     e.Id,
                     e.EventType,
@@ -111,7 +117,8 @@ public class EventResponseService : IEventResponseService
             [entity],
             cancellationToken
         );
-        return Result.Success(ToDto(entity, defaults.GetValueOrDefault(entity.EventType)));
+        string tone = await PersonalityAsync(broadcaster, cancellationToken);
+        return Result.Success(ToDto(entity, defaults.GetValueOrDefault(entity.EventType), tone));
     }
 
     public async Task<Result<EventResponseDto>> UpsertAsync(
@@ -177,7 +184,7 @@ public class EventResponseService : IEventResponseService
             // The first save of its own takes the row off the platform default: start from what the channel
             // was actually getting, so fields the request leaves out keep the behaviour it already had.
             if (entity.FollowsPlatformDefault)
-                await AdoptPlatformDefaultAsync(entity, cancellationToken);
+                await AdoptPlatformDefaultAsync(entity, broadcaster, cancellationToken);
             if (request.IsEnabled.HasValue)
                 entity.IsEnabled = request.IsEnabled.Value;
             if (request.ResponseType is not null)
@@ -209,7 +216,8 @@ public class EventResponseService : IEventResponseService
             cancellationToken
         );
 
-        return Result.Success(ToDto(entity, null));
+        // Saved, so the row has its own text: it follows nothing and carries no tone lines.
+        return Result.Success(ToDto(entity, null, PersonalityTone.Default));
     }
 
     public async Task<Result> ResetToDefaultAsync(
@@ -275,7 +283,20 @@ public class EventResponseService : IEventResponseService
             .ToDictionaryAsync(d => d.EventType, StringComparer.Ordinal, ct);
     }
 
-    private async Task AdoptPlatformDefaultAsync(EventResponse entity, CancellationToken ct)
+    private async Task<string> PersonalityAsync(Guid broadcaster, CancellationToken ct) =>
+        PersonalityTone.Normalize(
+            await _db
+                .Channels.AsNoTracking()
+                .Where(c => c.Id == broadcaster)
+                .Select(c => c.Personality)
+                .FirstOrDefaultAsync(ct)
+        );
+
+    private async Task AdoptPlatformDefaultAsync(
+        EventResponse entity,
+        Guid broadcaster,
+        CancellationToken ct
+    )
     {
         PlatformEventResponseDefault? platform =
             await _db.PlatformEventResponseDefaults.FirstOrDefaultAsync(
@@ -286,29 +307,46 @@ public class EventResponseService : IEventResponseService
             return;
         entity.IsEnabled = platform.IsEnabled;
         entity.ResponseType = "chat_message";
-        entity.Message = platform.Message;
+        // Start from what the channel was actually saying: the admin's text, else the first line of its tone.
+        entity.Message = EventResponseToneCatalog
+            .FollowingLines(
+                platform.Message,
+                await PersonalityAsync(broadcaster, ct),
+                entity.EventType
+            )
+            .FirstOrDefault();
         entity.SpeakWithTts = platform.SpeakWithTts;
     }
 
     /// <summary>
     /// The response as the runtime performs it: a row that follows the platform default reports the platform
-    /// default enabled flag and message (or, with no platform row, nothing — disabled).
+    /// default enabled flag and the lines it speaks from in the channel's tone (or, with no platform row,
+    /// nothing — disabled).
     /// </summary>
-    private static EventResponseDto ToDto(EventResponse e, PlatformEventResponseDefault? platform)
+    private static EventResponseDto ToDto(
+        EventResponse e,
+        PlatformEventResponseDefault? platform,
+        string tone
+    )
     {
         bool follows = e.FollowsPlatformDefault;
+        IReadOnlyList<string> toneLines =
+            follows && platform is not null
+                ? EventResponseToneCatalog.FollowingLines(platform.Message, tone, e.EventType)
+                : [];
         return new(
             e.Id,
             e.EventType,
             follows ? platform?.IsEnabled ?? false : e.IsEnabled,
             follows ? "chat_message" : e.ResponseType,
-            follows ? platform?.Message : e.Message,
+            follows ? toneLines.FirstOrDefault() : e.Message,
             follows ? null : e.PipelineId,
             e.MetadataJson,
             e.CreatedAt,
             e.UpdatedAt,
             follows,
-            follows ? platform?.SpeakWithTts ?? false : e.SpeakWithTts
+            follows ? platform?.SpeakWithTts ?? false : e.SpeakWithTts,
+            toneLines
         );
     }
 }

@@ -16,6 +16,9 @@ namespace NomNomzBot.Application.Commands.Dtos;
 /// <summary>
 /// An event response configuration, as the runtime performs it: while <paramref name="FollowsPlatformDefault"/>
 /// is true the enabled flag, type and message are the platform default, not the stored channel row.
+/// <paramref name="ToneLines"/> are the lines the bot picks from while the row follows the default: the
+/// platform admin's text alone when set, else the catalogue lines for the channel's tone. Empty for a row
+/// with its own text. A following row's <paramref name="Message"/> is the first of them.
 /// </summary>
 public sealed record EventResponseDto(
     Guid Id,
@@ -28,7 +31,8 @@ public sealed record EventResponseDto(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     bool FollowsPlatformDefault,
-    bool SpeakWithTts
+    bool SpeakWithTts,
+    IReadOnlyList<string> ToneLines
 );
 
 /// <summary>

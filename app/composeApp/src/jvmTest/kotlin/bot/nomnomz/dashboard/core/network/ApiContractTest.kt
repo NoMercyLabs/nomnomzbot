@@ -79,6 +79,8 @@ class ApiContractTest {
             LeaderboardEntry.serializer() to "LeaderboardEntryDto",
             AlertSummary.serializer() to "EventResponseListItem",
             AlertDetail.serializer() to "EventResponseDto",
+            EventResponse.serializer() to "EventResponseDto",
+            EventResponseSummary.serializer() to "EventResponseListItem",
             EventResponsePreset.serializer() to "EventResponsePresetDto",
             PipelineActionDescriptor.serializer() to "PipelineActionDescriptorDto",
             PipelineConditionDescriptor.serializer() to "PipelineConditionDescriptorDto",

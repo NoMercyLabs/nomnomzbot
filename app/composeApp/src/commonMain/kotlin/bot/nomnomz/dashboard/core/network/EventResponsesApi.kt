@@ -96,6 +96,8 @@ data class EventResponseSummary(
     val isEnabled: Boolean = false,
     val responseType: String = "none",
     val updatedAt: String = "",
+    /** True while the row follows the platform default (and so the channel's personality tone). */
+    val followsPlatformDefault: Boolean = false,
 )
 
 /** Full event-response config (backend `EventResponseDto`). */
@@ -112,6 +114,13 @@ data class EventResponse(
     val updatedAt: String = "",
     /** A `chat_message` response also speaks its resolved text through the channel's TTS (default off). */
     val speakWithTts: Boolean = false,
+    /** True while the row follows the platform default, so it speaks in the channel's personality tone. */
+    val followsPlatformDefault: Boolean = false,
+    /**
+     * The lines the bot picks from while the row follows the default: the platform admin's text alone, else the
+     * catalogue lines for the channel's tone. Empty for a row with its own text.
+     */
+    val toneLines: List<String> = emptyList(),
 )
 
 /**

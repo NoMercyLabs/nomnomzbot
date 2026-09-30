@@ -149,6 +149,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         {
             null => null,
             { FollowsPlatformDefault: true } => await PlatformDefaultAsync(
+                broadcasterId,
                 row.EventType,
                 cancellationToken
             ),
@@ -218,9 +219,12 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
 
     /// <summary>
     /// The response a channel that never chose its own gets: the platform default for the event type, as a
-    /// chat message. Null when no platform default exists for the type (nothing happens, as before).
+    /// chat message. The platform admin's text wins; without one the line is a random pick from the tone
+    /// catalogue in the channel's personality tone. Null when no platform default exists for the type
+    /// (nothing happens, as before).
     /// </summary>
     private async Task<EffectiveResponse?> PlatformDefaultAsync(
+        Guid broadcasterId,
         string eventType,
         CancellationToken ct
     )
@@ -230,17 +234,21 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 d => d.EventType == eventType,
                 ct
             );
-        return platform is null
-            ? null
-            : new(
-                platform.IsEnabled,
-                "chat_message",
-                platform.Message,
-                null,
-                [],
-                platform.SpeakWithTts
-            );
+        if (platform is null)
+            return null;
+
+        string? message = string.IsNullOrWhiteSpace(platform.Message)
+            ? EventResponseToneCatalog.Pick(await PersonalityAsync(broadcasterId, ct), eventType)
+            : platform.Message;
+        return new(platform.IsEnabled, "chat_message", message, null, [], platform.SpeakWithTts);
     }
+
+    private async Task<string?> PersonalityAsync(Guid broadcasterId, CancellationToken ct) =>
+        await _db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => c.Personality)
+            .FirstOrDefaultAsync(ct);
 
     /// <summary>The response the runtime actually performs — the channel's own row or the platform default.</summary>
     private sealed record EffectiveResponse(

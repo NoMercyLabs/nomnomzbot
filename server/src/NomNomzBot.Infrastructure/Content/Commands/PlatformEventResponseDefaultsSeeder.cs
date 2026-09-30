@@ -18,14 +18,17 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 
 /// <summary>
 /// Seeds the platform event-response defaults (plan item A4): one <see cref="PlatformEventResponseDefault"/>
-/// per <see cref="EventResponsePresetCatalog"/> event type. The six core Twitch alerts start ON with the
-/// welcome lines new channels used to receive as their own rows at onboarding; every other type starts off.
-/// GLOBAL reference data (Order 12). It only ADDS missing event types and never touches an existing row, so
-/// the platform admin's edit survives every redeploy.
+/// per <see cref="EventResponsePresetCatalog"/> event type. The core Twitch alerts start ON and every other
+/// type starts off. A row carries no message: an event that ships ON speaks a line from
+/// <see cref="EventResponseToneCatalog"/> in each channel's tone until a platform admin writes text.
+/// GLOBAL reference data (Order 12). It ADDS missing event types and clears a message that still equals the
+/// <see cref="LegacyMessages"/> line this seeder wrote before tones existed, so an untouched row becomes
+/// tone-aware; any other message is an admin's edit and survives every redeploy.
 /// </summary>
 public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db) : ISeeder
 {
-    private static readonly IReadOnlyDictionary<string, string> EnabledMessages = new Dictionary<
+    /// <summary>The enabled event types and the fixed line each used to be seeded with — now the first Informative line.</summary>
+    internal static readonly IReadOnlyDictionary<string, string> LegacyMessages = new Dictionary<
         string,
         string
     >(StringComparer.Ordinal)
@@ -48,23 +51,28 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        HashSet<string> present = (
-            await db.PlatformEventResponseDefaults.Select(d => d.EventType).ToListAsync(ct)
-        ).ToHashSet(StringComparer.Ordinal);
+        List<PlatformEventResponseDefault> existing =
+            await db.PlatformEventResponseDefaults.ToListAsync(ct);
 
+        foreach (PlatformEventResponseDefault row in existing)
+        {
+            if (
+                LegacyMessages.TryGetValue(row.EventType, out string? legacy)
+                && string.Equals(row.Message, legacy, StringComparison.Ordinal)
+            )
+                row.Message = null;
+        }
+
+        HashSet<string> present = existing
+            .Select(d => d.EventType)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (string eventType in EventResponsePresetCatalog.EventTypes)
         {
             if (present.Contains(eventType))
                 continue;
 
-            string? message = EnabledMessages.GetValueOrDefault(eventType);
             db.PlatformEventResponseDefaults.Add(
-                new()
-                {
-                    EventType = eventType,
-                    IsEnabled = message is not null,
-                    Message = message,
-                }
+                new() { EventType = eventType, IsEnabled = LegacyMessages.ContainsKey(eventType) }
             );
         }
         await db.SaveChangesAsync(ct);

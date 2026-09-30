@@ -131,10 +131,8 @@ public sealed class GiftSubscriptionReceivedEventHandlerTests
         variables["tier"].Should().Be("1");
         variables["anonymous"].Should().Be("false");
 
-        // The text the chat/TTS actually gets: the seeded default template rendered with those variables.
-        string template = (
-            await h.Db.PlatformEventResponseDefaults.SingleAsync(d => d.EventType == ReceivedKey)
-        ).Message!;
+        // The text the chat/TTS actually gets: the default tone's first line rendered with those variables.
+        string template = EventResponseToneCatalog.FirstInformative(ReceivedKey)!;
         Render(template, variables)
             .Should()
             .Be("Lucky_Viewer was gifted a sub by Generous_Gifter!");
@@ -162,11 +160,7 @@ public sealed class GiftSubscriptionReceivedEventHandlerTests
         Dictionary<string, string> variables = CapturedVariables(h.Executor);
         variables["anonymous"].Should().Be("true");
         variables["gifter.id"].Should().BeEmpty();
-        string template = (
-            await h.Db.PlatformEventResponseDefaults.SingleAsync(d =>
-                d.EventType == ReceivedKey + ".anonymous"
-            )
-        ).Message!;
+        string template = EventResponseToneCatalog.FirstInformative(ReceivedKey + ".anonymous")!;
         Render(template, variables).Should().Be("An anonymous gifter gave a sub to Lucky_Viewer!");
     }
 
@@ -198,11 +192,9 @@ public sealed class GiftSubscriptionReceivedEventHandlerTests
                 Arg.Any<Dictionary<string, string>>(),
                 Arg.Any<CancellationToken>()
             );
-        string template = (
-            await h.Db.PlatformEventResponseDefaults.SingleAsync(d =>
-                d.EventType == "channel.subscription.gift.anonymous"
-            )
-        ).Message!;
+        string template = EventResponseToneCatalog.FirstInformative(
+            "channel.subscription.gift.anonymous"
+        )!;
         Render(template, CapturedVariables(h.Executor))
             .Should()
             .Be("An anonymous gifter gave 5 sub(s) to the community!");

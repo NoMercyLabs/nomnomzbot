@@ -102016,7 +102016,8 @@
           "createdAt",
           "updatedAt",
           "followsPlatformDefault",
-          "speakWithTts"
+          "speakWithTts",
+          "toneLines"
         ],
         "type": "object",
         "properties": {
@@ -102067,9 +102068,15 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "toneLines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
-        "description": "An event response configuration, as the runtime performs it: while FollowsPlatformDefault\nis true the enabled flag, type and message are the platform default, not the stored channel row."
+        "description": "An event response configuration, as the runtime performs it: while FollowsPlatformDefault\nis true the enabled flag, type and message are the platform default, not the stored channel row.\nToneLines are the lines the bot picks from while the row follows the default: the\nplatform admin's text alone when set, else the catalogue lines for the channel's tone. Empty for a row\nwith its own text. A following row's Message is the first of them."
       },
       "EventResponseListItem": {
         "required": [

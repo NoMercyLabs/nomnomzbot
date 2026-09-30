@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PlatformDefaults.Dtos;
 using NomNomzBot.Application.PlatformDefaults.Services;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.PlatformDefaults;
 
@@ -70,12 +71,13 @@ public sealed class EventResponseDefaultsAdminService(
                 "NOT_FOUND"
             );
 
-        Result validation = Validate(change.IsEnabled, change.Message);
+        string? message = StoredMessage(current, change.Message);
+        Result validation = Validate(eventType, change.IsEnabled, message);
         if (validation.IsFailure)
             return validation.WithValue<PlatformDefaultBlastRadiusDto>(null!);
 
         return Result.Success(
-            await CountAsync(current, change.IsEnabled, change.Message, change.SpeakWithTts, ct)
+            await CountAsync(current, change.IsEnabled, message, change.SpeakWithTts, ct)
         );
     }
 
@@ -93,8 +95,8 @@ public sealed class EventResponseDefaultsAdminService(
                 "NOT_FOUND"
             );
 
-        string? message = Normalize(request.Message);
-        Result validation = Validate(request.IsEnabled, message);
+        string? message = StoredMessage(current, request.Message);
+        Result validation = Validate(eventType, request.IsEnabled, message);
         if (validation.IsFailure)
             return validation.WithValue<EventResponseDefaultDto>(null!);
 
@@ -139,11 +141,18 @@ public sealed class EventResponseDefaultsAdminService(
         );
     }
 
-    /// <summary>An enabled default must say something, and its template may only use event-response helpers.</summary>
-    private Result Validate(bool isEnabled, string? message)
+    /// <summary>
+    /// An enabled default must have something to say — the admin's text or, for an event the tone catalogue
+    /// covers, the catalogue lines — and its template may only use event-response helpers.
+    /// </summary>
+    private Result Validate(string eventType, bool isEnabled, string? message)
     {
         string? normalized = Normalize(message);
-        if (isEnabled && normalized is null)
+        if (
+            isEnabled
+            && normalized is null
+            && EventResponseToneCatalog.Get(PersonalityTone.Default, eventType).Count == 0
+        )
             return Result.Failure(
                 "An enabled default needs a message to send.",
                 "VALIDATION_FAILED"
@@ -158,6 +167,25 @@ public sealed class EventResponseDefaultsAdminService(
 
     private static string? Normalize(string? message) =>
         string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+
+    /// <summary>
+    /// The text to store for a proposed message. A row with no admin text is shown with the catalogue default,
+    /// so a save that hands that default straight back changes nothing and keeps the row tone-aware; blank
+    /// text also stays null.
+    /// </summary>
+    private static string? StoredMessage(PlatformEventResponseDefault current, string? proposed)
+    {
+        string? normalized = Normalize(proposed);
+        return
+            current.Message is null
+            && string.Equals(
+                normalized,
+                EventResponseToneCatalog.FirstInformative(current.EventType),
+                StringComparison.Ordinal
+            )
+            ? null
+            : normalized;
+    }
 
     private async Task<PlatformDefaultBlastRadiusDto> CountAsync(
         PlatformEventResponseDefault current,
@@ -227,7 +255,7 @@ public sealed class EventResponseDefaultsAdminService(
         return new(
             d.EventType,
             d.IsEnabled,
-            d.Message,
+            d.Message ?? EventResponseToneCatalog.FirstInformative(d.EventType),
             preset?.Variables ?? [],
             following,
             own,

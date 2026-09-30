@@ -123,11 +123,15 @@ public sealed class EventResponseDefaultsAdminServiceTests
         await FireFollowAsync(h, Follower);
         await FireFollowAsync(h, OwnChannel);
 
+        // The seeded default carries no admin text: the channel (Informative by default) speaks one of the
+        // tone catalogue's Informative lines.
         await h
             .Chat.Received(1)
             .SendMessageAsync(
                 Follower,
-                "Welcome {user}! Thanks for the follow!",
+                Arg.Is<string>(m =>
+                    EventResponseToneCatalog.Get(PersonalityTone.Informative, Follow).Contains(m)
+                ),
                 Arg.Any<CancellationToken>()
             );
         await h
@@ -168,7 +172,12 @@ public sealed class EventResponseDefaultsAdminServiceTests
         await new PlatformEventResponseDefaultsSeeder(h.Db).SeedAsync();
 
         saved.IsEnabled.Should().BeFalse();
-        saved.Message.Should().BeNull();
+        saved
+            .Message.Should()
+            .Be(
+                EventResponseToneCatalog.FirstInformative(Follow),
+                "with no admin text the editor shows the catalogue's Informative default"
+            );
         saved.ChannelsFollowing.Should().Be(1);
         saved.ChannelsWithOwnResponse.Should().Be(1);
         saved.Variables.Should().Contain("user");
@@ -211,7 +220,7 @@ public sealed class EventResponseDefaultsAdminServiceTests
                 .SingleAsync(d => d.EventType == Follow)
         )
             .Message.Should()
-            .Be("Welcome {user}! Thanks for the follow!");
+            .BeNull("the refused save wrote nothing and the seeded row has no admin text");
         PlatformDefaultBlastRadiusDto unchanged = (
             await h.Sut.PreviewAsync(Follow, new(true, "Welcome {user}! Thanks for the follow!"))
         ).Value;
@@ -219,13 +228,14 @@ public sealed class EventResponseDefaultsAdminServiceTests
     }
 
     [Fact]
-    public async Task An_enabled_default_needs_a_message_and_only_event_response_helpers()
+    public async Task An_enabled_default_needs_something_to_say_and_only_event_response_helpers()
     {
         Harness h = await BuildAsync();
 
+        // No catalogue lines exist for a reward redemption, so blank admin text leaves nothing to send.
         Result<EventResponseDefaultDto> empty = await h.Sut.SetAsync(
-            Follow,
-            new(true, "   ", ConfirmedChannelsAffected: 1),
+            "channel.channel_points_custom_reward_redemption.add",
+            new(true, "   ", ConfirmedChannelsAffected: 0),
             Admin
         );
         Result<PlatformDefaultBlastRadiusDto> commandOnly = await h.Sut.PreviewAsync(

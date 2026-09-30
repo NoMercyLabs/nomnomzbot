@@ -16,8 +16,8 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// <summary>
 /// The platform default for one event type (plan item A4): what every channel whose <see cref="EventResponse"/>
 /// row still follows the platform default does when that event fires. GLOBAL (no tenant). Seeded one row per
-/// catalogue event type (disabled, no message — the out-of-box behaviour); the seeder never touches an existing
-/// row, so the platform admin's edit survives every redeploy. A channel that saves its own response stops
+/// catalogue event type (no message — the tone catalogue speaks until an admin writes one); the seeder only ever
+/// nulls a message that still equals the legacy seeded line, so the platform admin's edit survives every redeploy. A channel that saves its own response stops
 /// following this row; resetting its response makes it follow again.
 /// </summary>
 public class PlatformEventResponseDefault : BaseEntity
@@ -29,7 +29,10 @@ public class PlatformEventResponseDefault : BaseEntity
 
     public bool IsEnabled { get; set; }
 
-    /// <summary>The chat message template following channels send; null = nothing to send.</summary>
+    /// <summary>
+    /// The platform admin's chat message template. Null means no admin text: following channels speak a line
+    /// from the tone catalogue in their own personality tone. Text set here wins for every tone.
+    /// </summary>
     [MaxLength(2000)]
     public string? Message { get; set; }
 
