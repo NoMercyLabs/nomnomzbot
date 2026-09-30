@@ -52,6 +52,26 @@ if (Wait-Job $probe -Timeout 15) {
     [string[]]$names = @(Receive-Job $probe)
     $inContainer = [bool]($names -match [regex]::Escape($Container))
 }
+
+# The container runs whatever checkout it mounts at /workspace, not this one. From a worktree it would
+# serve the main tree's routes and DTOs and write them over this checkout's snapshot, silently dropping
+# the slice's own contract changes.
+function ConvertTo-HostPath([string]$path) {
+    # Docker Desktop reports a bind mount as /run/desktop/mnt/host/c/...; compare it as C:/...
+    [string]$normalized = $path.Replace('\', '/').TrimEnd('/')
+    if ($normalized -match '^/run/desktop/mnt/host/([a-zA-Z])(/.*)?$') {
+        $normalized = "$($Matches[1]):$($Matches[2])"
+    }
+    return $normalized
+}
+
+if ($inContainer) {
+    [string]$mounted = docker inspect -f '{{range .Mounts}}{{if eq .Destination "/workspace"}}{{.Source}}{{end}}{{end}}' $Container
+    [string]$here = ConvertTo-HostPath ([string]$repo)
+    if ((ConvertTo-HostPath $mounted) -ne $here) {
+        throw "$Container serves $mounted, not this checkout ($here). Run this from that checkout after landing the slice there, or stop the container so the API runs on the host from here."
+    }
+}
 else {
     Write-Host '== docker did not answer within 15s; treating it as unavailable =='
     Stop-Job $probe
