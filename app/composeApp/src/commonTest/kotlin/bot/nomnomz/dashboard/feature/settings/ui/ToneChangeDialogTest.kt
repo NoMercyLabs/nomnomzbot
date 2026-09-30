@@ -45,7 +45,7 @@ class ToneChangeDialogTest {
 
         onNodeWithText("Change the bot voice to Sassy?").assertExists()
         onNodeWithText(
-                "Event responses that follow the default: 7. They change voice. " +
+                "Event responses that speak in your channel tone: 7. They change voice. " +
                     "Event responses with their own text: 2. They stay the same."
             )
             .assertExists()
@@ -100,7 +100,7 @@ class ToneChangeDialogTest {
         waitForIdle()
 
         onNodeWithText(
-                "Event responses that follow the default change voice. " +
+                "Event responses that speak in your channel tone change voice. " +
                     "Event responses with their own text stay the same. The counts could not be loaded."
             )
             .assertExists()
