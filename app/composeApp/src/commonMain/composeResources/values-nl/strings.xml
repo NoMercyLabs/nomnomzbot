@@ -3459,7 +3459,7 @@
     <string name="event_responses_dialog_cancel">Annuleren</string>
     <string name="event_responses_dialog_reset">Terugzetten naar standaard</string>
     <string name="event_responses_reset_confirm_title">Deze reactie terugzetten?</string>
-    <string name="event_responses_reset_confirm_message">%1$s gaat terug naar de standaardwaarde: uitgeschakeld, zonder bericht. Deze eventreactie is een vaste rij en wordt nooit verwijderd — de reset gebeurt op dezelfde rij.</string>
+    <string name="event_responses_reset_confirm_message">%1$s volgt weer de platformstandaard. De reactie gebruikt dan de aan/uit-instelling en het bericht van het platform, in de persoonlijkheidstoon van je kanaal. Het eigen type, bericht, de pipeline en de TTS-keuze worden verwijderd. Deze eventreactie is een vaste rij en wordt nooit verwijderd — de reset gebeurt op dezelfde rij.</string>
     <string name="event_type_engagement_session_first_message">Eerste bericht deze stream</string>
     <string name="event_type_engagement_first_time_chatter">Eerste keer chatter</string>
     <string name="event_type_channel_follow">Nieuwe volger</string>
@@ -3478,6 +3478,29 @@
     <string name="event_type_channel_poll_begin">Poll gestart</string>
     <string name="event_type_channel_prediction_begin">Voorspelling gestart</string>
     <string name="event_type_channel_points_redemption">Beloning ingewisseld</string>
+    <string name="event_type_reward_paused">Beloning gepauzeerd</string>
+    <string name="event_type_reward_resumed">Beloning hervat</string>
+    <string name="event_type_reward_enabled">Beloning ingeschakeld</string>
+    <string name="event_type_reward_disabled">Beloning uitgeschakeld</string>
+    <string name="event_type_channel_ad_break_begin">Advertentiepauze gestart</string>
+    <string name="event_type_channel_ban">Ban of timeout</string>
+    <string name="event_type_channel_unban">Ban opgeheven</string>
+    <string name="event_type_engagement_returning_chatter">Terugkerende chatter</string>
+    <string name="event_type_engagement_watch_streak">Kijkreeks</string>
+    <string name="event_type_engagement_modiversary">Moderatorjubileum</string>
+    <string name="event_type_supporter_tip">Fooi</string>
+    <string name="event_type_supporter_membership">Lidmaatschap</string>
+    <string name="event_type_supporter_merch">Merchandise-aankoop</string>
+    <string name="event_type_supporter_charity">Donatie aan goed doel</string>
+    <string name="event_type_supporter_any">Elke supporter-gebeurtenis</string>
+    <string name="event_type_obs_scene_changed">OBS-scène gewijzigd</string>
+    <string name="event_type_obs_stream_state_changed">OBS-streamstatus gewijzigd</string>
+    <string name="event_type_obs_record_state_changed">OBS-opnamestatus gewijzigd</string>
+    <string name="event_type_obs_replay_buffer_saved">OBS-replay opgeslagen</string>
+    <string name="event_type_obs_vendor_event">OBS-pluginevent</string>
+    <string name="event_type_vts_model_loaded">VTube Studio-model geladen</string>
+    <string name="event_type_vts_hotkey_triggered">VTube Studio-sneltoets geactiveerd</string>
+    <string name="event_type_vts_model_clicked">VTube Studio-model aangeklikt</string>
     <string name="event_type_unknown">%1$s</string>
 
     <!-- Facturatie sectie (Instellingen → Facturatie) -->

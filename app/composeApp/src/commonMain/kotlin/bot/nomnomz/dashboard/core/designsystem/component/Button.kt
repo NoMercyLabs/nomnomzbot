@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
@@ -341,6 +342,7 @@ fun Button(
                         interactionSource = interactionSource,
                         indication = null,
                         enabled = interactive,
+                        role = Role.Button,
                         onClick = onClick,
                     )
                     .pointerHoverIcon(if (interactive) PointerIcon.Hand else PointerIcon.Default)

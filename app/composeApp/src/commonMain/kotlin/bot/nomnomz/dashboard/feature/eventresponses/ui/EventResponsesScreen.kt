@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -321,7 +322,8 @@ private fun EventResponseRow(
                 checked = response.isEnabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = toggleSemantics },
+                // Plain semantics (not clearAndSet): the switch keeps its Switch role and on/off state.
+                modifier = Modifier.semantics { contentDescription = toggleSemantics },
             )
         }
     }
@@ -368,9 +370,9 @@ private fun EditDialog(
     var toneLines: List<String> by remember { mutableStateOf(emptyList()) }
     var loadedMessage: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
-    // The reset is destructive (it discards the current config), so it confirms first and names exactly what
-    // happens — the row goes back to its disabled, no-message default, it is NOT a permanent removal (the
-    // backend's list read re-seeds the catalog default the moment the row is gone).
+    // The reset is destructive (it discards the row's own config), so it confirms first and names exactly what
+    // happens — the row goes back to FOLLOWING the platform default (its on/off state and message, in the channel's
+    // personality tone). It is NOT a removal: the row is a fixed catalogue entry and stays.
     var confirmingReset: Boolean by remember { mutableStateOf(false) }
 
     // The catalog serves a translation KEY for the default template; resolve it in the viewer's locale here,
@@ -530,7 +532,8 @@ private fun EditDialog(
             }
         },
         confirmButton = {
-            TextButton(
+            // The dialog's one primary action; Cancel is ghost and Reset is the quiet destructive treatment.
+            Button(
                 onClick = {
                     onSave(
                         selectedType,
@@ -541,20 +544,20 @@ private fun EditDialog(
                     )
                 },
                 enabled = canSubmit,
+                size = ButtonSize.Sm,
             ) {
-                Text(
-                    text = stringResource(Res.string.event_responses_dialog_save),
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                )
+                Text(text = stringResource(Res.string.event_responses_dialog_save), maxLines = 1)
             }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                TextButton(onClick = { confirmingReset = true }, enabled = manage.isAllowed) {
-                    Text(
-                        text = stringResource(Res.string.event_responses_dialog_reset),
-                        color = if (manage.isAllowed) tokens.destructive else tokens.mutedForeground,
-                    )
+                Button(
+                    onClick = { confirmingReset = true },
+                    enabled = manage.isAllowed,
+                    variant = ButtonVariant.DestructiveGhost,
+                    size = ButtonSize.Sm,
+                ) {
+                    Text(text = stringResource(Res.string.event_responses_dialog_reset), maxLines = 1)
                 }
                 TextButton(onClick = onDismiss) {
                     Text(
@@ -566,8 +569,8 @@ private fun EditDialog(
         },
     )
 
-    // Names exactly what will change BEFORE the operator commits: this event's response reverts to disabled +
-    // no message — never phrased as a permanent delete, because the backend's list read re-seeds it right back.
+    // Names exactly what will change BEFORE the operator commits: this event's response stops carrying its own
+    // settings and follows the platform default again — never phrased as a permanent delete.
     if (confirmingReset) {
         ConfirmDialog(
             title = stringResource(Res.string.event_responses_reset_confirm_title),

@@ -10,7 +10,21 @@
 
 package bot.nomnomz.dashboard.feature.eventresponses.ui
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PixelMap
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
@@ -65,6 +79,7 @@ import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesControll
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesTtsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 
 // S047-remaining — proves the Test action next to an event response's bound pipeline actually works, the same
@@ -397,11 +412,111 @@ class EventResponsesScreenTest {
         waitForIdle()
         onNodeWithContentDescription("Also read it out with TTS").assertIsOn()
     }
+
+    private fun raidStore(): StoringEventResponsesApi =
+        StoringEventResponsesApi(
+            EventResponse(
+                id = "er4",
+                eventType = "channel.raid",
+                isEnabled = true,
+                responseType = "chat_message",
+                message = "raiders incoming",
+            )
+        )
+
+    private fun ComposeUiTest.mountScreen(api: StoringEventResponsesApi) {
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(),
+                eventResponsesApi = api,
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+                widgetsApi = FakeWidgetsApi(),
+                platformTemplatesApi = FakePlatformTemplatesApi(),
+                ttsApi = EventResponsesTtsApi(),
+            )
+        runBlocking { controller.load() }
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        EventResponsesScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+    }
+
+    // A reset hands the row back to the platform default (its on/off state and message, in the channel's tone).
+    // The old text claimed the row went to "disabled, with no message", which the backend no longer does.
+    @Test
+    fun the_reset_confirm_says_the_row_follows_the_platform_default_and_confirming_resets_that_event() =
+        runComposeUiTest {
+            val api = raidStore()
+            mountScreen(api)
+
+            onNodeWithContentDescription("Edit Incoming Raid").performClick()
+            waitForIdle()
+            onNodeWithText("Reset to default").performClick()
+            waitForIdle()
+
+            onNodeWithText("Reset this response?").assertExists()
+            onNodeWithText("following the platform default", substring = true).assertExists()
+            onNodeWithText("personality tone", substring = true).assertExists()
+            onNodeWithText("disabled, with no message", substring = true).assertDoesNotExist()
+            assertEquals(null, api.resetEventType, "nothing may reset before the operator confirms")
+
+            onAllNodesWithText("Reset to default").onLast().performClick()
+            waitForIdle()
+
+            assertEquals("channel.raid", api.resetEventType)
+        }
+
+    // Edit icon and toggle are exposed as a button and a switch, not "generic" nodes.
+    @Test
+    fun the_edit_icon_and_the_toggle_expose_button_and_switch_roles() = runComposeUiTest {
+        mountScreen(raidStore())
+
+        onNodeWithContentDescription("Edit Incoming Raid")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        onNodeWithContentDescription("Toggle Incoming Raid")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Switch))
+            .assertIsOn()
+    }
+
+    // Sleak: one primary per group. Save is the filled primary; Cancel and Reset are text-weight.
+    @Test
+    fun in_the_editor_save_is_the_one_primary_and_cancel_and_reset_are_text_weight() = runComposeUiTest {
+        mountScreen(raidStore())
+        onNodeWithContentDescription("Edit Incoming Raid").performClick()
+        waitForIdle()
+
+        val save: Color = fillAtTopCentre("Save")
+        val cancel: Color = fillAtTopCentre("Cancel")
+        val reset: Color = fillAtTopCentre("Reset to default")
+
+        assertTrue(save.luminance() > 0.7f, "Save must be the filled light primary, was $save")
+        assertTrue(cancel.luminance() < 0.3f, "Cancel must be a text button (dialog surface behind it), was $cancel")
+        assertTrue(reset.luminance() < 0.3f, "Reset must be a text button (dialog surface behind it), was $reset")
+        onNode(hasText("Save") and hasClickAction())
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+    }
+
+    private fun ComposeUiTest.fillAtTopCentre(label: String): Color {
+        val pixels: PixelMap = onNode(hasText(label) and hasClickAction()).captureToImage().toPixelMap()
+        return pixels[pixels.width / 2, 3]
+    }
 }
 
 // Keeps the one stored response and merges every upsert into it, so a reopen reads back what was saved.
 private class StoringEventResponsesApi(private var stored: EventResponse) : EventResponsesApi {
     var lastUpsert: UpdateEventResponseBody? = null
+    var resetEventType: String? = null
 
     override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> =
         ApiResult.Ok(
@@ -430,7 +545,10 @@ private class StoringEventResponsesApi(private var stored: EventResponse) : Even
             )
         return ApiResult.Ok(stored)
     }
-    override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> {
+        resetEventType = eventType
+        return ApiResult.Ok(Unit)
+    }
 }
 
 @androidx.compose.runtime.Composable

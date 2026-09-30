@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -107,7 +108,7 @@ private fun ConsentCard(optedIn: Boolean, onToggle: (Boolean) -> Unit) {
             Switch(
                 checked = optedIn,
                 onCheckedChange = onToggle,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+                modifier = Modifier.semantics { contentDescription = label },
             )
         }
     }

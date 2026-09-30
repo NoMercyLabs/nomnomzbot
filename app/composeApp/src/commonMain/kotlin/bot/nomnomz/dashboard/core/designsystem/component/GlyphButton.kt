@@ -16,8 +16,8 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import org.jetbrains.compose.resources.DrawableResource
@@ -53,7 +53,9 @@ fun GlyphButton(
             enabled = enabled,
             variant = variant,
             size = ButtonSize.Icon,
-            modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+            // Plain semantics, not clearAndSetSemantics: clearing would also drop the button role and click
+            // action the Button below contributes, leaving assistive tech a nameless "generic" node.
+            modifier = Modifier.semantics { contentDescription = label },
         ) {
             val iconTint: Color = tint ?: LocalContentColor.current
             Icon(

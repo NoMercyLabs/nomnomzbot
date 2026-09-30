@@ -3474,7 +3474,7 @@
     <string name="event_responses_dialog_cancel">Cancel</string>
     <string name="event_responses_dialog_reset">Reset to default</string>
     <string name="event_responses_reset_confirm_title">Reset this response?</string>
-    <string name="event_responses_reset_confirm_message">%1$s goes back to its default: disabled, with no message. This event response is a fixed entry and is never removed — the reset applies in place.</string>
+    <string name="event_responses_reset_confirm_message">%1$s goes back to following the platform default. It then uses the platform on/off setting and message, worded in your channel personality tone. Its own type, message, pipeline and TTS choice are discarded. This event response is a fixed entry and is never removed — the reset applies in place.</string>
     <!-- Friendly labels for event type keys -->
     <string name="event_type_engagement_session_first_message">First message this stream</string>
     <string name="event_type_engagement_first_time_chatter">First-time chatter</string>
@@ -3494,6 +3494,29 @@
     <string name="event_type_channel_poll_begin">Poll Started</string>
     <string name="event_type_channel_prediction_begin">Prediction Started</string>
     <string name="event_type_channel_points_redemption">Reward Redeemed</string>
+    <string name="event_type_reward_paused">Reward Paused</string>
+    <string name="event_type_reward_resumed">Reward Resumed</string>
+    <string name="event_type_reward_enabled">Reward Enabled</string>
+    <string name="event_type_reward_disabled">Reward Disabled</string>
+    <string name="event_type_channel_ad_break_begin">Ad Break Started</string>
+    <string name="event_type_channel_ban">Ban or Timeout</string>
+    <string name="event_type_channel_unban">Unban</string>
+    <string name="event_type_engagement_returning_chatter">Returning chatter</string>
+    <string name="event_type_engagement_watch_streak">Watch streak</string>
+    <string name="event_type_engagement_modiversary">Moderator anniversary</string>
+    <string name="event_type_supporter_tip">Tip</string>
+    <string name="event_type_supporter_membership">Membership</string>
+    <string name="event_type_supporter_merch">Merch Purchase</string>
+    <string name="event_type_supporter_charity">Charity Donation</string>
+    <string name="event_type_supporter_any">Any Supporter Event</string>
+    <string name="event_type_obs_scene_changed">OBS Scene Changed</string>
+    <string name="event_type_obs_stream_state_changed">OBS Stream State Changed</string>
+    <string name="event_type_obs_record_state_changed">OBS Recording State Changed</string>
+    <string name="event_type_obs_replay_buffer_saved">OBS Replay Saved</string>
+    <string name="event_type_obs_vendor_event">OBS Plugin Event</string>
+    <string name="event_type_vts_model_loaded">VTube Studio Model Loaded</string>
+    <string name="event_type_vts_hotkey_triggered">VTube Studio Hotkey Triggered</string>
+    <string name="event_type_vts_model_clicked">VTube Studio Model Clicked</string>
     <string name="event_type_unknown">%1$s</string>
 
     <!-- Billing section (Settings → Billing) -->
