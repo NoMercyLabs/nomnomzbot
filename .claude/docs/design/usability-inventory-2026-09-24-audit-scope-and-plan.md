@@ -381,7 +381,6 @@ worked" beat everything. Each line is one slice; delete it from Part C when its 
 **Tier 1 — the live bot misbehaves (runtime, before any more UI)**
 8. V-B7.2 leadership gates on BotLifecycle/Subscribe/EnsureSession; drop lease on per-process restores;
    lease MusicStatePolling + YouTube poll + StreamStatus + token sweeps.
-10. V-B7.4 Polly `SeverityProvider` + Serilog override; Helix non-2xx at Debug.
 11. V-B7.5 needs_reauth truth: clear only on an authenticated success; only invalid_grant counts;
     YouTube short-circuit; `DECRYPT_FAILED` → distinct status + inbox item.
 11b. V-A4 scopes required at enable time, not at use time; 401 ≠ reauth unless the token is dead.
@@ -395,10 +394,8 @@ V-A1 impersonation (widened, below) → T1b-A6 → T1b-A5 → T1b-A7 → an admi
 (every admin tab used live, defects fixed) → then the remaining Tier 1 runtime items (8, 10, 11, 11b,
 12) → T1b-A2 → T1b-A8.
 Source: `usability-inventory-2026-09-26-admin-and-authoring.md` (both passes). Runs right after Tier 1.
-A0. Actionable errors everywhere (owner rule 2026-09-26; the producer contract, its producers, the live
-    push and the shell + Home surfaces shipped). Owed: bot-not-moderator needs real tracking (ChannelModerators is
-    onboarding-only and never removes; add a truthful signal, e.g. the moderator EventSub/role reconcile);
-    rendered-client visual check of the shell surface and Home.
+A0. Actionable errors everywhere: owed only the live proof — bot-not-moderator raised and cleared on the dev
+    box, and a rendered-client check of the shell surface and Home.
 A1. Desktop editor parity: the same Monaco editor as web (embedded browser view), with the same types,
     diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
     Owner decision 2026-09-26: NO embedded Chromium (CEF/KCEF). Use each OS's native web view (WebView2 on
@@ -412,20 +409,9 @@ A1. Desktop editor parity: the same Monaco editor as web (embedded browser view)
 A2. SDK guidance in the editor: wire `GET /sdk/event-catalog` (SdkController.cs, zero callers) into a
     docs panel — browse events and API, real sample payloads, "insert handler", hover docs, snippets.
     Done-when: a new user finds and uses an event without leaving the editor.
-A3. Generic platform content: owed — the sound clip kind. Decided option A: a platform-owned asset store
-    (admin upload, asset id in the payload, install streams through SoundClipService.UploadAsync so
-    format/size/quota/duration checks run, asset lifetime tied to referencing definitions). Also owed:
-    refresh server/openapi/v1.json via the script once an API runs (hand-edited twice today).
-A5. Template updates reach tenants: owed — the dashboard half: an "update available" badge + Update action
-    (with "replaces your edits" when edited) on the timers and pick-lists pages, over
-    `GET channels/{id}/platform-templates/updates?kind=` and `POST …/{definitionId}/copies/{rowId}/update`.
-    Blocked only on regenerating server/openapi/v1.json through scripts/refresh-openapi.ps1
-    (ApiRouteContractTest needs the routes in the snapshot before the Kotlin client may call them).
-A6. Admin truth pass: owed, ranked: `PrioritySupport` on a tier is display-only; a network block bans only
-    the tenants found at apply, later channels and chat ingest never check it; spam-defense fields nothing
-    reads (Lockdown*, FollowSpike/JoinBurst, SemiTrustedWatchHours*, NonLatinScriptGate,
-    NetworkSubscribe/Contribute) and the 7-day `EnforcementEligibleAt` window is never enforced; flag gating
-    lags tier edits by the 60s flag cache; confirming a spam detection has no runtime effect.
+A3. Platform sound clips: owed — the admin UI to upload and pick a platform audio asset, and swapping the
+    audio when a tenant takes a template update.
+A5. Template update badges: owed only the rendered-client check on the timers and pick-lists pages.
 A7. GDPR admin console: owed — acting on a request from the Safety tab's "Data requests" list (re-running a
     failed erasure) still goes through the subject's own page — for the admin walk.
 A8. Publish the SDK types as a versioned npm package built by CI from `SdkTypeEmitter` output.
