@@ -122,6 +122,10 @@ class AdminBillingTierEditorRenderTest {
                 "3 tenant(s) are on this tier right now and will see this change immediately, including: chan-a, chan-b, chan-c.",
                 substring = true,
             ).assertExists()
+
+            // Priority support is stored and shown, and nothing acts on it. The editor says so beside the
+            // switch, so an operator does not believe they bought customers a place in a queue.
+            onNodeWithText("The bot has no support queue", substring = true).assertExists()
         }
     }
 

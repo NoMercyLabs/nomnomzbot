@@ -3679,6 +3679,7 @@
     <string name="admin_tier_field_public">Public (shown on the pricing page)</string>
     <string name="admin_tier_field_bot_name">Allows a custom bot name</string>
     <string name="admin_tier_field_priority_support">Priority support</string>
+    <string name="admin_tier_field_priority_support_note">A promise you keep by hand. The bot has no support queue, so this switch puts nobody first by itself. It is saved on the tier and shown in the tier list.</string>
     <string name="admin_tier_limits_heading">Limits</string>
     <string name="admin_tier_blast_radius_loading">Checking how many tenants are on this tier…</string>
     <string name="admin_tier_blast_radius_none">No tenant is currently on this tier — the change takes effect for whoever joins it next.</string>

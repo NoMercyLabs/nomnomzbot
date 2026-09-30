@@ -3663,6 +3663,7 @@
     <string name="admin_tier_field_public">Publiek (getoond op de prijzenpagina)</string>
     <string name="admin_tier_field_bot_name">Staat een aangepaste botnaam toe</string>
     <string name="admin_tier_field_priority_support">Prioriteitsondersteuning</string>
+    <string name="admin_tier_field_priority_support_note">Een belofte die je zelf nakomt. De bot heeft geen ondersteuningswachtrij, dus deze schakelaar zet op zichzelf niemand voorop. Hij wordt opgeslagen bij het niveau en getoond in de lijst met niveaus.</string>
     <string name="admin_tier_limits_heading">Limieten</string>
     <string name="admin_tier_blast_radius_loading">Bezig met controleren hoeveel tenants op deze tier zitten…</string>
     <string name="admin_tier_blast_radius_none">Er zit momenteel geen tenant op deze tier — de wijziging geldt voor wie er als volgende op aansluit.</string>
