@@ -143,4 +143,93 @@ class NotoFallbackGlyphCoverageTest {
         assertFalse(notoSansKr.getUTF32Glyph(hangulSyllable) == missingGlyphId, "Noto Sans KR should cover Hangul 한 (U+D55C)")
         assertFalse(notoSansKr.getUTF32Glyph(hangulJamo) == missingGlyphId, "Noto Sans KR should cover Hangul Jamo (U+1100)")
     }
+
+    // Seen live on 2026-09-30: Twitch blocked terms rendered as `*▯*▯*` in Moderation → Enforcement Rules.
+    // Spam bots spell blocked words with look-alike letters from Mathematical Alphanumeric Symbols,
+    // Unified Canadian Aboriginal Syllabics, Fullwidth Forms and Phonetic Extensions.
+    private val blockedTermsSeenAsTofuLive: List<String> = listOf("*𝑻*𝖦*", "*ᑎ*", "*𝑇*", "ᐯＩ𝖤ᗯᴇᖇ𝚂")
+
+    @Test
+    fun everyBundledFaceTogetherCoversTheBlockedTermsSeenAsTofuLive() {
+        // The app's whole glyph set is the union of the bundled files. A codepoint no face maps paints
+        // as tofu on Skia/Wasm — so this is the direct proof the live defect is closed at the file level.
+        val bundledFaces: List<Typeface> = bundledFontFiles().map { file -> loadTypeface(file.name) }
+        for (term: String in blockedTermsSeenAsTofuLive) {
+            for (codepoint: Int in term.codePoints().toArray()) {
+                val covered: Boolean = bundledFaces.any { face -> face.getUTF32Glyph(codepoint) != missingGlyphId }
+                assertTrue(
+                    covered,
+                    "no bundled font maps U+${codepoint.toString(16).uppercase()} from blocked term '$term' — it renders as tofu",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun interAndNotoSansLackMathAlphanumericsAndCanadianSyllabics() {
+        // Negative control: the two general-purpose Latin faces do not carry these blocks, which is why
+        // Noto Sans Math and Noto Sans Canadian Aboriginal are bundled as separate faces.
+        val inter: Typeface = loadTypeface("inter.ttf")
+        val notoSans: Typeface = loadTypeface("noto_sans.ttf")
+        val mathBoldItalicT: Int = 0x1D47B // 𝑻
+        val syllabicsTi: Int = 0x144E // ᑎ
+        assertTrue(inter.getUTF32Glyph(mathBoldItalicT) == missingGlyphId, "expected Inter to lack 𝑻 (U+1D47B)")
+        assertTrue(notoSans.getUTF32Glyph(mathBoldItalicT) == missingGlyphId, "expected Noto Sans to lack 𝑻 (U+1D47B)")
+        assertTrue(inter.getUTF32Glyph(syllabicsTi) == missingGlyphId, "expected Inter to lack ᑎ (U+144E)")
+        assertTrue(notoSans.getUTF32Glyph(syllabicsTi) == missingGlyphId, "expected Noto Sans to lack ᑎ (U+144E)")
+    }
+
+    @Test
+    fun notoSansMathCoversMathematicalAlphanumericSymbols() {
+        val notoSansMath: Typeface = loadTypeface("noto_sans_math.ttf")
+        val boldItalicT: Int = 0x1D47B // 𝑻
+        val sansSerifG: Int = 0x1D5A6 // 𝖦
+        val italicT: Int = 0x1D447 // 𝑇
+        val monospaceS: Int = 0x1D682 // 𝚂
+        val doubleStruckN: Int = 0x2115 // ℕ (Letterlike Symbols)
+        assertFalse(notoSansMath.getUTF32Glyph(boldItalicT) == missingGlyphId, "Noto Sans Math should cover 𝑻 (U+1D47B)")
+        assertFalse(notoSansMath.getUTF32Glyph(sansSerifG) == missingGlyphId, "Noto Sans Math should cover 𝖦 (U+1D5A6)")
+        assertFalse(notoSansMath.getUTF32Glyph(italicT) == missingGlyphId, "Noto Sans Math should cover 𝑇 (U+1D447)")
+        assertFalse(notoSansMath.getUTF32Glyph(monospaceS) == missingGlyphId, "Noto Sans Math should cover 𝚂 (U+1D682)")
+        assertFalse(notoSansMath.getUTF32Glyph(doubleStruckN) == missingGlyphId, "Noto Sans Math should cover ℕ (U+2115)")
+    }
+
+    @Test
+    fun notoSansCanadianAboriginalCoversUnifiedCanadianAboriginalSyllabics() {
+        val notoSansCanadianAboriginal: Typeface = loadTypeface("noto_sans_canadian_aboriginal.ttf")
+        val syllabics: List<Int> = listOf(0x144E, 0x142F, 0x15EF, 0x1587) // ᑎ ᐯ ᗯ ᖇ
+        for (codepoint: Int in syllabics) {
+            assertFalse(
+                notoSansCanadianAboriginal.getUTF32Glyph(codepoint) == missingGlyphId,
+                "Noto Sans Canadian Aboriginal should cover U+${codepoint.toString(16).uppercase()}",
+            )
+        }
+    }
+
+    @Test
+    fun notoSansCherokeeCoversCherokee() {
+        val notoSansCherokee: Typeface = loadTypeface("noto_sans_cherokee.ttf")
+        val cherokeeA: Int = 0x13A0 // Ꭰ
+        val cherokeeDo: Int = 0x13A9 // Ꮩ — the look-alike for Latin V
+        assertFalse(notoSansCherokee.getUTF32Glyph(cherokeeA) == missingGlyphId, "Noto Sans Cherokee should cover Ꭰ (U+13A0)")
+        assertFalse(notoSansCherokee.getUTF32Glyph(cherokeeDo) == missingGlyphId, "Noto Sans Cherokee should cover Ꮩ (U+13A9)")
+    }
+
+    @Test
+    fun fullwidthFormsAndSmallCapitalsAreCoveredByFacesAlreadyBundled() {
+        // Documents why no extra face is bundled for these two blocks: SC carries Fullwidth Forms and
+        // Noto Sans carries Phonetic Extensions. If either file is ever swapped for a subset, this fails.
+        val notoSansSc: Typeface = loadTypeface("noto_sans_sc.ttf")
+        val notoSans: Typeface = loadTypeface("noto_sans.ttf")
+        val fullwidthI: Int = 0xFF29 // Ｉ
+        val smallCapitalE: Int = 0x1D07 // ᴇ
+        assertFalse(notoSansSc.getUTF32Glyph(fullwidthI) == missingGlyphId, "Noto Sans SC should cover Ｉ (U+FF29)")
+        assertFalse(notoSans.getUTF32Glyph(smallCapitalE) == missingGlyphId, "Noto Sans should cover ᴇ (U+1D07)")
+    }
+
+    private fun bundledFontFiles(): List<File> {
+        val files: List<File> = fontDir().listFiles { file -> file.extension == "ttf" }?.toList() ?: emptyList()
+        assertTrue(files.isNotEmpty(), "expected bundled .ttf files in ${fontDir().path}")
+        return files
+    }
 }

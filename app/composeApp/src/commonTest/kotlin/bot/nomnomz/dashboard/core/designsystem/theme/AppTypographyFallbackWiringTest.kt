@@ -21,8 +21,9 @@ import kotlin.test.assertEquals
 /**
  * Owner punch list §10 (first half): Inter alone is the app's entire glyph set on Skia/Wasm (no system
  * fonts to fall back to), so a script Inter doesn't cover renders as tofu. [appTypography] now bundles
- * five Noto Sans fallback faces (Cyrillic/Greek/Vietnamese/Devanagari, Arabic, Thai, Han+Kana, Hangul)
- * alongside Inter and the emoji face, all in one [FontFamily], which is how Compose Multiplatform's
+ * eight Noto Sans fallback faces (Cyrillic/Greek/Vietnamese/Devanagari, Arabic, Thai, Han+Kana, Hangul,
+ * Math alphanumerics, Canadian Syllabics, Cherokee) alongside Inter and the emoji face, all in one
+ * [FontFamily], which is how Compose Multiplatform's
  * font-fallback cascade actually works (confirmed against the same mechanism this codebase already
  * ships for emoji, and against JetBrains' own font-fallback work for Skia/Wasm — a `FontFamily` walks
  * its listed [Font] entries per glyph, not per whole string, so a mixed-script string resolves each
@@ -46,7 +47,7 @@ import kotlin.test.assertEquals
 class AppTypographyFallbackWiringTest {
 
     @Test
-    fun appTypographyFamilyCarriesInterPlusAllFiveScriptFallbacksPlusEmoji() =
+    fun appTypographyFamilyCarriesInterPlusAllEightScriptFallbacksPlusEmoji() =
         runComposeUiTest {
             var resolvedFamily: androidx.compose.ui.text.font.FontFamily? = null
             setContent {
@@ -61,12 +62,13 @@ class AppTypographyFallbackWiringTest {
                     ?: error("appTypography() should build a FontListFontFamily (Inter + fallbacks), got $family")
 
             // 4 Inter weights + Noto Sans + Noto Sans Arabic + Noto Sans Thai + Noto Sans SC + Noto Sans KR
-            // + 1 emoji face = 10. A count regression here means a fallback face was dropped from the
-            // FontFamily(...) call in appTypography() without anything else catching it.
+            // + Noto Sans Math + Noto Sans Canadian Aboriginal + Noto Sans Cherokee + 1 emoji face = 13.
+            // A count regression here means a fallback face was dropped from the FontFamily(...) call in
+            // appTypography() without anything else catching it.
             assertEquals(
-                10,
+                13,
                 fontList.size,
-                "appTypography()'s FontFamily should carry Inter (4 weights) + 5 Noto script fallbacks + 1 emoji face",
+                "appTypography()'s FontFamily should carry Inter (4 weights) + 8 Noto script fallbacks + 1 emoji face",
             )
         }
 

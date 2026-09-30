@@ -21,7 +21,10 @@ import nomnomzbot.composeapp.generated.resources.inter
 import nomnomzbot.composeapp.generated.resources.noto_emoji
 import nomnomzbot.composeapp.generated.resources.noto_sans
 import nomnomzbot.composeapp.generated.resources.noto_sans_arabic
+import nomnomzbot.composeapp.generated.resources.noto_sans_canadian_aboriginal
+import nomnomzbot.composeapp.generated.resources.noto_sans_cherokee
 import nomnomzbot.composeapp.generated.resources.noto_sans_kr
+import nomnomzbot.composeapp.generated.resources.noto_sans_math
 import nomnomzbot.composeapp.generated.resources.noto_sans_sc
 import nomnomzbot.composeapp.generated.resources.noto_sans_thai
 import nomnomzbot.composeapp.generated.resources.twemoji_color
@@ -64,9 +67,16 @@ internal val DefaultTypography: Typography = Typography()
 //   won't always show the regionally-preferred stroke form
 // - Noto Sans KR: Hangul syllables + Jamo — Noto Sans SC does NOT include Hangul, so Korean needs this
 //   separate face
-// Not covered by this set (a scope call, not an oversight): Armenian, Georgian, Hebrew, and scripts
-// outside the six above. All five Noto faces are Google's Noto Sans family, SIL Open Font License 1.1
-// (github.com/google/fonts, ofl/notosans*), same redistribution terms as bundling any other open font.
+// - Noto Sans Math: Mathematical Alphanumeric Symbols (𝑻 𝖦 𝚂 — U+1D400–1D7FF) and Letterlike symbols
+// - Noto Sans Canadian Aboriginal: Unified Canadian Aboriginal Syllabics (ᑎ ᐯ ᗯ ᖇ — U+1400–167F)
+// - Noto Sans Cherokee: Cherokee (Ꮩ — U+13A0–13FF)
+// The last three exist because spam bots spell blocked words with look-alike letters from exactly these
+// blocks (`ᐯＩ𝖤ᗯᴇᖇ𝚂`), and a Twitch blocked-terms list full of tofu boxes cannot be moderated. Fullwidth
+// forms (Ｉ) come from SC/KR and small-capital phonetic letters (ᴇ) from Noto Sans, both already bundled.
+// Not covered by this set (a scope call, not an oversight): Armenian, Georgian, Hebrew, Runic, Ogham and
+// scripts outside those above. Compose Multiplatform's automatic on-demand Noto fallback for web only
+// exists from 1.12.0; on the pinned 1.9.0 the documented path is to bundle the face and list it here.
+// All Noto faces are SIL Open Font License 1.1 — see composeResources/files/licenses/OFL-fonts.txt.
 //
 // [colorEmoji] picks the emoji face live from the operator's persisted EmojiStyle preference: the color
 // (Twemoji COLR) face by default, or the monochrome (Noto Emoji) face as the fallback for a browser/Skia
@@ -84,6 +94,9 @@ fun appTypography(colorEmoji: Boolean): Typography {
             Font(Res.font.noto_sans_thai),
             Font(Res.font.noto_sans_sc),
             Font(Res.font.noto_sans_kr),
+            Font(Res.font.noto_sans_math),
+            Font(Res.font.noto_sans_canadian_aboriginal),
+            Font(Res.font.noto_sans_cherokee),
             Font(if (colorEmoji) Res.font.twemoji_color else Res.font.noto_emoji),
         )
     return Typography(
