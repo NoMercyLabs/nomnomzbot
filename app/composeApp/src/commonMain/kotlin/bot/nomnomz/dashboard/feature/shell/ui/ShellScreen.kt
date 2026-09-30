@@ -429,7 +429,8 @@ fun ShellScreen(
     }
 
     // While acting as someone, re-authorizing Twitch would run the operator's browser through the TARGET's grant:
-    // the menu entry, the dead-token bar and the re-auth dialog are the operator's tools, so none of them show.
+    // the menu entry, the dead-token bar, the re-auth dialog and the Features re-grant action are the operator's
+    // tools, so none of them show.
     val profileReconnect: (() -> Unit)? = if (actingAs == null) triggerReconnect else null
 
     // S050 — shell truth: the persistent, truthful hub-health signal every layout renders (see [HubDot]).
@@ -466,7 +467,7 @@ fun ShellScreen(
                     heldActionKeys = access.heldActionKeys,
                     isReviewer = user?.isAdmin == true,
                     onChannelDeleted = onLogout,
-                    onReconnect = triggerReconnect,
+                    onReconnect = profileReconnect,
                     onNavigate = { requestedRoute = it },
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
@@ -527,7 +528,7 @@ fun ShellScreen(
                         heldActionKeys = access.heldActionKeys,
                         isReviewer = user?.isAdmin == true,
                         onChannelDeleted = onLogout,
-                        onReconnect = triggerReconnect,
+                        onReconnect = profileReconnect,
                         onNavigate = { requestedRoute = it },
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
@@ -573,7 +574,8 @@ private fun ShellContent(
     heldActionKeys: Set<String>,
     isReviewer: Boolean = false,
     onChannelDeleted: () -> Unit = {},
-    onReconnect: () -> Unit = {},
+    // Null while acting: the re-grant action would run the admin's own Twitch login (see [profileReconnect]).
+    onReconnect: (() -> Unit)? = null,
     onNavigate: (ShellRoute) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
