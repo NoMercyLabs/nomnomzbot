@@ -318,10 +318,11 @@
     "claude",
     ""
    ],
-   "text": "Pick the model for the work: Haiku for checks, Sonnet for mechanical/pattern work, Opus only for complex work (root cause, concurrency, security) with a tight brief. Set model on the call.",
-   "source": "memory use-cheap-models-for-research.md",
+   "text": "Pick the model for the work: Haiku for checks, Sonnet for mechanical/pattern work, Opus for complex work (root cause, concurrency, security) with a tight brief. Run model-router status first: in mode 'wide' judgment agents (reviews, design, root causes, research) go on Fable. Set model on the call.",
+   "source": "memory use-cheap-models-for-research.md; memory model-router-shared-limits.md",
    "covers": [
-    "use-cheap-models-for-research.md"
+    "use-cheap-models-for-research.md",
+    "model-router-shared-limits.md"
    ]
   }
  ],
@@ -525,6 +526,367 @@
    "source": "memory never-forward-host-secrets-to-containers.md",
    "covers": [
     "never-forward-host-secrets-to-containers.md"
+   ]
+  },
+  {
+   "id": "newtonsoft-jtoken",
+   "text": "Object-typed JSON columns: a Newtonsoft JToken passed through System.Text.Json mangles arrays to [] and objects to {}. Serialize with one library end to end.",
+   "source": "memory newtonsoft-jtoken-stj-mangling.md",
+   "covers": [
+    "newtonsoft-jtoken-stj-mangling.md"
+   ]
+  },
+  {
+   "id": "pwsh-native-stderr",
+   "text": "Judge native commands by $LASTEXITCODE. Never 2>&1 under ErrorActionPreference=Stop: git/gh stderr progress becomes a terminating error.",
+   "source": "memory powershell-native-stderr-trap.md",
+   "covers": [
+    "powershell-native-stderr-trap.md"
+   ]
+  },
+  {
+   "id": "csharpier-before-commit",
+   "text": "Run dotnet csharpier format then check (pinned tool) before every commit, including in agent briefs.",
+   "source": "memory run-csharpier-before-commit.md",
+   "covers": [
+    "run-csharpier-before-commit.md"
+   ]
+  },
+  {
+   "id": "worktree-leak",
+   "text": "Worktree agents can leak commits to the main tree. Verify each agent committed to ITS branch.",
+   "source": "memory worktree-agents-can-leak-to-main-tree.md",
+   "covers": [
+    "worktree-agents-can-leak-to-main-tree.md"
+   ]
+  },
+  {
+   "id": "worktree-cleanup",
+   "text": "Never sweep worktrees. Remove one only after its agent completed and its work is integrated.",
+   "source": "memory worktree-cleanup-only-completed-agents.md",
+   "covers": [
+    "worktree-cleanup-only-completed-agents.md"
+   ]
+  },
+  {
+   "id": "no-doc-nitpicks",
+   "text": "Doc reviews report substantive contradictions only, never nitpicks.",
+   "source": "memory feedback-no-doc-nitpicks.md",
+   "covers": [
+    "feedback-no-doc-nitpicks.md"
+   ]
+  },
+  {
+   "id": "live-db-creds",
+   "text": "Never mutate live DB credentials. Diagnose read-only; ask before changing.",
+   "source": "memory never-mutate-live-db-creds.md",
+   "covers": [
+    "never-mutate-live-db-creds.md"
+   ]
+  },
+  {
+   "id": "no-checkpoint-at-block",
+   "text": "Blocked is not stop: never checkpoint at a block; work the other queued tasks.",
+   "source": "memory never-checkpoint-at-a-block.md",
+   "covers": [
+    "never-checkpoint-at-a-block.md"
+   ]
+  },
+  {
+   "id": "classify-messages",
+   "text": "Classify each new owner message: a correction means stop and fix now; an addition means finish the current task first.",
+   "source": "memory classify-new-messages.md",
+   "covers": [
+    "classify-new-messages.md"
+   ]
+  },
+  {
+   "id": "no-comment-essays",
+   "text": "Comments only explain complexity. Never write 'issues found' or history essays in code comments.",
+   "source": "memory feedback-no-comment-essays.md",
+   "covers": [
+    "feedback-no-comment-essays.md"
+   ]
+  },
+  {
+   "id": "vertical-slices",
+   "text": "Work in small validated vertical slices; commit each one; never pile up uncommitted changes.",
+   "source": "memory workflow-vertical-slices.md",
+   "covers": [
+    "workflow-vertical-slices.md"
+   ]
+  },
+  {
+   "id": "feedback-use-watch-ci-skill-not-adhoc-gh",
+   "text": "Use the watch-ci skill / scripts/push-and-watch.ps1 for every push, never hand-roll gh run watch",
+   "source": "memory feedback-use-watch-ci-skill-not-adhoc-gh.md",
+   "covers": [
+    "feedback-use-watch-ci-skill-not-adhoc-gh.md"
+   ]
+  },
+  {
+   "id": "product-alignment-decisions-2026-08-22",
+   "text": "HARD — owner's binding product decisions (one channel many platforms; any-platform login; X = sibling streaming platform; free viewer SaaS account; user-defined bot-line prefix; types vs speaks; track split suspended; stabilize first). Source: .claude/docs/design/PRODUCT-ALIGNMENT.md.",
+   "source": "memory product-alignment-decisions-2026-08-22.md",
+   "covers": [
+    "product-alignment-decisions-2026-08-22.md"
+   ]
+  },
+  {
+   "id": "multiplatform-simultaneous-and-stabilize-first",
+   "text": "HARD — streamers stream on Twitch+Kick+YouTube(+X) AT THE SAME TIME; every management surface must be uniform across all enabled platforms (combined chat is one example, not the limit). Stabilize the current feature set before adding features.",
+   "source": "memory multiplatform-simultaneous-and-stabilize-first.md",
+   "covers": [
+    "multiplatform-simultaneous-and-stabilize-first.md"
+   ]
+  },
+  {
+   "id": "ci-deploy-backgrounded-warn-only",
+   "text": "HARD — CI and deploy checks run in the background and only interrupt on failure; never stall work on them; test local + docker deploys too, not only SaaS",
+   "source": "memory ci-deploy-backgrounded-warn-only.md",
+   "covers": [
+    "ci-deploy-backgrounded-warn-only.md"
+   ]
+  },
+  {
+   "id": "tdd-local-no-ci",
+   "text": "HARD — validate everything via TDD locally before commit; pushes happen in regular batches (see feedback-batch-commits-push-at-milestones)",
+   "source": "memory tdd-local-no-ci.md",
+   "covers": [
+    "tdd-local-no-ci.md"
+   ]
+  },
+  {
+   "id": "feedback-truthful-data-not-fake-enforcement",
+   "text": "HARD — never display or record state that isn't actually verified/enforced against the real source; the owner caught a pattern of fake/cosmetic data",
+   "source": "memory feedback-truthful-data-not-fake-enforcement.md",
+   "covers": [
+    "feedback-truthful-data-not-fake-enforcement.md"
+   ]
+  },
+  {
+   "id": "feedback-validate-every-element",
+   "text": "Never call a page done until every button, field, modal, and API call is tested live in the browser — not just a screenshot of the empty state",
+   "source": "memory feedback-validate-every-element.md",
+   "covers": [
+    "feedback-validate-every-element.md"
+   ]
+  },
+  {
+   "id": "ask-when-unsure",
+   "text": "Hard rule — read intent before acting; when unclear or contradictory, ASK, never guess-and-act",
+   "source": "memory ask-when-unsure.md",
+   "covers": [
+    "ask-when-unsure.md"
+   ]
+  },
+  {
+   "id": "no-hedge-ask-tail",
+   "text": "HARD rule: never end a turn on a hedge-ask tail ('want me to…?', 'is this the direction?', 'let me know if it's off', 'shall I hold?'). Either DO the obvious next step, or end FLAT on the result; for a genuine decision use AskUserQuestion then stop.",
+   "source": "memory no-hedge-ask-tail.md",
+   "covers": [
+    "no-hedge-ask-tail.md"
+   ]
+  },
+  {
+   "id": "dont-ask-when-answer-is-obvious",
+   "text": "HARD — don't pose AskUserQuestion for a fork whose answer is obvious or already implied; pick the recommended option and execute",
+   "source": "memory dont-ask-when-answer-is-obvious.md",
+   "covers": [
+    "dont-ask-when-answer-is-obvious.md"
+   ]
+  },
+  {
+   "id": "dev-runtime-is-selfhost-sqlite",
+   "text": "Hard rule — the dev/real runtime is SelfHostLite + SQLite; the Postgres/Docker stack is an irrelevant old red herring",
+   "source": "memory dev-runtime-is-selfhost-sqlite.md",
+   "covers": [
+    "dev-runtime-is-selfhost-sqlite.md"
+   ]
+  },
+  {
+   "id": "wasm-dom-overlays-mount-in-shadow-root",
+   "text": "Compose/Wasm renders the app into a shadow root on <body>; any raw-DOM overlay must mount into document.body.shadowRoot or it renders 0x0/invisible",
+   "source": "memory wasm-dom-overlays-mount-in-shadow-root.md",
+   "covers": [
+    "wasm-dom-overlays-mount-in-shadow-root.md"
+   ]
+  },
+  {
+   "id": "fun-money-gambling-not-compliance",
+   "text": "Hard rule — fun-money gambling is NOT regulated gambling ONLY while the gambled currency has zero value-out; 18+ gate is an optional off-by-default streamer toggle, not compliance; settled design: single currency name + forced gamble-XOR-rewards election, wall at instrument-type level (categorically non-redeemable vs non-gamble-able), NL judges value objectively, consent doesn't cure",
+   "source": "memory fun-money-gambling-not-compliance.md",
+   "covers": [
+    "fun-money-gambling-not-compliance.md"
+   ]
+  },
+  {
+   "id": "settle-specs-before-implementing",
+   "text": "Hard rule — do NOT write or commit code until the owner explicitly says the specs/gaps/scopes/feature declarations are settled; planning language is not a go-signal",
+   "source": "memory settle-specs-before-implementing.md",
+   "covers": [
+    "settle-specs-before-implementing.md"
+   ]
+  },
+  {
+   "id": "schema-not-locked-still-defining",
+   "text": "Hard rule — the DB schema is NOT locked; it's a living spec artifact still being defined alongside the interface specs. Define/extend it freely; never conform to it as frozen or call it LOCKED",
+   "source": "memory schema-not-locked-still-defining.md",
+   "covers": [
+    "schema-not-locked-still-defining.md"
+   ]
+  },
+  {
+   "id": "commit-via-powershell-not-bash",
+   "text": "HARD recurring-error rule: ALWAYS run git commits with multi-line messages via the PowerShell tool using @'...'@ here-strings — the Bash tool's POSIX sh mangles @'...'@ (leaks a literal @ into the subject)",
+   "source": "memory commit-via-powershell-not-bash.md",
+   "covers": [
+    "commit-via-powershell-not-bash.md"
+   ]
+  },
+  {
+   "id": "verify-rendered-client-not-just-backend",
+   "text": "Hard rule — before claiming a UI works, verify the actual rendered client end-to-end (web render + console, app launch + stderr, every fetched resource serves), not just backend 200s; don't hand the owner a failing product",
+   "source": "memory verify-rendered-client-not-just-backend.md",
+   "covers": [
+    "verify-rendered-client-not-just-backend.md"
+   ]
+  },
+  {
+   "id": "ktor-websockets-broken-on-wasmjs",
+   "text": "Ktor's WebSockets client does NOT open a socket on the wasmJs Fetch engine — why web live-push silently failed, the fix, and the live-browser diagnostic that cracked it",
+   "source": "memory ktor-websockets-broken-on-wasmjs.md",
+   "covers": [
+    "ktor-websockets-broken-on-wasmjs.md"
+   ]
+  },
+  {
+   "id": "web-refresh-token-httponly-cookie",
+   "text": "HARD security rule — the web (Wasm) dashboard must keep the refresh token in an HttpOnly+Secure cookie, never in localStorage/sessionStorage; native may use file/keychain",
+   "source": "memory web-refresh-token-httponly-cookie.md",
+   "covers": [
+    "web-refresh-token-httponly-cookie.md"
+   ]
+  },
+  {
+   "id": "sleak-skill-must-be-loaded-before-ui",
+   "text": "HARD — load the sleak skill before writing any UI; the design system covers tokens, Sleak covers hierarchy",
+   "source": "memory sleak-skill-must-be-loaded-before-ui.md",
+   "covers": [
+    "sleak-skill-must-be-loaded-before-ui.md"
+   ]
+  },
+  {
+   "id": "never-logout-for-scope-or-schema-changes",
+   "text": "Never force a logout / re-onboard for a scope, token, or schema change — preserve the session; recover via an in-app prompt. Flow rule: broadcaster auth = REDIRECT flow, bot auth = device flow, applies to ALL re-auth",
+   "source": "memory never-logout-for-scope-or-schema-changes.md",
+   "covers": [
+    "never-logout-for-scope-or-schema-changes.md"
+   ]
+  },
+  {
+   "id": "desktop-editor-native-webview-no-cef",
+   "text": "HARD owner decision 2026-09-26 — desktop editor/web surfaces use the OS native web view (WebView2/WKWebView/WebKitGTK), never embedded Chromium (CEF/KCEF); no external-editor handoff",
+   "source": "memory desktop-editor-native-webview-no-cef.md",
+   "covers": [
+    "desktop-editor-native-webview-no-cef.md"
+   ]
+  },
+  {
+   "id": "never-ship-non-design-system-ui",
+   "text": "HARD owner 2026-09-26 — a plain/simpler fallback UI (e.g. the Swing text editor) must NEVER ship, not even as a fallback; the designer's system is the only UI",
+   "source": "memory never-ship-non-design-system-ui.md",
+   "covers": [
+    "never-ship-non-design-system-ui.md"
+   ]
+  },
+  {
+   "id": "no-shortcuts-latest-apis",
+   "text": "HARD owner 2026-09-26 — every feature is built correctly on the latest APIs and language features; no shortcuts on quality or speed, no stopgap/fallback versions",
+   "source": "memory no-shortcuts-latest-apis.md",
+   "covers": [
+    "no-shortcuts-latest-apis.md"
+   ]
+  },
+  {
+   "id": "actionable-errors-surface-globally",
+   "text": "HARD owner 2026-09-26 — every actionable error surfaces in the dashboard frame (outside the page) on every page, deep-links to where it is fixed, and Home shows all of them organized in the main view",
+   "source": "memory actionable-errors-surface-globally.md",
+   "covers": [
+    "actionable-errors-surface-globally.md"
+   ]
+  },
+  {
+   "id": "impersonation-full-identity-swap",
+   "text": "HARD owner 2026-09-26 — while impersonating, the ONLY trace of the admin is the Exit button; everything else (channels, role, nav, avatar, name, accent, data, hub, prompts) is the target's, no exceptions",
+   "source": "memory impersonation-full-identity-swap.md",
+   "covers": [
+    "impersonation-full-identity-swap.md"
+   ]
+  },
+  {
+   "id": "impersonation-not-mode-gated",
+   "text": "Admin impersonation works on every deployment mode — gated by permission + open support grant, never by DeploymentMode",
+   "source": "memory impersonation-not-mode-gated.md",
+   "covers": [
+    "impersonation-not-mode-gated.md"
+   ]
+  },
+  {
+   "id": "consequences-must-be-visible",
+   "text": "HARD standing law (owner 2026-08-24): every setting/action must explain what it does and what changes if you change it — never require knowing the bot from the inside out.",
+   "source": "memory consequences-must-be-visible.md",
+   "covers": [
+    "consequences-must-be-visible.md"
+   ]
+  },
+  {
+   "id": "two-migration-assemblies-always-both",
+   "text": "HARD: this repo has TWO EF migration sets (SQLite + Postgres). Every model change must land in BOTH — a SQLite-only migration passes all local tests and silently breaks self_host_full/saas.",
+   "source": "memory two-migration-assemblies-always-both.md",
+   "covers": [
+    "two-migration-assemblies-always-both.md"
+   ]
+  },
+  {
+   "id": "public-origin-not-request-scheme",
+   "text": "HARD - behind the reverse proxy Request.Scheme/IsHttps is the internal hop; always use ResolvePublicOrigin/IsPublicOriginHttps",
+   "source": "memory public-origin-not-request-scheme.md",
+   "covers": [
+    "public-origin-not-request-scheme.md"
+   ]
+  },
+  {
+   "id": "seeders-adopt-empty-stubs",
+   "text": "HARD - a seeder must skip on BUILT content, never merely on a matching name; an empty pipeline is a stub to fill in",
+   "source": "memory seeders-adopt-empty-stubs.md",
+   "covers": [
+    "seeders-adopt-empty-stubs.md"
+   ]
+  },
+  {
+   "id": "overlay-only-output-needs-presence-check",
+   "text": "HARD - a feature whose only output is a browser source must check IOverlayPresenceRegistry and report when nothing is attached",
+   "source": "memory overlay-only-output-needs-presence-check.md",
+   "covers": [
+    "overlay-only-output-needs-presence-check.md"
+   ]
+  },
+  {
+   "id": "deploy-blue-green-service-names",
+   "text": "HARD: there is NO `api` compose service — it is api-blue/api-green behind Caddy. Anything deploying `api` or health-checking container nomnomzbot-api fails with 'no such service: api' and ships nothing.",
+   "source": "memory deploy-blue-green-service-names.md",
+   "covers": [
+    "deploy-blue-green-service-names.md"
+   ]
+  },
+  {
+   "id": "tracker-remaining-work-only",
+   "text": "The execution plan lists remaining work only. Delete a shipped slice with scripts/close-slice.ps1; never annotate it DONE/CLOSED/SHIPPED.",
+   "source": "CLAUDE.md: Workflow; memory tracker-remaining-work-only.md",
+   "covers": [
+    "The execution plan (`SHORTCOMINGS-EXECUTION-PLAN.md`) lists remaining work only",
+    "tracker-remaining-work-only.md"
    ]
   }
  ]
