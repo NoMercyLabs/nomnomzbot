@@ -511,8 +511,13 @@ public class ChannelService : IChannelService
 
         if (existing is not null)
         {
-            existing.IsOnboarded = true;
-            existing.BotJoinedAt ??= _timeProvider.GetUtcNow().UtcDateTime;
+            await ChannelOnboardingWriter.OnboardAsync(
+                _db,
+                existing,
+                existing.User.DisplayName,
+                _timeProvider.GetUtcNow().UtcDateTime,
+                cancellationToken
+            );
             await _db.SaveChangesAsync(cancellationToken);
             await PublishOnboardedAsync(existing, cancellationToken);
             return Result.Success(ToDto(existing));
@@ -533,13 +538,18 @@ public class ChannelService : IChannelService
             ExternalChannelId = user.TwitchUserId!,
             Name = user.Username,
             NameNormalized = user.Username.ToLowerInvariant(),
-            IsOnboarded = true,
             Enabled = true,
-            BotJoinedAt = _timeProvider.GetUtcNow().UtcDateTime,
             User = user,
         };
 
         _db.Channels.Add(channel);
+        await ChannelOnboardingWriter.OnboardAsync(
+            _db,
+            channel,
+            user.DisplayName,
+            _timeProvider.GetUtcNow().UtcDateTime,
+            cancellationToken
+        );
         await _db.SaveChangesAsync(cancellationToken);
         await PublishOnboardedAsync(channel, cancellationToken);
 
