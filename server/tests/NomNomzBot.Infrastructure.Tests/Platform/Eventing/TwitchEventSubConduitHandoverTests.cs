@@ -859,7 +859,7 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
                 $"get {twitchSubscriptionId} as {(ownerBroadcasterId is null ? "bot" : "broadcaster")}"
             );
             return Task.FromResult(
-                Result.Success<TwitchSubscriptionResult?>(
+                Result.Success(
                     UserListed.FirstOrDefault(s => s.TwitchSubscriptionId == twitchSubscriptionId)
                 )
             );
@@ -872,7 +872,7 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         {
             Steps.Add($"get {twitchSubscriptionId} as app");
             return Task.FromResult(
-                Result.Success<TwitchSubscriptionResult?>(
+                Result.Success(
                     ConduitListed.FirstOrDefault(s =>
                         s.TwitchSubscriptionId == twitchSubscriptionId
                     )

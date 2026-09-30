@@ -1188,7 +1188,7 @@ public sealed class TwitchEventSubReconnectTests
             CancellationToken ct = default
         ) =>
             Task.FromResult(
-                Result.Success<TwitchSubscriptionResult?>(
+                Result.Success(
                     (list ?? []).FirstOrDefault(s => s.TwitchSubscriptionId == twitchSubscriptionId)
                 )
             );

@@ -415,7 +415,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             );
 
         TwitchEventSubWireSubscription? wire = page.Value.Items.FirstOrDefault();
-        return Result.Success<TwitchSubscriptionResult?>(wire is null ? null : ToResult(wire));
+        return Result.Success(wire is null ? null : ToResult(wire));
     }
 
     private static TwitchSubscriptionResult ToResult(TwitchEventSubWireSubscription wire) =>
