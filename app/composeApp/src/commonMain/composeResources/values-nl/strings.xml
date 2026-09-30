@@ -4291,8 +4291,8 @@
     <string name="personality_tone_chill">Chill</string>
     <string name="personality_tone_chill_desc">Ontspannen en minimalistisch.</string>
     <string name="personality_change_title">De stem van de bot wijzigen naar %1$s?</string>
-    <string name="personality_change_counts">Gebeurtenisreacties die de standaard volgen: %1$d. Zij krijgen een andere stem. Gebeurtenisreacties met eigen tekst: %2$d. Zij blijven hetzelfde.</string>
-    <string name="personality_change_counts_unknown">Gebeurtenisreacties die de standaard volgen krijgen een andere stem. Gebeurtenisreacties met eigen tekst blijven hetzelfde. De aantallen konden niet worden geladen.</string>
+    <string name="personality_change_counts">Gebeurtenisreacties die in de toon van je kanaal spreken: %1$d. Zij krijgen een andere stem. Gebeurtenisreacties met eigen tekst: %2$d. Zij blijven hetzelfde.</string>
+    <string name="personality_change_counts_unknown">Gebeurtenisreacties die in de toon van je kanaal spreken krijgen een andere stem. Gebeurtenisreacties met eigen tekst blijven hetzelfde. De aantallen konden niet worden geladen.</string>
     <string name="personality_change_confirm">Stem wijzigen</string>
     <string name="personality_change_cancel">Annuleren</string>
     <!-- Betrokkenheidstriggers (Instellingen). -->

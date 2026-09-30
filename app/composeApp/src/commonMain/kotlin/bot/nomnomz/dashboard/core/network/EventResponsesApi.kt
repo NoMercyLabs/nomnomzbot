@@ -98,6 +98,8 @@ data class EventResponseSummary(
     val updatedAt: String = "",
     /** True while the row follows the platform default (and so the channel's personality tone). */
     val followsPlatformDefault: Boolean = false,
+    /** True when a personality change changes what it says: it follows the default, or has no text of its own. */
+    val speaksInTone: Boolean = false,
 )
 
 /** Full event-response config (backend `EventResponseDto`). */

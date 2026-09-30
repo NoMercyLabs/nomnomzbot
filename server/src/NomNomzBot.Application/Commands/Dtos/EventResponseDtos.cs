@@ -41,14 +41,19 @@ public sealed record EventResponseDto(
 /// </summary>
 public sealed record AlertOverlayDto(string OverlayUrl, DateTime? LastRanAt);
 
-/// <summary>Lightweight event response summary (effective values — see <see cref="EventResponseDto"/>).</summary>
+/// <summary>
+/// Lightweight event response summary (effective values — see <see cref="EventResponseDto"/>).
+/// <paramref name="SpeaksInTone"/> is true when a personality change changes what it says: it follows the
+/// platform default, or it is a chat row of its own with no text.
+/// </summary>
 public sealed record EventResponseListItem(
     Guid Id,
     string EventType,
     bool IsEnabled,
     string ResponseType,
     DateTime UpdatedAt,
-    bool FollowsPlatformDefault
+    bool FollowsPlatformDefault,
+    bool SpeaksInTone
 );
 
 /// <summary>

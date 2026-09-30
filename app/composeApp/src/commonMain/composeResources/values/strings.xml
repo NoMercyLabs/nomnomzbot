@@ -4307,8 +4307,8 @@
     <string name="personality_tone_chill">Chill</string>
     <string name="personality_tone_chill_desc">Laid-back and minimal.</string>
     <string name="personality_change_title">Change the bot voice to %1$s?</string>
-    <string name="personality_change_counts">Event responses that follow the default: %1$d. They change voice. Event responses with their own text: %2$d. They stay the same.</string>
-    <string name="personality_change_counts_unknown">Event responses that follow the default change voice. Event responses with their own text stay the same. The counts could not be loaded.</string>
+    <string name="personality_change_counts">Event responses that speak in your channel tone: %1$d. They change voice. Event responses with their own text: %2$d. They stay the same.</string>
+    <string name="personality_change_counts_unknown">Event responses that speak in your channel tone change voice. Event responses with their own text stay the same. The counts could not be loaded.</string>
     <string name="personality_change_confirm">Change voice</string>
     <string name="personality_change_cancel">Cancel</string>
     <!-- Engagement triggers (Settings → Engagement triggers card). Detector on/off + tuning; the greeting message lives on the Event Responses page. -->

@@ -102085,7 +102085,8 @@
           "isEnabled",
           "responseType",
           "updatedAt",
-          "followsPlatformDefault"
+          "followsPlatformDefault",
+          "speaksInTone"
         ],
         "type": "object",
         "properties": {
@@ -102109,9 +102110,12 @@
           },
           "followsPlatformDefault": {
             "type": "boolean"
+          },
+          "speaksInTone": {
+            "type": "boolean"
           }
         },
-        "description": "Lightweight event response summary (effective values — see EventResponseDto)."
+        "description": "Lightweight event response summary (effective values — see EventResponseDto).\nSpeaksInTone is true when a personality change changes what it says: it follows the\nplatform default, or it is a chat row of its own with no text."
       },
       "EventResponsePresetDto": {
         "required": [

@@ -43,6 +43,7 @@ public sealed class EventResponseToneTests
 {
     private const string Follow = "channel.follow";
     private const string Cheer = "channel.cheer";
+    private const string AdBreak = "channel.ad_break.begin";
     private static readonly Guid SassyChannel = Guid.Parse("0199f300-0000-7000-8000-00000000c001");
     private static readonly Guid OwnTextChannel = Guid.Parse(
         "0199f300-0000-7000-8000-00000000c002"
@@ -207,6 +208,37 @@ public sealed class EventResponseToneTests
         SentTo(h, OwnTextChannel).Should().Equal(OwnWelcome, OwnWelcome);
     }
 
+    [Fact]
+    public async Task An_enabled_row_of_its_own_with_no_text_speaks_its_channels_tone_while_the_platform_default_is_off()
+    {
+        Harness h = await BuildAsync();
+        EventResponse row = await h.Db.EventResponses.SingleAsync(r =>
+            r.BroadcasterId == SassyChannel && r.EventType == AdBreak
+        );
+        row.FollowsPlatformDefault = false;
+        row.IsEnabled = true;
+        row.ResponseType = "chat_message";
+        row.Message = null;
+        await h.Db.SaveChangesAsync();
+        (await h.Db.PlatformEventResponseDefaults.SingleAsync(d => d.EventType == AdBreak))
+            .IsEnabled.Should()
+            .BeFalse("the ad-break default ships off, so only the row's own switch can turn it on");
+
+        await h.Executor.ExecuteAsync(
+            SassyChannel,
+            AdBreak,
+            "u1",
+            "viewer",
+            new() { ["ad.duration"] = "3 minutes" }
+        );
+
+        SentTo(h, SassyChannel)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOneOf(EventResponseToneCatalog.Get(PersonalityTone.Sassy, AdBreak));
+    }
+
     // ── what the dashboard is told ──────────────────────────────────────────
 
     [Fact]
@@ -253,6 +285,36 @@ public sealed class EventResponseToneTests
         dto.FollowsPlatformDefault.Should().BeFalse();
         dto.ToneLines.Should().BeEmpty();
         dto.Message.Should().Be(OwnWelcome);
+    }
+
+    [Fact]
+    public async Task Emptying_the_text_of_an_own_row_hands_it_the_channels_tone_lines_and_the_tone_change_count()
+    {
+        Harness h = await BuildAsync();
+        PaginationParams page = new() { Page = 1, PageSize = 100 };
+        EventResponseListItem before = (
+            await h.Channels.ListAsync(OwnTextChannel.ToString(), page)
+        ).Value.Items.Single(i => i.EventType == Follow);
+
+        Result<EventResponseDto> saved = await h.Channels.UpsertAsync(
+            OwnTextChannel.ToString(),
+            Follow,
+            new() { Message = "" }
+        );
+
+        saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        EventResponseDto dto = (
+            await h.Channels.GetByEventTypeAsync(OwnTextChannel.ToString(), Follow)
+        ).Value;
+        dto.FollowsPlatformDefault.Should().BeFalse();
+        dto.ToneLines.Should().Equal(EventResponseToneCatalog.Get(PersonalityTone.Sassy, Follow));
+        dto.Message.Should()
+            .BeNullOrEmpty("the row keeps no text, so saving it again never freezes one tone line");
+        EventResponseListItem after = (
+            await h.Channels.ListAsync(OwnTextChannel.ToString(), page)
+        ).Value.Items.Single(i => i.EventType == Follow);
+        before.SpeaksInTone.Should().BeFalse("its own text never changes voice");
+        after.SpeaksInTone.Should().BeTrue("a personality change now changes what it says");
     }
 
     [Fact]
@@ -311,7 +373,7 @@ public sealed class EventResponseToneTests
     }
 
     [Fact]
-    public async Task A_fresh_seed_writes_no_message_and_enables_exactly_the_events_the_catalogue_covers()
+    public async Task A_fresh_seed_writes_no_message_and_enables_exactly_the_events_that_ship_on()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
@@ -324,7 +386,7 @@ public sealed class EventResponseToneTests
         rows.Where(r => r.IsEnabled)
             .Select(r => r.EventType)
             .Should()
-            .BeEquivalentTo(EventResponseToneCatalog.EventTypes);
+            .BeEquivalentTo(PlatformEventResponseDefaultsSeeder.LegacyMessages.Keys);
     }
 
     [Fact]
@@ -358,9 +420,9 @@ public sealed class EventResponseToneTests
     [Fact]
     public void Every_legacy_seeded_line_is_the_first_informative_line_of_its_event()
     {
-        PlatformEventResponseDefaultsSeeder
-            .LegacyMessages.Keys.Should()
-            .BeEquivalentTo(EventResponseToneCatalog.EventTypes);
+        EventResponseToneCatalog
+            .EventTypes.Should()
+            .Contain(PlatformEventResponseDefaultsSeeder.LegacyMessages.Keys);
         foreach (
             (string eventType, string legacy) in PlatformEventResponseDefaultsSeeder.LegacyMessages
         )

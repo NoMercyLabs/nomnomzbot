@@ -168,11 +168,13 @@ class PersonalityControllerTest {
             tonePickerController(
                 FakePersonalityEventResponsesApi(
                     listOf(
-                        EventResponseSummary(id = "1", isEnabled = true, followsPlatformDefault = true),
-                        EventResponseSummary(id = "2", isEnabled = true, followsPlatformDefault = true),
+                        EventResponseSummary(id = "1", isEnabled = true, followsPlatformDefault = true, speaksInTone = true),
+                        EventResponseSummary(id = "2", isEnabled = true, followsPlatformDefault = true, speaksInTone = true),
                         EventResponseSummary(id = "3", isEnabled = true, followsPlatformDefault = false),
+                        // Its own row with no text picks tone lines, so it changes voice too.
+                        EventResponseSummary(id = "6", isEnabled = true, followsPlatformDefault = false, speaksInTone = true),
                         // Off rows say nothing, so they change nothing either way.
-                        EventResponseSummary(id = "4", isEnabled = false, followsPlatformDefault = true),
+                        EventResponseSummary(id = "4", isEnabled = false, followsPlatformDefault = true, speaksInTone = true),
                         EventResponseSummary(id = "5", isEnabled = false, followsPlatformDefault = false),
                     )
                 ),
@@ -183,7 +185,7 @@ class PersonalityControllerTest {
         controller.choose("sassy")
 
         val ready: PersonalityState.Ready = controller.state.value as PersonalityState.Ready
-        assertEquals(ToneChange(tone = "sassy", following = 2, own = 1), ready.pending)
+        assertEquals(ToneChange(tone = "sassy", following = 3, own = 1), ready.pending)
         assertEquals("informative", ready.current)
         assertEquals(null, settings.lastSetTone)
     }

@@ -14,8 +14,8 @@ using NomNomzBot.Domain.Identity.Enums;
 namespace NomNomzBot.Application.Commands.Services;
 
 /// <summary>
-/// The code-defined chat lines a channel's event response speaks while it follows the platform default: for
-/// each event type that ships ON, five tones of 1–4 varied lines written in that tone's voice (the
+/// The code-defined chat lines a channel's event response speaks while it follows the platform default, or while
+/// its own chat row is on with no text: for each event type that ships ON, and the ad break, five tones of 1–4 varied lines written in that tone's voice (the
 /// <c>ToneTemplateCatalog</c> shape, for event responses instead of built-in replies). Every line of an
 /// event uses only the placeholders of that event's Informative lines, so a tone never breaks
 /// <c>{user}</c>, <c>{count}</c> or <c>{also_said}</c>. The first Informative line of an event is the line
@@ -33,7 +33,7 @@ public static class EventResponseToneCatalog
         IReadOnlyDictionary<string, string[]>
     > Catalog = Build();
 
-    /// <summary>The event types the catalogue ships lines for — the ones that start ON.</summary>
+    /// <summary>The event types the catalogue ships lines for — the ones that start ON, plus the ad break.</summary>
     public static IReadOnlyList<string> EventTypes { get; } = [.. Catalog.Keys];
 
     /// <summary>
@@ -401,6 +401,44 @@ public static class EventResponseToneCatalog
                 "{user} raided with {viewers} viewers. welcome, raiders.",
                 "welcome raiders. thanks {user} for the {viewers}.",
                 "{viewers} raiders from {user}. hey all.",
+            ]
+        );
+
+        // The ad-break default ships off; these lines speak for a channel that turns its own row on and leaves
+        // the text empty. {user} is empty on an automatic break, so the lines use only the duration.
+        Add(
+            catalog,
+            "channel.ad_break.begin",
+            informative:
+            [
+                "Ads incoming for {ad.duration} — perfect stretch break!",
+                "An ad break has started for {ad.duration}. We will be right back.",
+                "Ad break: {ad.duration}. Stay tuned!",
+            ],
+            friendly:
+            [
+                "Quick ad break for {ad.duration}! Grab a drink and stretch, we will see you soon!",
+                "Ads for {ad.duration}, friends. Thank you for sticking around!",
+                "Ads are on for {ad.duration}. Go hydrate, we will be right here!",
+            ],
+            sassy:
+            [
+                "Ads for {ad.duration}. Yes, again. Go stretch before your spine files a complaint.",
+                "The ads are here for {ad.duration}. Blame capitalism, not me.",
+                "{ad.duration} of ads. Perfect time to drink some water, since you clearly forgot.",
+                "Ad break, {ad.duration}. Do not even think about leaving, I will know.",
+            ],
+            hype:
+            [
+                "AD BREAK FOR {ad.duration}! STRETCH, HYDRATE, COME BACK STRONGER!",
+                "{ad.duration} OF ADS! GET UP, GET MOVING, WE ARE BACK SOON!",
+                "ADS FOR {ad.duration}! DON'T YOU DARE LEAVE, THE HYPE CONTINUES AFTER!",
+            ],
+            chill:
+            [
+                "ads for {ad.duration}. good time to stretch.",
+                "short ad break, {ad.duration}. we'll be here.",
+                "ads rolling for {ad.duration}. grab some water.",
             ]
         );
 

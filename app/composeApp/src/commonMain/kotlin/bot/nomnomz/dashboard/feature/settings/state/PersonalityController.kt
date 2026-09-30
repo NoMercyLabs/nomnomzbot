@@ -85,8 +85,8 @@ class PersonalityController(
                 pending =
                     ToneChange(
                         tone = tone,
-                        following = summaries?.count { it.followsPlatformDefault },
-                        own = summaries?.count { !it.followsPlatformDefault },
+                        following = summaries?.count { it.speaksInTone },
+                        own = summaries?.count { !it.speaksInTone },
                     ),
                 justSaved = false,
                 saveError = null,

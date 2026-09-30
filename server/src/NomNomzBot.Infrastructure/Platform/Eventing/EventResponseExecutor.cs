@@ -156,7 +156,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             _ => new(
                 row.IsEnabled,
                 row.ResponseType,
-                row.Message,
+                await OwnMessageAsync(row, cancellationToken),
                 row.PipelineId,
                 row.MetadataJson,
                 row.SpeakWithTts
@@ -242,6 +242,15 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             : platform.Message;
         return new(platform.IsEnabled, "chat_message", message, null, [], platform.SpeakWithTts);
     }
+
+    /// <summary>A chat row of its own with no text speaks a line in the channel's tone; any other row, its own text.</summary>
+    private async Task<string?> OwnMessageAsync(EventResponse row, CancellationToken ct) =>
+        row.ResponseType == "chat_message" && string.IsNullOrWhiteSpace(row.Message)
+            ? EventResponseToneCatalog.Pick(
+                await PersonalityAsync(row.BroadcasterId, ct),
+                row.EventType
+            )
+            : row.Message;
 
     private async Task<string?> PersonalityAsync(Guid broadcasterId, CancellationToken ct) =>
         await _db

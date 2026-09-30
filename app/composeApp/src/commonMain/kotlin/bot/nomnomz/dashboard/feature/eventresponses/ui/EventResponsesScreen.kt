@@ -385,9 +385,10 @@ private fun EditDialog(
         val detail: EventResponse? = loadDetail()
         selectedType = detail?.responseType?.takeIf { it.isNotBlank() } ?: response.responseType
         val storedMessage: String = detail?.message.orEmpty()
-        message = storedMessage.ifBlank { presetTemplate }
-        loadedMessage = message
         toneLines = detail?.toneLines ?: emptyList()
+        // A row with no text that speaks tone lines stays empty: pre-filling the preset would freeze it on save.
+        message = if (storedMessage.isBlank() && toneLines.isNotEmpty()) "" else storedMessage.ifBlank { presetTemplate }
+        loadedMessage = message
         pipelineChoice = detail?.pipelineId?.ifBlank { null }
         widgetChoice = detail?.metadata?.get(EventResponsesController.WidgetIdMetadataKey).orEmpty()
         speakWithTts = detail?.speakWithTts ?: false

@@ -83,7 +83,8 @@ public class EventResponseService : IEventResponseService
                     effective.IsEnabled,
                     effective.ResponseType,
                     e.UpdatedAt,
-                    effective.FollowsPlatformDefault
+                    effective.FollowsPlatformDefault,
+                    effective.FollowsPlatformDefault || effective.ToneLines.Count > 0
                 );
             }),
         ];
@@ -321,7 +322,8 @@ public class EventResponseService : IEventResponseService
     /// <summary>
     /// The response as the runtime performs it: a row that follows the platform default reports the platform
     /// default enabled flag and the lines it speaks from in the channel's tone (or, with no platform row,
-    /// nothing — disabled).
+    /// nothing — disabled). A chat row of its own with no text reports the tone lines it picks from, and keeps
+    /// its message empty so a save never freezes one line into it.
     /// </summary>
     private static EventResponseDto ToDto(
         EventResponse e,
@@ -330,10 +332,11 @@ public class EventResponseService : IEventResponseService
     )
     {
         bool follows = e.FollowsPlatformDefault;
-        IReadOnlyList<string> toneLines =
-            follows && platform is not null
-                ? EventResponseToneCatalog.FollowingLines(platform.Message, tone, e.EventType)
-                : [];
+        IReadOnlyList<string> toneLines = follows
+            ? platform is null
+                ? []
+                : EventResponseToneCatalog.FollowingLines(platform.Message, tone, e.EventType)
+            : OwnToneLines(e, tone);
         return new(
             e.Id,
             e.EventType,
@@ -349,4 +352,9 @@ public class EventResponseService : IEventResponseService
             toneLines
         );
     }
+
+    private static IReadOnlyList<string> OwnToneLines(EventResponse e, string tone) =>
+        e.ResponseType == "chat_message" && string.IsNullOrWhiteSpace(e.Message)
+            ? EventResponseToneCatalog.Get(tone, e.EventType)
+            : [];
 }

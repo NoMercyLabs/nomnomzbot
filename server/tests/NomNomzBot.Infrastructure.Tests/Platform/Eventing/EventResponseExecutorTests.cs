@@ -203,7 +203,7 @@ public sealed class EventResponseExecutorTests
 
         await chat.Received(1)
             .SendMessageAsync(Tenant, Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     [Fact]
@@ -335,7 +335,7 @@ public sealed class EventResponseExecutorTests
     }
 
     [Fact]
-    public async Task A_blank_template_or_dangling_pipeline_id_does_nothing()
+    public async Task A_blank_template_on_an_event_without_tone_lines_or_a_dangling_pipeline_id_does_nothing()
     {
         (
             EventResponseExecutor executor,
@@ -344,7 +344,8 @@ public sealed class EventResponseExecutorTests
             IPipelineEngine engine,
             _
         ) = Build();
-        await SeedResponseAsync(db, "channel.follow", "chat_message", message: "   ");
+        // stream.online has no tone lines, so a blank own row has nothing to pick (a follow would speak its tone).
+        await SeedResponseAsync(db, "stream.online", "chat_message", message: "   ");
         await SeedResponseAsync(
             db,
             "channel.cheer",
@@ -352,7 +353,7 @@ public sealed class EventResponseExecutorTests
             pipelineId: Guid.CreateVersion7() // no such Pipeline row
         );
 
-        await executor.ExecuteAsync(Tenant, "channel.follow", null, null, []);
+        await executor.ExecuteAsync(Tenant, "stream.online", null, null, []);
         await executor.ExecuteAsync(Tenant, "channel.cheer", null, null, []);
 
         await chat.DidNotReceiveWithAnyArgs()
