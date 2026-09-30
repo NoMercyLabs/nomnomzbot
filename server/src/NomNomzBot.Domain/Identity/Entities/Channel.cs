@@ -112,6 +112,21 @@ public class Channel : SoftDeletableEntity
     public DateTime? BotJoinedAt { get; set; }
 
     /// <summary>
+    /// Whether the channel's dedicated Twitch bot holds the moderator role here, as last observed from Twitch
+    /// (a <c>channel.moderator.add</c>/<c>.remove</c> event naming the bot, or a Helix Get Moderators reconcile).
+    /// Null = not observed yet, or no dedicated bot (the streamer's own account speaks). Only meaningful for
+    /// the bot named by <see cref="BotModeratorStatusBotUserId"/>: a status recorded for another bot is stale.
+    /// </summary>
+    public bool? BotIsModerator { get; set; }
+
+    /// <summary>The Twitch user id of the bot <see cref="BotIsModerator"/> was observed for.</summary>
+    [MaxLength(50)]
+    public string? BotModeratorStatusBotUserId { get; set; }
+
+    /// <summary>When <see cref="BotIsModerator"/> last changed value (not when it was last re-confirmed).</summary>
+    public DateTime? BotModeratorStatusChangedAt { get; set; }
+
+    /// <summary>
     /// When <see cref="Rewards.Services.IRewardService.ListAsync"/> last ran its throttled background
     /// <see cref="Rewards.Services.IRewardService.ImportFromTwitchAsync"/> for this channel (rewards.md) — null
     /// until the first Rewards page load. Lets a streamer's pre-existing Twitch-dashboard-created rewards

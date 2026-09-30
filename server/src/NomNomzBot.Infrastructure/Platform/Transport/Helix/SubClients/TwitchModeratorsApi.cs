@@ -28,6 +28,9 @@ public sealed class TwitchModeratorsApi(
     ITwitchTokenResolver tokens
 ) : ITwitchModeratorsApi
 {
+    // Helix Get Moderators accepts at most 100 user_id filters per request.
+    private const int MaxUserIdFilter = 100;
+
     [RequiresTwitchScope(TwitchScopes.ModerationRead)]
     public async Task<Result<TwitchPage<TwitchModerator>>> GetModeratorsAsync(
         Guid broadcasterId,
@@ -50,6 +53,40 @@ public sealed class TwitchModeratorsApi(
         ];
         if (page.After is not null)
             query.Add(new("after", page.After));
+
+        TwitchHelixRequest request = new(
+            HttpMethod.Get,
+            "moderation/moderators",
+            TwitchHelixAuth.User,
+            broadcasterId,
+            Query: query
+        );
+
+        return await transport.GetPageAsync<TwitchModerator>(request, ct);
+    }
+
+    [RequiresTwitchScope(TwitchScopes.ModerationRead)]
+    public async Task<Result<TwitchPage<TwitchModerator>>> GetModeratorsByUserIdAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> twitchUserIds,
+        CancellationToken ct = default
+    )
+    {
+        if (twitchUserIds.Count is 0 or > MaxUserIdFilter)
+            return Errors
+                .ValidationFailed($"Get Moderators filters on 1 to {MaxUserIdFilter} user ids.")
+                .WithValue<TwitchPage<TwitchModerator>>(default!);
+
+        Result scope = await RequireScopeAsync(broadcasterId, TwitchScopes.ModerationRead, ct);
+        if (scope.IsFailure)
+            return scope.WithValue<TwitchPage<TwitchModerator>>(default!);
+
+        Result<string> channel = await ResolveAsync(broadcasterId, ct);
+        if (channel.IsFailure)
+            return channel.WithValue<TwitchPage<TwitchModerator>>(default!);
+
+        List<KeyValuePair<string, string>> query = [new("broadcaster_id", channel.Value)];
+        query.AddRange(twitchUserIds.Select(id => new KeyValuePair<string, string>("user_id", id)));
 
         TwitchHelixRequest request = new(
             HttpMethod.Get,

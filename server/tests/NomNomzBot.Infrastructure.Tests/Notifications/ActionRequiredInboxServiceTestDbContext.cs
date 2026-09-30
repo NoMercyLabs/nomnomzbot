@@ -160,6 +160,13 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             e.Ignore(c => c.Events);
             e.Ignore(c => c.PlatformConnections);
         });
+        b.Entity<BotAccount>(e => e.HasKey(a => a.Id));
+        b.Entity<ChannelBotAuthorization>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Ignore(a => a.Channel);
+            e.Ignore(a => a.BotAccount);
+        });
         b.Entity<IntegrationToken>(e =>
         {
             e.HasKey(t => t.Id);
@@ -200,6 +207,8 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         typeof(EventJournal),
         typeof(IntegrationToken),
         typeof(SecurityNotice),
+        typeof(BotAccount),
+        typeof(ChannelBotAuthorization),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -295,8 +304,8 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
-        throw new NotSupportedException();
-    public DbSet<BotAccount> BotAccounts => throw new NotSupportedException();
+        Set<ChannelBotAuthorization>();
+    public DbSet<BotAccount> BotAccounts => Set<BotAccount>();
     public DbSet<AuthSession> AuthSessions => throw new NotSupportedException();
     public DbSet<RefreshToken> RefreshTokens => throw new NotSupportedException();
     public DbSet<IpcDevModeKey> IpcDevModeKeys => throw new NotSupportedException();

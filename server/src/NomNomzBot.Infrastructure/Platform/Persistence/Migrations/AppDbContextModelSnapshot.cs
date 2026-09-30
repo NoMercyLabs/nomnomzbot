@@ -5025,12 +5025,22 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<bool?>("BotIsModerator")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("BotJoinedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("BotLinePrefix")
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<string>("BotModeratorStatusBotUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("BotModeratorStatusChangedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CommandPrefix")
                         .IsRequired()

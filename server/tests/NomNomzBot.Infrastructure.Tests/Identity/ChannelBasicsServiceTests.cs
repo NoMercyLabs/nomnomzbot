@@ -94,7 +94,16 @@ public sealed class ChannelBasicsServiceTests
                 Task.FromResult(callInfo.Arg<BuiltinResponseRequest>().NeutralFallback)
             );
         return (
-            new(db, TimeProvider.System, bus, registry, eventSub, chatProvider, composer),
+            new(
+                db,
+                TimeProvider.System,
+                bus,
+                registry,
+                eventSub,
+                chatProvider,
+                composer,
+                Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
+            ),
             registry,
             bus,
             eventSub,
@@ -196,7 +205,7 @@ public sealed class ChannelBasicsServiceTests
 
         Channel? channel = await db.Channels.FindAsync(ChannelId);
         channel!.CommandPrefix.Should().Be("!", "an invalid prefix must not overwrite");
-        await registry.DidNotReceiveWithAnyArgs().InvalidateSettingsAsync(default, default);
+        await registry.DidNotReceiveWithAnyArgs().InvalidateSettingsAsync(default);
     }
 
     [Fact]
@@ -237,7 +246,7 @@ public sealed class ChannelBasicsServiceTests
 
         result.IsSuccess.Should().BeTrue();
         await eventSub.Received(1).UnsubscribeAllAsync(ChannelId, Arg.Any<CancellationToken>());
-        await eventSub.DidNotReceiveWithAnyArgs().EnsureSubscribedAsync(default, default!, default);
+        await eventSub.DidNotReceiveWithAnyArgs().EnsureSubscribedAsync(default, default!);
     }
 
     [Fact]
@@ -262,7 +271,7 @@ public sealed class ChannelBasicsServiceTests
                 BotLifecycleService.ChannelEventTypes,
                 Arg.Any<CancellationToken>()
             );
-        await eventSub.DidNotReceiveWithAnyArgs().UnsubscribeAllAsync(default, default);
+        await eventSub.DidNotReceiveWithAnyArgs().UnsubscribeAllAsync(default);
     }
 
     [Fact]
@@ -278,8 +287,8 @@ public sealed class ChannelBasicsServiceTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        await eventSub.DidNotReceiveWithAnyArgs().EnsureSubscribedAsync(default, default!, default);
-        await eventSub.DidNotReceiveWithAnyArgs().UnsubscribeAllAsync(default, default);
+        await eventSub.DidNotReceiveWithAnyArgs().EnsureSubscribedAsync(default, default!);
+        await eventSub.DidNotReceiveWithAnyArgs().UnsubscribeAllAsync(default);
     }
 
     [Fact]
@@ -333,7 +342,7 @@ public sealed class ChannelBasicsServiceTests
         (await db.Channels.SingleAsync(c => c.Id == ChannelId))
             .AnnounceOnConnect.Should()
             .BeFalse();
-        await chatProvider.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chatProvider.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]

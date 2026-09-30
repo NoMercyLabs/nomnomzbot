@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.BackgroundServices;
@@ -322,6 +323,14 @@ public sealed class BotLifecycleService : BackgroundService
             if (reconcileStale && subscribed.IsFailure)
                 await eventSub.ReconcileAsync(channel.Id, ct);
 
+            // A moderator.add/remove missed while no session was open would leave the bot's moderator status
+            // wrong forever; re-reading it every sweep heals that within one tick.
+            await ReconcileBotModeratorStatusAsync(
+                scope.ServiceProvider.GetRequiredService<IBotModeratorStatusService>(),
+                channel,
+                ct
+            );
+
             if (!newlyActive)
                 return;
 
@@ -350,6 +359,24 @@ public sealed class BotLifecycleService : BackgroundService
                 channel.Name
             );
         }
+    }
+
+    // An unreadable roster (no moderation:read grant, Twitch down) is inconclusive and leaves the status as it
+    // was; the missing grant itself is surfaced by the grant-gap inbox source, so this only logs at debug.
+    private async Task ReconcileBotModeratorStatusAsync(
+        IBotModeratorStatusService botModeratorStatus,
+        ActiveChannel channel,
+        CancellationToken ct
+    )
+    {
+        Result reconciled = await botModeratorStatus.ReconcileAsync(channel.Id, ct);
+        if (reconciled.IsFailure)
+            _logger.LogDebug(
+                "BotLifecycleService: bot moderator status of #{ChannelName} not re-read: {Error} ({Code})",
+                channel.Name,
+                reconciled.ErrorMessage,
+                reconciled.ErrorCode
+            );
     }
 
     // One-shot data repair that stays idempotent: user.whisper.message used to be in the per-channel

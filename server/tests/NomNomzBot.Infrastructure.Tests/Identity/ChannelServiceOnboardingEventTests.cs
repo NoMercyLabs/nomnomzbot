@@ -61,7 +61,8 @@ public sealed class ChannelServiceOnboardingEventTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<ITwitchEventSubService>(),
             Substitute.For<IChatProvider>(),
-            Substitute.For<IBuiltinResponseComposer>()
+            Substitute.For<IBuiltinResponseComposer>(),
+            Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
         );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
@@ -118,7 +119,8 @@ public sealed class ChannelServiceOnboardingEventTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<ITwitchEventSubService>(),
             Substitute.For<IChatProvider>(),
-            Substitute.For<IBuiltinResponseComposer>()
+            Substitute.For<IBuiltinResponseComposer>(),
+            Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
         );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
@@ -164,7 +166,8 @@ public sealed class ChannelServiceOnboardingEventTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<ITwitchEventSubService>(),
             Substitute.For<IChatProvider>(),
-            Substitute.For<IBuiltinResponseComposer>()
+            Substitute.For<IBuiltinResponseComposer>(),
+            Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
         );
         CreateChannelRequest request = new() { BroadcasterId = ownerId.ToString() };
 

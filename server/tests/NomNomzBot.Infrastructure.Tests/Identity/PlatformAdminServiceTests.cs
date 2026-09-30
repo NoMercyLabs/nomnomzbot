@@ -62,7 +62,8 @@ public sealed class PlatformAdminServiceTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<Application.Contracts.Twitch.ITwitchEventSubService>(),
             Substitute.For<Domain.Chat.Interfaces.IChatProvider>(),
-            Substitute.For<Application.Commands.Builtin.IBuiltinResponseComposer>()
+            Substitute.For<Application.Commands.Builtin.IBuiltinResponseComposer>(),
+            Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
         );
         // AuthDbContext maps a focused subset of the full model (S004d), so this harness never exercises
         // ChannelDeletePreviewService's real counting pass (proved exhaustively elsewhere, against its own

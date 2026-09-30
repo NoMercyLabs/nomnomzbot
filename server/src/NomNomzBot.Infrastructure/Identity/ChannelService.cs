@@ -35,6 +35,7 @@ public class ChannelService : IChannelService
     private readonly ITwitchEventSubService _eventSub;
     private readonly IChatProvider _chatProvider;
     private readonly IBuiltinResponseComposer _responseComposer;
+    private readonly IBotModeratorStatusService _botModeratorStatus;
 
     public ChannelService(
         IApplicationDbContext db,
@@ -43,7 +44,8 @@ public class ChannelService : IChannelService
         IChannelRegistry registry,
         ITwitchEventSubService eventSub,
         IChatProvider chatProvider,
-        IBuiltinResponseComposer responseComposer
+        IBuiltinResponseComposer responseComposer,
+        IBotModeratorStatusService botModeratorStatus
     )
     {
         _db = db;
@@ -53,6 +55,7 @@ public class ChannelService : IChannelService
         _eventSub = eventSub;
         _chatProvider = chatProvider;
         _responseComposer = responseComposer;
+        _botModeratorStatus = botModeratorStatus;
     }
 
     public async Task<Result> JoinAsync(
@@ -83,6 +86,10 @@ public class ChannelService : IChannelService
             BotLifecycleService.ChannelEventTypes,
             cancellationToken
         );
+
+        // Know on join whether the bot can moderate here, instead of after the next sweep. A failed read is
+        // inconclusive and only leaves the status as it was, so it never fails the join.
+        await _botModeratorStatus.ReconcileAsync(broadcasterGuid, cancellationToken);
 
         // Opt-in, default OFF (house rule: opt-in/default-deny) — announce the bot's own connect. Distinct
         // from the operator-configured "stream.online" event response (that fires on the STREAM going live);
