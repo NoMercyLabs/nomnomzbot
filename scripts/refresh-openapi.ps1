@@ -96,7 +96,10 @@ if ($inContainer) {
     # OutOfMemoryException compiling Infrastructure — even with ~11 GB free in the container, so it is heap
     # RESERVATION, not real pressure. Workstation GC compiles the same tree clean. Verified 2026-09-07:
     # 83 errors under server GC, 0 errors with this set.
-    docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e "Encryption__Key=$key" -d $Container `
+    # DOTNET_GCHeapHardLimit: devbox/docker-compose.yml caps every .NET process at 3 GB (0xC0000000), and
+    # compiling Infrastructure needs more - Roslyn died with OutOfMemoryException on 2026-09-30 even with
+    # analyzers off. This one run gets 12 GB; the container itself has ~27 GB free.
+    docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e DOTNET_GCHeapHardLimit=0x300000000 -e "Encryption__Key=$key" -d $Container `
         sh -lc 'cd /workspace/server/src/NomNomzBot.Api && dotnet run --no-launch-profile --urls http://0.0.0.0:5080 > /tmp/openapi-run.log 2>&1'
 }
 else {
