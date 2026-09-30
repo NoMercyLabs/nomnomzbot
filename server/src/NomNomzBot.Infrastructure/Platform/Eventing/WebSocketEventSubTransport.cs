@@ -368,6 +368,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                         Status = wire.Status ?? "enabled",
                         Cost = wire.Cost ?? 0,
                         SessionId = wire.Transport?.SessionId,
+                        Condition = wire.Condition,
                     }
                 );
 
@@ -416,6 +417,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                             Status = wire.Status ?? "enabled",
                             Cost = wire.Cost ?? 0,
                             ConduitId = conduitId,
+                            Condition = wire.Condition,
                         }
                     );
 

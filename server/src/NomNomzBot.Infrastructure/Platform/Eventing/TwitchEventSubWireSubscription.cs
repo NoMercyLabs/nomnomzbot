@@ -25,6 +25,7 @@ public sealed class TwitchEventSubWireSubscription
     public string? Type { get; init; }
     public string? Version { get; init; }
     public int? Cost { get; init; }
+    public Dictionary<string, string>? Condition { get; init; }
     public TwitchEventSubWireTransport? Transport { get; init; }
 }
 

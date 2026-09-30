@@ -1335,6 +1335,26 @@ public sealed class TwitchEventSubHostedService
                     && live.SessionId == currentSession
                 )
                     return Result.Success(ToDto(row));
+
+                // The registry lost this row's id (a stale-session cleanup raced the create) while Twitch
+                // still holds the subscription on the CURRENT session: adopt it. Parking the row `pending`
+                // would re-POST — and 409 — on every reconcile, forever.
+                if (currentSession is not null && !isPlatformTenant)
+                {
+                    TwitchSubscriptionResult? adoptable = await FindLiveAtTwitchAsync(
+                        broadcasterId,
+                        request.EventType,
+                        version,
+                        condition,
+                        currentSession,
+                        ct
+                    );
+                    if (adoptable is not null)
+                    {
+                        await AdoptLiveAsync(db, row, adoptable, oldStatus, ct);
+                        return Result.Success(ToDto(row));
+                    }
+                }
             }
 
             return await RecordCreateFailureAsync(
@@ -1882,6 +1902,18 @@ public sealed class TwitchEventSubHostedService
             }
         }
 
+        // A row whose id the registry lost is re-bound from the listing before anything is re-created: its
+        // subscription may still be live on the current session, and a create would only 409.
+        ITwitchIdentityResolver resolver =
+            scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+        string? botTwitchUserId = await LoadBotTwitchUserIdAsync(db, ct);
+        string? conditionSubject =
+            (
+                broadcasterId == Guid.Empty
+                    ? null
+                    : await resolver.GetTwitchChannelIdAsync(broadcasterId, ct)
+            ) ?? botTwitchUserId;
+
         // Re-create rows that are desired (Enabled) but Twitch no longer has.
         int created = 0;
         foreach (
@@ -1902,6 +1934,28 @@ public sealed class TwitchEventSubHostedService
                 await db.SaveChangesAsync(ct);
             }
 
+            if (conditionSubject is not null)
+            {
+                TwitchSubscriptionResult? adoptable = FindLiveMatch(
+                    listed.Value.Where(s => !registryById.ContainsKey(s.TwitchSubscriptionId)),
+                    _conditionBuilder.GetWireType(row.EventType),
+                    row.Version,
+                    _conditionBuilder.BuildCondition(
+                        row.EventType,
+                        conditionSubject,
+                        botTwitchUserId
+                    ),
+                    _transport.CurrentSessionId(OwnerKeyFor(row.BroadcasterId, row.EventType))
+                );
+                if (adoptable is not null)
+                {
+                    await AdoptLiveAsync(db, row, adoptable, row.Status, ct);
+                    registryById[adoptable.TwitchSubscriptionId] = row;
+                    repaired++;
+                    continue;
+                }
+            }
+
             Result<EventSubSubscriptionDto> recreated = await SubscribeAsync(
                 broadcasterId,
                 row.EventType,
@@ -1917,6 +1971,81 @@ public sealed class TwitchEventSubHostedService
         return Result.Success(
             new EventSubReconcileReportDto(created, deleted, repaired, unchanged, errors)
         );
+    }
+
+    /// <summary>
+    /// The subscription Twitch holds for this topic on the current session, listed under the broadcaster's own
+    /// token, or null when there is none (or the listing failed — the caller then records the create failure).
+    /// </summary>
+    private async Task<TwitchSubscriptionResult?> FindLiveAtTwitchAsync(
+        Guid broadcasterId,
+        string wireType,
+        string version,
+        IReadOnlyDictionary<string, string> condition,
+        string currentSessionId,
+        CancellationToken ct
+    )
+    {
+        Result<IReadOnlyList<TwitchSubscriptionResult>> listed =
+            await _transport.ListSubscriptionsAsync(broadcasterId, ct);
+        return listed.IsFailure
+            ? null
+            : FindLiveMatch(listed.Value, wireType, version, condition, currentSessionId);
+    }
+
+    /// <summary>
+    /// The enabled subscription on the CURRENT session with the exact key a create 409s on (wire type +
+    /// version + condition), or null. A same-key subscription on a dead session is not a match: Twitch drops
+    /// it within a minute, and adopting it would only hand the row a second dead id.
+    /// </summary>
+    private static TwitchSubscriptionResult? FindLiveMatch(
+        IEnumerable<TwitchSubscriptionResult> live,
+        string wireType,
+        string version,
+        IReadOnlyDictionary<string, string> condition,
+        string? currentSessionId
+    ) =>
+        currentSessionId is null
+            ? null
+            : live.FirstOrDefault(s =>
+                s.Status == "enabled"
+                && s.SessionId == currentSessionId
+                && s.Type == wireType
+                && s.Version == version
+                && s.Condition is not null
+                && SameCondition(s.Condition, condition)
+            );
+
+    private static bool SameCondition(
+        IReadOnlyDictionary<string, string> left,
+        IReadOnlyDictionary<string, string> right
+    ) =>
+        left.Count == right.Count
+        && left.All(pair =>
+            right.TryGetValue(pair.Key, out string? value)
+            && string.Equals(value, pair.Value, StringComparison.Ordinal)
+        );
+
+    /// <summary>Binds the row to the subscription Twitch already holds for it — no create, no 409.</summary>
+    private async Task AdoptLiveAsync(
+        IApplicationDbContext db,
+        EventSubSubscription row,
+        TwitchSubscriptionResult live,
+        string oldStatus,
+        CancellationToken ct
+    )
+    {
+        row.TwitchSubscriptionId = live.TwitchSubscriptionId;
+        row.SessionId = live.SessionId;
+        row.ConduitId = null;
+        row.Transport = EventSubTransportKind.WebSocket.ToString().ToLowerInvariant();
+        row.Cost = live.Cost;
+        row.Status = "enabled";
+        row.LastError = null;
+        await db.SaveChangesAsync(ct);
+
+        if (oldStatus != row.Status)
+            await PublishStatusChangedAsync(row, oldStatus, row.Status, null, ct);
     }
 
     /// <summary>
@@ -2129,7 +2258,8 @@ public sealed class TwitchEventSubHostedService
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
         List<EventSubSubscription> rows = await db
-            .EventSubSubscriptions.Where(s =>
+            .EventSubSubscriptions.AsNoTracking()
+            .Where(s =>
                 s.Enabled
                 && s.DeletedAt == null
                 && s.TwitchSubscriptionId != null
@@ -2144,24 +2274,32 @@ public sealed class TwitchEventSubHostedService
             if (OwnerKeyFor(row.BroadcasterId, row.EventType) != ownerKey)
                 continue;
 
+            string deadSessionId = row.SessionId!;
             await _transport.DeleteSubscriptionAsync(
                 row.TwitchSubscriptionId!,
                 DeleteOwnerFor(row.EventType, row.BroadcasterId),
                 ct
             );
 
-            // Forget the dead session's handle unconditionally — whether Twitch deleted it or reported it
-            // already gone, it is not ours any more and re-registering will mint a new one. Leaving these set
-            // is what made this method replay the IDENTICAL delete set on every reconnect: the rows still
-            // matched "SessionId != current" next time round, forever.
-            row.TwitchSubscriptionId = null;
-            row.SessionId = null;
+            // Forget the dead session's handle — whether Twitch deleted it or reported it already gone, it is
+            // not ours any more (leaving it set replayed the identical delete set on every reconnect). It is a
+            // compare-and-clear on the DEAD session id, never a save of the entity read above: while the
+            // delete was in flight the reconcile tick may have re-created this topic on the NEW session, and
+            // saving the stale entity overwrote that fresh id — the row then sat `pending` with no id while
+            // the subscription was live, and every later create 409'd, forever.
+            await db
+                .EventSubSubscriptions.Where(s => s.Id == row.Id && s.SessionId == deadSessionId)
+                .ExecuteUpdateAsync(
+                    set =>
+                        set.SetProperty(s => s.TwitchSubscriptionId, (string?)null)
+                            .SetProperty(s => s.SessionId, (string?)null),
+                    ct
+                );
             deleted++;
         }
 
         if (deleted > 0)
         {
-            await db.SaveChangesAsync(ct);
             _logger.LogInformation(
                 "EventSub: deleted {Count} stale-session subscription(s) for owner {Owner} before re-registering on {SessionId}",
                 deleted,

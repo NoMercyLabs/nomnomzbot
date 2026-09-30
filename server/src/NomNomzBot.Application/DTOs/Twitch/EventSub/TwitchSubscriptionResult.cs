@@ -24,6 +24,12 @@ public sealed record TwitchSubscriptionResult
     public required int Cost { get; init; }
     public string? SessionId { get; init; }
     public string? ConduitId { get; init; }
+
+    /// <summary>
+    /// The condition Twitch holds for this subscription — with the type and version, the key a create 409s on.
+    /// Present on a listing; a create result carries none (the caller already knows what it posted).
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Condition { get; init; }
 }
 
 /// <summary>The session/conduit handle a transport returns from <c>StartAsync</c> (twitch-eventsub §4.2).</summary>

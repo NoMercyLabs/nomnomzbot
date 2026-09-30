@@ -37,6 +37,10 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 ///   <item>an already-enabled row on the current session is adopted (no duplicate create);</item>
 ///   <item>a create 409 parks the row <c>pending</c> and a 429 parks it <c>deferred</c> — never a terminal
 ///   <c>failed</c> — and a deferred row is not re-created on the next pass;</item>
+///   <item>a stale-session cleanup racing a create never overwrites the fresh id, and a row that lost its id
+///   adopts the live subscription on the current session (on a 409 and in reconcile) instead of re-POSTing
+///   it every tick — while a same-key subscription on a dead session or with another condition is never
+///   adopted;</item>
 ///   <item>cost-0 chat topics are subscribed first;</item>
 ///   <item>reconcile deletes the tenant's stale subscription and reports it in the revoked count;</item>
 ///   <item>a missing-scope failure holds the topic (no re-POST) until the stored grant set actually
@@ -55,10 +59,16 @@ public sealed class TwitchEventSubReconnectTests
     private static (TwitchEventSubHostedService Service, EventSubTestDbContext Db) Build(
         IEventSubTransport transport,
         IEventBus? eventBus = null,
-        INotificationDispatcher? dispatcher = null
+        INotificationDispatcher? dispatcher = null,
+        bool scopedContexts = false
     )
     {
-        EventSubTestDbContext db = EventSubTestDbContext.New();
+        // scopedContexts: one context per DI scope over one shared database, so two service paths that run at
+        // once (welcome work vs. a subscribe) each track their own copy of a row, as in production.
+        string database = $"eventsub-reconnect-{Guid.NewGuid():N}";
+        EventSubTestDbContext db = scopedContexts
+            ? EventSubTestDbContext.Shared(database)
+            : EventSubTestDbContext.New();
 
         ITwitchIdentityResolver resolver = Substitute.For<ITwitchIdentityResolver>();
         resolver
@@ -78,10 +88,14 @@ public sealed class TwitchEventSubReconnectTests
             )
             .Returns(Result.Success(0));
 
-        // The context is a single shared instance (singleton): the hosted service opens a fresh DI scope per
-        // call, so a per-scope/transient context would lose the registry between SubscribeAsync calls.
-        ServiceProvider provider = new ServiceCollection()
-            .AddSingleton<IApplicationDbContext>(db)
+        // By default the context is a single shared instance (singleton): the hosted service opens a fresh DI
+        // scope per call, so a per-scope private in-memory context would lose the registry between calls.
+        ServiceCollection services = new();
+        if (scopedContexts)
+            services.AddScoped<IApplicationDbContext>(_ => EventSubTestDbContext.Shared(database));
+        else
+            services.AddSingleton<IApplicationDbContext>(db);
+        ServiceProvider provider = services
             .AddScoped<ITwitchIdentityResolver>(_ => resolver)
             .AddScoped<IPlatformBotReadinessGate>(_ => gate)
             .AddScoped<IEventSubGapBackfillService>(_ => backfill)
@@ -239,6 +253,160 @@ public sealed class TwitchEventSubReconnectTests
         row.Status.Should().Be("pending");
         row.LastError.Should().Be("duplicate");
         transport.CreatedTypes.Should().ContainSingle(); // the create was attempted
+    }
+
+    [Fact]
+    public async Task Stale_cleanup_racing_a_successful_create_keeps_the_new_id_and_session()
+    {
+        // The production 409 storm: a fresh welcome's stale-session cleanup loads the owner's rows on the dead
+        // session, awaits one Helix DELETE per row, and only THEN clears their ids. Meanwhile the reconcile tick
+        // re-creates the same topic on the new session and saves the fresh id. The cleanup must never overwrite
+        // that fresh binding — otherwise the row sits `pending` with no id while the sub is live at Twitch, and
+        // every later create 409s forever. One DbContext per scope, exactly as production runs the two paths.
+        Guid tenant = Guid.CreateVersion7();
+        RecordingEventSubTransport transport = new(startSessionId: "new");
+        transport.GateDeletes();
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(
+            transport,
+            scopedContexts: true
+        );
+        Seed(db, tenant, "channel.follow", "2", "enabled", "sub-old", sessionId: "old");
+
+        await service.OnSessionWelcomeAsync("new", tenant.ToString(), null, CancellationToken.None);
+        await transport.DeleteStarted.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Result<EventSubSubscriptionDto> created = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+
+        transport.ReleaseDeletes();
+        await service.WhenWelcomeWorkIdleAsync();
+
+        transport.Deletes.Should().Equal("sub-old");
+        EventSubSubscription row = await db
+            .EventSubSubscriptions.AsNoTracking()
+            .SingleAsync(s => s.BroadcasterId == tenant);
+        row.TwitchSubscriptionId.Should().Be(created.Value.TwitchSubscriptionId);
+        row.SessionId.Should().Be("new");
+        row.Status.Should().Be("enabled");
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_on_409_adopts_the_matching_live_sub_and_stops_posting()
+    {
+        // The registry lost the id (the race above) but Twitch still holds the sub on the CURRENT session: a
+        // 409 must heal by adopting the live sub, not park the row pending and re-POST it every tick.
+        Guid tenant = Guid.CreateVersion7();
+        IReadOnlyDictionary<string, string> condition =
+            new EventSubConditionBuilder().BuildCondition("channel.follow", TwitchChannelId);
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>("duplicate", TwitchErrorCodes.Conflict),
+            list: [Sub("live-1", "channel.follow", "sess-1", "2", condition: condition)],
+            startSessionId: "sess-1"
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        Seed(db, tenant, "channel.follow", version: "2", status: "pending");
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.TwitchSubscriptionId.Should().Be("live-1");
+        EventSubSubscription row = await db
+            .EventSubSubscriptions.AsNoTracking()
+            .SingleAsync(s => s.BroadcasterId == tenant);
+        row.Status.Should().Be("enabled");
+        row.TwitchSubscriptionId.Should().Be("live-1");
+        row.SessionId.Should().Be("sess-1");
+        row.LastError.Should().BeNull();
+
+        // Healed: the next ensure pass adopts the enabled row and never reaches Twitch.
+        transport.CreatedTypes.Clear();
+        Result next = await service.EnsureSubscribedAsync(tenant, ["channel.follow"]);
+        next.IsSuccess.Should().BeTrue(next.ErrorMessage);
+        transport.CreatedTypes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SubscribeAsync_on_409_without_a_matching_live_sub_stays_pending()
+    {
+        // A live sub on a DEAD session (Twitch GCs it within a minute) or one with another condition is not
+        // ours to adopt: the row keeps the transient-409 behaviour and retries on the next pass.
+        Guid tenant = Guid.CreateVersion7();
+        IReadOnlyDictionary<string, string> condition =
+            new EventSubConditionBuilder().BuildCondition("channel.follow", TwitchChannelId);
+        RecordingEventSubTransport transport = new(
+            onCreate: (_, _) =>
+                Result.Failure<TwitchSubscriptionResult>("duplicate", TwitchErrorCodes.Conflict),
+            list:
+            [
+                Sub("dead-1", "channel.follow", "dead-sess", "2", condition: condition),
+                Sub(
+                    "other-1",
+                    "channel.follow",
+                    "sess-1",
+                    "2",
+                    condition: new Dictionary<string, string>
+                    {
+                        ["broadcaster_user_id"] = "someone-else",
+                        ["moderator_user_id"] = "someone-else",
+                    }
+                ),
+            ],
+            startSessionId: "sess-1"
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        Seed(db, tenant, "channel.follow", version: "2", status: "pending");
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            tenant,
+            "channel.follow"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.Conflict);
+        EventSubSubscription row = await db
+            .EventSubSubscriptions.AsNoTracking()
+            .SingleAsync(s => s.BroadcasterId == tenant);
+        row.Status.Should().Be("pending");
+        row.LastError.Should().Be("duplicate");
+        row.TwitchSubscriptionId.Should().BeNull();
+        row.SessionId.Should().BeNull();
+        transport.CreatedTypes.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_adopts_a_live_sub_for_an_id_less_row_instead_of_recreating()
+    {
+        // The 5-minute tick reconciles before it subscribes. A row that lost its id while its sub is live on
+        // the current session must be re-bound from the listing — zero POSTs, no 409.
+        Guid tenant = Guid.CreateVersion7();
+        IReadOnlyDictionary<string, string> condition =
+            new EventSubConditionBuilder().BuildCondition("channel.follow", TwitchChannelId);
+        RecordingEventSubTransport transport = new(
+            list: [Sub("live-1", "channel.follow", "sess-1", "2", condition: condition)],
+            startSessionId: "sess-1"
+        );
+        (TwitchEventSubHostedService service, EventSubTestDbContext db) = Build(transport);
+        Seed(db, tenant, "channel.follow", version: "2", status: "pending");
+
+        Result<EventSubReconcileReportDto> report = await service.ReconcileAsync(tenant);
+
+        report.IsSuccess.Should().BeTrue(report.ErrorMessage);
+        report.Value.Repaired.Should().Be(1);
+        report.Value.Created.Should().Be(0);
+        transport.CreatedTypes.Should().BeEmpty();
+        EventSubSubscription row = await db
+            .EventSubSubscriptions.AsNoTracking()
+            .SingleAsync(s => s.BroadcasterId == tenant);
+        row.Status.Should().Be("enabled");
+        row.TwitchSubscriptionId.Should().Be("live-1");
+        row.SessionId.Should().Be("sess-1");
     }
 
     [Fact]
@@ -852,7 +1020,8 @@ public sealed class TwitchEventSubReconnectTests
         string type,
         string? session = null,
         string version = "1",
-        string status = "enabled"
+        string status = "enabled",
+        IReadOnlyDictionary<string, string>? condition = null
     ) =>
         new()
         {
@@ -862,6 +1031,7 @@ public sealed class TwitchEventSubReconnectTests
             Status = status,
             Cost = 0,
             SessionId = session,
+            Condition = condition,
         };
 
     private static void Seed(
@@ -935,6 +1105,22 @@ public sealed class TwitchEventSubReconnectTests
 
         public IReadOnlyCollection<string> KnownOwnerKeys => _knownOwners;
 
+        private readonly TaskCompletionSource _deleteStarted = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        private readonly TaskCompletionSource _deleteRelease = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        private bool _gateDeletes;
+
+        /// <summary>Completes when the first delete reaches the transport (the caller is now parked in it).</summary>
+        public Task DeleteStarted => _deleteStarted.Task;
+
+        /// <summary>Holds every delete open until <see cref="ReleaseDeletes"/>, modelling a slow Helix DELETE.</summary>
+        public void GateDeletes() => _gateDeletes = true;
+
+        public void ReleaseDeletes() => _deleteRelease.TrySetResult();
+
         public Task<Result<EventSubTransportHandle>> StartAsync(CancellationToken ct = default) =>
             Task.FromResult(
                 Result.Success(
@@ -972,7 +1158,7 @@ public sealed class TwitchEventSubReconnectTests
             return Task.FromResult(result);
         }
 
-        public Task<Result> DeleteSubscriptionAsync(
+        public async Task<Result> DeleteSubscriptionAsync(
             string twitchSubscriptionId,
             Guid? ownerBroadcasterId = null,
             CancellationToken ct = default
@@ -980,7 +1166,10 @@ public sealed class TwitchEventSubReconnectTests
         {
             Deletes.Add(twitchSubscriptionId);
             DeleteOwners.Add(ownerBroadcasterId);
-            return Task.FromResult(Result.Success());
+            _deleteStarted.TrySetResult();
+            if (_gateDeletes)
+                await _deleteRelease.Task.WaitAsync(ct);
+            return Result.Success();
         }
 
         public Task<Result> DeleteConduitSubscriptionAsync(
