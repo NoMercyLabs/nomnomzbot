@@ -32,6 +32,10 @@ public static class SelfHostDataPaths
 
     public static string KeysDirectory => Ensure(Path.Combine(BaseDirectory, "keys"));
 
+    /// <summary>The ASP.NET Core Data Protection key ring, shared by every process on this data directory.</summary>
+    public static string DataProtectionKeysDirectory =>
+        Ensure(Path.Combine(BaseDirectory, "dataprotection-keys"));
+
     /// <summary>Durable storage for broadcaster-uploaded sound clips (spec P.18).</summary>
     public static string SoundClipsDirectory => Ensure(Path.Combine(BaseDirectory, "sound-clips"));
 

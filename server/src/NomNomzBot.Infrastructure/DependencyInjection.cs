@@ -853,6 +853,7 @@ public static class DependencyInjection
         // KEK-custody adapter (local_aes — OS-native secure store / deterministic config-key fallback).
         // The kms_envelope (Azure Managed-HSM) branch is the SaaS profile variant and is wired there.
         services.AddSingleton<IKeyVault, OsSecureStoreKeyVault>();
+        services.AddSharedDataProtection(SelfHostDataPaths.DataProtectionKeysDirectory);
 
         // DEK registry — persisted in the CryptoKey table (schema Q.1) so wrapped DEKs survive a restart and a
         // token sealed in one process decrypts in the next. Scoped because it owns the (scoped) DbContext.
