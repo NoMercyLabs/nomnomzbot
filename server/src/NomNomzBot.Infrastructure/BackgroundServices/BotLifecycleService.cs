@@ -36,6 +36,11 @@ public sealed class BotLifecycleService : BackgroundService
     private readonly HashSet<Guid> _joinedChannels = [];
     private readonly Lock _channelLock = new();
 
+    // How many channels reconcile at once. Each channel's topics ride its own broadcaster token (its own
+    // Helix rate bucket and WebSocket), so the bound only caps the shared app-token chat-read creates and
+    // the database work per wave.
+    internal const int MaxConcurrentChannelSyncs = 8;
+
     // EventSub event types to subscribe to per channel. Internal (not private) so
     // BotLifecycleServiceTopicsTests can assert the desired-subscribe set directly — the InternalsVisibleTo
     // to NomNomzBot.Infrastructure.Tests is already wired for exactly this kind of transport-seam assertion.
@@ -188,24 +193,26 @@ public sealed class BotLifecycleService : BackgroundService
         }
     }
 
-    private async Task SyncChannelsAsync(CancellationToken ct, bool reconcileStale)
+    internal async Task SyncChannelsAsync(CancellationToken ct, bool reconcileStale)
     {
         using IServiceScope scope = _serviceProvider.CreateScope();
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         ITwitchEventSubService eventSub =
             scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
-        ITwitchStreamsApi streams = scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>();
 
         // Get all currently enabled, onboarded, ACTIVE channels — a suspended / platform-banned tenant
-        // (stream-admin.md §3.2) drops out of the bot's working set on the next reconcile sweep.
-        var activeChannels = await db
+        // (stream-admin.md §3.2) drops out of the bot's working set on the next reconcile sweep. Live channels
+        // come first: after a deploy they are the ones whose viewers notice a deaf bot.
+        List<ActiveChannel> activeChannels = await db
             .Channels.Where(c =>
                 c.Enabled
                 && c.IsOnboarded
                 && c.Status == Domain.Identity.Enums.AuthEnums.ChannelStatus.Active
             )
-            .Select(c => new { c.Id, c.Name })
+            .OrderByDescending(c => c.IsLive)
+            .ThenBy(c => c.Name)
+            .Select(c => new ActiveChannel(c.Id, c.Name))
             .ToListAsync(ct);
 
         HashSet<Guid> activeIds = [.. activeChannels.Select(c => c.Id)];
@@ -242,49 +249,26 @@ public sealed class BotLifecycleService : BackgroundService
         // Reconcile EventSub subscriptions for EVERY active channel each tick (chat is read via
         // channel.chat.message). EnsureSubscribedAsync is idempotent — for an already-joined channel it adopts
         // the live subs and only re-creates ones not yet `enabled`, so a channel stranded by a reconnect
-        // self-heals within one tick without waiting for the next reconnect. Join-bookkeeping (mark joined +
-        // bootstrap live status) still runs only for newly-active channels.
-        foreach (var channel in activeChannels)
-        {
-            try
+        // self-heals within one tick without waiting for the next reconnect. Channels run side by side: each
+        // one's ~74 creates are network-bound and ride that broadcaster's own token, so one at a time left the
+        // last channel deaf for minutes after every deploy.
+        await Parallel.ForEachAsync(
+            activeChannels,
+            new ParallelOptions
             {
-                // Declaratively reconcile this channel's EventSub subscription set to the desired topics.
-                Result subscribed = await eventSub.EnsureSubscribedAsync(
-                    channel.Id,
-                    ChannelEventTypes,
-                    ct
-                );
-
-                // After a restart or handover the previous process's subscriptions linger at Twitch on its
-                // dead session (~1 min), so our creates 409 and park as "pending" until the next 5-minute tick —
-                // minutes of a deaf bot. Reconcile deletes those stale-session topics and re-creates ours now.
-                if (reconcileStale && subscribed.IsFailure)
-                    await eventSub.ReconcileAsync(channel.Id, ct);
-
-                if (!toSubscribe.Contains(channel.Id))
-                    continue;
-
-                lock (_channelLock)
-                    _joinedChannels.Add(channel.Id);
-                _logger.LogInformation(
-                    "BotLifecycleService: Subscribed channel #{ChannelName} ({Id})",
-                    channel.Name,
-                    channel.Id
-                );
-
-                // Bootstrap live status from Helix — stream.online won't fire for a stream that is
-                // already live when we first subscribe, so we must poll once to set the initial state.
-                await BootstrapLiveStatusAsync(db, streams, channel.Id, ct);
-            }
-            catch (Exception ex) when (!ct.IsCancellationRequested)
-            {
-                _logger.LogError(
-                    ex,
-                    "BotLifecycleService: Failed to subscribe channel #{ChannelName}",
-                    channel.Name
-                );
-            }
-        }
+                MaxDegreeOfParallelism = MaxConcurrentChannelSyncs,
+                CancellationToken = ct,
+            },
+            (channel, token) =>
+                new ValueTask(
+                    SyncChannelAsync(
+                        channel,
+                        toSubscribe.Contains(channel.Id),
+                        reconcileStale,
+                        token
+                    )
+                )
+        );
 
         // Tear down subscriptions for channels that are no longer active.
         foreach (Guid channelId in toUnsubscribe)
@@ -308,6 +292,63 @@ public sealed class BotLifecycleService : BackgroundService
                     channelId
                 );
             }
+        }
+    }
+
+    // Declaratively reconciles one channel's EventSub subscription set, in its own scope — this runs beside
+    // the other channels, and a DbContext is not safe to share across concurrent work.
+    private async Task SyncChannelAsync(
+        ActiveChannel channel,
+        bool newlyActive,
+        bool reconcileStale,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _serviceProvider.CreateScope();
+            ITwitchEventSubService eventSub =
+                scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
+
+            Result subscribed = await eventSub.EnsureSubscribedAsync(
+                channel.Id,
+                ChannelEventTypes,
+                ct
+            );
+
+            // After a restart or handover the previous process's subscriptions linger at Twitch on its
+            // dead session (~1 min), so our creates 409 and park as "pending" until the next 5-minute tick —
+            // minutes of a deaf bot. Reconcile deletes those stale-session topics and re-creates ours now.
+            if (reconcileStale && subscribed.IsFailure)
+                await eventSub.ReconcileAsync(channel.Id, ct);
+
+            if (!newlyActive)
+                return;
+
+            lock (_channelLock)
+                _joinedChannels.Add(channel.Id);
+            _logger.LogInformation(
+                "BotLifecycleService: Subscribed channel #{ChannelName} ({Id})",
+                channel.Name,
+                channel.Id
+            );
+
+            // Bootstrap live status from Helix — stream.online won't fire for a stream that is
+            // already live when we first subscribe, so we must poll once to set the initial state.
+            await BootstrapLiveStatusAsync(
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>(),
+                scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>(),
+                channel.Id,
+                ct
+            );
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "BotLifecycleService: Failed to subscribe channel #{ChannelName}",
+                channel.Name
+            );
         }
     }
 
@@ -399,4 +440,6 @@ public sealed class BotLifecycleService : BackgroundService
             );
         }
     }
+
+    private sealed record ActiveChannel(Guid Id, string Name);
 }
