@@ -304,6 +304,31 @@ An `EventResponse` row is a **fixed, seeded catalogue entry**, one per known pla
   `LimitedResourceRegistry` — a per-channel cap on a resource the operator can never create more of than the
   catalog's fixed size would be decorative, unenforceable state (the truthful-data house rule).
 
+**Tone-aware defaults (settled 2026-09-30).** A row that follows the platform default speaks in the channel's
+personality tone (`Channel.Personality`, five tones, Informative the default). A row with its own text never
+changes when the tone changes.
+- **Precedence** for a row with `FollowsPlatformDefault = true`, the same order as built-in replies (§11): the
+  platform admin's text (`PlatformEventResponseDefault.Message` when not null), then one random line from
+  `EventResponseToneCatalog` for `(eventType, tone)` with an Informative fallback, then nothing.
+- **`EventResponseToneCatalog`** (`Application/Commands/Services/`, beside `EventResponsePresetCatalog`) is
+  code-defined content in the `ToneTemplateCatalog` shape: for each event type that ships ON (the nine
+  `PlatformEventResponseDefaultsSeeder.EnabledMessages` keys), all five tones with 1–4 lines each. Every line
+  of an event uses only the placeholders of that event's Informative lines — a test enforces it, so a tone
+  never breaks `{user}`/`{count}`/`{also_said}`. Lines are English chat content, like the built-in catalogue.
+- **`PlatformEventResponseDefault.Message` null means "no admin text — use the tone catalogue".** The seeder no
+  longer writes `Message`, and on every start it nulls a row whose `Message` still equals the legacy seeded
+  line, so untouched platform rows become tone-aware. An admin edit sets `Message` and then wins for every
+  tone; the admin's restore sets it back to null.
+- **Truthful dashboard.** `EventResponseDto` gains `IReadOnlyList<string> ToneLines`: for a following row, the
+  lines the bot picks from (the admin text alone when set, else the catalogue lines for the channel's tone);
+  empty for a row with its own text. A following row's `Message` is the first of those lines. The editor says
+  the bot picks one of these lines in the channel's tone and lists them. The first edit of a following row
+  (`AdoptPlatformDefaultAsync`) copies that first line into `Message`.
+- **Consequence shown before saving.** Changing the personality tone names how many event responses follow the
+  default (they change voice) and how many keep their own text (unchanged).
+- Rejected: generating lines with an LLM at send time — bursts (raids, gift bombs) add latency and cost, the
+  streamer cannot preview it, and a model's joke about a viewer's name is a moderation risk.
+
 ### 3.9 `IBuiltinCommandService` (as-built — `Application/Commands/Services/IBuiltinCommandService.cs`)
 
 Owns per-channel enable/disable and overrides of the code-defined built-ins (G.2a). Built-ins are catalogue-defined, never per-channel-seeded rows, so a fresh channel always lists them (this closed the "commands show 0 / seeding skipped" issue).
