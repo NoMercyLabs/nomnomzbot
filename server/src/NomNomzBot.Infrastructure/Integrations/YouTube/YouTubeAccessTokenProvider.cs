@@ -96,8 +96,47 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
         if (!expiring)
             return access.Value.Value;
 
+        if (!await ShouldAttemptRefreshAsync(connectionId.Value, cancellationToken))
+        {
+            _logger.LogDebug(
+                "Skipping YouTube refresh for connection {ConnectionId}: needs_reauth or backing off",
+                connectionId.Value
+            );
+            return null;
+        }
+
         return await RefreshTokenAsync(broadcasterId, connectionId.Value, cancellationToken);
     }
+
+    /// <summary>
+    /// Retry-storm guard for the routine refresh check (<see cref="RefreshBackoffPolicy"/>). A deliberate
+    /// re-auth does not go through this path — it calls <see cref="IIntegrationTokenVault.StoreTokensAsync"/>.
+    /// </summary>
+    private async Task<bool> ShouldAttemptRefreshAsync(Guid connectionId, CancellationToken ct)
+    {
+        IntegrationConnectionStatusSnapshot? connection = await _db
+            .IntegrationConnections.AsNoTracking()
+            .Where(c => c.Id == connectionId)
+            .Select(c => new IntegrationConnectionStatusSnapshot(
+                c.Status,
+                c.ConsecutiveFailureCount,
+                c.LastErrorAt
+            ))
+            .FirstOrDefaultAsync(ct);
+        return connection is not null
+            && RefreshBackoffPolicy.AllowsAttempt(
+                connection.Status,
+                connection.ConsecutiveFailureCount,
+                connection.LastErrorAt,
+                _timeProvider.GetUtcNow().UtcDateTime
+            );
+    }
+
+    private sealed record IntegrationConnectionStatusSnapshot(
+        string Status,
+        int ConsecutiveFailureCount,
+        DateTime? LastErrorAt
+    );
 
     private async Task<Guid?> ResolveConnectionIdAsync(
         Guid broadcasterId,
