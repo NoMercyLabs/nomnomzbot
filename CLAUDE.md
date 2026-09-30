@@ -144,7 +144,7 @@ Rules:
 | EventSub reconnects every ~5 min | Normal Twitch behavior — server sends a `reconnect` message |
 | Bot token invalid after key change | `ENCRYPTION_KEY` rotation requires bot re-auth |
 | Application test suite rare flake | ~5% intermittent failure; a lone red that won't reproduce locally → re-run once before digging |
-| EventSub conduit mode is opt-in | `EventSub:Conduits:Enabled` (env `EventSub__Conduits__Enabled`) is false by default after the 2026-09-29 conduit deploy left the bot deaf; per-owner WebSocket sessions carry everything until the blue/green takeover is proven live (tracked in the execution plan). |
+| EventSub conduit mode is opt-in | `EventSub:Conduits:Enabled` (compose `EVENTSUB_CONDUITS_ENABLED`) defaults to false. The dev box runs it on since 2026-09-30, when the blue/green takeover was proven live (about 1 s gap, no re-create). Turning it off needs the conduit deleted at Twitch first, or its subscriptions 409 the WebSocket path. What is left is S-CONDUIT-LIVE in the execution plan. |
 
 ---
 
