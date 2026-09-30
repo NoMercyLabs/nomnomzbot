@@ -370,6 +370,9 @@ import nomnomzbot.composeapp.generated.resources.moderation_unban_requests_title
 import nomnomzbot.composeapp.generated.resources.moderation_unban_message
 import nomnomzbot.composeapp.generated.resources.moderation_unban_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_moderation
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation_history
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation_queue
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation_rules
 import nomnomzbot.composeapp.generated.resources.moderation_history_title
 import nomnomzbot.composeapp.generated.resources.moderation_history_timeouts
 import nomnomzbot.composeapp.generated.resources.moderation_history_bans
@@ -469,6 +472,22 @@ enum class ModerationSection {
 
     /** What already happened: the mod log and nuke batches. */
     History,
+}
+
+/** The page heading: the same name the sidebar nav item that opened this page carries. */
+@Composable
+internal fun ModerationPageHeader(section: ModerationSection) {
+    PageHeader(
+        title =
+            stringResource(
+                when (section) {
+                    ModerationSection.Desk -> Res.string.shell_nav_moderation
+                    ModerationSection.Queue -> Res.string.shell_nav_moderation_queue
+                    ModerationSection.Rules -> Res.string.shell_nav_moderation_rules
+                    ModerationSection.History -> Res.string.shell_nav_moderation_history
+                }
+            )
+    )
 }
 
 /** Emits [content] only when this page is the one that owns the section. */
@@ -922,7 +941,7 @@ internal fun BansList(
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         item(key = "page-header") {
-            PageHeader(title = stringResource(Res.string.shell_nav_moderation))
+            ModerationPageHeader(section)
         }
         sectionItem(section, ModerationSection.Desk, "stats") {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -3179,7 +3198,7 @@ private fun ShoutoutTemplateEditor(
 }
 
 @Composable
-private fun AddTermRow(manage: ManageDecision, onAdd: (term: String, everywhere: Boolean) -> Unit) {
+internal fun AddTermRow(manage: ManageDecision, onAdd: (term: String, everywhere: Boolean) -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -3201,7 +3220,8 @@ private fun AddTermRow(manage: ManageDecision, onAdd: (term: String, everywhere:
                 modifier = Modifier.weight(1f),
             )
             val canSubmit: Boolean = enabled && term.isNotBlank()
-            TextButton(
+            // The row's one main action: the primary Button, not a text button.
+            Button(
                 onClick = {
                     val trimmed: String = term.trim()
                     if (trimmed.isNotEmpty()) {
@@ -3210,12 +3230,9 @@ private fun AddTermRow(manage: ManageDecision, onAdd: (term: String, everywhere:
                     }
                 },
                 enabled = canSubmit,
+                size = ButtonSize.Sm,
             ) {
-                Text(
-                    text = stringResource(Res.string.moderation_terms_add),
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
+                Text(text = stringResource(Res.string.moderation_terms_add), maxLines = 1)
             }
         }
         // The wider reach is a neutral toggle, not a second button, so "Add" stays the row's one primary action.
@@ -3326,7 +3343,7 @@ private fun ModeratorRow(moderator: Moderator, manage: ManageDecision, onRemove:
 // One blocked-term row: the term + a Remove action (Editor floor; the backend re-checks moderation:blocklist).
 // Removing a term un-blocks it, so the action reads in the neutral primary colour, not destructive.
 @Composable
-private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () -> Unit) {
+internal fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
