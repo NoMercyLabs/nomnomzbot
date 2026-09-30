@@ -229,6 +229,7 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             vault,
             capabilityStore,
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

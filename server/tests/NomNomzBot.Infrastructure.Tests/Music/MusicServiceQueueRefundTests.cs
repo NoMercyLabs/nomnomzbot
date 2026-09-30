@@ -193,6 +193,7 @@ public sealed class MusicServiceQueueRefundTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(new NoOpSpotifyHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

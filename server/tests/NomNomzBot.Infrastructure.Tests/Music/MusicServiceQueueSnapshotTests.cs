@@ -127,6 +127,7 @@ public sealed class MusicServiceQueueSnapshotTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(new QueueFakeSpotifyHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

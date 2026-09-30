@@ -138,6 +138,7 @@ public sealed class MusicServiceRequestHistoryTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(new HistorySearchHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

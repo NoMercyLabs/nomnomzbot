@@ -140,6 +140,7 @@ public sealed class SongRequestQueueCrossScopeTests
                     new FakeIntegrationTokenVault(db),
                     new InMemoryIntegrationCapabilityStore(),
                     new LastActiveSpotifyDeviceTracker(),
+                    new SpotifyRateLimitCooldowns(),
                     new SingleHandlerClientFactory(new TrackEchoSpotifyHandler()),
                     TimeProvider.System,
                     NullLogger<SpotifyMusicProvider>.Instance,

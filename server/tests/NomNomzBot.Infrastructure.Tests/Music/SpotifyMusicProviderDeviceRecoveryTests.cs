@@ -176,6 +176,7 @@ public sealed class SpotifyMusicProviderDeviceRecoveryTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             tracker,
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

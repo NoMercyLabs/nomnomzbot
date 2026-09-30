@@ -152,6 +152,7 @@ public sealed class MusicServiceBlockedAdmissionTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(new SearchFakeSpotifyHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

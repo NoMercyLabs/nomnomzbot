@@ -235,6 +235,7 @@ public sealed class SpotifyMusicProviderTransportTests
             vault,
             store,
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

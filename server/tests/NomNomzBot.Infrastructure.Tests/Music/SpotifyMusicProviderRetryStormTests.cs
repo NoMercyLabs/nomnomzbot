@@ -166,6 +166,7 @@ public sealed class SpotifyMusicProviderRetryStormTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleClientFactory(wire),
             clock,
             NullLogger<SpotifyMusicProvider>.Instance,

@@ -194,6 +194,7 @@ public sealed class SpotifyMusicProviderTokenRefreshSanctionTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
+            new SpotifyRateLimitCooldowns(),
             new SingleClientFactory(client),
             clock,
             NullLogger<SpotifyMusicProvider>.Instance,

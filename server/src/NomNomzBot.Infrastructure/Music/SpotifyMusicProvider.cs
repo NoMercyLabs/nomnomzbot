@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -82,18 +81,13 @@ public sealed class SpotifyMusicProvider
     /// again instantly").</summary>
     private static readonly TimeSpan MinCooldown = TimeSpan.FromSeconds(1);
 
-    /// <summary>Per-channel "don't call Spotify again until" deadline, set from a 429's <c>Retry-After</c>
-    /// once Polly's own retries (<see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>)
-    /// are exhausted. Read by <see cref="TryGetCoolingUntil"/> so <c>MusicStatePollingService</c> can skip a
-    /// cooling channel outright instead of drawing (and losing) another call.</summary>
-    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _coolingUntil = new();
-
     private readonly IApplicationDbContext _db;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISystemCredentialsProvider _credentials;
     private readonly IChannelCredentialsResolver _channelCredentials;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly ILastActiveSpotifyDeviceTracker _lastActiveDevice;
+    private readonly ISpotifyRateLimitCooldowns _cooldowns;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<SpotifyMusicProvider> _logger;
@@ -105,6 +99,7 @@ public sealed class SpotifyMusicProvider
         IIntegrationTokenVault vault,
         IIntegrationCapabilityStore capabilities,
         ILastActiveSpotifyDeviceTracker lastActiveDevice,
+        ISpotifyRateLimitCooldowns cooldowns,
         IHttpClientFactory httpClientFactory,
         TimeProvider timeProvider,
         ILogger<SpotifyMusicProvider> logger,
@@ -118,6 +113,7 @@ public sealed class SpotifyMusicProvider
         _vault = vault;
         _capabilities = capabilities;
         _lastActiveDevice = lastActiveDevice;
+        _cooldowns = cooldowns;
         _http = httpClientFactory.CreateClient("spotify");
         _timeProvider = timeProvider;
         _logger = logger;
@@ -130,21 +126,17 @@ public sealed class SpotifyMusicProvider
     public string Provider => ProviderName;
 
     /// <inheritdoc />
-    public bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until)
-    {
-        if (
-            _coolingUntil.TryGetValue(broadcasterId, out DateTimeOffset deadline)
-            && deadline > _timeProvider.GetUtcNow()
-        )
-        {
-            until = deadline;
-            return true;
-        }
+    public bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until) =>
+        _cooldowns.TryGetCoolingUntil(broadcasterId, _timeProvider.GetUtcNow(), out until);
 
-        until = default;
-        _coolingUntil.TryRemove(broadcasterId, out _);
-        return false;
-    }
+    /// <summary>
+    /// A stand-in 429 for a channel still inside Spotify's <c>Retry-After</c>, so no request leaves the process.
+    /// Callers already treat a 429 as "no answer"; calling anyway only earns another 429 and can extend the ban.
+    /// </summary>
+    private HttpResponseMessage? CoolingResponse(Guid broadcasterId) =>
+        TryGetCoolingUntil(broadcasterId, out _)
+            ? new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            : null;
 
     /// <summary>Records that this channel just got rate-limited (after Polly's own retries were exhausted —
     /// see <see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>), floored at
@@ -162,7 +154,7 @@ public sealed class SpotifyMusicProvider
         }
 
         DateTimeOffset until = _timeProvider.GetUtcNow() + retryAfter;
-        _coolingUntil[broadcasterId] = until;
+        _cooldowns.CoolUntil(broadcasterId, until);
         _logger.LogWarning(
             "Spotify rate limited broadcaster {BroadcasterId}, cooling until {Until:O}",
             broadcasterId,
@@ -1737,6 +1729,9 @@ public sealed class SpotifyMusicProvider
         bool isBackgroundPoll = false
     )
     {
+        if (CoolingResponse(broadcasterId) is { } cooling)
+            return cooling;
+
         HttpRequestMessage request = new(method, url);
         request.Headers.Authorization = new("Bearer", token);
         request.Options.Set(SpotifyRequestTags.IsBackgroundPoll, isBackgroundPoll);
@@ -1858,6 +1853,9 @@ public sealed class SpotifyMusicProvider
                 );
             return req;
         }
+
+        if (CoolingResponse(broadcasterId) is { } cooling)
+            return cooling;
 
         HttpResponseMessage response;
         try

@@ -90,7 +90,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
 
         await provider.GetCurrentTrackAsync(ChannelId);
 
-        ((IMusicProvider)provider)
+        provider
             .TryGetCoolingUntil(ChannelId, out DateTimeOffset until)
             .Should()
             .BeTrue(
@@ -116,10 +116,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
 
         await provider.GetCurrentTrackAsync(ChannelId);
 
-        ((IMusicProvider)provider)
-            .TryGetCoolingUntil(ChannelId, out DateTimeOffset until)
-            .Should()
-            .BeTrue();
+        provider.TryGetCoolingUntil(ChannelId, out DateTimeOffset until).Should().BeTrue();
         until
             .Should()
             .BeOnOrAfter(
@@ -142,14 +139,79 @@ public sealed class SpotifyMusicProviderRateLimitTests
         );
 
         await provider.GetCurrentTrackAsync(ChannelId);
-        ((IMusicProvider)provider).TryGetCoolingUntil(ChannelId, out _).Should().BeTrue();
+        provider.TryGetCoolingUntil(ChannelId, out _).Should().BeTrue();
 
         clock.Advance(TimeSpan.FromSeconds(3).Add(TimeSpan.FromMilliseconds(1)));
 
-        ((IMusicProvider)provider)
+        provider
             .TryGetCoolingUntil(ChannelId, out _)
             .Should()
             .BeFalse("once the deadline has passed the channel is no longer cooling");
+    }
+
+    /// <summary>
+    /// Production 2026-09-29: Spotify answered one channel with a ~16.5 hour Retry-After and the bot kept calling
+    /// for all of it (16,321 429s in a day). The provider is scoped, so the cooldown must outlive the instance
+    /// that recorded it: the next scope (the next poll tick, the next dashboard request) must not call Spotify.
+    /// </summary>
+    [Fact]
+    public async Task A_cooldown_recorded_in_one_scope_keeps_the_next_scope_from_calling_Spotify()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        SpotifyRateLimitCooldowns cooldowns = new();
+        (SpotifyMusicProvider first, RecordingHttpHandler firstHandler, _) = Build(
+            clock,
+            cooldowns
+        );
+        firstHandler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.TooManyRequests,
+            new Dictionary<string, string> { ["Retry-After"] = "60" }
+        );
+        await first.GetCurrentTrackAsync(ChannelId);
+
+        (SpotifyMusicProvider next, RecordingHttpHandler nextHandler, _) = Build(clock, cooldowns);
+        TrackInfo? read = await next.GetCurrentTrackAsync(ChannelId);
+        await next.PlayAsync(ChannelId);
+
+        read.Should().BeNull();
+        nextHandler
+            .RequestUrls.Should()
+            .NotContain(
+                url => url.Contains("/me/player", StringComparison.Ordinal),
+                "a channel Spotify told to wait gets no call at all until Retry-After has passed"
+            );
+        next.TryGetCoolingUntil(ChannelId, out _).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Once_the_shared_cooldown_passes_the_next_scope_calls_Spotify_again()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        SpotifyRateLimitCooldowns cooldowns = new();
+        (SpotifyMusicProvider first, RecordingHttpHandler firstHandler, _) = Build(
+            clock,
+            cooldowns
+        );
+        firstHandler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.TooManyRequests,
+            new Dictionary<string, string> { ["Retry-After"] = "5" }
+        );
+        await first.GetCurrentTrackAsync(ChannelId);
+
+        clock.Advance(TimeSpan.FromSeconds(6));
+        (SpotifyMusicProvider next, RecordingHttpHandler nextHandler, _) = Build(clock, cooldowns);
+        nextHandler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/me/player", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """{"is_playing":false}"""
+        );
+        await next.GetCurrentTrackAsync(ChannelId);
+
+        nextHandler
+            .RequestUrls.Should()
+            .Contain(url => url.Contains("/me/player", StringComparison.Ordinal));
     }
 
     /// <summary>A channel never rate-limited never reports a cooldown — the default posture.</summary>
@@ -165,7 +227,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
 
         await provider.GetCurrentTrackAsync(ChannelId);
 
-        ((IMusicProvider)provider).TryGetCoolingUntil(ChannelId, out _).Should().BeFalse();
+        provider.TryGetCoolingUntil(ChannelId, out _).Should().BeFalse();
     }
 
     // ─── Harness ──────────────────────────────────────────────────────────────
@@ -174,7 +236,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
         SpotifyMusicProvider Provider,
         RecordingHttpHandler Handler,
         InMemoryIntegrationCapabilityStore Store
-    ) Build(TimeProvider? timeProvider = null)
+    ) Build(TimeProvider? timeProvider = null, SpotifyRateLimitCooldowns? cooldowns = null)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -199,6 +261,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
             vault,
             store,
             new LastActiveSpotifyDeviceTracker(),
+            cooldowns ?? new SpotifyRateLimitCooldowns(),
             new SingleHandlerClientFactory(handler),
             timeProvider ?? TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
