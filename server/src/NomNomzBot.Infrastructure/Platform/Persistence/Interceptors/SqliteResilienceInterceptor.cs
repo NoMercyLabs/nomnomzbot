@@ -37,6 +37,14 @@ public sealed class SqliteResilienceInterceptor : DbConnectionInterceptor
     /// </summary>
     private const int BusyTimeoutMilliseconds = 30000;
 
+    /// <summary>
+    /// The pragma batch every connection gets. <c>synchronous=NORMAL</c> is SQLite's recommended pairing for
+    /// WAL: a commit no longer waits for a disk flush (the WAL is flushed at checkpoints instead), and a crash
+    /// can never corrupt the database — at worst the last commits before a power loss roll back.
+    /// </summary>
+    private static readonly string PragmaBatch =
+        $"PRAGMA busy_timeout={BusyTimeoutMilliseconds}; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
+
     public override void ConnectionOpened(
         DbConnection connection,
         ConnectionEndEventData eventData
@@ -51,8 +59,7 @@ public sealed class SqliteResilienceInterceptor : DbConnectionInterceptor
     private static void ApplyPragmas(DbConnection connection)
     {
         using DbCommand command = connection.CreateCommand();
-        command.CommandText =
-            $"PRAGMA busy_timeout={BusyTimeoutMilliseconds}; PRAGMA journal_mode=WAL;";
+        command.CommandText = PragmaBatch;
         command.ExecuteNonQuery();
     }
 
@@ -62,8 +69,7 @@ public sealed class SqliteResilienceInterceptor : DbConnectionInterceptor
     )
     {
         await using DbCommand command = connection.CreateCommand();
-        command.CommandText =
-            $"PRAGMA busy_timeout={BusyTimeoutMilliseconds}; PRAGMA journal_mode=WAL;";
+        command.CommandText = PragmaBatch;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

@@ -18,7 +18,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Persistence;
 /// <summary>
 /// S038: SQLite (the self-host default runtime) opens each writer with an exclusive lock for the
 /// duration of its transaction; without WAL journaling + a busy timeout, a second concurrent writer gets
-/// "database is locked" (SQLITE_BUSY) immediately instead of waiting its turn. This soaks
+/// "database is locked" (SQLITE_BUSY) immediately instead of waiting its turn. This tests
 /// <see cref="SqliteResilienceInterceptor"/> — the exact interceptor <c>AddInfrastructure</c> wires onto
 /// every SQLite <c>AppDbContext</c> — against real concurrent writers spanning TWO independent tables
 /// (standing in for two different services writing at the same time), each writer opening its own
@@ -81,6 +81,7 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
 
         string journalMode = await ScalarAsync(db, "PRAGMA journal_mode;");
         string busyTimeout = await ScalarAsync(db, "PRAGMA busy_timeout;");
+        string synchronous = await ScalarAsync(db, "PRAGMA synchronous;");
 
         journalMode
             .Should()
@@ -91,107 +92,65 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
                 "30000",
                 "the interceptor must give SQLite room to wait out a lock before giving up"
             );
+        synchronous
+            .Should()
+            .Be(
+                "1",
+                "WAL pairs with synchronous=NORMAL (1), so a commit does not wait for a disk flush"
+            );
     }
 
     [Fact]
-    public async Task Concurrent_writers_across_two_tables_produce_zero_database_is_locked_errors()
+    public async Task A_writer_blocked_by_a_long_transaction_on_another_table_waits_its_turn_instead_of_failing()
     {
+        // Deterministic contention, not a load soak: writer A holds an open write transaction on table A for
+        // longer than the ADO-level Default Timeout (5s), and writer B writes table B meanwhile. SQLite has one
+        // writer at a time across the whole file, so B MUST wait for A. Without the interceptor's busy_timeout B
+        // gives up after ~5s with "database is locked"; with it B queues and lands once A commits. The earlier
+        // 40-writer soak proved the same property, but its drain time scaled with runner speed and reached the
+        // 30s busy timeout on CI; this shape takes ~7s everywhere.
         using (SoakDbContext schema = NewContext(withResilience: true))
             await schema.Database.EnsureCreatedAsync();
 
-        const int writersPerTable = 20;
-        const int rowsPerWriter = 5;
-        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        TimeSpan holdTime = TimeSpan.FromSeconds(7);
+        using SemaphoreSlim aHoldsTheWriteLock = new(0, 1);
 
-        // All 40 writers rendezvous here before any of them opens its connection, so contention against the
-        // shared SQLite file is GUARANTEED on every run rather than merely hoped for from Task.Run scheduling —
-        // the property under test (WAL + busy_timeout let writers queue) only means anything if they genuinely
-        // collide. The barrier is a scheduling gate, not a timing measurement: nothing below asserts on how long
-        // the release takes. Each writer then holds an explicit transaction open for a fixed hold time before
-        // committing, widening its exclusive-lock window so the other 39 writers' commit attempts are GUARANTEED
-        // to land inside it — a single fast INSERT+COMMIT is over before another thread can even get scheduled,
-        // which is why plain concurrent SaveChanges calls collide only by luck.
-        using System.Threading.Barrier startGate = new(writersPerTable * 2);
-        TimeSpan lockHoldTime = TimeSpan.FromMilliseconds(10);
-
-        IEnumerable<Task> tableAWriters = Enumerable
-            .Range(0, writersPerTable)
-            .Select(writer =>
-                Task.Run(async () =>
-                {
-                    startGate.SignalAndWait();
-                    await using SoakDbContext db = NewContext(withResilience: true);
-                    await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
-                        await db.Database.BeginTransactionAsync();
-                    for (int row = 0; row < rowsPerWriter; row++)
-                    {
-                        db.CountersA.Add(new() { Label = $"a-{writer}-{row}", Value = row });
-                        await db.SaveChangesAsync();
-                    }
-                    await Task.Delay(lockHoldTime);
-                    await tx.CommitAsync();
-                })
-            );
-
-        IEnumerable<Task> tableBWriters = Enumerable
-            .Range(0, writersPerTable)
-            .Select(writer =>
-                Task.Run(async () =>
-                {
-                    startGate.SignalAndWait();
-                    await using SoakDbContext db = NewContext(withResilience: true);
-                    await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
-                        await db.Database.BeginTransactionAsync();
-                    for (int row = 0; row < rowsPerWriter; row++)
-                    {
-                        db.CountersB.Add(new() { Label = $"b-{writer}-{row}", Value = row });
-                        await db.SaveChangesAsync();
-                    }
-                    await Task.Delay(lockHoldTime);
-                    await tx.CommitAsync();
-                })
-            );
-
-        Task[] allWriters = [.. tableAWriters, .. tableBWriters];
-
-        List<Exception> lockedErrors = [];
-        try
+        Task writerA = Task.Run(async () =>
         {
-            await Task.WhenAll(allWriters);
-        }
-        catch
+            await using SoakDbContext db = NewContext(withResilience: true);
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
+                await db.Database.BeginTransactionAsync();
+            db.CountersA.Add(new() { Label = "a-holder", Value = 1 });
+            await db.SaveChangesAsync();
+            aHoldsTheWriteLock.Release();
+            await Task.Delay(holdTime);
+            await tx.CommitAsync();
+        });
+
+        await aHoldsTheWriteLock.WaitAsync();
+        System.Diagnostics.Stopwatch waited = System.Diagnostics.Stopwatch.StartNew();
+        await using (SoakDbContext db = NewContext(withResilience: true))
         {
-            foreach (Task task in allWriters)
-            {
-                if (task.Exception is not null)
-                    lockedErrors.AddRange(task.Exception.InnerExceptions);
-            }
+            db.CountersB.Add(new() { Label = "b-waiter", Value = 2 });
+            Func<Task> write = () => db.SaveChangesAsync();
+            await write
+                .Should()
+                .NotThrowAsync(
+                    "busy_timeout must make a second writer wait out the first writer's lock instead of failing"
+                );
         }
-        stopwatch.Stop();
+        waited.Stop();
+        await writerA;
 
-        lockedErrors
-            .Should()
-            .BeEmpty(
-                "WAL + busy_timeout must let {0} concurrent writers ({1}ms elapsed) queue instead of erroring",
-                allWriters.Length,
-                stopwatch.ElapsedMilliseconds
+        waited
+            .Elapsed.Should()
+            .BeGreaterThan(
+                TimeSpan.FromSeconds(5),
+                "the write genuinely queued behind writer A's lock (longer than the 5s ADO timeout), so the test proved contention"
             );
-
         await using SoakDbContext verify = NewContext(withResilience: true);
-        int countA = await verify.CountersA.CountAsync();
-        int countB = await verify.CountersB.CountAsync();
-        countA
-            .Should()
-            .Be(
-                writersPerTable * rowsPerWriter,
-                "every writer on table A must have landed every row"
-            );
-        countB
-            .Should()
-            .Be(
-                writersPerTable * rowsPerWriter,
-                "every writer on table B must have landed every row"
-            );
+        (await verify.CountersA.CountAsync()).Should().Be(1, "writer A's row committed");
+        (await verify.CountersB.CountAsync()).Should().Be(1, "writer B's row landed after waiting");
     }
 
     private static async Task<string> ScalarAsync(DbContext db, string sql)

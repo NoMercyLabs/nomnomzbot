@@ -21,8 +21,9 @@
 # Exit code is the verdict: 0 green, 1 red. On red it prints the failing jobs and the first error
 # lines, so the next step is diagnosis rather than another round of gh incantations.
 #
-# One flake re-run is allowed by default because this repo has two known non-reproducing reds (the
-# Application suite ~5%, and SQLite concurrent-writer contention under a loaded runner). A re-run is
+# One flake re-run is allowed by default because this repo has a known non-reproducing red (the
+# Application suite ~5%; the SQLite concurrent-writer soak was replaced by a deterministic lock test on
+# 2026-09-30 after it failed twice in a row on CI). A re-run is
 # NOT a fix: the script says loudly when it retried, so a test that "only fails in CI" cannot quietly
 # become normal.
 

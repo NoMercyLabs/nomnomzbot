@@ -144,7 +144,6 @@ Rules:
 | EventSub reconnects every ~5 min | Normal Twitch behavior — server sends a `reconnect` message |
 | Bot token invalid after key change | `ENCRYPTION_KEY` rotation requires bot re-auth |
 | Application test suite rare flake | ~5% intermittent failure; a lone red that won't reproduce locally → re-run once before digging |
-| SQLite concurrent-writer contention in the Infrastructure suite | second known non-reproducing red (see `scripts/push-and-watch.ps1` header); a lone red that does not reproduce locally → re-run once |
 | EventSub conduit mode is opt-in | `EventSub:Conduits:Enabled` (env `EventSub__Conduits__Enabled`) is false by default after the 2026-09-29 conduit deploy left the bot deaf; per-owner WebSocket sessions carry everything until the blue/green takeover is proven live (tracked in the execution plan). |
 
 ---

@@ -38,9 +38,9 @@ gh run view <run-id> --log-failed
 - **No run created ≠ a failed run.** Actions can be degraded or the trigger dropped. The commit
   is pushed and will build when Actions recovers. Say which of the two it is — never report a
   missing run as a red build, and never as a deploy.
-- **Known flakes**, both non-reproducing: the Application suite (~5%) and SQLite concurrent-writer
-  contention under a loaded runner. One re-run is allowed and the script says loudly when it
-  retried. **A re-run is not a fix** — a test that "only fails in CI" must not quietly become
+- **Known flake**, non-reproducing: the Application suite (~5%). (The SQLite concurrent-writer soak
+  was replaced by a deterministic lock test on 2026-09-30.) One re-run is allowed and the script
+  says loudly when it retried. **A re-run is not a fix** — a test that "only fails in CI" must not quietly become
   normal.
 - Anything else: diagnose, fix, commit, push, watch again — before starting anything else.
 
