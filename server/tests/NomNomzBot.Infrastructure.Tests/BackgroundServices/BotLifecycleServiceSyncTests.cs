@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -20,6 +21,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Tests.Content;
+using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
@@ -121,6 +123,81 @@ public sealed class BotLifecycleServiceSyncTests
         subscribed.Should().Contain(healthy);
     }
 
+    [Fact]
+    public async Task Only_the_lease_holding_colour_syncs_channels_and_the_successor_takes_over_after_the_handover()
+    {
+        string database = Guid.NewGuid().ToString();
+        Guid channel = SeedChannel(database, "streamer", isLive: true);
+        TwoColourDeployment deployment = await TwoColourDeployment.StartAsync();
+
+        ITwitchEventSubService blueEventSub = SubscribingEventSub();
+        IBotModeratorStatusService blueModerator = ReconcilingModerator();
+        BotLifecycleService blue = Build(database, blueEventSub, blueModerator, deployment.Blue);
+        ITwitchEventSubService greenEventSub = SubscribingEventSub();
+        IBotModeratorStatusService greenModerator = ReconcilingModerator();
+        BotLifecycleService green = Build(
+            database,
+            greenEventSub,
+            greenModerator,
+            deployment.Green
+        );
+
+        await blue.SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+        await green.SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        await AssertSyncedAsync(blueEventSub, blueModerator, channel, times: 1);
+        await AssertSyncedAsync(greenEventSub, greenModerator, channel, times: 0);
+
+        await deployment.HandOverAsync();
+        await blue.SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+        await green.SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        // The outgoing colour's sweep stopped with its lease; the successor now owns the channel.
+        await AssertSyncedAsync(blueEventSub, blueModerator, channel, times: 1);
+        await AssertSyncedAsync(greenEventSub, greenModerator, channel, times: 1);
+
+        await deployment.StopAsync();
+    }
+
+    private static async Task AssertSyncedAsync(
+        ITwitchEventSubService eventSub,
+        IBotModeratorStatusService moderator,
+        Guid channel,
+        int times
+    )
+    {
+        await eventSub
+            .Received(times)
+            .EnsureSubscribedAsync(
+                channel,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        await moderator.Received(times).ReconcileAsync(channel, Arg.Any<CancellationToken>());
+    }
+
+    private static IBotModeratorStatusService ReconcilingModerator()
+    {
+        IBotModeratorStatusService moderator = Substitute.For<IBotModeratorStatusService>();
+        moderator
+            .ReconcileAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(Result.Success()));
+        return moderator;
+    }
+
+    private static ITwitchEventSubService SubscribingEventSub()
+    {
+        ITwitchEventSubService eventSub = Substitute.For<ITwitchEventSubService>();
+        eventSub
+            .EnsureSubscribedAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Task.FromResult(Result.Success()));
+        return eventSub;
+    }
+
     private static Guid SeedChannel(string database, string name, bool isLive)
     {
         Guid id = Guid.NewGuid();
@@ -143,7 +220,12 @@ public sealed class BotLifecycleServiceSyncTests
         return id;
     }
 
-    private static BotLifecycleService Build(string database, ITwitchEventSubService eventSub)
+    private static BotLifecycleService Build(
+        string database,
+        ITwitchEventSubService eventSub,
+        IBotModeratorStatusService? moderator = null,
+        IActiveInstanceGate? instanceGate = null
+    )
     {
         ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
         streams
@@ -154,7 +236,9 @@ public sealed class BotLifecycleServiceSyncTests
         services.AddScoped<IApplicationDbContext>(_ => SeedTestDbContext.New(database));
         services.AddSingleton(eventSub);
         services.AddSingleton(streams);
-        services.AddSingleton(Substitute.For<IBotModeratorStatusService>());
+        services.AddSingleton(moderator ?? Substitute.For<IBotModeratorStatusService>());
+        if (instanceGate is not null)
+            services.AddSingleton(instanceGate);
 
         return new BotLifecycleService(
             services.BuildServiceProvider(),
