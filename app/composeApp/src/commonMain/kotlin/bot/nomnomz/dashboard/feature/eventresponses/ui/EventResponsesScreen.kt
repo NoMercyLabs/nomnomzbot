@@ -363,6 +363,10 @@ private fun EditDialog(
     var pipelineChoice: String? by remember { mutableStateOf(null) }
     var widgetChoice: String by remember { mutableStateOf("") }
     var speakWithTts: Boolean by remember { mutableStateOf(false) }
+    // While the row follows the platform default, the lines the bot picks from (in the channel's tone) and the
+    // message they loaded as; editing the message means the row will carry its own text, so the note steps aside.
+    var toneLines: List<String> by remember { mutableStateOf(emptyList()) }
+    var loadedMessage: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
     // The reset is destructive (it discards the current config), so it confirms first and names exactly what
     // happens — the row goes back to its disabled, no-message default, it is NOT a permanent removal (the
@@ -380,6 +384,8 @@ private fun EditDialog(
         selectedType = detail?.responseType?.takeIf { it.isNotBlank() } ?: response.responseType
         val storedMessage: String = detail?.message.orEmpty()
         message = storedMessage.ifBlank { presetTemplate }
+        loadedMessage = message
+        toneLines = detail?.toneLines ?: emptyList()
         pipelineChoice = detail?.pipelineId?.ifBlank { null }
         widgetChoice = detail?.metadata?.get(EventResponsesController.WidgetIdMetadataKey).orEmpty()
         speakWithTts = detail?.speakWithTts ?: false
@@ -453,6 +459,7 @@ private fun EditDialog(
                         label = stringResource(Res.string.event_responses_dialog_message_label),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (selectedType == "chat_message" && message == loadedMessage) ToneLinesNote(toneLines)
                     TemplateHelpersLink(
                         context = TemplateHelperContext.EventResponse,
                         api = templateHelpersApi,

@@ -16,6 +16,11 @@ import bot.nomnomz.dashboard.core.network.ChannelPersonality
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.EventResponse
+import bot.nomnomz.dashboard.core.network.EventResponsePreset
+import bot.nomnomz.dashboard.core.network.EventResponseSummary
+import bot.nomnomz.dashboard.core.network.EventResponsesApi
+import bot.nomnomz.dashboard.core.network.UpdateEventResponseBody
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -41,6 +46,7 @@ class PersonalityControllerTest {
                         )
                     )
                 ),
+                FakePersonalityEventResponsesApi(),
             )
 
         controller.load()
@@ -58,6 +64,7 @@ class PersonalityControllerTest {
             PersonalityController(
                 FakePersonalityChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakePersonalityApi(ApiResult.Ok(ChannelPersonality())),
+                FakePersonalityEventResponsesApi(),
             )
 
         controller.load()
@@ -71,6 +78,7 @@ class PersonalityControllerTest {
             PersonalityController(
                 FakePersonalityChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakePersonalityApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                FakePersonalityEventResponsesApi(),
             )
 
         controller.load()
@@ -88,7 +96,11 @@ class PersonalityControllerTest {
                 setResult = ApiResult.Ok(ChannelPersonality("sassy", listOf("informative", "sassy"))),
             )
         val controller =
-            PersonalityController(FakePersonalityChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+            PersonalityController(
+                FakePersonalityChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                api,
+                FakePersonalityEventResponsesApi(),
+            )
         controller.load()
 
         controller.select("SASSY")
@@ -114,7 +126,11 @@ class PersonalityControllerTest {
                 setResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Requires Broadcaster.")),
             )
         val controller =
-            PersonalityController(FakePersonalityChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api)
+            PersonalityController(
+                FakePersonalityChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                api,
+                FakePersonalityEventResponsesApi(),
+            )
         controller.load()
 
         controller.select("sassy")
@@ -126,6 +142,111 @@ class PersonalityControllerTest {
         assertEquals("informative", ready.current)
         assertEquals("Requires Broadcaster.", ready.saveError)
         assertEquals(false, ready.saving)
+    }
+    private fun tonePickerController(
+        eventResponses: FakePersonalityEventResponsesApi,
+        settings: FakePersonalityApi =
+            FakePersonalityApi(
+                ApiResult.Ok(ChannelPersonality("informative", listOf("informative", "sassy"))),
+                setResult = ApiResult.Ok(ChannelPersonality("sassy", listOf("informative", "sassy"))),
+            ),
+    ): PersonalityController =
+        PersonalityController(
+            FakePersonalityChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            settings,
+            eventResponses,
+        )
+
+    @Test
+    fun choose_counts_the_active_following_and_own_text_responses_and_saves_nothing() = runTest {
+        val settings =
+            FakePersonalityApi(
+                ApiResult.Ok(ChannelPersonality("informative", listOf("informative", "sassy"))),
+                setResult = ApiResult.Ok(ChannelPersonality("sassy", listOf("informative", "sassy"))),
+            )
+        val controller =
+            tonePickerController(
+                FakePersonalityEventResponsesApi(
+                    listOf(
+                        EventResponseSummary(id = "1", isEnabled = true, followsPlatformDefault = true),
+                        EventResponseSummary(id = "2", isEnabled = true, followsPlatformDefault = true),
+                        EventResponseSummary(id = "3", isEnabled = true, followsPlatformDefault = false),
+                        // Off rows say nothing, so they change nothing either way.
+                        EventResponseSummary(id = "4", isEnabled = false, followsPlatformDefault = true),
+                        EventResponseSummary(id = "5", isEnabled = false, followsPlatformDefault = false),
+                    )
+                ),
+                settings,
+            )
+        controller.load()
+
+        controller.choose("sassy")
+
+        val ready: PersonalityState.Ready = controller.state.value as PersonalityState.Ready
+        assertEquals(ToneChange(tone = "sassy", following = 2, own = 1), ready.pending)
+        assertEquals("informative", ready.current)
+        assertEquals(null, settings.lastSetTone)
+    }
+
+    @Test
+    fun confirm_saves_the_pending_tone_and_clears_it() = runTest {
+        val settings =
+            FakePersonalityApi(
+                ApiResult.Ok(ChannelPersonality("informative", listOf("informative", "sassy"))),
+                setResult = ApiResult.Ok(ChannelPersonality("sassy", listOf("informative", "sassy"))),
+            )
+        val controller = tonePickerController(FakePersonalityEventResponsesApi(), settings)
+        controller.load()
+        controller.choose("sassy")
+
+        controller.confirm()
+
+        val ready: PersonalityState.Ready = controller.state.value as PersonalityState.Ready
+        assertEquals("sassy", settings.lastSetTone)
+        assertEquals("sassy", ready.current)
+        assertEquals(null, ready.pending)
+    }
+
+    @Test
+    fun cancel_drops_the_pending_tone_without_saving() = runTest {
+        val settings =
+            FakePersonalityApi(
+                ApiResult.Ok(ChannelPersonality("informative", listOf("informative", "sassy"))),
+            )
+        val controller = tonePickerController(FakePersonalityEventResponsesApi(), settings)
+        controller.load()
+        controller.choose("sassy")
+
+        controller.cancel()
+
+        val ready: PersonalityState.Ready = controller.state.value as PersonalityState.Ready
+        assertEquals(null, ready.pending)
+        assertEquals("informative", ready.current)
+        assertEquals(null, settings.lastSetTone)
+    }
+
+    @Test
+    fun choose_still_offers_the_change_with_unknown_counts_when_the_list_fails() = runTest {
+        val controller =
+            tonePickerController(
+                FakePersonalityEventResponsesApi(failure = ApiError(500, "ERR", "boom"))
+            )
+        controller.load()
+
+        controller.choose("sassy")
+
+        val ready: PersonalityState.Ready = controller.state.value as PersonalityState.Ready
+        assertEquals(ToneChange(tone = "sassy", following = null, own = null), ready.pending)
+    }
+
+    @Test
+    fun choosing_the_current_tone_offers_no_change() = runTest {
+        val controller = tonePickerController(FakePersonalityEventResponsesApi())
+        controller.load()
+
+        controller.choose("informative")
+
+        assertEquals(null, (controller.state.value as PersonalityState.Ready).pending)
     }
 }
 
@@ -181,4 +302,24 @@ private class FakePersonalityApi(
         channelId: String,
         body: bot.nomnomz.dashboard.core.network.UpdateBasicsBody,
     ) = error("stub")
+}
+
+private class FakePersonalityEventResponsesApi(
+    private val responses: List<EventResponseSummary> = emptyList(),
+    private val failure: ApiError? = null,
+) : EventResponsesApi {
+    override suspend fun list(channelId: String): ApiResult<List<EventResponseSummary>> =
+        failure?.let { ApiResult.Failure(it) } ?: ApiResult.Ok(responses)
+
+    override suspend fun catalog(channelId: String): ApiResult<List<EventResponsePreset>> = error("stub")
+
+    override suspend fun get(channelId: String, eventType: String): ApiResult<EventResponse> = error("stub")
+
+    override suspend fun upsert(
+        channelId: String,
+        eventType: String,
+        body: UpdateEventResponseBody,
+    ): ApiResult<EventResponse> = error("stub")
+
+    override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> = error("stub")
 }

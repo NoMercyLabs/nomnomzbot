@@ -697,7 +697,11 @@ class AppGraph {
         SettingsController(channelsApi = channelsApi, streamApi = streamApi, feedback = feedbackController)
 
     val personalityController: PersonalityController =
-        PersonalityController(channelsApi = channelsApi, settingsApi = channelSettingsApi)
+        PersonalityController(
+            channelsApi = channelsApi,
+            settingsApi = channelSettingsApi,
+            eventResponsesApi = eventResponsesApi,
+        )
 
     val basicsController: BasicsController =
         BasicsController(channelsApi = channelsApi, settingsApi = channelSettingsApi)

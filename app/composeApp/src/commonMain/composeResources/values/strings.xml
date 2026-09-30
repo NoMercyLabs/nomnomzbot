@@ -3456,6 +3456,7 @@
     <string name="event_responses_speak_with_tts_ready">Plays through the TTS overlay. Add it as a browser source in OBS to hear it.</string>
     <string name="event_responses_speak_with_tts_off">TTS is off for this channel. Turn it on under TTS, or nothing is read out.</string>
     <string name="event_responses_speak_with_tts_unknown">Could not check whether TTS is on for this channel.</string>
+    <string name="event_responses_tone_lines_note">The bot picks one of these lines each time, in your channel tone. Edit the message to use your own text instead.</string>
     <string name="event_responses_dialog_pipeline_label">Pipeline ID</string>
     <!-- First-class pipeline binding + variable insert chips + pre-filled templates. -->
     <string name="event_responses_dialog_pipeline_pick">Bound pipeline</string>
@@ -4280,6 +4281,11 @@
     <string name="personality_tone_hype_desc">High-energy, caps and emotes.</string>
     <string name="personality_tone_chill">Chill</string>
     <string name="personality_tone_chill_desc">Laid-back and minimal.</string>
+    <string name="personality_change_title">Change the bot voice to %1$s?</string>
+    <string name="personality_change_counts">Event responses that follow the default: %1$d. They change voice. Event responses with their own text: %2$d. They stay the same.</string>
+    <string name="personality_change_counts_unknown">Event responses that follow the default change voice. Event responses with their own text stay the same. The counts could not be loaded.</string>
+    <string name="personality_change_confirm">Change voice</string>
+    <string name="personality_change_cancel">Cancel</string>
     <!-- Engagement triggers (Settings → Engagement triggers card). Detector on/off + tuning; the greeting message lives on the Event Responses page. -->
     <string name="engagement_section_title">Engagement triggers</string>
     <string name="engagement_section_subtitle">Automatic reactions to chat activity. Set the actual greeting on the Event Responses page.</string>

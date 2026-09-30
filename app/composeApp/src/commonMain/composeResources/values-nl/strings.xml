@@ -3441,6 +3441,7 @@
     <string name="event_responses_speak_with_tts_ready">Speelt af via de TTS-overlay. Voeg die toe als browserbron in OBS om het te horen.</string>
     <string name="event_responses_speak_with_tts_off">TTS staat uit voor dit kanaal. Zet het aan onder TTS, anders wordt er niets voorgelezen.</string>
     <string name="event_responses_speak_with_tts_unknown">Kon niet controleren of TTS aanstaat voor dit kanaal.</string>
+    <string name="event_responses_tone_lines_note">De bot kiest elke keer een van deze regels, in de toon van je kanaal. Pas het bericht aan om je eigen tekst te gebruiken.</string>
     <string name="event_responses_dialog_pipeline_label">Pipeline-ID</string>
     <!-- Eersteklas pipeline-binding + variabele-chips + vooraf ingevulde sjablonen. -->
     <string name="event_responses_dialog_pipeline_pick">Gekoppelde pipeline</string>
@@ -4264,6 +4265,11 @@
     <string name="personality_tone_hype_desc">Vol energie, hoofdletters en emotes.</string>
     <string name="personality_tone_chill">Chill</string>
     <string name="personality_tone_chill_desc">Ontspannen en minimalistisch.</string>
+    <string name="personality_change_title">De stem van de bot wijzigen naar %1$s?</string>
+    <string name="personality_change_counts">Gebeurtenisreacties die de standaard volgen: %1$d. Zij krijgen een andere stem. Gebeurtenisreacties met eigen tekst: %2$d. Zij blijven hetzelfde.</string>
+    <string name="personality_change_counts_unknown">Gebeurtenisreacties die de standaard volgen krijgen een andere stem. Gebeurtenisreacties met eigen tekst blijven hetzelfde. De aantallen konden niet worden geladen.</string>
+    <string name="personality_change_confirm">Stem wijzigen</string>
+    <string name="personality_change_cancel">Annuleren</string>
     <!-- Betrokkenheidstriggers (Instellingen). -->
     <string name="engagement_section_title">Betrokkenheidstriggers</string>
     <string name="engagement_section_subtitle">Automatische reacties op chatactiviteit. Stel de begroeting zelf in op de pagina Gebeurtenisreacties.</string>

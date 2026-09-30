@@ -89,6 +89,7 @@ import bot.nomnomz.dashboard.feature.settings.state.PermissionsController
 import bot.nomnomz.dashboard.feature.settings.state.PermissionsState
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityState
+import bot.nomnomz.dashboard.feature.settings.state.ToneChange
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
 import bot.nomnomz.dashboard.core.network.TwitchScopeDiagnostics
@@ -901,10 +902,20 @@ private fun PersonalitySection(controller: PersonalityController, manage: Manage
                                     tone = tone,
                                     selected = tone == current.current,
                                     enabled = enabled && !current.saving,
-                                    onSelect = { scope.launch { controller.select(tone) } },
+                                    onSelect = { scope.launch { controller.choose(tone) } },
                                 )
                             }
                         }
+                    }
+
+                    // The consequence of the picked tone, shown before anything is saved.
+                    current.pending?.let { change: ToneChange ->
+                        ToneChangeDialog(
+                            change = change,
+                            toneLabel = toneName(change.tone),
+                            onConfirm = { scope.launch { controller.confirm() } },
+                            onDismiss = { controller.cancel() },
+                        )
                     }
 
                     // Feedback line: an error takes priority, then the transient "updated" confirmation.

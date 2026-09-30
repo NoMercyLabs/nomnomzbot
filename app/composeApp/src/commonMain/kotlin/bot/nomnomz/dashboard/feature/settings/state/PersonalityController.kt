@@ -15,6 +15,8 @@ import bot.nomnomz.dashboard.core.network.ChannelPersonality
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.EventResponseSummary
+import bot.nomnomz.dashboard.core.network.EventResponsesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class PersonalityController(
     private val channelsApi: ChannelsApi,
     private val settingsApi: ChannelSettingsApi,
+    private val eventResponsesApi: EventResponsesApi,
 ) {
     private val _state: MutableStateFlow<PersonalityState> = MutableStateFlow(PersonalityState.Loading)
 
@@ -59,6 +62,50 @@ class PersonalityController(
                         available = result.value.available,
                     )
             }
+    }
+
+    /**
+     * The operator picked [tone]: nothing is saved yet. Counts the channel's active event responses — those that
+     * follow the platform default (they change voice) and those with their own text (they do not) — and holds the
+     * change as [PersonalityState.Ready.pending] until [confirm] or [cancel]. When the counts cannot be read the
+     * change is still offered, with the counts unknown, so a failing list never blocks the tone.
+     */
+    suspend fun choose(tone: String) {
+        val target: String = channelId ?: return
+        val current: PersonalityState = _state.value
+        if (current !is PersonalityState.Ready || current.saving || tone == current.current) return
+
+        val summaries: List<EventResponseSummary>? =
+            when (val result: ApiResult<List<EventResponseSummary>> = eventResponsesApi.list(target)) {
+                is ApiResult.Ok -> result.value.filter { it.isEnabled }
+                is ApiResult.Failure -> null
+            }
+        _state.value =
+            current.copy(
+                pending =
+                    ToneChange(
+                        tone = tone,
+                        following = summaries?.count { it.followsPlatformDefault },
+                        own = summaries?.count { !it.followsPlatformDefault },
+                    ),
+                justSaved = false,
+                saveError = null,
+            )
+    }
+
+    /** Drop the pending tone change without saving anything. */
+    fun cancel() {
+        val current: PersonalityState = _state.value
+        if (current is PersonalityState.Ready) _state.value = current.copy(pending = null)
+    }
+
+    /** Save the pending tone change (see [select]); a no-op when nothing is pending. */
+    suspend fun confirm() {
+        val current: PersonalityState = _state.value
+        if (current !is PersonalityState.Ready) return
+        val pending: ToneChange = current.pending ?: return
+        _state.value = current.copy(pending = null)
+        select(pending.tone)
     }
 
     /**
@@ -105,7 +152,15 @@ sealed interface PersonalityState {
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,
+        val pending: ToneChange? = null,
     ) : PersonalityState
 
     data class Error(val detail: String) : PersonalityState
 }
+
+/**
+ * A tone the operator picked but has not saved. [following] counts the active event responses that follow the
+ * platform default (they change voice); [own] counts those with their own text (unchanged). Both are null when the
+ * event responses could not be listed.
+ */
+data class ToneChange(val tone: String, val following: Int?, val own: Int?)
