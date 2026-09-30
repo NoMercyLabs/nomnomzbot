@@ -423,9 +423,12 @@ class ConnectController(
      * back to the Device Code Flow. A failed or declined attempt KEEPS the existing session intact (unlike
      * onboarding, which rolls back). On self-host the bot falls back to the streamer token, so this restores
      * chat send + read once the fresh token is vaulted.
+     *
+     * Never while acting as someone: the Twitch login would run in the admin's own browser and sign the admin in
+     * over the impersonated user's session.
      */
     suspend fun reconnect() {
-        if (loginInProgress()) return
+        if (loginInProgress() || sessionStore.isActingAs) return
         val profile: ConnectionProfile =
             sessionStore.activeProfile.value ?: servedOriginProfile() ?: return
         _status.value = ConnectStatus.Connecting

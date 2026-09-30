@@ -76,7 +76,9 @@ import org.jetbrains.compose.resources.stringResource
 fun FeaturesScreen(
     controller: FeaturesController,
     role: ManagementRole?,
-    onRegrantScopes: () -> Unit = {},
+    // Null hides the re-grant action — while acting as someone, re-authorizing Twitch would run the admin's own
+    // browser login, never the impersonated user's.
+    onRegrantScopes: (() -> Unit)? = null,
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: FeaturesState by controller.state.collectAsStateWithLifecycle()
@@ -142,7 +144,7 @@ private fun FeatureRow(
     feature: FeatureStatus,
     manage: ManageDecision,
     onToggle: () -> Unit,
-    onRegrantScopes: () -> Unit,
+    onRegrantScopes: (() -> Unit)?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -202,7 +204,7 @@ private fun FeatureRow(
                     )
                 }
             }
-            if (feature.requiredScopes.isNotEmpty()) {
+            if (feature.requiredScopes.isNotEmpty() && onRegrantScopes != null) {
                 ManageGate(decision = manage) { enabled ->
                     TextButton(onClick = onRegrantScopes, enabled = enabled) {
                         Text(

@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.Instant
 
 // Proves the no-secret Device Code Flow login the Connect screen drives: clicking "Connect with Twitch"
 // confirms the backend is reachable, mints a user code, polls, and on approval establishes the real session
@@ -443,6 +444,37 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(true, launcher.authorizeStreamerCalled)
         assertEquals(SessionPhase.Connected, session.phase.value)
         assertEquals("fresh-acc", session.accessToken())
+    }
+
+    @Test
+    fun reconnect_while_acting_as_someone_runs_no_twitch_login_and_keeps_the_act_as_session() = runTest {
+        // A re-auth here would run in the admin's own browser and sign the admin in over the target's session.
+        val launcher =
+            FakeConnectLauncher(
+                streamerResult =
+                    ApiResult.Ok(SessionTokens(accessToken = "admin-acc", refreshToken = "admin-ref")),
+            )
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                FakeAuthApi(meResults = listOf(ApiResult.Ok(CurrentUser("admin", "stoney_eagle", "Stoney_Eagle")))),
+                connectLauncher = launcher,
+            )
+        val session: SessionStore = sessionOf(controller)
+        session.connect(rememberedProfile, SessionTokens(accessToken = "operator-acc", refreshToken = "operator-ref"))
+        session.beginImpersonation(
+            targetAccessToken = "target-acc",
+            targetDisplayName = "anda_six",
+            expiresAt = Instant.parse("2030-01-01T00:00:00Z"),
+            accessGrantId = "grant-1",
+        )
+
+        controller.reconnect()
+
+        assertEquals(false, launcher.authorizeStreamerCalled)
+        assertEquals(ConnectStatus.Idle, controller.status.value)
+        assertEquals("target-acc", session.accessToken())
+        assertEquals("grant-1", session.impersonating.value?.accessGrantId)
     }
 
     @Test

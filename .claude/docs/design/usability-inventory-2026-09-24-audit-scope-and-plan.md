@@ -35,8 +35,8 @@ Done-when: act as a user who does NOT moderate the admin's channel → their cha
 and role render; Exit revokes the grant (server row + `ImpersonationEndedEvent`), admin lands back on
 Admin with their own channel; a UI test asserts `X-Channel-Id` changes on begin and end.
 
-Owed: a UI test asserting `X-Channel-Id` changes on begin and end (`ActAsCoordinatorTest` asserts the
-store's `activeChannelId` only; no test reads the header).
+Owed: the live proof on the dev box (act as a non-moderator of the admin's channel, then Exit). The header
+test is `ActAsChannelHeaderTest` (jvmTest); the server Exit proof is `ActAsIdentitySwapTests`.
 
 ### V-A2 · Supporting another streamer's channel (moderator-of-many)
 
