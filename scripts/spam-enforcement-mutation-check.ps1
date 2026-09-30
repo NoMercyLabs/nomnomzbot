@@ -1,9 +1,20 @@
-# Mutation harness: break ONE guard, run the suite, record which tests notice, restore.
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# Spam-enforcement mutation harness: break ONE guard in SpamEnforcementExecutor, run its tests,
+# record which tests notice, restore.
 # `if (false)` does not work here — unreachable code is a warning and warnings are errors — so each
 # mutation DELETES the guard outright, which is also the more realistic regression.
 
 $ErrorActionPreference = 'Stop'
-$repo = 'C:\Projects\NoMercyLabs\nomnomzbot'
+$repo = (Join-Path $PSScriptRoot '..' | Resolve-Path).Path
 $src = Join-Path $repo 'server\src\NomNomzBot.Infrastructure\Moderation\SpamEnforcementExecutor.cs'
 $trx = Join-Path $repo '.scratch\mutate.trx'
 $original = Get-Content $src -Raw

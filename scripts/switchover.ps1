@@ -26,8 +26,9 @@
 #   NOMNOMZ_DEPLOY_DIR   compose directory on the host (default /opt/nomnomzbot)
 #
 # Re-runnable: the script inspects `docker ps` to work out which colour (api-blue / api-green)
-# is currently live rather than being told, so running it twice in a row, or after a previous
-# failed attempt left the idle colour started, converges instead of double-switching.
+# is currently live rather than being told. It converges only when at most one colour runs;
+# switchover refuses when both colours already run (resolve manually or let guard-single-color.sh
+# decide).
 #
 # Failure contract: if the new colour never becomes ready within the timeout, the new colour is
 # stopped, the OLD colour is left serving (never touched until the new one has proven itself),

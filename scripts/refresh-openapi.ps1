@@ -75,11 +75,18 @@ if (Test-Path $winDb) {
 }
 }
 
-# The dev key lives in appsettings.Development.json, which carries // comments that JSON.parse rejects.
+# The dev key normally lives in appsettings.Development.json, which carries // comments that JSON.parse
+# rejects. That file is gitignored, so a fresh clone or worktree does not have it: fall back to the
+# public dev key (StartupSecretGuard.DevEncryptionKey), which the guard accepts in Development. Never a
+# random key - the API could not decrypt any stored token with it.
 [string]$settings = Join-Path $repo 'server/src/NomNomzBot.Api/appsettings.Development.json'
-[string]$raw = (Get-Content -Raw -LiteralPath $settings) -replace '(?m)//.*$', ''
-[string]$key = ($raw | ConvertFrom-Json).Encryption.Key
-if ([string]::IsNullOrWhiteSpace($key)) { throw 'no Encryption:Key in appsettings.Development.json' }
+[string]$key = 'ZGV2LWVuY3J5cHRpb24ta2V5LWZvci1sb2NhbC1kZXY='
+if (Test-Path -LiteralPath $settings) {
+    [string]$raw = (Get-Content -Raw -LiteralPath $settings) -replace '(?m)//.*$', ''
+    [string]$configured = ($raw | ConvertFrom-Json).Encryption.Key
+    if ([string]::IsNullOrWhiteSpace($configured)) { throw 'no Encryption:Key in appsettings.Development.json' }
+    $key = $configured
+}
 
 Write-Host '== starting the API (allow ~3 minutes) =='
 [string]$hostLog = Join-Path ([System.IO.Path]::GetTempPath()) 'nnz-openapi-run.log'

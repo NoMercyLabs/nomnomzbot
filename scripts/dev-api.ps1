@@ -1,20 +1,35 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
 # Local dev API lifecycle: start it in the background, wait for /health, or stop whatever is
 # listening on its port. Replaces the by-hand "dotnet run -> Get-NetTCPConnection -> Stop-Process"
 # sequence (drifts when a step gets skipped by hand) used for things like re-fetching openapi/v1.json.
 #
 # Usage:
-#   scripts/dev-api.ps1 start [-Port 5080] [-TimeoutSeconds 30]   # dotnet run --no-build, waits for /health
-#   scripts/dev-api.ps1 stop  [-Port 5080]                        # stops whatever owns that port
-#   scripts/dev-api.ps1 status [-Port 5080]
+#   scripts/dev-api.ps1 start [-TimeoutSeconds 30]   # dotnet run --no-build, waits for /health
+#   scripts/dev-api.ps1 stop                         # stops whatever owns the API port
+#   scripts/dev-api.ps1 status
+#
+# The port is not a parameter: the dev API is locked to 5080 (the OAuth redirect port lock).
 
 param(
     [Parameter(Mandatory = $true)][ValidateSet('start', 'stop', 'status')][string]$Action,
-    [int]$Port = 5080,
     [int]$TimeoutSeconds = 30
 )
 
 $ErrorActionPreference = 'Stop'
+[int]$Port = 5080
 $repo = Join-Path $PSScriptRoot '..' | Resolve-Path
+# $IsWindows does not exist on Windows PowerShell 5.1 (it is $null there), so a bare `if ($IsWindows)`
+# would take the Linux branch on the owner's machine. 5.1 is always Windows.
+[bool]$onWindows = ($PSVersionTable.PSEdition -ne 'Core' -or $IsWindows)
 $apiProject = Join-Path $repo 'server/src/NomNomzBot.Api'
 
 # Who owns the port? Get-NetTCPConnection is WINDOWS-ONLY, and this script now also has to run
@@ -23,7 +38,7 @@ $apiProject = Join-Path $repo 'server/src/NomNomzBot.Api'
 function Get-ApiProcessId {
     param([int]$Port)
 
-    if ($IsWindows) {
+    if ($onWindows) {
         $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($conn) { return [int]$conn.OwningProcess }
         return $null
@@ -71,7 +86,7 @@ switch ($Action) {
                 RedirectStandardOutput = (Join-Path $repo 'server/api-dev.log')
                 RedirectStandardError  = (Join-Path $repo 'server/api-dev.err.log')
             }
-            if ($IsWindows) { $startArgs['WindowStyle'] = 'Hidden' }
+            if ($onWindows) { $startArgs['WindowStyle'] = 'Hidden' }
             Start-Process @startArgs
         }
         finally { Pop-Location }

@@ -248,7 +248,7 @@ jobs:
             # Only now drain the old colour. The app fails /health/ready on SIGTERM so Caddy stops
             # routing to it immediately; -t is the drain window for in-flight requests.
             if [ "$blue_up" -gt 0 ] || [ "$green_up" -gt 0 ]; then
-              docker compose stop -t 25 "api-$live"
+              docker compose stop -t 35 "api-$live"
               echo "api-$live stopped (drained)"
             else
               echo "First deploy on this host — no previous colour to stop."

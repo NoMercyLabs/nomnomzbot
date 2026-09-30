@@ -32,26 +32,6 @@ function Fail([string]$message) {
     exit 1
 }
 
-# Runs a native command and judges success ONLY by $LASTEXITCODE, never by the presence of stderr
-# output. Under Windows PowerShell 5.1, merging a native command's stderr into the pipeline via
-# `2>&1` while $ErrorActionPreference = "Stop" is in effect turns ANY stderr write (docker's normal
-# pull/build progress, ssh banners, etc.) into a terminating NativeCommandError, aborting the
-# script before the exit code is ever checked - even on a successful command. The fix: temporarily
-# relax $ErrorActionPreference to "Continue" for the duration of the native call, let stdout+stderr
-# interleave to the host for readability, and decide pass/fail from $LASTEXITCODE alone afterwards.
-# (Same fix as scripts/switchover.ps1, commit 7e2ba888.)
-function Invoke-NativeCommand([string]$cmd) {
-    $previousEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    try {
-        $out = Invoke-Expression "$cmd 2>&1" | Out-String
-    }
-    finally {
-        $ErrorActionPreference = $previousEap
-    }
-    return @{ Output = $out.TrimEnd("`r", "`n"); ExitCode = $LASTEXITCODE }
-}
-
 # ── Resolve inputs ────────────────────────────────────────────────────────────
 # Always expand to the FULL sha — `gh run list -c` silently returns nothing for a short one.
 $Sha = if ($Sha -eq "") { (git rev-parse HEAD).Trim() } else { (git rev-parse $Sha).Trim() }
@@ -147,10 +127,10 @@ if ($LASTEXITCODE -ne 0) { Fail "could not copy the stack definition to $sshTarg
 # exactly what silently ran api-blue and api-green live simultaneously for ~9h on 2026-09-02,
 # duplicating every chat command via two independent EventSub sessions. chmod + install the cron
 # line idempotently (grep-guarded, so re-running ship.ps1 never adds a second copy).
-$guardRemote = @'
-chmod +x /opt/nomnomzbot/guard-single-color.sh
-( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1" ) | crontab -
-'@
+$guardRemote = @"
+chmod +x $deployDir/guard-single-color.sh
+( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * $deployDir/guard-single-color.sh >> $deployDir/guard-single-color.log 2>&1" ) | crontab -
+"@
 $guardRemote = $guardRemote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
 $ErrorActionPreference = "Continue"
 $guardOutput = ($guardRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
@@ -158,6 +138,22 @@ $guardExit = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($guardExit -ne 0) { Fail "could not install guard-single-color.sh cron job on ${sshTarget}: $guardOutput" }
 Write-Host "SHIP: guard-single-color.sh installed (cron, every 5 min)."
+
+# The Caddyfile is a bind mount, so scp alone changes nothing until Caddy re-reads it. `up -d caddy` is
+# idempotent: it recreates the container only when the caddy service block itself changed. The reload
+# then applies a Caddyfile change to the running container without dropping connections.
+$caddyRemote = @"
+cd $deployDir
+docker compose up -d --no-deps caddy >/dev/null 2>&1
+docker exec nomnomzbot-caddy caddy reload --config /etc/caddy/Caddyfile
+"@
+$caddyRemote = $caddyRemote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
+$ErrorActionPreference = "Continue"
+$caddyOutput = ($caddyRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
+$caddyExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+if ($caddyExit -ne 0) { Fail "could not reload Caddy on ${sshTarget}: $caddyOutput" }
+Write-Host "SHIP: Caddy reloaded."
 
 # ── 3. Deploy: blue/green switchover, poll readiness, verify image freshness ─
 # There is no `api` service — docker-compose.yml fronts api-blue/api-green with Caddy, which routes to
@@ -168,17 +164,19 @@ cd $deployDir
 ps_out=`$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' || true)
 blue_up=`$(echo "`$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
 green_up=`$(echo "`$ps_out" | grep -c 'nomnomzbot-api-green' || true)
-# Both colours up is an OVERLAP, not a dead end: a previous switchover was interrupted before it drained
-# the old one. Ask which colour actually serves readiness and treat that as live; only a genuinely
-# undecidable pair (both ready, or neither) refuses. Reporting this as "health=000" made a recoverable
-# state look identical to a broken deploy, and the caller mis-blamed it on the API never coming up.
+# Both colours up is an OVERLAP, not a dead end. During a deploy it is the designed STANDBY path: the
+# idle colour is started next to the live one and only drains the old one once it proves ready. A
+# leftover overlap means a previous switchover was interrupted before that drain. Ask which colour
+# actually serves readiness and treat that as live; only a genuinely undecidable pair (both ready, or
+# neither) refuses. Reporting this as "health=000" made a recoverable state look identical to a broken
+# deploy, and the caller mis-blamed it on the API never coming up.
 if [ "`$blue_up" -gt 0 ] && [ "`$green_up" -gt 0 ]; then
   blue_code=`$(docker exec nomnomzbot-api-blue curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
   green_code=`$(docker exec nomnomzbot-api-green curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
   if [ "`$blue_code" = "200" ] && [ "`$green_code" != "200" ]; then
-    docker compose stop -t 25 api-green >/dev/null 2>&1; green_up=0
+    docker compose stop -t 35 api-green >/dev/null 2>&1; green_up=0
   elif [ "`$green_code" = "200" ] && [ "`$blue_code" != "200" ]; then
-    docker compose stop -t 25 api-blue >/dev/null 2>&1; blue_up=0
+    docker compose stop -t 35 api-blue >/dev/null 2>&1; blue_up=0
   else
     echo "health=000"
     echo "ambiguous=both colours running (blue=`$blue_code green=`$green_code) - drain one by hand"
@@ -197,7 +195,7 @@ done
 echo "health=`$code"
 echo "deployed_colour=`$idle"
 if [ "`$code" = "200" ]; then
-  if [ "`$blue_up" -gt 0 ] || [ "`$green_up" -gt 0 ]; then docker compose stop -t 25 "api-`$live" >/dev/null 2>&1; fi
+  if [ "`$blue_up" -gt 0 ] || [ "`$green_up" -gt 0 ]; then docker compose stop -t 35 "api-`$live" >/dev/null 2>&1; fi
 else
   docker compose stop "api-`$idle" >/dev/null 2>&1 || true
 fi
@@ -205,13 +203,14 @@ echo "image_created=`$(docker inspect --format '{{.Created}}' ghcr.io/nomercylab
 echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
 echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}')"
 "@
-# The remote script goes over STDIN to `bash -s`, never inside a command STRING. Invoke-NativeCommand runs
-# its argument through Invoke-Expression, so PowerShell re-parses whatever it is given: every `>/dev/null`
+# The remote script goes over STDIN to `bash -s`, never inside a command STRING. A command string run
+# through Invoke-Expression is re-parsed by PowerShell: every `>/dev/null`
 # in the script above became a LOCAL redirect and the deploy died on "Could not find a part of the path
 # 'C:/dev/null'". Piping the script in means bash is the only thing that ever parses bash.
-# Normalise before it reaches bash: this file is UTF-8 with a BOM and CRLF endings, and PowerShell hands
-# both straight down the pipe — bash then reads the BOM as part of the first word ("﻿cd: command not
-# found") and every trailing CR as part of the last token (a bash syntax error naming a CR-suffixed word).
+# Normalise before it reaches bash: this file is UTF-8 with LF endings and no BOM, but a checkout with
+# autocrlf, or an editor that re-saves it, can add a BOM and CRLF - and PowerShell hands both straight down
+# the pipe. Bash then reads the BOM as part of the first word ("cd: command not found") and every trailing
+# CR as part of the last token (a bash syntax error naming a CR-suffixed word).
 $remote = $remote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
 $ErrorActionPreference = "Continue"
 $deployOutput = ($remote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)

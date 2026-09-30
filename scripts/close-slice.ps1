@@ -1,6 +1,17 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
 # Close a shipped slice: delete its bullet from the execution plan and commit that deletion.
-# The tracker holds REMAINING work only (see CLAUDE.md), so a shipped slice is deleted, never
-# annotated as done. Optionally append replacement bullets for follow-up slices the work exposed.
+# The tracker holds REMAINING work only (CLAUDE.md, Workflow - vertical slices, committed when
+# validated; and the header of .claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md), so a shipped
+# slice is deleted, never annotated as done. Optionally append replacement bullets for follow-up slices the work exposed.
 #
 #   scripts/close-slice.ps1 -Slice S006 -Message "live-game money refunds on settle failure"
 #   scripts/close-slice.ps1 -Slice S006 -Message "..." -Follow @(
@@ -27,7 +38,8 @@ if (-not (Test-Path $plan)) { throw "plan not found: $plan" }
 
 while ($i -lt $lines.Length) {
     [string]$line = $lines[$i]
-    if ($line -like "- **$Slice***") {
+    # exact-id match, first hit only: a wildcard here also deleted siblings (S006 took S006b with it)
+    if (-not $found -and $line.StartsWith("- **$Slice**", [StringComparison]::Ordinal)) {
         $found = $true
         $i++
         # a bullet runs until the next bullet, the next heading, or a rule

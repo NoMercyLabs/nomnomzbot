@@ -17,12 +17,14 @@
 # EventSub session, duplicating every chat command) is invisible to the deploy scripts because
 # they aren't running at that point. This closes that gap: on every tick, if both colours are up,
 # it keeps whichever one is actually passing /health/ready and stops the other — the same
-# same-signal tie-break switchover.ps1/ship.ps1 use, just running continuously instead of only
-# during a deploy.
+# readiness tie-break ship.ps1 uses for a leftover overlap, just running continuously. An overlap
+# DURING a deploy is the normal, designed standby path (the new colour starts next to the live one
+# and only drains it once ready), which is why the grace window below exists.
 #
 # Install (already wired into ship.ps1's stack-definition sync step — this comment documents what
 # that step does, not a separate manual step):
-#   */5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1
+#   */5 * * * * <deploy dir>/guard-single-color.sh >> <deploy dir>/guard-single-color.log 2>&1
+# The script cds to its own directory, so it runs from wherever ship.ps1 installed it.
 #
 # GRACE_PERIOD_SEC: a legitimate switchover.ps1/ship.ps1/CI deploy starts the idle colour and polls
 # it for up to ~120-150s before it passes /health/ready — that "up but not yet healthy" state is
@@ -35,7 +37,7 @@
 GRACE_PERIOD_SEC=180
 
 set -u
-cd /opt/nomnomzbot || exit 1
+cd "$(dirname "$0")" || exit 1
 
 ps_out=$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' 2>/dev/null || true)
 blue_up=$(echo "$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
@@ -64,7 +66,7 @@ if [ "$blue_code" = "200" ] && [ "$green_code" != "200" ]; then
     echo "$ts api-green unhealthy but only ${age}s old (< ${GRACE_PERIOD_SEC}s grace) - likely a deploy in progress, leaving it alone"
   else
     echo "$ts drift detected: both colours running (blue=$blue_code green=$green_code, green age=${age}s) - stopping api-green"
-    docker compose stop -t 25 api-green
+    docker compose stop -t 35 api-green
   fi
 elif [ "$green_code" = "200" ] && [ "$blue_code" != "200" ]; then
   age=$(container_age_sec nomnomzbot-api-blue)
@@ -72,7 +74,7 @@ elif [ "$green_code" = "200" ] && [ "$blue_code" != "200" ]; then
     echo "$ts api-blue unhealthy but only ${age}s old (< ${GRACE_PERIOD_SEC}s grace) - likely a deploy in progress, leaving it alone"
   else
     echo "$ts drift detected: both colours running (blue=$blue_code green=$green_code, blue age=${age}s) - stopping api-blue"
-    docker compose stop -t 25 api-blue
+    docker compose stop -t 35 api-blue
   fi
 elif [ "$blue_code" = "200" ] && [ "$green_code" = "200" ]; then
   # Both genuinely healthy - a real mid-switchover overlap (deploy in progress) or a manual start

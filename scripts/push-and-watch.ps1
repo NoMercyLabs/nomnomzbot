@@ -1,3 +1,13 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
 # Push the current branch to origin/master and BLOCK until CI reaches a verdict.
 #
 # The CI Gate says a push is not done until CI is green, and the watch is part of the push - never
@@ -6,7 +16,7 @@
 #
 #   scripts/push-and-watch.ps1                  # push HEAD:master, watch, auto-retry one flake
 #   scripts/push-and-watch.ps1 -NoRetry         # never re-run; a red is a red
-#   scripts/push-and-watch.ps1 -DryRun          # watch the latest run without pushing
+#   scripts/push-and-watch.ps1 -DryRun          # watches the run for the current HEAD, without pushing
 #
 # Exit code is the verdict: 0 green, 1 red. On red it prints the failing jobs and the first error
 # lines, so the next step is diagnosis rather than another round of gh incantations.
@@ -112,12 +122,23 @@ try {
         [string]$head = $sha
         Write-Host ''
         Write-Host "== confirming the box is actually serving $($head.Substring(0,8)) =="
+
+        # Probe the LAN origin first, the public tunnel second. The tunnel can answer 530 while the box is
+        # healthy and already serving the new commit; a probe of the tunnel alone reported such a landed
+        # deploy as NOT DEPLOYED. The LAN host comes from NOMNOMZ_DEPLOY_SSH (user@host) when set.
+        [string]$lanHost = if ($env:NOMNOMZ_DEPLOY_SSH) { ($env:NOMNOMZ_DEPLOY_SSH -split '@')[-1] } else { '192.168.2.60' }
+        [string[]]$origins = @("http://${lanHost}:5080", 'https://dev.nomnomz.bot')
         [string]$live = ''
+        [bool]$reachable = $false
         for ([int]$i = 0; $i -lt 30; $i++) {
-            try {
-                $live = (Invoke-RestMethod -Uri 'https://dev.nomnomz.bot/health/version' -TimeoutSec 10).version
+            foreach ($origin in $origins) {
+                try {
+                    $live = [string](Invoke-RestMethod -Uri "$origin/health/version" -TimeoutSec 10).version
+                    $reachable = $true
+                    break
+                }
+                catch { $live = '' }
             }
-            catch { $live = '' }
             if ($live -like "*$head*") { break }
             Start-Sleep -Seconds 10
         }
@@ -127,6 +148,11 @@ try {
         }
 
         Write-Host ''
+        if (-not $reachable) {
+            Write-Host "UNREACHABLE. Neither $($origins -join ' nor ') answered /health/version - cannot say what the box runs."
+            Write-Host 'This is NOT proof of a failed deploy. Check the box directly (scripts/proxmox-triage.ps1).'
+            exit 1
+        }
         Write-Host "NOT DEPLOYED. box reports '$live', HEAD is $head."
         Write-Host 'A cancelled or skipped run ships nothing - re-run the workflow for THIS commit.'
         exit 1

@@ -1,10 +1,20 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
 # Slice gate: build, run the slice's own tests, and format-check only the slice's own files.
 # Used by every builder agent instead of re-deriving build -> test -> commit by hand.
 #
 # Usage:
 #   scripts/slice-check.ps1 -TestProject tests/NomNomzBot.Api.Tests -Filter "FullyQualifiedName~SecurityHeaders" -Paths a.cs,b.cs
 #
-# The repo-wide drift is gone (S115, commit 2282847c: `csharpier check .` is clean over 2609 files),
+# The repo-wide drift is gone (S115, commit 2282847c: `csharpier check .` is clean repo-wide),
 # so `CLAUDE.md`'s per-commit format gate is enforceable again. Path scoping is kept because it is
 # fast and keeps a slice from reformatting files it does not own while other agents share the tree.
 
@@ -38,8 +48,14 @@ function Invoke-Native {
 }
 
 if ($AtCommit) {
-    $worktree = Join-Path ([System.IO.Path]::GetTempPath()) ("nnb-slice-" + $AtCommit.Substring(0, 8))
-    Invoke-Native "could not create worktree at $AtCommit" { git -C $repo worktree add -f $worktree $AtCommit }
+    # Resolve first: a short or symbolic ref (HEAD~1, a branch, a 6-char sha) would make Substring throw or
+    # name the folder wrongly. The worktree lives under .scratch/ (gitignored, inside the repo tree), never
+    # in the system temp folder.
+    [string]$fullSha = (git -C $repo rev-parse --verify "$AtCommit^{commit}" | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $fullSha) { throw "could not resolve -AtCommit '$AtCommit' to a commit" }
+    $worktree = Join-Path $repo ".scratch/nnb-slice-$($fullSha.Substring(0, 8))"
+    New-Item -ItemType Directory -Force -Path (Split-Path $worktree) | Out-Null
+    Invoke-Native "could not create worktree at $fullSha" { git -C $repo worktree add -f $worktree $fullSha }
     $server = Join-Path $worktree 'server'
 }
 else {
@@ -118,7 +134,7 @@ try {
     # migration passes every scoped gate and still lands a repo that fails CI's `csharpier check .`.
     # That is not hypothetical - it turned master's CI red on 04db9e97 (2026-08-25) with the two
     # AddSongRequestQueueItemIsInFlight migrations. Repo-wide drift is gone since S115, so this check
-    # is ~10s over ~2850 files and any hit is a real regression, not legacy noise.
+    # is ~10s and any hit is a real regression, not legacy noise.
     # Migrations are GENERATED, so nobody owns their formatting and there is no other agent to collide
     # with - format them rather than merely reporting them. Detecting this twice (04db9e97, and again
     # on 32bd9ef8 with AddWidgetPlatformSourceProvenance) proves a check the author can forget to run
@@ -166,7 +182,8 @@ try {
     # RedundantSuppressNullableWarningExpression (a needless `!`) and MergeIntoPattern. ReSharper
     # DETECTS both but cleanupcode does not auto-fix either (verified against all three cleanup
     # tasks), so this gates instead of fixing - the point is that the mess never reaches a review.
-    [string]$inspectReport = Join-Path ([System.IO.Path]::GetTempPath()) 'slice-inspect.xml'
+    # PID in the name: agents run this gate at the same time, and one fixed file made them read each other's report.
+    [string]$inspectReport = Join-Path ([System.IO.Path]::GetTempPath()) "slice-inspect-$PID.xml"
     # jb takes ONE semicolon-joined wildcard list on --include=<value>; splatted args are rejected.
     [string]$inspectInclude = ($relativePaths -join ';')
     Invoke-Native 'jb inspectcode failed on slice files' {
@@ -181,6 +198,7 @@ try {
     # not-yet-written caller is normal mid-slice, and failing on it would make the gate lie.
     [string[]]$gatedCategories = @('CodeRedundancy', 'LanguageUsage')
     [xml]$inspected = Get-Content $inspectReport
+    Remove-Item $inspectReport -Force -ErrorAction SilentlyContinue
     [hashtable]$categoryOf = @{}
     foreach ($type in $inspected.SelectNodes('//IssueType')) { $categoryOf[$type.Id] = $type.CategoryId }
     [object[]]$hits = $inspected.SelectNodes('//Issue') | Where-Object {

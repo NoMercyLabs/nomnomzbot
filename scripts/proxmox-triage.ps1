@@ -22,10 +22,16 @@
 # /health/ready cannot fail the way the owner's browser fails, so it is reported separately and
 # never on its own.
 
+#requires -Version 7
+# (Invoke-WebRequest -SkipHttpErrorCheck below is PowerShell 7+ only.)
+#
+# Host and key come from NOMNOMZ_DEPLOY_SSH (user@host) / NOMNOMZ_DEPLOY_KEY when set, like ship.ps1 and
+# switchover.ps1; the defaults below apply otherwise.
+
 [CmdletBinding()]
 param(
-    [string] $ServerHost = '192.168.2.60',
-    [string] $SshKey     = "$env:USERPROFILE\.ssh\docker_proxmox",
+    [string] $ServerHost = $(if ($env:NOMNOMZ_DEPLOY_SSH) { ($env:NOMNOMZ_DEPLOY_SSH -split '@')[-1] } else { '192.168.2.60' }),
+    [string] $SshKey     = $(if ($env:NOMNOMZ_DEPLOY_KEY) { $env:NOMNOMZ_DEPLOY_KEY } else { "$env:USERPROFILE\.ssh\docker_proxmox" }),
     [string] $StackDir   = '/opt/nomnomzbot',
     [string] $PublicUrl  = 'https://dev.nomnomz.bot',
     [string] $Since      = '2h',
@@ -34,7 +40,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$sshTarget = "root@$ServerHost"
+$sshTarget = if ($env:NOMNOMZ_DEPLOY_SSH -and $env:NOMNOMZ_DEPLOY_SSH -like '*@*') { $env:NOMNOMZ_DEPLOY_SSH } else { "root@$ServerHost" }
 
 function Invoke-Remote {
     param([Parameter(Mandatory)][string] $Command)
@@ -123,7 +129,16 @@ docker ps --format '{{.Names}}' | grep -q "$c" || c=nomnomzbot-api-green
 echo "container: $c"
 echo "session welcomes      : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'session welcome')"
 echo "closed 4003 unused    : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'code 4003')"
-echo "chat messages received: $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'ChatMessageReceivedEvent')"
+echo
+echo 'Conduit mode (opt-in, EventSub:Conduits:Enabled - off by default):'
+echo "conduit mode on       : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'EventSub: conduit mode on')"
+echo "standby session fails : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'standby could not open its conduit shard')"
+echo "shard provisioning    : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'provisioning the EventSub conduit')"
+echo
+echo 'Active-instance standby / takeover (deploy overlap):'
+echo "waiting for handover  : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'holds chat ingest')"
+echo "handed over, no gap   : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'successor shard is live')"
+echo "successor never came  : $(docker logs --since __SINCE__ $c 2>&1 | grep -c 'successor shard did not come up')"
 echo
 echo 'Helix eventsub failures by code:'
 docker logs --since __SINCE__ $c 2>&1 \
@@ -143,7 +158,8 @@ SELECT
   (SELECT count(*) FROM "Channels" WHERE "DeletedAt" IS NULL)                                    AS channels,
   (SELECT count(*) FROM "IntegrationConnections" WHERE "Provider"='twitch'     AND "Status"='connected') AS twitch_conns,
   (SELECT count(*) FROM "IntegrationConnections" WHERE "Provider"='twitch_bot' AND "Status"='connected') AS bot_conns,
-  (SELECT count(*) FROM "BotAccounts" WHERE "IsActive" AND "DeletedAt" IS NULL)                  AS active_bots;
+  (SELECT count(*) FROM "BotAccounts" WHERE "IsActive" AND "DeletedAt" IS NULL)                  AS active_bots,
+  (SELECT count(*) FROM "ChannelEvents" WHERE "CreatedAt" > now() - interval '1 hour')            AS events_last_hour;
 '@
 Invoke-Remote "docker exec nomnomzbot-postgres psql -U nomnomzbot -d nomnomzbot -c `"$($sql -replace '"','\"' -replace "`r?`n",' ')`""
 

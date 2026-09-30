@@ -13,6 +13,7 @@
 # One command brings up the whole bot: Postgres + Redis (the durable data tier) and the API
 # containers, with Adminer for DB inspection. The same image runs self_host_full here and saas
 # in a fleet — the boot probe (Deployment__Mode) decides which adapters wake up, not this file.
+# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
 #
 #   1. cp .env.example .env   (or run ./deploy.sh / .\deploy.ps1)
 #   2. fill in TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET / TWITCH_BOT_USERNAME
@@ -22,6 +23,7 @@
 # lock on full/saas — exactly one replica migrates while the other waits for the migrated schema,
 # which is what makes the blue/green overlap below safe). Every secret is read from .env; nothing
 # is hardcoded here.
+# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
 #
 # --- Blue/green API + Caddy ingress (deployment-distribution.md, slice Z5) --------------------
 # Host port 5080 is owned by `caddy`, not by an API container — two API services (`api-blue` /
@@ -32,11 +34,16 @@
 # state exactly one of api-blue/api-green is running; the other is defined but stopped. Never
 # `docker compose up -d` both colours by hand outside the script, and never restart `api-blue`/
 # `api-green` directly for a deploy — use the script so the switchover stays ordered.
+# A colour overlap during a deploy is normal: since fc131a4d1 the incoming colour is a STANDBY
+# behind IActiveInstanceGate (it opens no EventSub sessions and posts no chat until the live
+# colour releases the lease). The guard cron (guard-single-color.sh) is defence-in-depth against
+# a manual restart that leaves both colours up, not the thing that makes an overlap safe.
 #
 # API_HTTPS_PORT/5001 is dropped here: ASPNETCORE_URLS below only ever bound :5000, so the old
 # 5081->5001 mapping forwarded to a port nothing listened on — it was already dead. TLS
 # termination belongs to the operator's own reverse proxy (see DEPLOY.md's saas section), not
 # this stack.
+# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
 #
 # `watchtower` is NOT part of this stack (it never was — it runs as a separate container the
 # operator adds by hand on the host, outside this file) and must NOT be pointed at api-blue /
@@ -62,6 +69,7 @@ x-api-service: &api-service
     - ASPNETCORE_ENVIRONMENT=Production
     - ASPNETCORE_URLS=http://+:5000
     # Deployment profile — self_host_full (default) or saas. Override via DEPLOYMENT_MODE in .env.
+    # saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
     - Deployment__Mode=${DEPLOYMENT_MODE:-self_host_full}
     - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev};MaxPoolSize=20
     # StackExchange.Redis syntax (host:port[,password=...]) — NOT a redis:// URI, which it can't parse.
@@ -156,9 +164,10 @@ services:
     <<: *api-service
     container_name: nomnomzbot-api-green
     # Profiled so a bare `docker compose up -d` (deploy.sh / deploy.ps1, the first-run path) starts
-    # ONLY blue. Without this both colours come up at once, which means two bots on the same channel —
-    # duplicate EventSub subscriptions and duplicate chat replies — and it also wedges the blue/green
-    # switchover, which refuses to act when it cannot tell which colour is live.
+    # ONLY blue. Without this both colours come up at once by accident, and the blue/green
+    # switchover then refuses to act because it cannot tell which colour is live. (A deliberate
+    # overlap during a deploy is fine: the incoming colour is a STANDBY behind IActiveInstanceGate.
+    # guard-single-color.sh stays as defence-in-depth against a manual restart.)
     # The deploy paths address green explicitly with COMPOSE_PROFILES=green (see ci.yml, ship.ps1,
     # switchover.ps1); blue needs no profile because it is the default live colour.
     profiles: ["green"]

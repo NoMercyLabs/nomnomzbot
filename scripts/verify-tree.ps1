@@ -1,12 +1,23 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
 # Verify the WHOLE tree the way an orchestrator must before accepting an agent's work.
 #
 # scripts/slice-check.ps1 is the pre-commit gate for ONE slice (scoped tests + scoped format + jb
-# inspection). This is the other half: the full-tree, all-suites check that answers "is HEAD actually
+# inspection). This is the other half: the full-tree, all-suites check (Domain, Application,
+# Infrastructure, Api and E2E - the same test projects CI runs) that answers "is HEAD actually
 # green?" — the question that caught, in one session, an ungated endpoint, a save-blocking registry bug,
 # five unscoped domain events and a null content-type, every one of which sat behind an agent's report
 # of "all green" from a FILTERED run.
 #
-#   scripts/verify-tree.ps1                      # build + all 4 server suites + csharpier
+#   scripts/verify-tree.ps1                      # build + all 5 server suites (incl. E2E) + csharpier
 #   scripts/verify-tree.ps1 -IncludeApp          # also force the Kotlin jvmTest suite
 #   scripts/verify-tree.ps1 -AtCommit <sha>      # verify a commit in a throwaway worktree instead
 #
@@ -65,7 +76,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'build failed' }
 
     # Trap 2: --no-build over a stale assembly silently runs a SUBSET and still prints "Passed!".
-    [string[]]$projects = @('Domain', 'Application', 'Infrastructure', 'Api')
+    [string[]]$projects = @('Domain', 'Application', 'Infrastructure', 'Api', 'E2E')
     foreach ($project in $projects) {
         [string]$path = "tests/NomNomzBot.$project.Tests"
         dotnet build $path -v quiet | Out-Null
