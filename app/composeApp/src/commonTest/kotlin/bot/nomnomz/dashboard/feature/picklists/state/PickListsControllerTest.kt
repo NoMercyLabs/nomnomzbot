@@ -28,12 +28,20 @@ import bot.nomnomz.dashboard.core.network.CreatePickListBody
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdate
+import bot.nomnomz.dashboard.feature.platformtemplates.state.FakePlatformTemplateUpdatesApi
+import bot.nomnomz.dashboard.feature.platformtemplates.state.TemplateUpdateConfirm
+import bot.nomnomz.dashboard.feature.platformtemplates.state.TemplateUpdatesController
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.template_update_done
+import nomnomzbot.composeapp.generated.resources.template_update_failed
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_saved
@@ -315,7 +323,157 @@ class PickListsControllerTest {
         assertEquals(Res.string.feedback_picklist_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
+
+    // ── Template updates: the badge + Update action over GET …/updates and POST …/copies/{rowId}/update ──
+
+    @Test
+    fun load_flags_only_the_lists_whose_template_has_a_newer_version() = runTest {
+        val updatesApi = FakePlatformTemplateUpdatesApi(listOf(greetingsUpdate(edited = false)))
+        val controller: PickListsController = pickListsWithTemplates(updatesApi)
+
+        controller.load()
+
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+        assertEquals(setOf("pl1"), templateUpdates.updates.value.keys)
+        assertEquals(listOf("ch1" to "pick_list"), updatesApi.listed)
+    }
+
+    @Test
+    fun an_unedited_list_updates_at_once_then_reloads_and_the_badge_is_gone() = runTest {
+        val updatesApi = FakePlatformTemplateUpdatesApi(listOf(greetingsUpdate(edited = false)))
+        val feedback = RecordingFeedback()
+        val controller: PickListsController = pickListsWithTemplates(updatesApi, feedback)
+        controller.load()
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+
+        templateUpdates.request("pl1")
+
+        assertEquals(listOf(Triple("ch1", "def-greetings", "pl1")), updatesApi.applied)
+        assertNull(templateUpdates.pendingConfirm.value)
+        assertTrue(templateUpdates.updates.value.isEmpty())
+        // The reload after the update asked the backend again, rather than guessing the badge away.
+        assertEquals(2, updatesApi.listed.size)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.template_update_done, feedback.only.label)
+        assertNull(templateUpdates.applying.value)
+    }
+
+    @Test
+    fun an_edited_list_posts_nothing_until_the_replace_is_confirmed() = runTest {
+        val updatesApi = FakePlatformTemplateUpdatesApi(listOf(greetingsUpdate(edited = true)))
+        val controller: PickListsController = pickListsWithTemplates(updatesApi)
+        controller.load()
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+
+        templateUpdates.request("pl1")
+
+        assertTrue(updatesApi.applied.isEmpty())
+        assertEquals("pl1", templateUpdates.pendingConfirm.value?.update?.rowId)
+        assertEquals(3, templateUpdates.pendingConfirm.value?.update?.currentVersion)
+        assertEquals(setOf("pl1"), templateUpdates.updates.value.keys)
+
+        val confirmed: Boolean = templateUpdates.confirm()
+
+        assertTrue(confirmed)
+        assertEquals(listOf(Triple("ch1", "def-greetings", "pl1")), updatesApi.applied)
+        assertNull(templateUpdates.pendingConfirm.value)
+        assertTrue(templateUpdates.updates.value.isEmpty())
+    }
+
+    @Test
+    fun dismissing_the_replace_confirm_posts_nothing_and_keeps_the_badge() = runTest {
+        val updatesApi = FakePlatformTemplateUpdatesApi(listOf(greetingsUpdate(edited = true)))
+        val controller: PickListsController = pickListsWithTemplates(updatesApi)
+        controller.load()
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+        templateUpdates.request("pl1")
+
+        templateUpdates.dismiss()
+
+        assertNull(templateUpdates.pendingConfirm.value)
+        assertTrue(updatesApi.applied.isEmpty())
+        assertEquals(setOf("pl1"), templateUpdates.updates.value.keys)
+    }
+
+    @Test
+    fun a_failed_confirmed_update_keeps_the_dialog_open_with_the_reason_and_the_badge() = runTest {
+        val updatesApi =
+            FakePlatformTemplateUpdatesApi(
+                listOf(greetingsUpdate(edited = true)),
+                applyFailure = ApiError(403, "FORBIDDEN", "Requires picklists:write."),
+            )
+        val controller: PickListsController = pickListsWithTemplates(updatesApi)
+        controller.load()
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+        templateUpdates.request("pl1")
+
+        val confirmed: Boolean = templateUpdates.confirm()
+
+        assertFalse(confirmed)
+        val pending: TemplateUpdateConfirm = assertNotNull(templateUpdates.pendingConfirm.value)
+        assertEquals("pl1", pending.update.rowId)
+        assertEquals("Requires picklists:write.", pending.error)
+        assertFalse(pending.applying)
+        assertEquals(setOf("pl1"), templateUpdates.updates.value.keys)
+        // No reload happened: the only list call is the one from the first load.
+        assertEquals(1, updatesApi.listed.size)
+    }
+
+    @Test
+    fun a_failed_unedited_update_says_why_and_keeps_the_badge() = runTest {
+        val updatesApi =
+            FakePlatformTemplateUpdatesApi(
+                listOf(greetingsUpdate(edited = false)),
+                applyFailure = ApiError(409, "ALREADY_CURRENT", "This copy is already on the current version."),
+            )
+        val feedback = RecordingFeedback()
+        val controller: PickListsController = pickListsWithTemplates(updatesApi, feedback)
+        controller.load()
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+
+        templateUpdates.request("pl1")
+
+        assertEquals(1, updatesApi.applied.size)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(Res.string.template_update_failed, feedback.only.label)
+        assertEquals(
+            listOf<Any>("Greetings", "This copy is already on the current version."),
+            feedback.only.formatArgs,
+        )
+        assertEquals(setOf("pl1"), templateUpdates.updates.value.keys)
+        assertNull(templateUpdates.pendingConfirm.value)
+    }
 }
+
+private fun greetingsUpdate(edited: Boolean): PlatformTemplateUpdate =
+    PlatformTemplateUpdate(
+        rowId = "pl1",
+        definitionId = "def-greetings",
+        kind = "pick_list",
+        displayName = "Greetings",
+        installedVersion = 2,
+        currentVersion = 3,
+        editedSinceInstall = edited,
+    )
+
+private fun pickListsWithTemplates(
+    updatesApi: FakePlatformTemplateUpdatesApi,
+    feedback: Feedback = NoOpFeedback,
+): PickListsController =
+    PickListsController(
+        RecordingPickListsApi(
+            ApiResult.Ok(
+                listOf(
+                    PickList(id = "pl1", name = "greetings", items = listOf("Hey {user}!")),
+                    PickList(id = "pl2", name = "farewells", items = listOf("Bye {user}!")),
+                ),
+            ),
+        ),
+        ActiveChannelApi,
+        RecordingPickListTemplatesApi(),
+        feedback,
+        templateUpdatesApi = updatesApi,
+    )
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful write
 // mutates the store so the controller's post-write reload observes the real consequence (a new row, replaced

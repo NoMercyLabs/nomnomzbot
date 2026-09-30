@@ -52,6 +52,12 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.network.pickListPayload
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateAction
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateBadge
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateConfirmDialog
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateRows
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.templateUpdateRows
+import nomnomzbot.composeapp.generated.resources.template_update_badge
 import nomnomzbot.composeapp.generated.resources.platform_templates_browse
 import nomnomzbot.composeapp.generated.resources.picklists_template_adds
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -139,6 +145,10 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
     var editor: PickListEditor? by remember { mutableStateOf(null) }
     var pendingDelete: PickList? by remember { mutableStateOf(null) }
     var browsingTemplates: Boolean by remember { mutableStateOf(false) }
+    val updateRows: TemplateUpdateRows = templateUpdateRows(controller.templateUpdates)
+    val onTemplateUpdate: (PickList) -> Unit = { list ->
+        scope.launch { controller.templateUpdates?.request(list.id) }
+    }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -167,6 +177,8 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     onEdit = { list -> editor = PickListEditor.edit(list) },
                     onDelete = { list -> pendingDelete = list },
                     onTest = { list -> scope.launch { controller.previewPickList(list.id, list.name) } },
+                    updateRows = updateRows,
+                    onTemplateUpdate = onTemplateUpdate,
                 )
             is PickListsState.Ready ->
                 ManagedContent(
@@ -178,6 +190,8 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     onEdit = { list -> editor = PickListEditor.edit(list) },
                     onDelete = { list -> pendingDelete = list },
                     onTest = { list -> scope.launch { controller.previewPickList(list.id, list.name) } },
+                    updateRows = updateRows,
+                    onTemplateUpdate = onTemplateUpdate,
                 )
         }
     }
@@ -221,6 +235,19 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                     if (open.isEdit) controller.updatePickList(open.id, name, description, items)
                     else controller.createPickList(name, description, items)
                 }
+            },
+        )
+    }
+
+    controller.templateUpdates?.let { updates ->
+        val lists: List<PickList> = (state as? PickListsState.Ready)?.lists.orEmpty()
+        val rowType: String = stringResource(Res.string.picklists_row_type)
+        TemplateUpdateConfirmDialog(
+            controller = updates,
+            displayName = { update ->
+                lists.firstOrNull { it.id == update.rowId }
+                    ?.let { resolveRowLabel(primary = it.name, typeLabel = rowType, discriminatorSource = it.id) }
+                    ?: update.displayName
             },
         )
     }
@@ -270,6 +297,8 @@ private fun ManagedContent(
     onEdit: (PickList) -> Unit,
     onDelete: (PickList) -> Unit,
     onTest: (PickList) -> Unit,
+    updateRows: TemplateUpdateRows,
+    onTemplateUpdate: (PickList) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -307,6 +336,9 @@ private fun ManagedContent(
                             onEdit = { onEdit(list) },
                             onDelete = { onDelete(list) },
                             onTest = { onTest(list) },
+                            onTemplateUpdate =
+                                if (updateRows.hasUpdate(list.id)) { { onTemplateUpdate(list) } } else null,
+                            updateBusy = updateRows.isApplying(list.id),
                         )
                         if (index < lists.lastIndex) {
                             Separator()
@@ -350,6 +382,9 @@ private fun PickListRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onTest: () -> Unit,
+    // Non-null when the list's template has a newer version: shows the badge and the Update action.
+    onTemplateUpdate: (() -> Unit)?,
+    updateBusy: Boolean,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -366,6 +401,8 @@ private fun PickListRow(
     val editLabel: String = stringResource(Res.string.picklists_edit_action, displayName)
     val deleteLabel: String = stringResource(Res.string.picklists_delete_action, displayName)
     val testLabel: String = stringResource(Res.string.picklists_preview_action, displayName)
+    val updateBadgeText: String = stringResource(Res.string.template_update_badge)
+    val updateLabel: String = if (onTemplateUpdate != null) ". $updateBadgeText" else ""
 
     Row(
         modifier = Modifier
@@ -380,7 +417,7 @@ private fun PickListRow(
                 // One node for the text block: "<name>. N items. <description>".
                 .clearAndSetSemantics {
                     contentDescription =
-                        "$displayName. $count" + (description?.let { ". $it" } ?: "")
+                        "$displayName. $count" + (description?.let { ". $it" } ?: "") + updateLabel
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
@@ -391,12 +428,18 @@ private fun PickListRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = count,
-                style = typography.xs,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = count,
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                )
+                if (onTemplateUpdate != null) TemplateUpdateBadge()
+            }
             description?.let {
                 Text(
                     text = it,
@@ -408,6 +451,16 @@ private fun PickListRow(
             }
         }
 
+        if (onTemplateUpdate != null) {
+            ManageGate(decision = writeManage) { enabled ->
+                TemplateUpdateAction(
+                    displayName = displayName,
+                    busy = updateBusy,
+                    enabled = enabled,
+                    onClick = onTemplateUpdate,
+                )
+            }
+        }
         ManageGate(decision = writeManage) { enabled ->
             GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }

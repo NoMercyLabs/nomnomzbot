@@ -3998,6 +3998,15 @@
     <string name="platform_templates_no_pipeline">No pipeline</string>
     <string name="platform_templates_cancel">Cancel</string>
     <string name="platform_templates_installed">Template installed</string>
+    <string name="template_update_badge">Update available</string>
+    <string name="template_update_action">Update</string>
+    <string name="template_update_action_label">Update %1$s to the newest template version</string>
+    <string name="template_update_title">Update %1$s?</string>
+    <string name="template_update_replaces_edits">You changed this after you installed it. The update to template version %1$d replaces your changes with the template. You cannot undo this.</string>
+    <string name="template_update_confirm">Replace my changes</string>
+    <string name="template_update_cancel">Cancel</string>
+    <string name="template_update_done">%1$s now matches the newest template</string>
+    <string name="template_update_failed">Could not update %1$s: %2$s</string>
     <string name="event_responses_template_replaces">Replaces the current response for %1$s on this channel.</string>
     <string name="admin_content_kind_label">Content kind</string>
     <string name="admin_content_list_title">Content definitions</string>

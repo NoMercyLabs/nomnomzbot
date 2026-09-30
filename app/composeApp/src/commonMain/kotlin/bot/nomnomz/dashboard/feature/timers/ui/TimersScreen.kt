@@ -100,6 +100,12 @@ import nomnomzbot.composeapp.generated.resources.timers_template_adds
 import bot.nomnomz.dashboard.core.network.timerPayload
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.PlatformTemplatesDialog
 import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplatePipelineUse
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateAction
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateBadge
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateConfirmDialog
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.TemplateUpdateRows
+import bot.nomnomz.dashboard.feature.platformtemplates.ui.templateUpdateRows
+import nomnomzbot.composeapp.generated.resources.template_update_badge
 import nomnomzbot.composeapp.generated.resources.timers_badge_once
 import nomnomzbot.composeapp.generated.resources.restore_default_action
 import nomnomzbot.composeapp.generated.resources.timers_delete
@@ -189,6 +195,10 @@ fun TimersScreen(
     // The row action only appears when the restore flow is wired AND the timer came from a template.
     val onRestoreDefault: ((TimerSummary) -> Unit)? =
         if (controller.canRestoreDefaults) { timer -> restoreTarget = timer } else null
+    val updateRows: TemplateUpdateRows = templateUpdateRows(controller.templateUpdates)
+    val onTemplateUpdate: (TimerSummary) -> Unit = { timer ->
+        scope.launch { controller.templateUpdates?.request(timer.id) }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: TimersState = state) {
@@ -207,6 +217,8 @@ fun TimersScreen(
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
                     onDelete = { timer -> deleteTarget = timer },
                     onRestoreDefault = onRestoreDefault,
+                    updateRows = updateRows,
+                    onTemplateUpdate = onTemplateUpdate,
                     onDismissError = controller::clearWriteError,
                 )
             is TimersState.Ready ->
@@ -221,6 +233,8 @@ fun TimersScreen(
                     onEdit = { timer -> editTarget = TimerEditTarget.Edit(timer) },
                     onDelete = { timer -> deleteTarget = timer },
                     onRestoreDefault = onRestoreDefault,
+                    updateRows = updateRows,
+                    onTemplateUpdate = onTemplateUpdate,
                     onDismissError = controller::clearWriteError,
                 )
         }
@@ -305,6 +319,18 @@ fun TimersScreen(
         }
     }
 
+    controller.templateUpdates?.let { updates ->
+        val timers: List<TimerSummary> = (state as? TimersState.Ready)?.timers.orEmpty()
+        TemplateUpdateConfirmDialog(
+            controller = updates,
+            displayName = { update ->
+                timers.firstOrNull { it.id == update.rowId }
+                    ?.let { resolveRowLabel(it.name, typeLabel = "Timer", discriminatorSource = it.id) }
+                    ?: update.displayName
+            },
+        )
+    }
+
     deleteTarget?.let { timer ->
         ConfirmDialog(
             title = stringResource(Res.string.timers_delete_title),
@@ -339,6 +365,8 @@ private fun ManagedContent(
     onEdit: (TimerSummary) -> Unit,
     onDelete: (TimerSummary) -> Unit,
     onRestoreDefault: ((TimerSummary) -> Unit)?,
+    updateRows: TemplateUpdateRows,
+    onTemplateUpdate: (TimerSummary) -> Unit,
     onDismissError: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -413,6 +441,9 @@ private fun ManagedContent(
                             onDelete = { onDelete(timer) },
                             onRestoreDefault =
                                 onRestoreDefault?.takeIf { timer.hasPlatformDefault }?.let { { it(timer) } },
+                            onTemplateUpdate =
+                                if (updateRows.hasUpdate(timer.id)) { { onTemplateUpdate(timer) } } else null,
+                            updateBusy = updateRows.isApplying(timer.id),
                         )
                         if (index < filteredTimers.lastIndex) {
                             Separator()
@@ -433,6 +464,9 @@ private fun TimerTableRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onRestoreDefault: (() -> Unit)?,
+    // Non-null when the timer's template has a newer version: shows the badge and the Update action.
+    onTemplateUpdate: (() -> Unit)?,
+    updateBusy: Boolean,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -444,6 +478,8 @@ private fun TimerTableRow(
         stringResource(if (timer.isEnabled) Res.string.timers_enabled else Res.string.timers_disabled)
     // Announced only for one-shot timers, so the row's a11y node conveys the fire-once state the badge shows.
     val onceLabel: String = if (timer.fireOnce) ", ${stringResource(Res.string.timers_badge_once)}" else ""
+    val updateBadgeText: String = stringResource(Res.string.template_update_badge)
+    val updateLabel: String = if (onTemplateUpdate != null) ", $updateBadgeText" else ""
     val displayName: String =
         resolveRowLabel(timer.name, typeLabel = "Timer", discriminatorSource = timer.id)
     val toggleLabel: String = stringResource(Res.string.timers_toggle, displayName)
@@ -463,7 +499,7 @@ private fun TimerTableRow(
                 .weight(1f)
                 .clearAndSetSemantics {
                     contentDescription =
-                        "$displayName, $intervalText, $messagesText, $statusLabel$onceLabel"
+                        "$displayName, $intervalText, $messagesText, $statusLabel$onceLabel$updateLabel"
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
@@ -503,9 +539,20 @@ private fun TimerTableRow(
                     }
                 }
                 Text(text = messagesText, style = typography.xs, color = tokens.mutedForeground)
+                if (onTemplateUpdate != null) TemplateUpdateBadge()
             }
         }
 
+        if (onTemplateUpdate != null) {
+            ManageGate(decision = manage) { enabled ->
+                TemplateUpdateAction(
+                    displayName = displayName,
+                    busy = updateBusy,
+                    enabled = enabled,
+                    onClick = onTemplateUpdate,
+                )
+            }
+        }
         if (onRestoreDefault != null) {
             val restoreLabel: String = stringResource(Res.string.restore_default_action, displayName)
             ManageGate(decision = manage) { enabled ->
