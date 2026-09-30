@@ -238,28 +238,55 @@ public sealed class TwitchAuthService : ITwitchAuthService
             }
         );
 
-        HttpResponseMessage resp = await _http.PostAsync(TokenEndpoint, form, ct);
-        if (!resp.IsSuccessStatusCode)
+        TwitchTokenResponse? json;
+        try
         {
-            await _vault.MarkRefreshFailureAsync(
-                connection.Id,
-                $"twitch_refresh_{(int)resp.StatusCode}",
-                ct
-            );
+            HttpResponseMessage resp = await _http.PostAsync(TokenEndpoint, form, ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                await Identity.OAuthRefreshRejection.RecordAsync(
+                    _vault,
+                    connection.Id,
+                    resp,
+                    $"twitch_refresh_{(int)resp.StatusCode}",
+                    ct
+                );
+                _logger.LogWarning(
+                    "Token refresh failed for {BroadcasterId}/{Provider}: {Status}",
+                    broadcasterId,
+                    provider,
+                    resp.StatusCode
+                );
+                return null;
+            }
+
+            json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: ct);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
             _logger.LogWarning(
-                "Token refresh failed for {BroadcasterId}/{Provider}: {Status}",
+                ex,
+                "Token refresh for {BroadcasterId}/{Provider} did not complete",
                 broadcasterId,
-                provider,
-                resp.StatusCode
+                provider
+            );
+            await _vault.MarkTransientRefreshFailureAsync(
+                connection.Id,
+                $"twitch_refresh_{ex.GetType().Name}",
+                ct
             );
             return null;
         }
 
-        TwitchTokenResponse? json = await resp.Content.ReadFromJsonAsync<TwitchTokenResponse>(
-            cancellationToken: ct
-        );
         if (json is null)
+        {
+            await _vault.MarkTransientRefreshFailureAsync(
+                connection.Id,
+                "twitch_refresh_empty_body",
+                ct
+            );
             return null;
+        }
 
         TokenResult result = new(
             json.AccessToken,

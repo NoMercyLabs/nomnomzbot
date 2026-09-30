@@ -259,6 +259,12 @@ public sealed class IntegrationsControllerDisconnectTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<Result> MarkTransientRefreshFailureAsync(
+            Guid connectionId,
+            string error,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public async Task<Result> RevokeConnectionAsync(
             Guid connectionId,
             string reason,

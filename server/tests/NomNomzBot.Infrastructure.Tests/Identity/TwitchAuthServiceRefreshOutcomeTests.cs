@@ -22,6 +22,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
@@ -31,7 +32,8 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
 /// What a Twitch token-endpoint answer does to the connection's health, over the REAL vault and crypto: an
-/// authenticated success (a refresh Twitch accepted) is the one thing that clears the failure state.
+/// authenticated success (a refresh Twitch accepted) is the one thing that clears the failure state, only
+/// Twitch's "Invalid refresh token" counts toward needs_reauth, and 5xx / 429 / network errors never do.
 /// </summary>
 public sealed class TwitchAuthServiceRefreshOutcomeTests
 {
@@ -59,6 +61,89 @@ public sealed class TwitchAuthServiceRefreshOutcomeTests
         connection.LastErrorAt.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task Three_transient_rejections_never_mark_the_connection_for_reauth(
+        HttpStatusCode status
+    )
+    {
+        ScriptedTokenHandler wire = new();
+        for (int i = 0; i < 3; i++)
+            wire.Enqueue(status, """{"status":503,"message":"upstream unavailable"}""");
+        Harness harness = await Harness.BuildAsync(wire);
+
+        for (int i = 0; i < 3; i++)
+            (await harness.RefreshAsync()).Should().BeNull();
+
+        wire.CallCount.Should().Be(3);
+        IntegrationConnection connection = await harness.ConnectionAsync();
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        connection.ConsecutiveFailureCount.Should().Be(0);
+        connection.LastErrorAt.Should().NotBeNull("the refresher backs off from the last error");
+    }
+
+    [Fact]
+    public async Task Network_errors_and_timeouts_are_transient_and_never_escape_the_refresh()
+    {
+        ScriptedTokenHandler wire = new();
+        wire.EnqueueThrow(new HttpRequestException("connection reset"));
+        wire.EnqueueThrow(new TaskCanceledException("HttpClient timeout"));
+        wire.EnqueueThrow(new HttpRequestException("no route to host"));
+        Harness harness = await Harness.BuildAsync(wire);
+
+        for (int i = 0; i < 3; i++)
+            (await harness.RefreshAsync()).Should().BeNull();
+
+        wire.CallCount.Should().Be(3);
+        IntegrationConnection connection = await harness.ConnectionAsync();
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        connection.ConsecutiveFailureCount.Should().Be(0);
+        connection.LastErrorAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Invalid_refresh_token_counts_toward_reauth_and_the_third_marks_it()
+    {
+        ScriptedTokenHandler wire = new();
+        for (int i = 0; i < 3; i++)
+            wire.Enqueue(HttpStatusCode.BadRequest, InvalidRefreshToken);
+        Harness harness = await Harness.BuildAsync(wire);
+
+        await harness.RefreshAsync();
+        await harness.RefreshAsync();
+        IntegrationConnection afterTwo = await harness.ConnectionAsync();
+        afterTwo.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        afterTwo.ConsecutiveFailureCount.Should().Be(2);
+
+        await harness.RefreshAsync();
+        IntegrationConnection afterThree = await harness.ConnectionAsync();
+        afterThree.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+        afterThree.ConsecutiveFailureCount.Should().Be(3);
+        harness
+            .Bus.Published.OfType<IntegrationNeedsReauthEvent>()
+            .Should()
+            .ContainSingle(e => e.ConnectionId == harness.ConnectionId);
+    }
+
+    [Fact]
+    public async Task A_bad_request_that_is_not_a_dead_grant_does_not_count()
+    {
+        ScriptedTokenHandler wire = new();
+        wire.Enqueue(HttpStatusCode.BadRequest, """{"status":400,"message":"missing client id"}""");
+        Harness harness = await Harness.BuildAsync(wire);
+
+        await harness.RefreshAsync();
+
+        IntegrationConnection connection = await harness.ConnectionAsync();
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        connection.ConsecutiveFailureCount.Should().Be(0);
+    }
+
+    private const string InvalidRefreshToken =
+        """{"status":400,"message":"Invalid refresh token"}""";
+
     private const string IssuedPair =
         """{"access_token":"issued-access","refresh_token":"issued-refresh","expires_in":3600,"scope":["user:read:chat"],"token_type":"bearer"}""";
 
@@ -67,7 +152,11 @@ public sealed class TwitchAuthServiceRefreshOutcomeTests
         public required TwitchAuthService Service { get; init; }
         public required IntegrationTokenVault Vault { get; init; }
         public required AuthDbContext Db { get; init; }
+        public required RecordingEventBus Bus { get; init; }
         public required Guid ConnectionId { get; init; }
+
+        public async Task<TokenResult?> RefreshAsync() =>
+            await Service.RefreshTokenAsync(Broadcaster, AuthEnums.IntegrationProvider.Twitch);
 
         public async Task<IntegrationConnection> ConnectionAsync() =>
             await Db.IntegrationConnections.AsNoTracking().SingleAsync(c => c.Id == ConnectionId);
@@ -100,12 +189,13 @@ public sealed class TwitchAuthServiceRefreshOutcomeTests
             );
             await db.SaveChangesAsync();
 
+            RecordingEventBus bus = new();
             IntegrationTokenVault vault = new(
                 db,
                 protector,
                 keys,
                 new NoopScopeGrantService(),
-                new RecordingEventBus(),
+                bus,
                 TimeProvider.System,
                 NullLogger<IntegrationTokenVault>.Instance
             );
@@ -147,6 +237,7 @@ public sealed class TwitchAuthServiceRefreshOutcomeTests
                 Service = service,
                 Vault = vault,
                 Db = db,
+                Bus = bus,
                 ConnectionId = upsert.Value.Id,
             };
         }

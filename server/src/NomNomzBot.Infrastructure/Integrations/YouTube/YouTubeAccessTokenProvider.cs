@@ -19,6 +19,7 @@ using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Identity;
 
 namespace NomNomzBot.Infrastructure.Integrations.YouTube;
 
@@ -43,7 +44,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
     private readonly TimeProvider _timeProvider;
     private readonly HttpClient _http;
     private readonly ILogger<YouTubeAccessTokenProvider> _logger;
-    private readonly NomNomzBot.Infrastructure.Identity.IConnectionRefreshGate _refreshGate;
+    private readonly IConnectionRefreshGate _refreshGate;
 
     public YouTubeAccessTokenProvider(
         IApplicationDbContext db,
@@ -52,7 +53,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
         ILogger<YouTubeAccessTokenProvider> logger,
-        NomNomzBot.Infrastructure.Identity.IConnectionRefreshGate refreshGate
+        IConnectionRefreshGate refreshGate
     )
     {
         _db = db;
@@ -181,8 +182,10 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
             );
             if (!response.IsSuccessStatusCode)
             {
-                await _vault.MarkRefreshFailureAsync(
+                await OAuthRefreshRejection.RecordAsync(
+                    _vault,
                     connectionId,
+                    response,
                     $"YouTube refresh failed ({(int)response.StatusCode})",
                     cancellationToken
                 );
@@ -199,7 +202,14 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
                     cancellationToken: cancellationToken
                 );
             if (json is null)
+            {
+                await _vault.MarkTransientRefreshFailureAsync(
+                    connectionId,
+                    "YouTube refresh returned an unexpected body",
+                    cancellationToken
+                );
                 return null;
+            }
 
             // Google does not rotate refresh tokens on a refresh grant — RefreshToken: null leaves the
             // vaulted one untouched; only the access token + expiry are re-sealed.
@@ -224,6 +234,11 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
                 ex,
                 "Exception refreshing YouTube token for {BroadcasterId}",
                 broadcasterId
+            );
+            await _vault.MarkTransientRefreshFailureAsync(
+                connectionId,
+                $"YouTube refresh threw {ex.GetType().Name}",
+                cancellationToken
             );
             return null;
         }

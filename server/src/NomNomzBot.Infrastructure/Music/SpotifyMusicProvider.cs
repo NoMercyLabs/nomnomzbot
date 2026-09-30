@@ -1448,21 +1448,7 @@ public sealed class SpotifyMusicProvider
             .Select(c => (Guid?)c.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-    /// <summary>
-    /// Retry-storm guard for the periodic "now playing" poll: a connection already flagged
-    /// <c>needs_reauth</c> cannot be fixed by retrying — only a fresh OAuth grant clears it — so hammering
-    /// Spotify's token endpoint on every poll cycle just re-confirms the same dead refresh token forever (the
-    /// qtkitte incident logged <c>ConsecutiveFailureCount</c> = 4653). Skip the refresh entirely once
-    /// needs_reauth, and back off exponentially between attempts before that threshold so a flaky-but-alive
-    /// connection doesn't get hammered at full poll cadence either.
-    /// </summary>
-    private static readonly TimeSpan[] RefreshBackoffSchedule =
-    [
-        TimeSpan.FromSeconds(30),
-        TimeSpan.FromMinutes(2),
-        TimeSpan.FromMinutes(10),
-    ];
-
+    /// <summary>Retry-storm guard for the periodic "now playing" poll (<see cref="Identity.RefreshBackoffPolicy"/>).</summary>
     private async Task<bool> ShouldAttemptRefreshAsync(
         Guid connectionId,
         CancellationToken cancellationToken
@@ -1471,21 +1457,13 @@ public sealed class SpotifyMusicProvider
         IntegrationConnection? connection = await _db
             .IntegrationConnections.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
-        if (connection is null)
-            return false;
-
-        // Dead beyond retry — needs a human to re-auth; retrying cannot fix it and only burns the rate limit.
-        if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
-            return false;
-
-        if (connection.ConsecutiveFailureCount <= 0)
-            return true;
-
-        TimeSpan backoff = RefreshBackoffSchedule[
-            Math.Min(connection.ConsecutiveFailureCount - 1, RefreshBackoffSchedule.Length - 1)
-        ];
-        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
-        return connection.LastErrorAt is null || now >= connection.LastErrorAt.Value + backoff;
+        return connection is not null
+            && Identity.RefreshBackoffPolicy.AllowsAttempt(
+                connection.Status,
+                connection.ConsecutiveFailureCount,
+                connection.LastErrorAt,
+                _timeProvider.GetUtcNow().UtcDateTime
+            );
     }
 
     private async Task<string?> GetTokenAsync(
@@ -1616,8 +1594,10 @@ public sealed class SpotifyMusicProvider
                     broadcasterId,
                     response.StatusCode
                 );
-                await _vault.MarkRefreshFailureAsync(
+                await Identity.OAuthRefreshRejection.RecordAsync(
+                    _vault,
                     connectionId,
+                    response,
                     $"Spotify refresh failed ({(int)response.StatusCode})",
                     cancellationToken
                 );
@@ -1630,7 +1610,7 @@ public sealed class SpotifyMusicProvider
                 );
             if (json is null)
             {
-                await _vault.MarkRefreshFailureAsync(
+                await _vault.MarkTransientRefreshFailureAsync(
                     connectionId,
                     "Spotify refresh returned an unexpected body",
                     cancellationToken
@@ -1662,6 +1642,11 @@ public sealed class SpotifyMusicProvider
                 ex,
                 "Exception refreshing Spotify token for {BroadcasterId}",
                 broadcasterId
+            );
+            await _vault.MarkTransientRefreshFailureAsync(
+                connectionId,
+                $"Spotify refresh threw {ex.GetType().Name}",
+                cancellationToken
             );
             return null;
         }

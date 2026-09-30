@@ -246,6 +246,12 @@ public sealed class TwitchAuthServiceCredentialsTests
             CancellationToken cancellationToken = default
         ) => throw new InvalidOperationException("ExchangeCodeAsync must not vault.");
 
+        public Task<Result> MarkTransientRefreshFailureAsync(
+            Guid connectionId,
+            string error,
+            CancellationToken cancellationToken = default
+        ) => throw new InvalidOperationException("ExchangeCodeAsync must not vault.");
+
         public Task<Result> RevokeConnectionAsync(
             Guid connectionId,
             string reason,

@@ -277,6 +277,28 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         return Result.Success();
     }
 
+    public async Task<Result> MarkTransientRefreshFailureAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IntegrationConnection? connection = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
+        if (connection is null)
+            return Result.Failure("No such connection.", "NOT_FOUND");
+
+        connection.LastErrorAt = _timeProvider.GetUtcNow().UtcDateTime;
+        await _db.SaveChangesAsync(cancellationToken);
+        _logger.LogWarning(
+            "Integration {ConnectionId} refresh failed transiently, backing off: {Error}",
+            connectionId,
+            error
+        );
+        return Result.Success();
+    }
+
     public async Task<Result> RevokeConnectionAsync(
         Guid connectionId,
         string reason,

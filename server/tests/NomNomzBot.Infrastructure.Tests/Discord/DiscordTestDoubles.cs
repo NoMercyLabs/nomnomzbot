@@ -98,6 +98,12 @@ internal sealed class RecordingVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     ) => Task.FromResult(Result.Success());
 
+    public Task<Result> MarkTransientRefreshFailureAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(Result.Success());
+
     public Task<Result<IReadOnlyList<IntegrationConnectionDto>>> ListConnectionsAsync(
         Guid? broadcasterId,
         CancellationToken cancellationToken = default
