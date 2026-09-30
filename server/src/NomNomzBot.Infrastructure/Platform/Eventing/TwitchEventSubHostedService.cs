@@ -261,6 +261,19 @@ public sealed class TwitchEventSubHostedService
         _startDecided = true;
         _activated.TrySetResult();
         await StartTransportAsync(cancellationToken);
+        if (_transportStarted)
+            return;
+
+        // The lease is ours but the transport did not start: keep retrying rather than stay silently deaf.
+        CancellationTokenSource retryCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken
+        );
+        CancellationToken retryToken = retryCts.Token;
+        _dormancyCts = retryCts;
+        _dormancyWaiter = Task.Run(
+            () => WaitForReadinessThenStartAsync(StandbyPollInterval, retryToken),
+            retryToken
+        );
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -487,42 +500,66 @@ public sealed class TwitchEventSubHostedService
             using PeriodicTimer timer = new(pollInterval);
             while (await timer.WaitForNextTickAsync(ct))
             {
-                if (!await IsPlatformBotConfiguredAsync(ct))
-                    continue;
-
-                await EnterConduitModeAsync(ct);
-
-                // ONE instance reads chat. A blue/green switchover deliberately runs both colours at once
-                // (the new one must pass /health/ready before the old is drained), which is harmless for
-                // HTTP because Caddy picks one — but EventSub is not request-scoped: a second instance
-                // opens its own sessions, receives the same channel.chat.message, and answers every command
-                // a second time. That is the "two bots" the owner saw, on every deploy. TimerService already
-                // takes this same lease for the same reason; the chat ingest path never did.
-                _leadership = await TryAcquireAsync(LeadershipResource, ct);
-                if (_leadership is null)
+                // A failed tick must never end the waiter: a standby whose waiter died stays standby forever,
+                // and the bot goes deaf the moment the old colour stops.
+                try
                 {
-                    _standby = true;
-                    _standbyClaim ??= await TryAcquireAsync(StandbyResource, ct);
-                    await OpenStandbyShardAsync(ct);
-                    continue;
+                    if (await AdvanceTowardRunningAsync(ct))
+                        return;
                 }
-
-                // Took over: stop advertising as a waiting successor, then open the chat sessions.
-                if (_standbyClaim is not null)
+                catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
-                    await _standbyClaim.DisposeAsync();
-                    _standbyClaim = null;
+                    _logger.LogError(ex, "EventSub: handover check failed; retrying next tick");
                 }
-                _standby = false;
-                _activated.TrySetResult();
-                await StartTransportAsync(ct);
-                return;
             }
         }
         catch (OperationCanceledException)
         {
             // Host is shutting down before onboarding completed — end the waiter quietly.
         }
+    }
+
+    /// <summary>
+    /// One waiter tick: take the chat-ingest lease if this instance does not hold it yet, then start the
+    /// transport. True once the transport runs; a failed start is retried on the next tick.
+    /// </summary>
+    private async Task<bool> AdvanceTowardRunningAsync(CancellationToken ct)
+    {
+        if (_leadership is null)
+        {
+            if (!await IsPlatformBotConfiguredAsync(ct))
+                return false;
+
+            await EnterConduitModeAsync(ct);
+
+            // ONE instance reads chat. A blue/green switchover deliberately runs both colours at once
+            // (the new one must pass /health/ready before the old is drained), which is harmless for
+            // HTTP because Caddy picks one — but EventSub is not request-scoped: a second instance
+            // opens its own sessions, receives the same channel.chat.message, and answers every command
+            // a second time. That is the "two bots" the owner saw, on every deploy. TimerService already
+            // takes this same lease for the same reason; the chat ingest path never did.
+            _leadership = await TryAcquireAsync(LeadershipResource, ct);
+            if (_leadership is null)
+            {
+                _standby = true;
+                _standbyClaim ??= await TryAcquireAsync(StandbyResource, ct);
+                await OpenStandbyShardAsync(ct);
+                return false;
+            }
+
+            // Took over: stop advertising as a waiting successor, then open the chat sessions.
+            if (_standbyClaim is not null)
+            {
+                await _standbyClaim.DisposeAsync();
+                _standbyClaim = null;
+            }
+            _standby = false;
+            _activated.TrySetResult();
+            _logger.LogInformation("EventSub: took over chat ingest");
+        }
+
+        await StartTransportAsync(ct);
+        return _transportStarted;
     }
 
     /// <summary>

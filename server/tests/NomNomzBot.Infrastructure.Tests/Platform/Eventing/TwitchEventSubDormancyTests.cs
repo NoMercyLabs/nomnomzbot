@@ -35,14 +35,17 @@ public sealed class TwitchEventSubDormancyTests
         bool botConfigured,
         IEventSubTransport transport,
         CapturingLogger<TwitchEventSubHostedService> logger,
-        ConcurrentDictionary<string, byte>? sharedLeases = null
+        ConcurrentDictionary<string, byte>? sharedLeases = null,
+        IPlatformBotReadinessGate? readinessGate = null
     )
     {
         // A lease store SHARED between Build calls models the one database two colours contend over during
         // a switchover; the default gives each service its own, i.e. an uncontended single instance.
         ConcurrentDictionary<string, byte> leases = sharedLeases ?? new();
         ServiceProvider provider = new ServiceCollection()
-            .AddScoped<IPlatformBotReadinessGate>(_ => new FakeReadinessGate(botConfigured))
+            .AddScoped<IPlatformBotReadinessGate>(_ =>
+                readinessGate ?? new FakeReadinessGate(botConfigured)
+            )
             .AddScoped<IRunOnceGuard>(_ => new TwoInstanceLeaseStore(leases))
             .BuildServiceProvider();
 
@@ -225,6 +228,70 @@ public sealed class TwitchEventSubDormancyTests
     }
 
     [Fact]
+    public async Task A_standby_whose_handover_check_fails_once_still_takes_over()
+    {
+        // The 2026-09-29 deaf bot: one failed tick used to end the standby's waiter, so it never took over.
+        ConcurrentDictionary<string, byte> sharedLeases = new();
+        IEventSubTransport liveTransport = Substitute.For<IEventSubTransport>();
+        liveTransport.StartAsync(Arg.Any<CancellationToken>()).Returns(Started());
+        TwitchEventSubHostedService live = Build(true, liveTransport, new(), sharedLeases);
+
+        IEventSubTransport standbyTransport = Substitute.For<IEventSubTransport>();
+        standbyTransport.StartAsync(Arg.Any<CancellationToken>()).Returns(Started());
+        CapturingLogger<TwitchEventSubHostedService> standbyLogger = new();
+        // Call 1 is the boot check; call 2 is the waiter's first tick after the handover.
+        TwitchEventSubHostedService standby = Build(
+            true,
+            standbyTransport,
+            standbyLogger,
+            sharedLeases,
+            new ThrowingOnceReadinessGate(failingCall: 2)
+        );
+
+        await live.StartAsync(CancellationToken.None);
+        await standby.StartAsync(CancellationToken.None);
+        await live.StopAsync(CancellationToken.None);
+
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        await standby.WaitUntilActiveAsync(timeout.Token);
+        await standbyTransport.Received(1).StartAsync(Arg.Any<CancellationToken>());
+        standbyLogger.Messages.Should().Contain(m => m.Contains("took over chat ingest"));
+
+        await standby.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_leader_whose_transport_fails_to_start_keeps_retrying_until_it_runs()
+    {
+        TaskCompletionSource secondAttempt = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        int attempts = 0;
+        IEventSubTransport transport = Substitute.For<IEventSubTransport>();
+        transport
+            .StartAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                if (Interlocked.Increment(ref attempts) == 1)
+                    return Result.Failure<EventSubTransportHandle>(
+                        "Twitch refused the socket",
+                        "SERVICE_UNAVAILABLE"
+                    );
+                secondAttempt.TrySetResult();
+                return Started();
+            });
+        CapturingLogger<TwitchEventSubHostedService> logger = new();
+        TwitchEventSubHostedService service = Build(true, transport, logger);
+
+        await service.StartAsync(CancellationToken.None);
+        await secondAttempt.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        logger.Messages.Should().Contain(m => m.Contains("EventSub transport started"));
+
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
     public async Task A_lone_instance_has_no_successor_so_its_stop_is_a_real_outage()
     {
         IEventSubTransport transport = Substitute.For<IEventSubTransport>();
@@ -280,6 +347,17 @@ public sealed class TwitchEventSubDormancyTests
     {
         public Task<bool> IsPlatformBotConfiguredAsync(CancellationToken ct = default) =>
             Task.FromResult(configured);
+    }
+
+    /// <summary>Configured, except that one call (1-based) throws — a transient database fault mid-handover.</summary>
+    private sealed class ThrowingOnceReadinessGate(int failingCall) : IPlatformBotReadinessGate
+    {
+        private int _calls;
+
+        public Task<bool> IsPlatformBotConfiguredAsync(CancellationToken ct = default) =>
+            Interlocked.Increment(ref _calls) == failingCall
+                ? throw new InvalidOperationException("database briefly unavailable")
+                : Task.FromResult(true);
     }
 
     /// <summary>Captures the rendered log messages so a test can assert exactly which lines were emitted.</summary>
