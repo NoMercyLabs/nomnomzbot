@@ -661,6 +661,27 @@ than each consumer needing their own clone-and-customize pass.
   profile fields, leaderboard opt-in read, per-jar contributions, own SR requests + public page link,
   preview-as-viewer forces Everyone (U·C5).
 - **S079** Viewer giveaway entry/my-entries endpoint + card (or drop from IA) (U·C5).
+- **S-BOT-IMPORT** One-click import from other chat bots (owner 2026-09-30: "a one-click import from
+  streamelements and the others for their enabled commands and quotes"). One importer per service
+  (StreamElements, Nightbot, Streamlabs Cloudbot, Moobot, Fossabot, Wizebot, Streamer.bot — each
+  service's export path (API, OAuth scope or file) researched and recorded first); enabled commands
+  land as custom commands with their variables mapped to our helpers (an unmappable variable is
+  named, never dropped silently); quotes land in Quotes with author and date kept. A preview lists
+  what will be created, skipped and renamed before anything is written. Done-when: from a live
+  StreamElements channel, one click imports every enabled command and every quote, and a re-run
+  creates no duplicates. Research 2026-09-30 (verify each against a live channel before building):
+  StreamElements = API, `bot:read` OAuth2 or JWT, commands `GET /kappa/v2/bot/commands/:channel`,
+  quotes route unofficial; Nightbot = API `GET /1/commands`, OAuth2 scope `commands`, no quotes system;
+  Fossabot = unauthenticated public-commands endpoint (unverified); Moobot and Streamer.bot = export
+  file only; Streamlabs Cloudbot and Wizebot = no public read API found. An `Import` module with a
+  StreamElements export DTO already exists (`Application/Import`, `ProviderImportService`) — extend it.
+- **S-CONTRIB-GUIDE** Contribution and issue guides for humans and bots (owner 2026-09-30). Root
+  `CONTRIBUTING.md` (the July `server/CONTRIBUTING.md` is out of date and GitHub does not show it),
+  GitHub issue forms (bug, feature, platform-API gap) whose fields carry what a fix needs: area,
+  exact reproduction, expected vs actual, channel/platform, logs, and a machine-readable block so a
+  bot can file and triage the same way, plus a PR template that mirrors the slice gate. Done-when: an
+  issue filed through each form by a human and by a bot carries enough for an agent to reproduce the
+  defect without asking a question.
 
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
