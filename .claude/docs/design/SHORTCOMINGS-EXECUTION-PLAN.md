@@ -412,6 +412,11 @@ than each consumer needing their own clone-and-customize pass.
 - **S-CONDUIT-LIVE** the dev box runs conduit mode (`EVENTSUB_CONDUITS_ENABLED=true`). Left: (1) a switchover
   with event traffic shows every event exactly once (event journal by EventSub message id); (2) make
   `EventSub:Conduits:Enabled` default-on or remove the flag. Done-when: both hold.
+- **S-CMP-A11Y-DIALOG** after any Dialog/Popup closes, the web accessibility tree keeps only the closed
+  layer's nodes until a reload (upstream CMP-9368, fixed in compose-multiplatform-core #3298, first shipped
+  in 1.13.0-alpha01; we run CMP 1.9.0 on Kotlin 2.2.21). Blocked on CMP 1.13.0 stable. Then upgrade CMP and
+  Kotlin (2.3.20+ is required for Wasm since CMP 1.11). Done-when: closing a ConfirmDialog, a Popover and a
+  DropdownMenu leaves the page's full a11y tree in `body.shadowRoot`, checked live.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
