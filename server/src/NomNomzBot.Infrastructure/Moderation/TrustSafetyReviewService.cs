@@ -168,10 +168,52 @@ public sealed class TrustSafetyReviewService(
         if (detection.ConfirmedAt is not null)
             return Result.Failure("Already confirmed.", "VALIDATION_FAILED");
 
-        detection.ConfirmedAt = time.GetUtcNow().UtcDateTime;
+        DateTime now = time.GetUtcNow().UtcDateTime;
+        detection.ConfirmedAt = now;
         detection.ConfirmedByUserId = actingPrincipalId;
+        await CurateSignatureAsync(detection.Skeleton, now, ct);
         await db.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// The runtime effect of a confirmation: a platform operator's verdict is curation (spam-defense.md §4),
+    /// so the detection's skeleton becomes a corpus signature that acts in every channel of this instance,
+    /// skipping quarantine. A signature a moderator withdrew as wrong is not resurrected by it.
+    /// </summary>
+    private async Task CurateSignatureAsync(string skeleton, DateTime now, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(skeleton))
+            return;
+
+        SpamSignature? existing = await db
+            .SpamSignatures.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.Kind == SignatureKind.Skeleton && s.Value == skeleton, ct);
+        if (existing is null)
+        {
+            db.SpamSignatures.Add(
+                new SpamSignature
+                {
+                    Kind = SignatureKind.Skeleton,
+                    Value = skeleton,
+                    Source = SignatureSource.Curated,
+                    IsQuarantined = false,
+                    Corroborations = 1,
+                    FirstSeenAt = now,
+                    LastConfirmedAt = now,
+                }
+            );
+            return;
+        }
+
+        if (existing.WithdrawnAt is not null)
+            return;
+
+        existing.DeletedAt = null;
+        existing.Source = SignatureSource.Curated;
+        existing.IsQuarantined = false;
+        existing.Corroborations++;
+        existing.LastConfirmedAt = now;
     }
 
     public async Task<Result> OverturnAsync(

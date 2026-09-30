@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -287,6 +288,125 @@ public sealed class TrustSafetyReviewServiceTests : IDisposable
             .GetReviewQueueAsync(OperatorId, Why, new PaginationParams());
         afterwards.Value.Items.Should().BeEmpty("the only pending action was just confirmed");
         afterwards.Value.TotalCount.Should().Be(0);
+    }
+
+    // ---- Confirming has a runtime effect: the skeleton becomes curated corpus ---------------------
+
+    private const string SpamLine = "cheap viewers and followers at bestviewers";
+
+    private SpamDetection SeedConfirmableDetection(string skeleton)
+    {
+        using AppDbContext seed = NewDbContext();
+        SeedOperator(seed, OperatorId, IamPermissionKeys.TrustSafetyReview);
+        SpamDetection auto = Detection(
+            TenantC,
+            "bot-9",
+            "Bot9",
+            Now.UtcDateTime,
+            outcome: SpamOutcome.DeleteAndEscalate,
+            wasDryRun: false
+        );
+        auto.Skeleton = skeleton;
+        seed.SpamDetections.Add(auto);
+        seed.SaveChanges();
+        return auto;
+    }
+
+    [Fact]
+    public async Task Confirm_MakesTheSkeletonACuratedSignature_ThatMatchesInAnotherChannel()
+    {
+        string skeleton = MessageNormalizer.Normalize(SpamLine).Skeleton;
+        SpamDetection auto = SeedConfirmableDetection(skeleton);
+
+        using (AppDbContext db = NewDbContext())
+            (await NewService(db).ConfirmAsync(OperatorId, auto.Id, Why))
+                .IsSuccess.Should()
+                .BeTrue();
+
+        using AppDbContext read = NewDbContext();
+        SpamSignature signature = await read.SpamSignatures.SingleAsync();
+        signature.Kind.Should().Be(SignatureKind.Skeleton);
+        signature.Value.Should().Be(skeleton);
+        signature.Source.Should().Be(SignatureSource.Curated);
+        signature.IsQuarantined.Should().BeFalse();
+
+        SpamEvaluationResult? elsewhere = await new SpamDefenseService(
+            read,
+            _time,
+            Substitute.For<IModerationService>(),
+            new CurrentTenantService()
+        ).EvaluateAsync(
+            new SpamEvaluationRequest(
+                TenantA,
+                AuthEnums.Platform.Twitch,
+                Guid.NewGuid().ToString(),
+                "bot-10",
+                "Bot10",
+                SpamLine,
+                false,
+                false,
+                false,
+                false
+            )
+        );
+        elsewhere!.Signals.Should().Contain(ContentSignal.CorpusMatch);
+    }
+
+    [Fact]
+    public async Task Confirm_LiftsTheQuarantineOfAnExistingNetworkSignature()
+    {
+        string skeleton = MessageNormalizer.Normalize(SpamLine).Skeleton;
+        SpamDetection auto = SeedConfirmableDetection(skeleton);
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamSignatures.Add(
+                new SpamSignature
+                {
+                    Kind = SignatureKind.Skeleton,
+                    Value = skeleton,
+                    Source = SignatureSource.Network,
+                    IsQuarantined = true,
+                    Corroborations = 1,
+                }
+            );
+            seed.SaveChanges();
+        }
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db).ConfirmAsync(OperatorId, auto.Id, Why);
+
+        using AppDbContext read = NewDbContext();
+        SpamSignature signature = await read.SpamSignatures.SingleAsync();
+        signature.IsQuarantined.Should().BeFalse();
+        signature.Source.Should().Be(SignatureSource.Curated);
+        signature.Corroborations.Should().Be(2);
+        signature.LastConfirmedAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task Confirm_DoesNotResurrectASignatureAModeratorWithdrew()
+    {
+        string skeleton = MessageNormalizer.Normalize(SpamLine).Skeleton;
+        SpamDetection auto = SeedConfirmableDetection(skeleton);
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamSignatures.Add(
+                new SpamSignature
+                {
+                    Kind = SignatureKind.Skeleton,
+                    Value = skeleton,
+                    Source = SignatureSource.Local,
+                    WithdrawnAt = Now.UtcDateTime.AddDays(-1),
+                }
+            );
+            seed.SaveChanges();
+        }
+
+        using (AppDbContext db = NewDbContext())
+            await NewService(db).ConfirmAsync(OperatorId, auto.Id, Why);
+
+        using AppDbContext read = NewDbContext();
+        (await read.SpamSignatures.SingleAsync()).WithdrawnAt.Should().NotBeNull();
     }
 
     // ---- Overturn reverses the REAL effect, not merely the row ------------------------------------
