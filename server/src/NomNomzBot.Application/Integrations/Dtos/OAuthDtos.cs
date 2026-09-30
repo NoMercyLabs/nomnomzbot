@@ -43,7 +43,9 @@ public sealed record OAuthCallbackResultDto(
 /// <summary>Per-provider status for the integrations screen (integrations-oauth §4). No secrets.
 /// <see cref="LoginOnly"/> distinguishes a provider the channel owner merely SIGNED IN with (an identity-plane
 /// login, e.g. Kick) from a genuine tenant-scoped platform connection — a login alone grants none of the
-/// scopes the bot needs and must never be shown as "Connected".</summary>
+/// scopes the bot needs and must never be shown as "Connected". <see cref="NeedsReauth"/> is true for every
+/// status only a fresh grant clears; <see cref="DecryptFailed"/> narrows it to a stored token that can no
+/// longer be decrypted.</summary>
 public sealed record IntegrationStatusDto(
     string Provider,
     bool Connected,
@@ -51,5 +53,6 @@ public sealed record IntegrationStatusDto(
     IReadOnlyList<string> GrantedScopeSets,
     IReadOnlyDictionary<string, bool> Capabilities,
     bool NeedsReauth,
-    bool LoginOnly = false
+    bool LoginOnly = false,
+    bool DecryptFailed = false
 );

@@ -1357,6 +1357,7 @@
     <string name="integrations_status_not_connected">Not connected</string>
     <string name="integrations_status_login_only">Signed in only — chat not connected</string>
     <string name="integrations_status_needs_reconnect">Reconnect needed — Kick chat is paused</string>
+    <string name="integrations_status_decrypt_failed">Reconnect needed — the saved sign-in can't be read any more</string>
     <string name="integrations_provider_connected_as">Connected as %1$s</string>
     <string name="integrations_action_connect">Connect</string>
     <string name="integrations_action_disconnect">Disconnect</string>

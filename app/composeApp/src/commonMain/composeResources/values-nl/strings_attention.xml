@@ -17,6 +17,7 @@
     <string name="attention_integration_expired_message">De toegang is verlopen. Koppel opnieuw om de integratie te herstellen.</string>
     <string name="attention_integration_refresh_failed_message">Het vernieuwen is %1$s keer achter elkaar mislukt. Koppel opnieuw om de integratie te herstellen.</string>
     <string name="attention_integration_unusable_message">De opgeslagen aanmelding is niet meer bruikbaar. Koppel opnieuw om de integratie te herstellen.</string>
+    <string name="attention_integration_decrypt_failed_message">De opgeslagen aanmelding kan niet meer worden ontsleuteld, dus de bot kan hem niet gebruiken. Koppel opnieuw om de integratie te herstellen.</string>
     <string name="attention_held_title_one">Een chatbericht wacht op beoordeling</string>
     <string name="attention_held_title_many">%1$d chatberichten wachten op beoordeling</string>
     <string name="attention_held_single_from_user_message">AutoMod heeft een bericht van %1$s tegengehouden (%2$s).</string>

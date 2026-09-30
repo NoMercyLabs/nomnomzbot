@@ -158,7 +158,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
 
         // Already flagged for re-login: don't hammer Twitch's token endpoint on every subsequent 401 while the
         // operator re-auths. StoreTokensAsync resets this to connected the moment a fresh grant is vaulted.
-        if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
+        if (AuthEnums.IntegrationStatus.RequiresReconnect(connection.Status))
             return null;
 
         // S036 — serialize refreshes of the SAME connection. Two concurrent 401s (or an overlapping proactive

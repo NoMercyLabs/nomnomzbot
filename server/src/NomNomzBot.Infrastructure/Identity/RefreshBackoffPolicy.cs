@@ -13,8 +13,8 @@ using NomNomzBot.Domain.Identity.Enums;
 namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
-/// The retry-storm guard every routine token refresher shares. A connection flagged <c>needs_reauth</c> is
-/// never refreshed: only a fresh grant can fix it, and retrying re-confirms the same dead refresh token on
+/// The retry-storm guard every routine token refresher shares. A connection flagged <c>needs_reauth</c> or
+/// <c>decrypt_failed</c> is never refreshed: only a fresh grant can fix it, and retrying re-confirms the same dead refresh token on
 /// every poll (the Spotify path once reached 4653 consecutive failures). After any failed attempt, dead-grant
 /// or transient, the next attempt waits out a window that grows with the dead-grant count.
 /// </summary>
@@ -34,7 +34,7 @@ internal static class RefreshBackoffPolicy
         DateTime now
     )
     {
-        if (status == AuthEnums.IntegrationStatus.NeedsReauth)
+        if (AuthEnums.IntegrationStatus.RequiresReconnect(status))
             return false;
 
         if (lastErrorAt is null)

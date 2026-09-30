@@ -21,8 +21,8 @@ namespace NomNomzBot.Infrastructure.Notifications.Sources;
 
 /// <summary>
 /// Integration connections that can no longer be used until the streamer reconnects them: <c>needs_reauth</c>
-/// (the refresh failed past the vault's threshold, Twitch revoked the grant, or the stored token could not be
-/// decrypted) and <c>expired</c>. The key embeds the invalidation instant, so a re-invalidation after a fix mints
+/// (the refresh failed past the vault's threshold, or Twitch revoked the grant), <c>decrypt_failed</c> (the
+/// stored token could not be decrypted) and <c>expired</c>. The key embeds the invalidation instant, so a re-invalidation after a fix mints
 /// a NEW key an old dismissal cannot hide.
 /// </summary>
 public sealed class DeadIntegrationTokenSource(IApplicationDbContext db) : IActionRequiredSource
@@ -32,6 +32,7 @@ public sealed class DeadIntegrationTokenSource(IApplicationDbContext db) : IActi
     private static readonly HashSet<string> DeadStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         AuthEnums.IntegrationStatus.NeedsReauth,
+        AuthEnums.IntegrationStatus.DecryptFailed,
         AuthEnums.IntegrationStatus.Expired,
     };
 
@@ -100,12 +101,17 @@ public sealed class DeadIntegrationTokenSource(IApplicationDbContext db) : IActi
     ) => Task.FromResult(Result.Success<List<string>>([itemId]));
 
     /// <summary>
-    /// Expired and refresh-failed connections each say what happened; a <c>needs_reauth</c> with no refresh
-    /// failures behind it (a revoked grant, an undecryptable stored token) only says it must be reconnected.
+    /// Expired, undecryptable and refresh-failed connections each say what happened; a <c>needs_reauth</c>
+    /// with no refresh failures behind it (a revoked grant) only says it must be reconnected.
     /// </summary>
     private static string MessageKeyFor(IntegrationConnection connection) =>
-        connection.Status == AuthEnums.IntegrationStatus.Expired
-            ? "attention_integration_expired_message"
-        : connection.ConsecutiveFailureCount > 0 ? "attention_integration_refresh_failed_message"
-        : "attention_integration_unusable_message";
+        connection.Status switch
+        {
+            AuthEnums.IntegrationStatus.Expired => "attention_integration_expired_message",
+            AuthEnums.IntegrationStatus.DecryptFailed =>
+                "attention_integration_decrypt_failed_message",
+            _ when connection.ConsecutiveFailureCount > 0 =>
+                "attention_integration_refresh_failed_message",
+            _ => "attention_integration_unusable_message",
+        };
 }

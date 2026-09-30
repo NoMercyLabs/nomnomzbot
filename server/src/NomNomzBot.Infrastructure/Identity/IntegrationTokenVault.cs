@@ -369,6 +369,8 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
         if (connection is null)
             return Result.Failure<DecryptedTokenDto>("No such connection.", "NOT_FOUND");
+        if (connection.Status == AuthEnums.IntegrationStatus.DecryptFailed)
+            return UndecryptableFailure();
 
         IntegrationToken? token = await _db
             .IntegrationTokens.IgnoreQueryFilters()
@@ -392,12 +394,9 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         {
             // Null means the DEK was crypto-shredded, the AAD/tag failed, or the value is malformed —
             // fail closed (the GDPR guarantee surfaced to callers). No retry can ever open this token, so
-            // the connection is marked for re-authorization: that is what surfaces it to the streamer.
+            // the connection is marked decrypt_failed: later reads stop here without decrypting again.
             await MarkUndecryptableAsync(connection, cancellationToken);
-            return Result.Failure<DecryptedTokenDto>(
-                "The token could not be decrypted.",
-                "DECRYPT_FAILED"
-            );
+            return UndecryptableFailure();
         }
 
         bool isExpired = token.ExpiresAt is { } exp && exp <= _timeProvider.GetUtcNow().UtcDateTime;
@@ -406,11 +405,15 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         );
     }
 
+    private static Result<DecryptedTokenDto> UndecryptableFailure() =>
+        Result.Failure<DecryptedTokenDto>("The token could not be decrypted.", "DECRYPT_FAILED");
+
     /// <summary>
-    /// Flips a connection whose stored token cannot be decrypted to <c>needs_reauth</c>, once. A set-based
+    /// Flips a connection whose stored token cannot be decrypted to <c>decrypt_failed</c>, once. A set-based
     /// update, not a tracked save: this runs inside a READ that may share its DbContext with a caller's
     /// unit of work, and a SaveChanges here would flush that caller's pending changes. The failure counter is
-    /// left alone — nothing failed to refresh, the token is simply unusable.
+    /// left alone — nothing failed to refresh, the token is simply unusable. The tokens stay in place; only a
+    /// fresh grant (<see cref="StoreTokensAsync"/>) replaces them and clears the status.
     /// </summary>
     private async Task MarkUndecryptableAsync(
         IntegrationConnection connection,
@@ -421,11 +424,11 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         int marked = await _db
             .IntegrationConnections.IgnoreQueryFilters()
             .Where(c =>
-                c.Id == connection.Id && c.Status != AuthEnums.IntegrationStatus.NeedsReauth
+                c.Id == connection.Id && c.Status != AuthEnums.IntegrationStatus.DecryptFailed
             )
             .ExecuteUpdateAsync(
                 set =>
-                    set.SetProperty(c => c.Status, AuthEnums.IntegrationStatus.NeedsReauth)
+                    set.SetProperty(c => c.Status, AuthEnums.IntegrationStatus.DecryptFailed)
                         .SetProperty(c => c.LastErrorAt, now),
                 cancellationToken
             );
@@ -433,7 +436,7 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             return;
 
         _logger.LogWarning(
-            "Integration {ConnectionId} ({Provider}) holds a token that cannot be decrypted; marked for re-authorization",
+            "Integration {ConnectionId} ({Provider}) holds a token that cannot be decrypted; marked decrypt_failed",
             connection.Id,
             connection.Provider
         );

@@ -27,6 +27,7 @@ import nomnomzbot.composeapp.generated.resources.attention_held_title_many
 import nomnomzbot.composeapp.generated.resources.attention_held_title_one
 import nomnomzbot.composeapp.generated.resources.attention_integration_expired_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_reauth_title
+import nomnomzbot.composeapp.generated.resources.attention_integration_decrypt_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_refresh_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_integration_unusable_message
 import nomnomzbot.composeapp.generated.resources.attention_scope_missing_message
@@ -136,6 +137,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
                 listOf(literal(item.param("failureCount"))),
             )
         "attention_integration_unusable_message" -> AttentionText(Res.string.attention_integration_unusable_message)
+        "attention_integration_decrypt_failed_message" ->
+            AttentionText(Res.string.attention_integration_decrypt_failed_message)
         "attention_security_impersonation_started_message" ->
             AttentionText(
                 Res.string.attention_security_impersonation_started_message,

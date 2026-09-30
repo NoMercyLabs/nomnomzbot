@@ -105,6 +105,7 @@ import nomnomzbot.composeapp.generated.resources.integrations_spotify_title
 import nomnomzbot.composeapp.generated.resources.integrations_status_connected
 import nomnomzbot.composeapp.generated.resources.integrations_status_not_connected
 import nomnomzbot.composeapp.generated.resources.integrations_status_login_only
+import nomnomzbot.composeapp.generated.resources.integrations_status_decrypt_failed
 import nomnomzbot.composeapp.generated.resources.integrations_status_needs_reconnect
 import nomnomzbot.composeapp.generated.resources.integrations_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
@@ -574,6 +575,7 @@ private fun ProviderRow(
         connected = connection?.connected == true,
         accountName = connection?.accountName,
         needsReauth = connection?.needsReauth == true,
+        decryptFailed = connection?.decryptFailed == true,
         loginOnly = false,
         busy = busy,
         manage = manage,
@@ -602,6 +604,7 @@ internal fun KickRow(
         connected = connection?.connected == true,
         accountName = connection?.accountName,
         needsReauth = connection?.needsReauth == true,
+        decryptFailed = connection?.decryptFailed == true,
         loginOnly = connection?.loginOnly == true,
         busy = busy,
         manage = manage,
@@ -628,6 +631,7 @@ internal fun KickBotRow(
         connected = connection?.connected == true,
         accountName = connection?.accountName,
         needsReauth = connection?.needsReauth == true,
+        decryptFailed = connection?.decryptFailed == true,
         busy = busy,
         manage = manage,
         onConnect = onConnect,
@@ -642,6 +646,7 @@ private fun IntegrationCard(
     connected: Boolean,
     accountName: String?,
     needsReauth: Boolean,
+    decryptFailed: Boolean = false,
     loginOnly: Boolean = false,
     busy: Boolean,
     manage: ManageDecision,
@@ -669,6 +674,7 @@ private fun IntegrationCard(
                     when {
                         // Real backoff state (KickEventSubscriptionWorker's persisted MISSING_SCOPE flag),
                         // not a decorative badge — the connection genuinely stopped subscribing.
+                        decryptFailed -> stringResource(Res.string.integrations_status_decrypt_failed)
                         needsReauth -> stringResource(Res.string.integrations_status_needs_reconnect)
                         connected ->
                             accountName?.let { stringResource(Res.string.integrations_provider_connected_as, it) }
@@ -679,7 +685,7 @@ private fun IntegrationCard(
                 style = typography.xs,
                 color =
                     when {
-                        needsReauth -> tokens.destructive
+                        decryptFailed || needsReauth -> tokens.destructive
                         connected -> tokens.primary
                         else -> tokens.mutedForeground
                     },

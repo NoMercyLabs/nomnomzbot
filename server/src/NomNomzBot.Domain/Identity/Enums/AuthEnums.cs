@@ -109,6 +109,13 @@ public static class AuthEnums
         public const string Revoked = "revoked";
         public const string NeedsReauth = "needs_reauth";
         public const string Pending = "pending";
+
+        /// <summary>The stored token cannot be decrypted (key rotated or shredded); no retry can open it.</summary>
+        public const string DecryptFailed = "decrypt_failed";
+
+        /// <summary>Only a fresh grant clears this status: routine refreshes skip it and the streamer must reconnect.</summary>
+        public static bool RequiresReconnect(string status) =>
+            status is NeedsReauth or DecryptFailed;
     }
 
     /// <summary><c>IntegrationToken.TokenType</c>.</summary>

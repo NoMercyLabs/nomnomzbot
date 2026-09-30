@@ -462,7 +462,7 @@ class ConnectController(
     suspend fun checkTwitchHealth() {
         when (val health: ApiResult<MissingScopes> = diagnosticsApi.missingScopes()) {
             is ApiResult.Ok ->
-                _reauthRequired.value = health.value.connectionStatus == TWITCH_NEEDS_REAUTH
+                _reauthRequired.value = health.value.connectionStatus in TWITCH_RECONNECT_STATUSES
 
             is ApiResult.Failure -> Unit
         }
@@ -848,9 +848,11 @@ class ConnectController(
         const val STATUS_EXPIRED: String = "expired"
         const val STATUS_DENIED: String = "denied"
 
-        // The backend's IntegrationConnection.Status string when the Twitch token is dead/expired
-        // (server-side AuthEnums.NeedsReauth) — the proactive reconnect prompt's trigger.
+        // The backend's IntegrationConnection.Status strings only a fresh grant clears (server-side
+        // AuthEnums.IntegrationStatus.RequiresReconnect) — the proactive reconnect prompt's trigger.
         const val TWITCH_NEEDS_REAUTH: String = "needs_reauth"
+        const val TWITCH_DECRYPT_FAILED: String = "decrypt_failed"
+        val TWITCH_RECONNECT_STATUSES: Set<String> = setOf(TWITCH_NEEDS_REAUTH, TWITCH_DECRYPT_FAILED)
 
         // The bound on [awaitRedirectSession]'s wait — long enough for a real Twitch approval (including
         // typing 2FA), short enough that a dead redirect (unregistered URI, a Twitch 502, ...) resolves to an

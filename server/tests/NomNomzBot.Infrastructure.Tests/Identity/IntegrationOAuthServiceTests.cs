@@ -523,7 +523,7 @@ public sealed class IntegrationOAuthServiceTests
         // The exact ids Kick reported were sent to unsubscribe — not a placeholder, not "all", the
         // real subscription set for THIS connection's token.
         kick.UnsubscribeCalls.Should().ContainSingle();
-        kick.UnsubscribeCalls[0].Should().BeEquivalentTo(["sub-1", "sub-2"]);
+        kick.UnsubscribeCalls[0].Should().BeEquivalentTo("sub-1", "sub-2");
 
         // The connection itself is revoked, exactly like every other provider's disconnect.
         IntegrationConnection revoked = await db
@@ -1208,7 +1208,7 @@ public sealed class IntegrationOAuthServiceTests
         // The one status surface carries every provider: the generic registry set + Discord.
         rows.Select(r => r.Provider)
             .Should()
-            .BeEquivalentTo([
+            .BeEquivalentTo(
                 AuthEnums.IntegrationProvider.Spotify,
                 AuthEnums.IntegrationProvider.YouTube,
                 AuthEnums.IntegrationProvider.Kick,
@@ -1216,8 +1216,8 @@ public sealed class IntegrationOAuthServiceTests
                 AuthEnums.IntegrationProvider.Patreon,
                 AuthEnums.IntegrationProvider.Shopify,
                 AuthEnums.IntegrationProvider.Treatstream,
-                AuthEnums.IntegrationProvider.Discord,
-            ]);
+                AuthEnums.IntegrationProvider.Discord
+            );
 
         IntegrationStatusDto discord = rows.Single(r =>
             r.Provider == AuthEnums.IntegrationProvider.Discord
@@ -1310,6 +1310,41 @@ public sealed class IntegrationOAuthServiceTests
                 "youtube.manage",
                 "force-ssl is now part of the manage set, so the old grant no longer satisfies it"
             );
+    }
+
+    [Theory]
+    [InlineData(AuthEnums.IntegrationStatus.DecryptFailed, true, true)]
+    [InlineData(AuthEnums.IntegrationStatus.NeedsReauth, true, false)]
+    [InlineData(AuthEnums.IntegrationStatus.Connected, false, false)]
+    public async Task GetStatus_ReportsWhetherTheConnectionMustBeReconnected_AndWhy(
+        string connectionStatus,
+        bool needsReauth,
+        bool decryptFailed
+    )
+    {
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = Tenant,
+                Provider = AuthEnums.IntegrationProvider.Spotify,
+                ProviderAccountId = "spotify-user",
+                ProviderAccountName = "Streamer",
+                Status = connectionStatus,
+                Scopes = [],
+                ConnectedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
+
+        IntegrationStatusDto spotify = status.Value.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.Spotify
+        );
+        spotify.Connected.Should().Be(connectionStatus == AuthEnums.IntegrationStatus.Connected);
+        spotify.NeedsReauth.Should().Be(needsReauth);
+        spotify.DecryptFailed.Should().Be(decryptFailed);
     }
 
     [Fact]
