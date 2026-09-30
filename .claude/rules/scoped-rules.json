@@ -585,6 +585,14 @@
    ]
   },
   {
+   "id": "tests-never-wait-for-a-go",
+   "text": "Never ask for a go before a test run, live tests on the box included. Check the facts yourself, have the rollback ready, run, report.",
+   "source": "memory feedback-tests-never-wait-for-a-go.md",
+   "covers": [
+    "feedback-tests-never-wait-for-a-go.md"
+   ]
+  },
+  {
    "id": "no-checkpoint-at-block",
    "text": "Blocked is not stop: never checkpoint at a block; work the other queued tasks.",
    "source": "memory never-checkpoint-at-a-block.md",
