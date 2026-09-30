@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Application.Contracts.YouTube;
@@ -27,6 +28,7 @@ using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat.YouTube;
 
@@ -176,6 +178,39 @@ public sealed class YouTubeLiveChatPollWorkerTests
                 ["m-1", "m-2"],
                 "both tracked broadcasts must publish their own live traffic"
             );
+    }
+
+    [Fact]
+    public async Task Only_the_lease_holding_colour_polls_youtube_and_the_successor_takes_over_after_the_handover()
+    {
+        // Two colours polling the same chat would answer every command twice and spend the quota twice.
+        TwoColourDeployment deployment = await TwoColourDeployment.StartAsync();
+        (YouTubeLiveChatPollWorker blue, ScriptedLiveChatClient blueClient, _, _, _, _) =
+            await BuildConnectedAsync(instanceGate: deployment.Blue);
+        (
+            YouTubeLiveChatPollWorker green,
+            ScriptedLiveChatClient greenClient,
+            _,
+            _,
+            FakeTimeProvider greenTime,
+            _
+        ) = await BuildConnectedAsync(instanceGate: deployment.Green);
+
+        await blue.TickAsync(CancellationToken.None);
+        await green.TickAsync(CancellationToken.None);
+
+        blueClient.LivenessCalls.Should().Be(1);
+        greenClient.LivenessCalls.Should().Be(0, "a standby never calls the YouTube API");
+
+        await deployment.HandOverAsync();
+        greenTime.Advance(TimeSpan.FromMinutes(3));
+        await blue.TickAsync(CancellationToken.None);
+        await green.TickAsync(CancellationToken.None);
+
+        blueClient.LivenessCalls.Should().Be(1, "the outgoing colour stopped with its lease");
+        greenClient.LivenessCalls.Should().Be(1);
+
+        await deployment.StopAsync();
     }
 
     [Fact]
@@ -743,7 +778,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
         YouTubeLiveChatSessionRegistry Sessions
     )> BuildConnectedAsync(
         string? accessToken = "bearer-token",
-        FakeBotSelfEchoGuard? selfEchoGuard = null
+        FakeBotSelfEchoGuard? selfEchoGuard = null,
+        IActiveInstanceGate? instanceGate = null
     )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -791,6 +827,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
         // Sticker-image resolution (S-YT-STICKER-IMAGE) is irrelevant to this worker-seam suite — a no-op
         // stand-in keeps every existing case's DI intact without pulling in the asset-upload machinery.
         services.AddSingleton<IYouTubeSuperStickerAssetResolver>(new NoOpStickerAssetResolver());
+        if (instanceGate is not null)
+            services.AddSingleton(instanceGate);
         ServiceProvider provider = services.BuildServiceProvider();
 
         YouTubeLiveChatPollWorker worker = new(

@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
@@ -79,6 +80,9 @@ public sealed class StreamStatusPollingService : BackgroundService
     {
         try
         {
+            // A blue/green standby primes on takeover, not at boot: until then the live colour polls.
+            await WaitUntilActiveAsync(stoppingToken);
+
             // Self-priming: reconcile immediately on startup (covers streams already live before we subscribed),
             // then on every interval tick until the host stops.
             await PollAllAsync(stoppingToken);
@@ -93,6 +97,14 @@ public sealed class StreamStatusPollingService : BackgroundService
         }
     }
 
+    private async Task WaitUntilActiveAsync(CancellationToken ct)
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IActiveInstanceGate? instanceGate = scope.ServiceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is not null)
+            await instanceGate.WaitUntilActiveAsync(ct);
+    }
+
     // Internal (not private) so tests can drive a single deterministic tick —
     // InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly this seam.
     internal async Task PollAllAsync(CancellationToken ct)
@@ -104,6 +116,13 @@ public sealed class StreamStatusPollingService : BackgroundService
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
+
+            // Blue/green overlap: only the ACTIVE instance polls. Each colour sees the offline→live edge
+            // in its own memory, so two pollers journal every stream start and end twice.
+            IActiveInstanceGate? instanceGate =
+                scope.ServiceProvider.GetService<IActiveInstanceGate>();
+            if (instanceGate is { IsActiveInstance: false })
+                return;
 
             IPlatformBotReadinessGate gate =
                 scope.ServiceProvider.GetRequiredService<IPlatformBotReadinessGate>();

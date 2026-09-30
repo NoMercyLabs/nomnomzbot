@@ -197,6 +197,13 @@ public sealed class BotLifecycleService : BackgroundService
     internal async Task SyncChannelsAsync(CancellationToken ct, bool reconcileStale)
     {
         using IServiceScope scope = _serviceProvider.CreateScope();
+
+        // Every sweep, not only the first: once this instance hands chat ingest over during a deploy, its
+        // remaining ticks would re-read moderator rosters and fight the successor over the same topics.
+        IActiveInstanceGate? instanceGate = scope.ServiceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is { IsActiveInstance: false })
+            return;
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         ITwitchEventSubService eventSub =

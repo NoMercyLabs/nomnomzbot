@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
@@ -24,6 +25,7 @@ using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Music;
+using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
@@ -428,6 +430,54 @@ public sealed class MusicStatePollingServiceTests
             );
     }
 
+    [Fact]
+    public async Task Only_the_lease_holding_colour_polls_music_and_the_successor_takes_over_after_the_handover()
+    {
+        // Two colours polling Spotify spend the budget twice and both hand the same request to the player.
+        TwoColourDeployment deployment = await TwoColourDeployment.StartAsync();
+        (
+            MusicStatePollingService blue,
+            _,
+            FakeMusicService blueMusic,
+            _,
+            RecordingHandover blueHandover
+        ) = Build([ChannelA], instanceGate: deployment.Blue);
+        (
+            MusicStatePollingService green,
+            _,
+            FakeMusicService greenMusic,
+            FakeTimeProvider greenClock,
+            RecordingHandover greenHandover
+        ) = Build([ChannelA], instanceGate: deployment.Green);
+        blueMusic.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000)
+        );
+        greenMusic.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000)
+        );
+
+        await blue.PollAllChannelsOnceAsync(CancellationToken.None);
+        await green.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        blueMusic.Calls.Should().Equal(ChannelA);
+        blueHandover.Calls.Should().Equal(ChannelA.ToString());
+        greenMusic.Calls.Should().BeEmpty("a standby never calls the music provider");
+        greenHandover.Calls.Should().BeEmpty("a standby never hands a request to the player");
+
+        await deployment.HandOverAsync();
+        greenClock.Advance(TimeSpan.FromSeconds(2));
+        await blue.PollAllChannelsOnceAsync(CancellationToken.None);
+        await green.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        blueMusic.Calls.Should().Equal(ChannelA);
+        greenMusic.Calls.Should().Equal(ChannelA);
+        greenHandover.Calls.Should().Equal(ChannelA.ToString());
+
+        await deployment.StopAsync();
+    }
+
     private static (
         MusicStatePollingService Sut,
         RecordingEventBus Bus,
@@ -437,7 +487,8 @@ public sealed class MusicStatePollingServiceTests
     ) Build(
         IReadOnlyList<Guid> connectedChannels,
         IReadOnlyList<Guid>? needsReauth = null,
-        bool? watched = true
+        bool? watched = true,
+        IActiveInstanceGate? instanceGate = null
     )
     {
         (
@@ -447,7 +498,7 @@ public sealed class MusicStatePollingServiceTests
             FakeTimeProvider clock,
             RecordingHandover handover,
             RegisteredSpotifyStub _
-        ) = BuildWithProvider(connectedChannels, needsReauth, watched);
+        ) = BuildWithProvider(connectedChannels, needsReauth, watched, instanceGate);
         return (sut, bus, music, clock, handover);
     }
 
@@ -463,7 +514,8 @@ public sealed class MusicStatePollingServiceTests
     ) BuildWithProvider(
         IReadOnlyList<Guid> connectedChannels,
         IReadOnlyList<Guid>? needsReauth = null,
-        bool? watched = true
+        bool? watched = true,
+        IActiveInstanceGate? instanceGate = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -505,7 +557,7 @@ public sealed class MusicStatePollingServiceTests
         FakeTimeProvider clock = new(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         RegisteredSpotifyStub provider = new();
 
-        PollerScopeFactory scopes = new(db, music, provider);
+        PollerScopeFactory scopes = new(db, music, provider, instanceGate: instanceGate);
         // Which cadence tier the channel sits in: true = known and live (full speed when playing), false =
         // known but offline with nobody watching (idle tier), null = the registry has not seen it yet.
         // Defaulting to true is the production shape; a bare substitute returns null for every Get, which is
@@ -756,25 +808,30 @@ public sealed class MusicStatePollingServiceTests
         IApplicationDbContext db,
         IMusicService musicService,
         RegisteredSpotifyStub? provider = null,
-        RecordingHandover? handover = null
+        RecordingHandover? handover = null,
+        IActiveInstanceGate? instanceGate = null
     ) : IServiceScopeFactory
     {
         public RecordingHandover Handover { get; } = handover ?? new RecordingHandover();
         private readonly RegisteredSpotifyStub _provider = provider ?? new RegisteredSpotifyStub();
 
-        public IServiceScope CreateScope() => new Scope(db, musicService, Handover, _provider);
+        public IServiceScope CreateScope() =>
+            new Scope(db, musicService, Handover, _provider, instanceGate);
 
         private sealed class Scope(
             IApplicationDbContext db,
             IMusicService musicService,
             ISongRequestHandover handover,
-            RegisteredSpotifyStub provider
+            RegisteredSpotifyStub provider,
+            IActiveInstanceGate? instanceGate
         ) : IServiceScope, IServiceProvider
         {
             public IServiceProvider ServiceProvider => this;
 
             public object? GetService(Type serviceType)
             {
+                if (serviceType == typeof(IActiveInstanceGate))
+                    return instanceGate;
                 if (serviceType == typeof(IApplicationDbContext))
                     return db;
                 if (serviceType == typeof(IMusicService))

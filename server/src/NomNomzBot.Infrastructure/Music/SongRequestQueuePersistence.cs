@@ -209,13 +209,18 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
             );
         }
 
-        if (staleBroadcasterIds.Count > 0)
+        // Every instance restores (blue/green colours can boot together), so only the purge that actually
+        // removed a channel's rows reports it — the other instance's delete finds nothing and stays quiet.
+        List<string> purgedBroadcasterIds = [];
+        foreach (string broadcasterId in staleBroadcasterIds)
         {
-            await _db
-                .SongRequestQueueItems.Where(r => staleBroadcasterIds.Contains(r.BroadcasterId))
+            int purged = await _db
+                .SongRequestQueueItems.Where(r => r.BroadcasterId == broadcasterId)
                 .ExecuteDeleteAsync(cancellationToken);
+            if (purged > 0)
+                purgedBroadcasterIds.Add(broadcasterId);
         }
 
-        return new(restored, staleBroadcasterIds);
+        return new(restored, purgedBroadcasterIds);
     }
 }
