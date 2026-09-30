@@ -92,6 +92,8 @@ data class IntegrationStatus(
     // e.g. Kick) but never granted the actual platform connection — a login alone unlocks none of the bot's
     // scopes and must render as its own distinct state, never as "Connected".
     val loginOnly: Boolean = false,
+    // True when the stored token can no longer be decrypted; [needsReauth] is also true, this says why.
+    val decryptFailed: Boolean = false,
 )
 
 /**

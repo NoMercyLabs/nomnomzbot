@@ -54,7 +54,10 @@ public sealed class EventSubRevokedEventHandler(
                 c => c.Provider == "twitch" && c.BroadcasterId == @event.BroadcasterId,
                 cancellationToken
             );
-            if (connection is null || connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
+            if (
+                connection is null
+                || AuthEnums.IntegrationStatus.RequiresReconnect(connection.Status)
+            )
                 return;
 
             connection.Status = AuthEnums.IntegrationStatus.NeedsReauth;

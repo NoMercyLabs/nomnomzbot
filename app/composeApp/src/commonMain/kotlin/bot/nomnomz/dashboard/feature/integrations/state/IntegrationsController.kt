@@ -669,6 +669,7 @@ class IntegrationsController(
             accountName = accountName,
             needsReauth = needsReauth,
             loginOnly = loginOnly,
+            decryptFailed = decryptFailed,
         )
 
     /**
@@ -750,6 +751,8 @@ data class ProviderConnection(
     // True when the channel owner signed in with this provider but never granted the actual platform
     // connection (currently only meaningful for Kick — see IntegrationStatus.loginOnly).
     val loginOnly: Boolean = false,
+    // The stored token can no longer be decrypted (IntegrationStatus.decryptFailed); a reconnect replaces it.
+    val decryptFailed: Boolean = false,
 )
 
 /** The in-flight re-grant panel: the user code to enter and the Twitch URL to open. */

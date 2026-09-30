@@ -60,10 +60,22 @@ public interface IIntegrationTokenVault
     );
 
     /// <summary>
-    /// Increments the consecutive-failure count and stamps <c>LastErrorAt</c>; at the threshold sets
+    /// Records a dead-token signal (an OAuth <c>invalid_grant</c>, a 401 on a freshly refreshed token):
+    /// increments the consecutive-failure count and stamps <c>LastErrorAt</c>; at the threshold sets
     /// <c>Status=needs_reauth</c> and emits <c>IntegrationNeedsReauthEvent</c>.
     /// </summary>
     Task<Result> MarkRefreshFailureAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Records a refresh attempt that failed for a reason saying nothing about the grant (5xx, 429, a timeout,
+    /// a network error): stamps <c>LastErrorAt</c> so the refresher backs off, and never touches the failure
+    /// count or the status.
+    /// </summary>
+    Task<Result> MarkTransientRefreshFailureAsync(
         Guid connectionId,
         string error,
         CancellationToken cancellationToken = default

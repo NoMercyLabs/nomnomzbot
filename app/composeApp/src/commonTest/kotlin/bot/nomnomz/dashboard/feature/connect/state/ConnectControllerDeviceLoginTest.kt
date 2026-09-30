@@ -527,6 +527,19 @@ class ConnectControllerDeviceLoginTest {
     }
 
     @Test
+    fun check_twitch_health_raises_the_reconnect_prompt_when_the_stored_token_cannot_be_decrypted() = runTest {
+        val controller =
+            controller(
+                FakeSystemApi(ready = true, twitchConfigured = true),
+                diagnostics = FakeTwitchDiagnosticsApi(connectionStatus = "decrypt_failed"),
+            )
+
+        controller.checkTwitchHealth()
+
+        assertEquals(true, controller.reauthRequired.value)
+    }
+
+    @Test
     fun check_twitch_health_stays_quiet_for_a_healthy_connection() = runTest {
         val controller =
             controller(

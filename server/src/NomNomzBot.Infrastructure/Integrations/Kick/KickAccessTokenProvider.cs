@@ -168,22 +168,10 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
     }
 
     /// <summary>
-    /// Retry-storm guard for the routine "is my token still good" refresh check: a connection already
-    /// flagged <c>needs_reauth</c> cannot be fixed by retrying — only a fresh OAuth grant (a deliberate
-    /// re-connect through <see cref="IIntegrationTokenVault.StoreTokensAsync"/>) clears it — so hammering
-    /// Kick's token endpoint on every routine call just re-confirms the same dead refresh token forever (the
-    /// same shape that ran the Spotify path's ConsecutiveFailureCount to 4653, fixed in 07f60a1c). Skip the
-    /// refresh entirely once needs_reauth, and back off exponentially between attempts before that
-    /// threshold so a flaky-but-alive connection isn't hammered at full call cadence either. A deliberate
-    /// re-auth does not go through this routine path at all — it calls <c>StoreTokensAsync</c> directly.
+    /// Retry-storm guard for the routine "is my token still good" refresh check
+    /// (<see cref="Identity.RefreshBackoffPolicy"/>). A deliberate re-auth does not go through this routine
+    /// path at all — it calls <see cref="IIntegrationTokenVault.StoreTokensAsync"/> directly.
     /// </summary>
-    private static readonly TimeSpan[] RefreshBackoffSchedule =
-    [
-        TimeSpan.FromSeconds(30),
-        TimeSpan.FromMinutes(2),
-        TimeSpan.FromMinutes(10),
-    ];
-
     private async Task<bool> ShouldAttemptRefreshAsync(Guid connectionId, CancellationToken ct)
     {
         IntegrationConnectionStatusSnapshot? connection = await _db
@@ -195,21 +183,13 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
                 c.LastErrorAt
             ))
             .FirstOrDefaultAsync(ct);
-        if (connection is null)
-            return false;
-
-        // Dead beyond retry — needs a human to re-auth; retrying cannot fix it and only burns the rate limit.
-        if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
-            return false;
-
-        if (connection.ConsecutiveFailureCount <= 0)
-            return true;
-
-        TimeSpan backoff = RefreshBackoffSchedule[
-            Math.Min(connection.ConsecutiveFailureCount - 1, RefreshBackoffSchedule.Length - 1)
-        ];
-        DateTime now = _clock.GetUtcNow().UtcDateTime;
-        return connection.LastErrorAt is null || now >= connection.LastErrorAt.Value + backoff;
+        return connection is not null
+            && Identity.RefreshBackoffPolicy.AllowsAttempt(
+                connection.Status,
+                connection.ConsecutiveFailureCount,
+                connection.LastErrorAt,
+                _clock.GetUtcNow().UtcDateTime
+            );
     }
 
     private sealed record IntegrationConnectionStatusSnapshot(
@@ -260,8 +240,10 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             HttpResponseMessage response = await _http.PostAsync(TokenEndpoint, form, ct);
             if (!response.IsSuccessStatusCode)
             {
-                await _vault.MarkRefreshFailureAsync(
+                await Identity.OAuthRefreshRejection.RecordAsync(
+                    _vault,
                     connectionId,
+                    response,
                     $"Kick refresh failed ({(int)response.StatusCode})",
                     ct
                 );
@@ -273,7 +255,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             );
             if (token is null || string.IsNullOrEmpty(token.AccessToken))
             {
-                await _vault.MarkRefreshFailureAsync(
+                await _vault.MarkTransientRefreshFailureAsync(
                     connectionId,
                     "Kick refresh returned an unexpected body",
                     ct
@@ -306,6 +288,11 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
                 ex,
                 "Kick token refresh threw for connection {ConnectionId}",
                 connectionId
+            );
+            await _vault.MarkTransientRefreshFailureAsync(
+                connectionId,
+                $"Kick refresh threw {ex.GetType().Name}",
+                ct
             );
             return null;
         }

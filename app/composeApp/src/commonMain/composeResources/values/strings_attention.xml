@@ -17,6 +17,7 @@
     <string name="attention_integration_expired_message">Its access has expired. Reconnect it to restore the integration.</string>
     <string name="attention_integration_refresh_failed_message">Refreshing it failed %1$s times in a row. Reconnect it to restore the integration.</string>
     <string name="attention_integration_unusable_message">The saved sign-in can no longer be used. Reconnect it to restore the integration.</string>
+    <string name="attention_integration_decrypt_failed_message">The saved sign-in can't be decrypted any more, so the bot can't use it. Reconnect it to restore the integration.</string>
     <string name="attention_held_title_one">A chat message is held for review</string>
     <string name="attention_held_title_many">%1$d chat messages are held for review</string>
     <string name="attention_held_single_from_user_message">AutoMod held a message from %1$s (%2$s).</string>

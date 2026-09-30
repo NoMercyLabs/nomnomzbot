@@ -107,14 +107,14 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
     private static readonly ConditionalWeakTable<
         IApplicationDbContext,
         ConcurrentDictionary<Guid, (string Access, string? Refresh, DateTime? ExpiresAt)>
-    > _tokensByDb = [];
+    > TokensByDb = [];
 
     private readonly IApplicationDbContext _db;
 
     private ConcurrentDictionary<
         Guid,
         (string Access, string? Refresh, DateTime? ExpiresAt)
-    > _tokens => _tokensByDb.GetValue(_db, static _ => new());
+    > Tokens => TokensByDb.GetValue(_db, static _ => new());
 
     public FakeIntegrationTokenVault(IApplicationDbContext db)
     {
@@ -142,7 +142,7 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         _db.IntegrationConnections.Add(connection);
         _db.SaveChangesAsync(CancellationToken.None).GetAwaiter().GetResult();
 
-        _tokens[connection.Id] = (accessToken, refreshToken, expiresAt);
+        Tokens[connection.Id] = (accessToken, refreshToken, expiresAt);
         return connection.Id;
     }
 
@@ -167,7 +167,7 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         _db.IntegrationConnections.Add(connection);
         _db.SaveChangesAsync(CancellationToken.None).GetAwaiter().GetResult();
 
-        _tokens[connection.Id] = (accessToken, refreshToken, expiresAt);
+        Tokens[connection.Id] = (accessToken, refreshToken, expiresAt);
         return connection.Id;
     }
 
@@ -175,8 +175,8 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
     /// file — the vault equivalent of "GetTokenAsync resolves to null for every Spotify call".</summary>
     public void MakeUnrefreshable(Guid connectionId)
     {
-        (string Access, string? Refresh, DateTime? ExpiresAt) current = _tokens[connectionId];
-        _tokens[connectionId] = (current.Access, null, DateTime.UtcNow.AddDays(-1));
+        (string Access, string? Refresh, DateTime? ExpiresAt) current = Tokens[connectionId];
+        Tokens[connectionId] = (current.Access, null, DateTime.UtcNow.AddDays(-1));
     }
 
     public Task<Result<DecryptedTokenDto>> GetAccessTokenAsync(
@@ -185,7 +185,7 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
     )
     {
         if (
-            !_tokens.TryGetValue(
+            !Tokens.TryGetValue(
                 connectionId,
                 out (string Access, string? Refresh, DateTime? ExpiresAt) entry
             )
@@ -213,7 +213,7 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
     )
     {
         if (
-            !_tokens.TryGetValue(
+            !Tokens.TryGetValue(
                 connectionId,
                 out (string Access, string? Refresh, DateTime? ExpiresAt) entry
             ) || entry.Refresh is null
@@ -236,11 +236,11 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     )
     {
-        _tokens.TryGetValue(
+        Tokens.TryGetValue(
             connectionId,
             out (string Access, string? Refresh, DateTime? ExpiresAt) existing
         );
-        _tokens[connectionId] = (
+        Tokens[connectionId] = (
             tokens.AccessToken,
             tokens.RefreshToken ?? existing.Refresh,
             tokens.AccessExpiresAt
@@ -275,6 +275,24 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
             return Result.Failure("No such connection.", "NOT_FOUND");
 
         connection.Status = AuthEnums.IntegrationStatus.NeedsReauth;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> MarkTransientRefreshFailureAsync(
+        Guid connectionId,
+        string error,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IntegrationConnection? connection = await _db.IntegrationConnections.FirstOrDefaultAsync(
+            c => c.Id == connectionId,
+            cancellationToken
+        );
+        if (connection is null)
+            return Result.Failure("No such connection.", "NOT_FOUND");
+
+        connection.LastErrorAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }

@@ -434,14 +434,16 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                     // Runtime-observed capabilities (e.g. spotify.premium flipped by the music
                     // provider's player-403 detection) — absent until observed, never guessed.
                     Capabilities: _capabilities.GetObserved(broadcasterId, provider),
-                    NeedsReauth: c?.Status == AuthEnums.IntegrationStatus.NeedsReauth,
+                    NeedsReauth: c is not null
+                        && AuthEnums.IntegrationStatus.RequiresReconnect(c.Status),
                     LoginOnly: !connected
                         && string.Equals(
                             provider,
                             AuthEnums.IntegrationProvider.Kick,
                             StringComparison.OrdinalIgnoreCase
                         )
-                        && hasKickLogin
+                        && hasKickLogin,
+                    DecryptFailed: c?.Status == AuthEnums.IntegrationStatus.DecryptFailed
                 )
             );
         }

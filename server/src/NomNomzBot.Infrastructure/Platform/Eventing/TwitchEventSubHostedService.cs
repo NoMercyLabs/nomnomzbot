@@ -778,7 +778,8 @@ public sealed class TwitchEventSubHostedService
     )
     {
         // A broadcaster-owned session's key IS the tenant Guid (EventSubOwnerKeys.For) — surface it on the
-        // event so a per-broadcaster consumer (e.g. the needs-reauth self-heal) can act on it; the shared
+        // event so a per-broadcaster consumer can act on it (a welcome needs no user token, so it is never
+        // read as proof the broadcaster's grant is alive); the shared
         // bot session carries no single tenant, so it stays the platform sentinel.
         Guid connectedBroadcasterId = Guid.TryParse(ownerKey, out Guid parsedOwner)
             ? parsedOwner

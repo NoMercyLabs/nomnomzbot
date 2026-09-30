@@ -11,6 +11,7 @@
 using System.Net;
 using System.Text;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Interfaces;
@@ -20,6 +21,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -80,7 +82,7 @@ public sealed class SpotifyMusicProviderRetryStormTests
     {
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
         string dbName = Guid.NewGuid().ToString();
-        RecordingSpotifyHandler wire = new() { AlwaysFail = true };
+        RecordingSpotifyHandler wire = new() { FailWith = HttpStatusCode.Unauthorized };
 
         (SpotifyMusicProvider provider, IntegrationTokenVault vault, Guid connectionId) =
             await BuildAsync(dbName, wire, clock);
@@ -109,6 +111,85 @@ public sealed class SpotifyMusicProviderRetryStormTests
         await provider.PlayAsync(Broadcaster);
         wire.RefreshCallCount.Should()
             .Be(2, "the backoff window elapsed, so the next poll may retry");
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    public async Task Transient_token_endpoint_failures_back_off_and_never_mark_needs_reauth(
+        HttpStatusCode status
+    )
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        string dbName = Guid.NewGuid().ToString();
+        RecordingSpotifyHandler wire = new() { FailWith = status, FailBody = InvalidGrant };
+
+        (SpotifyMusicProvider provider, IntegrationTokenVault vault, Guid connectionId) =
+            await BuildAsync(dbName, wire, clock);
+        await StoreExpiredTokensAsync(vault, connectionId, clock);
+
+        for (int i = 0; i < 3; i++)
+        {
+            await provider.PlayAsync(Broadcaster);
+            clock.Advance(TimeSpan.FromMinutes(11));
+        }
+
+        wire.RefreshCallCount.Should().Be(3);
+        IntegrationConnection connection = await ReadConnectionAsync(dbName, connectionId);
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        connection.ConsecutiveFailureCount.Should().Be(0);
+        connection.LastErrorAt.Should().NotBeNull("the next attempt backs off from this stamp");
+    }
+
+    [Fact]
+    public async Task Invalid_grant_three_times_marks_needs_reauth_and_stops_the_calls()
+    {
+        FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
+        string dbName = Guid.NewGuid().ToString();
+        RecordingSpotifyHandler wire = new()
+        {
+            FailWith = HttpStatusCode.BadRequest,
+            FailBody = InvalidGrant,
+        };
+
+        (SpotifyMusicProvider provider, IntegrationTokenVault vault, Guid connectionId) =
+            await BuildAsync(dbName, wire, clock);
+        await StoreExpiredTokensAsync(vault, connectionId, clock);
+
+        for (int i = 0; i < 5; i++)
+        {
+            await provider.PlayAsync(Broadcaster);
+            clock.Advance(TimeSpan.FromMinutes(11));
+        }
+
+        wire.RefreshCallCount.Should().Be(3, "the third dead-grant answer ends the retries");
+        IntegrationConnection connection = await ReadConnectionAsync(dbName, connectionId);
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.NeedsReauth);
+        connection.ConsecutiveFailureCount.Should().Be(3);
+    }
+
+    private const string InvalidGrant =
+        """{"error":"invalid_grant","error_description":"Refresh token revoked"}""";
+
+    private static async Task StoreExpiredTokensAsync(
+        IntegrationTokenVault vault,
+        Guid connectionId,
+        FakeTimeProvider clock
+    ) =>
+        await vault.StoreTokensAsync(
+            connectionId,
+            new("expired-access", "refresh", null, clock.GetUtcNow().UtcDateTime.AddMinutes(-30))
+        );
+
+    private static async Task<IntegrationConnection> ReadConnectionAsync(
+        string dbName,
+        Guid connectionId
+    )
+    {
+        await using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+        return await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Id == connectionId);
     }
 
     private static async Task<(
@@ -221,12 +302,16 @@ public sealed class SpotifyMusicProviderRetryStormTests
         ) => Task.FromResult(true);
     }
 
-    /// <summary>Counts every POST to Spotify's token endpoint; fails every one when <see cref="AlwaysFail"/>.</summary>
+    /// <summary>
+    /// Counts every POST to Spotify's token endpoint; answers each with <see cref="FailWith"/> and
+    /// <see cref="FailBody"/> when a failure status is set.
+    /// </summary>
     private sealed class RecordingSpotifyHandler : HttpMessageHandler
     {
         private int _refreshCallCount;
 
-        public bool AlwaysFail { get; set; }
+        public HttpStatusCode? FailWith { get; set; }
+        public string FailBody { get; set; } = "";
         public int RefreshCallCount => _refreshCallCount;
 
         protected override Task<HttpResponseMessage> SendAsync(
@@ -237,8 +322,17 @@ public sealed class SpotifyMusicProviderRetryStormTests
             if (request.RequestUri!.AbsoluteUri.Contains("accounts.spotify.com"))
             {
                 Interlocked.Increment(ref _refreshCallCount);
-                if (AlwaysFail)
-                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
+                if (FailWith is { } status)
+                    return Task.FromResult(
+                        new HttpResponseMessage(status)
+                        {
+                            Content = new StringContent(
+                                FailBody,
+                                Encoding.UTF8,
+                                "application/json"
+                            ),
+                        }
+                    );
 
                 return Task.FromResult(
                     new HttpResponseMessage(HttpStatusCode.OK)

@@ -91,6 +91,43 @@ class KickRowTest {
     }
 
     @Test
+    fun undecryptable_token_renders_its_own_reconnect_label_and_the_reconnect_action() = runComposeUiTest {
+        setContent {
+            EnglishContent {
+                KickRow(
+                    connection =
+                        ProviderConnection(
+                            provider = "kick",
+                            connected = false,
+                            accountName = "streamer_kick",
+                            needsReauth = true,
+                            decryptFailed = true,
+                        ),
+                    busy = false,
+                    manage = ManageDecision.Allowed,
+                    onConnect = {},
+                    onDisconnect = {},
+                )
+            }
+        }
+
+        assertTrue(
+            onAllNodesWithText("Reconnect needed — the saved sign-in can't be read any more")
+                .fetchSemanticsNodes()
+                .isNotEmpty(),
+            "expected the decrypt-failed label, not the generic reconnect warning",
+        )
+        assertTrue(
+            onAllNodesWithText("Reconnect needed — Kick chat is paused").fetchSemanticsNodes().isEmpty(),
+            "the decrypt-failed state must not claim a Kick scope backoff",
+        )
+        assertTrue(
+            onAllNodesWithText("Reconnect").fetchSemanticsNodes().isNotEmpty(),
+            "the streamer needs the reconnect action to replace the unreadable token",
+        )
+    }
+
+    @Test
     fun fully_connected_kick_renders_connected_not_a_backoff_or_login_only_badge() = runComposeUiTest {
         setContent {
             EnglishContent {

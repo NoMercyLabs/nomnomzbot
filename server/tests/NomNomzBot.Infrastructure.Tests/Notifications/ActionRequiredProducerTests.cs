@@ -343,7 +343,7 @@ public sealed class ActionRequiredProducerTests
     // ─── Undecryptable integration token ─────────────────────────────────────
 
     [Fact]
-    public async Task AnUndecryptableToken_MarksItsConnectionForReauth_AndSurfacesIt()
+    public async Task AnUndecryptableToken_MarksItsConnectionDecryptFailed_AndSurfacesAReconnectItem()
     {
         await using ActionRequiredInboxServiceTestDbContext db = await NewDbAsync();
         IntegrationConnection connection = new()
@@ -379,9 +379,13 @@ public sealed class ActionRequiredProducerTests
         );
 
         Result<DecryptedTokenDto> read = await vault.GetAccessTokenAsync(connection.Id);
-        await vault.GetAccessTokenAsync(connection.Id);
 
         read.ErrorCode.Should().Be("DECRYPT_FAILED");
+        db.ChangeTracker.Clear();
+        IntegrationConnection marked = db.IntegrationConnections.Single(c => c.Id == connection.Id);
+        marked.Status.Should().Be(AuthEnums.IntegrationStatus.DecryptFailed);
+        marked.ConsecutiveFailureCount.Should().Be(0, "nothing failed to refresh");
+        marked.LastErrorAt.Should().Be(T0);
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<IntegrationNeedsReauthEvent>(e =>
@@ -389,11 +393,71 @@ public sealed class ActionRequiredProducerTests
                 ),
                 Arg.Any<CancellationToken>()
             );
-        db.ChangeTracker.Clear();
+
         ActionRequiredItemDto item = (await ItemsAsync(db)).Should().ContainSingle().Subject;
-        item.Kind.Should().Be("integration_token_dead");
-        item.MessageKey.Should().Be("attention_integration_unusable_message");
         item.Id.Should().Be($"token:{connection.Id}:{T0.Ticks}");
+        item.Kind.Should().Be("integration_token_dead");
+        item.Severity.Should().Be("critical");
+        item.TitleKey.Should().Be("attention_integration_reauth_title");
+        item.MessageKey.Should().Be("attention_integration_decrypt_failed_message");
+        item.Parameters.Should().Contain("provider", AuthEnums.IntegrationProvider.Spotify);
+        item.DeepLinkRoute.Should().Be("integrations");
+    }
+
+    [Fact]
+    public async Task ADecryptFailedConnection_IsNeverDecryptedAgain_UntilAFreshGrant()
+    {
+        await using ActionRequiredInboxServiceTestDbContext db = await NewDbAsync();
+        IntegrationConnection connection = new()
+        {
+            BroadcasterId = ChannelId,
+            Provider = AuthEnums.IntegrationProvider.YouTube,
+            Status = AuthEnums.IntegrationStatus.Connected,
+        };
+        db.IntegrationConnections.Add(connection);
+        foreach (
+            string tokenType in new[] { AuthEnums.TokenType.Access, AuthEnums.TokenType.Refresh }
+        )
+            db.IntegrationTokens.Add(
+                new IntegrationToken
+                {
+                    ConnectionId = connection.Id,
+                    BroadcasterId = ChannelId,
+                    TokenType = tokenType,
+                    CipherText = "sealed-under-a-lost-key",
+                }
+            );
+        await db.SaveChangesAsync();
+        ITokenProtector protector = Substitute.For<ITokenProtector>();
+        protector
+            .TryUnprotectAsync(default!, default!)
+            .ReturnsForAnyArgs(Task.FromResult<string?>(null));
+        IEventBus bus = Substitute.For<IEventBus>();
+        IntegrationTokenVault vault = new(
+            db,
+            protector,
+            Substitute.For<ISubjectKeyService>(),
+            Substitute.For<IScopeGrantService>(),
+            bus,
+            new FakeTimeProvider(T0),
+            NullLogger<IntegrationTokenVault>.Instance
+        );
+
+        await vault.GetAccessTokenAsync(connection.Id);
+        Result<DecryptedTokenDto> nextAccess = await vault.GetAccessTokenAsync(connection.Id);
+        Result<DecryptedTokenDto> nextRefresh = await vault.GetRefreshTokenAsync(connection.Id);
+
+        nextAccess.ErrorCode.Should().Be("DECRYPT_FAILED");
+        nextRefresh.ErrorCode.Should().Be("DECRYPT_FAILED");
+        await protector
+            .Received(1)
+            .TryUnprotectAsync(
+                Arg.Any<string?>(),
+                Arg.Any<TokenProtectionContext>(),
+                Arg.Any<CancellationToken>()
+            );
+        await bus.Received(1)
+            .PublishAsync(Arg.Any<IntegrationNeedsReauthEvent>(), Arg.Any<CancellationToken>());
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
