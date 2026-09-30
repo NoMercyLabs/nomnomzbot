@@ -391,11 +391,12 @@ public sealed class TwitchHelixTransport(
             await PublishReauthAsync(request, "unauthorized", null, ct);
 
         logger.LogWarning(
-            "Helix {Method} {Path} failed: {Status} ({Code})",
+            "Helix {Method} {Path} failed: {Status} ({Code}) {Detail}",
             request.Method,
             request.Path,
             (int)response.StatusCode,
-            code
+            code,
+            detail
         );
 
         return Result.Failure($"Twitch request failed ({(int)response.StatusCode}).", code, detail);

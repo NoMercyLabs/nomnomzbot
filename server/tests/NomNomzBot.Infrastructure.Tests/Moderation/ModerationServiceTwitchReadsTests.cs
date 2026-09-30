@@ -677,14 +677,7 @@ public sealed class ModerationServiceTwitchReadsTests
         result.ErrorCode.Should().Be("CONFIRMATION_REQUIRED");
         await moderation
             .DidNotReceiveWithAnyArgs()
-            .ResolveUnbanRequestAsOperatorAsync(
-                default,
-                default!,
-                default!,
-                default!,
-                default,
-                default
-            );
+            .ResolveUnbanRequestAsOperatorAsync(default, default!, default!, default!, default);
     }
 
     /// <summary>Denying carries no reversal risk, so it needs no confirmation flag.</summary>
@@ -846,7 +839,7 @@ public sealed class ModerationServiceTwitchReadsTests
     // ─── Suspicious status ────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SetSuspiciousStatusAsync_SendsTheLowercasedStatusToTwitch_AndMapsTheResult()
+    public async Task SetSuspiciousStatusAsync_SendsTheUppercaseStatusTwitchRequires_AndMapsTheResultBackToLowercase()
     {
         ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
         moderation
@@ -854,7 +847,7 @@ public sealed class ModerationServiceTwitchReadsTests
                 Operator,
                 BroadcasterTwitchId,
                 "5005",
-                "restricted",
+                "RESTRICTED",
                 Arg.Any<CancellationToken>()
             )
             .Returns(
@@ -864,14 +857,14 @@ public sealed class ModerationServiceTwitchReadsTests
                         BroadcasterTwitchId,
                         BroadcasterTwitchId,
                         new(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
-                        "restricted",
+                        "RESTRICTED",
                         ["ban_evader"]
                     )
                 )
             );
 
         Result<SuspiciousStatusDto> result = await NewService(moderation)
-            .SetSuspiciousStatusAsync(BroadcasterId, Operator, "5005", "RESTRICTED");
+            .SetSuspiciousStatusAsync(BroadcasterId, Operator, "5005", "restricted");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Status.Should().Be("restricted");
@@ -882,7 +875,7 @@ public sealed class ModerationServiceTwitchReadsTests
                 Operator,
                 BroadcasterTwitchId,
                 "5005",
-                "restricted",
+                "RESTRICTED",
                 Arg.Any<CancellationToken>()
             );
     }

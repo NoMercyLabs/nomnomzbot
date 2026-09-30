@@ -124,6 +124,21 @@ public sealed class ModerationServiceAutomodConfigTests
         config.LinkFilter.Whitelist.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GetAutomodConfigAsync_WithNullSettings_ReadsTheRuleWithDefaultSettings()
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        db.Records.Add(Rule("""{"Type":"caps_filter","Settings":null,"IsEnabled":true}"""));
+        await db.SaveChangesAsync();
+
+        Result<AutomodConfigDto> result = await NewService(db)
+            .GetAutomodConfigAsync(Channel.ToString());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.CapsFilter.Enabled.Should().BeTrue();
+        result.Value.CapsFilter.Threshold.Should().Be(70);
+    }
+
     // ─── Regression: one unparseable row must not sink the whole read ─────────
 
     [Fact]

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -671,7 +672,7 @@ public class ModerationService : IModerationService
             if (data is null)
                 continue;
 
-            Dictionary<string, object?> settings = data.Settings ?? new();
+            Dictionary<string, object?> settings = data.Settings;
 
             switch (data.Type)
             {
@@ -1341,7 +1342,8 @@ public class ModerationService : IModerationService
         );
     }
 
-    // The suspicious-user statuses Twitch's Update Suspicious User accepts; a bad value 400s, so reject locally.
+    // The suspicious-user statuses Twitch's Add Suspicious Status accepts. The dashboard sends them lowercase, but
+    // Twitch only accepts ACTIVE_MONITORING / RESTRICTED and answers anything else with 400.
     private static readonly HashSet<string> SuspiciousStatuses = new(
         StringComparer.OrdinalIgnoreCase
     )
@@ -1380,7 +1382,7 @@ public class ModerationService : IModerationService
                 operatorUserId,
                 broadcaster.Value,
                 targetUserId,
-                status.ToLowerInvariant(),
+                status.ToUpperInvariant(),
                 cancellationToken
             );
         if (applied.IsFailure)
@@ -1422,7 +1424,12 @@ public class ModerationService : IModerationService
     }
 
     private static SuspiciousStatusDto ToDto(TwitchSuspiciousUserStatus status) =>
-        new(status.UserId, status.Status, status.Types, status.UpdatedAt.UtcDateTime);
+        new(
+            status.UserId,
+            status.Status.ToLowerInvariant(),
+            status.Types,
+            status.UpdatedAt.UtcDateTime
+        );
 
     public async Task<Result<UserModerationContextDto>> GetUserContextAsync(
         string broadcasterId,
@@ -2129,7 +2136,14 @@ public class ModerationService : IModerationService
         public string Action { get; set; } = string.Empty;
         public int? DurationSeconds { get; set; }
         public string? Reason { get; set; }
-        public Dictionary<string, object?> Settings { get; set; } = new();
+
+        // Stored JSON can carry "settings": null; the setter folds it so readers never see null.
+        [AllowNull]
+        public Dictionary<string, object?> Settings
+        {
+            get;
+            set => field = value ?? new();
+        } = new();
         public List<string> ExemptRoles { get; set; } = [];
         public bool IsEnabled { get; set; } = true;
     }
