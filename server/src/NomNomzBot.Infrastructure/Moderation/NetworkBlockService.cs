@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -41,8 +40,6 @@ public sealed class NetworkBlockService(
     ILogger<NetworkBlockService> logger
 ) : INetworkBlockService
 {
-    private const string ActionRecordType = "moderation_action";
-
     public async Task<Result<NetworkBlockPreviewDto>> PreviewAsync(
         Guid actingPrincipalId,
         string targetTwitchUserId,
@@ -140,7 +137,7 @@ public sealed class NetworkBlockService(
             Result<TwitchBanResult> banned = await twitchModeration.BanUserAsync(
                 tenant.BroadcasterId,
                 block.TargetTwitchUserId,
-                request.Reason ?? "Network-wide block.",
+                NetworkBlockLeg.BanReason(block),
                 ct
             );
             if (banned.IsFailure)
@@ -155,9 +152,7 @@ public sealed class NetworkBlockService(
                 continue;
             }
 
-            db.Records.Add(
-                BlockLegRecord(tenant.BroadcasterId, actingPrincipalId, block.Id, request)
-            );
+            db.Records.Add(NetworkBlockLeg.Create(tenant.BroadcasterId, actingPrincipalId, block));
             actioned++;
         }
 
@@ -194,7 +189,7 @@ public sealed class NetworkBlockService(
         List<RecordEntity> legs = await db
             .Records.IgnoreQueryFilters()
             .Where(r =>
-                r.RecordType == ActionRecordType
+                r.RecordType == NetworkBlockLeg.RecordType
                 && r.DeletedAt == null
                 && r.Data.Contains(blockMarker)
             )
@@ -330,39 +325,6 @@ public sealed class NetworkBlockService(
             .ToList();
 
         return Result.Success((target, tenants));
-    }
-
-    private static RecordEntity BlockLegRecord(
-        Guid channelId,
-        Guid actorPrincipalId,
-        Guid blockId,
-        ApplyNetworkBlockRequest request
-    ) =>
-        new()
-        {
-            BroadcasterId = channelId,
-            RecordType = ActionRecordType,
-            Data = JsonSerializer.Serialize(
-                new BlockActionData
-                {
-                    Action = "block",
-                    TargetUserId = request.TargetTwitchUserId,
-                    Reason = request.Reason,
-                    Origin = "network_block",
-                    NetworkBlockId = blockId,
-                }
-            ),
-            UserId = actorPrincipalId.ToString(),
-        };
-
-    /// <summary>The recorded leg shape — a superset of ModerationService's action data (same JSON reader).</summary>
-    private sealed class BlockActionData
-    {
-        public string Action { get; set; } = null!;
-        public string TargetUserId { get; set; } = null!;
-        public string? Reason { get; set; }
-        public string? Origin { get; set; }
-        public Guid? NetworkBlockId { get; set; }
     }
 
     private async Task<Result> RequireAsync(
