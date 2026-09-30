@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:5080/"
+      "url": "http://localhost:5080/"
     }
   ],
   "paths": {
@@ -10429,13 +10429,20 @@
         }
       }
     },
-    "/api/v{version}/auth/impersonation/exit": {
+    "/api/v{version}/auth/refresh": {
       "post": {
         "tags": [
           "Auth"
         ],
-        "summary": "Leave an act-as session from inside it (the Exit button while acting): closes the support session the\nact-as token runs under — the same audited end, `sid` revocation and owner notice as ending it with\nthe operator's token — clears the act-as cookie, and hands back the OPERATOR's own session. Web gets it\nthrough the normal HttpOnly refresh cookie; native sends its own refresh token in the body. With no\noperator refresh token to resume, the session still ends and the response carries no token.",
+        "summary": "    Refresh an expired access token. Custody — cookie (web) vs body (native) — is decided by whether the\n    request itself carries the `nnz_refresh_token` HttpOnly cookie; a caller-controlled `?client=`\n    query flag is never consulted (S098c — it let any caller flip which custody path a request took). A\n    cookie-borne refresh additionally requires an allowed Origin: `SameSite=Lax` alone still lets a\n    top-level cross-site navigation attach the cookie, so a forged Origin/Referer is rejected outright. A\n    body-borne (native) refresh carries no ambient browser credential, so it is not subject to that check.\n    While an act-as session is open (the nnz_act_as cookie on web, actAsToken in the body on\nnative), the refresh hands back the SAME impersonated user under the same support session — the response\nthen carries impersonation and no refresh token, and the operator's own refresh token is left\nuntouched. Once that session is over the act-as cookie is cleared and the operator's own session is\nrefreshed instead, so the dashboard reloads as the operator.",
         "parameters": [
+          {
+            "name": "client",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "version",
             "in": "path",
@@ -10549,20 +10556,13 @@
         }
       }
     },
-    "/api/v{version}/auth/refresh": {
+    "/api/v{version}/auth/impersonation/exit": {
       "post": {
         "tags": [
           "Auth"
         ],
-        "summary": "Refresh an expired access token. Custody — cookie (web) vs body (native) — is decided by whether the\nrequest itself carries the `nnz_refresh_token` HttpOnly cookie; a caller-controlled `?client=`\nquery flag is never consulted (S098c — it let any caller flip which custody path a request took). A\ncookie-borne refresh additionally requires an allowed Origin: `SameSite=Lax` alone still lets a\ntop-level cross-site navigation attach the cookie, so a forged Origin/Referer is rejected outright. A\nbody-borne (native) refresh carries no ambient browser credential, so it is not subject to that check.",
+        "summary": "Leave an act-as session from inside it (the Exit button while acting): closes the support session the\nact-as token runs under — the same audited end, `sid` revocation and owner notice as ending it with\nthe operator's token — clears the act-as cookie, and hands back the OPERATOR's own session. Web gets it\nthrough the normal HttpOnly refresh cookie; native sends its own refresh token in the body. With no\noperator refresh token to resume, the session still ends and the response carries no token.",
         "parameters": [
-          {
-            "name": "client",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "version",
             "in": "path",
@@ -11274,6 +11274,106 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfDeviceBotPollDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/auth/twitch/channels/{channelId}/bot/device": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Begin a bot device login for ONE channel's own bot. The shared start above is admin-only once setup is\ncomplete, so a streamer could never begin connecting their own bot; this one is gated like the channel\npoll (Gate-2 `integration:write` on this channel) and refuses a plan without its own bot.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfDeviceCodeStartDto"
                 }
               }
             }
@@ -15906,104 +16006,6 @@
         }
       }
     },
-    "/api/v{version}/channels/{channelId}/builtins/replies": {
-      "get": {
-        "tags": [
-          "Commands"
-        ],
-        "summary": "The channel's built-in reply catalogue (commands-pipelines.md §11): every reply slot of every built-in,\nwhat it says for this channel right now, which layer that text comes from (channel / platform / tone),\nthe default it falls back to, and the variables it can use.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v{version}/channels/{channelId}/builtins/{builtinKey}": {
       "get": {
         "tags": [
@@ -16292,7 +16294,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -16464,6 +16466,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/builtins/replies": {
+      "get": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "The channel's built-in reply catalogue (commands-pipelines.md §11): every reply slot of every built-in,\nwhat it says for this channel right now, which layer that text comes from (channel / platform / tone),\nthe default it falls back to, and the variables it can use.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/builtins/{builtinKey}/replies/{slot}": {
       "put": {
         "tags": [
@@ -16530,7 +16630,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -25075,6 +25175,112 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/commands/{commandName}/reset-to-preset": {
+      "post": {
+        "tags": [
+          "Commands"
+        ],
+        "summary": "Reset a seeded fun command back to its preset. Keeps the command's name and on/off state; everything\nelse (responses, description, permission, cooldowns, aliases, matching) goes back to the preset.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commandName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCommandDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/commands": {
       "get": {
         "tags": [
@@ -25672,112 +25878,6 @@
             "description": "No Content",
             "content": {
               "application/json": { }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/commands/{commandName}/reset-to-preset": {
-      "post": {
-        "tags": [
-          "Commands"
-        ],
-        "summary": "Reset a seeded fun command back to its preset. Keeps the command's name and on/off state; everything\nelse (responses, description, permission, cooldowns, aliases, matching) goes back to the preset.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "commandName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfCommandDto"
-                }
-              }
             }
           }
         }
@@ -30420,7 +30520,7 @@
         "tags": [
           "Dashboard"
         ],
-        "summary": "Re-broadcasts the exact overlay/TTS alert(s) already pushed for one past activity-feed event — e.g. after\nOBS missed the original push because its WebSocket dropped. Presentation-only: this re-sends the verbatim\nstring RenderedAlertCapture.Payload captured at the original push (`WidgetAlertDispatch.RouteAsync`)\nto whichever widgets currently subscribe to that event type — it NEVER re-runs currency grants, loyalty\npoints, or reward fulfillment, since those already ran once when the origin event fired and this endpoint\nnever calls into any of those services.",
+        "summary": "Replays one past activity-feed event the way viewers experienced it — the bot's chat reply, the TTS and\nthe overlay alerts; a gift bomb replays its whole chain (the gifter's line, then each recipient's) in the\noriginal order. Presentation-only: it NEVER re-runs currency grants, loyalty points, reward fulfilment,\ncounters, stats or hype-train state, and never writes an activity or journal row\n(IActivityReplayService).",
         "parameters": [
           {
             "name": "channelId",
@@ -51368,6 +51468,230 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/blocked-terms/all-moderated": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Block a term in the operator's own channel AND every channel Twitch says they moderate, AS THE OPERATOR (their\nown token), best-effort per channel — the same sweep as the `all_moderated` ban, so Twitch decides where\nit is permitted. Returns one outcome row per channel.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTermRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTermRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTermRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfNetworkBanResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/blocked-terms/all-moderated/{term}": {
+      "delete": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "The reversal of Task&lt;IActionResult&gt; ModerationController.AddBlockedTermEverywhere(AddTermRequest request, CancellationToken ct): removes the term from every one of those channels.",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfNetworkBanResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/unban-requests": {
       "get": {
         "tags": [
@@ -52042,7 +52366,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Saves the escalation ladder (whole ladder replaced; steps strictly ascending). SuperMod tier.",
+        "summary": "Saves the escalation ladder (whole ladder replaced; steps strictly ascending). LeadModerator tier.",
         "parameters": [
           {
             "name": "channelId",
@@ -52264,7 +52588,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "The SuperMod platform nuke (moderation.md §3.4): bans the target across every tenant channel the\nactor holds SuperMod+ on. Requires explicit confirmation in the request body.",
+        "summary": "The LeadModerator platform nuke (moderation.md §3.4): bans the target across every tenant channel the\nactor holds LeadModerator+ on. Requires explicit confirmation in the request body.",
         "parameters": [
           {
             "name": "channelId",
@@ -52740,7 +53064,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Saves the shared-ban policy (both opt-in switches explicit). SuperMod tier.",
+        "summary": "Saves the shared-ban policy (both opt-in switches explicit). LeadModerator tier.",
         "parameters": [
           {
             "name": "channelId",
@@ -52858,7 +53182,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Adds a partner channel to the inbound-ban trust list (idempotent). SuperMod tier.",
+        "summary": "Adds a partner channel to the inbound-ban trust list (idempotent). LeadModerator tier.",
         "parameters": [
           {
             "name": "channelId",
@@ -52976,7 +53300,7 @@
         "tags": [
           "Moderation"
         ],
-        "summary": "Removes a partner channel from the trust list. SuperMod tier.",
+        "summary": "Removes a partner channel from the trust list. LeadModerator tier.",
         "parameters": [
           {
             "name": "channelId",
@@ -65119,6 +65443,222 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/pipelines/{id}/platform-default": {
+      "get": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "What restoring a platform-seeded pipeline (the raid flows) to the platform default would change: its\nstep count against the default's, or that the step settings go back. 409 NOT_PLATFORM_CONTENT for a\npipeline the channel built itself.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/pipelines/{id}/platform-default/restore": {
+      "post": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "Put a platform-seeded pipeline back on the platform default's current version.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/pipelines": {
       "get": {
         "tags": [
@@ -65818,222 +66358,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfPipelineCatalogueDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/pipelines/{id}/platform-default": {
-      "get": {
-        "tags": [
-          "Pipelines"
-        ],
-        "summary": "What restoring a platform-seeded pipeline (the raid flows) to the platform default would change: its\nstep count against the default's, or that the step settings go back. 409 NOT_PLATFORM_CONTENT for a\npipeline the channel built itself.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-              "format": "ulid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/pipelines/{id}/platform-default/restore": {
-      "post": {
-        "tags": [
-          "Pipelines"
-        ],
-        "summary": "Put a platform-seeded pipeline back on the platform default's current version.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-              "format": "ulid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
                 }
               }
             }
@@ -70416,6 +70740,229 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/platform-templates/updates": {
+      "get": {
+        "tags": [
+          "PlatformTemplates"
+        ],
+        "summary": "This channel's installed copies of one kind whose template has a newer published version.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfPlatformTemplateUpdateDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/platform-templates/{definitionId}/copies/{rowId}/update": {
+      "post": {
+        "tags": [
+          "PlatformTemplates"
+        ],
+        "summary": "Rewrite one installed copy from its template's current published version. Replaces the channel's own\nedits to that copy; gated in the service by the kind's write key.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "definitionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "rowId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformTemplateUpdateDto"
                 }
               }
             }
@@ -80684,6 +81231,222 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/timers/{id}/platform-default": {
+      "get": {
+        "tags": [
+          "Timers"
+        ],
+        "summary": "What restoring a timer installed from a platform template would change: every field that differs\nfrom the template's current version. 409 NOT_PLATFORM_CONTENT for a timer the channel made itself.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/timers/{id}/platform-default/restore": {
+      "post": {
+        "tags": [
+          "Timers"
+        ],
+        "summary": "Put a template-installed timer back on the template's current version.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/timers": {
       "get": {
         "tags": [
@@ -81287,222 +82050,6 @@
             "description": "No Content",
             "content": {
               "application/json": { }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/timers/{id}/platform-default": {
-      "get": {
-        "tags": [
-          "Timers"
-        ],
-        "summary": "What restoring a timer installed from a platform template would change: every field that differs\nfrom the template's current version. 409 NOT_PLATFORM_CONTENT for a timer the channel made itself.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-              "format": "ulid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v{version}/channels/{channelId}/timers/{id}/platform-default/restore": {
-      "post": {
-        "tags": [
-          "Timers"
-        ],
-        "summary": "Put a template-installed timer back on the template's current version.",
-        "parameters": [
-          {
-            "name": "channelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-              "format": "ulid"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfPlatformDefaultPreviewDto"
-                }
-              }
             }
           }
         }
@@ -95249,13 +95796,16 @@
         "type": "object",
         "properties": {
           "builtinKey": {
-            "type": "string"
+            "type": "string",
+            "description": "The bare catalogue key (e.g. `sr`)."
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The chat trigger (e.g. `!sr`)."
           },
           "isEnabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the command answers in this channel."
           },
           "defaultCooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -95263,19 +95813,24 @@
               "integer",
               "string"
             ],
+            "description": "The catalogue cooldown.",
             "format": "int32"
           },
           "defaultMinPermissionLevel": {
-            "type": "string"
+            "type": "string",
+            "description": "The catalogue permission floor (rung name)."
           },
           "replyGroup": {
-            "type": "string"
+            "type": "string",
+            "description": "The reply group the built-in speaks with (e.g. `unlurk` → `lurk`)."
           },
           "speakWithTts": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the reply is also read out by TTS."
           },
           "isReserved": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "A data-rights command: always on, settings locked."
           },
           "cooldownSecondsOverride": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -95284,13 +95839,15 @@
               "integer",
               "string"
             ],
+            "description": "The channel's own cooldown; null = the default applies.",
             "format": "int32"
           },
           "minPermissionLevelOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The channel's own floor (rung name); null = the default applies."
           },
           "replyOverrideCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -95298,9 +95855,11 @@
               "integer",
               "string"
             ],
+            "description": "How many replies of its reply group the channel has reworded.",
             "format": "int32"
           }
-        }
+        },
+        "description": "A built-in command as one channel sees it."
       },
       "BuiltinReplyDefaultChange": {
         "required": [
@@ -95354,7 +95913,111 @@
             "format": "int32"
           }
         },
-        "description": "One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a\nchannel on the default tone gets out of the box (null = the built-in's own fallback);\nPlatformTemplate is the admin's replacement (null = none), which wins over every tone.\nTakesChannelOverride tells whether a channel's own response replaces this slot, and\nChannelsWithOwnReply how many channels have one."
+        "description": "One built-in response slot as the admin editor shows it. ShippedTemplate is the wording a\nchannel on the default tone gets out of the box (null = the built-in's own fallback);\nPlatformTemplate is the admin's replacement (null = none), which wins over every tone.\nChannelsWithOwnReply is how many channels have their own text for this exact slot (every slot\ntakes a channel's own text since commands-pipelines.md §11) — those channels keep it when the platform changes."
+      },
+      "BuiltinReplyDto": {
+        "required": [
+          "builtinKey",
+          "slot",
+          "label",
+          "description",
+          "effectiveTemplate",
+          "source",
+          "defaultTemplate",
+          "toneVariations",
+          "variables",
+          "isOverridden",
+          "isLocked"
+        ],
+        "type": "object",
+        "properties": {
+          "builtinKey": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "string"
+          },
+          "label": {
+            "$ref": "#/components/schemas/LocalizedText"
+          },
+          "description": {
+            "$ref": "#/components/schemas/LocalizedText"
+          },
+          "effectiveTemplate": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "defaultTemplate": {
+            "type": "string"
+          },
+          "toneVariations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuiltinReplyVariableDto"
+            }
+          },
+          "isOverridden": {
+            "type": "boolean"
+          },
+          "isLocked": {
+            "type": "boolean"
+          }
+        },
+        "description": "One reply slot as the channel sees it right now. EffectiveTemplate is what the bot sends\n(one pick among ToneVariations when Source is `tone`);\nDefaultTemplate is what it sends once the channel's own text is reset."
+      },
+      "BuiltinReplyGroupDto": {
+        "required": [
+          "builtinKey",
+          "commandKeys",
+          "replies"
+        ],
+        "type": "object",
+        "properties": {
+          "builtinKey": {
+            "type": "string"
+          },
+          "commandKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BuiltinReplyDto"
+            }
+          }
+        },
+        "description": "One reply group of the built-in reply catalogue (commands-pipelines.md §11): the replies a built-in (or the\nbot itself, for the `system`/`botstatus` groups) can send. CommandKeys are the\nchat triggers that speak with this group — e.g. `lurk` and `unlurk` share the `lurk` group; it\nis empty for a group no command owns."
+      },
+      "BuiltinReplyVariableDto": {
+        "required": [
+          "name",
+          "description",
+          "sampleValue"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "$ref": "#/components/schemas/LocalizedText"
+          },
+          "sampleValue": {
+            "type": "string"
+          }
+        },
+        "description": "A variable a reply slot seeds, with the example value the dashboard preview fills in."
       },
       "BundleMetadata": {
         "required": [
@@ -110193,7 +110856,7 @@
           },
           "hasPlatformDefault": {
             "type": "boolean",
-            "description": "True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to\nthe platform default."
+            "description": "True when the platform seeded this pipeline (e.g. the raid flows), so it can be restored to\n            the platform default."
           }
         },
         "description": "Lightweight pipeline summary for list views."
@@ -110711,78 +111374,6 @@
         },
         "description": "One publish attempt (§3.4)."
       },
-      "PlatformDefaultChangeDto": {
-        "required": [
-          "field",
-          "current",
-          "default"
-        ],
-        "type": "object",
-        "properties": {
-          "field": {
-            "type": "string"
-          },
-          "current": {
-            "type": "string"
-          },
-          "default": {
-            "type": "string"
-          }
-        },
-        "description": "One part of a row that a restore replaces."
-      },
-      "PlatformDefaultPreviewDto": {
-        "required": [
-          "kind",
-          "rowId",
-          "defaultName",
-          "installedVersion",
-          "defaultVersion",
-          "isEdited",
-          "changes"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "rowId": {
-            "type": "string",
-            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
-            "format": "ulid"
-          },
-          "defaultName": {
-            "type": "string"
-          },
-          "installedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "defaultVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "isEdited": {
-            "type": "boolean"
-          },
-          "changes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PlatformDefaultChangeDto"
-            }
-          }
-        },
-        "description": "The consequence of restoring one row to its platform default."
-      },
       "PlatformContentVersionDto": {
         "required": [
           "id",
@@ -110899,6 +111490,78 @@
         },
         "description": "The counted consequence of changing one platform default, shown BEFORE the save (consequences must be\nvisible). ChannelsAffected is the active channels that follow the platform default and\nwould therefore feel the change (0 when the proposed value equals the current one);\nChannelsKeepingOwnSetting is the active channels whose own setting keeps winning.\nRequiresDangerConfirmation is true when the default guards a dangerous action, so the\nsave must carry an explicit confirmation. The save echoes ChannelsAffected back and is\nrefused as stale when the live count has moved since."
       },
+      "PlatformDefaultChangeDto": {
+        "required": [
+          "field",
+          "current",
+          "default"
+        ],
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "current": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string"
+          }
+        },
+        "description": "One part of a row that a restore replaces. string PlatformDefaultChangeDto.Field is a stable key the dashboard labels\n(timer: `name`, `messages`, `interval`, `min_chat_activity`, `enabled`,\n`fire_once`; pipeline: `steps`, `step_settings`); the values are shown as-is."
+      },
+      "PlatformDefaultPreviewDto": {
+        "required": [
+          "kind",
+          "rowId",
+          "defaultName",
+          "installedVersion",
+          "defaultVersion",
+          "isEdited",
+          "changes"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "rowId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "defaultName": {
+            "type": "string"
+          },
+          "installedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "defaultVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isEdited": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformDefaultChangeDto"
+            }
+          }
+        },
+        "description": "The consequence of restoring one row to its platform default. int? PlatformDefaultPreviewDto.InstalledVersion is the\nversion the row was installed or last synced from; int PlatformDefaultPreviewDto.DefaultVersion is what a restore writes.\nbool PlatformDefaultPreviewDto.IsEdited is true when the channel changed the row since then. IReadOnlyList&lt;PlatformDefaultChangeDto&gt; PlatformDefaultPreviewDto.Changes lists\neach part that differs from the default — empty means a restore changes nothing."
+      },
       "PlatformEventDto": {
         "required": [
           "message",
@@ -110963,6 +111626,57 @@
           }
         },
         "description": "One published platform template a channel can install (its current published version)."
+      },
+      "PlatformTemplateUpdateDto": {
+        "required": [
+          "rowId",
+          "definitionId",
+          "kind",
+          "displayName",
+          "installedVersion",
+          "currentVersion",
+          "editedSinceInstall"
+        ],
+        "type": "object",
+        "properties": {
+          "rowId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "definitionId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "installedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "currentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "editedSinceInstall": {
+            "type": "boolean"
+          }
+        },
+        "description": "One installed copy and the version its definition is on now. bool PlatformTemplateUpdateDto.EditedSinceInstall is true when\nthe channel changed the copy after it was installed: taking the update replaces those edits."
       },
       "PlayContextDto": {
         "required": [
@@ -111693,7 +112407,7 @@
             ]
           }
         },
-        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\nhold in their own vault. A native client acting as another user also sends the act-as token it holds\n(`ActAsToken`, possibly expired): while that session is open the refresh hands back the SAME impersonated user, never the operator. The served-web dashboard keeps that token in an HttpOnly cookie."
+        "description": "Token refresh request. The refresh token is optional in the body: the served-web dashboard sends none and\nrelies on the HttpOnly cookie the browser attaches automatically, while native clients send the token they\nhold in their own vault. A native client acting as another user also sends the act-as token it holds\n(string? RefreshTokenRequest.ActAsToken, possibly expired): while that session is open the refresh hands back the SAME\nimpersonated user, never the operator. The served-web dashboard keeps that token in an HttpOnly cookie."
       },
       "RefundRequest": {
         "required": [
@@ -112758,6 +113472,20 @@
           }
         },
         "description": "Saves a reply text. ConfirmedChannelsAffected must equal the preview's live count."
+      },
+      "SetBuiltinReplyRequest": {
+        "required": [
+          "template"
+        ],
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
       },
       "SetBuiltinSpeakWithTtsRequest": {
         "required": [
@@ -114757,43 +115485,6 @@
           }
         }
       },
-      "StatusResponseDtoOfBuiltinCommandDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltinCommandDto"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseDtoOfboolean": {
         "type": "object",
         "properties": {
@@ -114861,6 +115552,43 @@
           }
         }
       },
+      "StatusResponseDtoOfBuiltinCommandDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltinCommandDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfBuiltinReplyDefaultDto": {
         "type": "object",
         "properties": {
@@ -114874,6 +115602,43 @@
               },
               {
                 "$ref": "#/components/schemas/BuiltinReplyDefaultDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfBuiltinReplyDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltinReplyDto"
               }
             ]
           },
@@ -117845,6 +118610,42 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/BuiltinReplyGroupDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfChatEmoteCatalogueDto": {
         "type": "object",
         "properties": {
@@ -117953,6 +118754,42 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfCommandPresetDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CommandPresetDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfConsentRecordDto": {
         "type": "object",
         "properties": {
@@ -118038,42 +118875,6 @@
             ],
             "items": {
               "$ref": "#/components/schemas/CustomDataSourceOptionDto"
-            }
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseDtoOfIReadOnlyListOfCommandPresetDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/CommandPresetDto"
             }
           },
           "message": {
@@ -119323,6 +120124,43 @@
             ]
           }
         }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfPlatformTemplateUpdateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PlatformTemplateUpdateDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\nMatches the NoMercy media server pattern."
       },
       "StatusResponseDtoOfIReadOnlyListOfPricedUnitDto": {
         "type": "object",
@@ -122274,43 +123112,6 @@
           }
         }
       },
-      "StatusResponseDtoOfPlatformDefaultPreviewDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/PlatformDefaultPreviewDto"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
       "StatusResponseDtoOfPipelineDto": {
         "type": "object",
         "properties": {
@@ -122721,6 +123522,81 @@
             ]
           }
         }
+      },
+      "StatusResponseDtoOfPlatformDefaultPreviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlatformDefaultPreviewDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfPlatformTemplateUpdateDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlatformTemplateUpdateDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\nMatches the NoMercy media server pattern."
       },
       "StatusResponseDtoOfProjectDto": {
         "type": "object",
@@ -128744,7 +129620,8 @@
               "string"
             ]
           }
-        }
+        },
+        "description": "The channel's cooldown and permission floor for a built-in; null = use the default."
       },
       "UpdateCatalogItemRequest": {
         "required": [
@@ -133349,195 +134226,6 @@
           }
         },
         "description": "A row in a widget's version history (rollback / debug list)."
-      },
-      "SetBuiltinReplyRequest": {
-        "required": [
-          "template"
-        ],
-        "type": "object",
-        "properties": {
-          "template": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "BuiltinReplyGroupDto": {
-        "required": [
-          "builtinKey",
-          "commandKeys",
-          "replies"
-        ],
-        "type": "object",
-        "properties": {
-          "builtinKey": {
-            "type": "string"
-          },
-          "commandKeys": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "replies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BuiltinReplyDto"
-            }
-          }
-        }
-      },
-      "BuiltinReplyDto": {
-        "required": [
-          "builtinKey",
-          "slot",
-          "label",
-          "description",
-          "effectiveTemplate",
-          "source",
-          "defaultTemplate",
-          "toneVariations",
-          "variables",
-          "isOverridden",
-          "isLocked"
-        ],
-        "type": "object",
-        "properties": {
-          "builtinKey": {
-            "type": "string"
-          },
-          "slot": {
-            "type": "string"
-          },
-          "label": {
-            "$ref": "#/components/schemas/LocalizedText"
-          },
-          "description": {
-            "$ref": "#/components/schemas/LocalizedText"
-          },
-          "effectiveTemplate": {
-            "type": "string"
-          },
-          "source": {
-            "type": "string"
-          },
-          "defaultTemplate": {
-            "type": "string"
-          },
-          "toneVariations": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "variables": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BuiltinReplyVariableDto"
-            }
-          },
-          "isOverridden": {
-            "type": "boolean"
-          },
-          "isLocked": {
-            "type": "boolean"
-          }
-        }
-      },
-      "BuiltinReplyVariableDto": {
-        "required": [
-          "name",
-          "description",
-          "sampleValue"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "$ref": "#/components/schemas/LocalizedText"
-          },
-          "sampleValue": {
-            "type": "string"
-          }
-        },
-        "description": "A variable a reply slot seeds, with the example value the dashboard preview fills in."
-      },
-      "StatusResponseDtoOfBuiltinReplyDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BuiltinReplyDto"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseDtoOfIReadOnlyListOfBuiltinReplyGroupDto": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/BuiltinReplyGroupDto"
-            }
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
       }
     }
   },
