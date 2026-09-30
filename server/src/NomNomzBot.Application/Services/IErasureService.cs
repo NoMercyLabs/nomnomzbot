@@ -53,6 +53,19 @@ public interface IErasureService
     );
 
     /// <summary>
+    /// Operator re-run of a FAILED erasure (the admin console's data-requests list): the same request row
+    /// goes back to <c>running</c> and through the same pipeline as <see cref="RequestErasureAsync"/>,
+    /// ending <c>completed</c> or <c>failed</c> again. The attempt is audited as <c>platform_iam</c>. Only a
+    /// failed erasure can be re-run: a completed one is refused (<c>ERASURE_ALREADY_COMPLETED</c>), a
+    /// pending/running one is refused (<c>ERASURE_IN_PROGRESS</c>), and a cancelled request or any
+    /// export/opt-out is refused (<c>ERASURE_NOT_RETRYABLE</c>) — nothing is erased on a refusal.
+    /// </summary>
+    Task<Result<ErasureRequestDto>> RetryErasureAsync(
+        Guid erasureRequestId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Produces the machine-readable JSON export document (Newtonsoft-serialized) of everything held about
     /// the subject — profile, chat, records, connected services, vaulted OAuth connections (never token
     /// ciphertext), and consents. Read-only w.r.t. subject data; records the request + an <c>export</c>

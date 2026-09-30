@@ -25,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -46,6 +49,7 @@ import nomnomzbot.composeapp.generated.resources.admin_data_requests_intro
 import nomnomzbot.composeapp.generated.resources.admin_data_requests_requested_by_broadcaster
 import nomnomzbot.composeapp.generated.resources.admin_data_requests_requested_by_platform
 import nomnomzbot.composeapp.generated.resources.admin_data_requests_requested_by_self
+import nomnomzbot.composeapp.generated.resources.admin_data_requests_retry
 import nomnomzbot.composeapp.generated.resources.admin_data_requests_rows_affected
 import nomnomzbot.composeapp.generated.resources.admin_data_requests_scope_channel
 import nomnomzbot.composeapp.generated.resources.admin_data_requests_scope_deployment
@@ -69,7 +73,9 @@ private const val SUBJECT_HASH_PREFIX_LENGTH: Int = 12
  * The platform-wide GDPR request monitor (A7): every subject's erasure / export / opt-out request from the
  * real ledger, counted by status above the list and narrowed by two chip rows. A failed request shows its
  * recorded failure reason inline — the row an operator has to act on must never look like a completed one.
- * Read-only by design: acting on a subject (an operator erasure or export) lives on the subject's own page.
+ * A failed erasure is the one row an operator can act on here: "Re-run erasure" opens a confirm that shows the
+ * subject's counted blast radius and runs the same request again. Starting a NEW erasure or export for a
+ * subject still lives on the subject's own page.
  */
 @Composable
 internal fun DataRequestsTab(state: AdminState, controller: AdminController) {
@@ -134,12 +140,21 @@ internal fun DataRequestsTab(state: AdminState, controller: AdminController) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     state.dataRequests.forEachIndexed { index, request ->
-                        DataRequestRow(request)
+                        DataRequestRow(request, onRetry = { scope.launch { controller.stageErasureRetry(request) } })
                         if (index < state.dataRequests.lastIndex) Separator()
                     }
                 }
             }
         }
+    }
+
+    state.erasureRetryTarget?.let { target ->
+        ErasureRetryDialog(
+            state = state,
+            subjectLabel = target.subjectIdHash.take(SUBJECT_HASH_PREFIX_LENGTH),
+            onConfirm = { scope.launch { controller.confirmErasureRetry() } },
+            onDismiss = { controller.dismissErasureRetry() },
+        )
     }
 }
 
@@ -161,7 +176,7 @@ private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DataRequestRow(request: ErasureRequest) {
+private fun DataRequestRow(request: ErasureRequest, onRetry: () -> Unit) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val tokens = LocalTokens.current
@@ -195,6 +210,12 @@ private fun DataRequestRow(request: ErasureRequest) {
         }
         request.failureReason?.takeIf { it.isNotBlank() }?.let {
             Text(text = it, style = typography.xs, color = tokens.destructive)
+        }
+        // A quiet outline trigger on the row; the loud destructive commit lives in ErasureRetryDialog.
+        if (failed && request.requestType == ErasureRequestTypes.ERASURE) {
+            Button(variant = ButtonVariant.Outline, size = ButtonSize.Sm, onClick = onRetry) {
+                Text(text = stringResource(Res.string.admin_data_requests_retry))
+            }
         }
     }
 }

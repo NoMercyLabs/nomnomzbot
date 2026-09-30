@@ -14,8 +14,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
@@ -43,6 +49,8 @@ import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.ComplianceApi
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
+import bot.nomnomz.dashboard.core.network.ErasurePreview
+import bot.nomnomz.dashboard.core.network.ErasurePreviewCategory
 import bot.nomnomz.dashboard.core.network.ErasureRequest
 import bot.nomnomz.dashboard.core.network.ErasureRequestSummary
 import bot.nomnomz.dashboard.core.network.FeatureFlag
@@ -63,6 +71,7 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * A7: the platform-wide data-requests tab must render the REAL ledger — the status counts and each
@@ -178,14 +187,116 @@ class AdminDataRequestsRenderTest {
             onNodeWithText("No data requests match.").assertExists()
         }
     }
+
+    private val subjectPreview = ErasurePreview(
+        totalRows = 5,
+        categories = listOf(
+            ErasurePreviewCategory("gdpr_erasure_category_profile", 1),
+            ErasurePreviewCategory("gdpr_erasure_category_chat_messages", 4),
+        ),
+    )
+
+    /** The destructive confirm inside the dialog (the row trigger carries the same label). */
+    private val confirmButton = hasText("Re-run erasure") and hasClickAction()
+
+    @Test
+    fun rerunning_a_failed_erasure_shows_the_counted_blast_radius_and_completes_the_row() {
+        val fakeApi = FakeComplianceApi(
+            requests = listOf(failedErasure, completedExport),
+            summary = ErasureRequestSummary(total = 2, completed = 1, failed = 1),
+            preview = ApiResult.Ok(subjectPreview),
+            retry = ApiResult.Ok(failedErasure.copy(status = "completed", failureReason = null, rowsAffected = 5)),
+            summaryAfterRetry = ErasureRequestSummary(total = 2, completed = 2, failed = 0),
+        )
+        val controller = controllerFor(fakeApi)
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingDataRequestsTab(controller = controller) } }
+            waitForIdle()
+
+            // Only the failed ERASURE row offers the action; the completed export does not.
+            onAllNodesWithText("Re-run erasure").assertCountEquals(1)
+            onNodeWithText("Re-run erasure").performClick()
+            waitForIdle()
+
+            assertEquals(listOf("user-9"), fakeApi.previewCalls.toList())
+            onNodeWithText("Re-run this erasure?").assertExists()
+            onNodeWithText("cannot be undone", substring = true).assertExists()
+            onNodeWithText("4 chat messages", substring = true).assertExists()
+
+            onAllNodes(confirmButton).onLast().assertIsEnabled().performClick()
+            waitForIdle()
+
+            assertEquals(listOf("req-1"), fakeApi.retryCalls.toList())
+            onNodeWithText("Re-run this erasure?").assertDoesNotExist()
+            onNodeWithText("The token vault refused the revocation.").assertDoesNotExist()
+            onNodeWithText("2 requests · 0 running · 0 failed").assertExists()
+            onNodeWithText("5 rows").assertExists()
+            assertNull(controller.state.value.erasureRetryTarget)
+        }
+    }
+
+    @Test
+    fun a_refused_rerun_keeps_the_dialog_open_and_says_why() {
+        val fakeApi = FakeComplianceApi(
+            requests = listOf(failedErasure),
+            summary = ErasureRequestSummary(total = 1, failed = 1),
+            preview = ApiResult.Ok(subjectPreview),
+            retry = ApiResult.Failure(ApiError(409, "ERASURE_ALREADY_COMPLETED", "already completed")),
+        )
+        val controller = controllerFor(fakeApi)
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingDataRequestsTab(controller = controller) } }
+            waitForIdle()
+
+            onNodeWithText("Re-run erasure").performClick()
+            waitForIdle()
+            onAllNodes(confirmButton).onLast().performClick()
+            waitForIdle()
+
+            onNodeWithText("Re-run this erasure?").assertExists()
+            onNodeWithText("This erasure already completed. There is nothing left to re-run.").assertExists()
+            // The row is untouched: still failed, still carrying its recorded reason.
+            onNodeWithText("The token vault refused the revocation.").assertExists()
+            assertEquals("failed", controller.state.value.dataRequests.single().status)
+        }
+    }
+
+    @Test
+    fun a_failed_blast_radius_lookup_withholds_the_confirm() {
+        val fakeApi = FakeComplianceApi(
+            requests = listOf(failedErasure),
+            summary = ErasureRequestSummary(total = 1, failed = 1),
+            preview = ApiResult.Failure(ApiError(500, "INTERNAL_ERROR", "boom")),
+        )
+        val controller = controllerFor(fakeApi)
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingDataRequestsTab(controller = controller) } }
+            waitForIdle()
+
+            onNodeWithText("Re-run erasure").performClick()
+            waitForIdle()
+
+            onNodeWithText("Could not check what would be erased", substring = true).assertExists()
+            onAllNodes(confirmButton).onLast().assertIsNotEnabled()
+            assertEquals(emptyList(), fakeApi.retryCalls.toList())
+        }
+    }
 }
 
 private class FakeComplianceApi(
     private val requests: List<ErasureRequest>,
     private val summary: ErasureRequestSummary,
+    private val preview: ApiResult<ErasurePreview> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused")),
+    private val retry: ApiResult<ErasureRequest> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused")),
+    private val summaryAfterRetry: ErasureRequestSummary = summary,
 ) : ComplianceApi {
     /** Every (status, requestType) pair the tab asked for, in order. */
     val listCalls: MutableList<Pair<String?, String?>> = mutableListOf()
+    val previewCalls: MutableList<String> = mutableListOf()
+    val retryCalls: MutableList<String> = mutableListOf()
 
     override suspend fun listRequests(
         status: String?,
@@ -199,7 +310,18 @@ private class FakeComplianceApi(
         return ApiResult.Ok(PaginatedEnvelope<ErasureRequest>(filtered))
     }
 
-    override suspend fun summary(): ApiResult<ErasureRequestSummary> = ApiResult.Ok(summary)
+    override suspend fun summary(): ApiResult<ErasureRequestSummary> =
+        ApiResult.Ok(if (retryCalls.isEmpty()) summary else summaryAfterRetry)
+
+    override suspend fun previewErasure(subjectUserId: String): ApiResult<ErasurePreview> {
+        previewCalls += subjectUserId
+        return preview
+    }
+
+    override suspend fun retryErasure(erasureRequestId: String): ApiResult<ErasureRequest> {
+        retryCalls += erasureRequestId
+        return retry
+    }
 }
 
 private class FakeAdminApiForDataRequestsTest : AdminApi {

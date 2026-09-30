@@ -86,6 +86,7 @@ import bot.nomnomz.dashboard.core.network.PlatformBotAdminStatus
 import bot.nomnomz.dashboard.core.network.PlatformBotReconnectPreview
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.ComplianceApi
+import bot.nomnomz.dashboard.core.network.ErasurePreview
 import bot.nomnomz.dashboard.core.network.ErasureRequest
 import bot.nomnomz.dashboard.core.network.ErasureRequestSummary
 import bot.nomnomz.dashboard.core.network.TrustSafetyReviewItem
@@ -391,6 +392,15 @@ data class AdminState(
     val dataRequestTypeFilter: String? = null,
     val dataRequestsLoading: Boolean = false,
     val dataRequestsError: String? = null,
+    /** The failed erasure a "Re-run erasure" confirm dialog is open for; null when no dialog is showing. */
+    val erasureRetryTarget: ErasureRequest? = null,
+    /** The subject's counted blast radius for [erasureRetryTarget]; null while it loads or when it failed. */
+    val erasureRetryPreview: ErasurePreview? = null,
+    /** True when the blast-radius lookup failed — kept apart from a genuine zero, and it withholds the confirm. */
+    val erasureRetryPreviewFailed: Boolean = false,
+    val erasureRetryRunning: Boolean = false,
+    /** Why the last re-run was refused or failed; the dialog stays open and shows it. */
+    val erasureRetryError: ApiError? = null,
     // ── Network-wide block (S-ADMIN-8b) ──
     /** The Twitch user id the operator is about to preview/block — free text, not resolved until preview. */
     val networkBlockTargetTwitchUserId: String = "",
@@ -1335,6 +1345,65 @@ class AdminController(
                 )
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(dataRequestsLoading = false, dataRequestsError = page.error.message)
+        }
+    }
+
+    /**
+     * Opens the "Re-run erasure" confirm for a failed [request] and reads the subject's counted blast radius
+     * for it. The confirm stays withheld until that count arrives; a failed lookup is recorded as failed,
+     * never as "nothing would be erased".
+     */
+    suspend fun stageErasureRetry(request: ErasureRequest) {
+        val api: ComplianceApi = complianceApi ?: return
+        _state.value = _state.value.copy(
+            erasureRetryTarget = request,
+            erasureRetryPreview = null,
+            erasureRetryPreviewFailed = false,
+            erasureRetryRunning = false,
+            erasureRetryError = null,
+        )
+        val preview: ApiResult<ErasurePreview> = api.previewErasure(request.subjectUserId)
+        // The operator may have closed or switched the dialog while the count loaded.
+        if (_state.value.erasureRetryTarget?.id != request.id) return
+        _state.value = when (preview) {
+            is ApiResult.Ok -> _state.value.copy(erasureRetryPreview = preview.value)
+            is ApiResult.Failure -> _state.value.copy(erasureRetryPreviewFailed = true)
+        }
+    }
+
+    /** Closes the re-run confirm without erasing anything. */
+    fun dismissErasureRetry() {
+        _state.value = _state.value.copy(
+            erasureRetryTarget = null,
+            erasureRetryPreview = null,
+            erasureRetryPreviewFailed = false,
+            erasureRetryRunning = false,
+            erasureRetryError = null,
+        )
+    }
+
+    /**
+     * Re-runs the staged failed erasure. Success replaces the row with the server's completed request, closes
+     * the dialog and refreshes the status counts. A refusal or a second failure keeps the dialog open with
+     * the reason, so the operator sees why nothing changed.
+     */
+    suspend fun confirmErasureRetry() {
+        val api: ComplianceApi = complianceApi ?: return
+        val target: ErasureRequest = _state.value.erasureRetryTarget ?: return
+        if (_state.value.erasureRetryRunning) return
+        _state.value = _state.value.copy(erasureRetryRunning = true, erasureRetryError = null)
+        when (val result: ApiResult<ErasureRequest> = api.retryErasure(target.id)) {
+            is ApiResult.Ok -> {
+                val updated: ErasureRequest = result.value
+                _state.value = _state.value.copy(
+                    dataRequests = _state.value.dataRequests.map { if (it.id == updated.id) updated else it },
+                )
+                dismissErasureRetry()
+                val summary: ApiResult<ErasureRequestSummary> = api.summary()
+                if (summary is ApiResult.Ok) _state.value = _state.value.copy(dataRequestSummary = summary.value)
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(erasureRetryRunning = false, erasureRetryError = result.error)
         }
     }
 

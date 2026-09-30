@@ -314,6 +314,11 @@ public abstract class BaseController : ControllerBase
             // a pipeline/timer the channel made rather than one seeded or installed from the platform.
             or "NOT_A_PRESET"
             or "NOT_PLATFORM_CONTENT"
+            // An operator re-run of a GDPR request whose state does not allow one: it already completed,
+            // it is still running, or it is not a failed erasure at all.
+            or "ERASURE_ALREADY_COMPLETED"
+            or "ERASURE_IN_PROGRESS"
+            or "ERASURE_NOT_RETRYABLE"
             or "NETWORK_BLOCK_ACTIVE" => ConflictResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
                 result.ErrorCode

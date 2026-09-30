@@ -492,6 +492,10 @@ private class FakeComplianceApiForGroupingTest : ComplianceApi {
         pageSize: Int,
     ): ApiResult<PaginatedEnvelope<ErasureRequest>> = ApiResult.Ok(PaginatedEnvelope<ErasureRequest>(emptyList()))
     override suspend fun summary(): ApiResult<ErasureRequestSummary> = ApiResult.Ok(ErasureRequestSummary())
+    override suspend fun previewErasure(subjectUserId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun retryErasure(erasureRequestId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 /** Only present to flip [AdminController.trustSafetyAvailable] on — none of its methods are exercised by

@@ -93,9 +93,12 @@ public sealed class ErasureServiceTests
     }
 
     /// <summary>The real vault for everything except revocation, which it refuses — the failure the
-    /// pipeline reports as a Result AFTER it has already written the anonymised profile.</summary>
+    /// pipeline reports as a Result AFTER it has already written the anonymised profile. Clearing
+    /// <see cref="Refusing"/> lets a later attempt (a re-run) reach the real vault.</summary>
     private sealed class RefusingRevokeVault(IIntegrationTokenVault inner) : IIntegrationTokenVault
     {
+        public bool Refusing { get; set; } = true;
+
         public Task<Result<IntegrationConnectionDto>> UpsertConnectionAsync(
             UpsertConnectionDto request,
             CancellationToken cancellationToken = default
@@ -128,7 +131,10 @@ public sealed class ErasureServiceTests
             Guid connectionId,
             string reason,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Result.Failure("The vault is unavailable.", "VAULT_UNAVAILABLE"));
+        ) =>
+            Refusing
+                ? Task.FromResult(Result.Failure("The vault is unavailable.", "VAULT_UNAVAILABLE"))
+                : inner.RevokeConnectionAsync(connectionId, reason, cancellationToken);
 
         public Task<Result<IReadOnlyList<IntegrationConnectionDto>>> ListConnectionsAsync(
             Guid? broadcasterId,
@@ -1269,6 +1275,188 @@ public sealed class ErasureServiceTests
 
         preview.IsFailure.Should().BeTrue();
         preview.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    // ── Erasure: an operator re-run of a failed request ────────────────────────
+
+    /// <summary>
+    /// The admin console's "Re-run erasure": the SAME request row goes back through the SAME pipeline and
+    /// ends completed — no second request row — while the ledger keeps both attempts: the subject's failed
+    /// one and the operator's completed one.
+    /// </summary>
+    [Fact]
+    public async Task RetryErasureAsync_on_a_failed_request_erases_the_subject_and_completes_the_same_row()
+    {
+        RefusingRevokeVault? vault = null;
+        Harness h = Build(decorateVault: inner => vault = new(inner));
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        Guid subjectConn = await StoreConnectionAsync(
+            h.Vault,
+            SubjectChannel,
+            SubjectUser,
+            "subject-access-token"
+        );
+        (await h.Sut.RequestErasureAsync(SelfErasure(SubjectUser)))
+            .IsFailure.Should()
+            .BeTrue("the vault refuses the first attempt");
+        Guid requestId = (await h.Db.ErasureRequests.AsNoTracking().SingleAsync()).Id;
+        vault!.Refusing = false;
+
+        Result<ErasureRequestDto> retried = await h.Sut.RetryErasureAsync(requestId);
+
+        retried.IsSuccess.Should().BeTrue(retried.ErrorMessage);
+        retried.Value.Id.Should().Be(requestId);
+        retried.Value.Status.Should().Be("completed");
+        retried.Value.FailureReason.Should().BeNull();
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        ErasureRequest row = await reader.ErasureRequests.SingleAsync();
+        row.Id.Should()
+            .Be(requestId, "a re-run completes the failed row, it never adds a second one");
+        row.Status.Should().Be("completed");
+        row.FailureReason.Should().BeNull();
+        row.CompletedAt.Should().NotBeNull();
+
+        User subject = await reader
+            .Users.IgnoreQueryFilters()
+            .SingleAsync(u => u.Id == SubjectUser);
+        subject.IsAnonymized.Should().BeTrue();
+        subject.DisplayName.Should().Be("Deleted User");
+        IntegrationConnection connection = await reader
+            .IntegrationConnections.IgnoreQueryFilters()
+            .SingleAsync(c => c.Id == subjectConn);
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Revoked);
+
+        List<ComplianceAuditLog> audits = await reader
+            .ComplianceAuditLogs.Where(a => a.ErasureRequestId == requestId)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+        audits
+            .Select(a => (a.Outcome, a.RequestedBy))
+            .Should()
+            .Equal(("failed", "self_service"), ("completed", "platform_iam"));
+        audits[1].TablesAffected.Should().Contain("IntegrationConnections").And.Contain("Users");
+
+        h.Bus.Published.OfType<SubjectErasureCompletedEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.ErasureRequestId.Should()
+            .Be(requestId);
+    }
+
+    [Fact]
+    public async Task RetryErasureAsync_on_a_completed_request_is_refused_and_erases_nothing_again()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        ErasureRequestDto completed = (
+            await h.Sut.RequestErasureAsync(SelfErasure(SubjectUser))
+        ).Value;
+        // Chat written AFTER the erasure: a second pipeline run would hard-delete it.
+        SeedChatMessages(h.Db, SubjectUser, 2);
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasureRequestDto> refused = await h.Sut.RetryErasureAsync(completed.Id);
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("ERASURE_ALREADY_COMPLETED");
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        (await reader.ChatMessages.IgnoreQueryFilters().CountAsync())
+            .Should()
+            .Be(2, "a refused re-run must not touch the subject's data");
+        (await reader.ComplianceAuditLogs.CountAsync())
+            .Should()
+            .Be(1, "only the original completion is on the ledger");
+        ErasureRequest row = await reader.ErasureRequests.SingleAsync();
+        row.Status.Should().Be("completed");
+        row.CompletedAt.Should().Be(completed.CompletedAt);
+    }
+
+    [Theory]
+    [InlineData("running")]
+    [InlineData("pending")]
+    public async Task RetryErasureAsync_on_a_request_still_in_progress_is_refused(string status)
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        Guid requestId = await SeedRequestRowAsync(h.Db, "erasure", status);
+
+        Result<ErasureRequestDto> refused = await h.Sut.RetryErasureAsync(requestId);
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("ERASURE_IN_PROGRESS");
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        (await reader.ErasureRequests.SingleAsync()).Status.Should().Be(status);
+        (await reader.ComplianceAuditLogs.CountAsync()).Should().Be(0);
+        User subject = await reader
+            .Users.IgnoreQueryFilters()
+            .SingleAsync(u => u.Id == SubjectUser);
+        subject.IsAnonymized.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("export", "failed")]
+    [InlineData("opt_out", "failed")]
+    [InlineData("erasure", "cancelled")]
+    public async Task RetryErasureAsync_on_anything_but_a_failed_erasure_is_refused(
+        string requestType,
+        string status
+    )
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        Guid requestId = await SeedRequestRowAsync(h.Db, requestType, status);
+
+        Result<ErasureRequestDto> refused = await h.Sut.RetryErasureAsync(requestId);
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("ERASURE_NOT_RETRYABLE");
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        (await reader.ErasureRequests.SingleAsync()).Status.Should().Be(status);
+        User subject = await reader
+            .Users.IgnoreQueryFilters()
+            .SingleAsync(u => u.Id == SubjectUser);
+        subject.IsAnonymized.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RetryErasureAsync_for_an_unknown_request_fails_not_found()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+
+        Result<ErasureRequestDto> refused = await h.Sut.RetryErasureAsync(Guid.NewGuid());
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    private static async Task<Guid> SeedRequestRowAsync(
+        GdprTestDbContext db,
+        string requestType,
+        string status
+    )
+    {
+        ErasureRequest request = new()
+        {
+            SubjectUserId = SubjectUser,
+            SubjectIdHash = HashOf(SubjectUser),
+            RequestType = requestType,
+            RequestedBy = "self_service",
+            Status = status,
+            Scope = "deployment",
+            RequestedAt = DateTime.UtcNow,
+        };
+        db.ErasureRequests.Add(request);
+        await db.SaveChangesAsync();
+        return request.Id;
     }
 
     private static void SeedChatMessages(GdprTestDbContext db, Guid userId, int count)
