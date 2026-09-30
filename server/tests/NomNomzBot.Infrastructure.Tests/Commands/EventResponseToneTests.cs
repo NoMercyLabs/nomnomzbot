@@ -303,6 +303,12 @@ public sealed class EventResponseToneTests
         );
 
         saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        saved
+            .Value.ToneLines.Should()
+            .Equal(
+                EventResponseToneCatalog.Get(PersonalityTone.Sassy, Follow),
+                "the save answers with the lines of the channel's own tone"
+            );
         EventResponseDto dto = (
             await h.Channels.GetByEventTypeAsync(OwnTextChannel.ToString(), Follow)
         ).Value;

@@ -217,8 +217,10 @@ public class EventResponseService : IEventResponseService
             cancellationToken
         );
 
-        // Saved, so the row has its own text: it follows nothing and carries no tone lines.
-        return Result.Success(ToDto(entity, null, PersonalityTone.Default));
+        // Saved, so the row follows nothing; with no text it speaks the lines of the channel's own tone.
+        return Result.Success(
+            ToDto(entity, null, await PersonalityAsync(broadcaster, cancellationToken))
+        );
     }
 
     public async Task<Result> ResetToDefaultAsync(
