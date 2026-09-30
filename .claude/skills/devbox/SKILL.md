@@ -21,11 +21,8 @@ named volumes, so a rebuild never re-downloads them.
 
 ## Three ways in
 
-| Way | How |
-|---|---|
-| Browser | `http://localhost:8443`, password `DEVBOX_PASSWORD`. Nothing to install — this is the one to share. |
-| Local VS Code | **Dev Containers: Reopen in Container** (`.devcontainer/devcontainer.json` targets this same compose service). |
-| Remote-SSH | Put a public key in `devbox/ssh/authorized_keys`, restart. `sshd` runs key-only on **2222** as the unprivileged `dev` user. `DEVBOX_ENABLE_SSH=0` disables it. |
+Browser (`http://localhost:8443`, password `DEVBOX_PASSWORD`), local VS Code Dev Containers, or
+Remote-SSH (key-only, port 2222). Setup steps for each are in [`devbox/README.md`](../../../devbox/README.md).
 
 ## Inside the box
 
@@ -36,8 +33,8 @@ docker compose up -d postgres redis adminer    # from /workspace
 ```
 
 The devbox publishes **5080** and **5090**, so the API and the dashboard dev server are reachable
-on the host exactly as they are without the container. PowerShell 7 is present, so every
-`scripts/*.ps1` gate runs unchanged.
+on the host exactly as they are without the container. PowerShell 7 is present, so the `scripts/*.ps1` gates
+run, except the ReSharper leg of `slice-check` is skipped by default (use `-Inspect`).
 
 ## Sharing it
 

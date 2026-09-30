@@ -6,8 +6,8 @@ Dependencies flow **inward only**. Domain knows nothing about the outside world.
 
 ```
 NomNomzBot.Api             → Controllers, Hubs, Middleware, JWT, SignalR
-NomNomzBot.Infrastructure  → EF Core, Twitch/Spotify/Discord/TTS services
-NomNomzBot.Application     → Use cases, service interfaces, pipeline engine, IEventBus
+NomNomzBot.Infrastructure  → EF Core, Twitch/Spotify/Discord/TTS services, pipeline engine (Platform/Pipeline), event bus (Platform/Eventing/EventBus.cs), EventSub
+NomNomzBot.Application     → Use cases, service interfaces, pipeline and event-bus interfaces (IPipelineEngine, ICommandAction, IEventBus)
 NomNomzBot.Domain          → Entities, domain events, value objects, no external deps
 ```
 
@@ -18,7 +18,7 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 - **Soft deletes** — entities use `IsDeleted` + EF Core global query filters. Never `DELETE` from the database.
 - **Multi-tenancy** — `TenantResolutionMiddleware` resolves the tenant per request from an explicit channel target (route `{channelId}` → `X-Channel-Id` header → `channelId` query), falling back to the caller's own channel (JWT `sub`) only when none is given — so an operator can act on any channel they moderate, not just their own. Gate-1 entry (`CanResolveTenantAsync`) admits any authenticated caller to any existing channel; per-action `[RequireAction]` (Gate-2) enforces their role there. A global EF query filter scopes every read to the resolved tenant.
 - **Nullable reference types** — enabled everywhere (`<Nullable>enable</Nullable>`).
-- **Global usings** — each project has a `GlobalUsings.cs`.
+- **Implicit usings** — src projects use `<ImplicitUsings>enable</ImplicitUsings>` (`Directory.Build.props`).
 - **Async all the way** — never `.Result` or `.Wait()`.
 - **Repository + IUnitOfWork** — no raw `DbContext` in controllers.
 
@@ -29,7 +29,7 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 | `AuthService` | Infrastructure | JWT creation, Twitch token exchange (device code + refresh) |
 | `ITwitchHelixClient` | Application contract, Infrastructure impl | Typed Helix client — 26 sub-clients covering the full Helix surface |
 | `TwitchEventSubHostedService` | Infrastructure (`Platform/Eventing`) | EventSub lifecycle over `WebSocketEventSubTransport`; 74 event translators |
-| `HelixChatProvider` | Infrastructure | Chat send (`IChatProvider`) via Helix Send Chat Message — every profile |
+| `IChatProvider` = `ChatPlatformRouter` | Infrastructure | Dispatches to per-platform `IChatPlatform` implementations (`HelixChatProvider` for Twitch, `KickChatPlatform`, YouTube live chat); also implements `IInboundOriginChatSender` (replies go to the message's origin platform) |
 | `MusicService` + `SpotifyMusicProvider` | Infrastructure (`Music/`) | Now playing, queue, playback control (provider-backed) |
 | `DiscordGuildService` / `DiscordNotificationConfigService` / `DiscordGuildDirectoryService` / `DiscordNotificationRoleService` | Infrastructure (`Discord/`) | Guild sync, notification config, guild directory, role buttons |
 | `TtsService` | Infrastructure | Azure Cognitive Services + ElevenLabs provider |
@@ -37,7 +37,7 @@ NomNomzBot.Domain          → Entities, domain events, value objects, no extern
 
 ### Controllers (all under `/api/v1/`, source in `NomNomzBot.Api/Controllers/V1/`)
 
-**~87 controllers, one per module** — do not rely on a hand-maintained list; browse them at
+**About 110 controllers (`Controllers/V1` plus host/relay controllers); do not rely on a count — read the folder.** Browse them at
 `http://localhost:5080/scalar` or in `Controllers/V1/`. Each domain spec's **§5 table** is the
 authoritative contract (routes + Gate-2 action keys). Major groups: auth/channels/users,
 commands/builtins/pipelines/event-responses/timers/quotes, chat/moderation, rewards/live-ops/stream,
@@ -51,7 +51,7 @@ billing, platform admin (IAM, feature flags, tenant ops).
 - All routes: `[Route("api/v{version:apiVersion}/...")]` with `[ApiVersion("1.0")]`
 - All responses: `StatusResponseDto<T>` or `PaginatedResponse<T>`
 - Pagination: `?page=1&pageSize=25`
-- Errors: problem details (RFC 7807) for 4xx/5xx
+- Errors use the `StatusResponseDto` error envelope `{status:"error", message, code, args}`; `GlobalExceptionMiddleware` writes the same envelope for 500s; only the tenant-suspended 403 in `TenantResolutionMiddleware` is RFC 7807 `problem+json`.
 - Interactive API docs: `http://localhost:5080/scalar`
 
 ### SignalR Hubs
@@ -63,13 +63,16 @@ billing, platform admin (IAM, feature flags, tenant ops).
 | `OBSRelayHub` | `/hubs/obs` | OBS WebSocket relay |
 | `AdminHub` | `/hubs/admin` | Platform admin operations |
 
+For the full event list, see `Api/Hubs/Clients/IDashboardClient.cs`.
+
 The frontend connects through the shared KMP SignalR client. Auth token passed as `?access_token=<jwt>`.
 
 ### Authentication Flow
 
-1. **Login = Twitch Device Code Flow (secret-free):** `POST /api/v1/auth/twitch/device` → user approves
-   on twitch.tv/activate → `POST /api/v1/auth/twitch/device/poll` returns JWTs. The bot account connects
-   the same way (`/api/v1/auth/twitch/bot/device` + poll). Shared public client by default, BYOC encouraged.
+1. **Login is provider-generic (D2):** `auth/{provider}/device[/poll]` via `ILoginProviderRegistry`, and
+   `auth/{provider}/authorize` + `/callback` for code-flow providers. Twitch device code (secret-free,
+   approve on twitch.tv/activate) is the `provider=twitch` case. The per-channel bot login is
+   `auth/twitch/channels/{channelId}/bot/device` (+ poll). Shared public client by default, BYOC encouraged.
 2. The authorization-code callback (`/api/v1/auth/twitch/callback`, GET + POST) remains for redirect-based
    flows and integration OAuth.
 3. Tokens are AES-encrypted at rest. JWT sent as `Authorization: Bearer <token>`; refresh via
@@ -77,6 +80,11 @@ The frontend connects through the shared KMP SignalR client. Auth token passed a
    refresh token in an HttpOnly+Secure cookie — never localStorage**.
 4. **Progressive scopes** — enabling a feature that needs new scopes triggers the action-required flow
    (chat + dashboard prompt → one-click additive re-grant). Never force a logout for a scope change.
+
+**Impersonation (act-as)** is a full identity swap.
+- The web build holds the act-as token in the httpOnly `nnz_act_as` cookie; native clients send `actAsToken`.
+- `POST /auth/refresh` re-mints the impersonated user for the life of the support session.
+- `POST /auth/impersonation/exit` ends it and returns the operator session.
 
 ### Running the Backend
 
@@ -102,6 +110,7 @@ the dashboard dev server is also running:
 - `http://localhost:5080` — API
 - `http://localhost:5080/scalar` — Interactive docs
 - `http://localhost:5080/health` — Health check (JSON)
+- `http://localhost:5080/health/version` — running build/commit
 - `http://localhost:8082` — Adminer (DB browser)
 
 The dashboard dev server (`wasmJsBrowserDevelopmentRun`) listens on its own port, `5090`
@@ -112,13 +121,27 @@ and otherwise falls back to the deployed dev backend so a frontend-only dev neve
 **zero flags and zero env vars** on a fresh clone. See *Running the Frontend* below.
 
 **OAuth redirect URI for local dev — always `http://localhost:5080/api/v1/auth/twitch/callback`.**
-The two-port dev proxy deliberately does **not** forward `X-Forwarded-Host`/`X-Forwarded-Proto`, so
-`ResolvePublicOrigin` reports the API's own origin (`5080`) rather than the dashboard dev-server port
-(`5090`) the browser happens to be on — the redirect must byte-match what's actually registered in
-the Twitch Developer Console, and the owner registers `5080`. This is a deliberate exception to the
-forwarded-header precedence used everywhere else (Cloudflare Tunnel, Proxmox) — those are real
-reverse-proxy deployments where the forwarded origin IS the one to trust; the local two-port dev
-arrangement is not one of those, so the API resolves its own origin instead.
+`ResolvePublicOrigin` picks the public origin by this precedence: (1) an explicit non-loopback
+`App:BaseUrl` wins outright; (2) `X-Forwarded-Host`/`X-Forwarded-Proto`; (3) the loopback default.
+The local two-port result falls out of rule 2: the dev proxy forwards no headers, so the API reports its
+own origin (`5080`), not the dashboard dev-server port (`5090`). The redirect must byte-match what is
+registered in the Twitch Developer Console, and the owner registers `5080`. Real reverse-proxy
+deployments (Cloudflare Tunnel, Proxmox) set `App:BaseUrl` or forward the headers, so the forwarded
+origin is the one used there.
+
+### Deploy Topology
+
+Caddy owns host port `5080`; `api-blue` / `api-green` publish nothing. `scripts/switchover.ps1` is the
+zero-downtime path.
+
+### Migrations (two sets)
+
+Postgres migrations live in `Infrastructure/Platform/Persistence/Migrations`; SQLite migrations live in
+`NomNomzBot.Migrations.Sqlite`. A schema change needs both. Prove it with `scripts/migration-check.ps1`.
+
+### Docs Exposure
+
+`/scalar` is served only in Development or when `Api:ExposeDocs=true`; the docker default is `false`.
 
 ### Running Tests
 

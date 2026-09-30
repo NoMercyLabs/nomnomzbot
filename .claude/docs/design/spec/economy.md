@@ -45,7 +45,14 @@ Defined and **owned** by this subsystem (locked schema — referenced, not redef
 `ITenantScoped` (`BroadcasterId : Guid`) and the EF global tenant + soft-delete filters except where the
 schema marks `[APPEND-ONLY]` (no `DeletedAt`/`UpdatedAt`) or `[CROSS-TENANT]` (membership-predicate RLS).
 
-**Accounts are keyed per channel, one per human.** A channel is one tenant spanning every platform connection (PRODUCT-ALIGNMENT D1) and a viewer is one `User` across platforms, so `CurrencyAccount` is `Unique(BroadcasterId, ViewerUserId)` — **one balance per human per channel**, regardless of which platform they earned or spent on. The denormalized `ViewerExternalUserId` + `ViewerProvider` pair records the platform identity the row was last touched from (PII-hash, for erasure/audit), never a second account key.
+**Accounts are keyed per channel, one per human.** A channel is one tenant spanning every platform connection (PRODUCT-ALIGNMENT D1) and a viewer is one `User` across platforms, so `CurrencyAccount` is *intended* to be `Unique(BroadcasterId, ViewerUserId)` — **one balance per human per channel**, regardless of which platform they earned or spent on. The denormalized `ViewerExternalUserId` + `ViewerProvider` pair records the platform identity the row was last touched from (PII-hash, for erasure/audit), never a second account key.
+
+> **As built (verified 2026-09-30) — two gaps against the paragraph above.**
+>
+> 1. **The uniqueness is not enforced by the database.** `CurrencyAccountConfiguration` declares `HasIndex(e => new { e.BroadcasterId, e.ViewerUserId })` — a plain **non-unique** index; its own comment says the rule is "enforced in `ICurrencyAccountService`'s lazy create". Two concurrent first-touches of the same viewer can therefore insert two wallets. Adding the unique index (with a duplicate-merge migration in **both** migration assemblies) is tracked as **S-WALLET-UNIQUE**.
+> 2. **The platform-identity pair is not built.** The entity has a single `ViewerTwitchUserId:string(50)` column (on `CurrencyAccount` and on `CurrencyLedgerEntry`) and **no `ViewerProvider`**. The service creates accounts with `ViewerTwitchUserId = string.Empty` ("a non-load-bearing PII-display cache … enriched by the engagement callers"). Replacing it with `ViewerExternalUserId` + `ViewerProvider` is **pending S023-remaining**; every `ViewerExternalUserId` / `ViewerProvider` field in the table below is the target shape, not today's columns.
+>
+> Both `CurrencyAccount` and `CurrencyLedgerEntry` also differ from the table in that the enum-token columns (`EntryType`, `SourceType`) are CLR enums (`CurrencyEntryType`, `CurrencyLedgerSourceType`), and `CurrencyAccount` carries one extra column, `LastAppliedStreamPosition:long` (§3.2).
 
 | Entity | Schema | Kind | Key fields (abridged — schema is authoritative) |
 |---|---|---|---|
@@ -77,12 +84,16 @@ produces the `CatalogPurchase`).
 
 ## 2. Domain events
 
-All inherit `DomainEventBase` (`NomNomzBot.Domain.Events`: `EventId:string`, `Timestamp:DateTimeOffset`,
-`BroadcasterId:string?`). Published via `IEventBus.PublishAsync` / `PublishFireAndForget`. `EventType`
-strings align with the schema's `EventJournal.EventType` namespace (`economy.*`). New file:
-`NomNomzBot.Domain/Events/EconomyEvents.cs`.
+Every event is a **`sealed class` deriving `DomainEventBase`** (`NomNomzBot.Domain.Platform`), with the payload as
+`required … { get; init; }` properties. The base supplies `Guid EventId` (UUIDv7), `DateTimeOffset OccurredAt` and
+`Guid BroadcasterId` (`Guid.Empty` is the platform-level sentinel) — economy events never re-declare them. Published via
+`IEventBus.PublishAsync` / `PublishFireAndForget`. The `EventType` column below is the schema's `economy.*` namespace
+(also quoted in each class's XML doc); **the journaled `EventJournal.EventType` discriminator is the CLR class name**
+(`typeof(TEvent).Name`, e.g. `CurrencyCreditedEvent` — see `DomainEventTypeRegistry`, and `CurrencyBalanceProjection`'s
+`SubscribedEventTypes`). File: `NomNomzBot.Domain/Economy/Events/EconomyEvents.cs`; the live-games events
+(`LiveGameStartedEvent`, `LiveGameResolvedEvent`, `LiveGameCancelledEvent`) sit beside it in `LiveGameEvents.cs`.
 
-| Event record | EventType | Payload (in addition to base) | Emitted when |
+| Event class | EventType | Payload (in addition to base) | Emitted when |
 |---|---|---|---|
 | `CurrencyCreditedEvent` | `economy.balance.credited` | `Guid AccountId, Guid ViewerUserId, long Amount, long BalanceAfter, string EntryType, string? SourceType, Guid? SourceId, long LedgerEntryId` | A positive ledger entry is committed (earn/jar payout/admin credit) |
 | `CurrencyDebitedEvent` | `economy.balance.debited` | `Guid AccountId, Guid ViewerUserId, long Amount, long BalanceAfter, string EntryType, string? SourceType, Guid? SourceId, long LedgerEntryId` | A negative ledger entry is committed (spend/jar contribute/admin debit) |
@@ -99,16 +110,15 @@ strings align with the schema's `EventJournal.EventType` namespace (`economy.*`)
 | `AgeConsentGrantedEvent` | `economy.consent.age18_granted` | `Guid ViewerUserId, Guid ConsentRecordId, string ConfirmationMethod` | A viewer passes the 18+ gambling gate |
 | `AgeConsentRevokedEvent` | `economy.consent.age18_revoked` | `Guid ViewerUserId, Guid ConsentRecordId` | A viewer revokes 18+ consent |
 
-`BroadcasterId` on the base is the `Guid.ToString()` of the tenant (matches existing `DomainEventBase`
-string contract). The economy never invents the `EventJournal` row — it sets `CurrencyLedgerEntry.EventId`
+The economy never invents the `EventJournal` row — it sets `CurrencyLedgerEntry.EventId`
 to the triggering journal entry where one exists (EventSub-sourced earns), else null (admin/game/spend).
 
 ---
 
 ## 3. Service interfaces
 
-New files under `NomNomzBot.Application/Services/`. Implementations under
-`NomNomzBot.Infrastructure/Services/Economy/`. Every method takes `Guid broadcasterId` and a trailing
+Interfaces live under `NomNomzBot.Application/Economy/Services/`; implementations under
+`NomNomzBot.Infrastructure/Economy/` (module-first layout — there is no `Services/Economy/` folder). Every method takes `Guid broadcasterId` and a trailing
 `CancellationToken ct = default`. Behavior note = the state change + events + side effects.
 
 Economy-specific error codes (added to the `ResultResponse` map): `INSUFFICIENT_FUNDS`, `ACCOUNT_FROZEN`,
@@ -142,6 +152,19 @@ public interface ICurrencyConfigService
 
 ### 3.2 `ICurrencyAccountService` — wallets, balance, and the ledger (the core mutation surface)
 
+> **As built — who writes what on `CurrencyAccount` (the Balance / projection split).** Two writers share the wallet row, and each owns a disjoint set of columns:
+>
+> | Writer | Columns | How |
+> |---|---|---|
+> | `CurrencyAccountService.AppendAsync` (synchronous, inside the caller's `IUnitOfWork` transaction) | `Balance`, `LastActivityAt` | One atomic compare-and-set `ExecuteUpdateAsync` whose `WHERE` carries the guard (`Balance + amount >= 0` for a debit, `Balance + amount <= MaxBalance` for a credit) and whose `SET` is `Balance = Balance + amount`. Zero rows updated → the service re-reads and returns `INSUFFICIENT_FUNDS`, `MAX_BALANCE_EXCEEDED` or `CONCURRENCY_CONFLICT`. Then it allocates `TenantPosition` and appends the `CurrencyLedgerEntry`. |
+> | `CurrencyBalanceProjection` (`IProjection`, name `currency-balance`, driven off the event journal) | `Balance`, `LifetimeEarned`, `LifetimeSpent`, `LastActivityAt`, `LastAppliedStreamPosition` | Folds `CurrencyCreditedEvent` / `CurrencyDebitedEvent`. `Balance` is set to the event's `BalanceAfter` (the projection trusts it, it does not sum deltas); the lifetime totals are per-event deltas added by `ExecuteUpdateAsync` column-plus-delta. |
+>
+> **`LifetimeEarned` / `LifetimeSpent` are owned by the projection alone** (S004j found `AppendAsync` also incrementing them, which double-counted every entry once the projection caught up). The one exception is the wallet's creation row, which is opened with `LifetimeEarned = StartingBalance`.
+>
+> **`LastAppliedStreamPosition:long` makes the fold idempotent.** It is the tenant-stream position of the last ledger event folded into this wallet. Every fold is gated on `LastAppliedStreamPosition < event.StreamPosition`: an event at or below the mark (an operator's windowed replay, a driver retry) matches no row and changes nothing, so a replay cannot count the same delta twice. `ResetAsync` zeroes `Balance`, both lifetime totals **and** the mark, so a rebuild folds the whole history.
+>
+> **`GetBalanceAsync` reads the `Balance` column only.** The "fold the ledger when the projection is stale" branch in the comment below is not built: because `AppendAsync` updates `Balance` synchronously, the column is never behind the ledger inside a committed transaction. It returns `0` when the viewer has no wallet (no lazy create). `PostLedgerEntryAsync` publishes the `Currency(Credited|Debited)Event` + `LedgerEntryRecordedEvent` (§2).
+
 ```csharp
 public interface ICurrencyAccountService
 {
@@ -149,8 +172,7 @@ public interface ICurrencyAccountService
     // ledger entry EntryType=admin_adjust SourceType=account_open) under a tx if absent. Returns the account.
     Task<Result<CurrencyAccountDto>> GetOrCreateAccountAsync(Guid broadcasterId, Guid viewerUserId, CancellationToken ct = default);
 
-    // Reads current balance by folding the ledger via the (BroadcasterId,AccountId,Id) index when the
-    // projection is stale, else the CurrencyAccounts.Balance projection. Read-only.
+    // Reads CurrencyAccounts.Balance (no ledger fold — see the as-built note above); 0 when no wallet. Read-only.
     Task<Result<long>> GetBalanceAsync(Guid broadcasterId, Guid viewerUserId, CancellationToken ct = default);
 
     // Paginated wallet list for the channel (dashboard "balances" table), ordered by Balance desc by default.
@@ -160,8 +182,9 @@ public interface ICurrencyAccountService
     // (ACCOUNT_FROZEN) or currency disabled (CURRENCY_DISABLED); for credits enforces MaxBalance
     // (MAX_BALANCE_EXCEEDED), for debits enforces Balance+Amount>=0 (INSUFFICIENT_FUNDS); assigns
     // TenantPosition from TenantSequences('currency_ledger_position') under the per-tenant lock; appends
-    // ONE CurrencyLedgerEntry with BalanceAfter; updates the account projection (Balance, Lifetime*,
-    // LastActivityAt); commits; publishes Currency(Credited|Debited)Event + LedgerEntryRecordedEvent.
+    // ONE CurrencyLedgerEntry with BalanceAfter; updates Balance + LastActivityAt via the atomic CAS (the
+    // Lifetime* totals are folded by CurrencyBalanceProjection, not here); commits; publishes
+    // Currency(Credited|Debited)Event + LedgerEntryRecordedEvent.
     // Amount sign in the command decides credit vs debit. Returns the committed entry.
     // EntryType extension: giveaways.md contributes spend_giveaway (entry-cost debit) and
     // earn_giveaway (currency/pot prize credit) — same ledger primitive, no new behavior.
@@ -578,7 +601,8 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 | PUT | `/earning-rules` | `UpsertEarningRuleRequest` | `StatusResponseDto<EarningRuleDto>` | management / Broadcaster · `economy:earning-rules:write` |
 | DELETE | `/earning-rules/{ruleId}` | — | `StatusResponseDto<object>` | management / Broadcaster · `economy:earning-rules:delete` |
 | GET | `/accounts` | `PageRequestDto` | `PaginatedResponse<CurrencyAccountDto>` | management / Moderator · `economy:accounts:read` |
-| GET | `/accounts/{viewerUserId}` | — | `StatusResponseDto<CurrencyAccountDto>` | community / Moderator · `economy:account:read` (self-or-Gate-2) |
+| GET | `/accounts/me` | — | `StatusResponseDto<CurrencyAccountDto>` | community / Everyone · **no `[RequireAction]`** — the *self* arm of `economy:account:read`: binds the subject to the authenticated caller, creates the wallet on first read, and can only ever return the caller's own account (`me` is a literal segment, so it never shadows the guid route) |
+| GET | `/accounts/{viewerUserId}` | — | `StatusResponseDto<CurrencyAccountDto>` | community / Moderator · `economy:account:read` (the Gate-2 arm: reading *another* member's wallet) |
 | GET | `/accounts/{viewerUserId}/ledger` | `PageRequestDto` | `PaginatedResponse<CurrencyLedgerEntryDto>` | community / Moderator · `economy:ledger:read` (self-or-Gate-2) |
 | POST | `/accounts/{viewerUserId}/adjust` | `AdminAdjustCommand` | `StatusResponseDto<CurrencyLedgerEntryDto>` | management / Broadcaster · `economy:account:adjust` |
 | POST | `/accounts/{viewerUserId}/freeze` | `{ bool frozen }` | `StatusResponseDto<CurrencyAccountDto>` | management / Moderator · `economy:account:freeze` |
@@ -592,6 +616,7 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 | GET | `/{itemId}` | — | `StatusResponseDto<CatalogItemDto>` | community / Everyone · `economy:catalog:read` |
 | POST | `/` | `CreateCatalogItemRequest` | `StatusResponseDto<CatalogItemDto>` (201) | management / Moderator · `economy:catalog:create` |
 | PATCH | `/{itemId}` | `UpdateCatalogItemRequest` | `StatusResponseDto<CatalogItemDto>` | management / Moderator · `economy:catalog:update` |
+| GET | `/{itemId}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Moderator · `economy:catalog:read` — real, counted dependents of deleting the item (S-CONSEQ); the dashboard renders it before the delete confirm |
 | DELETE | `/{itemId}` | — | `StatusResponseDto<object>` | management / Moderator · `economy:catalog:delete` |
 | POST | `/{itemId}/purchase` | `PurchaseRequest` | `StatusResponseDto<CatalogPurchaseDto>` | community / Everyone · `economy:catalog:purchase` (`CatalogItem.Permission` CommunityStanding, default Everyone) |
 | GET | `/purchases` | `PurchaseFilter`+`PageRequestDto` | `PaginatedResponse<CatalogPurchaseDto>` | management / Moderator · `economy:catalog:purchases:read` |
@@ -605,6 +630,7 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 |---|---|---|---|---|
 | GET | `/` | — | `StatusResponseDto<IReadOnlyList<GameConfigDto>>` | community / Everyone · `economy:games:read` |
 | PUT | `/` | `UpsertGameConfigRequest` | `StatusResponseDto<GameConfigDto>` | management / Broadcaster · `economy:games:write` |
+| POST | `/{gameType}/reset` | — | `StatusResponseDto<GameConfigDto>` | management / Broadcaster · `economy:games:write` — puts one built-in game's settings back on the platform defaults and keeps its on/off state; 404 when the channel has no such game or the game has no platform default |
 | POST | `/{gameConfigId}/play` | `PlayGameRequest` | `StatusResponseDto<GamePlayResultDto>` | community / Everyone · `economy:games:play` (`GameConfig.Permission` CommunityStanding, default Everyone; +18 gate via IAgeConsentService if `Requires18Plus`) |
 | GET | `/history` | `GameHistoryFilter`+`PageRequestDto` | `PaginatedResponse<GamePlayDto>` | community / Everyone · `economy:games:history:read` (self-or-Gate-2: own plays only unless the caller holds `economy:ledger:read`) |
 | GET | `/consent/{viewerUserId}` | — | `StatusResponseDto<bool>` | community / Moderator · `economy:consent:read` (self-or-Gate-2) |
@@ -618,6 +644,9 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 | GET | `/` | — | `StatusResponseDto<IReadOnlyList<SavingsJarDto>>` | management / Moderator · `economy:jars:read` |
 | POST | `/` | `CreateSavingsJarRequest` | `StatusResponseDto<SavingsJarDto>` (201) | management / Broadcaster · `economy:jars:create` |
 | GET | `/{jarId}` | — | `StatusResponseDto<SavingsJarDto>` | management / Moderator · `economy:jars:read` (jar-membership scope check) |
+| PATCH | `/{jarId}` | `UpdateSavingsJarRequest` | `StatusResponseDto<SavingsJarDto>` | management / Editor · `economy:jars:update` (owner-only, enforced by the service regardless of floor) |
+| GET | `/{jarId}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Moderator · `economy:jars:read` — counted dependents of deleting the jar (S-CONSEQ) |
+| DELETE | `/{jarId}` | — | `StatusResponseDto<object>` | management / Editor · `economy:jars:delete` (owner-only; the confirm step calls `blast-radius` first) |
 | POST | `/{jarId}/invite` | `InviteChannelRequest` | `StatusResponseDto<SavingsJarMembershipDto>` | management / Broadcaster · `economy:jars:invite` (jar-owner scope check) |
 | POST | `/memberships/{membershipId}/accept` | — | `StatusResponseDto<SavingsJarMembershipDto>` | management / Broadcaster · `economy:jars:membership:accept` (invited-channel scope check) |
 | DELETE | `/memberships/{membershipId}` | — | `StatusResponseDto<object>` | management / Broadcaster · `economy:jars:membership:revoke` (jar-owner-or-self scope check) |
@@ -631,23 +660,46 @@ resolved against `ChannelCommunityStandings.LevelValue`, default `Everyone`.
 |---|---|---|---|---|
 | GET | `/configs` | — | `StatusResponseDto<IReadOnlyList<LeaderboardConfigDto>>` | management / Moderator · `economy:leaderboards:config:read` |
 | PUT | `/configs` | `UpsertLeaderboardConfigRequest` | `StatusResponseDto<LeaderboardConfigDto>` | management / Broadcaster · `economy:leaderboards:config:write` |
+| GET | `/configs/{configId}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Moderator · `economy:leaderboards:read` — counted dependents of deleting the config (S-CONSEQ) |
 | DELETE | `/configs/{configId}` | — | `StatusResponseDto<object>` | management / Broadcaster · `economy:leaderboards:config:delete` |
 | GET | `/{configId}` | `?top=` | `StatusResponseDto<IReadOnlyList<LeaderboardEntryDto>>` | community / Everyone · `economy:leaderboards:read` (Everyone if `IsPublic`, else Moderator) |
 | POST | `/opt-out/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Everyone · `economy:leaderboards:opt-out` (self-or-Gate-2: another viewer needs `economy:leaderboards:config:write`) |
 | POST | `/opt-in/{viewerUserId}` | — | `StatusResponseDto<object>` | community / Everyone · `economy:leaderboards:opt-in` (self-or-Gate-2: another viewer needs `economy:leaderboards:config:write`) |
 
+> **As built — floors are the seeder's, not this table's.** `ActionDefinitionSeeder` (`Infrastructure/Content/Identity/`) is authoritative; the Plane / floor column above is the design and differs in these places (the ladder is Moderator 10, LeadModerator 20, Editor 30):
+>
+> - **Editor (30):** `economy:config:write`, `economy:earning-rules:write`, `economy:earning-rules:delete`, `economy:catalog:create`, `economy:catalog:update`, `economy:catalog:delete`, `economy:leaderboards:config:write`, `economy:leaderboards:config:delete`, `economy:jars:update`, `economy:jars:delete`.
+> - **LeadModerator (20):** `economy:catalog:refund`.
+> - **Moderator (10):** `economy:config:read`, `economy:earning-rules:read`, `economy:accounts:read`, `economy:account:read`, `economy:account:freeze`, **`economy:account:adjust`**, `economy:ledger:read`, `economy:catalog:purchases:read`, `economy:leaderboards:config:read`.
+> - **Broadcaster:** `economy:games:write` only.
+> - **Community plane, Everyone (0):** `economy:catalog:read`, `economy:catalog:purchase`, `economy:games:read`, `economy:games:play`, `economy:games:history:read`, every `economy:jars:*` except `update` / `delete` (**so `jars:read`, `jars:create`, `jars:invite`, `jars:withdraw` and `jars:history:read` seed at Everyone, not Moderator/Broadcaster** — the service's membership / owner / cap checks are the real gate), `economy:leaderboards:read` / `opt-in` / `opt-out`, `economy:transfer:write`, and **`economy:consent:read` / `write` / `revoke`** (the table's Moderator floor for `consent:read` and `consent:revoke` is not seeded; the self-or-Gate-2 rule lives in the controller).
+>
+> `economy:account:adjust` at Moderator (the table says Broadcaster) is an **owner question**: it lets a moderator mint or burn any viewer's currency. Refresh this table from the seeder when that is settled.
+
+### GameSessionsController — `api/v{version}/channels/{channelId}/games/sessions` (live games)
+
+Not part of this subsystem's own controllers — the live-games overlay rounds (`live-games.md`) ride the economy ledger through `IGameService.StakeLiveGameEntryAsync` / `SettleLiveGameAsync` / `RefundLiveGameAsync` (§3.5). Its five routes are listed here because they share the `Game*` entities: `GET /active`, `GET /` and `GET /catalog` (`games:session:read`, Moderator), `POST /` (`games:session:start`, Moderator) and `DELETE /{sessionId}` (`games:session:cancel`, Moderator). The per-game config (odds, bets, enable) stays the Broadcaster's `economy:games:write`.
+
 ---
 
 ## 6. Pipeline actions
 
-New file `NomNomzBot.Infrastructure/Pipeline/Actions/EconomyActions.cs`, each implementing the **single
-canonical `ICommandAction`** defined in `commands-pipelines.md` §3.13 (`Application/Pipeline`): `string Type`
-(+ `Category`/`Description` for the editor); `Task<ActionResult> ExecuteAsync(ActionContext context,
-CancellationToken ct)`. Params read from `context.Parameters` (the step's resolved `ConfigJson`). These let
-economy ride the existing command/event pipeline (e.g. `!balance`, reward-driven payouts). All resolve the
-viewer via `context.TriggeredByUserId` and the tenant via `context.BroadcasterId` (already a `Guid` — no parse).
-(The pre-consolidation Infrastructure `ICommandAction` shape — `ActionType`/`ExecuteAsync(PipelineExecutionContext,
-ActionDefinition)` — is collapsed away per commands-pipelines §0; do not target it.)
+One class per action, one file each, in `NomNomzBot.Infrastructure/Economy/PipelineActions/`, each implementing the
+**live `ICommandAction`** (`NomNomzBot.Application/Abstractions/Pipeline/ICommandAction.cs`):
+
+```csharp
+public interface ICommandAction
+{
+    string ActionType { get; }
+    LocalizedText Category { get; }     // a resource KEY, one per domain folder — economy uses "pipeline.category.economy"
+    LocalizedText Description { get; }  // a resource KEY, unique per action, e.g. "pipeline.grant_currency.description"
+    IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];   // typed step-form schema (number / text / …), Description = help KEY
+    bool ResolvesOwnTemplates => false;                          // false: the engine's central pass renders templated fields
+    Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action);
+}
+```
+
+Params are read from the step's `ActionDefinition` with `action.GetInt("amount")` / `action.GetString("reason")` (already template-rendered). The tenant is `ctx.BroadcasterId` (a `Guid` — no parse), the viewer is `Guid.TryParse(ctx.TriggeredByUserId, …)` (a `string` on the context — fail closed when it is not a valid id), the token is `ctx.CancellationToken`, and outputs go into `ctx.Variables` (a `Dictionary<string,string>`, so values are `ToString()`ed). These let economy ride the existing command/event pipeline (e.g. `!balance`, reward-driven payouts). The consolidated `ActionContext` / `Type` shape this section used to target does not exist — `ICommandAction` above is the only contract.
 
 | Action | `ActionType` | Config params | Behavior |
 |---|---|---|---|
@@ -655,52 +707,33 @@ ActionDefinition)` — is collapsed away per commands-pipelines §0; do not targ
 | `DeductCurrencyAction` | `deduct_currency` | `amount:int`, `reason:string?` | Debits the viewer; `ActionResult.Failure` (stops pipeline) on `INSUFFICIENT_FUNDS`. Output = new balance. |
 | `CheckBalanceAction` | `check_balance` | `min:int?`, `set_var:string?` | Reads balance; writes it into `ctx.Variables[set_var ?? "balance"]`; `Failure` when `min` set and balance<min (gates downstream steps). |
 | `PlayGameAction` | `play_game` | `game_type:string`, `bet:int` (or template) | Calls `IGameService.PlayAsync`; writes `outcome`/`payout`/`net` into `ctx.Variables`; applies the optional 18+ gate only when `Requires18Plus=true` + config. Fails closed if game disabled/unknown. |
-| `JarContributeAction` | `jar_contribute` | `jar_id:string(guid)`, `amount:int` | Contributes the viewer's currency to a jar via `ISavingsJarService.ContributeAsync` (membership + caps enforced). Output = jar balance after. |
+| `JarContributeAction` | `jar_contribute` | `jar_id:string(encoded id — decoded with `OwnedIdCodec`, not `Guid.Parse`)`, `amount:int` | Contributes the viewer's currency to a jar via `ISavingsJarService.ContributeAsync` (membership + caps enforced). Output = jar balance after. |
 
-Registered transient (stateless) alongside the existing `ICommandAction` block. Action keys are also surfaced
-in the pipeline-builder UI catalog, which the frontend subsystem owns and renders from this action set.
+There is **no manual registration**: `services.AddImplementationsOf<ICommandAction>(…)` in `DependencyInjection.cs` scans the assembly, so dropping the class into `Economy/PipelineActions/` makes it live at next boot. The action set is surfaced through the self-describing `GET pipelines/actions` catalogue (`Category`, `Description`, `Fields`), which the pipeline builder renders — a new action adds no frontend code.
 
 ---
 
 ## 7. DI registration
 
-In `NomNomzBot.Infrastructure/DependencyInjection.cs`, in the "Application services" block (scoped — all
-consume `IApplicationDbContext`/repositories/`IUnitOfWork`). Implementations in
-`NomNomzBot.Infrastructure/Services/Economy/`.
+Nothing economy-specific is registered by hand except the sequence allocator. As built:
+
+- **Services — by convention.** `ICurrencyConfigService`, `ICurrencyAccountService`, `ICurrencyEarningService`, `ICatalogService`, `IGameService`, `IAgeConsentService`, `ISavingsJarService` and `IEconomyLeaderboardService` (interfaces in `NomNomzBot.Application/Economy/Services/`) are bound to their implementations in `NomNomzBot.Infrastructure/Economy/` by `AddServicesByConvention` (the `I<X>Service` → `<X>Service` rule, scoped — they consume `IApplicationDbContext` and `IUnitOfWork`). `IGameRandomizer` → `CsprngGameRandomizer` is the one explicit economy line.
+- **The allocator — one explicit registration, one class.** In the event-store block of `DependencyInjection.cs`:
 
 ```csharp
-// Economy — application services (scoped: use DbContext + UnitOfWork)
-services.AddScoped<ICurrencyConfigService, CurrencyConfigService>();
-services.AddScoped<ICurrencyAccountService, CurrencyAccountService>();
-services.AddScoped<ICurrencyEarningService, CurrencyEarningService>();
-services.AddScoped<ICatalogService, CatalogService>();
-services.AddScoped<IGameService, GameService>();
-services.AddScoped<IAgeConsentService, AgeConsentService>();
-services.AddScoped<ISavingsJarService, SavingsJarService>();
-services.AddScoped<IEconomyLeaderboardService, EconomyLeaderboardService>();
-
-// Economy — per-tenant monotonic ledger position allocator (scoped: row-locks TenantSequences in-tx)
-services.AddScoped<ITenantSequenceAllocator, TenantSequenceAllocator>();
-
-// Economy — repositories (scoped) — extend GenericRepository<T>
-services.AddScoped<CurrencyAccountRepository>();
-services.AddScoped<CurrencyLedgerRepository>();
-services.AddScoped<CatalogRepository>();
-services.AddScoped<SavingsJarRepository>();
-
-// Economy — pipeline actions (transient: stateless), in the existing ICommandAction block
-services.AddTransient<ICommandAction, GrantCurrencyAction>();
-services.AddTransient<ICommandAction, DeductCurrencyAction>();
-services.AddTransient<ICommandAction, CheckBalanceAction>();
-services.AddTransient<ICommandAction, PlayGameAction>();
-services.AddTransient<ICommandAction, JarContributeAction>();
+services.AddScoped<
+    Application.Contracts.EventStore.ITenantSequenceAllocator,
+    EventStore.TenantSequenceAllocator
+>();
 ```
 
+  `TenantSequenceAllocator` (`Infrastructure/EventStore/TenantSequenceAllocator.cs`) is shared with the event journal (which owns `event_stream_position`; the economy uses `currency_ledger_position` via `NextAsync(broadcasterId, sequenceName, ct)` / `NextBlockAsync`). It reads-and-increments the `TenantSequences` row in the caller's ambient transaction; on Npgsql it pins the row with `SELECT … FOR UPDATE`, on SQLite the write transaction already excludes concurrent writers. The unique `(BroadcasterId, SequenceName)` constraint serializes racing first-allocators. **There is no `PostgresTenantSequenceAllocator` / `SqliteTenantSequenceAllocator` pair and no DI switch** — the provider branch is inside the one class.
+- **Repositories — none.** `CurrencyAccountRepository`, `CurrencyLedgerRepository`, `CatalogRepository` and `SavingsJarRepository` do not exist; the services query `IApplicationDbContext` directly and wrap multi-write operations in `IUnitOfWork`.
+- **Pipeline actions — scanned** (§6): `AddImplementationsOf<ICommandAction>`. No `AddTransient<ICommandAction, …>` lines.
+- **Projection and event handlers — scanned.** `CurrencyBalanceProjection` is an `IProjection` and `ChatEarningHandler`, `EngagementEarningHandler` and `EarningRuleSeedOnOnboardingHandler` (`Economy/EventHandlers/`) are `IEventHandler<>`s, all picked up by the assembly scans rather than named in DI.
+
 **Deployment-profile adapters** (one boot-time `App__DeploymentMode` switch — schema §4, stack §1):
-- `ITenantSequenceAllocator` — **same interface, profile-specific impl**: `PostgresTenantSequenceAllocator`
-  (`SELECT … FOR UPDATE` on `TenantSequences`) vs `SqliteTenantSequenceAllocator` (`BEGIN IMMEDIATE`
-  write-lock). Selected by `DeploymentProfile.DbProvider` in DI — the **only** economy code that is
-  provider-specific; everything else is one EF model across both providers.
+- `ITenantSequenceAllocator` — **one implementation, provider branch inside it** (see the DI list above): `TenantSequenceAllocator` pins the `TenantSequences` row with `SELECT … FOR UPDATE` on Npgsql and relies on SQLite's write-transaction exclusion (`BEGIN IMMEDIATE`) otherwise. It is the **only** economy code that is provider-specific; everything else is one EF model across both providers. The earlier design of two impls (`PostgresTenantSequenceAllocator` / `SqliteTenantSequenceAllocator`) selected by `DeploymentProfile.DbProvider` was not built.
 - Cross-tenant `SavingsJar*` isolation: Postgres profile adds the membership-predicate RLS interceptor; lite
   (SQLite) relies on the EF membership-predicate query filter alone (same predicate code path,
   `RlsEnabled=false`). No separate economy impl — the persistence layer's profile adapter handles it.

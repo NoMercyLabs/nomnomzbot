@@ -13,7 +13,7 @@ A slice is the smallest end-to-end change (entity + service + data access + test
 1. The slice **compiles**.
 2. The slice's **own tests pass** — and they prove behavior (state change, emitted events, side effects), not surface (`spec/backend-structure.md` testing standard).
 3. The **whole solution builds** (no downstream break).
-4. The **app boots in the CI lite profile** — `self_host_lite` + SQLite + in-memory cache/bus + EventSub-connect disabled + dummy Twitch creds (catches DI/wiring/startup breaks a unit test misses).
+4. *(Not enforced: no CI lite-profile boot step exists.)* The **app boots in the CI lite profile** — `self_host_lite` + SQLite + in-memory cache/bus + EventSub-connect disabled + dummy Twitch creds (catches DI/wiring/startup breaks a unit test misses).
 
 CI is **hermetic** — no slice hits live Twitch (twitch-helix §10 fakes/fixtures). Security-critical slices carry mandatory tests: cross-tenant IDOR, tenant query-filter/RLS, AES-GCM AAD non-transplantability, fail-closed authz.
 
@@ -26,12 +26,12 @@ Phases are ordered; **slices within a phase** may run in parallel where they don
 ### Phase 0 — Scaffolding & structure
 - Module-first reorganization of the existing tree per `backend-structure.md` §8 (mechanical, guarded by the existing 327 tests — rename/move, fix namespaces, build+test green). Everything after lands in its final home.
 - CI lite boot profile + hermetic Twitch fakes/fixtures (twitch-helix §10) wired so the gate's step 4 is runnable.
-- `TimeProvider` registered as the single clock (platform-conventions §3.11); ban direct `UtcNow`.
+- `TimeProvider` registered as the single clock (platform-conventions §3.11); ban direct `UtcNow` (*not enforced: no banned-API analyzer*).
 - **Exit:** solution builds module-first, 327 baseline tests green, CI boots the lite profile.
 
 ### Phase 1 — Domain + persistence base
 - Locked-schema entities, enums, `ITenantScoped` (**`BroadcasterId` string→Guid widen** — load-bearing), canonical `DomainEventBase` (record).
-- EF model; **EF10 named query filters** (tenant + soft-delete); Postgres RLS connection interceptor; one **greenfield initial migration per provider** (Postgres + SQLite). Repository + `IUnitOfWork`.
+- EF model; **EF10 named query filters** (tenant + soft-delete); Postgres RLS connection interceptor; **incremental migrations in both assemblies (Postgres + SQLite), proven by `scripts/migration-check.ps1`**. Repository + `IUnitOfWork`.
 - Seeders + ordering (backend-structure §5.2): ActionDefinitions/IamPermissions/IamRoles/IamRolePermissions, TtsVoice, BillingTier, FeatureFlag.
 - **Exit:** migrations apply on both providers; tenant filter + RLS proven by an IDOR/isolation test; seeders run idempotently.
 

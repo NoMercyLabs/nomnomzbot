@@ -26,7 +26,8 @@ scripts/slice-check.ps1 -TestProject tests/NomNomzBot.Api.Tests `
 
 Does build → the slice's own tests → **the full unfiltered suite of every project whose layer
 `-Paths` touched** → csharpier → `dotnet format style` → `jb inspectcode`, the formatting legs
-scoped to `-Paths`. **`jb` detects but never auto-fixes** "redundant nullable suppression" and
+scoped to `-Paths`. In the devbox the `jb inspect` leg is skipped unless `-Inspect`; pass it or
+re-run on the host before committing. **`jb` detects but never auto-fixes** "redundant nullable suppression" and
 "merge into pattern" — fix those by hand; they are yours to fix, not the owner's.
 
 The unfiltered leg is what stops a green slice from turning master red. A filter only proves the
@@ -41,7 +42,7 @@ uncommitted work in the shared tree breaks a file you do not own. **Never `git s
 ## 2. Full tree — before accepting work or claiming HEAD is green
 
 ```powershell
-scripts/verify-tree.ps1                # build + all 4 server suites + csharpier
+scripts/verify-tree.ps1                # build + all 5 suites incl. E2E + csharpier
 scripts/verify-tree.ps1 -IncludeApp    # also forces the Kotlin jvmTest suite
 scripts/verify-tree.ps1 -AtCommit <sha>
 ```

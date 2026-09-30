@@ -3,9 +3,9 @@
 Source: design dialogue 2026-06-16. The central axis that selects every swappable adapter.
 
 ## Three profiles, one codebase (matching `DEPLOY.md` scenarios)
-- **`self_host_lite`** (`desktop` scenario): SQLite + in-memory cache/pub-sub + WebSocket EventSub. **No Docker required.**
-- **`self_host_full`** (`docker` scenario): Postgres + Redis, single-tenant, WebSocket EventSub.
-- **`saas`** (`saas` scenario — **restricted option**, reserved to NoMercy Labs): Postgres + Redis + conduits/webhooks EventSub, multi-tenant. Managed infra.
+- **`self_host_lite`** (`desktop` scenario): SQLite + in-memory cache/pub-sub. **No Docker required.**
+- **`self_host_full`** (`docker` scenario): Postgres + Redis, single-tenant.
+- **`saas`** (`saas` scenario — **RESTRICTED option**, reserved to NoMercy Labs; hosting NomNomzBot as a service for third parties is against the project license): Postgres + Redis, multi-tenant. Managed infra.
 
 ## Selection
 - **Auto-detect** (Docker / Postgres / Redis reachable? → full; else lite) **+ explicit override** (`App__DeploymentMode`). Auto-detect picks the sensible default; the operator can force either.
@@ -26,7 +26,7 @@ Source: design dialogue 2026-06-16. The central axis that selects every swappabl
 Selected by DI at boot from the profile:
 - DB provider (Postgres / SQLite)
 - Cache + pub-sub (Redis / in-memory)
-- EventSub transport (conduits+webhooks / WebSocket)
+- EventSub transport is not profile-selected: per-owner WebSocket is registered on every profile; conduit mode is the independent opt-in `EventSub:Conduits:Enabled` (default false). The SaaS webhook transport is not built.
 - Code executor (Wasmtime / Jint)
 - Token vault (envelope-KMS / local-AES)
 - Exposure model (managed edge / opt-in tunnel)

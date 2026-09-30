@@ -13,49 +13,29 @@ closes early · `RAW` raw text where a control belongs · `HOOPS` must leave the
 thing · `PAGE` hardcoded cap, no pager · `DEAD` built but unreachable, or event with no consumer/publisher
 · `PERF` cost that grows with channel age.
 
-Second-round sweeps still owed (rate-limited 2026-09-24 evening, resume after 23:00): uncapped lists
-for automation, rewards/liveops/supporters, music/OBS/VTS, widgets per .vue, integrations/billing,
-runtime tables, shell dead-links, backend rule sweep, frontend rule sweep, uncovered areas + uncalled
-endpoints, and the onboarding friction walk.
+Owed (sweeps not yet done; the named section holds the detail):
+- L4 shell/settings/onboarding, L5 per-action authoring, L6 liveops + supporters, L8 per-page music/OBS/VTS,
+  L9 per-`.vue` widgets, L10 billing + integrations, L11 runtime tables: uncapped sweeps.
+- L5b: Result/bool-ignored sweep of the Timers/EventResponses/CustomEvents controllers; ChatTriggers pickers.
+- L6b: fresh uncapped sweep of Rewards/Economy/Games/Giveaways/Quotes/Polls beyond L6.
+- L8b: TtsConfigController.cs, ObsController.cs, SongRequestsController internals, VtsControlService/
+  VtsPluginAuthorizer, MediaShareService beyond L8.
+- L10b: Discord, Webhooks in/out, Federation, provider cards (scope/BYOC), inbox fix-it pass, AdminIamTab,
+  System*/PlatformAdmin* beyond L10.
+- L11b: provider client methods with zero callers; singleton-captures-scoped-DbContext; per-tick Warning+
+  logs; the full 235-event publish/handle matrix.
+- L15: Sleak sibling-primary/accent counts; English leaking into nl values; hide-vs-disable gating;
+  dialog-dismiss-before-result pairing; accessibility; `remember` without channel key; DTO drift vs
+  openapi/v1.json; empty-state presence per screen.
+- L16: per-entity "saved but never read" config sweep; surface-only test sample; Helix/EventSub coverage
+  diff against the official reference.
+- L17: tools/streamdeck diff against the current `automation/v1/music/*` routes.
 
 ---
 
 ## L1 · Impersonation (act-as)
 
-- [x] `SEC` srv/NomNomzBot.Infrastructure/Identity/PlatformAdminService.cs:353-361 — support-grant lookup never checks the target belongs to `grant.ScopeChannelId`; a grant for tenant A lets the admin act as ANY user; audit names tenant A — refuse unless target is owner/member of the grant's tenant. **VERIFIED**
-- [x] `SEC` PlatformAdminService.cs:375-378 — target tenant claim = unordered `FirstOrDefault` owned channel — order like login, or use the grant's ScopeChannelId.
-- [x] app/core/connection/SessionStore.kt:127-136 — `beginImpersonation` swaps token+flag only; selected channel + saved last-channel stay the admin's — reset on begin/end; never read/write last-channel while acting. **VERIFIED**
-- [x] app/feature/shell/state/ChannelSwitcherController.kt:63-65 + SessionStore.kt:99-101 — `setDefaultChannel` only when none selected — forced reset path for identity swap.
-- [x] app/feature/admin/state/AdminController.kt:1919-1927 — role check before roster reload, against the stale channel — reset → reload → resolve.
-- [x] app/core/network/ChannelsApi.kt:83-87 + App.kt:219 + ShellScreen.kt:286-293 — target not moderating the admin's channel → switching guard → splash forever; banner (ShellScreen.kt:520) renders after the early return, no Exit — guard timeout or banner above splash.
-- [x] AppGraph.kt:301 → srv TenantResolutionMiddleware.cs:83 — every request carries the stale admin channel; Gate 1 admits it. **VERIFIED**
-- [x] ShellScreen.kt:553-554 — pages keyed on `activeChannelId` only → no remount on act-as — key on a session generation.
-- [x] AppGraph.kt:910-913 → srv DashboardHub.cs:128 — hub rejoins the admin's channel with the target token — reconnect after reset.
-- [x] `RESULT` AdminController.kt:1911-1912 — `endImpersonation` sent BEFORE the admin token is restored → 403 (PlatformAdminController.cs:192), Result ignored → grant never revoked, `ImpersonationEndedEvent` never fires — restore first, check, surface. **VERIFIED**
-- [x] AdminController.kt:1913 + SessionStore.kt:142-147 — exit does not reset the channel; a channel switched while acting was saved into the ADMIN's store → endless splash after exit.
-- [x] SessionStore.kt:116, 218-228 + AppGraph.kt:316 — act-as expiry → 401 refresh installs the ADMIN token, flag/name stay → wrong identity — run the full exit path.
-- [x] SessionStore.kt:242-249, 251-261 — `clearActiveSession`/`disconnect` keep the act-as flag + stash → survives logout; Exit writes a stale token over the new session.
-- [x] app/feature/connect/state/ConnectController.kt:334-337 + srv AuthController.cs:1243-1254 — logout while acting sends the act-as token; admin's refresh session not revoked — end act-as first.
-- [x] App.kt:234 + ShellScreen.kt:538 — Twitch health re-runs on the target → "Reconnect" would OAuth under the target — suppress while acting.
-- [x] srv ChannelsController.cs:101 — channel list as the target writes Moderator memberships — skip under impersonation.
-- [x] ShellScreen.kt:350 — coerced route saved while acting → admin lands on Dashboard after exit.
-- [x] `DEAD` srv Api/Hubs/Broadcasters/ImpersonationBroadcastHandlers.cs:55,106 — owner security notices written; no endpoint/client reads them — list/ack endpoint + inbox entry.
-- [x] AdminController.kt:1855-1878 — grant opened, mint can fail → grant left open; retries open more — end on failure; reuse open grant.
-- [x] app/feature/admin/ui/AdminTenantsTab.kt:240-250, 285-290 — Confirm not disabled in flight → double-click = two grants.
-- [x] AdminController.kt:1920-1923 — `/me` failure after swap only toasts; token is the target's, identity the admin's — roll back and report.
-- [x] AdminController.kt:1924-1927 — nullable shell/switcher/reconnect silently skipped — required or fail loudly.
-- [x] AdminTenantsTab.kt:244 + AdminScreen.kt:811-812 — act-as targets the OWNER only; cannot reproduce a moderator's/viewer's view — member picker (needs the scope check).
-- [x] AppGraph.kt:904,914 — admin hub never reopened on exit (`adminHubWasLive` false because the target token failed the gate).
-- [x] ParticipantShell.kt:136-140 (+ ShellScreen.kt:390/402) — Exit on a composable scope the re-resolve unmounts → exit stops half-way — app-level scope.
-- [x] ImpersonationBanner.kt:64-66 — banner vanishes at expiry, nothing ends act-as — auto-exit or "expired" banner with Exit.
-- [x] ShellScreen.kt:520 vs ParticipantShell.kt:137 — banner overlaid (covers sidebar/header) in one shell, in-flow in the other — one placement, above.
-- [x] ShellScreen.kt:448-462 — Logout / Reconnect Twitch / Preview-as-viewer offered while acting; each acts on the target — hide/relabel; Exit primary.
-- [x] `I18N` ImpersonationBanner.kt:92 — sentence assembled in code with " — " — one resource, two placeholders.
-- [x] `VAR` ImpersonationBroadcastHandlers.cs:170 — `var row`.
-- [x] AdminController.kt:1898-1902 — refusals keyed on HTTP status; fixed copy not backed by the server code — key on the error code.
-- [x] Act-as reuses an already open support grant instead of opening a new one per attempt. (Decided: the new begin supersedes the operator's open session on that tenant — fresh justification and expiry, never two open.)
 - [ ] Rendered full-shell check while acting (Playwright on the wasm build): nothing of the admin remains except Exit.
-- [x] Clean: act-as JWT carries target sub/roles/tenant (JwtTokenService.cs:86-140); middleware has no admin fallback; writes audited with both actors (EventJournalService.cs:284-301); IAM audit row before mint; channel list scoped; language per device.
 
 ## L2 · Moderator of another channel
 
@@ -63,7 +43,6 @@ endpoints, and the onboarding friction walk.
 - [ ] AuthService.cs:369-382, 492-500 — any login with no owned channel INSTALLS the bot on that user's own channel unasked (onboarded, mod-join, defaults, 74 topics) — separate sign-in from install.
 - [ ] `DEAD` srv Domain/Identity/Events/PermissionChangedEvent.cs:15 — never published; `ManagementRoleChangedEvent`/`PermitGranted`/`PermitRevoked` unhandled → live re-resolve (ShellScreen.kt:380) dead — bridge; target the user.
 - [ ] srv Api/Hubs/Broadcasters/RoleBroadcastHandlers.cs:170-220 — `channel.moderator.remove` only logs; no grant on `.add` — set/remove TwitchBadge memberships + push.
-- [x] `SEC` srv Api/Hubs/DashboardHub.cs:128 — `JoinChannel` Gate 1 only → any user joins any channel's moderation class — Gate-2 per class. **VERIFIED**
 - [ ] app/core/realtime/DashboardHubClient.kt:431-432 — join without invocationId; denial dropped; shows Connected — tracked invocation.
 - [ ] `TRUTH` srv ChannelService.cs:201-205, 226 — roster ignores ChannelMemberships; role hardcoded broadcaster/moderator; Editors/LeadMods/permits invisible; no-membership channels say "moderator" — union memberships + permits; real role.
 - [ ] ChannelsController.cs:126 vs ChannelService.cs:204 — lazy grant filters `IsOnboarded`, roster does not → listed with no membership, listed twice (ShellScreen.kt:883) — grant on any moderated tenant; dedupe.
@@ -74,7 +53,6 @@ endpoints, and the onboarding friction walk.
 - [ ] `TRUTH` srv Application/Identity/Dtos/ChannelDtos.cs:38-49 — no onboarded/bot-installed flag → full sidebar with inert pages — flag + badge + explain/disable.
 - [ ] `PERF` ChannelsController.cs:84-99 + ChannelsApi.kt:77 (47 callers) — every `GET /channels` = Helix call + writes, per navigation — cache per user; `primaryChannel` reads the roster.
 - [ ] `PAGE` ChannelsController.cs:88,184,246 — first 100 moderated channels only; Helix failure → empty (:185-187, switcher :79).
-- [x] `SEC` ChannelService.cs:228 — roster returns `OverlayToken` to every non-owner — drop from DTO.
 - [ ] ChannelService.cs:203 — roster built through the tenant filter → differs by active channel.
 - [ ] ChannelSwitcherController.load() with a suspended/deleted pinned channel → roster 403 → stuck Error (adds to S074).
 - [ ] `RESULT` ChannelsController.cs:284-291 — `SetManagementRoleAsync` Result ignored → 200 "moderator" on failure.
@@ -87,16 +65,11 @@ endpoints, and the onboarding friction walk.
 - [ ] `FEEDBACK` DashboardHub.cs:128-129, 247-256 — bare "Access denied" for Gate 1 and Gate 2.
 - [ ] TenantResolutionMiddleware.cs:26-30 — class doc contradicts Gate-1 relaxation (ChannelAccessService.cs:47-57).
 - [ ] `TRUTH` ChannelService.cs:171 — `GetAllActiveAsync` hardcodes "broadcaster".
-- [ ] `VAR` BotLifecycleService.cs:194; ChannelService.cs:277.
 - [ ] ChannelService.cs:586-594 — moderator-mode tenant gets no PlatformConnection/Provider.
 - [ ] ChannelsController.cs:551-566 — `ResetChannel` raw DbContext deletes in the controller, no audit/blast radius; `DeleteChannel` has both — move behind the same contract.
-- [x] Clean: `X-Channel-Id` on every request (ApiClient.kt:126); no JWT-tenant readers; remount on switch; hub follows the active channel; moderation writes use the operator token; `user:read:moderated_channels` in minimal scopes.
 
 ## L3 · Viewer (participant)
 
-- [x] `SEC` srv CurrencyController.cs — transfer sender = caller unless the caller holds `economy:account:adjust` (self-or-Gate-2). Fixed.
-- [x] `SEC` EconomyLeaderboardsController.cs — opt-in/out self-only unless the caller holds `economy:leaderboards:config:write`. Fixed.
-- [x] `SEC` GamesController.cs — game history scoped to the caller unless the caller holds `economy:ledger:read`. Fixed.
 - [ ] `SEC` MusicController.cs:171-196 + PublicSongRequestController.cs:93-97 → MusicService.cs:517-524 — dashboard + public SR skip min-trust + requester id; public cap keyed on typed name.
 - [ ] `FEEDBACK` ParticipantController.kt:129 — viewer home calls `/dashboard/{id}/stats` (Moderator) → 403 text as home — public channel-summary endpoint.
 - [ ] EconomyApi.kt:229-251 + ParticipantController.kt:206 — Leaderboards page first calls `leaderboards/configs` (Moderator) → 403.
@@ -109,7 +82,7 @@ endpoints, and the onboarding friction walk.
 - [ ] `DEAD` GameService.cs:214-217 — 18+ games always fail; consent routes only called from management — participant confirm step.
 - [ ] PointsAndStoreScreen.kt:249,305 — Buy above balance, no confirm, `inputArgs=null`, "X of 0", no currency name, no self purchases/ledger (CatalogController.cs:163-164, CurrencyController.cs:165-166 Moderator).
 - [ ] `FEEDBACK` GiveawayKeywordListener.cs:108-118 — keyword entry never replies.
-- [ ] `FEEDBACK``I18N` ChatMessageHandler.cs:749-755 — cooldown reply without time left (CooldownManager.cs:54 exists); permission reply names no role; English literals.
+- [ ] `FEEDBACK` `I18N` ChatMessageHandler.cs:766-775 — the cooldown notice names no time left (CooldownManager.cs:54 exists) and its fallback text is an English literal.
 - [ ] `I18N` BuiltinResponseComposer has no language parameter; SongRequestBuiltin, MusicBuiltins, GdprBuiltins:175-177 (raw enum), QuoteBuiltin, MusicService English; ApiClient.kt:102-104 English-only.
 - [ ] `DEAD` no built-in points/balance command.
 - [ ] SongRequestBuiltin.cs:190-207 — `!sr` no position/wait; MusicBuiltins.cs:175-178 `!queue` 5 rows, no "yours".
@@ -131,12 +104,10 @@ endpoints, and the onboarding friction walk.
 - [ ] `HOOPS` NowPlayingScreen.kt:163-170 — blind free-text request; no search/preview/cost.
 - [ ] Participant pages load once; ignore `MusicStateChanged`/`sr_queue_changed`; balance never updates.
 - [ ] MeScreen.kt ChannelsCard — raw `watchTime` string; `followDate` fetched (ParticipantApi.kt:327) never shown.
-- [x] Clean: participant strings fully Dutch; me/users/stats/channels/analytics routes caller-only; `!sr` failure codes specific; no raw hex/dp; no numbered levels.
 
-## L4 · Shell, navigation, settings, onboarding (first round; uncapped sweep owed)
+## L4 · Shell, navigation, settings, onboarding
 
 - [ ] SettingsScreen.kt:314-379 — outer Column does not scroll; stream-info Box `weight(1f)`; nine cards below cut off (Bot account, Permissions, Billing, Journal unreachable). **VERIFIED**
-- [x] `SEC` SetupController.kt:256-273 + wasmJsMain OAuthLauncher.wasmJs.kt:48-50 — web `finish()` navigates away; `completeSetup()`/`applyBasics()` never run → basics lost, `setup_complete` never set, SystemController.cs:312/351/447 stay writable without login; desktop ignores the completeSetup Result. **VERIFIED (server side)**
 - [ ] SetupController.kt:290-317 + App.kt:157 — desktop gate switches before `applyBasics` finishes; `SetupError.Basics` renders on an unmounted wizard.
 - [ ] App.kt:182-186 + RouteStore.wasmJs.kt:71-72 — browser Back on the first shell entry logs out, no confirm.
 - [ ] ShellScreen.kt:349-350 + RouteStore.wasmJs.kt:41-46 — coerced route pushes history → Back loops; no "no access" notice.
@@ -160,24 +131,19 @@ endpoints, and the onboarding friction walk.
 - [ ] SetupController.kt:67-71,339 — wizard step/fields in memory only; reload drops them.
 - [ ] Spec drift: ShellNav.kt:253 (EventResponses under Chat vs Stream), :291 (Alerts separate vs merged), :246 (Commands floor Moderator vs Editor) vs frontend-ia.md; S072 "no drift" wrong.
 - [ ] Spec pages with no screen: participant "My Standing"/"My Data", icon-rail collapse (§2), global search.
-- [x] Clean: every ShellRoute has a screen and entry; no orphan feature folder; en/nl key sets identical (5384); Settings/Home/Features/Roles gate via ManageGate (disable + reason); first-run and attention deep links valid.
 
-## L5 · Automation authoring (first round; per-action uncapped list owed)
+## L5 · Automation authoring
 
-- [ ] PipelinesApi.kt:376-399 + ActionDefinition.cs:35-57 — untyped params sent as strings; `GetInt`/`GetBool` default on string → shoutout tts/global_cooldown_minutes (ShoutoutAction.cs:170,303), raid_window_seconds (StartRaidAction.cs:227), stop_sound all (:57), VTS r/g/b/a (VtsActions.cs:332-335), OBS duration_ms (ObsSceneActions.cs:231) silently default; re-save of existing pipelines too. **VERIFIED**
-- [ ] PipelineCatalogue.kt:788-804 — backend kind/Options/Required and unlisted fields dropped; never shown: send_message sender (SendMessageAction.cs:39-44), shoutout global_cooldown_minutes/tts/template, start_raid raid_window_seconds, run_pipeline mode, play_tts as, stop_sound all, playlist_add message, wait milliseconds; require_tier min_tier Enum (RequireTierAction.cs:42-47) shown as text (PipelineCatalogue.kt:347).
+- [ ] PipelineCatalogue.kt:788-804 — the palette merges only `remoteKind` + description keys onto the LOCAL hint fields; backend Options/Required and any field without a local hint are still dropped. Never shown: send_message sender (SendMessageAction.cs:39-44), shoutout global_cooldown_minutes/tts/template (ShoutoutAction.cs:94-104), start_raid raid_window_seconds (StartRaidAction.cs:99), play_tts as (PlayTtsAction.cs:59), stop_sound all (StopSoundAction.cs:38), playlist_add message (PlaylistAddAction.cs:70), wait milliseconds (WaitAction.cs:38); require_tier min_tier Enum (RequireTierAction.cs:42-47) shown as text (PipelineCatalogue.kt:347).
 - [ ] `RAW` PipelinesScreen.kt:2717-2774 — 36 actions fall to a blank key/value editor: announce (color Enum hidden), wait_for_event, wait_until_raid_fires, return_value, break, continue, set_pronoun, submit_media, tts_synthesize, clear_viewer_data, song_request_favorite, play_track_once, 24 music_*.
 - [ ] `RAW` PipelinesScreen.kt:2552-2694 — no `FieldKind.Number` branch → numbers as free text with template link.
 - [ ] PipelineCatalogue.kt:729 vs ComparisonCondition.cs — hint `var_compare`, engine `comparison`; offline palette offers a type the engine blocks (PipelineEngine.cs:794-802); operator free text.
-- [ ] `RAW` PipelineActionFieldDescriptor.cs:77-85 — `ResourceId` has no resource type → OBS scene/source/input/filter/transition/hotkey (ObsSceneActions.cs:29-148, ObsAudioMediaActions.cs:30-237; lists exist at ObsController.cs:65-80), vts hotkey (VtsActions.cs:162), game_type (PlayGameAction.cs:37, LiveGamePipelineActions.cs:36), discord trigger_type (SendDiscordNotificationAction.cs:39), permit role_or_capability (PermitAction.cs:50; RolePicker only on "min_role" PipelinesScreen.kt:2583), playlist_id, track_uri, message_id all raw text.
-- [ ] `DEAD` Discord/Rewards/Assets `*OptionProvider.cs` — no action field uses their kinds.
+- [ ] `RAW` PipelineActionFieldDescriptor.cs:19-42 — `ResourceId` still has no resource type; only the eight `PickerKind`s and the hand-matched keys (endpoint, list, widget_id, pipeline, code_script_id, clip, voice, jar_id, giveaway_id, quote_number) render pickers. Still raw text: OBS scene/source/input/filter/transition/hotkey (ObsSceneActions.cs:29-148, ObsAudioMediaActions.cs:30-237; lists exist at ObsController.cs:65-80), vts hotkey (VtsActions.cs:162), game_type (PlayGameAction.cs:37, LiveGamePipelineActions.cs:36), discord trigger_type (SendDiscordNotificationAction.cs:39), permit/unpermit role_or_capability (PermitAction.cs:50; RolePicker only on "min_role", PipelinesScreen.kt:2617), playlist_id and track_uri (PlaylistAddAction.cs:60-66), message_id (DeleteMessageAction.cs:30).
 - [ ] `DEAD` PipelinesController.cs:232-243 — `POST pipelines/validate` never called.
 - [ ] PipelinesScreen.kt:2685-2691 — template helper omits step-produced variables (set_variable, check_balance set_var, run_pipeline params, wait_for_event payload).
-- [x] `TRUTH` ChannelRegistry.cs:511-512 — `UserCooldownSeconds` saved, never enforced; form (CommandsScreen.kt:1121-1144) promises both windows.
 - [ ] CommandService.cs:83-97,200-215 — regex not compile-checked (ChatTriggerService.cs:208-221 does); bad pattern logged and skipped (ChannelRegistry.cs:496-503); client only checks blank (CommandsScreen.kt:828); no tester; no capture groups as args (ChatMessageHandler.cs:611-614).
 - [ ] ChatMessageHandler.cs:416-425,~481-487 — missing/disabled pipeline → warning + no reply; no save-time rule.
 - [ ] CommandService.cs:284-285 — PipelineId cannot be cleared (timers/triggers/responses accept Guid.Empty, TimerManagementService.cs:234-236).
-- [x] `SEC` CommandService.cs:160,285 + ChatTriggerService.cs:92,130 + ChannelRegistry.cs:564-565 — PipelineId never checked against the channel; steps loaded by id outside any tenant → another channel's pipeline runs if its GUID is known (TimerService.cs:275-277 filters correctly). **VERIFIED**
 - [ ] ChatMessageHandler.cs:1048-1053,1368 — trigger permission and `user.role` use badges only; commands use effective role (:335,:433) → permitted/badge-less Editors refused.
 - [ ] IChannelRegistry.cs:168 + ChatMessageHandler.cs:1050-1073 — triggers in a ConcurrentDictionary, first match wins → random on overlap; no priority.
 - [ ] ChannelRegistry.cs:354-363 — trigger bound to a disabled pipeline still runs (commands check :448-451).
@@ -188,9 +154,8 @@ endpoints, and the onboarding friction walk.
 - [ ] `DEAD` VoiceTriggerDtos.cs + VoiceTriggerWidgetEventHandler.cs:36 — voice triggers only feed widgets; no pipeline/response hook; no CurrentCount reset.
 - [ ] CodeScriptsController.kt:46-49 + CodeScriptsApi.kt:77 — Save & Compile publishes immediately; test runs the published version; draft/publish endpoints exist unused.
 - [ ] `FEEDBACK` CommandsController.kt:349-360 — CommandExecuted only bumps use count; failures ignored; triggers/timers/responses send no fire event → no "fired/failed" feedback anywhere.
-- [x] Clean: cooldown state singleton (DependencyInjection.cs:960); engine blocks unknown actions (PipelineEngine.cs:823) and logs step failures; template registry covers resolver keys; command form covers CreateCommandDto; chat-trigger client compile-checks regex.
 
-## L6 · Rewards, economy, games, giveaways, quotes, polls (first round; liveops/supporters uncapped owed)
+## L6 · Rewards, economy, games, giveaways, quotes, polls
 
 - [ ] `DEAD` CatalogService.cs:399-413 — no handler for `CatalogItemPurchasedEvent`; purchase takes currency, runs nothing (ICatalogService.cs:57 promises it) — run item.PipelineId; refund on failure. **VERIFIED**
 - [ ] `TRUTH` ChatEarningHandler.cs:83-95 — role scale 0/1/2/3/5 vs rules 0/2/4/10/40 (EconomyScreen.kt:2505-2511) → sub-only pays VIPs, mod rules never pay — use ChatRole.Resolve(...).ToLevelValue() as ChatMessageHandler.cs:1408. **VERIFIED**
@@ -217,7 +182,6 @@ endpoints, and the onboarding friction walk.
 - [ ] `DEAD` catalog purchase only from participant dashboard (ParticipantApi.kt:113); no !buy/!shop/!give/!jar; no purchase pipeline action.
 - [ ] `PAGE` EconomyApi.kt:369,387,450 — purchases/ledger/jar history first 50.
 - [ ] `I18N` EconomyController.kt:259,425,474; ScheduleController.kt:242 — "No active channel."
-- [x] Clean: rewards form ↔ DTO 1:1, reach Twitch, queue live; game config dialog full, role names; giveaway form full; transfer/jar pickers; no hardcoded Text in these UIs; open chat poll survives restart (ChannelRegistry.cs:280).
 
 ## L7 · Moderation, chat, community, analytics, home (both rounds)
 
@@ -238,8 +202,7 @@ endpoints, and the onboarding friction walk.
 - [ ] ChatMessageFragments.kt:56-63 — zero-width emotes not overlaid; every emote forced to 24 dp.
 - [ ] ChatApi.kt:105-106 — emote catalogue fetched without `senderIdentity` → suggests emotes the bot cannot send.
 - [ ] HomeController.kt:66-78,156 + DashboardController.cs:250-270 — 20 of 40 returned then client drops engagement.*, supporter.*, hype train, poll, prediction, unban, raid.out, subscription.end → feed near-empty, money never shows.
-- [ ] `TRUTH` SubscriptionTranslators.cs:22-40 + ChannelAnalyticsDailyProjection.cs:120-125 — gift recipients as "X subscribed" (HomeScreen.kt:1001); count inflated; a 50-gift bomb counts as one.
-- [ ] `TRUTH` HomeController.kt:283 + DashboardController.cs:371 — Replay success with `widgetsNotified=0`.
+- [ ] `TRUTH` ChannelAnalyticsDailyProjection.cs:120-125 — a 50-gift bomb adds 51 to `NewSubscribers`: the one `GiftSubscriptionEvent` counts 1 and each of the 50 recipient `NewSubscriptionEvent` rows (`IsGift = true`, SubscriptionTranslators.cs:17-40) counts 1 again — count recipients only (skip the gift event, or count `GiftCount` and skip `IsGift` rows). Re-verified in code 2026-09-30.
 - [ ] `TRUTH` DashboardController.cs:112,125; CommunityController.cs:595-608 — Helix follower/sub failure → 0 as real; :152 UTC day.
 - [ ] `FEEDBACK` HomeController.kt:156,167; CommunityController.cs:295-299 — failed feed/inbox/followers → "all clear".
 - [ ] HomeController.kt:262-268 — raid target search only past chatters — Helix channel search.
@@ -270,17 +233,12 @@ endpoints, and the onboarding friction walk.
 - [ ] `SEC` ChatMessageFragments.kt:120,164 — chat links open with no confirmation (phishing in one click).
 - [ ] `I18N` ChatController.kt:399, CommunityController.kt:205, ViewerProfileController.kt:426, AnalyticsController.kt:327 "No active channel"; typeLabels ModerationController.kt:146, ModerationScreen.kt:1682/2827/2910, MultiChatScreen.kt:263/315, ViewerProfileScreen.kt:962, HomeController.kt:248; server ChatController.cs:316/327, ModerationController.cs:1531, DashboardController.cs:348, ChatFilterExecutionHandler.cs:126 (reason into Twitch's permanent record).
 - [ ] Raw hex/dp: ChatScreen.kt:1356-1359 (hex); ChatScreen.kt:442,452,1124,1133,1143,1256,1273,1404-1409, ChatMessageFragments.kt:43, EmoteComposerField.kt:247 (dp).
-- [ ] `VAR` CommunityController.cs:308,386,480,736; HelixChatProvider.cs:411,441; KickEventSubscriptionWorker.cs:112,127; ChatPollService.cs:304; LiveWindowResolver.cs:33.
 - [ ] `PERF` CommunityController.cs:463-492 — "all members" loads every chatter id per page request; ChatController.cs:191-235 — history enrichment one message at a time (~400 awaits/request); ModerationController.kt:1110 hub mod-log id collides on repeats.
-- [x] Clean: chat de-dup + auto-follow; hub delete/clear/purge; Shield "unavailable"; AutoMod-held queue; spam dry-run wording; tier/confidence labels; unban/blocked-term/moderator reads paged; activity-feed double write collapsed by EventId.
 
-## L8 · Music, song requests, TTS, sound, media share, VTS, OBS (first round; per-page uncapped owed)
+## L8 · Music, song requests, TTS, sound, media share, VTS, OBS
 
-- [ ] ResiliencePolicies.cs:466-492 — 429 retryable with `Retry-After: 0` → zero delay ×2. **VERIFIED**
-- [ ] SpotifyMusicProvider.cs:1696-1711 — manual 429 retry re-enters the pipeline → up to 6 calls/poll. **VERIFIED**
-- [ ] ResiliencePolicies.cs:500-513 — breaker ignores 429; limiter counts requests not rejections. **VERIFIED**
-- [ ] SpotifyMusicProvider.cs:250-254 + MusicStatePollingService.cs:227-233,272-280,90 — 429 → null → "nothing playing" → backoff cleared, IsPlaying=false published, 5 s quiet cadence → the observed ~6 s; nothing remembers a 429. **VERIFIED (FailureCount=0 on the box)**
-- [ ] SpotifyMusicProvider.cs:1798-1811, 1930-1937, 1562 — player commands, manage calls, token refresh never set `SpotifyRequestTags` → all share the `Guid.Empty` partition.
+- [ ] ResiliencePolicies.cs:519-523 — by design: the shared Spotify breaker ignores 429 (one throttled channel must not switch Spotify off for every channel; the provider's per-channel cooling window owns 429), and the limiter counts requests, not rejections. No change owed.
+- [ ] SpotifyMusicProvider.cs:1616 — the Spotify token refresh POST does not set `SpotifyRequestTags` (shares the `Guid.Empty` partition).
 - [ ] ChannelSpotifyCredentialsService.cs:48-87 — client id swapped without invalidating a connection minted under another app.
 - [ ] Dev-mode: 403 not 429 for non-allowlisted users, but a dev-mode app has the smaller budget that items above keep tripped.
 - [ ] MusicService.cs:1969,1989 + 1878/1889 — each `!sr` = current + queue + search + add; recovery probe every 30 s on the interactive budget; all amplified ×3–6.
@@ -300,10 +258,8 @@ endpoints, and the onboarding friction walk.
 - [ ] MediaShareScreen.kt:495-498 — non-numeric → 0 → generic validation error (MediaShareService.cs:438-447), field not highlighted; EligibilityJson enforced (:92) but not in DTO/UI.
 - [ ] MediaShareService.cs:141-182 — cost charged before SaveChanges, no refund on failure; queue count (:119-133) not atomic.
 - [ ] `RAW` VtsActions.cs:131 model, :193 expression are Text though inventory exists (:155 uses ResourceId).
-- [x] `SEC` OBSRelayHub.cs:127-133 — `AckCommand` completes any commandId from any bridge — scope to the bridge's channel.
-- [x] Clean: sound clips invalidate trigger cache on write; preview checks presence.
 
-## L9 · Widgets, overlays, alerts, bundles, assets (first round; per-.vue uncapped owed)
+## L9 · Widgets, overlays, alerts, bundles, assets
 
 - [ ] OverlayHub.cs:71 + OverlaySdkController.cs:375 + OverlayAlertBroadcast.cs:65-69 — generic-feed `Event` (JSON string payload) emitted to the same `on(type)` handlers as `WidgetEvent` → alerts (and chat_box via DashboardBroadcastHandler.cs:145) fire twice, second copy "Someone / 0 bits"; stale comment at DashboardBroadcastHandler.cs ~152. **VERIFIED**
 - [ ] `DEAD` WidgetNotifier.cs:97 — `SendSettingsChangedAsync` zero callers; WidgetService.cs:454-457 only publishes the dashboard event → saved settings never reach OBS (alerts.vue:165, countdown_timer.vue:65 expect it). **VERIFIED**
@@ -322,7 +278,6 @@ endpoints, and the onboarding friction walk.
 - [ ] `DEAD` EventResponseOverlayNotifierAdapter.cs:51 — "overlay" response type sends `event_response` nobody listens to; AlertsController.kt:199 cannot pick it.
 - [ ] OverlayHostController.cs:73-75 — widgetId compared as raw Guid → ULID shows "not live" (bundle route accepts both).
 - [ ] OverlayHostController.cs:144,150,198-211 — `style-src` lacks https: (Google Fonts blocked); `font-src` lacks 'self'; vanilla page no CSP.
-- [x] `SEC` WidgetService.cs:1556-1573,1175-1177 + OverlayHub.cs:89-96 — per-widget token resolves to the whole channel.
 - [ ] `SEC` `PERF` OverlayHub.cs:74 + OverlayEventFeedHook.cs:51 + DashboardBroadcastHandler.cs:145 + ChatModerationBroadcastHandlers.cs:58 — every browser source joins `overlay-{channel}` and gets the whole generic feed (every public journaled event, every chat message, mod events) regardless of its subscriptions; a widget-token connection still receives the channel's full feed — keep only sound/TTS/retract channel-wide, route the rest through subscriptions, never join widget-scoped connections to the feed. **VERIFIED**
 - [ ] `RAW` WidgetSettingsSchemaProvider.cs:115 resetCadence, :177 provider, :205 rewards JSON, :213 countdown ISO, :229-230 custom_data source/field, :116/200 colours JSON.
 - [ ] countdown_timer.vue:52-53 — duration mode restarts on every reload; no start/pause from the dashboard.
@@ -334,9 +289,8 @@ endpoints, and the onboarding friction walk.
 - [ ] AssetsController.kt:63 + ChannelAssetService.cs:173 + AssetsApi.kt:50 — name = filename stem ("logo (1).png" fails); silent replace can change kind; page 1/200 no paging; no used-by.
 - [ ] ChannelAssetService.cs:301-317 — delete check scans dead versions (false hits), ignores Widget.Settings + event responses (false misses).
 - [ ] `TRUTH` live: only `anda_six` has a `PlatformConnections` row — D1 attach flow has no base row for existing channels — write on every login + backfill.
-- [x] Clean: route channelId canonicalised; settings JsonElement normalised (WidgetService.cs:1502); bundle cache busted (`?v=ContentHash` + WidgetReload); presence groups namespaced per broadcaster.
 
-## L10 · Integrations, Discord, webhooks, federation, platform admin (first round; billing/uncapped owed)
+## L10 · Integrations, Discord, webhooks, federation, platform admin
 
 - [ ] IntegrationsController.kt:117-119,308,494-501 + BotAuthApi.kt:80,95,98 — bot row uses platform endpoints: status `AuthController.cs:1307` (IamManage → 403 → "not connected"); connect :1339 refuses non-admins; Disconnect `DELETE auth/twitch/bot` removes the shared bot for every tenant, no blast radius; channel endpoints exist (ChannelBotController.cs:217,233; ChannelsApi.kt:131/134). **VERIFIED** — status and Disconnect now use the channel endpoints (IntegrationsController.refresh/disconnectBot). The channel-scoped start route exists: `POST auth/twitch/channels/{channelId}/bot/device` (Gate-2 `integration:write`, refuses a plan without its own bot). Still open: the client's Connect calls the shared start `POST auth/twitch/bot/device` (403 for a non-admin once setup is complete); switch `BotAuthApi`/`IntegrationsController.connectBotViaDevice` to the channel route after server/openapi/v1.json is regenerated through scripts/refresh-openapi.ps1 (ApiRouteContractTest needs the route in the snapshot).
 - [ ] IntegrationsController.kt:262-270 → SystemController.cs:396-460 — BYOC for YouTube/Discord/Kick writes the deployment slot: 403 for streamers; silent global swap for admins; no validation; only Spotify has a per-channel endpoint (IntegrationsController.cs:89; ChannelCredentialsResolver.cs:41-47 reads per-channel rows).
@@ -361,14 +315,9 @@ endpoints, and the onboarding friction walk.
 - [ ] `I18N` ActionRequiredInboxService.cs:228-232 — inbox titles around raw provider keys; IntegrationsScreen.kt:408 raw key in disconnect dialog; AdminContentPipelineAuthoring.kt:165 English literal.
 - [ ] Discord: only a render preview (DiscordController.cs:268-278), no real test send; DiscordGuildLinked/Unlinked/NotificationDispatched unconsumed.
 - [ ] Platform truth today: Kick = chat, follows, subs, redemptions, live status, bans, gifted Kicks; YouTube = polled chat + Super Chats + viewer counts (gap above); X = nothing (S031); Patreon/Shopify/TreatStream = OAuth only, no card (S101).
-- [x] Clean: Discord rule/role-button pickers use live guild lists; outbound webhooks have rotation, test with result, replay, delivery log; IAM role assignment picker; feature-flag toggles show blast radius.
 
-## L11 · Runtime stability (first round; full tables owed)
+## L11 · Runtime stability
 
-- [x] TwitchHelixTransport.cs:389,404-419 + TwitchEventSubHostedService.cs:1311-1326 — body reduced to plain `message`; parser expects JSON → `missingScope` always null → gate (:691-708) never blocks, `TwitchHelixReauthRequiredEvent` never publishes; TwitchEventSubReconnectTests.cs:409 feeds JSON the transport never produces. **VERIFIED**
-- [x] TwitchEventSubHostedService.cs:691-708,760-765 + MapErrorAsync:380-387 — only "Missing required scope X" gated; "subscription missing proper authorization" re-POSTed forever; gate passes when grant set is null — 403 code, terminal per channel+topic with grant fingerprint, one action-required item.
-- [x] TwitchEventSubHostedService.cs:307-312,1171-1203 + WebSocketEventSubTransport.cs:602,627 + :1113-1164 — every welcome re-POSTs the owner's whole failed slice; all-403 session → 4003 → reconnect ≈32 s → repeat; planned `session_reconnect` also triggers delete-all + re-POST-all though Twitch carries subs over — skip cleanup on reconnect-URL swap; stop reopening fully-blocked sessions.
-- [x] TwitchEventSubHostedService.cs:285-333 + EventBus.cs:64-69 — cleanup/re-register/backfill and all 12 chat handlers run inline in the receive loop → frames unread, 10 s first-sub window missed → 4003 — queued worker.
 - [ ] WebSocketEventSubTransport.cs ConnectAndReceiveAsync — on `session_reconnect` the old socket closes as soon as the new one connects; Twitch says keep reading it until the new welcome, so events in that gap are lost — keep both receive loops until the welcome, then close the old one.
 - [ ] TwitchEventSubHostedService ReconnectAsync — admin "reconnect everything" reopens parked (fully refused) owners; each parks again after one 4003 — skip parked owners unless their grants changed.
 - [ ] EventSubResubscribeOnTokenRefreshedHandler.cs:57 + IntegrationTokenVault.cs:214 + TwitchHelixTransport.cs:304 — every stored refresh fires 74 POSTs inline, even inside a 401 retry; can recurse — queue/debounce; only on grant change.
@@ -386,13 +335,12 @@ endpoints, and the onboarding friction walk.
 - [ ] TenantAccessGrantExpiryService.cs:49-63 — `Task.Delay` inside try → hot-spin on error (fifth no-backoff worker).
 - [ ] `DEAD` PermissionChangedBroadcastHandler.cs:17 (never published); ModerationProjectionHandlers.cs:92 `MessageAutoModdedEvent` (never published).
 - [ ] PostgresRunOnceGuard.cs — advisory lock on one idle connection; a dropped connection releases the lease silently — keepalive / re-check.
-- [x] Clean: EventBus isolates handler exceptions; Music/StreamStatus/UserProfileHydration/ChatDecorationRefresh/Kick/reconcile workers survive a throwing tick; Redis health uses the shared multiplexer; EventSub off the ready tag; per-connection refresh gate exists for Twitch/Spotify/Kick/YouTube; `Clients.All` only on AdminHub behind iam:manage; ChannelRegistry settings invalidated on write; `IX_Channel_TwitchChannelId` unique.
 
 ## L12 · Scopes at enable time (owner A4)
 
 - [ ] FeatureService.cs:176-224 — `ToggleFeatureAsync` flips `IsEnabled`; `RequiredScopes` metadata only, never compared to granted — refuse with `SCOPES_REQUIRED` + list; client opens additive re-grant; flip on success. **VERIFIED**
 - [ ] TwitchHelixTransport.cs:389-391 — every 401 publishes `TwitchHelixReauthRequiredEvent` (Twitch answers 401 for a missing scope) → "reconnect Twitch" at use time, every use, no scope named — `missing_scope` only when the body says so; record once per channel+scope.
-- [ ] MissingScopeRecordingHandler.cs:44-77 — records only when a scope name was parsed (never, per L11) — fix with the parser.
+- [ ] MissingScopeRecordingHandler.cs:44-77 — records only when a scope name was parsed; the transport parser now supplies it, so confirm end to end that a real missing-scope response records once per channel+scope.
 - [ ] Same check on enabling a command/pipeline action tagged `[RequiresTwitchScope]`; on login diff granted vs required-by-enabled and raise one item.
 
 ## L13 · Dead links (owner A5) and no-hoops (owner A6)
@@ -413,9 +361,8 @@ endpoints, and the onboarding friction walk.
 
 Path 1 — self-host lite
 - [ ] DEPLOY.md:65-105 vs README.md:311-313 — two different "run it yourself" stories: `deploy.sh desktop` (needs .NET SDK) vs `dotnet run` (README says it needs `docker compose up -d postgres redis`, which contradicts SelfHostLite-on-SQLite) — one quickstart; cross-link; fix the README claim.
-- [x] app/feature/setup/state/SetupController.kt:36-44, 266-274 + ConnectController.kt:568 — web `finish()`: OAuth navigates away, `completeSetup()`/`applyBasics()` never run → basics (:459-464) lost, `setup_complete` never set, credential endpoints stay open (duplicate of L4 #2, root-caused here) — persist "finish" intent before the redirect; resume after reload.
 - [ ] `FEEDBACK` SetupController.kt:176-199, 212-249 — bot device-code step: expired / denied / error collapse into one generic "Bot authorization failed: <token>" (:242-249); no countdown toward `expiresIn` — distinct copy per DEVICE_EXPIRED/DENIED/ERROR; visible countdown.
-- [ ] `TRUTH` SetupController.kt:122-136 — two "bot account" concepts at once: a `botUsername` text field on the twitch_app step and a device-code OAuth on `platform_bot`, relation never explained; skipping consequence ("bot posts AS YOU with a prefix", D5, CLAUDE.md:659-672) only inferable from code (:301-312) — one concept; say the consequence on the step.
+- [ ] `TRUTH` SetupController.kt:122-136 — two "bot account" concepts at once: a `botUsername` text field on the twitch_app step and a device-code OAuth on `platform_bot`, relation never explained; skipping consequence ("bot posts AS YOU with a prefix", D5, PRODUCT-ALIGNMENT.md D5) only inferable from code (:301-312) — one concept; say the consequence on the step.
 - [ ] SetupController.kt:79-84, 320-322 — wizard state in memory; web reload loses it (compounds the redirect drop; L4 already lists it).
 - [ ] SetupController.kt:126-130 + ConnectController.kt:393-403 — BYOC client id without secret accepted silently, but every later reconnect then takes the slower device-code path (redirect only when `twitchApp.ok`) — say so on the step.
 - [ ] No "what's next" checklist after the wizard; hands off straight to Home; no "send a test message" / "try a command" / "mod the bot" prompt.
@@ -424,14 +371,12 @@ Path 2 — docker
 - [ ] DEPLOY.md docker section never mentions `API_HTTP_PORT`/`API_HTTPS_PORT`/`ADMINER_PORT` (.env.example:141-147) — a taken 5080 has no signpost.
 - [ ] .env.example:106-112 — YouTube/Kick/X login stays hidden until credentials AND a platform-admin feature flag (`use_youtube_login`…) are set; nothing says where the flag lives; wizard has no toggle (STEP_* :369-373) — name the screen, or fold the flag into the provider step.
 - [ ] .env.example:4-6 vs DEPLOY.md:126-130 — manual `cp .env.example` + openssl presented as a parallel path to the script that already generates secrets — promote the script; demote manual to an appendix.
-- [x] Clean: TWITCH_CLIENT_ID may be blank (wizard/shared client); JWT/ENCRYPTION/POSTGRES secrets auto-generated by the script; first URL `http://localhost:5080` consistent across .env.example:52, DEPLOY.md:132, ConnectController.kt:797.
 
 Path 3 — hosted
 - [ ] `TRUTH` AuthService.cs:369-382,492-500 (L2 #2) — first login silently installs the bot on the user's own channel: no "the bot joined your channel" screen, no "mod it now" one-click, no plain-language scope list.
 - [ ] A2.1 — a moderator-invited streamer's own channel is a dead husk (`IsOnboarded=false`) with no on-screen explanation.
 - [ ] A4 — first feature toggle needing a scope → unexplained "reconnect Twitch" at use time.
 - [ ] DEPLOY.md:180-217 — only the operator's SaaS setup is documented; the end-streamer first-run has no doc.
-- [x] Clean: returning users restore silently from cookie/token (ConnectController.kt:668-724); no repeat device code.
 
 Ideal path (the bar):
 1. One script → open printed URL → ONE screen: "Sign in with Twitch" (code large, link is a button). BYOC + bot account are opt-in toggles, not steps to skip.
@@ -447,12 +392,10 @@ Ideal path (the bar):
 - [ ] `I18N` MusicBuiltins.cs:235, 271-273 — volume replies + "Failed to set volume." bypass the composer.
 - [ ] `I18N` UpdateUserInfoBuiltin.cs:196 — success string hardcoded; failure branch (:167-181) already composes.
 - [ ] `I18N` WhisperBuiltin.cs:138-140 — both branches raw English; `sent.ErrorMessage` reaches chat verbatim.
-- [ ] `TRUTH` app/core/network/BuiltinsApi.kt:74-88 + srv BuiltinsController.cs — `defaultCooldownSeconds` / `defaultMinPermissionLevel` shown as settings with no write path anywhere (only enable / response / tts endpoints; CommandsController.kt:323-342) → a streamer cannot put `!sr` on a longer cooldown or gate it to subs.
 - [ ] PipelinesScreen.kt:2394-2397 — new step defaults `actionType` to the first palette entry, no "unselected" state; switching to a generic block may leave `canSubmit` true with zero params (lead: confirm `blockComplete`'s generic branch).
 - [ ] PipelinesScreen.kt:2758-2765 — generic-editor template insert always targets `entries.last()`, not the focused row.
 - [ ] VoiceTriggersApi.kt:78-90 + VoiceTriggersScreen.kt:370 — `UpdateVoiceTriggerBody` has no `startingCount`; `currentCount` has no correction path at all → only delete-and-recreate.
 - [ ] Owed: Result/bool-ignored sweep of Timers/EventResponses/CustomEvents controllers; ChatTriggers picker/enum fields.
-- [x] Clean: CodeScripts and PickLists screens use `stringResource` throughout; no orphaned DTO fields found.
 
 ## L6b · Supporters (S101) and live ops (S106) — concrete gaps
 
@@ -476,7 +419,6 @@ Ideal path (the bar):
 - [ ] tts_audio.vue:56 — whole visual gated on `showIndicator`; with it off the source renders nothing, so placement cannot be re-verified in OBS.
 - [ ] tts_audio.vue:34 — `durationMs` read from `tts_speak`; unverified the dispatch DTO sends it (else every flash is the 1500 ms guess) — check against the real DTO.
 - [ ] tts_audio.vue:23 + FirstPartyWidgetCatalogue.cs (~15×) — `#9146ff` literal default duplicated instead of one shared constant.
-- [x] Re-confirmed, not re-logged: every L9 item on Widgets page, Alerts, Bundles, Assets, overlay serving. Mechanic note: `ScriptHostBridge.cs:388-418` `EmitWidgetEvent` ignores `EventSubscriptions` (name + enabled only), so `EventSubscriptions = []` is inert for `widget.emit` widgets.
 
 ## L10b · Platform admin — second pass
 
@@ -487,7 +429,6 @@ Ideal path (the bar):
 - [ ] AdminBillingTierSection.kt:270-285 — limit editor renders only keys already in `tier.limits`; an enforced registry key with no row is simply absent (resolves unlimited, BillingTierService.cs:113-116) — show every registry key.
 - [ ] `TRUTH` AdminTenantsTab.kt:189-190 — drawer opened for a tenant not in the loaded list fabricates an `AdminTenant` with `isLive=false` for the suspend/reinstate dialogs, unmarked.
 - [ ] Owed: Discord page field-by-field; Webhooks in/out field-by-field; Federation page; provider-card-by-card scope/BYOC pass; inbox item-type "does fix-it work" pass; AdminIamTab; System*/PlatformAdmin* beyond L10.
-- [x] Clean: AdminScreen/AdminTenantsTab/AdminBillingTierSection use `stringResource` throughout; BillingTierService, ResourceQuotaService, LimitedResourceRegistry, FeatureFlagAdminController, AdminBillingController, BillingController — no unenforced-limit-shown, no swallowed Result, no `var`.
 
 ## L8b · Music, TTS, sound, media share, VTS, OBS — second pass
 
@@ -506,12 +447,10 @@ Ideal path (the bar):
 - [ ] SoundClipsController.cs:297-302 — only .mp3/.ogg/.wav by suffix; no upfront rejection or accepted-formats hint (`sound_clips_upload_hint` generic).
 - [ ] `PAGE` MediaShareApi.kt:72-83 + PaginatedResponse.cs:37,45-49 — moderator queue silently capped at 25 per status; backend `GetQueue` (MediaShareController.cs:52-72) already accepts paging — client-only fix.
 - [ ] MediaShareScreen.kt:447-465; ObsScreen.kt:383-499 — Save with no dirty check (TtsScreen.kt:423 has the pattern).
-- [x] Clean: OBS scene/source/mixer/hotkey/screenshot; VTS connection card; Sound row actions/edit; SR queue row actions; TTS General/Voices/PerViewer/Pronunciation; OBS raw pass-through fully wired.
 - [ ] Not covered: TtsConfigController.cs <~400, ObsController.cs >~400, SongRequestsController service internals, VtsControlService/VtsPluginAuthorizer, MediaShareService beyond L8.
 
 ## L4b · Shell — dead links (A) and second pass (B)
 
-- [x] Every URL the app or server emits was traced; all resolve to a served route except `/sr/*` (L13). Served-outside-api/v1 routes: `oauth-relay`, `obs-bridge`, `overlay*`, `overlay/voice-trigger`, `voice-listener`, `automation/v1`; Program.cs:1010 SPA fallback answers everything else.
 - [ ] "Streamer channel" link — NOT found in source. Only candidates: TemplateResolver.cs:603-616 / ShoutoutAction.cs:275 build `twitch.tv/{login}` as chat text (Twitch linkifies), and DiscordNotificationConfigService.cs:363 `https://twitch.tv/SampleStreamer` is a template preview sample — locate on the rendered client with the owner.
 - [ ] WebhooksScreen.kt:623 — `ingestUrl` plain Text, not `CopyLinkButton` like every other copyable URL.
 - [ ] `I18N` FeaturesController.kt:82; RolesController.kt:184 — "No active channel — reconnect and try again." literals (not yet in the i18n list).
@@ -540,19 +479,15 @@ Ideal path (the bar):
 - [ ] `FEEDBACK` 45 swallowed `ApiResult.Failure -> null/Unit` branches: feature/moderation/state/ModerationController.kt:289,296,327,335,344,352,746; feature/community/state/CommunityController.kt:140; feature/pipelines/state/PipelinesController.kt:206; feature/liveops/state/LiveOpsController.kt:70; feature/economy/state/EconomyController.kt:484,535,565; feature/music/state/MusicController.kt:105; feature/connect/state/ConnectController.kt:457,707; feature/commands/state/CommandsController.kt:151,242; feature/chat/state/ChatController.kt:181,350; feature/shell/state/ChannelSwitcherController.kt:105; feature/eventresponses/state/EventResponsesController.kt:129; feature/timers/state/TimersController.kt:142,196; feature/integrations/state/IntegrationsController.kt:151,167,681; feature/chat/state/MultiChatController.kt:184; feature/codescripts/state/CodeScriptsController.kt:141; feature/vts/state/VtsController.kt:85; feature/tts/state/TtsController.kt:134; feature/home/state/HomeController.kt:151,389,428; feature/settings/state/BillingController.kt:81,112; feature/giveaways/state/GiveawaysController.kt:146; feature/games/state/GamesController.kt:93; feature/obs/state/ObsController.kt:118,123,460; feature/community/state/ViewerProfileController.kt:304; feature/analytics/state/AnalyticsController.kt:249,254,319; 
 - [ ] `PAGE` TtsController.kt:84 (pageSize=50), WidgetsController.kt:318 (pageSize=100) — no pager.
 - [ ] 18 `!!` on server-derived values: CommunityScreen.kt:304,377; CustomEventsScreen.kt:276; EconomyScreen.kt:1516,1887,2056,2968,3621,3624; ParticipantController.kt:138,221,227,238,325,359; PipelinesScreen.kt:2568; SettingsScreen.kt:2288; ShellScreen.kt:360.
-- [x] Clean: no prose `Text("…")` literals; no new raw hex/dp beyond baseline; no `MaterialTheme.colorScheme` direct use; no numbered permission levels; en/nl key parity 5384/5384; no `\'`/`\"`; no GlobalScope; all sampled State types have Ready/Error.
 - [ ] Owed (not evidenced): Sleak sibling-primary/accent counts (needs semantic check); English leaking into nl values (byte-identical diff); hide-vs-disable gating sweep; dialog-dismiss-before-result pairing (151 sites); accessibility sweep; `remember` without channel key; DTO duplication + drift vs openapi/v1.json; empty-state presence per screen.
 
 ## L16 · Backend rule-compliance sweep
 
-- [ ] `VAR` 80 real `var` uses (excluding embedded JS strings): Api 12 — AdminController.cs:332; CommunityController.cs:308,333,386,415,480,535,736; RewardsController.cs:386,401; ImpersonationBroadcastHandlers.cs:170. Infrastructure 68 across 27 files, incl. LiveWindowResolver.cs:33; BotLifecycleService.cs:194,239; HelixChatProvider.cs:411,441; KickEventSubscriptionWorker.cs:112,127; TimerService.cs:274; ChatPollService.cs:304; GiveawayCodePoolService.cs:278; GiveawayService.cs:647,670,688; AdminSupportService.cs:492,498,506,508; ChannelService.cs:277; ErasureService.cs:518-583 (6); UserService.cs:64,324,349,354,363 (full list: `grep -rIn "[^.]\bvar \w" NomNomzBot.Infrastructure --include=*.cs | grep -vi "jint\|obsbridge\|scripthost"`).
-- [ ] License header missing: Application/Widgets/Services/IOverlayPresenceRegistry.cs; all ~145 Migrations.Sqlite migration bodies (e.g. 20260624064552_Initial.cs) carry neither `// <auto-generated />` nor the SPDX header (Designer files do); Infrastructure count pending (see below).
+- [ ] License header missing on the Migrations.Sqlite migration bodies (e.g. 20260624064552_Initial.cs): neither `// <auto-generated />` nor the SPDX header (Designer files have it); the Postgres set: see L16b.
 - [ ] Sync-over-async (8): ScriptHostBridge.cs:165,276,288; DirectObsTransport.cs:535; DirectVtsTransport.cs:445; DeploymentModeResolver.cs:43,44; JintVueSfcCompiler.cs:143 (duplicates L11b; ledgered once here as the rule).
 - [ ] 15 controllers inject `IApplicationDbContext` directly (rule: repository + IUnitOfWork): AdminController.cs:46, ChannelsController.cs:35, ChatController.cs:45, CommunityController.cs:42, DashboardController.cs:44, DiscordOAuthController.cs:40, IntegrationsController.cs:37, ModerationController.cs:49, PermissionsController.cs:32, RewardsController.cs:36, StreamController.cs:40, SystemController.cs:39, TtsConfigController.cs:40, ViewerDataController.cs:38, WidgetTestEventController.cs:37.
 - [ ] `I18N` ModerationController.cs — 9 `Result.Failure("<literal>")` (the only controller with literal failures; `grep -n 'Result.Failure("'`); 4 Infrastructure files call `chatProvider.SendMessageAsync` directly — confirm each goes through the composer.
-- [ ] Git: 2 commits with `Co-Authored-By`, 1 with `Claude-Session` trailers slipped past the hook (rule: never) — rewrite only if unpushed; otherwise leave and keep the hook.
 - [ ] `NoMercyBot` remains only in comments + the legacy DB locator path (DefaultLegacyDatabaseLocator.cs:16,30; SubscriptionEventHandlers.cs:98; TtsDispatchService.cs:654) — acceptable, but CLAUDE.md should carve out the legacy-locator exception explicitly.
-- [x] Clean: no numbered levels in Api/Application text; `ExecuteDeleteAsync` only on non-soft-delete entities (AlertQueueService.cs:158, KickWebhookIngest.cs:137); `.Remove()` calls are interceptor-soft-deleted by design.
 - [ ] Owed: per-entity "saved but never read" config sweep; surface-only test sample; Helix/EventSub coverage diff against the official reference.
 
 ## L17 · Uncovered areas + built-but-unreachable inventory
@@ -566,11 +501,7 @@ Ideal path (the bar):
 - [ ] MyDataController.kt:104-111 + GdprController.cs:109 + GdprBuiltins.cs:82-121 — erasure scope always "deployment"; `RequestErasureRequest.Scope` never selectable.
 - [ ] Orphaned KDoc after a mechanical refactor: PickListsController.kt:101-115, CustomEventsController.kt:99-116, CodeScriptsController.kt:403-420 ("Delete a X" comment sits above `fetchBlastRadius`).
 - [ ] tools/streamdeck — not re-verified against the current `automation/v1/music/*` routes (AutomationDataController.cs); diff owed.
-- [x] Correctly not app-called (external/browser surfaces): AutomationDataController `automation/v1/*`; AutomationPairingController approve page; Billing/Discord/Kick/Inbound webhook receivers; Discord/Integration OAuth callbacks; OAuthRelay / ObsBridgeHost / OverlayHost / OverlaySdk / OverlayTicket / OverlayVueRuntime / VoiceListenerPage / VoiceTriggerReport pages; `api/v1/overlay/*` (overlay runtime); PublicSongRequestController (viewer page — but see L13: no page serves it).
-- [x] Clean: feature/emoji; feature/connect (saved connections, mDNS, keychain, restore); picklists/customevents flows; DEPLOY.md/README/.env.example ports+URLs consistent; openapi spot-check (GDPR, Compliance, PickLists, SDK) 1:1 with controllers. Method: 816 actions extracted, 54 with no textual caller, triaged above.
 
 ## L16b · Counts closed by the orchestrator
 
-- [x] Infrastructure hand-written .cs missing the SPDX header: 0.
-- [ ] Infrastructure `Platform/Persistence/Migrations/*.cs` missing `// <auto-generated />` + header: 257 files (Postgres set) — plus ~145 in Migrations.Sqlite (L16). One scripted pass fixes both.
-- [ ] Migration parity (129 Postgres vs 141 SQLite migration bodies): SQLite-only names are expected (`FixSqliteDateTimeOffsetTicksConversion`, `AddGuidNocaseCollationSqlite`, ten early split-outs, `AddRedemptionTimers`+`AddChatTriggers` vs the merged Postgres one). **`AddRewardIsUserInputRequired` exists only in the Postgres set** — confirm the SQLite snapshot carries the column (else self-host lite lacks `Reward.IsUserInputRequired`).
+- [ ] Infrastructure `Platform/Persistence/Migrations/*.cs` (Postgres set) missing `// <auto-generated />` + header — plus the Migrations.Sqlite bodies (L16). One scripted pass fixes both.

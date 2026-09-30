@@ -17,7 +17,7 @@ Two isolation choices:
 - **Worktree** (`isolation: "worktree"`) — for anything sweeping. Check the agent's
   **merge-base**: a stale base silently reverts other work. Verify the agent committed to **its
   own branch**, not the main tree. Never sweep worktrees while an agent is still live; clean up
-  only completed ones.
+  only completed ones. Land a finished worktree branch with `scripts/land-worktree.ps1`.
 
 ## Every brief must carry
 
@@ -39,6 +39,9 @@ Two isolation choices:
 7. **The report shape** you want back: what changed, the evidence, the first real error on
    failure — not file dumps.
 8. **Do not push.** Pushing is the orchestrator's decision.
+9. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
+   `Executor: Arc because <reason>`, or executor-guard refuses the dispatch. Name the model
+   (Haiku checks, Sonnet pattern work, Opus hard cases).
 
 ## Judging what comes back
 

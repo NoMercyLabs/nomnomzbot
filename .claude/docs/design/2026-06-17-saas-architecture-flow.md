@@ -149,9 +149,8 @@ flowchart TB
 
   subgraph B7["7 · Outputs"]
     direction LR
-    G_SH["chat via IRC"]:::sh
     G["read models · dashboard · chat"]:::core
-    G_SA["chat via Helix send"]:::sa
+    G_ALL["chat via Helix send (both profiles)"]:::core
   end
 
   A --> B --> C --> D --> E --> F --> G
@@ -186,7 +185,7 @@ sequenceDiagram
   J->>P: projection folds from journal (checkpoint pull)
   J->>B: publish to bus (live notify)
   B->>D: SignalR push (activity feed)
-  W->>V: chat reply (Helix on SaaS / IRC on self-host)
+  W->>V: chat reply (Helix send)
 ```
 
 ## 5. The three load-bearing properties

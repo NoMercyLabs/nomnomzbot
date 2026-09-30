@@ -1,8 +1,8 @@
 # Interface Specification — `custom-code` (T3 sandboxed script execution)
 
 Scope: the T3 code escape-hatch. A single `run_code` pipeline action runs an author's TypeScript script
-(compiled to JS) inside a profile-selected sandbox (`Jint` lite / `Wasmtime` SaaS) behind one
-`IScriptExecutor`. The capability broker injects a deny-by-default, value-in/value-out `bot` facade —
+(compiled to JS) inside a sandbox behind one
+`IScriptExecutor` (Jint everywhere today; a Wasmtime adapter exists but is not registered, §7). The capability broker injects a deny-by-default, value-in/value-out `bot` facade —
 never a credential, URL, or another tenant. Execution time is metered against per-tier quotas;
 scripts are immutably versioned with validate-on-save and hot-swappable active versions.
 
@@ -36,17 +36,26 @@ the schema doc is the source of truth. EF entities live in `NomNomzBot.Domain/En
 `Language string(20)` (`typescript` [VC:enum]); `CurrentVersionId guid? FK→CodeScriptVersions Index`
 (active-version pointer — hot-swap); `IsEnabled bool Index`; `AuthorUserId guid? FK→Users Index`;
 `LastRuntimeError string? (text)`; `LastRanAt timestamp?`; `CreatedAt/UpdatedAt/DeletedAt`.
+Platform-content provenance (S-ADMIN-2e, same shape as `ChannelBuiltinCommand`/`Widget`/`Pipeline`):
+`PlatformSourceDefinitionId guid?` (the `PlatformContentDefinition`, Kind=`code_script`, this row was installed
+from), `PlatformSourceVersion int?`, `PlatformSourceHash string?` (content hash at install/last sync — compared to the
+live current version's source to decide "untouched"), `PlatformSourceSyncedAt timestamp?`.
 **Unique** `(BroadcasterId, Name)`.
 
-### `CodeScriptVersion` (schema H.6) `[APPEND-ONLY]` — owned
+### `CodeScriptVersion` (schema H.6) `[APPEND-ONLY content, soft-delete]` — owned
 `Id guid PK`; `CodeScriptId guid FK→CodeScripts Index`; `BroadcasterId guid FK→Channels Index`;
-`Version int`; `SourceCode string (text)` (authored TypeScript); `CompiledJs string? (text)` (transpiled JS,
-populated on `valid`); `CompiledHash string(64) Index` (SHA-256 of `CompiledJs` — per-unit cache key
+`Version int`; `SourceCode string (text)` (authored TypeScript — the compiled entry's content);
+`FilesJson string? (text)` (multi-file project: raw JSON `path → content` map; a single-file save is a one-entry
+map; null only on legacy rows); `ManifestJson string? (text)` (project manifest `{ entry, kind, framework,
+dependencies[] }`, dev-platform.md §4.2); `CompiledJs string? (text)` (transpiled JS,
+populated on `valid`); `CompiledHash string? (64) Index` (SHA-256 of `CompiledJs` — per-unit cache key
 `tenant+version`); `ValidationStatus string(20) Index` (`valid`|`rejected`|`pending` [VC:enum]);
 `ValidationErrorsJson string? (text)` [VC:JSON] (`IReadOnlyList<ScriptValidationError>`);
 `DeclaredCapabilitiesJson string (text)` [VC:JSON] (`IReadOnlyList<string>` capability keys);
 `PublishedAt timestamp?`; `AuthorUserId guid? FK→Users`; `CreatedAt`.
-**Unique** `(CodeScriptId, Version)`. APPEND-ONLY → no `UpdatedAt`/`DeletedAt`; corrections = new version.
+**Unique** `(CodeScriptId, Version)`. Append-only in content: a version is never edited, corrections = new version.
+The entity is `SoftDeletableEntity` (S-OWN06): the owner may prune a non-published version from the history list, which
+only sets `DeletedAt` (the row is retained for audit); the current published version cannot be deleted.
 
 ### `HttpEgressAllowlist` (schema H.7) `[soft-delete]` — owned (consumed by the `bot.http` capability)
 `Id guid PK`; `BroadcasterId guid FK→Channels Index`; `Fqdn string(253)`; `ApprovedByUserId guid? FK→Users`;
@@ -67,50 +76,35 @@ path-prefix restriction, null = any path); `CreatedAt/UpdatedAt/DeletedAt`.
 
 ## 2. Domain events
 
-Namespace `NomNomzBot.Domain.Events`; `sealed record … : DomainEventBase` (the canonical base per
-`platform-conventions.md` — carries `Guid EventId`, `Guid BroadcasterId`, `DateTimeOffset OccurredAt`).
-`BroadcasterId` (the `Guid` tenant key) comes from the base — it is NOT redeclared on these records.
-Emitted via `IEventBus.PublishAsync`.
+Namespace `NomNomzBot.Domain.CustomCode.Events`; `sealed class … : DomainEventBase` with `required` init-only
+properties (as built). `BroadcasterId` (the `Guid` tenant key) comes from the base — it is NOT redeclared on these
+events. Emitted via `IEventBus.PublishAsync`.
+
+**Only two events exist:** `CodeScriptValidatedEvent` and `CodeScriptVersionPublishedEvent`. There is no
+`ScriptExecutedEvent` and no `ScriptExecutionDeniedEvent`; a run's outcome is recorded on the instance row
+(`CodeScript.LastRanAt` / `LastRuntimeError`) and in the pipeline execution log, not on the bus.
 
 ```csharp
 // Raised after a new version is persisted with ValidationStatus == valid|rejected (validate-on-save outcome).
-public sealed record CodeScriptValidatedEvent(
-    Guid CodeScriptId,
-    Guid CodeScriptVersionId,
-    int Version,
-    string ValidationStatus,                       // "valid" | "rejected"
-    IReadOnlyList<string> DeclaredCapabilities,
-    IReadOnlyList<ScriptValidationError> Errors    // empty when valid
-) : DomainEventBase;
+public sealed class CodeScriptValidatedEvent : DomainEventBase
+{
+    public required Guid CodeScriptId { get; init; }
+    public required Guid CodeScriptVersionId { get; init; }
+    public required int Version { get; init; }
+    public required string ValidationStatus { get; init; }                       // "valid" | "rejected"
+    public required IReadOnlyList<string> DeclaredCapabilities { get; init; }
+    public required IReadOnlyList<ScriptValidationError> Errors { get; init; }   // empty when valid
+}
 
 // Raised when CurrentVersionId is repointed (hot-swap; old version stays immutable).
-public sealed record CodeScriptVersionPublishedEvent(
-    Guid CodeScriptId,
-    Guid CodeScriptVersionId,
-    int Version,
-    Guid? PreviousVersionId,
-    Guid? PublishedByUserId
-) : DomainEventBase;
-
-// Raised after every run_code execution (success or failure) for telemetry/metering correlation.
-public sealed record ScriptExecutedEvent(
-    Guid CodeScriptId,
-    Guid CodeScriptVersionId,
-    string ExecutionId,                            // PipelineExecutionContext.ExecutionId
-    ScriptExecutionOutcome Outcome,                // enum below
-    int HostCallCount,
-    long DurationMs,
-    string? ErrorMessage
-) : DomainEventBase;
-
-// Raised when a run is refused before/within execution by the capability broker or quota gate (audit).
-public sealed record ScriptExecutionDeniedEvent(
-    Guid CodeScriptId,
-    Guid CodeScriptVersionId,
-    string ExecutionId,
-    ScriptDenialReason Reason,                     // enum below
-    string Detail                                  // e.g. denied capability key, "sandbox_exec_ms quota exceeded", blocked FQDN
-) : DomainEventBase;
+public sealed class CodeScriptVersionPublishedEvent : DomainEventBase
+{
+    public required Guid CodeScriptId { get; init; }
+    public required Guid CodeScriptVersionId { get; init; }
+    public required int Version { get; init; }
+    public Guid? PreviousVersionId { get; init; }
+    public Guid? PublishedByUserId { get; init; }
+}
 ```
 
 ---
@@ -122,7 +116,7 @@ All in `NomNomzBot.Application.Contracts.CustomCode` unless noted. `Result<T>` =
 `BaseController.ResultResponse` error-code vocabulary (`VALIDATION_FAILED`, `NOT_FOUND`, `ALREADY_EXISTS`,
 `FORBIDDEN`, `BILLING_LIMIT`, `RATE_LIMITED`, `FEATURE_DISABLED`).
 
-### 3.1 `IScriptExecutor` — Application contract; profile adapter (Jint lite / Wasmtime SaaS)
+### 3.1 `IScriptExecutor` — Application contract; Jint adapter registered (Wasmtime adapter built, not registered)
 The single sandbox boundary. The implementation receives **only** the resolved `ScriptExecutionRequest`
 (value types, copied), a `ScriptCapabilityGrant` (value-typed capability descriptors), and an
 `IScriptHostBridge` (the per-execution host-dispatch seam the granted `bot.*` imports invoke). No `DbContext`,
@@ -235,7 +229,7 @@ public interface ICodeScriptService
 {
     // List the tenant's scripts (active-version status projected). Soft-deleted excluded by global filter.
     Task<Result<PagedList<CodeScriptSummaryDto>>> ListAsync(
-        PageRequestDto page,
+        PaginationParams paging,
         CancellationToken cancellationToken = default);
 
     // Get one script with its active version's source + validation state. NOT_FOUND if missing/other tenant.
@@ -268,7 +262,28 @@ public interface ICodeScriptService
     // List immutable version history (newest first), each with validation status + declared capabilities.
     Task<Result<PagedList<CodeScriptVersionDto>>> ListVersionsAsync(
         Guid codeScriptId,
-        PageRequestDto page,
+        PaginationParams paging,
+        CancellationToken cancellationToken = default);
+
+    // Soft-delete one saved version (S-OWN06). NOT_FOUND if the script/version is not in this tenant;
+    // VERSION_IS_PUBLISHED if it is the current hot-swap target (publish a different version first).
+    Task<Result> DeleteVersionAsync(
+        Guid codeScriptId,
+        Guid codeScriptVersionId,
+        CancellationToken cancellationToken = default);
+
+    // Load the current multi-file project (file set + manifest) for the editor (dev-platform.md §8).
+    // A legacy version without a stored project is projected as its one-file scaffold.
+    Task<Result<ProjectDto>> GetProjectAsync(
+        Guid codeScriptId,
+        CancellationToken cancellationToken = default);
+
+    // Save a multi-file project: validate file set + manifest (entry present, safe paths, allowlisted
+    // dependencies), compile the manifest entry, and ONLY on a valid compile append a new version, store the
+    // whole project and hot-swap it live. A validation/compile failure persists NO version.
+    Task<Result<CodeScriptVersionDto>> SaveProjectAsync(
+        Guid codeScriptId,
+        ProjectDto project,
         CancellationToken cancellationToken = default);
 
     // Toggle IsEnabled. Disabled script → run_code fails closed at execution. Mutates instance row only.
@@ -281,8 +296,23 @@ public interface ICodeScriptService
     Task<Result> DeleteAsync(
         Guid codeScriptId,
         CancellationToken cancellationToken = default);
+
+    // The real, counted blast radius of deleting this script (S-CONSEQ): its saved versions and the run_code
+    // pipeline steps that would stop running. The dashboard calls this before the delete confirm.
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid codeScriptId,
+        CancellationToken cancellationToken = default);
 }
 ```
+
+`ProjectDto` lives in `NomNomzBot.Application.DevPlatform.Dtos`; `BlastRadiusDto` in
+`NomNomzBot.Application.Common.Consequences`. `PaginationParams` (page, take, sort, order) is the paging input the
+controller builds from `PageRequestDto`.
+
+A sibling service, `IScriptTestRunService.RunAsync(codeScriptId, ScriptTestRunRequest)` →
+`Result<TestRunResultDto>`, DRY-RUNs the current version through the real sandbox with sample inputs: every
+outward or mutating effect (chat, TTS, widgets, storage writes, rewards, schedules, …) is CAPTURED and returned as
+`CapturedEffectDto` instead of performed; reads run live. It leaves no trace (no state, no chat, no quota).
 
 ### 3.5 `IScriptRunner` — Application; the orchestration `RunCodeAction` calls
 One method composing meter-gate → load active version → broker grant → executor → meter-record →
@@ -293,7 +323,7 @@ public interface IScriptRunner
 {
     // Run the script bound to a pipeline step. Fail-closed at every gate (disabled/rejected/missing version →
     // Faulted; quota → Denied(QuotaExceeded); capability → Denied(CapabilityDenied)). Side effects: meters usage,
-    // updates CodeScript.LastRanAt/LastRuntimeError, raises ScriptExecuted/ScriptExecutionDenied. Returns the
+    // updates CodeScript.LastRanAt/LastRuntimeError (no bus event is raised for a run). Returns the
     // value-typed outcome (variables to merge back, chat output, stop flag) for the action to surface.
     Task<Result<ScriptRunResult>> RunAsync(
         Guid codeScriptId,
@@ -454,13 +484,15 @@ public sealed record QuotaCheck(
 `[ApiVersion("1.0")] [Route("api/v{version:apiVersion}/code-scripts")] [Authorize]`. All responses
 `StatusResponseDto<T>` / `PaginatedResponse<T>` via `ResultResponse(...)`. Tenant resolved from the
 authenticated principal (NOT route/header/query — IDOR fix #1); every action operates on the current tenant.
+Gate-2 is the class-level `[RequireAction("code:script:author")]`, so every action below inherits it; every action
+also runs the `custom_code` feature gate first.
 
 Auth plane = **management plane, Broadcaster floor, critical danger tier** (authoring/running sandboxed code
 is a channel-owner-level operational capability, never a per-viewer one — the earlier "community plane +
 critical floor" framing was self-contradictory and is resolved here). `ActionDefinitions` key
 `code:script:author` (`Plane=management`, `FloorLevel=Broadcaster(40)`, `FloorTier=critical`,
 `IsGrantableViaPermit=true` → **Broadcaster-delegable as a per-user `!permit` grant only**, never role-tier
-based — see below). All eight endpoints — reads included (source can embed logic the owner authored) —
+based — see below). All thirteen endpoints — reads included (source can embed logic the owner authored) —
 enforce the **same** key.
 
 Role gate:
@@ -475,12 +507,23 @@ Role gate:
 | POST | `/api/v1/code-scripts` | `CreateCodeScriptRequest` | `StatusResponseDto<CodeScriptDetailDto>` | management / Broadcaster · `code:script:author` |
 | POST | `/api/v1/code-scripts/{id}/versions` | `CreateCodeScriptVersionRequest` | `StatusResponseDto<CodeScriptVersionDto>` | management / Broadcaster · `code:script:author` |
 | GET | `/api/v1/code-scripts/{id}/versions` | `PageRequestDto` (query) | `PaginatedResponse<CodeScriptVersionDto>` | management / Broadcaster · `code:script:author` |
+| DELETE | `/api/v1/code-scripts/{id}/versions/{versionId}` | — | `StatusResponseDto<object>` | management / Broadcaster · `code:script:author` |
 | POST | `/api/v1/code-scripts/{id}/versions/{versionId}/publish` | — | `StatusResponseDto<CodeScriptDetailDto>` | management / Broadcaster · `code:script:author` |
+| GET | `/api/v1/code-scripts/{id}/project` | — | `StatusResponseDto<ProjectDto>` | management / Broadcaster · `code:script:author` |
+| PUT | `/api/v1/code-scripts/{id}/project` | `ProjectDto` | `StatusResponseDto<CodeScriptVersionDto>` | management / Broadcaster · `code:script:author` |
+| POST | `/api/v1/code-scripts/{id}/test-run` | `ScriptTestRunRequest` | `StatusResponseDto<TestRunResultDto>` | management / Broadcaster · `code:script:author` |
 | PATCH | `/api/v1/code-scripts/{id}/enabled` | `SetCodeScriptEnabledRequest(bool IsEnabled)` | `StatusResponseDto<object>` | management / Broadcaster · `code:script:author` |
+| GET | `/api/v1/code-scripts/{id}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Broadcaster · `code:script:author` |
 | DELETE | `/api/v1/code-scripts/{id}` | — | `StatusResponseDto<object>` | management / Broadcaster · `code:script:author` |
 
-Each action calls `IActionAuthorizationService.AuthorizeActionAsync("code:script:author")` (Gate-2) before
-operating; a denial returns `FORBIDDEN`, fail-closed.
+Controller actions (`CodeScriptsController`): `List`, `Get`, `Create`, `CreateVersion`, `ListVersions`,
+`DeleteVersion`, `Publish`, `GetProject`, `SaveProject`, `TestRun`, `SetEnabled`, `GetDeleteBlastRadius`, `Delete`.
+`Publish` and `TestRun` carry the `WriteExpensive` rate-limit policy. `GetDeleteBlastRadius` and `Delete` are
+`[DestructiveAction(HasCountedBlastRadius = true)]`: the confirm step MUST call the blast-radius route and show the
+counted dependents before the delete runs.
+
+The class-level `[RequireAction("code:script:author")]` enforces Gate-2 before any action body runs; a denial
+returns `FORBIDDEN`, fail-closed.
 
 #### 5.1 Seeded `ActionDefinitions` row (this subsystem owns this seed entry)
 
@@ -527,7 +570,8 @@ One action, implementing the single canonical `ICommandAction` (owner `commands-
   - any non-`Success` outcome (`Faulted`/`Timeout`/`HostBudgetExceeded`/`Denied`) → `ActionResult.Failure(reason)`
     and signals the engine to **halt** (fail-closed, must-fix #4 — unlike the current fail-open default).
   - never lets a sandbox exception propagate; the executor returns an outcome, the action returns a `Failure`.
-- Registered `AddTransient<ICommandAction, RunCodeAction>()` beside the other actions (§7).
+- Registered by the transient `AddImplementationsOf<ICommandAction>(infrastructure, …)` assembly scan beside the
+  other actions (§7) — there is no hand-written `AddTransient<ICommandAction, RunCodeAction>()` line.
 - Save-time validator forbids any param other than `CodeScriptId` on a `run_code` step (architecture-test enforced).
 
 No new conditions. (`HttpRequest` egress is exposed as the `http.fetch` **capability** inside the sandbox,
@@ -550,27 +594,30 @@ services.AddScoped<IScriptRunner, ScriptRunner>();
 // Infrastructure — AddInfrastructure(configuration)
 services.AddScoped<IScriptCapabilityBroker, ScriptCapabilityBroker>();
 services.AddScoped<IScriptExecutionMeter, ScriptExecutionMeter>();
+services.AddScoped<IScriptHostBridgeFactory, ScriptHostBridgeFactory>();
 services.AddScoped<CodeScriptRepository>();                       // GenericRepository<CodeScript>-derived
 services.AddScoped<HttpEgressAllowlistRepository>();
 
-// Pipeline action (transient — stateless, beside SongRequestAction et al.)
-services.AddTransient<ICommandAction, RunCodeAction>();
+// Pipeline action (transient — stateless): RunCodeAction is picked up by
+// services.AddImplementationsOf<ICommandAction>(infrastructure, ServiceLifetime.Transient, …), not a manual line.
 
-// Profile-adapter — chosen by DeploymentProfileSnapshot.CodeExecutor (one boot-time switch),
-// inside AddDeploymentAdapters(snapshot) AFTER IDeploymentProfileService resolves the profile.
-// Selection keys off the CodeExecutor field (CodeExecutorKind), NOT DeploymentMode — a SelfHostFull
-// profile must run Wasmtime, so DeploymentMode-based selection would mis-route it (sandbox §11.2).
-if (snapshot.CodeExecutor == CodeExecutorKind.Wasmtime)
-    services.AddSingleton<IScriptExecutor, WasmtimeScriptExecutor>();  // SaaS: x86_64-Cranelift ONLY; never Winch/aarch64
-else
-    services.AddSingleton<IScriptExecutor, JintScriptExecutor>();      // self-host: managed JS, no native deps, no Docker
+// The executor — registered UNCONDITIONALLY, no profile switch (as built):
+services.AddScoped<IScriptExecutor, JintScriptExecutor>();
 ```
 
+`DeploymentProfileSnapshot.CodeExecutor` (`CodeExecutorKind`) is still resolved and persisted on the
+`DeploymentProfile` row, but **nothing in DI branches on it**: there is no `if (CodeExecutor == Wasmtime)` and no
+`AddDeploymentAdapters` executor switch. `WasmtimeScriptExecutor` exists as a class (the hardened Cranelift harness,
+proven by tests against real wasm; `Sandbox:WasmJsEnginePath` names the QuickJS engine module, and until that module
+is present `ExecuteAsync` fails closed as `Faulted`) but it is **not registered** — no deployment mode resolves it.
+The `Wasmtime` package reference stays in the Infrastructure project for that class.
+
 Adapter variants (decision #2, tension #6):
-- **lite/self-host** → `JintScriptExecutor` (Jint 4.9.2). Threat model = single trusted operator; resource-safety only.
-- **full/SaaS** → `WasmtimeScriptExecutor` (wasmtime-dotnet 44.0.0, x86_64-Cranelift). Real isolation boundary;
-  Winch + aarch64-Cranelift MUST stay disabled (April-2026 critical escapes); fast-patch SLA mandatory.
-Executors are `Singleton` (engine/config pools are reusable + thread-safe; per-execution context is value-passed).
+- **every deployment (today)** → `JintScriptExecutor` (Jint 4.10.0, the version pinned in `server/Directory.Packages.props`).
+  Threat model = single trusted operator; resource-safety only. Registered `Scoped`.
+- **full/SaaS (not wired)** → `WasmtimeScriptExecutor` (Wasmtime 44.0.0, x86_64-Cranelift). Real isolation boundary;
+  Winch + aarch64-Cranelift MUST stay disabled (April-2026 critical escapes); fast-patch SLA mandatory. The class is
+  built and tested, but no DI registration selects it (see above); wiring it is a separate SaaS-deployment slice.
 
 ---
 
@@ -578,8 +625,8 @@ Executors are `Singleton` (engine/config pools are reusable + thread-safe; per-e
 
 | Dependency | Party | Used by | Note |
 |------------|-------|---------|------|
-| **Jint** 4.9.2 | 3rd (BSD-2) | `JintScriptExecutor` (lite only) | Managed JS interpreter; NOT a security boundary — single-operator threat model only |
-| **Wasmtime (wasmtime-dotnet)** 44.0.0 | 3rd (Apache-2.0 WITH LLVM-exception) | `WasmtimeScriptExecutor` (SaaS only) | x86_64-Cranelift only; fuel + epoch + wall-clock watchdog; loaded only in the SaaS DI branch |
+| **Jint** 4.10.0 (`Directory.Packages.props`) | 3rd (BSD-2) | `JintScriptExecutor` (registered for every deployment) | Managed JS interpreter; NOT a security boundary — single-operator threat model only |
+| **Wasmtime (wasmtime-dotnet)** 44.0.0 | 3rd (Apache-2.0 WITH LLVM-exception) | `WasmtimeScriptExecutor` (class exists, **not registered**) | x86_64-Cranelift only; fuel + epoch + wall-clock watchdog; no DI branch loads it today |
 | `System.Security.Cryptography` (`SHA256`) | 2nd / in-box | `CompiledHash` computation | No 3rd-party crypto |
 | EF Core 10 + repository/`IUnitOfWork` | 2nd | `CodeScriptService`, meter, repos | Named query filters = soft-delete + tenant isolation |
 | `IEventBus` (in-box `EventBus` lite / `RedisEventBus` SaaS) | 1st/2nd | domain-event emission | Existing bus; no MediatR |

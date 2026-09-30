@@ -1,16 +1,17 @@
 # Federation + OIDC — Interface Specification
 
 **Status:** Implementable. Code from this directly.
+**As-built (2026-09-30):** built — the peer directory service + `FederationController` peer routes, the per-message signer (`rsa-sha256`) + its config-backed signing key provider, the per-channel opt-in service + `ChannelFederationController`, the inbound translator + handler registry, and the transport-independent **inbound gateway** (`IFederationInboundGateway`, §3.5). **Not built:** `IFederationHandshakeService` (§3.2), `IRemoteEventBus` outbound/subscribe legs and both transport adapters (§3.5), the `/federation/handshake`, `/federation/inbound` and `/.well-known/federation-descriptor` routes (§5), the OpenIddict issuer, the OIDC client scheme registrar and the outbound dispatcher (§7). Unbuilt parts stay as the target design.
 **Subsystem:** NomNomzBot as OIDC issuer + client (OpenIddict, feature-gated), cross-instance trust directory, mTLS + JWKS-signed tokens + per-message signatures, remote event-bus adapter (inbound/outbound queue). **AuthN federates; AuthZ stays local.**
 
 ## Grounding & locked decisions (binding)
 
 - **AuthN federates, AuthZ stays local.** A peer instance can *authenticate* a subject (signed token / SSO) and *propagate signed events* (bans, trust, savings), but **every authorization decision is made locally** by this instance's permission resolver (Plane A/B ladders, `!permit` grants, floors). A federated event never carries an authorization verdict — it carries a *claim* (this subject did X on peer P), and the local channel's opt-in + standing decides whether to act. No remote principal is ever a rung on the local management/community ladder.
 - **OIDC issuer is FEATURE-GATED.** Stand up the OpenIddict authorize/token/JWKS surface **only** when `federation` or `multi_user_sso` feature flags are enabled. Basic single-user self-host stays JWT-only resource-server: no issuer, no `/connect/*` endpoints. The DI issuer branch is not registered unless the gate is on.
-- **Asymmetric signing is a hard prerequisite (dependency).** Token issuance on RS256/ES256 via `JsonWebTokenHandler` 8.19.1 with a published JWKS is a dependency of federation: federation MUST NOT start before it is in place. HS256 is unfederatable. The JWKS this subsystem publishes/consumes is the issuer's RS256/ES256 key set.
+- **Asymmetric signing is a hard prerequisite (dependency).** Token issuance on RS256/ES256 with a published JWKS (as built, the repo's token code uses `JwtSecurityTokenHandler` from `System.IdentityModel.Tokens.Jwt`; see §8) is a dependency of federation: federation MUST NOT start before it is in place. HS256 is unfederatable. The JWKS this subsystem publishes/consumes is the issuer's RS256/ES256 key set.
 - **Peer event signatures use `rsa-sha256`** (stack doc, Auth decision) — in-box `System.Security.Cryptography.RSA`, **zero third-party crypto**. `FederationPeerKeys.Algorithm` allows `ed25519` for forward-compat, but this instance signs and verifies with `rsa-sha256` only (no NSec/BouncyCastle). mTLS transport uses native Kestrel/`HttpClient` client certificates.
 - **Federation tables are GLOBAL** (schema §1.2): `FederationPeers`, `FederationPeerKeys` carry **no** `BroadcasterId` and do **not** implement `ITenantScoped`. `ChannelFederationOptIns` **is** tenant-scoped (per-channel opt-in). Cross-instance propagation rows are guarded by the `ChannelFederationOptIns` + `FederationPeers.TrustState` predicate, never single-tenant RLS.
-- **Default-deny / opt-in** (memory: opt-in/default-deny): a peer is `pending` until explicitly trusted; a channel shares/accepts nothing until a `ChannelFederationOptIns` row enables it. Trust and opt-in changes are SuperMod/Broadcaster gated.
+- **Default-deny / opt-in** (memory: opt-in/default-deny): a peer is `pending` until explicitly trusted; a channel shares/accepts nothing until a `ChannelFederationOptIns` row enables it. Opt-in changes are gated at `LeadModerator` (the seeded `federation:optin:*` floor); trust changes are platform-IAM (`iam:manage`).
 - **`BroadcasterId` is `Guid`** (schema §1.1, ITenantScoped widened `string`→`Guid`). All new federation types use `Guid` for tenant + FK keys. Surrogate PKs are `Guid.CreateVersion7()`. Twitch/peer external ids are indexed `string` attribute columns.
 - **Crypto-shred reuse:** federation never introduces a new secret store. Peer PII in propagated events follows the existing `EventJournal` + `EventSubjectKeys` + `CryptoKey` crypto-shred path (schema O.1/O.1a/Q.1). Inbound peer events are recorded in the **same** `EventJournal` with `Source=federation` — the locked `EventJournal.Source` enum (O.1) is extended to include `federation`, so this is a first-class enum member, not an out-of-band value.
 
@@ -34,11 +35,11 @@ Defined authoritatively in `2026-06-16-database-schema.md`. This subsystem **own
 | `EventSubjectKeys` | O.1a | Per-subject DEK link for multi-subject propagated events (raid, gift). |
 | `CryptoKey` | Q.1 | DEKs encrypting peer-PII payload slices; crypto-shred linchpin. Not created by federation; reused. |
 | `ModerationActions` | J.2 | **Written** when an inbound cross-instance federated ban is applied locally: `Origin=federation` (explicitly distinct from `Origin=shared_chat`, which denotes a Twitch-native shared-chat session ban), `OriginChannelId` set. Owned by the moderation subsystem; this subsystem only constructs the federation-origin action via that subsystem's service (`ISharedBanService.ApplyInboundSharedBanAsync`). |
-| `IdempotencyKey` | O.4 | Inbound event at-most-once guard, `Scope="federation.inbound"`. |
+| `EventJournal` (dedupe) | O.1 | **The inbound dedupe key is `EventJournal.EventId`** — the journal is unique on it, so a re-delivered envelope's `EventId` already being journaled IS the `replay` rejection (gate 4, §3.5). No `IdempotencyKey` row is written for inbound federation. |
 | `FeatureFlag` / `FeatureFlagOverride` | P.13 | `federation`, `multi_user_sso` gates that decide whether the issuer + bus adapters are stood up. |
 | `DeploymentProfile` | P.12 | `Mode`, `TokenVault`, `InstanceId` — drives the issuer/bus DI branch and this instance's own `InstanceId`. |
 
-> **No new tables.** Every persistence need is met by the locked schema. Inbound/outbound queue durability rides on `EventJournal` + `IdempotencyKey` + `ProjectionCheckpoint` (O.3, projection name `federation.outbound`), not a bespoke queue table.
+> **No new tables.** Every persistence need is met by the locked schema. Inbound/outbound queue durability rides on `EventJournal` + `ProjectionCheckpoint` (O.3, projection name `federation.outbound`), not a bespoke queue table.
 
 ---
 
@@ -111,7 +112,7 @@ public sealed record FederatedEventRejectedEvent : DomainEventBase
 
 ## 3. Service interfaces
 
-All interfaces in `NomNomzBot.Application` namespaces, async-all-the-way, return `Result`/`Result<T>` (`NomNomzBot.Application.Common.Models`). `PagedList<T>`/`PaginationParams` are the existing `Common.Models` types. Implementations in `NomNomzBot.Infrastructure/Services/Federation/`. Repositories/`IUnitOfWork` only — no raw `DbContext`.
+All interfaces live in `NomNomzBot.Application.Contracts.Federation` (as built; the `NomNomzBot.Application.Services.Federation` namespace shown in the blocks below is the original design), async-all-the-way, return `Result`/`Result<T>` (`NomNomzBot.Application.Common.Models`). `PagedList<T>`/`PaginationParams` are the existing `Common.Models` types. Implementations in `NomNomzBot.Infrastructure/Federation/`. Repositories/`IUnitOfWork` only — no raw `DbContext`.
 
 ### 3.1 `IFederationPeerService` — trust directory CRUD + lifecycle
 
@@ -168,6 +169,8 @@ public interface IFederationPeerService
 
 ### 3.2 `IFederationHandshakeService` — mTLS handshake + this-instance identity
 
+> **Not built.** No handshake service, descriptor DTO or handshake route exists yet. Target design.
+
 ```csharp
 namespace NomNomzBot.Application.Services.Federation;
 
@@ -218,6 +221,15 @@ public interface IFederationEventSigner
 
 // Value record (NomNomzBot.Application.Contracts.Federation), not a DB row.
 public sealed record FederationSignature(string KeyId, string Algorithm, string SignatureBase64);
+
+// As built: supplies this instance's active rsa-sha256 signing key (the issuer's RS256 private key material).
+// Config-backed (a stateless IConfiguration reader, singleton) until the OIDC issuer key vault lands.
+public interface IFederationSigningKeyProvider
+{
+    Result<FederationSigningKey> GetActiveSigningKey();   // failure when no key is configured
+}
+
+public sealed record FederationSigningKey(string KeyId, string PrivateKeyPem);
 ```
 
 **Algorithm rule (`ed25519` forward-compat, fully decided).** This instance signs **and** verifies `rsa-sha256` only. A `FederationPeerKeys.Algorithm=ed25519` key MAY be *stored* (the column allows it for forward-compat) but is **not verifiable by this version**: `VerifyAsync` fails closed whenever the presented `FederationSignature.Algorithm` — or the matched key's `Algorithm` — is anything but `rsa-sha256` (surfaces as `FederatedEventRejectedEvent` reason `algorithm_unsupported`, distinct from a real `signature_invalid`). Because a peer whose only keys are `ed25519` produces signatures this version cannot check, **`TrustPeerAsync` requires the peer to hold at least one active `rsa-sha256` key** and fails with a clear error otherwise — a peer cannot be promoted to `trusted` until a usable `rsa-sha256` key is registered (`AddPeerKeyAsync`). Storing an `ed25519` key never widens what is accepted at verify time; it only pre-positions material for a future Ed25519-capable build.
@@ -225,7 +237,7 @@ public sealed record FederationSignature(string KeyId, string Algorithm, string 
 ### 3.4 `IFederationOptInService` — per-channel opt-in (tenant-scoped)
 
 ```csharp
-namespace NomNomzBot.Application.Services.Federation;
+namespace NomNomzBot.Application.Contracts.Federation;
 
 public interface IFederationOptInService
 {
@@ -235,7 +247,7 @@ public interface IFederationOptInService
         CancellationToken cancellationToken = default);
 
     // Upserts one (BroadcasterId, PeerId, OptInType) opt-in (default-deny: creating one is the explicit allow).
-    // Persists the row; emits ChannelFederationOptInChangedEvent. Caller must hold >= SuperMod (gate enforced in controller).
+    // Persists the row; emits ChannelFederationOptInChangedEvent. Caller must hold >= LeadModerator (Gate-2 `federation:optin:write`, enforced in the controller).
     Task<Result<ChannelFederationOptInDto>> UpsertAsync(
         Guid broadcasterId,
         UpsertChannelFederationOptInRequest request,
@@ -255,18 +267,59 @@ public interface IFederationOptInService
         Guid broadcasterId,
         Guid peerId,
         string optInType,
-        FederationDirection direction,
+        string direction,   // a FederationDirection constant: "accept" | "share" | "both" (NomNomzBot.Domain.Federation.Enums)
+        CancellationToken cancellationToken = default);
+
+    // Every local channel that accepts `optInType` from this peer — an enabled accept|both opt-in matching
+    // (peerId OR any-trusted) — for the inbound broadcast fan-out (§3.7). Returns an EMPTY list (never a failure)
+    // when the peer is untrusted or no channel opted in. No writes.
+    Task<Result<IReadOnlyList<Guid>>> ListAcceptingBroadcasterIdsAsync(
+        Guid peerId,
+        string optInType,
         CancellationToken cancellationToken = default);
 }
 ```
 
-### 3.5 `IRemoteEventBus` — outbound/inbound queue adapter (profile-selected)
+`FederationDirection` is a static class of string constants (`Accept`, `Share`, `Both`) in `NomNomzBot.Domain/Federation/Enums/FederationEnums.cs`, not an enum: the direction is a `string` end to end, matching the `ChannelFederationOptIns.Direction` column.
 
-The remote bus is the cross-instance leg layered **beside** the existing in-process `IEventBus` — it does not replace it. Outbound: local domain events that a channel has opted to `share` are enveloped, signed, and queued for delivery to trusted peers. Inbound: signed peer envelopes are verified, opt-in-filtered, deduped, and appended to `EventJournal` (then dispatched to local handlers via the existing `IEventBus`).
+### 3.5 `IFederationInboundGateway` (inbound seam) + `IRemoteEventBus` (outbound/subscribe legs)
+
+The remote bus is the cross-instance leg layered **beside** the existing in-process `IEventBus` — it does not replace it. It is split into two seams:
+
+- **Inbound — `IFederationInboundGateway` (BUILT).** Inbound is always controller-driven (the mTLS `/federation/inbound` endpoint), so it is transport-independent and lives in its own interface. It is THE inbound seam; `IRemoteEventBus` no longer carries a `ReceiveInboundAsync`.
+- **Outbound + subscribe — `IRemoteEventBus` (NOT BUILT).** Local domain events a channel has opted to `share` are enveloped, signed, and queued for delivery to trusted peers. This leg is the deployment-variant transport (Redis vs WebSocket, §7) and ships with those adapters.
 
 ```csharp
-namespace NomNomzBot.Application.Services.Federation;
+namespace NomNomzBot.Application.Contracts.Federation;
 
+public interface IFederationInboundGateway
+{
+    // Verifies, gates, journals and applies one inbound peer envelope. `peerId` is resolved upstream from the validated
+    // mTLS client-cert thumbprint. Fail-closed at every gate; a failure carries the SAME reason code that is published
+    // on the audit FederatedEventRejectedEvent. Idempotent on EventId. On accept it publishes FederatedEventReceivedEvent.
+    // Gate order (each rejection => FederatedEventRejectedEvent with the reason):
+    //   1. signature      IFederationEventSigner.VerifyAsync                  -> signature_invalid | algorithm_unsupported | ...
+    //   2. peer binding   peer exists, TrustState=trusted, and
+    //                     peer.InstanceId == envelope.OriginInstanceId         -> peer_untrusted
+    //   3. accept-set     a registered IFederationInboundHandler has
+    //                     Type == envelope.FederatedEventType                  -> schema_invalid
+    //   4. replay guard   EventJournal already holds envelope.EventId          -> replay      (journal EventId is the dedupe key)
+    //   5. opt-in         DIRECTED envelope only (TargetBroadcasterId set): IsActionPermittedAsync(accept) -> no_opt_in
+    //                     (a BROADCAST envelope fans out in the translator; zero matches is an accepted no-op)
+    //   6. journal        IEventJournal.AppendAsync (Source="federation"; metadata = peerId, originInstanceId, originBroadcasterId)
+    //   7. translate+apply IFederationInboundTranslator.TranslateAndApplyAsync -> failure surfaces its code (default schema_invalid)
+    Task<Result<FederationInboundOutcome>> ReceiveInboundAsync(
+        Guid peerId,
+        FederationEventEnvelope envelope,
+        FederationSignature signature,
+        CancellationToken cancellationToken = default);
+}
+
+// EventId = the journaled id; StreamPosition = the allocated per-tenant position;
+// Applied = at least one local channel actually applied the claim (false = accepted-but-noop: no channel opted in).
+public sealed record FederationInboundOutcome(Guid EventId, long StreamPosition, bool Applied);
+
+// NOT BUILT — outbound + subscribe legs only.
 public interface IRemoteEventBus
 {
     // Enqueues a signed envelope for outbound delivery to every trusted peer whose (channel, optInType) share predicate
@@ -276,18 +329,6 @@ public interface IRemoteEventBus
         FederationEventEnvelope envelope,
         CancellationToken cancellationToken = default);
 
-    // Verifies signature (IFederationEventSigner) -> checks peer TrustState=trusted -> checks IsActionPermittedAsync(accept)
-    // -> idempotency guard (IdempotencyKey scope "federation.inbound", key=EventId) -> appends to EventJournal
-    // (Source=federation, StreamPosition via TenantSequences, multi-subject PII keyed via EventSubjectKeys) ->
-    // translates the envelope to the owning subsystem's typed event via FederationInboundTranslator (see below) and
-    // invokes that subsystem's service. Emits FederatedEventReceivedEvent on accept,
-    // FederatedEventRejectedEvent (with reason) on any gate failure. Fail-closed at every gate. Idempotent on EventId.
-    Task<Result<FederationInboundOutcome>> ReceiveInboundAsync(
-        Guid peerId,
-        FederationEventEnvelope envelope,
-        FederationSignature signature,
-        CancellationToken cancellationToken = default);
-
     // Subscribes the adapter to a newly trusted peer's transport stream (SaaS Redis channel / lite WebSocket).
     // Idempotent. Invoked from the FederationPeerTrustedEvent handler.
     Task<Result> SubscribePeerAsync(Guid peerId, CancellationToken cancellationToken = default);
@@ -295,25 +336,24 @@ public interface IRemoteEventBus
     // Tears down a revoked/blocked peer's subscription and drops buffered inbound. Idempotent.
     Task<Result> UnsubscribePeerAsync(Guid peerId, CancellationToken cancellationToken = default);
 }
-
-public enum FederationDirection { Accept, Share, Both }
-
-public sealed record FederationInboundOutcome(Guid EventId, long StreamPosition, bool Applied);
 ```
+
+**Dedupe (decided).** The inbound at-most-once guard is the journal itself: `EventJournal.EventId` is unique and `IEventJournal.AppendAsync` is idempotent on it, so gate 4 asks the journal (`GetByEventIdAsync`) and rejects an already-journaled id as `replay`. There is no separate `IdempotencyKey` row for inbound federation (an earlier draft scoped one as `"federation.inbound"`).
 
 ### 3.6 `IFederationInboundTranslator` — envelope → typed event mapping (federation owns translation)
 
-The federation ingress service owns wire-envelope → typed dispatch. After `ReceiveInboundAsync` passes all gates and appends to `EventJournal`, the translator (1) **upcasts** `FederationEventEnvelope.PayloadJson` to the current schema via `IEventUpcasterRegistry` keyed by `(FederatedEventType, SchemaVersion)` (event-store; rollout-updates §3), (2) **resolves the local target channel(s)** (§3.7), and (3) **dispatches to the per-type `IFederationInboundHandler`** owned by the applying subsystem (§3.7) — it does **not** hardcode a switch or reference any subsystem payload type. For `"moderation.ban.shared"`, moderation ships `SharedChatBanInboundHandler`, which deserializes `SharedChatBanIssuedEvent` and calls `ISharedBanService.ApplyInboundSharedBanAsync` — federation routes; moderation owns the apply. No matching handler (unknown or not-yet-shipped type) ⇒ `Result` failure, surfaced as `FederatedEventRejectedEvent` reason `"schema_invalid"` (fail-closed, never silently dropped). No raw `DbContext`; the apply happens through the owning subsystem's service.
+The federation ingress service owns wire-envelope → typed dispatch. After the gateway's `ReceiveInboundAsync` (§3.5) passes gates 1-5 and appends to `EventJournal`, the translator (1) **upcasts** `FederationEventEnvelope.PayloadJson` to the current schema via `IEventUpcasterRegistry` keyed by `(FederatedEventType, SchemaVersion)` (event-store; rollout-updates §3), (2) **resolves the local target channel(s)** (§3.7), and (3) **dispatches to the per-type `IFederationInboundHandler`** owned by the applying subsystem (§3.7) — it does **not** hardcode a switch or reference any subsystem payload type. For `"moderation.ban.shared"`, moderation ships `SharedChatBanInboundHandler`, which deserializes `SharedChatBanIssuedEvent` and calls `ISharedBanService.ApplyInboundSharedBanAsync` — federation routes; moderation owns the apply. No matching handler (unknown or not-yet-shipped type) ⇒ `Result` failure, surfaced as `FederatedEventRejectedEvent` reason `"schema_invalid"` (fail-closed, never silently dropped). No raw `DbContext`; the apply happens through the owning subsystem's service.
 
 ```csharp
-namespace NomNomzBot.Application.Services.Federation;
+namespace NomNomzBot.Application.Contracts.Federation;
 
 public interface IFederationInboundTranslator
 {
     // Deserializes envelope.PayloadJson by envelope.FederatedEventType into the owning subsystem's typed event and
     // invokes that subsystem's local service. "moderation.ban.shared" -> SharedChatBanIssuedEvent ->
     // ISharedBanService.ApplyInboundSharedBanAsync(...). Fails closed on unknown FederatedEventType / payload schema.
-    Task<Result> TranslateAndApplyAsync(
+    // Returns the number of targets the handler applied to (0 = accepted-but-noop: no channel opted in).
+    Task<Result<int>> TranslateAndApplyAsync(
         Guid peerId,
         FederationEventEnvelope envelope,
         CancellationToken cancellationToken = default);
@@ -325,7 +365,7 @@ public interface IFederationInboundTranslator
 **Per-type handlers (auto-discovered, owned by the applying subsystem).** Translation is not a hardcoded switch. Each accepted `FederatedEventType` has exactly one handler implementing the marker below, **shipped by the subsystem that owns the apply** (moderation ships the ban handlers; economy the trust/savings handlers). Handlers are registered by the assembly scan (backend-structure §4 auto-discovery — "drop a class, no wiring edit"); `FederationInboundTranslator` (§3.6) injects `IEnumerable<IFederationInboundHandler>`, selects the one whose `Type` equals `envelope.FederatedEventType`, and invokes it once per resolved target channel. This inverts the dependency cleanly: federation defines the abstraction; subsystems depend on it, never the reverse — federation references no subsystem payload type.
 
 ```csharp
-namespace NomNomzBot.Application.Services.Federation;
+namespace NomNomzBot.Application.Contracts.Federation;
 
 public interface IFederationInboundHandler
 {
@@ -430,25 +470,25 @@ public sealed record FederationEventEnvelope(
 
 ## 5. Controller endpoints
 
-`FederationController` (`NomNomzBot.Api/Controllers/V1/`), `[ApiVersion("1.0")]`, `[Route("api/v{version:apiVersion}/federation")]`, `[Authorize]`, responses `StatusResponseDto<T>` / `PaginatedResponse<T>`.
+Two controllers in `NomNomzBot.Api/Controllers/V1/`, both `[ApiVersion("1.0")]` + `[Authorize]`, responses `StatusResponseDto<T>` / `PaginatedResponse<T>`: `FederationController` (`[Route("api/v{version:apiVersion}/federation")]`, the global peer directory, Plane-C) and `ChannelFederationController` (`[Route("api/v{version:apiVersion}/channels/{channelId}/federation")]`, the per-channel opt-ins, Gate-2). The handshake, inbound and descriptor routes are **not built**; `IFederationInboundGateway.ReceiveInboundAsync` (§3.5) is the service the inbound route will call.
 
 **Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 (management) = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below); its keys are seeded global `ActionDefinitions` (schema B.3), and a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Plane-C (platform) rows = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)` against the seeded global `IamPermissions` (schema C.1) — a separate vocabulary from Gate-2 `ActionDefinitions`; the ASP.NET `[Authorize(Policy="<key>")]` policy-name IS the `IamPermissions` key verbatim (directory + peer-key endpoints are global, operator-managed). The mTLS handshake/inbound endpoints sit on a separate cert-authenticated pipeline — `[Authorize(AuthenticationSchemes="Certificate")]`, not the user JWT — and `/.well-known/federation-descriptor` is anonymous/public.
 
 | Route | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
-| `/federation/peers` | GET | `PageRequestDto` (+`?trustState=`) | `PaginatedResponse<FederationPeerDto>` | platform · `iam:manage` (or `audit:read` for list-only) |
+| `/federation/peers` | GET | `PageRequestDto` (+`?trustState=`) | `PaginatedResponse<FederationPeerDto>` | platform · `audit:read` |
 | `/federation/peers/{peerId}` | GET | — | `StatusResponseDto<FederationPeerDto>` | platform · `audit:read` |
 | `/federation/peers` | POST | `RegisterFederationPeerRequest` | `StatusResponseDto<FederationPeerDto>` | platform · `iam:manage` |
 | `/federation/peers/{peerId}/trust` | POST | — | `StatusResponseDto<FederationPeerDto>` | platform · `iam:manage` |
 | `/federation/peers/{peerId}/revoke` | POST | `RevokeFederationPeerRequest` | `StatusResponseDto<object>` | platform · `iam:manage` |
 | `/federation/peers/{peerId}/keys` | POST | `AddFederationPeerKeyRequest` | `StatusResponseDto<FederationPeerKeyDto>` | platform · `iam:manage` |
 | `/federation/peers/{peerId}/keys/{keyId}` | DELETE | — | `StatusResponseDto<object>` | platform · `iam:manage` |
-| `/channels/{channelId}/federation/opt-ins` | GET | — | `StatusResponseDto<IReadOnlyList<ChannelFederationOptInDto>>` | management / SuperMod · `federation:optin:read` |
-| `/channels/{channelId}/federation/opt-ins` | PUT | `UpsertChannelFederationOptInRequest` | `StatusResponseDto<ChannelFederationOptInDto>` | management / SuperMod · `federation:optin:write` |
-| `/channels/{channelId}/federation/opt-ins/{optInId}` | DELETE | — | `StatusResponseDto<object>` | management / SuperMod · `federation:optin:delete` |
-| `/.well-known/federation-descriptor` | GET | — | `StatusResponseDto<FederationInstanceDescriptorDto>` | Anonymous (public, no secrets) |
-| `/federation/handshake` | POST | `FederationHandshakeRequest` | `StatusResponseDto<FederationInstanceDescriptorDto>` | mTLS peer cert (not JWT) |
-| `/federation/inbound` | POST | `FederationEventEnvelope` + `X-Federation-Signature` header | `StatusResponseDto<FederationInboundOutcome>` | **mTLS client cert**; peer resolved from cert thumbprint; envelope signature re-verified in-body (defense-in-depth) |
+| `/channels/{channelId}/federation/opt-ins` | GET | — | `StatusResponseDto<IReadOnlyList<ChannelFederationOptInDto>>` | management / LeadModerator · `federation:optin:read` |
+| `/channels/{channelId}/federation/opt-ins` | PUT | `UpsertChannelFederationOptInRequest` | `StatusResponseDto<ChannelFederationOptInDto>` | management / LeadModerator · `federation:optin:write` |
+| `/channels/{channelId}/federation/opt-ins/{optInId}` | DELETE | — | `StatusResponseDto<object>` | management / LeadModerator · `federation:optin:delete` |
+| `/.well-known/federation-descriptor` | GET | — | `StatusResponseDto<FederationInstanceDescriptorDto>` | Anonymous (public, no secrets) — **NOT BUILT** |
+| `/federation/handshake` | POST | `FederationHandshakeRequest` | `StatusResponseDto<FederationInstanceDescriptorDto>` | mTLS peer cert (not JWT) — **NOT BUILT** |
+| `/federation/inbound` | POST | `FederationEventEnvelope` + `X-Federation-Signature` header | `StatusResponseDto<FederationInboundOutcome>` | **mTLS client cert**; peer resolved from cert thumbprint; envelope signature re-verified in-body (defense-in-depth) — **NOT BUILT** (service seam: `IFederationInboundGateway`) |
 
 > The OIDC issuer endpoints (`/.well-known/openid-configuration`, `/connect/authorize`, `/connect/token`, `/connect/jwks`) are **owned by OpenIddict**, registered only when the `federation`/`multi_user_sso` gate is on (see §7). This subsystem does not hand-author those routes; it configures OpenIddict's server + the OIDC *client* (`OpenIdConnect` handler with `Authority`/`MetadataAddress` pointing at the trusted peer) for SSO relying-party flows.
 
@@ -458,7 +498,7 @@ public sealed record FederationEventEnvelope(
 
 **None.** Federation is an infrastructure/trust-plane concern, not a per-command pipeline step. Inbound `shared_chat_bans` claims are applied through the existing moderation service (constructing a `ModerationActions` row with `Origin=federation` — the cross-instance federated origin, distinct from Twitch-native `Origin=shared_chat`), not through a user-authored pipeline action — so a channel can never script around the opt-in/trust gates. No `ICommandAction` is added.
 
-> **Inbound shared-ban precondition.** The precondition for applying an inbound shared ban is a **verified NomNomzBot federation trust relationship** — a `FederationPeers` trust-directory entry at `TrustState=trusted`, a valid signed federation token, and a verified per-message signature — **not** an active Twitch shared-chat session. NomNomzBot cross-instance federation is a distinct trust plane from Twitch's shared-chat feature; they are not interchangeable. This precondition is exactly the federation trust gate already enforced in the inbound sequence (`ReceiveInboundAsync`: signature verify → `TrustState=trusted` → opt-in `accept` → idempotency, §3.5). A Twitch-native shared-chat session ban is a separate path persisted with `Origin=shared_chat`.
+> **Inbound shared-ban precondition.** The precondition for applying an inbound shared ban is a **verified NomNomzBot federation trust relationship** — a `FederationPeers` trust-directory entry at `TrustState=trusted`, a valid signed federation token, and a verified per-message signature — **not** an active Twitch shared-chat session. NomNomzBot cross-instance federation is a distinct trust plane from Twitch's shared-chat feature; they are not interchangeable. This precondition is exactly the federation trust gate already enforced in the inbound sequence (`IFederationInboundGateway.ReceiveInboundAsync`: signature verify → `TrustState=trusted` + origin binding → accept-set → replay guard (journal `EventId`) → opt-in `accept`, §3.5). A Twitch-native shared-chat session ban is a separate path persisted with `Origin=shared_chat`.
 
 ---
 
@@ -471,9 +511,11 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs`, new `AddFederation(this I
 | `IFederationPeerService` | `FederationPeerService` | Scoped | Repository + `IUnitOfWork`; emits trust/revoke events via `IEventBus`. |
 | `IFederationHandshakeService` | `FederationHandshakeService` | Scoped | Uses `IHttpClientFactory` (mTLS client cert) for outbound handshake. |
 | `IFederationOptInService` | `FederationOptInService` | Scoped | Tenant-scoped; reads `FederationPeers.TrustState`. |
+| `IFederationInboundGateway` | `FederationInboundGateway` | Scoped | **Built.** The fail-closed inbound gate sequence (§3.5). Explicit registration. |
 | `IFederationInboundTranslator` | `FederationInboundTranslator` | Scoped | Deserializes `FederationEventEnvelope.PayloadJson` by `FederatedEventType`; for `moderation.ban.shared` calls moderation's `ISharedBanService.ApplyInboundSharedBanAsync`. |
-| `IFederationEventSigner` | `RsaFederationEventSigner` | Singleton | In-box `System.Security.Cryptography.RSA` (`rsa-sha256`); holds active private signing key handle. |
-| `IRemoteEventBus` | **profile adapter** (below) | Singleton | Selected by `DeploymentProfile.CacheProvider`/`Mode`. |
+| `IFederationEventSigner` | `FederationEventSigner` | Scoped | In-box `System.Security.Cryptography.RSA` (`rsa-sha256`); scoped because it verifies against the scoped `IApplicationDbContext`. |
+| `IFederationSigningKeyProvider` | `FederationSigningKeyProvider` | Singleton | Config-backed active signing key (§3.3). |
+| `IRemoteEventBus` | **profile adapter** (below) | Singleton | **Not built.** Selected by `DeploymentProfile.CacheProvider`/`Mode`. |
 | `FederationPeerRepository` | (concrete, extends `GenericRepository<FederationPeers>`) | Scoped | Directory reads/writes; global (no tenant filter). |
 | `ChannelFederationOptInRepository` | (concrete, extends `GenericRepository<ChannelFederationOptIns>`) | Scoped | Tenant-filtered. |
 | `IEventHandler<FederationPeerTrustedEvent>` | `FederationPeerTrustedHandler` | Scoped | Calls `IRemoteEventBus.SubscribePeerAsync` + JWKS prefetch + `IFederationSchemeRegistrar.EnsurePeerSchemeAsync`. |
@@ -482,17 +524,17 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs`, new `AddFederation(this I
 | `IFederationSchemeRegistrar` | `FederationSchemeRegistrar` | Singleton | Materializes/removes per-peer OIDC client schemes at runtime; owns the `OpenIdConnectOptions` cache keyed `fed:{InstanceId}`. Gated. |
 | `IAuthenticationSchemeProvider` | `FederationSchemeProvider` (decorator) | Singleton | Resolves `fed:*` schemes on demand from the `FederationPeers` directory (default provider decorated). Gated. |
 | `FederationSchemeWarmup` | `IHostedService` | Singleton (hosted) | On start, ensures schemes for all `TrustState=trusted` peers. Gated. |
-| `FederationOutboundDispatcher` | `IHostedService` | Singleton (hosted) | Reads `EventJournal` past `ProjectionCheckpoint "federation.outbound"`, calls `IRemoteEventBus.PublishOutboundAsync`. Guarded by `IRunOnceGuard` on multi-instance SaaS. |
+| `FederationOutboundDispatcher` | `IHostedService` | Singleton (hosted) | Reads `EventJournal` past `ProjectionCheckpoint "federation.outbound"`, calls `IRemoteEventBus.PublishOutboundAsync`. Guarded by `IRunOnceGuard` on multi-instance deployments. |
 
 **Deployment-profile adapter variants for `IRemoteEventBus` (chosen by DI):**
 
 | Profile / `DeploymentProfile` | `IRemoteEventBus` impl | Transport |
 |---|---|---|
-| `saas` (`CacheProvider=redis`) | `RedisRemoteEventBus` | Redis pub/sub channel per trusted peer over `ISubscriber` (StackExchange.Redis 2.13.17) + outbound `HttpClient` (mTLS) to peer `/federation/inbound`. |
+| `saas` (`CacheProvider=redis`) | `RedisRemoteEventBus` | Redis pub/sub channel per trusted peer over `ISubscriber` (StackExchange.Redis) + outbound `HttpClient` (mTLS) to peer `/federation/inbound`. |
 | `self_host_lite` / `self_host_full` (`CacheProvider=in_memory`) | `WebSocketRemoteEventBus` | `ClientWebSocket` (in-box) to each trusted peer + inbound via the mTLS `/federation/inbound` controller. |
 
 **OIDC issuer (feature-gated, registered only when `federation`/`multi_user_sso` on):**
-- `services.AddOpenIddict().AddServer(...)` with the EF Core store over `AppDbContext` (OpenIddict 7.5.0), RS256/ES256 signing keys, `/connect/authorize` + `/connect/token` + `/connect/jwks`.
+- `services.AddOpenIddict().AddServer(...)` with the EF Core store over `AppDbContext` (OpenIddict), RS256/ES256 signing keys, `/connect/authorize` + `/connect/token` + `/connect/jwks`.
 - OIDC **client** for peer SSO — **dynamically registered per trusted peer at runtime**, not at startup. ASP.NET auth schemes are normally fixed at boot, but trusted peers change via `TrustPeerAsync`/`RevokePeerAsync`, so a static `AddOpenIdConnect`-per-peer at boot cannot enumerate them. The dynamic mechanism (`MS.AspNetCore.Authentication.OpenIdConnect`):
   - `IFederationSchemeRegistrar` (Application) — `EnsurePeerSchemeAsync(FederationPeerDto)` / `RemovePeerScheme(string instanceId)`. Scheme name convention `fed:{InstanceId}`, callback path `/signin-fed/{InstanceId}`.
   - `FederationSchemeProvider` (Infrastructure) **decorates** the default `IAuthenticationSchemeProvider` to resolve `fed:*` schemes on demand from the `FederationPeers` directory; an `IOptionsMonitorCache<OpenIdConnectOptions>` seeded by the registrar builds each peer's `OpenIdConnectOptions` with `Authority = peer.BaseUrl`, `MetadataAddress = {BaseUrl}/.well-known/openid-configuration` (auto-fetches the peer JWKS).
@@ -505,19 +547,19 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs`, new `AddFederation(this I
 
 | Dependency | Party | Use here |
 |---|---|---|
-| `OpenIddict.AspNetCore` + `OpenIddict.EntityFrameworkCore` 7.5.0 | 3rd (Apache-2.0) | OIDC/OAuth2 **issuer** — authorize/token/JWKS — **only** under the feature gate. |
-| `Microsoft.AspNetCore.Authentication.OpenIdConnect` 10.0.x | 2nd | OIDC **client** / SSO relying party; auto-fetches peer JWKS. |
-| `Microsoft.AspNetCore.Authentication.JwtBearer` 10.0.9 | 2nd | Resource-server validation of issued + peer tokens. |
-| `Microsoft.IdentityModel.JsonWebTokens` 8.19.1 | 2nd | RS256/ES256 token create/validate + JWKS. |
-| `Microsoft.AspNetCore.Authentication.Certificate` | 2nd | mTLS client-cert scheme for handshake + inbound endpoints. |
+| `OpenIddict.AspNetCore` + `OpenIddict.EntityFrameworkCore` | 3rd (Apache-2.0) | OIDC/OAuth2 **issuer** — authorize/token/JWKS — **only** under the feature gate. *Not yet referenced by the code.* |
+| `Microsoft.AspNetCore.Authentication.OpenIdConnect` | 2nd | OIDC **client** / SSO relying party; auto-fetches peer JWKS. *Not yet referenced by the code.* |
+| `Microsoft.AspNetCore.Authentication.JwtBearer` | 2nd | Resource-server validation of issued + peer tokens. |
+| `System.IdentityModel.Tokens.Jwt` + `Microsoft.IdentityModel.Tokens` | 2nd | RS256/ES256 token create/validate + JWKS. As built, the repo's token code (`JwtTokenService`, the impersonation token minter) uses `JwtSecurityTokenHandler` from `System.IdentityModel.Tokens.Jwt`; `Microsoft.IdentityModel.JsonWebTokens` / `JsonWebTokenHandler` is **not** referenced. |
+| `Microsoft.AspNetCore.Authentication.Certificate` | 2nd | mTLS client-cert scheme for handshake + inbound endpoints. *Not yet referenced by the code.* |
 | `System.Security.Cryptography` (`RSA`, `SHA256`) | 1st (in-box) | `rsa-sha256` per-message envelope signing/verification — **no third-party crypto**. |
 | `System.Net.WebSockets` (`ClientWebSocket`) | 1st (in-box) | Lite/self-host remote-bus transport. |
-| `StackExchange.Redis` 2.13.17 | 3rd (MIT, transitive) | SaaS remote-bus pub/sub channels. |
-| `System.Net.Http` (`IHttpClientFactory`) + `Microsoft.Extensions.Http.Resilience` 10.7.0 | 1st/2nd | Outbound peer delivery + handshake (retry/breaker). |
+| `StackExchange.Redis` | 3rd (MIT, transitive) | SaaS remote-bus pub/sub channels. |
+| `System.Net.Http` (`IHttpClientFactory`) + `Microsoft.Extensions.Http.Resilience` | 1st/2nd | Outbound peer delivery + handshake (retry/breaker). |
 | `Newtonsoft.Json` | 3rd | App-side DTO JSON (project convention). Canonical signed body uses deterministic sorted-key serialization. |
-| `DistributedLock.Postgres` 1.3.1 / `IRunOnceGuard` | 3rd/1st | Single-fire of `FederationOutboundDispatcher` on multi-instance SaaS. |
+| `IRunOnceGuard` (in-repo `PostgresRunOnceGuard`, `pg_try_advisory_lock`) | 1st | Single-fire of `FederationOutboundDispatcher` across overlapping instances on any Postgres deployment. No third-party lock library. |
 
-**Explicitly NOT used:** NSec / BouncyCastle (no Ed25519 — `rsa-sha256` only); Duende IdentityServer (license-encumbered → OpenIddict); MassTransit (remote bus is the thin adapter over existing `IEventBus` + transport).
+**Explicitly NOT used:** `DistributedLock.Postgres`; NSec / BouncyCastle (no Ed25519 — `rsa-sha256` only); Duende IdentityServer (license-encumbered → OpenIddict); MassTransit (remote bus is the thin adapter over existing `IEventBus` + transport).
 
 ---
 

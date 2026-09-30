@@ -25,4 +25,4 @@ _None._
 
 ## Done
 
-_None._ (The three entries from 2026-08-19 / 07-18 / 07-11 were folded into SHORTCOMINGS-EXECUTION-PLAN.md Tier 3.3 and Tier 5 on 2026-08-22.)
+_None._ (The three entries from 2026-08-19 / 07-18 / 07-11 were folded into SHORTCOMINGS-EXECUTION-PLAN.md on 2026-08-22.)

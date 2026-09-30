@@ -30,12 +30,16 @@ There are **six unreconciled event surfaces**, keyed three different ways:
 
 | Surface | Keyed by | Coverage | Source |
 |---|---|---|---|
-| Domain bus (`IEventBus`/`IDomainEvent`) | CLR **type** | 119 event types across 30 modules | `Domain/**/Events/**` |
-| Automation registry (as-built `IAutomationEventDescriptor`, replaced by the unified catalog — §2, `automation-api.md` D6) | `PublicName` **string** | **5** of 119 as-built → all 119 via the catalog | `AutomationEventDescriptors.cs` (retired by the catalog) |
+| Domain bus (`IEventBus`/`IDomainEvent`) | CLR **type** | every domain event type, across every module | `Domain/**/Events/**` |
+| Automation registry (as-built `IAutomationEventDescriptor`, replaced by the unified catalog — §2, `automation-api.md` D6) | `PublicName` **string** | a hand-written subset as-built → every event via the catalog (the automation bridge still reads descriptors until S-AUTOMATION-EXPOSE-ALL — see the banner in `automation-api.md`) | `AutomationEventDescriptors.cs` (retired by the catalog) |
 | Widget/overlay (`WidgetEventDto`) | dotted **string** | denylist-filtered | `OverlayEventFilter.cs` |
 | Live-game (`game.*`) | dotted **string** | 3 phases | `LiveGameEngine.cs` |
 | Custom-data (`custom.<source>`) | dotted **string** | dynamic | `CustomDataIngestService.cs` |
 | Outbound webhooks | reuses overlay filter | — | `OutboundWebhookEventCatalogue.cs` |
+
+**Status by phase (see §10):** phases 1-4 are **built** (event catalog + reflection codegen, `nnz.api.*` over the broker,
+multi-file model + build, typed editor); phases 5-6 (scripted games + unified fork flow, SaaS QuickJS-in-WASM) are **open**.
+The table above describes the surfaces the catalog unifies; the automation stream is the one still on descriptors.
 
 No single artifact maps `domain type → stable wire name → payload schema → who may see it`. The
 `OverlayEventFilter` even carries a comment that the split *"moves to the event catalog when that
@@ -79,7 +83,7 @@ public sealed record ChatMessageReceivedEvent : DomainEventBase
   own code) while keeping the public/untrusted surface opt-in (default-deny toward viewers). Wire name
   defaults to a convention derived from the type name; `[Event("…")]` overrides.
 - **One registry, fail-fast on collisions** — the existing `AutomationEventRegistry` scan is widened
-  to discover *all* `[Event]`-carrying (or convention-matched) records, not the 5 hand-written
+  to discover *all* `[Event]`-carrying (or convention-matched) records, not the hand-written
   descriptors (dup wire name/type = startup failure, as today).
 - The six surfaces become **views over the reflected catalog**: overlay filter → tier ≥ Public;
   automation → the same registry (now full-coverage, not 5); webhooks → a tier subset; `game.*` /
@@ -186,10 +190,8 @@ nnz.time, nnz.math, nnz.random, nnz.str, nnz.json, nnz.store   // pure-JS batter
 `args.get`), each with a floor tier (`low`/`tos`/`critical`, `critical` never exposed) + the
 `custom_code` feature-flag gate, and validates declared keys **deny-by-default** (unknown/ungated →
 whole grant `FORBIDDEN`, fail-closed), with the per-run host-call budget enforced in the executor.
-Of the catalogue, `music.nowPlaying` and `user.get` (public-profile-only, email withheld) are wired; the
-still-unwired catalogued bindings are **`chat.send`, `chat.reply`, `economy.read`, `music.queue`, `http.fetch`,
-`vars.*`, `args.get`** — each is a slice in `SHORTCOMINGS-EXECUTION-PLAN.md` **Tier 3.2** (one binding = one
-`nnz.api.*` method + host bridge + test). So the `nnz.api.*` work is **not** unblocking a stub — it is
+Every catalogued binding is wired in the host bridge (`ScriptHostBridge`) **except `vars.read`, `vars.write` and
+`args.get`**, which are still unwired (`user.get` is public-profile-only, email withheld). So the `nnz.api.*` work is **not** unblocking a stub — it is
 building the typed, ergonomic layer (§3.1) over an existing, gated broker: each `nnz.api.*` method
 maps 1:1 to a catalogue key, and new keys extend the catalogue (deny-by-default preserved).
 
@@ -216,9 +218,11 @@ src/
 nnz.manifest.json // { entry, kind: widget|game|script, framework, dependencies: [allowlisted] }
 ```
 
-- **Storage:** the version entity's single `SourceCode` becomes **`FilesJson`** (a `path → content`
-  map) + a `Manifest`. Applies to `CodeScriptVersion` and `WidgetVersion` alike (migration ×2). Entry
-  + kind live in the manifest.
+- **Storage (as built):** `CodeScriptVersion` and `WidgetVersion` both carry **`FilesJson`** (a `path → content`
+  map) + **`ManifestJson`** beside the entry `SourceCode` (migration ×2; both columns are null on a single-file
+  version). Entry + kind live in the manifest. Project routes: `GET`/`PUT api/v1/code-scripts/{id}/project` and
+  `GET`/`PUT api/v1/channels/{channelId}/widgets/{widgetId}/project` — a `PUT` validates, compiles the entry, then appends
+  and publishes a new version; a validation or compile failure persists nothing. See §8 for the full route status.
 - **Build — two builders, one toolchain (decided):**
   - **Client-side (dev loop):** the editor runs **esbuild-wasm + the Vue/React compiler + the TS
     language service in the browser** (§5), so type-check, bundle, and live preview are instant and
@@ -263,13 +267,13 @@ earlier due to **worker CORS in the Wasm build** ([[widget-editor-is-codemirror-
   and compiles Vue SFCs / React TSX **client-side**, rendering a live preview pane that hot-reloads on
   edit — no server round-trip while authoring. The server rebuild (§4.2) runs only on publish, as the
   trust boundary. Same esbuild version pinned both sides.
-- **i18n + design system** apply as normal (frontend track).
+- **i18n + design system** apply as normal (dashboard side).
 
 ### 5.2 Track note
 
-Pillars 2–3 editor work is **frontend (aaoa's track)** — it consumes the backend's generated `.d.ts`
+Pillars 2–3 editor work is **dashboard side** — it consumes the server's generated `.d.ts`
 + build/compile endpoints. The catalog, codegen, broker, multi-file build, and content model are
-**backend**. This spec is the contract between them.
+**server side**. This spec is the contract between them.
 
 ---
 
@@ -279,7 +283,7 @@ Pillars 2–3 editor work is **frontend (aaoa's track)** — it consumes the bac
 
 Widgets already have **genuine fork-to-edit**: `WidgetService.CreateAsync` clones a gallery item or
 installed widget's source **verbatim into a new per-channel `Widget`** (`Source="custom"`, detached),
-distinct from read-only `InstallFromGalleryAsync`. ~21 first-party widgets are seeded clone-able.
+distinct from read-only `InstallFromGalleryAsync`. The first-party widgets are seeded clone-able.
 
 **Games are compiled C#** (`ILiveGame` assembly-scan; `Crash/Drop/Heist/Raffle`). Only their overlay
 *skins* are Vue assets — the **logic/rules cannot be forked or edited per channel**. This is the
@@ -341,19 +345,27 @@ The isolation boundary is **done and hardened** — do not touch it:
 
 Middleware: tenant-resolved, Gate-2 `[RequireAction]`. Vocabulary per `canonical-authz-vocabulary`.
 
+**As built**
+
 | Route | Method | Gate-2 | Purpose |
 |---|---|---|---|
-| `/api/v1/sdk/types.d.ts` | GET | Plane-A / any authed · `sdk:read` | Generated `.d.ts` for `?context=widget\|script` |
-| `/api/v1/sdk/event-catalog` | GET | `sdk:read` | The Event Catalog (wire name, payload schema, tier) |
-| `channels/{id}/scripts/{sid}/files` | GET/PUT | `scripts:read` / `scripts:write` | Multi-file project CRUD (replaces single-source) |
-| `channels/{id}/widgets/{wid}/files` | GET/PUT | `widgets:read` / `widgets:write` | Multi-file widget project CRUD |
+| `/api/v1/sdk/types.d.ts` | GET | `sdk:read` | Generated `.d.ts` for `?context=widget\|script` (400 on an unknown context) |
+| `/api/v1/sdk/event-catalog` | GET | `sdk:read` | The Event Catalog for `?context=` (wire name, visibility tier, payload JSON Schema) |
+| `/api/v1/code-scripts/{id}/project` | GET / PUT | `code:script:author` | Multi-file script project (file set + manifest); `PUT` validates + compiles the entry and publishes a version. Channel resolved from the principal, gated by the `custom_code` feature |
+| `channels/{id}/widgets/{wid}/project` | GET / PUT | `widget:read` / `widget:write` | Multi-file widget project CRUD |
+| `channels/{id}/widgets/{wid}/compile` | POST | `widget:compile` | Widget build + diagnostics (compile check) |
+| `channels/{id}/widgets/clone` | POST | `widget:write` | Fork a gallery/installed widget into a new fully-owned per-channel widget (widgets only) |
+
+**Not built** (target contract; each waits on phase 5 — scripted games + the unified fork flow)
+
+| Route | Method | Gate-2 | Purpose |
+|---|---|---|---|
 | `channels/{id}/games` | GET/POST | `games:read` / `games:write` | Scripted-game projects (list/create/fork) |
 | `channels/{id}/games/{gid}/files` | GET/PUT | `games:write` | Scripted-game project CRUD |
-| `channels/{id}/{kind}/{id}/fork` | POST | `{kind}:write` | Unified fork: gallery/first-party artifact → editable per-channel project |
-| `channels/{id}/{kind}/{id}/build` | POST | `{kind}:write` | Multi-file build + TS diagnostics (compile check) |
+| `channels/{id}/{kind}/{id}/fork` | POST | `{kind}:write` | Unified fork: gallery/first-party artifact → editable per-channel project (widget \| game \| script) |
+| `channels/{id}/{kind}/{id}/build` | POST | `{kind}:write` | Unified multi-file build + TS diagnostics for every kind (today only widgets have `compile`; a script's build is the `PUT …/project` compile) |
 
-Existing single-source endpoints are migrated in place (no back-compat needed — no users yet):
-`SourceCode` → `FilesJson`+`Manifest`.
+The single-source endpoints were migrated in place (no back-compat needed — no users yet): `SourceCode` → `FilesJson`+`ManifestJson`.
 
 ## 9. Decisions (load-bearing forks — owner red-line here)
 
@@ -381,12 +393,10 @@ Existing single-source endpoints are migrated in place (no back-compat needed �
 
 ## 10. Phasing (suggested build order — each a settled sub-slice)
 
-1. **Event Catalog + reflection codegen** (`/sdk/types.d.ts`, `/sdk/event-catalog`) — the keystone.
+1. **Event Catalog + reflection codegen** (`/sdk/types.d.ts`, `/sdk/event-catalog`) — the keystone. **Built.**
 2. **`nnz.api.*` typed SDK + batteries** over the EXISTING broker (catalogue extended key-by-key;
-   the broker itself is already built + gated — 2a only wired 2 dead capabilities).
-3. **Multi-file model + esbuild temp-dir build** (`FilesJson`+`Manifest`, migrations ×2).
-4. **Typed editor** (frontend: CM6 + `@typescript/vfs`, project explorer) consuming 1–3.
-5. **Scripted games** + unified fork flow + first-party JS twins.
-6. **SaaS**: the QuickJS-in-WASM engine module for Wasmtime JS dispatch.
-
-Nothing here is built until this spec is settled ([[settle-specs-before-implementing]]).
+   the broker itself is already built + gated). **Built** — only `vars.read`, `vars.write` and `args.get` are unwired (§3.2).
+3. **Multi-file model + esbuild temp-dir build** (`FilesJson`+`ManifestJson`, migrations ×2). **Built.**
+4. **Typed editor** (dashboard side: CM6 + `@typescript/vfs`, project explorer) consuming 1–3. **Built.**
+5. **Scripted games** + unified fork flow + first-party JS twins. **Open.**
+6. **SaaS**: the QuickJS-in-WASM engine module for Wasmtime JS dispatch. **Open.**

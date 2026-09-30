@@ -6,7 +6,7 @@
 
 **Binding conventions:** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, NO MediatR/Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PK = `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete (`IsDeleted`+`DeletedAt`) global filter.
 
-> **Extends, does not duplicate.** The live `IEncryptionService` (`NomNomzBot.Application.Common.Interfaces`, AES-CBC, key=`SHA256(rawKey)`, no MAC, no AAD — cross-tenant transplant defect) and live `IGdprService` (`NomNomzBot.Application.Services`, string-id, no DEK/audit) are **superseded** by the interfaces below. The live `DeletionAuditLog` (`int` PK) is replaced by `ComplianceAuditLog` (O.10). `IEncryptionService` is **retained for backward-compat read** during token re-encryption migration, then retired. New tenant-scoped entities widen to `BroadcasterId : Guid` per the locked `ITenantScoped` widening (schema §1.1) — this subsystem MUST be written against `Guid`, not the current `string` `ITenantScoped`.
+> **Extends, does not duplicate.** The live `IEncryptionService` (`NomNomzBot.Application.Common.Interfaces`, AES-CBC, key=`SHA256(rawKey)`, no MAC, no AAD — cross-tenant transplant defect) and live `IGdprService` (`NomNomzBot.Application.Services`, string-id, no DEK/audit) are **superseded** by the interfaces below. The live `DeletionAuditLog` (`int` PK) is replaced by `ComplianceAuditLog` (O.10). `IEncryptionService` is **retired** — no code references it any more; `IFieldCipher` + `ITokenProtector` replace it. New tenant-scoped entities widen to `BroadcasterId : Guid` per the locked `ITenantScoped` widening (schema §1.1) — this subsystem MUST be written against `Guid`, not the current `string` `ITenantScoped`.
 
 ---
 
@@ -16,9 +16,9 @@ All owned by this subsystem (locked schema — field detail lives there, referen
 
 | Entity | Schema § | Key fields (type) | Role in this subsystem |
 |---|---|---|---|
-| `CryptoKey` | Q.1 | `Id Guid` PK · `KeyScope string(20)` (`tenant`\|`subject`\|`platform`) · `BroadcasterId Guid?` · `SubjectIdHash string(64)?` · `WrappedKeyMaterial text?` (DEK ciphertext wrapped by KEK; never plaintext) · `KekReference string(255)?` · `Provider string(20)` (`kms_envelope`\|`local_aes`) · `Algorithm string(30)` (`AES-256-GCM`) · `Status string(20)` (`active`\|`rotating`\|`destroyed`) · `DestroyedAt timestamp?` · `ErasureRequestId Guid?` (FK→`ErasureRequest`) · `RotatedFromKeyId Guid?` (FK self) | The DEK registry. Destroy a row = crypto-shred O(1). FK target of `Users.SubjectKeyId`, `IamPrincipals.SubjectKeyId`, `IntegrationTokens.EncryptionKeyId`, `EventJournal.SubjectKeyId`, `EventSubjectKeys.SubjectKeyId`, `EventSnapshot.SubjectKeyId`, `ConsentRecords.SubjectKeyId`, `Subscriptions.SubjectKeyId`, `TtsConfig.SubjectKeyId`. |
+| `CryptoKey` | Q.1 | `Id Guid` PK · `KeyScope string(20)` (`tenant`\|`subject`\|`platform`) · `BroadcasterId Guid?` · `SubjectIdHash string(64)?` · `WrappedKeyMaterial text?` (DEK ciphertext wrapped by KEK; never plaintext) · `KekReference string(255)?` · `Provider string(20)` (`kms_envelope`\|`local_aes`) · `Algorithm string(30)` (`AES-256-GCM`) · `Status string(20)` (`active`\|`rotating`\|`destroyed`) · `DestroyedAt timestamp?` · `ErasureRequestId Guid?` (FK→`ErasureRequest`) · `RotatedFromKeyId Guid?` (FK self) | The DEK registry. Destroy a row = crypto-shred O(1). FK target of `Users.SubjectKeyId`, `IamPrincipals.SubjectKeyId`, `IntegrationTokens.EncryptionKeyId`, `EventJournal.SubjectKeyId`, `EventSubjectKey.SubjectKeyId`, `EventSnapshot.SubjectKeyId`, `ConsentRecords.SubjectKeyId`, `Subscriptions.SubjectKeyId`, `TtsConfig.SubjectKeyId`. |
 | `KeyUsageBinding` | Q.2 | `Id bigint` PK · `CryptoKeyId Guid` (FK→`CryptoKey`) · `ResourceTable string(100)` · `ResourceColumn string(100)` · `BroadcasterId Guid?` · **UNIQUE** `(CryptoKeyId, ResourceTable, ResourceColumn)` | Inventory of which table/column is encrypted under each DEK. Feeds `ComplianceAuditLog.KeysShredded` and shred-impact reporting. |
-| `EventSubjectKeys` | O.1a | `Id Guid` PK · `EventId Guid` (FK→`EventJournal.EventId`, Unique target) · `BroadcasterId Guid?` · `SubjectIdHash string(64)` · `SubjectKeyId Guid` (FK→`CryptoKey`) · `Role string(20)?` (`gifter`\|`recipient`\|`raider`\|`raided`) · **UNIQUE** `(EventId, SubjectKeyId)` | Per-subject DEK link for multi-subject events (gift sub / raid) so erasing one subject shreds only their payload slice. |
+| `EventSubjectKey` | O.1a | `Id Guid` PK · `EventId Guid` (FK→`EventJournal.EventId`, Unique target) · `BroadcasterId Guid?` · `SubjectIdHash string(64)` · `SubjectKeyId Guid` (FK→`CryptoKey`) · `Role string(20)?` (`gifter`\|`recipient`\|`raider`\|`raided`) · **UNIQUE** `(EventId, SubjectKeyId)` | Per-subject DEK link for multi-subject events (gift sub / raid) so erasing one subject shreds only their payload slice. |
 | `ConsentRecords` | O.5 | `Id Guid` PK · `BroadcasterId Guid?` (null = platform-wide ToS) · `SubjectUserId Guid` (FK→`Users`) · `SubjectKeyId Guid` (FK→`CryptoKey`) · `SubjectIdHash string(64)` · `ConsentType string(50)` · `Status string(20)` (`granted`\|`withdrawn`\|`expired`) · `LawfulBasis string(30)` (`consent`\|`contract`\|`legitimate_interest`) · `ConsentVersion string(20)?` · `Source string(50)?` · `IpAddressCipher string(255)?` **[PII-shred]** · `GrantedAt` · `WithdrawnAt?` · `ExpiresAt?` · **UNIQUE** `(BroadcasterId, SubjectUserId, ConsentType)` | Authoritative consent / lawful-basis ledger. `ConsentType` ∈ `tos_privacy`\|`age_18_gambling`\|`pronoun_special_category`\|`leaderboard_opt_in`\|`marketing`. |
 | `ErasureRequest` | O.6 | `Id Guid` PK · `SubjectUserId Guid` (FK→`Users`) · `SubjectKeyId Guid` (FK→`CryptoKey`) · `SubjectIdHash string(64)` · `BroadcasterId Guid?` · `RequestType string(20)` (`erasure`\|`export`\|`opt_out`) · `RequestedBy string(20)` (`self_service`\|`broadcaster`\|`platform_iam`) · `Status string(20)` (`pending`\|`running`\|`completed`\|`failed`\|`cancelled`) · `Scope string(20)` (`deployment`\|`instance`\|`channel`) · `CryptoShredApplied bool` · `AnonymizationApplied bool` · `ExportLocation string(2048)?` · `ExportFormat string(20)?` · `RowsAffected int` · `FailureReason text?` · `RequestedAt` · `CompletedAt?` | Lifecycle of erasure/export/opt-out requests; drives the self-service my-data page. |
 | `ComplianceAuditLog` | O.10 | `Id bigint` PK **[APPEND-ONLY]** · `RequestType string(20)` (`erasure`\|`export`\|`consent_change`) · `ErasureRequestId Guid?` (FK) · `SubjectIdHash string(64)` · `BroadcasterId Guid?` · `RequestedBy string(20)` (`self_service`\|`broadcaster`\|`platform_iam`\|`system`) · `TablesAffected text` **[VC:JSON]** `List<string>` · `RowsAffected int` · `KeysShredded int` · `Outcome string(20)` (`completed`\|`partial`\|`failed`) · `CompletedAt` | Append-only audit for erasure/export/consent. Retains only the **hashed** subject id, never reversible PII. Supersedes `DeletionAuditLog`. |
@@ -29,43 +29,60 @@ All owned by this subsystem (locked schema — field detail lives there, referen
 
 ## 2. Domain events
 
-Published via existing `NomNomzBot.Domain.Interfaces.IEventBus` (no MediatR). All are immutable `record`s under `NomNomzBot.Domain.Events.Gdpr`. They drive `ComplianceAuditLog` projections, SignalR my-data-page updates, and downstream cache/session invalidation. Payloads carry only the **hashed** subject id (never raw Twitch id / username).
+Published via existing `NomNomzBot.Domain.Interfaces.IEventBus` (no MediatR). Five events, each a `sealed class` inheriting `DomainEventBase` (`BroadcasterId` rides on the base; platform-wide requests leave the `Guid.Empty` sentinel), in `NomNomzBot.Domain.Identity.Events` (`NomNomzBot.Domain/Identity/Events/GdprEvents.cs`). They drive `ComplianceAuditLog` projections, SignalR my-data-page updates, and downstream cache/session invalidation. Payloads carry only the **hashed** subject id (never raw Twitch id / username), so the events survive the erasure they report. There are no DEK-lifecycle events (created / rotated / destroyed): no consumer exists, so none are published.
 
 ```csharp
-namespace NomNomzBot.Domain.Events.Gdpr;
+namespace NomNomzBot.Domain.Identity.Events;
 
-public sealed record DataEncryptionKeyCreated(
-    Guid CryptoKeyId, string KeyScope, Guid? BroadcasterId, string? SubjectIdHash,
-    string Provider, string Algorithm, DateTime OccurredAt);
+public sealed class SubjectErasureRequestedEvent : DomainEventBase
+{
+    public required Guid ErasureRequestId { get; init; }
+    public required Guid SubjectUserId { get; init; }
+    public required string SubjectIdHash { get; init; }
+    public required string RequestType { get; init; }
+    public required string RequestedBy { get; init; }
+    public required string Scope { get; init; }
+}
 
-public sealed record DataEncryptionKeyRotated(
-    Guid NewCryptoKeyId, Guid RotatedFromKeyId, Guid? BroadcasterId, string? SubjectIdHash,
-    int ReEncryptedRowCount, DateTime OccurredAt);
+public sealed class SubjectErasureCompletedEvent : DomainEventBase
+{
+    public required Guid ErasureRequestId { get; init; }
+    public required Guid SubjectUserId { get; init; }
+    public required string SubjectIdHash { get; init; }
+    public required bool CryptoShredApplied { get; init; }
+    public required bool AnonymizationApplied { get; init; }
+    public required int KeysShredded { get; init; }
+    public required int RowsAffected { get; init; }
+}
 
-public sealed record DataEncryptionKeyDestroyed(
-    Guid CryptoKeyId, string KeyScope, Guid? BroadcasterId, string? SubjectIdHash,
-    Guid ErasureRequestId, int KeysShredded, DateTime OccurredAt);
+public sealed class SubjectErasureFailedEvent : DomainEventBase
+{
+    public required Guid ErasureRequestId { get; init; }
+    public required Guid SubjectUserId { get; init; }
+    public required string SubjectIdHash { get; init; }
+    public required string FailureReason { get; init; }
+}
 
-public sealed record SubjectErasureRequested(
-    Guid ErasureRequestId, Guid SubjectUserId, string SubjectIdHash, Guid? BroadcasterId,
-    string RequestType, string RequestedBy, string Scope, DateTime OccurredAt);
+public sealed class SubjectDataExportedEvent : DomainEventBase
+{
+    public required Guid ErasureRequestId { get; init; }
+    public required Guid SubjectUserId { get; init; }
+    public required string SubjectIdHash { get; init; }
+    public required string ExportFormat { get; init; }
+    public required string ExportLocation { get; init; }
+    public required int RowsAffected { get; init; }
+}
 
-public sealed record SubjectErasureCompleted(
-    Guid ErasureRequestId, Guid SubjectUserId, string SubjectIdHash, Guid? BroadcasterId,
-    bool CryptoShredApplied, bool AnonymizationApplied, int KeysShredded, int RowsAffected,
-    DateTime OccurredAt);
-
-public sealed record SubjectErasureFailed(
-    Guid ErasureRequestId, Guid SubjectUserId, string SubjectIdHash, string FailureReason,
-    DateTime OccurredAt);
-
-public sealed record SubjectDataExported(
-    Guid ErasureRequestId, Guid SubjectUserId, string SubjectIdHash, Guid? BroadcasterId,
-    string ExportFormat, string ExportLocation, int RowsAffected, DateTime OccurredAt);
-
-public sealed record ConsentChanged(
-    Guid ConsentRecordId, Guid SubjectUserId, string SubjectIdHash, Guid? BroadcasterId,
-    string ConsentType, string Status, string LawfulBasis, string? ConsentVersion, DateTime OccurredAt);
+public sealed class ConsentChangedEvent : DomainEventBase
+{
+    public required Guid ConsentRecordId { get; init; }
+    public required Guid SubjectUserId { get; init; }
+    public required string SubjectIdHash { get; init; }
+    public required string ConsentType { get; init; }
+    public required string Status { get; init; }
+    public required string LawfulBasis { get; init; }
+    public string? ConsentVersion { get; init; }
+}
 ```
 
 ---
@@ -166,7 +183,7 @@ public interface ISubjectKeyService
     // unreadable (incl. backups). Emits DataEncryptionKeyDestroyed. Idempotent on already-destroyed.
     Task<Result> DestroyKeyAsync(Guid cryptoKeyId, Guid erasureRequestId, CancellationToken cancellationToken = default);
 
-    // Resolves every DEK to shred for a subject: Users.SubjectKeyId + EventSubjectKeys (multi-subject)
+    // Resolves every DEK to shred for a subject: Users.SubjectKeyId + EventSubjectKey (multi-subject)
     // + tenant/platform keys bound via KeyUsageBinding. Read-only planning step for the erasure pipeline.
     Task<Result<IReadOnlyList<Guid>>> ResolveSubjectKeysAsync(Guid subjectUserId, string subjectIdHash, CancellationToken cancellationToken = default);
 }
@@ -260,6 +277,15 @@ public interface IErasureService
 }
 ```
 
+### 3.8 `IDekRotationService` — root-key (KEK) rotation
+
+`NomNomzBot.Application/Services/IDekRotationService.cs`; impl `DekRotationService` (`NomNomzBot.Infrastructure/Platform/Security/`, scoped). This is the **root-key** rotation, distinct from `ISubjectKeyService.RotateKeyAsync` (which mints a successor DEK). When the operator changes `Encryption:Key`, `RotateAllDeksAsync(previousRootKey, currentRootKey)` walks every non-destroyed `CryptoKey` and re-wraps its DEK from the previous root key to the current one, so the change does not orphan every stored secret. Only the outer KEK-wrap layer changes: the DEKs and the ciphertext they seal are untouched, so no leaf ciphertext is re-encrypted.
+
+- For each DEK the pass tries the current key first (already rotated: counted as `AlreadyCurrentCount`, left untouched), then the previous key (re-wrapped and persisted as `RewrappedCount`). It is idempotent.
+- Each re-wrap persists individually and transactionally. A DEK that unwraps under neither key is reported as a `DekRotationFailure(CryptoKeyId, Reason)` in `Failures`; one failure never aborts the others.
+- It returns `Result<DekRotationSummary>`; `VALIDATION_FAILED` when either key is blank. Both keys are base64-encoded 32-byte AES keys.
+- Route: `POST /api/v1/admin/security/rotate-encryption-key` on `AdminController`, body `RotateEncryptionKeyRequestDto(PreviousKey, CurrentKey)`, gated by `iam:manage`, security-sensitive rate limit.
+
 ---
 
 ## 4. DTOs / contracts
@@ -336,6 +362,7 @@ Route `api/v{version:apiVersion}/gdpr`. `[Authorize]` (any authenticated princip
 | Verb | Route | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | `GET` | `/gdpr/export` | — | `StatusResponseDto<DataExportDto>` | self (JWT `sub`) · machine-readable JSON download |
+| `GET` | `/gdpr/erasure/preview` | — | `StatusResponseDto<ErasurePreviewDto>` | self · counted, read-only preview of what erasure would destroy |
 | `POST` | `/gdpr/erasure` | `RequestErasureRequest` (SubjectUserId forced to JWT `sub`) | `StatusResponseDto<ErasureRequestDto>` | self · `RequestedBy=self_service` |
 | `POST` | `/gdpr/opt-out` | `RequestOptOutRequest` (self) | `StatusResponseDto<ErasureRequestDto>` | self |
 | `GET` | `/gdpr/requests` | `[FromQuery] PageRequestDto` | `PaginatedResponse<ErasureRequestDto>` | self · own requests only |
@@ -346,12 +373,15 @@ Route `api/v{version:apiVersion}/gdpr`. `[Authorize]` (any authenticated princip
 
 ### 5.2 `ComplianceController` — operator/admin plane (Plane-C IAM)
 
-Route `api/v{version:apiVersion}/compliance`. All rows are **platform** (Plane-C IAM), gated by the named permission key per the role-gate preamble above. Broadcaster-initiated erasure (controller of their channel). Cross-tenant/privileged actions are themselves audited (`ComplianceAuditLog` / `IamAuditLog`).
+Route `api/v{version:apiVersion}/compliance`. All rows are **platform** (Plane-C IAM), gated by the named permission key per the role-gate preamble above. Broadcaster-initiated erasure (controller of their channel). Cross-tenant/privileged actions are themselves audited (`ComplianceAuditLog` / `IamAuditLog`). Erasure and export are gated on `compliance:erasure`, a destructive-action key distinct from the support-visit `tenant:access`: holding `tenant:access` alone does not permit erasure or export. The audit views gate on `audit:read`.
 
 | Verb | Route | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
-| `POST` | `/compliance/erasure` | `RequestErasureRequest` (`RequestedBy=broadcaster`\|`platform_iam`) | `StatusResponseDto<ErasureRequestDto>` | platform · `tenant:access` (broadcaster-of-channel) |
-| `GET` | `/compliance/erasure` | `[FromQuery] PageRequestDto` | `PaginatedResponse<ErasureRequestDto>` | platform · `audit:read` |
+| `GET` | `/compliance/erasure/preview` | `[FromQuery] subjectUserId, broadcasterId?` | `StatusResponseDto<ErasurePreviewDto>` | platform · `compliance:erasure` (counted, read-only) |
+| `GET` | `/compliance/export` | `[FromQuery] subjectUserId, broadcasterId?` | `StatusResponseDto<DataExportDto>` | platform · `compliance:erasure` (`RequestedBy=platform_iam`) |
+| `POST` | `/compliance/erasure` | `RequestErasureRequest` (`RequestedBy=broadcaster`\|`platform_iam`) | `StatusResponseDto<ErasureRequestDto>` | platform · `compliance:erasure` |
+| `GET` | `/compliance/erasure` | `[FromQuery] PageRequestDto, broadcasterId?, status?, requestType?` | `PaginatedResponse<ErasureRequestDto>` | platform · `audit:read` |
+| `GET` | `/compliance/erasure/summary` | — | `StatusResponseDto<ErasureRequestSummaryDto>` | platform · `audit:read` (requests counted by status) |
 
 ---
 
@@ -375,7 +405,7 @@ services.AddSingleton<IKdf, HkdfSha256Kdf>();
 //                 encrypted-file (0600) or env-KEK fallback only when headless   (lite / self-host default)
 //   kms_envelope -> Azure.Security.KeyVault.Keys (SaaS; EU Managed-HSM)  -- loaded ONLY in this branch
 if (profile.TokenVault == TokenVaultKind.KmsEnvelope)               // profile = resolved DeploymentProfileSnapshot
-    services.AddSingleton<IKeyVault, AzureKeyVaultKeyVault>();   // Azure.Security.KeyVault.Keys 4.10.0
+    services.AddSingleton<IKeyVault, AzureKeyVaultKeyVault>();   // Azure.Security.KeyVault.Keys
 else
     services.AddSingleton<IKeyVault, OsSecureStoreKeyVault>();   // zero 3rd-party in the lite binary
 
@@ -385,7 +415,7 @@ services.AddScoped<ISurrogateKeyAnonymizer, SurrogateKeyAnonymizer>();
 services.AddScoped<IConsentService, ConsentService>();
 services.AddScoped<IErasureService, ErasureService>();           // supersedes IGdprService registration
 
-// IEncryptionService retained transitionally for re-encryption migration read path, then removed.
+services.AddScoped<IDekRotationService, DekRotationService>();   // KEK re-wrap pass (§3.8)
 ```
 
 **Deployment-profile adapter variants** (`IKeyVault`): `OsSecureStoreKeyVault` (lite/self-host — wraps the per-tenant/subject DEKs with a local root KEK whose custody is the **OS-native secure store by default**: Windows Credential Locker/DPAPI · macOS Keychain · Linux libsecret; falls back to an encrypted-file (0600) or operator-provided env KEK **only** on headless hosts with no OS keystore) vs `AzureKeyVaultKeyVault` (SaaS — `WrapKey`/`UnwrapKey` Managed-HSM). Selected by `DeploymentProfile.TokenVault` exactly as DB provider / cache / executor are selected. The `kms_envelope` branch is the **only** place the Azure SDK is referenced, so the lite binary carries zero crypto 3rd-parties. **Only the root KEK is OS-custodied; the DEKs + ciphertext live in the DB** — multi-tenant token storage and per-subject crypto-shred require this — so OS custody (root key) and the AES-256-GCM-under-DEK data plane **compose** (envelope encryption), they are not alternatives.
@@ -397,9 +427,9 @@ services.AddScoped<IErasureService, ErasureService>();           // supersedes I
 | Dependency | Party | Used for |
 |---|---|---|
 | `System.Security.Cryptography` (`AesGcm` w/ `tagSizeInBytes:16`, `HKDF`, `RandomNumberGenerator`, `HMACSHA256`, `CryptographicOperations.ZeroMemory`) | 1st/2nd (in-box .NET 10) | `IFieldCipher`, `IKdf`, DEK generation, `SubjectIdHash`, secret zeroization. Glue only — primitives are not hand-rolled. |
-| `Azure.Security.KeyVault.Keys` 4.10.0 | 2nd (MIT) | `AzureKeyVaultKeyVault` (SaaS `kms_envelope` only) — KEK `WrapKey`/`UnwrapKey`, EU Managed-HSM. |
-| `System.Security.Cryptography.ProtectedData` 10.0.9 | 2nd (MIT) | The **Windows** OS-native KEK-custody backend in `OsSecureStoreKeyVault` (DPAPI, machine-bound) — the **default** on Windows self-host. macOS Keychain / Linux libsecret are the other backends (P/Invoke, no NuGet); an encrypted-file (0600) or env KEK is the headless fallback. |
-| `Microsoft.EntityFrameworkCore` 10.0.9 (+ Npgsql / Sqlite provider per profile) | 2nd / 3rd-adjacent | Persistence of all §1 entities via `IApplicationDbContext` + `IUnitOfWork`; EF10 named query filters for soft-delete/tenant. |
+| `Azure.Security.KeyVault.Keys` | 2nd (MIT) | `AzureKeyVaultKeyVault` (SaaS `kms_envelope` only) — KEK `WrapKey`/`UnwrapKey`, EU Managed-HSM. |
+| `System.Security.Cryptography.ProtectedData` | 2nd (MIT) | The **Windows** OS-native KEK-custody backend in `OsSecureStoreKeyVault` (DPAPI, machine-bound) — the **default** on Windows self-host. macOS Keychain / Linux libsecret are the other backends (P/Invoke, no NuGet); an encrypted-file (0600) or env KEK is the headless fallback. |
+| `Microsoft.EntityFrameworkCore` (+ Npgsql / Sqlite provider per profile) | 2nd / 3rd-adjacent | Persistence of all §1 entities via `IApplicationDbContext` + `IUnitOfWork`; EF10 named query filters for soft-delete/tenant. |
 | Newtonsoft.Json | (project app-JSON convention) | Export document serialization (`DataExportDto`), `[VC:JSON]` columns (`ComplianceAuditLog.TablesAffected`). |
 | `Microsoft.Extensions.Logging` (`ILogger` + `[LoggerMessage]`) + OpenTelemetry | 2nd | Structured audit logging; **never log raw ids/usernames/tokens** — `SubjectIdHash` only. |
 | `NomNomzBot.Domain.Interfaces.IEventBus` (in-house) | 1st | Publishing §2 domain events (no MediatR). |
@@ -410,7 +440,7 @@ No new 3rd-party dependency beyond what the stack doc already accepts. AES-CBC/`
 
 ## 9. In-chat self-service erasure (no public HTTP surface)
 
-The §5.1 `GdprController` requires an authenticated principal (JWT `sub`) — but **viewers never sign up**, and a self-host operator may not expose the bot to the internet at all. So the same rights are exercisable **in chat**, where the issuer is authenticated by Twitch itself (the verified `user-id` IRC tag / EventSub `chatter_user_id`). This is a thin **alternative surface over the same `IErasureService` use cases** — not a parallel implementation.
+The primary surface for a viewer's data rights is the signed-in viewer **my-data page** (PRODUCT-ALIGNMENT D4: viewers sign in free to manage their own data, GDPR included), which is the §5.1 `GdprController` (JWT `sub`). Chat is the **no-account path** beside it: many viewers never sign in, and a self-host operator may not expose the bot to the internet at all. So the same rights are exercisable **in chat**, where the issuer is authenticated by the platform itself (the platform-verified issuer id: the Twitch `user-id` IRC tag / EventSub `chatter_user_id`, and the equivalent verified sender id on each other connected platform). This is a thin **alternative surface over the same `IErasureService` use cases** — not a parallel implementation.
 
 **Built-in reserved commands** — resolved by the command engine **before any authored command** (`commands-pipelines.md` §3.2 precedence): a streamer **cannot shadow, override, or disable** them. The data-subject rights floor is always-on (per opt-in/default-deny).
 
@@ -421,7 +451,7 @@ The §5.1 `GdprController` requires an authenticated principal (JWT `sub`) — b
 | `!gdpr status` | `IErasureService.GetRequestAsync` (subject's latest) | Read-only. |
 
 **Identity & safety (free, by construction):**
-- The subject is the **Twitch-verified issuer** — a command can only ever touch the issuer's *own* data. No `!forgetme @someone`. A mod/broadcaster erasing *another* viewer stays on the audited `ComplianceController` plane (a controller action), never a chat command.
+- The subject is the **platform-verified issuer** — a command can only ever touch the issuer's *own* data. No `!forgetme @someone`. A mod/broadcaster erasing *another* viewer stays on the audited `ComplianceController` plane (a controller action), never a chat command.
 - **Moderation carve-out (MANDATORY).** Erasure MUST NOT clear an active ban/timeout. Art. 17(3) lets the controller retain data needed to enforce safety / defend claims. The §3.7 procedure wipes stats/economy/logs/PII and crypto-shreds the subject DEK **but preserves the moderation record + its minimal justification** (`moderation.md`). Without this, `!forgetme` is one-word ban-evasion.
 
 **Re-entry is the model — no standing opt-out tombstone.** Erasure is point-in-time. After `DestroyKeyAsync` (§3.4) shreds the subject DEK, the subject's prior PII is permanently unreadable (events + backups included), and the bot keeps **no** "this person was forgotten" flag. On the viewer's next chat message or redeem, `GetOrCreateSubjectKeyAsync` (§3.4) finds the prior key `destroyed` (not `active`) and **mints a fresh DEK** → the viewer re-enters as a clean slate; the shredded history stays dead (a new key never resurrects an old one). This is the *natural* behavior of the crypto-shred design — **nothing extra to build, no new schema** (reuses `ErasureRequest(RequestType=erasure)` + key-shred + the §3.5 anonymize/scrub).
@@ -437,7 +467,7 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
 
 ## 10. Decisions (resolved)
 
-- **Crypto-shred completeness.** O(1) ciphertext crypto-shred is the in-scope erasure mechanism. Plaintext `[PII-scrub]` snapshot row-level erasure (`ISurrogateKeyAnonymizer.AnonymizeSubjectAsync`) and multi-subject `EventSubjectKeys` handling are part of this subsystem and are fully specified here. Both ship as part of the erasure pipeline (§3.5, §3.7).
+- **Crypto-shred completeness.** O(1) ciphertext crypto-shred is the in-scope erasure mechanism. Plaintext `[PII-scrub]` snapshot row-level erasure (`ISurrogateKeyAnonymizer.AnonymizeSubjectAsync`) and multi-subject `EventSubjectKey` handling are part of this subsystem and are fully specified here. Both ship as part of the erasure pipeline (§3.5, §3.7).
 - **`ITenantScoped` widens to `Guid`.** This subsystem is written against `Guid` `BroadcasterId`, per the locked schema (§1.1). The widening is the one-time rebuild change owned by the persistence/tenancy slice; it is a build dependency of these signatures.
 - **KEK rotation cadence / DataProtection key-ring.** Rotation scheduling is owned by the auth/persistence slices. `IKeyVault` exposes wrap/unwrap only and is intentionally agnostic to KEK rotation cadence; that is a dependency on the auth/persistence slices, not a property of this subsystem.
 
@@ -446,7 +476,7 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
 ## As-built — erasure pipeline + controllers (2026-07-17, item 23 slice B)
 
 - `GdprController` (Gate-1, subject ALWAYS the JWT sub) + `ComplianceController` (Plane-C:
-  `tenant:access` / `audit:read` policies) shipped per §5; the legacy `UsersController`
+  `compliance:erasure` / `audit:read` policies) shipped per §5; the legacy `UsersController`
   `{userId}/data-export` + `{userId}/data` routes and `IGdprService`/`GdprService` are RETIRED —
   their three proven behaviors (vault revocation targets only the subject, cross-channel ViewerData
   scrub, bare-profile erasure) live on in `ErasureServiceTests`.
@@ -465,7 +495,7 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
   cross-tenant, audited as `consent_change`.
 - Crypto-shred resolves `Users.SubjectKeyId` + active subject-scope `CryptoKey` rows by
   `SubjectIdHash`; the full §3.4 widening (`ResolveSubjectKeysAsync`, tenant/platform keys,
-  rotation, `KeyUsageBinding`, `EventSubjectKeys`) is deferred to a later crypto slice.
+  rotation, `KeyUsageBinding`, `EventSubjectKey`) is deferred to a later crypto slice.
   `DeletionAuditLog` remains in place read-only; new writes go to `ComplianceAuditLog`.
 - Domain events (`Identity/Events/GdprEvents.cs`): SubjectErasureRequested/Completed/Failed,
   SubjectDataExported, ConsentChanged — hashed subject only.
@@ -502,11 +532,11 @@ Default copy (part 1, customizable) with the always-appended mandatory clause (p
   every generation. Rationale: the service cannot generically rewrite consumers' envelope formats
   (per-row AADs, composite text columns). No DEK-lifecycle events (no consumers exist).
 - `ResolveSubjectKeysAsync` = `Users.SubjectKeyId` + all non-destroyed subject-scope generations by
-  hash + `EventSubjectKeys`-mapped DEKs; shared tenant/platform keys are DELIBERATELY excluded —
+  hash + `EventSubjectKey`-mapped DEKs; shared tenant/platform keys are DELIBERATELY excluded —
   shredding them for one subject would destroy other subjects' data. The erasure shred (step 9) now
   destroys exactly this resolved set.
-- **`EventSubjectKeys` write seam deferred:** journal payload encryption is not built
+- **`EventSubjectKey` write seam deferred:** journal payload encryption is not built
   (`PayloadIsEncrypted=false` everywhere), so nothing exists to map at write time; the read side +
   shred coverage are wired and the write seam belongs to the future journal-encryption slice.
-- Tables Q.2 `KeyUsageBindings` (unique triple) + O.1a `EventSubjectKeys` (unique `(EventId,
-  SubjectKeyId)`) shipped with paired migrations `AddKeyUsageAndEventSubjectKeys`.
+- Tables Q.2 `KeyUsageBindings` (unique triple) + O.1a `EventSubjectKey` (unique `(EventId,
+  SubjectKeyId)`) shipped with paired migrations `AddKeyUsageAndEventSubjectKey`.

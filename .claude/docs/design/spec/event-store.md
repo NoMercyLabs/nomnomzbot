@@ -1,13 +1,14 @@
 # Event Store — Interface Specification
 
 **Status:** Implementable. Code from this directly. No ambiguity intended.
+**As-built (2026-09-30):** the append/read core, the bus capture path, projections, upcasting, the sequence allocator, payload encryption, portable export/import, legacy backfill and the projection driver are built. **Not built:** `IReplayService` (§3.4), `ISnapshotStore` + `EventSnapshot` (§3.5), `IEventCryptoShredLinker` (§3.9), `IIdempotencyGuard` (§3.10), the dedicated `EventJournalRepository` (§3.11) and the read/replay/projection-admin routes in §5. Each unbuilt part is marked where it appears and stays as the target design.
 **Owner area:** append-only `EventJournal` (per-tenant `StreamPosition`), read-model projections + checkpoints, replay, snapshots, `EventSubjectKeys`, crypto-shred linkage.
 
 **Grounding (read these, do not re-derive):**
-- Locked schema — `docs/design/2026-06-16-database-schema.md` §O (Event Store), §Q (CryptoKey/TenantSequences), §1 (conventions), F.4/F.6/K.3 (read-models that FK the journal).
-- Design — `docs/design/2026-06-16-event-store.md`.
-- Stack — `docs/design/2026-06-16-stack-and-dependencies.md` (Persistence, Distributed cache + pub/sub, Crypto/secrets, Background jobs).
-- Resolved baselines — `docs/design/2026-06-16-decisions-resolved.md` (#8 `IRunOnceGuard`, #10 crypto-shred completeness); both are decided here in §9.
+- Locked schema — `.claude/docs/design/2026-06-16-database-schema.md` §O (Event Store), §Q (CryptoKey/TenantSequences), §1 (conventions), F.4/F.6/K.3 (read-models that FK the journal).
+- Design — `.claude/docs/design/2026-06-16-event-store.md`.
+- Stack — `.claude/docs/design/2026-06-16-stack-and-dependencies.md` (Persistence, Distributed cache + pub/sub, Crypto/secrets, Background jobs).
+- Resolved baselines — `.claude/docs/design/2026-06-16-decisions-resolved.md` (#8 `IRunOnceGuard`, #10 crypto-shred completeness); both are decided here in §9.
 
 **Binding conventions for every file in this subsystem:**
 - Namespace `NomNomzBot.*`. `.NET 10 / C# 14 / EF Core 10`. File-scoped namespaces. `Nullable` enabled. Async all the way (no `.Result`/`.Wait()`).
@@ -25,15 +26,15 @@
 
 ## 1. Entities (locked schema — owned by this subsystem)
 
-All defined in `docs/design/2026-06-16-database-schema.md`. Referenced here by id; **do not redefine columns** — map them in EF exactly as the schema lists. Place entity classes in `NomNomzBot.Domain/Entities/EventStore/`; EF configs in `NomNomzBot.Infrastructure/Persistence/Configurations/EventStore/`.
+All defined in `.claude/docs/design/2026-06-16-database-schema.md`. Referenced here by id; **do not redefine columns** — map them in EF exactly as the schema lists. As built, entity classes live in `NomNomzBot.Domain/EventStore/Entities/` (`EventJournal`, `EventSubjectKey`, `ProjectionCheckpoint`, `TenantSequence`); EF configs in `NomNomzBot.Infrastructure/EventStore/Persistence/`. `IdempotencyKey` lives in `NomNomzBot.Domain/Platform/Entities/`. `EventSnapshot` has no entity yet.
 
 | Schema id | Entity (class) | PK | Key fields / types | Append-only | Notes |
 |---|---|---|---|---|---|
-| **O.1** | `EventJournal` | `Id bigint` | `EventId Guid` (Unique), `BroadcasterId Guid?`, `StreamPosition long` (Unique-with-`BroadcasterId`), `EventType string(150)`, `EventVersion int`, `Source string(30)` [VC:enum] (`eventsub`\|`domain`\|`kick`\|`youtube`\|`x`\|`import`\|`federation`\|`webhook`), `Payload string` [VC:JSON], `PayloadIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CorrelationId Guid?`, `CausationId Guid?`, `ActorUserId Guid?`, `ActorExternalUserId string(50)?`, `ActorProvider string(20)?` [VC:enum], `Metadata string` [VC:JSON], `OccurredAt DateTime`, `RecordedAt DateTime` | **yes** | The **outcome/fact** log — the durable record of *what happened*, and the sole replay/projection source of truth (§1.1). Unique `EventId`; **Unique `(BroadcasterId, StreamPosition)`** (idempotent replay). `StreamPosition` app-assigned via `TenantSequences`. `Source="webhook"` = a verified third-party inbound webhook (`webhooks.md`); `Source="eventsub"` = Twitch's first-party ingest (`twitch-eventsub.md`) — distinct sources. |
+| **O.1** | `EventJournal` | `Id bigint` | `EventId Guid` (Unique), `BroadcasterId Guid?`, `StreamPosition long` (Unique-with-`BroadcasterId`), `EventType string(150)`, `EventVersion int`, `Source string(30)` [VC:enum] (`eventsub`\|`domain`\|`irc`\|`import`\|`federation`\|`webhook`), `Payload string` [VC:JSON], `PayloadIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CorrelationId Guid?`, `CausationId Guid?`, `ActorUserId Guid?`, `ActorExternalUserId string(50)?`, `ActorProvider string(20)?` [VC:enum], `OnBehalfOfUserId Guid?`, `ImpersonationSessionId Guid?`, `Metadata string` [VC:JSON], `OccurredAt DateTime`, `RecordedAt DateTime` | **yes** | The **outcome/fact** log — the durable record of *what happened*, and the sole replay/projection source of truth (§1.1). Unique `EventId`; **Unique `(BroadcasterId, StreamPosition)`** (idempotent replay). `StreamPosition` app-assigned via `TenantSequences`. `Source="webhook"` = a verified third-party inbound webhook (`webhooks.md`); `Source="eventsub"` = Twitch's first-party ingest (`twitch-eventsub.md`) — distinct sources. **Dual-actor trail (S089a):** under act-as impersonation `ActorUserId` is the OPERATOR, `OnBehalfOfUserId` is the user they acted as, and `ImpersonationSessionId` is the support-access grant id (the token's `sid`); both are `null` outside impersonation, so an impersonated write never loses its true author. |
 | **O.1a** | `EventSubjectKey` | `Id Guid` (UUIDv7) | `EventId Guid` (FK→`EventJournal.EventId`), `BroadcasterId Guid?`, `SubjectIdHash string(64)`, `SubjectKeyId Guid` (FK→CryptoKey), `Role string(20)?` | no (`CreatedAt` only) | Multi-subject (gift sub / raid) event→DEK link. Unique `(EventId, SubjectKeyId)`. Enables per-subject shred of a shared payload. |
-| **O.2** | `EventSnapshot` | `Id bigint` | `BroadcasterId Guid?`, `AggregateType string(100)`, `AggregateId string(100)`, `StreamPosition long`, `SnapshotVersion int`, `State string` [VC:JSON], `StateIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CreatedAt DateTime` | yes | Folded checkpoint so replay needn't start at zero. Unique `(BroadcasterId, AggregateType, AggregateId)`. |
+| **O.2** | `EventSnapshot` | `Id bigint` | `BroadcasterId Guid?`, `AggregateType string(100)`, `AggregateId string(100)`, `StreamPosition long`, `SnapshotVersion int`, `State string` [VC:JSON], `StateIsEncrypted bool`, `SubjectKeyId Guid?` (FK→CryptoKey), `CreatedAt DateTime` | yes | Folded checkpoint so replay needn't start at zero. Unique `(BroadcasterId, AggregateType, AggregateId)`. **Not built** (see §3.5). |
 | **O.3** | `ProjectionCheckpoint` | `Id bigint` | `ProjectionName string(150)`, `BroadcasterId Guid?`, `LastPosition long`, `Status string(20)` [VC:enum] (`running`/`rebuilding`/`faulted`/`paused`), `LastError string?`, `LastProcessedAt DateTime?`, `UpdatedAt DateTime` | no | Per-projection consume cursor. Unique `(ProjectionName, BroadcasterId)`. (Carries `UpdatedAt`, not append-only.) |
-| **O.4** | `IdempotencyKey` | `Id bigint` | `Scope string(100)`, `Key string(255)`, `BroadcasterId Guid?`, `ResultHash string(64)?`, `ExpiresAt DateTime`, `CreatedAt DateTime` | yes | At-most-once guard for events/webhooks/mutating requests. Unique `(Scope, Key, BroadcasterId)`. |
+| **O.4** | `IdempotencyKey` | `Id bigint` | `Scope string(100)`, `Key string(255)`, `BroadcasterId Guid?`, `ResultHash string(64)?`, `ExpiresAt DateTime`, `CreatedAt DateTime` | yes | At-most-once guard for events/webhooks/mutating requests. Unique `(Scope, Key, BroadcasterId)`. Entity + `IApplicationDbContext.IdempotencyKeys` are built (economy and Kick ingest use the table directly); the `IIdempotencyGuard` service (§3.10) is not. |
 | **Q.3** | `TenantSequence` | `Id Guid` (UUIDv7) | `BroadcasterId Guid`, `SequenceName string(50)`, `NextValue long`, `UpdatedAt DateTime` | no | App-assigned per-tenant monotonic counter. Unique `(BroadcasterId, SequenceName)`. **This subsystem owns the `event_stream_position` sequence**; the economy subsystem owns `currency_ledger_position`. The append helper is shared (§3 `ITenantSequenceAllocator`). |
 
 **Referenced, NOT owned** (other subsystems own the class + config; this subsystem only writes/reads `EventId` linkage and reads for crypto-shred):
@@ -63,13 +64,13 @@ Existing convention (keep, extend — do **not** duplicate): events live in `Nom
 
 **No new business domain events are introduced by this subsystem.** The event store is a *durable subscriber* to the existing bus (per design doc "rides the event-bus adapter"). It consumes every `IDomainEvent` already published and persists it. Two new events are emitted **by** this subsystem to signal store/replay lifecycle to the dashboard and other handlers:
 
-Place in `NomNomzBot.Domain/Events/EventStore/`. Both inherit `DomainEventBase`.
+As built they live in `NomNomzBot.Domain/EventStore/Events/` (namespace `NomNomzBot.Domain.EventStore.Events`), are `sealed class` types (not records) and inherit `DomainEventBase`. **Both are defined but nothing publishes them yet** — their publishers are the unbuilt `IReplayService` (§3.4) and `IEventCryptoShredLinker` (§3.9).
 
 ```csharp
-namespace NomNomzBot.Domain.Events;
+namespace NomNomzBot.Domain.EventStore.Events;
 
 /// <summary>Emitted when a replay or backfill run changes state (started, progressed, completed, faulted).</summary>
-public sealed record ReplayStatusChangedEvent : DomainEventBase
+public sealed class ReplayStatusChangedEvent : DomainEventBase
 {
     public required Guid ReplayId { get; init; }
     public required string ProjectionName { get; init; }
@@ -81,7 +82,7 @@ public sealed record ReplayStatusChangedEvent : DomainEventBase
 }
 
 /// <summary>Emitted after a subject's crypto-shred DEK set has been linked/destroyed for journal payloads.</summary>
-public sealed record EventPayloadShreddedEvent : DomainEventBase
+public sealed class EventPayloadShreddedEvent : DomainEventBase
 {
     public required string SubjectIdHash { get; init; }
     public required int EventsAffected { get; init; }      // journal rows whose payload became unreadable
@@ -97,6 +98,14 @@ public sealed record EventPayloadShreddedEvent : DomainEventBase
 ## 3. Service interfaces
 
 All interfaces in `NomNomzBot.Application/Contracts/EventStore/`. Implementations in `NomNomzBot.Infrastructure/EventStore/`. Every fallible op returns `Result`/`Result<T>`.
+
+**As-built status of the §3 services:**
+
+| Service | Status |
+|---|---|
+| `IEventJournal` (§3.1), `IEventStoreSubscriber` + `IJournalPostCommitHook` (§3.2), `IProjection`/`IProjectionRunner` (§3.3), `IEventUpcaster`/`IEventUpcasterRegistry` (§3.6), `ITenantSequenceAllocator` (§3.7), `IEventPayloadProtector` (§3.8) | Built. Where the as-built signature differs from the block below, the block is corrected. |
+| `IReplayService` (§3.4), `ISnapshotStore` (§3.5), `IEventCryptoShredLinker` (§3.9), `IIdempotencyGuard` (§3.10), `EventJournalRepository` (§3.11) | **Not built.** Target design only. |
+| `IEventJournalPortabilityService` (JSONL export/import), `ILegacyChannelImportService` (legacy bot backfill + projection rebuild) | Built, additive to this spec — see §3.12. |
 
 ### 3.1 `IEventJournal` — append + ordered read (the core)
 
@@ -126,6 +135,10 @@ public interface IEventJournal
 
     // Looks up a single event by its EventId (dedupe/lineage/trace). Failure NOT_FOUND if absent.
     Task<Result<EventRecord>> GetByEventIdAsync(Guid eventId, CancellationToken cancellationToken = default);
+
+    // Returns the subset of candidate EventIds that already exist in the journal — one bulk query so idempotent
+    // batch writers (the legacy import) dedupe tens of thousands of rows without a per-row probe. Read-only.
+    Task<Result<IReadOnlySet<Guid>>> GetExistingEventIdsAsync(IReadOnlyCollection<Guid> candidateEventIds, CancellationToken cancellationToken = default);
 
     // Current head StreamPosition for a tenant (0 if no events). Read-only; drives "up to date" checks.
     Task<Result<long>> GetHeadPositionAsync(Guid? broadcasterId, CancellationToken cancellationToken = default);
@@ -207,6 +220,11 @@ public interface IProjectionRunner
     // Returns the number of events applied. Faults set Status=faulted + LastError (no checkpoint advance past the bad event).
     Task<Result<long>> RunOnceAsync(string projectionName, Guid? broadcasterId, CancellationToken cancellationToken = default);
 
+    // Resets the projection for the scope, sets checkpoint=0 (Status=rebuilding), then replays the whole stream to
+    // the head. Reports the applied count through `progress`. This is the built rebuild path (the IReplayService
+    // facade in §3.4 is not built). Returns the number of events applied.
+    Task<Result<long>> RebuildAsync(string projectionName, Guid? broadcasterId, CancellationToken cancellationToken = default, IProgress<long>? progress = null);
+
     // Reads a projection's checkpoint (position, status, lag, last error). Read-only.
     Task<Result<ProjectionCheckpointDto>> GetCheckpointAsync(string projectionName, Guid? broadcasterId, CancellationToken cancellationToken = default);
 
@@ -221,16 +239,9 @@ public interface IProjectionRunner
 }
 ```
 
-### 3.3a `IEventUpcaster` — event schema evolution (versioning + upcasting)
-
-A **schema change is never a domain event** and never enters `EventJournal`; it is an ordered EF Core **migration** (the migrations history is its own replayable sequence). The journal is **immutable** — historical rows keep their original `EventVersion` and `Payload` forever. When the *shape* of an event type changes, replay still has to read the old rows, handled two ways:
-
-- **Additive change (default):** add only optional fields. Newtonsoft tolerates missing/extra members, so old rows deserialize into the new shape with no upcaster — bump nothing.
-- **Breaking change:** raise the type's current version and register an `IEventUpcaster` that rewrites an old payload into the next version's shape **on read**. The store chains upcasters (`v1→v2→v3`) until the stored payload reaches the current version, so `IProjection.ApplyAsync` and all replay only ever see the current shape. Old rows are never rewritten. (The `IEventUpcaster` contract is defined once, in §3.6.)
-
-**Binding wiring:** each event type declares its current version (a `const` on the event class); the append path stamps `EventJournal.EventVersion` with it. Upcasters register multi-instance — `services.AddSingleton<IEventUpcaster, …>()` — and the read path (`IEventStore` deserialization behind `EventRecord`) applies the matching chain. **Snapshots (O.2) carry `SnapshotVersion`** and follow the same rule: a snapshot whose `SnapshotVersion` is stale is ignored and the projection folds forward from an earlier snapshot or from zero, so a state-shape change never requires rewriting stored snapshots.
-
 ### 3.4 `IReplayService` — backfill / DR / heal
+
+> **Not built.** No `IReplayService`, `ReplayHandle`, or `ReplayStatusChangedEvent` publisher exists. As built: a rebuild is `IProjectionRunner.RebuildAsync` (§3.3), driven per channel by `ILegacyChannelImportService.RebuildProjectionsAsync` (`POST …/rebuild-projections`, §5); `POST …/replay` runs the `import-replay` projection, which is a deliberate silent no-op (an owner directive, 2026-08-27: a replay never fires chat, Spotify or any outbound call). The block below is the target design.
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.EventStore;
@@ -260,6 +271,8 @@ public interface IReplayService
 
 ### 3.5 `ISnapshotStore` — optional fold checkpoints (perf)
 
+> **Not built.** No `ISnapshotStore` and no `EventSnapshot` entity or table. Replay always folds from position 0. Target design only.
+
 ```csharp
 namespace NomNomzBot.Application.Contracts.EventStore;
 
@@ -278,9 +291,20 @@ public interface ISnapshotStore
 }
 ```
 
-### 3.6 `IEventUpcaster` / `IEventUpcasterRegistry` — schema evolution
+### 3.6 `IEventUpcaster` / `IEventUpcasterRegistry` — schema evolution (versioning + upcasting)
 
-Upcasters are **compiled code, keyed by `(EventType, EventVersion)`** (schema audit F3 — no DB table). The journal stores raw `EventVersion`; on read, records are upcast to current before `ApplyAsync`.
+A **schema change is never a domain event** and never enters `EventJournal`; it is an ordered EF Core **migration** (the migrations history is its own replayable sequence). The journal is **immutable** — historical rows keep their original `EventVersion` and `Payload` forever. When the *shape* of an event type changes, replay still has to read the old rows, handled two ways:
+
+- **Additive change (default):** add only optional fields. Newtonsoft tolerates missing/extra members, so old rows deserialize into the new shape with no upcaster — bump nothing.
+- **Breaking change:** register an `IEventUpcaster` that rewrites an old payload into the next version's shape **on read**. The registry chains upcasters (`v1→v2→v3`) until the stored payload reaches the current version, so `IProjection.ApplyAsync` and all replay only ever see the current shape. Old rows are never rewritten. A missing link in the chain fails with `UPCASTER_CHAIN_BROKEN`.
+
+Upcasters are **compiled code, keyed by `(EventType, FromVersion)`** (schema audit F3 — no DB table). The journal stores the raw `EventVersion`; on read, records are upcast to current before `ApplyAsync`.
+
+**As-built wiring:**
+- An event type's **current version is derived from the registered upcasters** (`EventUpcasterRegistry.CurrentVersion` = highest registered `FromVersion` + 1; `1` when none are registered). The append path (`EventStoreSubscriber`) stamps `EventJournal.EventVersion` with `CurrentVersion(eventType)`. There is no `const` on the event class.
+- Upcasters register multi-instance through the assembly scan (`AddImplementationsOf<IEventUpcaster>`); the registry is a singleton.
+- The read path is `JournaledDomainEventReader`: open the payload (`IEventPayloadProtector.UnprotectAsync`), upcast to current, then deserialize into the CLR type the closed `DomainEventTypeRegistry` maps the `EventType` to — never a type name taken from the row.
+- **Snapshots (O.2) carry `SnapshotVersion`** and follow the same rule once `ISnapshotStore` is built (§3.5): a snapshot whose `SnapshotVersion` is stale is ignored and the projection folds forward from an earlier snapshot or from zero, so a state-shape change never requires rewriting stored snapshots.
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.EventStore;
@@ -332,20 +356,27 @@ namespace NomNomzBot.Application.Contracts.EventStore;
 
 public interface IEventPayloadProtector
 {
-    // If the request carries PII subjects, encrypts the payload under the resolved per-subject DEK(s)
-    // via the crypto subsystem (AES-256-GCM, AAD = tenantId‖eventType‖subjectIdHash‖keyVersion), sets
-    // PayloadIsEncrypted=true, and returns the SubjectKeyId set to persist (single -> EventJournal.SubjectKeyId;
-    // multi -> EventSubjectKeys rows). No-op pass-through when the event has no PII.
+    // As built: when the request is attributed to an internal subject (ActorUserId is set and not Guid.Empty),
+    // seals the payload under that subject's DEK via ISubjectKeyService (AES-256-GCM; AAD = tenant ‖ "eventjournal" ‖
+    // eventType ‖ key-version) into a "v1|nonce|ciphertext" envelope, sets IsEncrypted=true and returns the DEK id
+    // (persisted in EventJournal.SubjectKeyId). Subject-less events pass through as plaintext — only a
+    // shred-reachable subject id is ever sealed under a DEK, so erasure can always destroy what was encrypted.
+    // Multi-subject linkage (EventSubjectKeys) is not built (§3.9).
     Task<Result<ProtectedPayload>> ProtectAsync(AppendEventRequest request, CancellationToken cancellationToken = default);
 
-    // Decrypts an encrypted journal payload for replay/projection. If any required DEK is destroyed
-    // (crypto-shred), returns a SUCCESS result with IsReadable=false and a tombstoned payload — replay
-    // must continue past shredded events, never fault. Plaintext payloads pass through unchanged.
-    Task<Result<DecryptedPayload>> UnprotectAsync(EventRecord @event, CancellationToken cancellationToken = default);
+    // Opens an encrypted journal payload and returns the plaintext JSON. Plaintext rows pass through unchanged.
+    // Failures: SUBJECT_KEY_MISSING (encrypted row without a SubjectKeyId), ENVELOPE_INVALID (malformed envelope),
+    // or ISubjectKeyService's own failure result (e.g. a destroyed DEK — crypto-shred). Callers that replay a stream
+    // (JournaledDomainEventReader, projections) must treat a shredded row as skippable, never as a fault of the run.
+    Task<Result<string>> UnprotectAsync(EventRecord record, CancellationToken cancellationToken = default);
 }
+
+public sealed record ProtectedPayload(string PayloadJson, bool IsEncrypted, Guid? SubjectKeyId);
 ```
 
 ### 3.9 `IEventCryptoShredLinker` — crypto-shred linkage (GDPR)
+
+> **Not built.** The `EventSubjectKey` entity and `IApplicationDbContext.EventSubjectKeys` exist, but no service links multi-subject keys or emits `EventPayloadShreddedEvent`. As built, the payload protector seals a row under the single ACTOR's DEK (`EventJournal.SubjectKeyId`) and the GDPR erasure pipeline (`ISubjectKeyService.ResolveSubjectKeysAsync` → destroy) reaches it directly. Target design only for multi-subject events.
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.EventStore;
@@ -369,6 +400,8 @@ public interface IEventCryptoShredLinker
 
 ### 3.10 `IIdempotencyGuard` — at-most-once (O.4)
 
+> **Not built.** The `IdempotencyKey` entity exists; callers use the table directly. Target design only.
+
 ```csharp
 namespace NomNomzBot.Application.Contracts.EventStore;
 
@@ -385,30 +418,44 @@ public interface IIdempotencyGuard
 
 ### 3.11 Repository (Infrastructure)
 
-`EventJournalRepository : GenericRepository<EventJournal>` — extends the existing `GenericRepository<T>` (no new generic abstraction). Adds append-specific reads:
+> **Not built as a dedicated class.** There is no `EventJournalRepository`; `EventJournalService` reads and writes through `IApplicationDbContext` + `IUnitOfWork` directly. The forward-slice, global-slice, head-position and by-`EventId` reads are `IEventJournal` members (§3.1). Introduce a repository only when a second consumer needs the same query.
+
+`ProjectionCheckpoint`, `EventSubjectKey`, `IdempotencyKey`, `TenantSequence` are accessed via the service implementations' `IApplicationDbContext` `DbSet`s + `IUnitOfWork` — no dedicated repository each (YAGNI; they're simple keyed upserts).
+
+### 3.12 Portable export/import + legacy backfill (built, additive)
+
+Two owner-gated services sit beside the core; both are tenant-scoped through the `{channelId}` route (§5).
 
 ```csharp
-namespace NomNomzBot.Infrastructure.Persistence.Repositories;
+namespace NomNomzBot.Application.Contracts.EventStore;
 
-public sealed class EventJournalRepository : GenericRepository<EventJournal>
+public interface IEventJournalPortabilityService
 {
-    public EventJournalRepository(AppDbContext db) : base(db) { }
+    // Streams one tenant's whole journal as JSONL (one EventJournalExportLine per line) to `destination`.
+    // Read-only. Returns the number of lines written.
+    Task<Result<long>> ExportAsync(Guid broadcasterId, Stream destination, CancellationToken cancellationToken = default);
 
-    // Forward slice by StreamPosition for one tenant (exclusive afterPosition), ordered asc, max `limit`.
-    public Task<IReadOnlyList<EventJournal>> ReadStreamAsync(Guid? broadcasterId, long afterPosition, int limit, CancellationToken ct = default);
-
-    // Forward slice of the global stream by Id (exclusive afterId), ordered asc, max `limit`.
-    public Task<IReadOnlyList<EventJournal>> ReadAllAsync(long afterId, int limit, CancellationToken ct = default);
-
-    // Max StreamPosition for a tenant (0 when empty).
-    public Task<long> GetHeadPositionAsync(Guid? broadcasterId, CancellationToken ct = default);
-
-    // Single by EventId (dedupe).
-    public Task<EventJournal?> GetByEventIdAsync(Guid eventId, CancellationToken ct = default);
+    // Reads a JSONL export into the target tenant's stream: idempotent (duplicate EventIds are skipped), upcast on read,
+    // atomic (all-or-nothing). State change: N new EventJournal rows at fresh per-tenant StreamPositions.
+    Task<Result<EventJournalImportSummary>> ImportAsync(Guid targetBroadcasterId, Stream source, CancellationToken cancellationToken = default);
 }
+
+public interface ILegacyChannelImportService
+{
+    // Reads the legacy NoMercy bot database READ-ONLY, maps each channel event to its current domain event and appends
+    // it idempotently (a re-run imports nothing). Returns read/imported/skipped counts and the journal head before/after.
+    Task<Result<LegacyImportResult>> ImportLegacyAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
+
+    // Resets and replays every tenant-scoped projection from position 0 for the channel. Returns applied counts per projection.
+    Task<Result<IReadOnlyList<ProjectionRebuildResult>>> RebuildProjectionsAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
+}
+
+public sealed record EventJournalImportSummary(long TotalLines, long Imported, long SkippedDuplicate, long Upcast);
+public sealed record LegacyImportResult(long TotalRead, long Imported, long SkippedUnmapped, long SkippedDuplicate, long HeadBefore, long HeadAfter, IReadOnlyDictionary<string, long> SkippedByLegacyType);
+public sealed record ProjectionRebuildResult(string ProjectionName, long EventsApplied);
 ```
 
-> `ProjectionCheckpoint`, `EventSnapshot`, `EventSubjectKey`, `IdempotencyKey`, `TenantSequence` are accessed via the service implementations' `IApplicationDbContext` `DbSet`s + `IUnitOfWork` — no dedicated repository each (YAGNI; they're simple keyed upserts). Register their `DbSet<>` on `IApplicationDbContext`/`AppDbContext`.
+Implementations: `EventJournalPortabilityService` and `LegacyImport/LegacyChannelImportService` in `NomNomzBot.Infrastructure/EventStore/`. `EventStoreProjectionDriver` (hosted) advances every non-paused projection to the journal head so live appends reach the read models.
 
 ---
 
@@ -425,7 +472,7 @@ public sealed record AppendEventRequest(
     Guid? BroadcasterId,
     string EventType,
     int EventVersion,
-    string Source,                       // eventsub|domain|kick|youtube|x|import|federation|webhook
+    string Source,                       // eventsub|domain|irc|import|federation|webhook
                                          //   webhook: a verified third-party inbound webhook (webhooks.md §3.2) — built as
                                          //   AppendEventRequest(Source="webhook", EventType="webhook.<provider>.<kind>",
                                          //   EventId = WebhookEventId(broadcasterId, endpointId, providerEventId) — a deterministic
@@ -442,10 +489,12 @@ public sealed record AppendEventRequest(
     Guid? CausationId = null,
     Guid? ActorUserId = null,
     string? ActorExternalUserId = null,
-    string? ActorProvider = null,        // twitch|kick|youtube|x — the platform ActorExternalUserId belongs to
-    IReadOnlyList<EventPiiSubject>? PiiSubjects = null); // drives encryption + EventSubjectKeys linkage
+    string? ActorProvider = null,        // twitch|kick|youtube|twitter — the platform ActorExternalUserId belongs to
+    Guid? OnBehalfOfUserId = null,       // act-as impersonation: the user acted as (ActorUserId is then the OPERATOR)
+    Guid? ImpersonationSessionId = null); // act-as impersonation: the support session (token `sid`)
 
-public sealed record EventPiiSubject(string SubjectIdHash, string? Role); // Role: gifter|recipient|raider|raided|...
+// NOT BUILT (with §3.9): EventPiiSubject(string SubjectIdHash, string? Role) and AppendEventRequest.PiiSubjects.
+// As built, PII sealing is keyed on ActorUserId alone (§3.8).
 
 public sealed record EventRecord(
     long Id,
@@ -465,7 +514,9 @@ public sealed record EventRecord(
     string? ActorProvider,
     string MetadataJson,
     DateTime OccurredAt,
-    DateTime RecordedAt);
+    DateTime RecordedAt,
+    Guid? OnBehalfOfUserId = null,       // trailing + optional so positional and named construction stay source-compatible
+    Guid? ImpersonationSessionId = null);
 
 // ---- Journal query (audit UI) ----
 public sealed record EventJournalQuery(
@@ -489,7 +540,7 @@ public sealed record ProjectionCheckpointDto(
     DateTime? LastProcessedAt,
     DateTime UpdatedAt);
 
-// ---- Replay ----
+// ---- Replay ---- NOT BUILT (§3.4): no IReplayService, so none of these DTOs exists yet.
 public sealed record RebuildProjectionRequest(string ProjectionName, Guid? BroadcasterId, bool UseSnapshot = true);
 public sealed record ReplayRangeRequest(string ProjectionName, Guid? BroadcasterId, long FromPosition, long ToPosition);
 public sealed record RepublishRequest(Guid? BroadcasterId, long FromPosition, long ToPosition, IReadOnlyList<string>? EventTypes);
@@ -506,7 +557,7 @@ public sealed record ReplayStatusDto(
     DateTime StartedAt,
     DateTime? FinishedAt);
 
-// ---- Snapshots ----
+// ---- Snapshots ---- NOT BUILT (§3.5).
 public sealed record SaveSnapshotRequest(
     Guid? BroadcasterId, string AggregateType, string AggregateId,
     long StreamPosition, int SnapshotVersion, string StateJson, bool Encrypt);
@@ -517,15 +568,15 @@ public sealed record SnapshotRecord(
 // ---- Upcasting ----
 public sealed record UpcastResult(string PayloadJson, int ToVersion, bool Changed);
 
-// ---- Payload protection ----
-public sealed record ProtectedPayload(string PayloadJson, bool IsEncrypted, Guid? SubjectKeyId, IReadOnlyList<LinkSubjectKeyRequest> MultiSubjectLinks);
-public sealed record DecryptedPayload(string PayloadJson, bool IsReadable);  // IsReadable=false => DEK shredded, tombstoned
+// ---- Payload protection (built — see §3.8) ----
+public sealed record ProtectedPayload(string PayloadJson, bool IsEncrypted, Guid? SubjectKeyId);
+// DecryptedPayload is NOT BUILT: UnprotectAsync returns Result<string>.
 
-// ---- Crypto-shred linkage ----
+// ---- Crypto-shred linkage ---- NOT BUILT (§3.9)
 public sealed record LinkSubjectKeyRequest(Guid EventId, Guid? BroadcasterId, string SubjectIdHash, Guid SubjectKeyId, string? Role);
 public sealed record ReportShredRequest(string SubjectIdHash, Guid? BroadcasterId, int EventsAffected, int KeysDestroyed, Guid? ErasureRequestId);
 
-// ---- Idempotency ----
+// ---- Idempotency ---- NOT BUILT (§3.10)
 public sealed record IdempotencyClaimRequest(string Scope, string Key, Guid? BroadcasterId, DateTime ExpiresAt);
 public sealed record IdempotencyClaim(bool IsFirst, string? PriorResultHash);
 ```
@@ -536,16 +587,32 @@ public sealed record IdempotencyClaim(bool IsFirst, string? PriorResultHash);
 
 ## 5. Controller endpoints
 
-One controller: `EventStoreController` in `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, `[Route("api/v{version:apiVersion}/event-store")]`, `[Authorize]`, inherits `BaseController`, returns via `ResultResponse(...)` / `GetPaginatedResponse(...)`.
+One controller: `EventStoreController` in `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, class-level `[Route("api/v{version:apiVersion}/event-store/channels/{channelId}")]`, `[Authorize]`, `[Tags("EventStore")]`, inherits `BaseController`. Every route is **management plane**, tenant-scoped, and returns via `ResultResponse(...)` (the export route returns a file). The `{channelId}` route segment makes `TenantResolutionMiddleware` resolve and access-check the tenant; each action reads the resolved tenant from `ICurrentTenantService.BroadcasterId` (never from the route string) and answers `UnauthenticatedResponse` when none resolved, so a caller can only reach their own channel's journal.
 
-**Role gate** — tenant-scoped routes are **management plane**; cross-tenant/global routes are **platform IAM (Plane-C)**. `[Authorize]` + tenant resolution yields only **Gate-1** (pure entry — any authenticated caller, channel must exist). The per-route floor is enforced in **Gate-2** by calling `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` on the action key in the table's gate column **before** the service call — returning `FORBIDDEN` (403) when the caller's resolved effective level is below the floor. Tenant-scoped operations (journal read, replay of *own* channel projections) floor at **`Broadcaster`** (replay/rebuild is destructive to derived data → owner-only; not delegatable below `Broadcaster`). Plane-C rows are authorized per-action via `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, targetBroadcasterId, ...)`; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim — `audit:read` for reads (global checkpoint listing, cross-tenant replay status), `iam:manage` for the sensitive projection pause/resume mutations — and the policy's handler (owned by the IAM subsystem) delegates to `AuthorizePlatformAsync` with the same key. Use the flat key form (`audit:read`, never `iam:audit:read`). Every floor is the action's seeded global `ActionDefinition` (schema B.3); a broadcaster may raise it via `ChannelActionOverride` but not below the seeded `FloorLevel`. `channelId` in tenant routes is validated against the caller via the existing `IChannelAccessService`.
+**Role gate.** Each route carries `[RequireAction("<key>")]` (Gate-2, `IActionAuthorizationService`); the floor is the action's seeded `ActionDefinition` (`ActionDefinitionSeeder`). Every built route floors at **`Broadcaster`** (owner-only; export, import and legacy import are not permit-delegable below it). Every built route also carries `[EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]`. A broadcaster may raise a floor via `ChannelActionOverride` but not lower it below the seeded `FloorLevel`.
+
+### 5.1 Built routes (the controller as shipped)
+
+| Route (under `/event-store/channels/{channelId}`) | Verb | Request | Response | Floor · Gate-2 action key |
+|---|---|---|---|---|
+| `/export` | POST | — | file download `event-journal-{channelId}-{yyyyMMddHHmmss}.jsonl` (`application/x-ndjson`, one event envelope per line) | Broadcaster · `eventstore:export` (`grant:false`) |
+| `/import` | POST | multipart `file` (JSONL export) | `StatusResponseDto<EventJournalImportSummary>` | Broadcaster · `eventstore:import` (danger-tier Critical, `grant:false`) |
+| `/replay` | POST | — | `StatusResponseDto<long>` (events applied) | Broadcaster · `eventstore:replay:write` |
+| `/import-legacy` | POST | — | `StatusResponseDto<LegacyImportResult>` | Broadcaster · `eventstore:import:legacy` (danger-tier Critical, `grant:false`) |
+| `/rebuild-projections` | POST | — | `StatusResponseDto<IReadOnlyList<ProjectionRebuildResult>>` | Broadcaster · `eventstore:projection:rebuild` |
+
+Behavior notes: `import` is idempotent (duplicate `EventId`s skipped), upcast on read and atomic; an empty or missing file is a `400`. `replay` runs `IProjectionRunner.RunOnceAsync("import-replay", …)` for the resolved tenant only; the `import-replay` projection is a deliberate silent no-op (§3.4), so it advances the checkpoint and fires nothing. `import-legacy` reads the legacy database read-only and is safe to re-run. `rebuild-projections` is reset then replay from position 0 for every tenant-scoped projection.
+
+### 5.2 Planned routes — NOT BUILT
+
+These belong to the unbuilt `IReplayService` (§3.4) and the projection-admin surface. The action keys `eventstore:journal:read` (Broadcaster), `eventstore:projection:read` (Moderator) and `eventstore:replay:republish` (Broadcaster) are already seeded; no route uses them yet. Global routes are platform IAM (Plane-C): the `[Authorize(Policy="<key>")]` name is the permission key verbatim (`audit:read`, `iam:manage`; flat form, never `iam:audit:read`), delegating to `IPlatformIamService.AuthorizePlatformAsync`.
 
 | Route | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | `/event-store/channels/{channelId}/journal` | GET | `EventJournalQuery` (`[FromQuery]`) | `PaginatedResponse<EventRecord>` | management / Broadcaster · `eventstore:journal:read` |
-| `/event-store/channels/{channelId}/journal/{eventId}` | GET | — (`eventId` route) | `StatusResponseDto<EventRecord>` | management / Broadcaster · `eventstore:journal:read` |
-| `/event-store/channels/{channelId}/projections` | GET | — | `StatusResponseDto<IReadOnlyList<ProjectionCheckpointDto>>` | management / Broadcaster · `eventstore:projection:read` |
-| `/event-store/channels/{channelId}/projections/{name}/rebuild` | POST | `RebuildProjectionRequest` (body; `BroadcasterId` bound from route) | `StatusResponseDto<ReplayHandle>` | management / Broadcaster · `eventstore:projection:rebuild` (destructive) |
+| `/event-store/channels/{channelId}/journal/{eventId}` | GET | — | `StatusResponseDto<EventRecord>` | management / Broadcaster · `eventstore:journal:read` |
+| `/event-store/channels/{channelId}/projections` | GET | — | `StatusResponseDto<IReadOnlyList<ProjectionCheckpointDto>>` | management / Moderator · `eventstore:projection:read` |
+| `/event-store/channels/{channelId}/projections/{name}/rebuild` | POST | `RebuildProjectionRequest` | `StatusResponseDto<ReplayHandle>` | management / Broadcaster · `eventstore:projection:rebuild` (destructive) |
 | `/event-store/channels/{channelId}/replay/range` | POST | `ReplayRangeRequest` | `StatusResponseDto<ReplayHandle>` | management / Broadcaster · `eventstore:replay:write` |
 | `/event-store/channels/{channelId}/replay/republish` | POST | `RepublishRequest` | `StatusResponseDto<ReplayHandle>` | management / Broadcaster · `eventstore:replay:republish` |
 | `/event-store/replays/{replayId}` | GET | — | `StatusResponseDto<ReplayStatusDto>` | platform · `audit:read` (replay-owner tenant match, else Plane-C) |
@@ -554,7 +621,7 @@ One controller: `EventStoreController` in `NomNomzBot.Api/Controllers/V1/`, `[Ap
 | `/event-store/projections/{name}/pause` | POST | `?broadcasterId=` optional | `StatusResponseDto<object>` | platform · `iam:manage` (sensitive mutation) |
 | `/event-store/projections/{name}/resume` | POST | `?broadcasterId=` optional | `StatusResponseDto<object>` | platform · `iam:manage` (sensitive mutation) |
 
-> No endpoint exposes append — appends happen only via the bus subscriber (server-internal). No endpoint exposes raw decrypted PII payloads beyond what the journal stores (payloads already hold ids/refs, PII encrypted); the audit `EventRecord` returns `PayloadJson` as stored (ciphertext when encrypted) — decryption is never an API surface.
+> No endpoint exposes append — appends happen only via the bus subscriber (server-internal). No endpoint exposes raw decrypted PII payloads beyond what the journal stores (payloads already hold ids/refs, PII encrypted); the `export` route emits `PayloadJson` as stored (ciphertext when encrypted) — decryption is never an API surface.
 
 ---
 
@@ -570,27 +637,30 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs` `AddInfrastructure(...)` (
 
 | Interface | Implementation | Lifetime | Notes |
 |---|---|---|---|
-| `IEventJournal` | `EventJournal` *(service — rename to `EventJournalService` to avoid clashing with the entity)* | Scoped | Touches DbContext + `ITenantSequenceAllocator` in a transaction. |
+| `IEventJournal` | `EventJournalService` | Scoped | Touches DbContext + `ITenantSequenceAllocator` in a transaction. |
 | `IEventStoreSubscriber` | `EventStoreSubscriber` | Scoped | Resolved per publish scope. |
-| `IProjectionRunner` | `ProjectionRunner` | Scoped | Iterates registered `IProjection`s. |
-| `IProjection` (multi) | `TwitchChannelEventLogProjection`, `RewardRedemptionProjection`, `CurrencyBalanceProjection`, `WatchSessionProjection`, `WatchStreakProjection`, … | Scoped (multi-register, same as `ICommandAction`) | Each read-model registers one; runner resolves `IEnumerable<IProjection>`. Owned by their subsystems but registered here or via `AddEventHandlersFromAssembly`-style scan. The economy **ledger** (K.3) is a source of truth, not a projection (§1.1); only the economy **balance** read model (`CurrencyAccounts.Balance`) projects via `CurrencyBalanceProjection`. |
-| `IReplayService` | `ReplayService` | Scoped | Uses `IRunOnceGuard` (no-op lite / `pg_try_advisory_lock` SaaS) to avoid double-run on multi-instance SaaS. |
-| `ISnapshotStore` | `SnapshotStore` | Scoped | |
-| `IEventUpcaster` (multi) | per-event upcasters | Singleton | Stateless/pure; multi-register. |
+| `IProjectionRunner` | `ProjectionRunner` | Scoped | Iterates registered `IProjection`s; takes `IRunOnceGuard`. |
+| `IProjection` (multi) | `ImportReplayProjection` (a silent no-op, §3.4) plus each read-model's projection (channel event log, redemptions, balance, watch sessions/streaks, analytics dailies, viewer profiles, …) | Scoped (multi-register, same as `ICommandAction`) | Each read-model registers one; runner resolves `IEnumerable<IProjection>`. Owned by their subsystems; auto-registered by the `AddImplementationsOf<IProjection>` assembly scan. The economy **ledger** (K.3) is a source of truth, not a projection (§1.1); only the economy **balance** read model (`CurrencyAccounts.Balance`) projects via `CurrencyBalanceProjection`. |
+| `IReplayService` | `ReplayService` | Scoped | **Not built** (§3.4). Target: `IRunOnceGuard` to avoid double-run on multi-instance deployments. |
+| `ISnapshotStore` | `SnapshotStore` | Scoped | **Not built** (§3.5). |
+| `IEventUpcaster` (multi) | per-event upcasters | Singleton | Stateless/pure; multi-register via `AddImplementationsOf<IEventUpcaster>`. |
 | `IEventUpcasterRegistry` | `EventUpcasterRegistry` | Singleton | Builds the `(EventType, FromVersion)` chain map from injected `IEnumerable<IEventUpcaster>`. |
 | `ITenantSequenceAllocator` | `TenantSequenceAllocator` | Scoped | Per-tenant row-lock allocator; ambient-transaction aware. |
-| `IEventPayloadProtector` | `EventPayloadProtector` | Scoped | Delegates to `gdpr-crypto.md`'s `IFieldCipher` (AEAD) + `ISubjectKeyService` (DEK lifecycle / shred). |
-| `IEventCryptoShredLinker` | `EventCryptoShredLinker` | Scoped | Reads keys; emits `EventPayloadShreddedEvent` via `IEventBus`. |
-| `IIdempotencyGuard` | `IdempotencyGuard` | Scoped | |
-| `EventJournalRepository` | (self) | Scoped | Registered like the existing `ChannelRepository` etc. |
-| `JournalingEventBusDecorator` | wraps `IEventBus` | Singleton (decorator) | Decorates the existing singleton `EventBus`: on publish, captures to journal (via a created scope, same pattern as `EventBus` handler resolution), then **invokes every registered `IJournalPostCommitHook.OnCommittedAsync` for the committed row (failures isolated/logged — never blocks the commit or delegation)**, then delegates to bus handlers. Registered by replacing the `IEventBus` singleton registration with the decorator over `EventBus`. |
-| `IJournalPostCommitHook` (multi) | `OutboundWebhookFanoutHandler` (owned by `webhooks.md`), … | Scoped (multi-register, like `IProjection`) | Post-commit observers the decorator invokes per journaled row (§3.2). EventType-agnostic seam; each hook filters internally. |
-| `EventStoreProjectionDriver` | `BackgroundService` | Hosted (singleton) | Periodically calls `IProjectionRunner.RunOnceAsync` for non-paused projections (`PeriodicTimer`; guarded by `IRunOnceGuard` on SaaS). Mirrors existing `TimerSchedulerService` registration. |
+| `IEventPayloadProtector` | `EventPayloadProtector` | Scoped | Delegates to `gdpr-crypto.md`'s `ISubjectKeyService` (DEK lifecycle, AEAD seal/open, shred). |
+| `IEventCryptoShredLinker` | `EventCryptoShredLinker` | Scoped | **Not built** (§3.9). |
+| `IIdempotencyGuard` | `IdempotencyGuard` | Scoped | **Not built** (§3.10). |
+| `EventJournalRepository` | (self) | Scoped | **Not built** (§3.11). |
+| `IEventJournalPortabilityService` | `EventJournalPortabilityService` | Scoped | Bound by `AddServicesByConvention` (§3.12). |
+| `ILegacyChannelImportService` | `LegacyChannelImportService` | Scoped | Explicit registration; composes the importer + `IProjectionRunner`. `ILegacyDatabaseLocator` → `DefaultLegacyDatabaseLocator` is a singleton seam. |
+| `DomainEventTypeRegistry` | (self) | Singleton | Closed `EventType` → CLR-type lookup over `NomNomzBot.Domain` only; used by `JournaledDomainEventReader` (scoped). |
+| `JournalingEventBusDecorator` | wraps `IEventBus` | Singleton (decorator) | Decorates the existing singleton `EventBus`: on publish, captures to journal (via a created scope, same pattern as `EventBus` handler resolution), then **invokes every registered `IJournalPostCommitHook.OnCommittedAsync` for the committed row (failures isolated/logged — never blocks the commit or delegation)**, then delegates to bus handlers. Registered as the `IEventBus` singleton, built by a factory over the concrete `EventBus`. |
+| `IJournalPostCommitHook` (multi) | `OutboundWebhookFanoutHandler` (owned by `webhooks.md`), … | Scoped (multi-register via `AddImplementationsOf<IJournalPostCommitHook>`) | Post-commit observers the decorator invokes per journaled row (§3.2). EventType-agnostic seam; each hook filters internally. |
+| `EventStoreProjectionDriver` | `BackgroundService` | Hosted (singleton) | Periodically calls `IProjectionRunner.RunOnceAsync` for non-paused projections (`PeriodicTimer`; guarded by `IRunOnceGuard` on every Postgres deployment). Mirrors existing `TimerSchedulerService` registration. |
 
 **Deployment-profile adapter variants** (DI-selected by `DeploymentProfile`/`App__DeploymentMode`, per stack doc — choose the branch the same way the schema's §1.4 adapter selects DB provider):
 - **DB provider** — `ITenantSequenceAllocator` SQL differs per provider: `SELECT … FOR UPDATE` (Npgsql) vs `BEGIN IMMEDIATE` write-lock (SQLite). One interface, provider-branched implementation (or an `IRowLockStrategy` injected). No second public interface.
-- **Run-once guard** — `IReplayService` + `EventStoreProjectionDriver` take `IRunOnceGuard`: **lite** = no-op; **SaaS** = `DistributedLock.Postgres` / `pg_try_advisory_lock`. (Owned by the background-jobs subsystem; consumed here.)
-- **KEK custody for payload encryption** — `IEventPayloadProtector` rides `gdpr-crypto.md`'s `IKeyVault` `kms_envelope` (Azure Key Vault) vs `local_aes` branch; this subsystem does not pick the branch, it just calls `IFieldCipher`/`ISubjectKeyService`.
+- **Run-once guard** — `EventStoreProjectionDriver` and `ProjectionRunner` take `IRunOnceGuard` (a future `IReplayService` will too). It is selected by **database provider**, not deployment mode: **SQLite (self_host_lite)** = `NoOpRunOnceGuard`; **any Postgres profile (self_host_full and saas)** = the in-repo `PostgresRunOnceGuard`, a session-scoped `pg_try_advisory_lock` that Postgres releases when the holder's connection ends (so a crashed holder self-heals). (Owned by the platform-conventions §3.8 seam; consumed here.)
+- **KEK custody for payload encryption** — `IEventPayloadProtector` rides `gdpr-crypto.md`'s `IKeyVault` `kms_envelope` (Azure Key Vault) vs `local_aes` branch; this subsystem does not pick the branch, it just calls `ISubjectKeyService`.
 - **Bus transport** — `RepublishAsync` publishes via whichever `IEventBus` is wired (in-process `EventBus` lite / `RedisEventBus` SaaS); no event-store-specific branch.
 
 ---
@@ -599,15 +669,15 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs` `AddInfrastructure(...)` (
 
 | Lib | Party | Use here |
 |---|---|---|
-| `Microsoft.EntityFrameworkCore` 10.0.9 + provider (`Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.2 / `Microsoft.EntityFrameworkCore.Sqlite` 10.0.9) | 2nd / 3rd | Journal/snapshot/checkpoint/sequence persistence; named query filters for soft-delete on the non-append-only tables; provider-branched row lock for `TenantSequences`. EF10 — **not** `ToJson()`/`jsonb`. |
-| `SQLitePCLRaw.bundle_e_sqlite3` ≥ 3.0.3 | 2nd | Self-host engine (patched SQLite); required by the SQLite provider. |
+| `Microsoft.EntityFrameworkCore` + provider (`Npgsql.EntityFrameworkCore.PostgreSQL` / `Microsoft.EntityFrameworkCore.Sqlite`) | 2nd / 3rd | Journal/snapshot/checkpoint/sequence persistence; named query filters for soft-delete on the non-append-only tables; provider-branched row lock for `TenantSequences`. EF10 — **not** `ToJson()`/`jsonb`. |
+| `SQLitePCLRaw.bundle_e_sqlite3` | 2nd | Self-host engine (patched SQLite); required by the SQLite provider. |
 | **Newtonsoft.Json** | — | Serialize/deserialize `[VC:JSON]` payload/metadata/state strings and DTO payload bodies (per task convention). Used via the hand-rolled `ValueConverter<T,string>` convention for the `[VC:JSON]` columns. |
-| `System.Security.Cryptography` (AesGcm, HKDF, RNG) | 2nd (in-box) | *Indirect* — via `gdpr-crypto.md`'s `IFieldCipher`/`ISubjectKeyService` for payload encrypt/decrypt + crypto-shred. This subsystem calls those interfaces, never the primitives directly. |
+| `System.Security.Cryptography` (AesGcm, HKDF, RNG) | 2nd (in-box) | *Indirect* — via `gdpr-crypto.md`'s `ISubjectKeyService` for payload encrypt/decrypt + crypto-shred. This subsystem calls those interfaces, never the primitives directly. |
 | `System.Threading` (`PeriodicTimer`, `Channels`) | 1st (in-box) | `EventStoreProjectionDriver` background loop; bounded replay batching. |
-| `DistributedLock.Postgres` 1.3.1 *(SaaS only)* | 3rd | Behind `IRunOnceGuard` so a replay/projection driver runs once across SaaS instances (stack §Background jobs, default #8). No-op on lite. |
+| `Npgsql` (in-repo `PostgresRunOnceGuard`) | 3rd | Behind `IRunOnceGuard` so the projection driver runs once across overlapping instances: the guard issues `pg_try_advisory_lock` on a dedicated connection. No third-party lock library is used. `NoOpRunOnceGuard` on SQLite. |
 | `Microsoft.Extensions.Logging` (`ILogger` + `[LoggerMessage]`) + OpenTelemetry | 2nd | Structured logs/traces for append/replay; `tenant_id` as a low-cardinality scope. Never log payload PII (stack §Logging). |
 
-**Explicitly NOT used:** MediatR, Roslyn, MassTransit, Quartz/Hangfire, EFCore.NamingConventions, any JSON converter package (hand-rolled `ValueConverter` per stack §Persistence).
+**Explicitly NOT used:** MediatR, Roslyn, MassTransit, Quartz/Hangfire, `DistributedLock.Postgres`, EFCore.NamingConventions, any JSON converter package (hand-rolled `ValueConverter` per stack §Persistence).
 
 ---
 
@@ -616,4 +686,4 @@ In `NomNomzBot.Infrastructure/DependencyInjection.cs` `AddInfrastructure(...)` (
 These are part of the plan. Each carries its cross-subsystem dependency, stated as a dependency (the implementation order belongs to the task board, not to this spec).
 
 1. **Plaintext snapshot scrub + one-subject-per-event enforcement is the design** (decisions #10). O(1) crypto-shred holds for `[PII-shred]` ciphertext (the journal `Payload`); `[PII-scrub]` plaintext snapshot columns in read-models and any not-yet-linked multi-subject events are erased by row-level erasure. This spec models `EventSubjectKeys` linkage (§3.9), so the shred path is complete for newly-appended events. Backfilling links for historical multi-subject rows is a distinct vertical slice that this slice does not include; it depends on the linkage seam defined here.
-2. **The replay/driver run-once guard is `IRunOnceGuard`** (decisions #8), owned by the background-jobs subsystem and consumed here (§7). Single-instance deployments run correctly without it; multi-instance SaaS replay **depends on** the background-jobs subsystem providing `IRunOnceGuard` (`pg_try_advisory_lock`). This is a stated dependency on that subsystem, not an open interface question — the consuming surface (`IReplayService` + `EventStoreProjectionDriver` taking `IRunOnceGuard`) is fixed.
+2. **The replay/driver run-once guard is `IRunOnceGuard`** (decisions #8), owned by the platform-conventions §3.8 seam and consumed here (§7). Single-instance deployments run correctly with the no-op guard; multi-instance Postgres deployments use the built `PostgresRunOnceGuard` (`pg_try_advisory_lock`). This is a stated dependency on that subsystem, not an open interface question — the consuming surface (`EventStoreProjectionDriver` + `ProjectionRunner`, and `IReplayService` once built, taking `IRunOnceGuard`) is fixed.

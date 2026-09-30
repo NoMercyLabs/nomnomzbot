@@ -7,7 +7,8 @@ Third plan, sitting on top of `stability-audit-scope-and-plan.md` (F1–F19) and
   needed, in words.
 - **Part B — grounded rundown of the rest of the system**, by area, same format.
 
-Nothing here is fixed. Every entry says what is wrong and what must change; none contain code.
+Only open entries remain (fixed ones were deleted). Every entry says what is wrong and what must
+change; none contain code.
 Where an item belongs to the other two plans' remediation order, the slot is named.
 
 ---
@@ -25,35 +26,11 @@ silently stops, most likely first:
   and per-user cooldown (60 min, `:129`) return **Success("skipped")** with only a debug log; the
   shoutout and its templated announcement (`:184+`) never happen and the pipeline carries on. A second
   `!raid` to the same target within the hour silently drops that half.
-- `Platform/Pipeline/PipelineEngine.cs:319-325` — a failed step breaks the loop unless
-  `ContinueOnError`; `:329-345` then still reports `Outcome = Completed`; `Chat/EventHandlers/ChatMessageHandler.cs:372`
-  treats Completed as success. A half-run pipeline is recorded as fully successful; chat sees nothing.
-  Same for an unhandled action exception (`PipelineEngine.cs:291-293`).
-- `Platform/Transport/Helix/SubClients/TwitchRaidsApi.cs:38,100` — missing `channel:manage:raids`
-  short-circuits with `missing_scope`; `StartRaidAction.cs:111` turns it into a generic step failure
-  written only to step logs — no chat reply, no scope-repair prompt. `Identity/FeatureScopeMap.cs:29`
-  maps feature `raids` → that scope, so if the raids feature was not enabled at consent time the scope
-  was never granted.
 - Two tokens: the Helix raid POST runs on the broadcaster token (`TwitchRaidsApi.cs:46-57`), the
   shoutout on the bot/moderator token. One can be valid while the other is expired/unscoped — exactly
   half works.
-- `StartRaidAction.cs:81-91` — a failed Get Users lookup is collapsed into "not found"; the lookup
-  lowercases so only logins match (display names that differ from login resolve to nothing).
-- `StartRaidAction.cs:101-108` — `delay_seconds` waits **before** the Helix call (legacy fired first,
-  then counted down), and `CancelAllForChannelAsync` (`PipelineEngine.cs:76-90`) can cancel mid-delay
-  after the announce already went out. No "already raiding" tolerance (`:104`); no target-is-live
-  pre-check (`:59`).
-- `ChatMessageHandler.cs:280-314` — permission floor and cooldown rejections return with a debug log
-  and zero chat feedback.
 - `ChatMessageHandler.cs:926,942-943` — `{target}` strips `@`, `{args.0}` does not; steps using
   `{args.0}` raw keep the `@`.
-- Outgoing-raid event: `channel.raid.out` exists (`Platform/Eventing/Translators/ChannelModerateTranslator.cs:65-77`,
-  `Stream/EventHandlers/OutgoingRaidAlertHandler.cs:29`) but depends on the `channel.moderate` v2
-  subscription + six `moderator:read:*` scopes (`Identity/AuthService.cs:91-101`); the preset exists
-  (`EventResponsePresetCatalog.cs:103`) but is never seeded on onboarding
-  (`Commands/EventHandlers/EventResponseSeedOnOnboardingHandler.cs:43` seeds incoming only).
-  `Domain/Stream/Events/RaidSentEvent.cs:15` is declared and never published — `StartRaidAction` raises
-  no domain event, so a chat-initiated raid gives no overlay alert, no Discord, no journal row.
 - Legacy parity gaps (`nomercy-bot/.../commands/Raid.cs`): no-arg `!raid` lists ranked candidates
   (`:33-37`); live-check with a chat reply (`:64-73`); raid fired first then announce (`:81-82`);
   "already raiding" tolerated (`:201-205`); OBS scene switch to "Ending" (`:177-192`); hype announce
@@ -62,22 +39,12 @@ silently stops, most likely first:
 
 What must change:
 
-1. Pipeline engine: a broken-out run must report **PartiallyFailed**, not Completed, and the chat
-   handler must tell the invoker which step failed (one short reply). Cooldown/permission rejections
-   get a short reply too (configurable, default on for the invoker only).
 2. Shoutout cooldown skip must not be a silent Success — either surface it as a skipped step in the
    reply, or let `start_raid` bypass the shoutout cooldown when invoked from a raid.
-3. `start_raid`: fire the Helix raid **first**, then announce/countdown; tolerate "already raiding";
-   pre-check target is live and reply if not; distinguish lookup failure from not-found; on
-   `missing_scope` trigger the action-required scope re-grant flow; publish `RaidSentEvent` so
-   overlay/Discord/journal see it.
 4. Ship a first-party **raid preset** (one click in Commands → "Raid helper") reproducing the legacy
    flow: shoutout → Helix raid → countdown messages → optional OBS scene/stop + Spotify pause, each
-   toggleable. Seed `channel.raid.out` on onboarding alongside `channel.raid`.
+   toggleable.
 5. Strip `@` from `{args.N}` the same way `{target}` is stripped.
-
-Slot: stability plan item 5 (F4 chat-send outcome threading) — item 1 here is the same "tell the
-truth about execution" fix and should ship with it.
 
 ### A2. Spotify connected by a non-owner streamer on SaaS — nothing works
 
@@ -126,92 +93,6 @@ What must change:
 
 Slot: Part B music lane (B4) — ship together.
 
-### A3. TTS widget must be system-level, owned by the TTS page
-
-Current state:
-
-- `Content/Widgets/Assets/tts_caption.vue:32-62` is the only TTS widget; it renders a caption and
-  **ignores `audioUrl` entirely** — no audio element, no queue (the header comment `:8-10` still says
-  audio rides the host sound bus). The "widget's own queue" from commit deabc759 is not in the shipped
-  asset.
-- `Api/Hubs/Broadcasters/TtsSpeakBroadcastHandler.cs:38-46` pushes `tts_speak` only to widget
-  instances subscribed to it; `Tts/TtsDispatchService.cs:581-633` puts the mp3 as an inline data URI
-  on the event and no longer calls the sound bus; `Api/Controllers/OverlaySdkController.cs:129-175`'s
-  SDK audio bus handles `PlaySound`/`StopSound`/`TtsSpeak` (browser `speechSynthesis` only) and never
-  plays `audioUrl`. **Net: server-synthesized TTS is silent in OBS unless someone hand-writes a widget.**
-- `tts_caption` is a gallery entry the user must install (`Content/Widgets/FirstPartyWidgetCatalogue.cs:204-216`);
-  `Domain/Widgets/Entities/Widget.cs:25-66` has no `IsSystem`/undeletable flag (precedent:
-  `Domain/Identity/Entities/IamRole.cs:24`); nothing auto-provisions per channel.
-- Overlay auth is channel-wide (`Api/Hubs/OverlayHub.cs:45-80`, `Channel.OverlayToken`
-  `Channel.cs:102`, get/rotate `ChannelsController.cs:475,485`), so a channel-level TTS surface needs no
-  widget row.
-- `feature/tts/ui/TtsScreen.kt` has zero overlay/widget references; only `TestSpeakSection`
-  (`:1894-1933`) calling `POST /tts/test` and playing in the dashboard.
-
-What must change:
-
-1. Introduce a **system surface** concept: a non-deletable, auto-provisioned per-channel TTS player
-   (either a `Widget` with `IsSystem = true`, hidden from the gallery, created on channel creation /
-   TTS enable, delete-protected in `Widgets/WidgetService.cs` + repository; or a channel-level overlay
-   route `/overlay/tts?token=` that needs no widget row).
-2. That surface owns an **ordered audio queue** playing `audioUrl` back-to-back (one utterance at a
-   time, optional caption), and is the prerequisite for A5's segments.
-3. The TTS page shows: the OBS browser-source URL (copy), connected/last-seen state, a "test through
-   the overlay" button, queue controls (skip/clear), caption style settings. `tts_caption` stays as an
-   optional caption-only widget or is folded into the system surface.
-4. Fix the stale header comment in `tts_caption.vue:8-10` when it is touched.
-
-Slot: widget plan item 1 (the systemic field-name fix) — same "widgets receive what the server sends"
-class; A3 + A5 + A4 ship as one TTS slice.
-
-### A4. TTS ignores the streamer's chosen voice; `!voice` finds no voice by id or name
-
-(a) chosen voice ignored:
-
-- **Root cause on the owner's `client_edge` mode:** `Api/Controllers/OverlaySdkController.cs:152-161` —
-  `speakTts` builds a `SpeechSynthesisUtterance` and sets rate/pitch/volume only; it **never sets
-  `utter.voice` or `utter.lang`** and never reads `payload.voiceId` (which the hub payload does carry —
-  `Api/Hubs/Dtos/HubResponseDtos.cs:194-201`). The browser default voice always wins. `client_edge`
-  synthesises nothing server-side (`Tts/TtsDispatchService.cs:398-424`), so the Edge-provider fixes in
-  4bb56dfb/e8021bb8 do not affect what the owner hears.
-- `TtsDispatchService.cs:646-674` — precedence is override → per-user → channel default → first; the
-  XML comment says per-user first. Per-user key/tenant is consistent with what `!voice` writes.
-- `Tts/PipelineActions/PlayTtsAction.cs:57-68` — any `voice` value authored on a `play_tts` step becomes
-  the override and silently beats every viewer's personal voice (second independent cause on
-  server-synth planes).
-- `Tts/TtsService.cs:133-160` — `ResolveProvider` returns Azure for any non-GUID voice id whenever an
-  Azure instance is registered (always, keyless included — `DependencyInjection.cs:919-931`);
-  `AzureTtsProvider.cs:52-56` returns empty on a missing key → silence, not fallback.
-- `TtsService.cs:84` — the Edge fallback hardcodes `en-US-AriaNeural`, discarding the resolved voice:
-  any transient provider failure silently downgrades to Aria.
-
-(b) `!voice` / picker finds nothing:
-
-- **Root cause:** `Tts/TtsConfigService.cs:291-304` — the `q` filter matches Name, DisplayName,
-  Gender, Accent, Description, Tags but **not `Id` and not `Locale`**. `!voice en-US-AriaNeural`
-  returns zero rows at any capitalisation; the command's own help text ("try a language like en-US",
-  `Tts/Builtins/VoiceBuiltin.cs:104`) advertises a filter that cannot match. Same omission in the
-  pre-sync fallback (`TtsConfigService.cs:364-375`).
-- `VoiceBuiltin.cs:98-116` — `SetAsync` gives up on zero search results, so `BestMatch` (`:130-143`,
-  which does rank by id/name) never runs for an id query.
-- `TtsConfigService.cs:429-439` — `VoiceExistsAsync` is case-sensitive on `Id` (Postgres ordinal).
-- `Content/Tts/TtsVoiceSeeder.cs:34-145` seeds 10 Edge voices correctly; `Tts/TtsVoiceCatalogSync.cs:46-108`
-  then overwrites `Name` "AriaNeural" with "Aria", so typing Microsoft's ShortName misses `Name` too.
-- Dashboard picker `GET …/voices` (`TtsConfigController.cs:131-148`) inherits the same search.
-
-What must change:
-
-1. Overlay SDK: resolve `utter.voice` from `speechSynthesis.getVoices()` by voiceURI/name/lang against
-   `payload.voiceId` (wait for `voiceschanged`), set `utter.lang`.
-2. Search: add case-insensitive `Id` and `Locale` predicates to both search paths; make
-   `VoiceExistsAsync` case-insensitive; let `!voice` fall through to an exact-id lookup before
-   giving up.
-3. Remove the hardcoded-Aria fallback and the keyless-Azure preference in `TtsService`; a failed
-   provider must fail visibly (dashboard notice), not downgrade silently.
-4. Fix precedence doc vs code; `play_tts` voice override only when explicitly chosen (A5's voice mode).
-
-Slot: with A3/A5 as the TTS slice.
-
 ### A5. TTS as a pipeline action with multi-voice segments merged into one utterance
 
 Current state:
@@ -241,35 +122,22 @@ What must change:
    ONE utterance.
 2. Dispatch: a segment-aware request (list of segments) that synthesises each segment with its
    resolved voice and emits ONE `tts_speak` payload carrying an ordered array of
-   `{text, voice, audioUrl, durationMs}`; the system TTS surface (A3) plays them back-to-back. No
+   `{text, voice, audioUrl, durationMs}`; the system TTS surface plays them back-to-back. No
    server-side mp3 splicing needed. One ledger row per utterance, one queue slot, censor applied per
    segment.
 3. Catalogue: add the field-schema to the backend action descriptor (fields, kinds, options) and a
    repeatable "segment" field kind in the palette so the builder renders "+ add segment" rows with a
-   voice-mode dropdown per row. (This is the same catalogue work as A6 item 5 — do once.)
+   voice-mode dropdown per row.
 4. Ship the owner's example as a preset: "Sub streak redeem → random pick item + 'they also said:' +
    user's message in the user's voice".
 5. Implement `BypassQueue` or remove it from the spec.
 
-Slot: with A3/A4 as the TTS slice.
+Slot: the TTS slice.
 
 ### A6. Discord "go live → message to channel + roles" is primitive and undiscoverable
 
 What is wrong, grounded:
 
-- The notification-rule dialog asks for a raw Discord channel snowflake
-  (`app/.../feature/discord/ui/DiscordScreen.kt:803-812`) and a raw trigger-type string
-  (`:796-801`, disabled on edit, so a typo means delete-and-recreate). The resolved-name dropdown
-  `GuildPickerField` already exists in the same file (`:1357`) and is used for the role dialog
-  (`:1149-1160`) and the opt-in-button channel dialog (`:1320-1335`) — just not for the rule editor.
-- The saved rule list shows the channel as the raw id (`DiscordScreen.kt:687`), never `#announcements`.
-- The rule dialog exposes only trigger + channel + template; the backend rule also carries a ping
-  role and an embed (`Domain/Discord/Entities/DiscordNotificationConfig.cs:39`) which the create
-  call never sends (`feature/discord/DiscordController.kt:324-337`). The template field has no helper
-  list and no preview, although a preview endpoint exists (`Api/Controllers/V1/DiscordController.cs:214`).
-- Backend already serves guild, roles and channels for pickers
-  (`DiscordController.cs:134,144,156`; contract `IDiscordGuildDirectoryService.cs:22`) — built for
-  exactly this, unconsumed by the rule editor.
 - Trigger types are a closed set of four: `go_live`, `new_clip`, `schedule`, `milestone`
   (`Infrastructure/Discord/DiscordNotificationConfigService.cs:33-36`). There is **no**
   `hype_train` and **no** `go_offline`. Only `ChannelOnlineEvent` has a handler
@@ -280,81 +148,23 @@ What is wrong, grounded:
   The spec promised the action carries ChannelId + MessageTemplate + Embed
   (`spec/discord.md:427-429`). This divergence is why "hype train → channel Y with template" is
   impossible today.
-- "Assign roles A,B,C to me on live / remove on offline" does not exist anywhere: the gateway has
-  `AddMemberRoleAsync`/`RemoveMemberRoleAsync` (`IDiscordBotGateway.cs:55,64`,
-  `DiscordRestBotGateway.cs:175,191`) but the only callers are viewer self-serve notify roles
-  (`DiscordNotificationRoleService.cs:270,317`). No entity, no handler, no action, no spec text.
-- The catalogue that drives the pipeline step form has field kinds Text/Number/Bool only
-  (`core/network/PipelineCatalogue.kt:31-35`); `options` are static literals (`:43-46`); the
-  renderer only shows a dropdown when `options` is non-empty (`feature/pipelines/ui/PipelinesScreen.kt:887`).
-  The Discord action's fields have neither (`PipelineCatalogue.kt:312-321`) so `trigger_type` is a
-  free text box for a closed enum. There is no "resource picker" field kind anywhere.
 - Event Responses has zero Discord surface (`feature/eventresponses/` — no references; preset
   catalogue `EventResponsePresetCatalog.cs:108` has stream.online chat-only). Nothing on the go-live
   surface hints Discord exists.
 
 What must change:
 
-1. Rule editor: replace the channel text field with `GuildPickerField` (channels), the trigger text
-   field with a dropdown of the four trigger values, add the ping-role picker (roles) and embed
-   toggle, add a template-helper link + preview button using the existing preview endpoint. List
-   rows show the channel name.
 2. Add `go_offline` and `hype_train` (begin/end) triggers to the closed set, with handlers on
    `ChannelOfflineEvent` and the hype-train domain events, and spec text in `spec/discord.md`.
 3. Make the pipeline action match the spec: optional own channel + template + embed + ping role,
    falling back to the stored rule only when omitted.
-4. New "live role sync" feature: per guild connection, a list of role ids to add to the broadcaster's
-   member on `ChannelOnlineEvent` and remove on `ChannelOfflineEvent`; dialog uses the role picker;
-   surfaced on the Discord page next to notification rules. Spec it in `spec/discord.md` first.
-5. Catalogue: add a resource-picker field kind (e.g. `discord_channel`, `discord_role`, later
-   `twitch_user`, `reward`, `widget`) that the step form renders as a server-fed dropdown. This is the
-   generic fix the "pickers not text boxes" complaint needs everywhere, not just Discord.
+4. Live-role engine exists (`DiscordLiveRoleService`); missing the endpoint and dashboard UI to
+   create and edit a config row (per guild connection: role ids added on `ChannelOnlineEvent`,
+   removed on `ChannelOfflineEvent`), surfaced on the Discord page next to notification rules.
 6. Event Responses: add a Discord preset for stream.online / stream.offline / hype train that deep-links
    to the Discord rule (or composes the richer action from item 3).
 
-Slot: after widget-plan item 2 (test-run wiring) and before widget-plan item 7 (variable picker);
-item 5 here is the same generic-form work as the variable picker and should ship together.
-
-### A7. Template helper list in form modals → "all helpers" popup
-
-Current state:
-
-- There is **no template-variable catalogue endpoint**. `Platform/Templating/TemplateResolver.cs:33`
-  (1252 lines, "90+ variables" across 12 namespaces + pick-lists + custom data + pronoun grammar +
-  set_variable/HTTP keys) matches keys by inline string comparison — nothing can enumerate them.
-  `ITemplateResolver.cs:17` exposes resolution only. (`CatalogController.cs:30` is the economy store,
-  a name trap.)
-- The only list the frontend gets is `Commands/Services/EventResponsePresetCatalog.cs:36` — per event
-  a hand-written `string[]` of **seeded** variables: 29 presets, 2–7 each (median 3). ~3 shown vs 90+
-  supported, and it answers "what does this event seed", not "what is valid here" (global
-  namespaces `channel.*`, `stream.*`, `time.*`, `random.*`, `count.*`, `viewer.*`, `list.pick.*` resolve
-  everywhere and are never listed).
-- Frontend: the scrolling list is `VariableChips` — private to
-  `feature/eventresponses/ui/EventResponsesScreen.kt:500` (`horizontalScroll` at `:509`), fed by the
-  preset DTO (`:405-408`). Commands (`CommandsScreen.kt:671`), Timers (`TimersScreen.kt:504`) and
-  event responses (`:410`) have only `PickListInsertMenu` (`feature/picklists/ui/PickListInsertMenu.kt:49`,
-  one helper family). Rewards, pipelines, chat triggers, code scripts: **nothing**. Coverage: 1 of 5
-  entry types has a variable list.
-- Safe popup primitive: `core/designsystem/component/Dialog.kt:59` (window Dialog — not
-  `androidx.compose.ui.window.Popup`, so the Wasm Popup deadlock does not apply); `Sheet.kt:76` is
-  built on it. Not `DropdownMenu` (menu-shaped, wrong for ~90 grouped rows).
-- i18n: only `event_responses_variables_label` exists (`strings.xml:2628`, `values-nl/:2615`); no
-  per-helper descriptions in either language; backend has none either (only C# XML doc comments).
-
-What must change:
-
-1. Backend: a machine-readable helper registry (id, namespace, argument grammar, example, context
-   applicability) that `TemplateResolver` is built from, and `GET /templates/helpers?context=<trigger>`
-   returning the full valid set for that entry type (global namespaces + the trigger's seeded
-   variables + channel-specific pick-lists/custom data/counters). Same registry drives save-time
-   validation (stability plan F6).
-2. Frontend: one shared `TemplateHelpersLink` ("All helpers…") opening a `Dialog` with search +
-   namespace groups + click-to-insert, used in **every** template text field: commands, event
-   responses, timers, rewards response, pipelines (send_message/reply/tts/discord), chat triggers,
-   giveaways messages, Discord rule template. Remove the horizontal chip scroller.
-3. Descriptions in `strings.xml` keyed by helper id (en + nl), matching the existing pattern.
-
-Slot: widget plan item 7 (variable picker) — this **is** that item, made concrete; ships with A6 item 5.
+Slot: after widget-plan item 2 (test-run wiring) and before widget-plan item 7 (variable picker).
 
 ---
 
@@ -363,27 +173,17 @@ Slot: widget plan item 7 (variable picker) — this **is** that item, made concr
 Seven lanes. Each item: where — what is wrong — what must change. Paths are relative to `server/src/NomNomzBot.*`
 or `app/composeApp/src/commonMain/kotlin/bot/nomnomz/dashboard/`.
 
+Written 2026-08-22: re-verify each bullet against the current code before trusting it.
+
 ### B1. Commands · event responses · timers · chat triggers · pipelines
 
 Dead config (saved, never read):
-- `Platform/ChannelRegistry.cs:399-419` + `IChannelRegistry.cs:250-273` — `PrefixMode`, `CustomPrefix`,
-  `MatchMode`, `MatchPattern` are never loaded; `ChatMessageHandler.cs:132-214` matches on channel
-  prefix + exact lowercase name only. The Commands dialog's Prefix/Match modes
-  (`feature/commands/ui/CommandsScreen.kt:695-746`) change nothing. Wire them into registry + matcher,
-  or remove from the form.
 - `Platform/Eventing/EventResponseExecutor.cs:78-97` — handles `chat_message` and `pipeline`; the
   `overlay` response type offered by the dashboard (`EventResponsesScreen.kt:292,418-431`) hits the
   no-op default. Implement the overlay leg or drop the type.
 - `ChannelRegistry.cs:412`, `Commands/Jobs/TimerService.cs:240-245`, `EventResponseExecutor.cs:138-145`
   — none check `Pipeline.IsEnabled` (`Pipeline.cs:39`; list toggle `PipelinesScreen.kt:464`). Disabling a
   pipeline stops nothing. Filter in all three.
-
-Stale cache after write:
-- `Commands/PipelineService.cs:152-156` — `UpdateAsync` never invalidates the command / chat-trigger
-  caches that embed the graph snapshot (`IChannelRegistry.cs:270,226`); the only
-  `ChannelConfigChangedEvent` consumer invalidates `features` only (`ChatDecorationRulesCacheInvalidator.cs:28`).
-  Editing a pipeline leaves bound commands running the old graph until reconnect. Invalidate on
-  create/update/delete. (Stability plan F3 is the timer flavour of this.)
 
 Timer runtime:
 - `TimerService.cs:139-143` — null `LastFiredAt` + interval ⇒ a new or re-enabled timer fires within
@@ -499,21 +299,11 @@ Backend:
 
 ### B4. Music · song requests
 
-- **`Infrastructure/DependencyInjection.cs:670` + `Music/MusicService.cs:43` — `IMusicService` is
-  registered Scoped by convention but holds the fair queue in an instance field.** Every request/
-  chat message gets a fresh empty queue: `!sr` enqueues into an object that is disposed; `!queue`,
-  `GET /queue`, remove all read a different instance. The queue is fictional. Needs a singleton
-  store (or persistence), like `ITtsService` already is.
 - `MusicService.cs:415,170` — provider `AddToQueueAsync` bool discarded: viewer told "Added" when
   Spotify queued nothing (no active device, expired token); skip dequeues before push, a failed push
   loses the request. `SpotifyMusicProvider.cs:1486-1515` — NO_ACTIVE_DEVICE only retried when a
   device is remembered, else swallowed. `:271-294` — search returns `[]` for auth failures → viewer
   told "No tracks found".
-- `MusicService.cs:369` — admission checks only the blocklist: `MaxQueueSize`, `MaxRequestsPerUser`,
-  `MinTrustLevel`, `AllowYouTube/Spotify`, `PreferredProvider` persisted (`MusicConfigService.cs:64-75`)
-  and never read. `:546` `CheckTrustPermission` has zero call sites. `:292` + `SongRequestBuiltin.cs:51`
-  — `IsEnabled` never consulted for chat: the off toggle lies. `:568-583` — provider picked
-  alphabetically, ignores `PreferredProvider`.
 - `MusicController.kt:121` + `MusicScreen.kt:1030-1039` — dashboard offers `{origin}/sr/@{login}` to
   copy but **no route serves `/sr/`** (only `now_playing.vue`/`sr_queue.vue` widgets; SPA fallback
   `Program.cs:878`). `SongRequestsScreen.kt:378-393` shows a bare token with no URL. Build the public
@@ -596,11 +386,6 @@ Backend:
   re-entry; reset only on welcome.
 - `TwitchEventSubHostedService.cs:914-919` — `ReconnectAsync` stops all sessions and restarts only the
   bot session; per-broadcaster sessions stay dead until an unrelated subscribe.
-- `:320-367` — `EventSubRevokedEvent` published, **no handler** (same for `EventSubConnectedEvent`,
-  `EventSubSubscriptionStatusChangedEvent`); revocation never becomes `needs_reauth` or a dashboard
-  notice. `EventSubDisconnectedEvent` declared, never published (`WebSocketEventSubTransport.cs:461-475`).
-  `:236` — `_activeSubscriptionCount` assigned per owner, health reports one session's slice.
-  `:391` — `Task.Delay(Infinite, ct)` leaks when ct is None; use `WaitAsync`.
 - `Program.cs:152-170,774-777` — SignalR has no backplane, `WithStatefulReconnect()` never called so the
   configured buffer is inert. `Platform/ChannelRegistry.cs:29,118-210` — process-local cache, no Redis
   pub/sub anywhere; `IEventBus` in-process only (`DependencyInjection.cs:787-790`). Multi-replica =
@@ -616,9 +401,6 @@ Backend:
 - `DependencyInjection.cs:806-807` — sync `ConnectionMultiplexer.Connect` with `abortConnect` default: Redis
   down at first resolve = rate limiter permanently unconstructable. `Program.cs:487-495` — Redis health
   check creates + disposes a multiplexer per probe.
-- `DependencyInjection.cs:145` — SQLite opened without WAL / busy timeout (`LegacyImportCli.cs:28` assumes
-  WAL) → "database is locked" under ~25 hosted services. `:141-166` — no `EnableRetryOnFailure` on
-  either provider.
 - `Platform/Persistence/UnitOfWork.cs:25-26` — nested `BeginTransactionAsync` orphans the outer
   transaction; class not disposable.
 - `Api/HealthChecks/DatabaseHealthCheck.cs` — dead, Npgsql-hardcoded; delete or make provider-aware.
@@ -632,40 +414,20 @@ all of it uniformly from one place. Eight lanes. Same format.
 
 ### C0. The structural root (every lane hit it)
 
-- `Domain/Identity/Entities/Channel.cs:35-37` + `Infrastructure/Identity/PlatformChannelProvisioner.cs:32-65`
-  — one `Channel` row (= one tenant/`BroadcasterId`) **per platform**. A simulcast streamer is three
-  tenants: three command sets, three timer sets, three currency ledgers, three giveaway pools, three
-  trust scores, three mod rosters. `spec/platform-identity.md §9.4` explicitly refuses grouping sibling
-  channels — that spec line is overturned by the simulcast rule and must be rewritten (DECIDED,
-  PRODUCT-ALIGNMENT D1: one channel, many platform connections — `Channel` = the streamer's channel,
-  each platform a `PlatformConnection` under it; per-viewer/per-config domains resolve to it).
-- `Infrastructure/Chat/ChatPlatformRouter.cs:119-140` — reply platform is resolved from the *tenant's*
-  `Channel.Provider`, never from the message's origin (`ChatMessageReceivedEvent.Provider` exists,
-  `:32`). `:134-139` unknown provider silently falls back to Twitch (cached per scope `:32,121-129`).
-- `Infrastructure/Platform/ChannelRegistryBootstrapService.cs:50-51` loads only `TwitchChannelId != null`;
-  Kick/YouTube tenants have it null (`PlatformChannelProvisioner.cs:59`) → **never in the registry at
-  boot**: no chat triggers, no timers, no welcome, no blacklist, no `{chatters}` until someone types a
-  `!command` (`ChatMessageHandler.cs:102-170,999`; `KickWebhookIngest.cs:126-131`; `YouTubeLiveChatPollWorker.cs:353`).
 - Viewer identity: `User + UserIdentity(Provider, ProviderUserId)` exists (`UserIdentity.cs`,
-  `User.cs:27`) and per-viewer state keys on internal Guids — but it is **inert**: `UserIdentityService.cs:152-158`
-  `LinkAsync` returns `IDENTITY_ALREADY_LINKED` for the only real case (already chatted on Kick before
-  linking; spec §3.1a absorption unbuilt), `IViewerMergeParticipant` has zero occurrences,
-  `ViewerRowAbsorbedEvent` has no publisher. Four call sites omit the provider and default to Twitch
-  (`PronounHydrationHandler.cs:52-57`, `ViewerDataActions.cs:229-234`, `StatsBuiltins.cs:148-153`,
-  `QuoteBuiltin.cs:209-212`; default on `IUserService.cs:34`). 18 entities carry `ViewerTwitchUserId`
-  with no provider column (`CurrencyAccount.cs:25`, `UserTrustScore.cs:31`, `GiveawayEntry.cs:31`,
-  `LeaderboardSnapshot.cs:27`, … — the correct shape already exists in `ChatPoll.cs:61-66`,
-  `EventJournal.cs:72-76`, `ChannelChatterDay.cs:31`). `Domain/Platform/Enums/PlatformType.cs:13` is a
-  dead second platform enum (Twitch, Discord) contradicting `AuthEnums.Platform`.
-- Community/monetization events carry no `Provider` (`FollowEvent.cs`, `CheerEvent`, subscription
-  events) — only `ChatMessageReceivedEvent` does; alerts can't say "followed on Kick".
+  `User.cs:27`) and per-viewer state keys on internal Guids — but linking is still **inert**:
+  `UserIdentityService.cs:152-158` `LinkAsync` returns `IDENTITY_ALREADY_LINKED` for the only real case
+  (already chatted on Kick before linking; spec §3.1a absorption unbuilt), `IViewerMergeParticipant` has
+  zero occurrences, `ViewerRowAbsorbedEvent` (`UserIdentityEvents.cs:48`) has no publisher.
+- Entities still carry `ViewerTwitchUserId` / `SubjectTwitchUserId` with no provider column
+  (`CurrencyAccount.cs:25`, `UserTrustScore.cs:31`, `GiveawayEntry.cs:31`, `LeaderboardSnapshot.cs:27`, … —
+  the correct shape already exists in `ChatPoll.cs:61-66`, `EventJournal.cs:72-76`,
+  `ChannelChatterDay.cs:31`).
+- `Domain/Platform/Enums/PlatformType.cs:13` is a dead second platform enum (Twitch, Discord) with no
+  reference outside its own file, contradicting `AuthEnums.Platform`.
 
-What must change (the spine of Tier 6): one owner-level grouping of sibling channels with per-domain
-resolution (config domains: commands/timers/responses/settings shared with per-platform targets;
-per-viewer domains: one balance/trust/entry per human); registry bootstrap provider-agnostic; router
-honours message origin and fails honestly; provider on every canonical event; viewer link +
-absorption + merge participants built; `*TwitchUserId` → `*ExternalUserId + *Provider`; delete
-`PlatformType`.
+What must change: viewer link + absorption + merge participants built; `*TwitchUserId` →
+`*ExternalUserId + *Provider`; delete `PlatformType`.
 
 ### C1. Combined management matrix (surface → today)
 
@@ -689,31 +451,6 @@ into the same domain events with a `Provider` discriminator (one response config
 one go-live form fanning out with per-platform applied/rejected; per-platform viewer breakdown +
 summed total + cross-platform stream session; owner-scoped "apply to all my platforms" mod action
 without federation; earning credits the linked person.
-
-### C2. Kick streamer
-
-- `KickWebhookIngest.cs:194-208` — `livestream.status.updated` writes `Channel.IsLive` and publishes
-  **nothing**: no live alert, no Discord go-live, no stream session, registry ctx never live (evictable
-  `ChannelRegistry.cs:559`). `StreamStatusPollingService.cs:104-143` — Twitch-only viewer sampling;
-  `IKickApiClient` has no channel/livestream read → Kick viewer count permanently 0.
-- `OperatorChatSender.cs:53-59` — send-as-me hard-wired to Helix; dashboard composer defaults to
-  "you" (`ChatController.cs:313`) → replying in Kick chat fails "Channel is not known locally";
-  `ChatController.cs:303-305` error text hardcodes "Twitch".
-- `KickEventSubscriptionWorker.cs:43-55` + `IKickApiClient` — no unsubscribe on disconnect
-  (deliveries keep arriving); no raid/host event requested. `:63,175,222` — backoff dict unbounded and
-  checked after provisioning. `KickWebhookVerifier.cs:82-86` — every signature miss forces an
-  un-rate-limited public-key refetch (unauthenticated amplification). `KickWebhookIngest.cs:134` —
-  dedupe via DB `AnyAsync` races async persistence; `:97-99`/`KickWebhookController.cs:88-92`
-  unknown event types dropped without a log; `:270` follow time fabricated as now; `:157-165` Kick chat
-  stored as one text fragment, badges discarded.
-- `KickChatPlatform.cs:63-119` — moderation ops return `Task` not `Result`: ban/timeout on Kick is
-  log-only, UI shows success. `OAuthProviderRegistry.cs:104-110` — `kick.chat` omits `channel:read/write`;
-  no `KickPlatformApi` → no title/category from dashboard. `KickAccessTokenProvider.cs:90-102` — a
-  login-only Kick link satisfies nothing and says nothing. `IntegrationsScreen.kt:296-304` — Kick card
-  connect/disconnect only; `MISSING_SCOPE` 30-min backoff is log-only. `ChatApi.kt:263-265` — stale
-  comment + `provider="twitch"` default. Bot never uses Kick's `type: "bot"` identity.
-- Coverage: events ≈ complete (10 webhook types, send/delete/ban); **zero read side** (`GET/PATCH
-  channels`, `categories`, `livestreams`, `users`), no `DELETE events/subscriptions`.
 
 ### C3. YouTube streamer
 
@@ -815,61 +552,12 @@ Built (6 participant screens) but stranded:
 
 ### C7. The bot as a chat bot
 
-- **No loop guard** on any of the three ingests (`ChatMessageHandler.cs:95-167`,
-  `ChatTranslators.cs:198-236`, `YouTubeLiveChatPollWorker.cs:365-380`, `KickWebhookIngest.cs:146`):
-  self-host speaks as the streamer, so bot lines re-enter as broadcaster chat and can self-trigger
-  commands/sound/chat triggers.
-- `ChatMessageHandler.cs:217-218` — unknown command: bare return. **No `!help`/`!commands` builtin**
-  (21 builtins in `BuiltinCommandCatalog.cs`, none is help). This is a **regression vs the legacy
-  bot**: `nomercy-bot/.../commands/Help.cs:12,27,46` (per-command usage), `commands/Commands.cs:39`
-  (permission-filtered list) and an on-connect "Bot is online… Type !help" announcement
-  (`TwitchWebsocketHostedService.cs:935`) all exist there and none here.
-  **Sibling sweep (legacy `commands/*.cs`, 55 files, vs the 18 new builtin keys + actions):** the
-  BUILD-TODO claim "command diff DONE — every user-facing command covered" is overstated. Covered by a
-  builtin: song, skip, volume, sr, voice, quote, stats, update, permit(whitelist)/unpermit, gdpr,
-  media (12). Covered by an action/subsystem: shoutout, raid, setpronoun, followage (template var),
-  wrongsong, overlay (6). Fun/script commands (Hug, Roast, Yell, Scam, Sus, TelSell, Mock, Karen,
-  Dramatic, Narrator, Detective, Confess, Excuse, Fight, Rigged, Ratio, Banger, Auction, Trial, Theme,
-  StoneyAi, Weather, Translate, Todo, Records, Project, Editor, Slow) are custom-command territory
-  and **nothing seeds them** (no preset catalogue entry for any — grep confirmed; the owner's own
-  channel has them only because they were imported as custom commands — a fresh channel gets none). **Need backend a
-  custom command can't give, and have neither builtin nor seed (10):** `!help`, `!commands`, `!lurk`/
-  `!unlurk`, `!leaderboard`, `!songhistory`, `!playlist`, `!bansong` (blocked-tracks exist, no chat
-  verb), `!whisper`, `!discord` (invite link), `!accountage`. These are regressions for migrating
-  viewers; they go into Tier 1.3/6.7 with `!help`.
-- Length/splitting: `HelixChatProvider.cs:216-254`, `YouTubeChatPlatform.cs:55-82` send whole (Twitch
-  500 / YouTube 200 → 400, dropped); `KickApiClient.cs:29,49-55` fails closed at 500. Legacy chunked at
-  450 (`nomercy-bot/.../TwitchChatService.cs:183,347`). `HelixChatProvider.cs:226-240` — no duplicate-
-  message handling (Twitch drops identical consecutive lines). **No outbound chat throttle/queue**
-  anywhere (`ChatPlatformRouter.cs:45-67`; `TwitchRateLimiter.cs:31-53` is Helix points only) — 100 subs
-  → 100 concurrent sends, most dropped by the platform.
-- Tone: `ChatMessageHandler.cs:242-268` passes personality only to builtins; custom commands
-  (`:435-444`), timers (`TimerService.cs:203-214`), event responses (`EventResponseExecutor.cs:132`),
-  chat triggers, `SendMessageAction.cs:39-45` never see it. `BuiltinResponseSlots.cs:22-97` covers 7 of
-  ~14 builtins; usage/error strings hardcoded (`PermitBuiltins.cs:145,241`, `UpdateUserInfoBuiltin.cs:71-83`,
-  `StatsBuiltins.cs:82`). `UpdateUserInfoBuiltin.cs:56,62` prefixes `@user` on top of reply threading;
-  `SongRequestAction.cs:71-95`/`SongWrongAction.cs:73-89` plain `@user` while the builtin replies —
-  same `!sr` looks like two bots.
-- Reply semantics: `YouTubeChatPlatform.cs:85-92` reply → plain send without re-adding the mention
-  (floating unaddressed lines); `SendReplyAsync` returns `Task` not `Task<bool>`, no reply→plain fallback
-  (legacy had one, `TwitchChatService.cs:216-227`). `ChatMessageHandler.cs:267-275` — builtins encode
-  user-facing errors as `Result.Success(text)` → every failure recorded as success in analytics.
-- Five independent `@`-strip/arg parsers (`ChatMessageHandler.cs:926`, `StatsBuiltins.cs:144`,
-  `PermitBuiltins.cs:76`, `UpdateUserInfoBuiltin.cs:46`, `ShoutoutAction.cs:102`). `PermitBuiltins.cs:89-101`
-  resolves via Helix only (Kick/YouTube chatter "not found"). Whispers: `ITwitchWhispersApi` used only
-  by automation + giveaway; `WhisperReceivedEvent.cs:20` has no handler; `GdprBuiltins.cs:207-239`
-  answers `!mydata` in public chat. `TwitchChatApi.cs:35-61` `SendAnnouncementAsync` reachable only
-  from shoutout — no `announce` action / toggle. Legacy `"* "` bot-line marker
-  (`TwitchChatService.cs:167-169`) has no equivalent: viewers can't tell streamer from bot on
-  self-host. `SendMessageAction.cs:35-46` — empty resolved text not checked, send bool discarded.
+- There is no `!songhistory` builtin (checked against every `BuiltinKey` in `server/src`) and nothing
+  seeds it as a custom command — a regression against the legacy bot's `commands/*.cs` set for
+  migrating viewers. It needs a backend a custom command cannot give: no played-track history exists
+  in the stack (findings ledger L8b).
 
-What must change (C7): loop guard set per tenant; `!commands`/`!help` builtin; per-platform length
-constants + word-boundary chunking; duplicate-line variation; per-channel per-platform outbound
-send queue with token bucket + coalescing; tone applied to every outbound surface + tone slots for
-usage/errors; one reply-or-mention helper used by builtins and actions; `SendReplyAsync` returns a
-result with plain+mention fallback; `BuiltinOutcome {Text, Succeeded}`; one `ParseUserMention`;
-permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
-action/toggle; configurable bot-line marker.
+What must change (C7): a `!songhistory` builtin backed by a played-track history.
 
 ---
 
@@ -883,16 +571,9 @@ Controllers: `AdminController` (stats/channels/users/system/health/events), `Pla
 `PlatformIamController` (roles/principals/assign/revoke), `AdminBillingController` (invites, grant tier/
 founder), `FeatureFlagAdminController`, `ComplianceController` (erasure), `FederationController`,
 `WidgetGalleryController` (`gallery:review`), `PlatformAnalyticsController`, `AdminHub`. 13 keys seeded /
-12 enforced (`billing:refund` never enforced). UI: one `AdminScreen` with nine tabs (Overview, Channels,
-Users, System, Feature Flags, Billing, IAM, Tenants, Audit) + gallery review.
+12 enforced (`billing:refund` never enforced).
 
 ### D2. IAM and bootstrap (backend)
-- `Infrastructure/Identity/PlatformIamService.cs:392` — `IsSaasAsync` = "any IamPrincipal row exists";
-  self-host owner has only the `IsPlatformPrincipal` marker (`AdminBootstrap.cs:44`) — creating ONE
-  principal (a service account) locks the owner out of every Plane-C route. `AuthService.cs:333` —
-  `INITIAL_ADMIN_TWITCH_ID` sets only the marker, so on a DB with principals the first admin fails closed
-  even on `iam:principal:create`. → self-host = deployment-mode fact; bootstrap mints a real principal +
-  owner role.
 - `PlatformIamService.cs:171-236,324-371` — assign/revoke/create/deactivate/reactivate write **no**
   `IamAuditLog` row (only the permission check does, without target/role/scope). `:106-169` create is
   non-transactional and can flush an orphan principal on "Unknown user". `:163/:66` acting principal
@@ -908,9 +589,6 @@ Users, System, Feature Flags, Billing, IAM, Tenants, Audit) + gallery review.
   expiry reaper); `FeatureFlagAdminService.cs:87,136,161` flag changes unaudited.
 
 ### D3. Tenant ops and user management (backend)
-- `PlatformAdminService.cs:149` — suspend writes `Channel.Status` that **nothing enforces**
-  (`TenantResolutionMiddleware` ignores it; only `ChannelAccessService.cs:59` reads it; no handler on
-  `TenantSuspensionChangedEvent` except a hub log line). A suspended tenant keeps running.
 - Missing: platform-wide user disable/ban (only per-channel bans exist); `GET admin/users/{id}` detail
   (channels/identities/sessions/consent); tenant delete/purge + ownership transfer (`DeletionAuditLog`
   unused); quota/limit administration + per-tenant billing state; re-run onboarding seeds; tenant secret/
@@ -924,12 +602,6 @@ Users, System, Feature Flags, Billing, IAM, Tenants, Audit) + gallery review.
   whitespace-checked string only. `AdminHub.cs:25` no connect snapshot; all pushes `Clients.All`.
 
 ### D4. Impersonation and support access
-- **Impersonation exists**: `PlatformAdminController.cs:137-152` `POST /admin/users/{id}/impersonate`
-  (`user:impersonate`) mints a full-power access token as the target (`PlatformAdminService.cs:304-364`)
-  with `act`/`act_name` claims (`JwtTokenService.cs:37-44,118-125`) that **nothing outside tests reads**.
-  No expiry/scope/consent/rate limit; writes journalled as the victim (`EventJournal.cs:66` single
-  `ActorUserId`); `GET /admin/audit` reads `IamAuditLog` only; owner never notified; refresh restores
-  operator session under an "acting as" banner (`SessionStore.kt:55-117`); secrets not redacted.
 - Support access (`BeginTenantAccessAsync` `PlatformAdminService.cs:200-274`) creates a time-boxed
   scoped `IamRoleAssignment` with reason + expiry but grants **zero** channel-plane capability
   (`RoleResolver.cs:107-191` never reads IAM; `PlatformIamService.cs:415-425` scope honoured only for
@@ -952,10 +624,8 @@ platform announcement/maintenance banner, and **no system-level custom command o
 first-party widget or builtin.
 
 ### D6. Admin dashboard UI
-- `AdminApi.kt:81` — `FeatureFlag` DTO requires `featureKey`+`isEnabled`; server sends `Key`/
-  `IsEnabledGlobally`/rollout fields (`FeatureFlagDtos.cs:14`) → the Flags tab can **never** load and says
-  nothing. `AdminScreen.kt:167-177` — `state.error` never rendered; `AdminController.kt:150-165,202-235` —
-  health/events/flags/invites failures → empty; seven flag/billing writes ignore `ApiResult`.
+- `AdminController.kt:150-165,202-235` — health/events/flags/invites failures → empty; seven
+  flag/billing writes ignore `ApiResult`.
 - `AdminScreen.kt:541-579` flags read-only though set/override/delete are wired; `:605-616` invite
   creation hardcoded (1 redemption, no tier/expiry/founder); `:80-81` grant-tier/founder dead;
   `AdminTenantsTab.kt:157-189` support access built, never callable; no End-access, no active-grant list.
@@ -970,7 +640,7 @@ first-party widget or builtin.
   role CRUD; raw ISO timestamps; status string untranslated on Overview; service-account key dialog
   mislabelled (`AdminIamTab.kt:435-437`). i18n en/nl parity clean (114 keys).
 
-What must change (admin): see slices S086–S097 in `SHORTCOMINGS-EXECUTION-PLAN.md`.
+What must change (admin): see S087 and S090-S097 in `SHORTCOMINGS-EXECUTION-PLAN.md`.
 
 ---
 
@@ -1051,9 +721,7 @@ What must change (admin): see slices S086–S097 in `SHORTCOMINGS-EXECUTION-PLAN
   reset, no engagement page.
 
 ### E5. Desktop app · deploy · updates
-- **Desktop token vault is plaintext JSON** (`TokenVault.jvm.kt:22-48`); "saved connections" promised in
-  `DEPLOY.md:41` does not exist (`ActiveProfileVault` single profile; Connect shows live mDNS only); no
-  forget/switch; no rescan; mDNS errors to stderr; desktop session expiry unhandled; window state not
+- Desktop: no rescan; mDNS errors to stderr; desktop session expiry unhandled; window state not
   persisted; no app icon, hardcoded package version; macOS data dir wrong.
 - Updates: no update check, no rollback (migrations forward-only, no pre-migration snapshot), no backup
   verb in deploy scripts, no prebuilt binaries; `/health/version` always 1.0.0.0 (no stamping);
@@ -1062,8 +730,8 @@ What must change (admin): see slices S086–S097 in `SHORTCOMINGS-EXECUTION-PLAN
   `.env`.
 - Self-host exe: firewall prompt from a windowless WinExe undocumented; tray Windows-only (no stop/
   indicator on Linux/macOS); tray "Open app" path never populated; log path undocumented, no size cap.
-- **`docker-compose.yml:14-17` + `.env.example:124` mention saas with no restriction marker** (the only
-  surfaces that drop it); nothing emits the notice at boot in saas mode.
+- Nothing emits the saas-restriction notice at boot in saas mode (`docker-compose.yml` and
+  `.env.example` carry the marker).
 
 ### E6. Cross-cutting — security · i18n · a11y · perf · tests · contract
 - Security: bearer validation hardcodes HS256 while the token service supports RS/ES (`Program.cs:256-265`)
@@ -1074,9 +742,9 @@ What must change (admin): see slices S086–S097 in `SHORTCOMINGS-EXECUTION-PLAN
   `:1079` custody decided by `?client=` query; `SameSite=Lax` is the only CSRF defence; no CSP/HSTS;
   `ENCRYPTION_KEY` rotation silently blanks secrets (`SystemCredentialsProvider.cs:50`); keep the
   HtmlSanitizer/AngleSharp CVE pins.
-- i18n: en/nl 3248/3248 keys, zero drift; 47 hardcoded `label=`/`placeholder=`/`contentDescription=`
+- i18n: en/nl key parity holds, zero drift; 47 hardcoded `label=`/`placeholder=`/`contentDescription=`
   literals; no locale date/number formatter. A11y: Esc closes ~2 of 383 dialogs; 17 null
-  contentDescriptions. Perf: `primaryChannel()` N+1 (41 sites); hub reconnect no jitter; SQLite no WAL;
+  contentDescriptions. Perf: `primaryChannel()` N+1 (41 sites); hub reconnect no jitter;
   no Wasm optimize step. Tests: E2E = 2 facts, env-gated, no in-process host; coverage inverted
   (Infra 3074 vs Application 48 / Domain 46). Contract: 0 typed `ProducesResponseType<T>` → 157/617
   operations with no response schema; 633 routes vs 617 in snapshot; 1 of 93 controllers contract-tested.

@@ -22,10 +22,7 @@ separately here.
 ## 🎨 Frontend
 
 **Frontend remainders (open):**
-- [ ] **Broad UX polish pass** ("more intuitive" — ongoing, subjective, frontend-led). Everything else
-  in this section shipped this session (data-source clarity UI, editor autocomplete + esbuild-wasm
-  preview, chat_box typed settings, emoji title + composer polish, billing UI). Billing UI is built +
-  renders an honest "not configured" state; it goes live the moment the owner seeds Stripe (below).
+- [ ] **Broad UX polish pass** ("more intuitive" — ongoing, subjective, frontend-led).
 
 ## 🔒 Owner calls — gated, cannot close autonomously
 
@@ -41,11 +38,7 @@ separately here.
   **cross-platform ban fan-out** — the grouping model is decided: D1 one channel, many platform
   connections (see `PRODUCT-ALIGNMENT.md`), built in `SHORTCOMINGS-EXECUTION-PLAN.md` Tier 6.1 (one
   ban → every platform connection of the channel); **import** feasibility for Streamer.bot (`.sb`) +
-  provider overlays (opaque formats). (Resolved: pick-lists rename ✓, games/commands precedence ✓;
-  **community reposition resolved by the 2026-09-09 Community rework** — built as its own standalone
-  Directory+Profile page (identity/standing, moderation history, economy, permits, shoutout/raid/
-  TTS-voice overrides, command usage, quotes), not merged away — that IS the "keep it as its own
-  page" answer to this fork, confirmed against the shipped screens 09-13.)
+  provider overlays (opaque formats).
 
 ## new issues found
 - [ ] **OBS real-in-the-loop smoke — OWNER-run on a real OBS** (the deterministic legs are done:
@@ -58,19 +51,6 @@ separately here.
   2. **Bridge (remote/SaaS):** Dashboard → OBS → "bridge setup" → copy the `/obs-bridge?token=` URL →
      add it as a Browser Source in OBS (any size, e.g. 1×1). Bridge status should flip to a leader online;
      drive a scene switch from the dashboard and confirm OBS reacts.
-**CLOSED — Old-bot parity, command diff.** All 10 missing legacy commands now have real builtins, and
-`{user.messageCount}` reads the real aggregate. The 15 code scripts are confirmed sound: queried the
-live deployed database directly — all 20 non-deleted `CodeScripts` across both real channels
-(superset of the original 15) show `ValidationStatus: valid` with real, non-trivial compiled JS; none
-broken. Firing each one live in the owner's actual chat wasn't appropriate for a QA sweep, so
-compile/sandbox-validation is the verification recorded here. Still open, deliberately not a code
-task: the ~28 fun/script commands remain custom-command territory with no preset seed — owner
-content-authoring, not a slice.
-
-**CLOSED — individual tokens per widget + rotatable tokens.** Each widget now gets its own
-`OverlayToken`; rotating one widget's token no longer invalidates any other widget's active
-connection, a 15-minute grace window keeps the old token live during rotation, and the dashboard
-shows the changed URL with a re-copy prompt. Commits `680ca2e0`/`ff1685a7`.
 
 ## Audit plans (2026-08-20 → 08-22) — the three plans to execute, in this order of reading
 - `stability-audit-scope-and-plan.md` (F1–F19) · `widget-quality-audit-scope-and-plan.md` (§1–§8) ·

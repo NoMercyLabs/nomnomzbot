@@ -2,7 +2,7 @@
 
 Judged on rendered pixels (owner's Chrome, 1920×963, dark theme, Dutch locale), authenticated as the
 owner. Screens walked: landing, Dashboard/Home, Commands (+ "Nieuw commando" dialog), Chat,
-Moderation, Settings. Six of ~42 routes — the shell, the card/list/dialog primitives and the
+Moderation, Settings. Six routes — the shell, the card/list/dialog primitives and the
 form pattern repeat everywhere, so the findings below are systemic, not per-screen; a second pass
 over Overlays / Economy / TTS / Integrations would add instances, not categories.
 
@@ -104,14 +104,14 @@ over Overlays / Economy / TTS / Integrations would add instances, not categories
 
 ## Applied changes
 None — review only, per the "stabilize first, don't add" directive. Every item above is queued:
-colour/hierarchy/destructive-confirm/form-width items → `SHORTCOMINGS-EXECUTION-PLAN.md` Tier 5
-"Sleak pass"; the picker/raw-text items are already in Tier 3; the Home activity feed and Settings
-tabs are in Tier 4.9 / B6.
+colour/hierarchy/destructive-confirm/form-width items → queued as S080 (Phase 7) in
+`SHORTCOMINGS-EXECUTION-PLAN.md`; the picker/raw-text items ride on S043 (Phase 3 form
+infrastructure); the Home activity feed and Settings tabs are covered by S072.
 
 ## Remaining notes
-- Six screens rendered; the rest of the 42 routes share the same primitives. A focused second pass
+- Six screens rendered; the remaining routes share the same primitives. A focused second pass
   should render: Overlays (widget rows + settings form), Economy (catalog form), TTS, Integrations
-  cards, Pipelines step dialog — the screens where the catalogue/form work of Tier 3 lands.
+  cards, Pipelines step dialog — the screens where the catalogue/form work of S043 lands.
 - APCA/contrast numbers were not measured (canvas-rendered Compose; no DOM to sample). Do it with a
   pixel sampler on the screenshots in `scratchpad/sleak-*.png` before the colour token change ships.
 - Evidence: the Chat screen shows the A4 voice bug live ("No voice matched 'set AnaNeural'" /

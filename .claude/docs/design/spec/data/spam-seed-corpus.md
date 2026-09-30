@@ -50,8 +50,8 @@ future respacing. Verified by running the L0 algorithm as specified in §L0.
 
 **Honest limit found while measuring:** exact-skeleton matching does *not* unify `bestviewers`
 with `bestviewerson` — they are genuinely different strings. Substring and near-duplicate
-matching are what close that gap, which is why L2 carries SimHash (Hamming ≤ 3) alongside exact
-match rather than instead of it. The probe confirms the layer is load-bearing, not decorative.
+matching are what close that gap, which is why L2 carries shingle-set Jaccard similarity alongside
+exact match rather than instead of it. The probe confirms the layer is load-bearing, not decorative.
 
 ## Excluded during dedupe
 
@@ -216,7 +216,7 @@ youstreamprettycoolthatswhyifollowedyou
 
 ## Use
 
-Seeded at first run as `SpamSignature` rows with `Source = curated`. Per SD9, the ~2 500 known-bot
+To be seeded (S-SPAM-SEED-CORPUS) as `SpamSignature` rows with `Source = Curated`. Per SD9, the ~2 500 known-bot
 **account ids** in the `dak` list are deliberately **not** seeded as bans — they are an L1 risk
 hint only, because every block must carry that account's own evidence.
 

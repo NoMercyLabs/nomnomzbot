@@ -14,11 +14,11 @@ and its **purpose**. It invents no new route name that §5 does not declare.
   dashboard** (Plane B) and — only when the connected principal holds a platform-IAM role — the
   cross-tenant **Admin** area (Plane C). One codebase, one design system, one query engine; the Admin
   area is a gated graph, not a second app. (Owner decision.)
-- **Feature/Setup split, ~21 first-class pages.** Every backend-rich feature gets its own page; the sidebar
+- **Feature/Setup split, first-class pages.** Every backend-rich feature gets its own page; the sidebar
   groups them into labelled sections split into **daily-driver FEATURE workspaces** (the top, scrolling) and a
   pinned **SETUP** owner area (the bottom — configure-once). No feature is buried as an unlabeled tab inside
   another; **feature pages carry NO wire-up controls** — provider/credential setup lives in SETUP. (Owner decision.)
-- **One shell, three rungs — role-gated, never role-forked.** The streamer, a delegated Mod/SuperMod/Editor,
+- **One shell, three rungs — role-gated, never role-forked.** The streamer, a delegated Mod/LeadModerator/Editor,
   and a role-less viewer all use the **same** shell; the resolved rung just selects the page set and which
   controls are live. A non-null `ManagementRole` (Plane B) gets the management rungs (nav items + actions
   show/hide/disable per role, §7); a **null** management role is the **PARTICIPANT rung (Rung 0)** — a real,
@@ -38,7 +38,7 @@ and its **purpose**. It invents no new route name that §5 does not declare.
 | Plane | Vocabulary (`roles-permissions.md`) | Nav surface | Who |
 |---|---|---|---|
 | **A — Community** | `CommunityStanding`: `Everyone` `Subscriber` `Vip` `Artist` `Moderator` (sub tier = separate `SubTier` column, not enum values) | **none** (gates only) | viewers — read-only standing inferred from Twitch |
-| **B — Management** | `ManagementRole`: `Moderator`(10) `SuperMod`(20) `Editor`(30) `Broadcaster`(40) | **Main shell** (§2–§5) | the streamer + anyone they delegate a `ManagementRole` (or an active `PermitGrant`, or a Plane-C `tenant:access`) |
+| **B — Management** | `ManagementRole`: `Moderator`(10) `LeadModerator`(20) `Editor`(30) `Broadcaster`(40) | **Main shell** (§2–§5) | the streamer + anyone they delegate a `ManagementRole` (or an active `PermitGrant`, or a Plane-C `tenant:access`) |
 | **C — Platform IAM** | `IamRole`: `platform-super-admin` `platform-iam-admin` `platform-analyst` | **Admin area** (§6) | NoMercy Labs staff / service principals (SaaS only; self-host = `OwnerIsFullIamService` no-op) |
 
 **Entry resolution (in the shell, after the `frontend.md` §5 connection/auth gate):**
@@ -82,7 +82,7 @@ The main shell is one persistent frame around the content `NavHost` (`frontend.m
 
 ## 3. Sidebar groups & page inventory (management rungs)
 
-Twenty-one content pages in the approved **Feature/Setup** IA: eight daily-driver FEATURE groups (top,
+The content pages of the approved **Feature/Setup** IA: eight daily-driver FEATURE groups (top,
 scrolling) and one pinned **SETUP** owner group (bottom, divider-separated, labelled). Each row: the §5
 `Route`, the **default read floor** (the built-in minimum standing to see/open the page) and the **default
 manage floor** (the built-in minimum to mutate within it), and the owning backend spec. "—" manage floor =
@@ -107,7 +107,7 @@ the unfloored `/effective/me` self-introspection (§7), never on the raw default
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
 | **Chat** | `Chat` | Moderator | Moderator | `chat-client.md` — live chat console; send as **you** (the operator), bot optional; emote composer + autocomplete; cross-channel moderation |
-| **Commands** | `Commands` (+ `PipelineEditor`) | Moderator | Editor | `commands-pipelines.md` — list + T1/T2/T3 editor; built-in toggle list; T2 opens the pipeline editor, T3 the widget/code editor |
+| **Commands** | `Commands` (+ `PipelineEditor`) | Moderator | Moderator (seed `commands:write`) | `commands-pipelines.md` — list + T1/T2/T3 editor; built-in toggle list; T2 opens the pipeline editor, T3 the widget/code editor. The Editor manage floor applies to `ChatTriggers`, `VoiceTriggers` and `Pipelines`, not to Commands |
 | **Pipelines** | `Pipelines` | Moderator | Editor | `commands-pipelines.md` — the visual pipeline builder (folded in from the dropped single-item Automation group) |
 | **Timers** | `Timers` | Moderator | Editor | `commands-pipelines.md` §3.7 |
 | **Quotes** | `Quotes` | Moderator | Editor | `commands-pipelines.md` — quote book CRUD + recall command |
@@ -160,12 +160,12 @@ not the tools used to *build* a command's response.
 #### Community
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
-| **Viewers** | `Community` | Moderator | Moderator | `community-dashboard.md` + `roles-permissions.md` — viewer list/standings/leaderboards (real platform data only — provider-fanned Twitch + Kick + YouTube, merged per viewer identity; never fabricated) |
+| **Viewers** | `Community` | Moderator | Moderator | `community-dashboard.md` + `roles-permissions.md` — viewer list/standings/leaderboards (real platform data only — target: provider-fanned Twitch + Kick + YouTube, merged per viewer identity; never fabricated. **Twitch leg only today; Kick/YouTube fan-out tracked as S-COMMUNITY-MULTIPLATFORM**) |
 
 #### Connect
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
-| **Discord** | `Discord` | Moderator | SuperMod | `discord.md` — guild link, role/optin sync, dispatch. Read floor lowered Broadcaster→Moderator and manage to SuperMod (was over-gated): seed `discord:*:read` = Moderator(10), `discord:*:write` = SuperMod(20). |
+| **Discord** | `Discord` | Moderator | LeadModerator | `discord.md` — guild link, role/optin sync, dispatch. Read floor lowered Broadcaster→Moderator (was over-gated): seed `discord:*:read` = Moderator(10); write keys are `LeadModerator`(20) (`discord:config:write`, `discord:role:write`, `discord:optin:write`) or `Broadcaster` (`discord:connection:write`). The UI display label for `LeadModerator` waits on an owner decision (open question); the role name is `LeadModerator`. |
 
 ### SETUP — pinned, configure-once owner area (bottom)
 
@@ -184,20 +184,20 @@ headerless rail). Feature pages must NOT carry wire-up controls — all provider
 > predictions, raids) surfaces as **quick-action panels on the Dashboard** (the live home), not a separate
 > sidebar page — these are run-while-live controls, used in the moment, not a workspace you navigate to.
 
-### 3b. Shipped-route reconciliation (`ShellNav.pages`, 42 routes)
+### 3b. Shipped-route reconciliation (`ShellNav.pages`, 45 routes)
 
-`ShellNav.pages` ships **42** routes against the 21 pages above. The extra routes are real pages and belong to
+`ShellNav.pages` ships **45** routes, more than the pages in the §3 tables. The extra routes are real pages and belong to
 the inventory under their shipped group — this table is the binding reconciliation (each row = a shipped route
-not listed in §3; the 21 rows above are unchanged):
+not listed in §3; the §3 rows are unchanged):
 
 | Group | Shipped extra routes | Disposition |
 |---|---|---|
-| Chat | `MultiChat`, `ChatTriggers`, `PickLists`, `CodeScripts` | `MultiChat` = the multi-channel feed lane of the Chat page (`chat-client.md` §0, provider-merged); `ChatTriggers` + `PickLists` = sub-pages of Commands (`commands-pipelines.md`, `pick-lists` builtin); `CodeScripts` = the T3 editor (`custom-code.md`, Broadcaster floor) — re-homed from Stream (2026-09-09, owner punch list §9), the other T2/T3 target the Commands editor opens into |
+| Chat | `MultiChat`, `ChatTriggers`, `VoiceTriggers`, `PickLists`, `CodeScripts` | `MultiChat` = the multi-channel feed lane of the Chat page (`chat-client.md` §0, provider-merged); `ChatTriggers` + `VoiceTriggers` + `PickLists` = sub-pages of Commands (`commands-pipelines.md`, `pick-lists` builtin; `ChatTriggers`/`VoiceTriggers` read Moderator, manage Editor, keys `chattriggers:*` / `voicetriggers:*`); `CodeScripts` = the T3 editor (`custom-code.md`, Broadcaster floor) — re-homed from Stream (2026-09-09, owner punch list §9), the other T2/T3 target the Commands editor opens into |
 | Loyalty | `Giveaways` | own page (`giveaways.md`) |
 | Music | `SoundClips`, `Assets`, `MediaShare` | own pages (`sound-system.md`, asset library, `media-share.md`) |
 | Stream | `Alerts`, `Schedule` | `Alerts` merges into `EventResponses` (one route); `Schedule` = live-ops schedule (`broadcaster-liveops.md`) |
 | Connect | `Webhooks`, `Federation`, `CustomEvents`, `Supporters`, `Obs`, `Vts`, `Automation` | own pages (`webhooks.md`, `federation-oidc.md`, `custom-events.md`, `supporter-events.md`, `obs-control.md`, `vtube-studio.md`, `automation-api.md`) |
-| Setup | `Bundles`, `Features`, `MyData` | `Bundles` (`marketplace.md`), `Features` (feature toggles, `platform-conventions.md`); `MyData` moves to the participant rung (§3a — D4, every signed-in viewer) |
+| Setup | `Bundles`, `Features`, `MyData` | `Bundles` (`marketplace.md`), `Features` (feature toggles, `platform-conventions.md`); `MyData` ships in Setup today; it is a TARGET to move to the participant rung (§3a — D4, every signed-in viewer) |
 | — | `Admin` | not a sidebar page — the Plane-C graph reached from the profile menu (§4, §6), unchanged |
 
 **Persona priority** for every IA decision: **streamer → moderator of many channels → viewer** (PRODUCT-ALIGNMENT).
@@ -208,7 +208,11 @@ not listed in §3; the 21 rows above are unchanged):
 
 A **null** `ManagementRole` is not a dead-end: the same shell renders the **participant surface**, gated by
 Plane-A `CommunityStanding` rather than a management role (`ParticipantNav`). The base surface floors at
-`Everyone` (every signed-in viewer sees it); a sub/VIP unlocks MORE within it. The page set:
+`Everyone` (every signed-in viewer sees it); a sub/VIP unlocks MORE within it. The page set below is the
+**target**. `ParticipantNav.pages` ships six entries today: **My Channel**, **Now Playing**, **Leaderboards**,
+**Points & Store**, **Games**, **Me** (all floor `Everyone`). **My Standing** and **My Data** are TARGET pages
+and do not ship yet; `Me` ships pronouns, activity summary and participation footprint, while its own-TTS-voice
+and linked-platforms sections are TARGET. The page set:
 
 | Participant page | Floor | Purpose |
 |---|---|---|
@@ -217,9 +221,9 @@ Plane-A `CommunityStanding` rather than a management role (`ParticipantNav`). Th
 | **Leaderboards** | Everyone | the channel's leaderboards (read) + the caller's own opt-in/opt-out toggle |
 | **Points & Store** | Everyone | the caller's balance, the catalog (read + purchase), community jars, points transfers |
 | **Games** | Everyone | the channel's games: read, play, and the caller's own play history |
-| **Me** | Everyone | the caller's own data: pronouns, activity summary, participation footprint, **own TTS voice** (`tts.md` per-viewer voice), **linked platforms** (`UserIdentity` rows — link/unlink Twitch/Kick/YouTube/X, `platform-identity.md`) |
-| **My Standing** | Everyone | the caller's `CommunityStanding` on this channel (name only, never a level number), active permits, ban/timeout state across the channels they participate in |
-| **My Data** | Everyone | `MyData` — GDPR export / erasure request, consent records (`gdpr-crypto.md`); shipped route re-homed here from Setup (D4 — a viewer right, not a Moderator-floor page) |
+| **Me** | Everyone | the caller's own data: pronouns, activity summary, participation footprint (shipped); **own TTS voice** (`tts.md` per-viewer voice) and **linked platforms** (`UserIdentity` rows — link/unlink Twitch/Kick/YouTube/X, `platform-identity.md`) are TARGET |
+| **My Standing** (TARGET) | Everyone | the caller's `CommunityStanding` on this channel (name only, never a level number), active permits, ban/timeout state across the channels they participate in |
+| **My Data** (TARGET) | Everyone | `MyData` — GDPR export / erasure request, consent records (`gdpr-crypto.md`); the shipped route sits in Setup today and is re-homed here (D4 — a viewer right, not a Moderator-floor page) |
 
 On SaaS a viewer signs in **free** and this rung spans every channel on the instance they participate in (D4); on
 self-host it is the same surface for the operator's own viewers.
@@ -314,7 +318,7 @@ one answer, so a lowered action reaches the UI. Mechanics:
 - **Page visibility** — a sidebar item renders only if the caller **holds** that page (its read capability,
   effective). A `Moderator` sees the full shell except the Broadcaster-floored Setup pages (Integrations,
   Roles & Permits) and the Broadcaster-only Settings tabs; a `Moderator` SEES Discord (read floor Moderator)
-  but cannot mutate it (manage floor SuperMod). A role-less VIP normally holds **no** management page (→
+  but cannot mutate it (manage floor LeadModerator). A role-less VIP normally holds **no** management page (→
   participant rung, §3a); if the broadcaster lowers a page's action to the VIP's standing, that page — and
   only that page — surfaces to them.
 - **Action gating** — within a visible page, mutating controls are **disabled with a reason tooltip** (not
@@ -339,14 +343,15 @@ one answer, so a lowered action reaches the UI. Mechanics:
 ## 8. Decisions (resolved)
 
 All settled and binding:
-- **Feature/Setup split — eight feature groups + one pinned Setup group, 21 content pages.** FEATURE: Home ·
+- **Feature/Setup split — eight feature groups + one pinned Setup group.** FEATURE: Home ·
   Chat · Moderation · Loyalty · Music · Stream · Community · Connect. SETUP (pinned, configure-once owner
   area): Integrations · Roles & Permits · Settings. Economy, Games, Song Requests, TTS, Analytics, Alerts &
   Events, Pipelines, and Quotes are first-class pages (not nested tabs).
 - **Music is a first-class area**, not a sub-tab of Song Requests: `Music` is the area home,
   `SongRequests` is a sibling lane beneath it, `Tts` sits alongside.
-- **Discord re-homed to Connect**, read floor lowered Broadcaster→Moderator and manage floor SuperMod (seed
-  `discord:*:read` = Moderator, `discord:*:write` = SuperMod — it was over-gated at Broadcaster).
+- **Discord re-homed to Connect**, read floor lowered Broadcaster→Moderator; write keys LeadModerator/Broadcaster (seed
+  `discord:*:read` = Moderator; `discord:config|role|optin:write` = LeadModerator, `discord:connection:write` =
+  Broadcaster — it was over-gated at Broadcaster). The `LeadModerator` display label waits on the owner.
 - **Roles & Permits re-homed into Setup** (configure-once owner ownership), surfacing memberships + the
   action-permission matrix + permits.
 - **The single-item Automation group is dropped**; Pipelines folds into the Chat workspace.

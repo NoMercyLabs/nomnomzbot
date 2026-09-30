@@ -15,8 +15,8 @@
 | D1 | **`PipelineStep` becomes a tree.** Add `BlockKind` + `BlockConfigJson` (`ParentStepId` already exists). A null `BlockKind` = a leaf **action** step (today's behavior). A non-null `BlockKind` (`if`/`switch`/`switch_case`/`loop`/`random_branch`/`random_case`) is a **block** that owns ordered child steps. The engine walks the tree depth-first; leaf actions execute via the existing `ICommandAction` path. **One nesting model:** the pre-existing `PipelineStep.Branch` (`then`/`else`) is **folded in** — it is now simply the slot a child occupies under an `if` block; the legacy if/else nesting is not a second model. (no-backwards-compat: clean structural extension.) |
 | D2 | **`if` / `switch`** — binary branching is an **`if`** block (condition in `BlockConfigJson`) whose children carry the existing `Branch` (`then`/`else`) slot. Multi-case is a **`switch`** block: it evaluates a value (template) against ordered `switch_case` children (each a match value + comparison reusing the §6.2 condition operators) plus an optional default; the **first** matching case's children run, then control leaves the switch. |
 | D3 | **`loop`** — a `loop` block runs its children repeatedly per `Mode`: **`foreach`** (iterate a list var — CSV or JSON array — binding `{{loop.item}}`/`{{loop.index}}`), **`repeat`** (a fixed count), **`while`** (a condition, re-evaluated each pass). Bounded by **`MaxIterations`** (tier-scaled hard ceiling). **`break`** exits the enclosing loop; **`continue`** skips to the next iteration. |
-| D4 | **`run_pipeline`** — an action that invokes another of the channel's pipelines: **`inline`** (runs within the current run — shares the variable bag, merged on return) or **`detached`** (an independent run with its own context; optional `Wait`). Args via a template list. Bounded by **`MaxRecursionDepth`** (a pipeline cannot infinitely call itself / cycle). |
-| D5 | **`random_branch`** — a block whose `random_case` children each carry a `Weight` (decimal, auto-normalized); exactly **one** case's children run, chosen by weighted random using the run's CSPRNG. Generalizes the unweighted `random` condition / `random_response`. |
+| D4 | **`run_pipeline`** — an action that invokes another of the channel's pipelines: **`inline`** (runs within the current run — shares the variable bag, merged on return) or **`detached`** (an independent run with its own context; optional `Wait`). Args via a template list. Bounded by **`MaxRecursionDepth`** (`PipelineEngine.MaxRecursionDepth`, 8): a pipeline that calls itself (directly or in a cycle) is stopped **at run time** by this depth cap — the call fails `max_recursion_depth_exceeded`. There is **no static cycle detection**; nothing rejects a self-calling pipeline at save time. |
+| D5 | **`random_branch`** — a block whose `random_case` children each carry a `Weight` (decimal, auto-normalized); exactly **one** case's children run, chosen by weighted random using `Random.Shared` (not a CSPRNG; the engine takes an injectable random source so tests can seed it). Generalizes the unweighted `random` condition / `random_response`. |
 | D6 | **Global termination budget — every run is bounded.** Each execution carries `MaxTotalActions`, `MaxRecursionDepth`, `MaxIterations` (per loop), and `MaxRuntime` (tier-scaled, safe baseline + headroom). Exceeding any cap **aborts the run cleanly** (typed result, journaled) — so no loop/recursion/switch combination can hang or run away. Per the bounded-and-allow rule. |
 | D7 | **Schema:** extend **H.2 `PipelineStep`** (`ParentStepId`/`BlockKind`/`BlockConfigJson`) — no new table. New actions `run_pipeline`, `break`, `continue`; new block-kinds. No new role keys (editing the tree is `pipelines:write`). |
 
@@ -42,7 +42,7 @@ None. Control flow is internal to a pipeline run; the run is already recorded (`
 
 ## 3. Engine & service deltas (`commands-pipelines.md`)
 
-No new top-level interface — the existing `IPipelineEngine.ExecuteAsync(PipelineRequest)` gains **tree execution** with the §0 caps; `IPipelineService.ValidateAsync` gains **tree validation**.
+No new top-level interface — the existing `IPipelineEngine.ExecuteAsync(PipelineRequest)` gains **tree execution** with the §0 caps.
 
 ```csharp
 // Engine behavior (extends IPipelineEngine — commands-pipelines §3.3):
@@ -50,14 +50,14 @@ No new top-level interface — the existing `IPipelineEngine.ExecuteAsync(Pipeli
 //  • switch       → evaluate value, run the first matching switch_case's children (else default), then continue.
 //  • loop         → run children per Mode; bind {{loop.item}}/{{loop.index}}/{{loop.count}}; honor break/continue;
 //                   hard-stop at MaxIterations.
-//  • random_branch→ pick one random_case by normalized Weight (run CSPRNG), run its children.
+//  • random_branch→ pick one random_case by normalized Weight (Random.Shared), run its children.
 //  • run_pipeline → inline (same ExecutionContext, depth+1) or detached (new run); reject when depth > MaxRecursionDepth.
 //  • Every executed leaf decrements the run's action budget; budget/runtime/depth breach → ExecutionOutcome.AbortedBudget.
 
 public sealed record PipelineExecutionLimits(int MaxTotalActions, int MaxRecursionDepth, int MaxIterations, TimeSpan MaxRuntime); // tier-scaled
 ```
 
-`IPipelineService.ValidateAsync` additionally checks: block steps have legal child kinds (`switch`→`switch_case`+default; `random_branch`→`random_case` with weights; `loop` has a valid `Mode`), `run_pipeline` targets resolve and the static call graph has **no unbounded cycle**, and the tree depth is within `MaxRecursionDepth`.
+**No static tree validation exists.** Saving a pipeline runs only the generic graph validation (`ICommandConfigValidator.ValidatePipelineAsync`); nothing checks that block steps carry legal child kinds (`switch`→`switch_case`, `random_branch`→`random_case` with weights, `loop` with a valid `Mode`), that `run_pipeline` targets resolve, or that the call graph has no cycle. Runaway shapes are caught only at run time by the §0 caps (D4 depth cap, D3 iteration cap, D6 budget).
 
 ---
 
@@ -73,13 +73,13 @@ public sealed record PipelineExecutionLimits(int MaxTotalActions, int MaxRecursi
 
 **New block-kinds** (`PipelineStep.BlockKind`, configured via the editor, not standalone actions): `if` (then/else via the existing `Branch` slot), `switch` + `switch_case`, `loop`, `random_branch` + `random_case` (D2/D3/D5).
 
-**New template vars:** `{{loop.item}}`, `{{loop.index}}` (0-based), `{{loop.count}}`, `{{switch.value}}` — scoped to the enclosing block, resolved from the run bag (no I/O).
+**New template vars:** `{{loop.item}}`, `{{loop.index}}` (0-based), `{{loop.count}}` — scoped to the enclosing loop block, resolved from the run bag (no I/O). There is **no** `{{switch.value}}`: the engine evaluates the switch value internally and does not seed it into the run bag.
 
 ---
 
 ## 5. REST surface
 
-**None.** The step tree is part of the pipeline definition — created/edited through the existing `commands-pipelines.md` pipeline CRUD (`pipelines:write`); `ValidateAsync` (existing endpoint) now also reports tree/cycle/cap errors. No new endpoints, no new Gate-2 keys.
+**None.** The step tree is part of the pipeline definition — created/edited through the existing `commands-pipelines.md` pipeline CRUD (`pipelines:write`); No new endpoints, no new Gate-2 keys.
 
 ---
 
@@ -87,10 +87,10 @@ public sealed record PipelineExecutionLimits(int MaxTotalActions, int MaxRecursi
 
 The new actions (`run_pipeline`/`break`/`continue`) auto-discover into the pipeline action registry (`commands-pipelines.md`); the engine tree-walk + caps live in the existing engine; `PipelineExecutionLimits` resolves tier-scaled from config. No new module DI beyond registering the three actions.
 
-**Tests (prove behavior):** a `switch` runs only the first matching case (and the default when none match), never two; a `foreach` over a 3-item list runs its body 3× with `{{loop.index}}` = 0/1/2 and `{{loop.item}}` bound, and `break` stops it early while `continue` skips an iteration; a `while` that never falsifies is **hard-stopped at `MaxIterations`** with outcome `aborted_budget` (not a hang); `repeat N` runs exactly N times; `random_branch` over cases weighted 1/1/2 selects case C ~50% across many seeded runs (distribution within tolerance); `run_pipeline inline` shares and merges variables into the caller while `detached` does not; a pipeline that calls itself is rejected at validation (static cycle) and, if forced at runtime, aborts at `MaxRecursionDepth`; a tree whose total executed actions would exceed `MaxTotalActions` aborts cleanly mid-run and journals the cap that tripped; `ValidateAsync` rejects a `switch` with a non-`switch_case` child and a `random_case` missing a weight.
+**Tests (prove behavior):** a `switch` runs only the first matching case (and the default when none match), never two; a `foreach` over a 3-item list runs its body 3× with `{{loop.index}}` = 0/1/2 and `{{loop.item}}` bound, and `break` stops it early while `continue` skips an iteration; a `while` that never falsifies is **hard-stopped at `MaxIterations`** with outcome `aborted_budget` (not a hang); `repeat N` runs exactly N times; `random_branch` over cases weighted 1/1/2 selects case C ~50% across many seeded runs (distribution within tolerance, via the seedable random source); `run_pipeline inline` shares and merges variables into the caller while `detached` does not; a pipeline that calls itself is **not** rejected at save time (no static cycle check) and aborts at run time at `MaxRecursionDepth`; a tree whose total executed actions would exceed `MaxTotalActions` aborts cleanly mid-run and journals the cap that tripped.
 
 ---
 
 ## 7. Decisions (resolved)
 
-`PipelineStep` tree via `ParentStepId`/`BlockKind`/`BlockConfigJson` (D1); `switch`/`switch_case` + default = multi-case incl. if/else (D2); `loop` foreach/repeat/while with `break`/`continue`, iteration-capped (D3); `run_pipeline` inline/detached, recursion-depth-capped (D4); weighted `random_branch`/`random_case` via CSPRNG (D5); global per-run termination budget aborts runaways cleanly (D6); schema delta = H.2 `PipelineStep` columns + three actions + block-kinds, no new table/endpoints/roles (D7).
+`PipelineStep` tree via `ParentStepId`/`BlockKind`/`BlockConfigJson` (D1); `switch`/`switch_case` + default = multi-case incl. if/else (D2); `loop` foreach/repeat/while with `break`/`continue`, iteration-capped (D3); `run_pipeline` inline/detached, recursion-depth-capped (D4); weighted `random_branch`/`random_case` via `Random.Shared` (D5); global per-run termination budget aborts runaways cleanly (D6); schema delta = H.2 `PipelineStep` columns + three actions + block-kinds, no new table/endpoints/roles (D7).

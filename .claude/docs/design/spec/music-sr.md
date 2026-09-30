@@ -1,16 +1,34 @@
 # Interface Specification — `music-sr` subsystem
 
-**Status:** Implementable. Code from this directly.
+**Status:** As-built reference + target design. What ships today is the in-memory `FairQueue<T>` song-request queue described in *As-built* below. The relational model in §1–§2 and every service, route and action marked **target** are the unbuilt design; each awaits an owner build-or-cut decision, and none is scheduled. Do not code from a **target** block without that decision.
 **Area:** ONE interleaved fair song-request queue across Spotify + YouTube (drip-feed/browser-source playback sequencer), track metadata, request provenance, tiered allowances, public SR-page tokens, now-playing widget feed.
 **Conventions:** C# namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; Nullable enabled; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI (no MediatR, no Roslyn); responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PKs = `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete global filter.
 
-> **Migration note — load-bearing.** The current code (`MusicService`, `IMusicService`, `IMusicProvider`, `IMusicConfigService`, `MusicController`) keeps the **queue in process memory** (`FairQueue<T>` per channel — lost on restart, invisible to a second node). The persisted queue in `SongRequestQueues` / `SongRequestItems` is a **build item — execution plan Tier 1.1** ("song-request queue is fictional"): `BroadcasterId` is `Guid`, the queue is **persisted**, and provider config/tokens live in `IntegrationConnections` + the generic `MusicProviderConfig` (one row per provider, keyed by registry `Provider`). This spec defines the **target** surface; `FairQueue<T>` stays the ordering algorithm over the persisted rows (§3.8/§3.9). Where a type already exists, **EXTEND/widen it in place** (do not create a parallel `ISongRequestService` alongside `IMusicService` — the existing `IMusicService` is rewidened to `Guid` and the new persistence methods are added to it). New types are only introduced where no existing equivalent exists (the SR-page token service, the now-playing feed broadcaster, the persistence-backed config records).
+> **Migration note — as-built.** The queue is one in-memory `FairQueue<SongRequestEntry>` per channel, held by the singleton `ISongRequestQueueStore`. `SongRequestQueueItem` is a **restart mirror** of that queue, not a queue of record: `SongRequestQueuePersistence` rewrites a channel's rows after every mutation and `SongRequestQueueRestoreHostedService` replays them at startup. The relational model in §1 (`SongRequestQueues`, `SongRequestItems`, `SongRequestTrustScores`, the raffle and bump tables, `MusicProviderConfig`) is the **unbuilt target**. Provider connection lives in `IntegrationConnections`; the SR/music settings are the `music:config` key-value blob read by `IMusicConfigService`. Every signature in §3 that differs from the code is labelled **target**. Where a type already exists, extending it in place stays the intent (no parallel `ISongRequestService` next to `IMusicService`).
+
+## As-built (what ships today)
+
+**Queue.** `FairQueue<SongRequestEntry>` (`Infrastructure/Music/FairQueue.cs`, behind `Domain/Music/Interfaces/IFairQueue.cs`) is the ordering authority, one per channel, held in the singleton `ISongRequestQueueStore` (`Infrastructure/Music/SongRequestQueueStore.cs`), keyed by the broadcaster id string. The store also holds the one **in-flight** entry (the request already handed to the provider), its 30 s re-check schedule, and a per-channel handover lock. Playback is drip-fed: `MusicService` hands the head to the provider when the provider is idle, and `SongRequestQueueReconciler` (an `IEventHandler<PlaybackStateChangedEvent>`) removes an entry once live playback shows it has started and hands over the next. `MusicStatePollingService` polls every connected provider at 1 s and publishes `PlaybackStateChangedEvent`.
+
+**Queue mirror.** `SongRequestQueueItem` (`Domain/Music/Entities/`) — `Id Guid`, `BroadcasterId string(50)`, `Sequence long` (play-order index; unique with `BroadcasterId`), `OwnerKey`, `TrackUri`, `TrackName`, `Artist`, `ImageUrl?`, `DurationMs`, `CreatedAt`, `IsInFlight`, `Cost`, `RequesterUserId Guid?`, `Code`. `ISongRequestQueuePersistence.SyncAsync` replaces a channel's whole row set in one transaction after every accepted mutation (write-through). `SongRequestQueueRestoreHostedService` replays fresh queues at startup (freshness window 4 h; a stale queue is purged and announced with `SongRequestQueueRestoreDiscardedEvent`); a run-once lease keeps two overlapping instances from restoring twice.
+
+**Blocked tracks.** `BlockedTrack` (`Domain/Music/Entities/`, soft-deletable, `ITenantScoped`, `BroadcasterId Guid`, `Provider`, `TrackUri`, `Title`, `Reason?`, `BlockedByUserId?`) behind `IBlockedTrackService` (`BlockAsync`, `UnblockAsync`, `ListAsync`, `IsBlockedAsync`). The admission path refuses a blocked track with `TRACK_BLOCKED` before it reaches the fair queue. Dashboard routes and the `song_ban` action feed it (§5.1, §6).
+
+**Song codes.** `SongCode` (`Domain/Music/ValueObjects/SongCode.cs`) is a 4-character speakable handle drawn from a 25-character unambiguous alphabet, unique within a channel's queue, carried on `SongRequestEntry.Code` and `SongRequestQueueItem.Code`. Viewers name a request with it: `!wrongsong K7QM` (`song_wrong`).
+
+**Actions** (`Infrastructure/Music/PipelineActions/`, §6): `song_request`, `song_skip`, `song_current`, `song_queue`, `song_volume`, `song_previous`, `song_pause`, `song_resume`, `song_ban`, `song_wrong`, `song_request_favorite`, `playlist_add`, plus `play_track_once` and 22 `music_*` provider-control actions (`MusicControlActions.cs`).
+
+**Events** (`Domain/Music/Events/`, all on `DomainEventBase`): `SongRequestedEvent`, `SongSkippedEvent`, `TrackChangedEvent`, `SongRequestQueueChangedEvent` (carries `Items`, the top-of-queue snapshot), `SongRequestLostAtProviderEvent`, `SongRequestQueueRestoreDiscardedEvent`, `PlaybackStateChangedEvent`, `SongChangedEvent`, `TrackSavedChangedEvent`. Handlers: `SrQueueBroadcastHandler` (pushes the snapshot to `sr_queue` widgets and the dashboard `sr_queue_changed` method), `SongRequestQueueReconciler`, `SongChangedProjector`, `PlayOnceResumeHandler`, `SongRequestLostAtProviderChatNotice`.
+
+**Services.** `IMusicService`, `IMusicConfigService`, `IBlockedTrackService`, `ISongRequestPageTokenService` (Scoped, by convention scan); `IMusicProvider` (`SpotifyMusicProvider`, `YouTubeMusicProvider`; Scoped, multi-binding); `IMusicRemoteProvider` (residual paged-playlists and play-context surface); `IMusicProviderManageApi` (§3.10, built); `ISongRequestQueueStore`, `INowPlayingCache`, `IMuteVolumeMemory`, `IPlayOnceResumeTracker` (Singleton); `ISongRequestQueuePersistence`, `ISongRequestHandover` (Scoped); `ISongRequestHistoryBackfill`, `ILegacySongRequestImporter`. **Hosted services:** `SongRequestQueueRestoreHostedService`, `MusicStatePollingService`.
+
+**Not built (target):** `SongRequestQueues`, `SongRequestItems`, `SongRequestTrustScores`, the raffle and bump tables, `MusicProviderConfig`, `IMusicProviderRegistry`, `ISongRequestQueueStateService`, `ISongRequestTrustService`, `ISongRequestSequencer` (+ its loop), `INowPlayingFeed`, `ISongRequestBumpService`, the three-band model, the paid lane, `MinYouTubeTrustScore`, `SongRequestRejectedEvent`, `SongRequestRaffleEvent`, and the actions `song_bump`, `song_raffle`, `song_raffle_enter`.
 
 ---
 
 ## 1. Entities (owned by this subsystem — defined in the LOCKED schema, not redefined here)
 
-All from `docs/design/2026-06-16-database-schema.md`. This subsystem **owns** L.4/L.5/L.6, the song-bump raffle tables L.7/L.8/L.9, and the generic provider config table `MusicProviderConfig` (E.5). It **reads** `IntegrationConnections`/`IntegrationTokens` (Domain E, owned by integrations) and `Channels.OverlayToken` (A.2, owned by identity), and **debits channel points through** the economy `CatalogPurchases` (K.11, owned by economy) for raffle entry — the same `CatalogPurchaseId` link the paid lane uses (§3.8/§3.11).
+**Target — none of these tables exists except as noted in *As-built* (`SongRequestQueueItem` is a restart mirror; `BlockedTrack` is built).** All from `.claude/docs/design/2026-06-16-database-schema.md`. This subsystem **owns** L.4/L.5/L.6, the song-bump raffle tables L.7/L.8/L.9, and the generic provider config table `MusicProviderConfig` (E.5). It **reads** `IntegrationConnections`/`IntegrationTokens` (Domain E, owned by integrations) and `Channels.OverlayToken` (A.2, owned by identity), and **debits channel points through** the economy `CatalogPurchases` (K.11, owned by economy) for raffle entry — the same `CatalogPurchaseId` link the paid lane uses (§3.8/§3.11).
 
 | Table | Schema ref | Key fields (type) this subsystem touches |
 |---|---|---|
@@ -31,28 +49,68 @@ All from `docs/design/2026-06-16-database-schema.md`. This subsystem **owns** L.
 
 ## 2. Domain events
 
-All inherit the canonical `DomainEventBase` (`NomNomzBot.Domain.Events`, platform-conventions §2.0), which supplies `Guid EventId`, `DateTimeOffset OccurredAt`, `Guid BroadcasterId` (events add only payload fields, never redeclaring the base). **Three events already exist and are EXTENDED in place** (do not create duplicates). All key/id fields are widened from raw strings to carry the persistent `SongRequestItemId Guid` so handlers can join to `SongRequestItems`.
+**As-built shapes are listed under *As-built*; the field lists below are the target.** All inherit the canonical `DomainEventBase` (`NomNomzBot.Domain.Platform`, platform-conventions §2.0), which supplies `Guid EventId`, `DateTimeOffset OccurredAt`, `Guid BroadcasterId` (events add only payload fields, never redeclaring the base). **Four of these events already exist in `Domain/Music/Events/` and are extended in place when built** (do not create duplicates). All key/id fields are widened from raw strings to carry the persistent `SongRequestItemId Guid` so handlers can join to `SongRequestItems`.
 
 | Event | Status | Fields (type) — all `required` unless `?` |
 |---|---|---|
-| **`SongRequestedEvent`** | EXTEND existing (`Domain/Events/SongRequestedEvent.cs`) | `SongRequestItemId Guid`; `QueueId Guid`; `Provider string`; `ProviderTrackId string`; `TrackUri string`; `TrackName string`; `Artist string?`; `int DurationSeconds`; `RequestedByUserId Guid`; `RequestedByDisplayName string`; `int Position`. (Existing fields `UserId`/`UserDisplayName`/`TrackUri`/`TrackName` are retained as `RequestedByUserId`/`RequestedByDisplayName`/`TrackUri`/`TrackName`; `UserId string` → `RequestedByUserId Guid`.) |
-| **`SongSkippedEvent`** | EXTEND existing (`Domain/Events/SongSkippedEvent.cs`) | `SongRequestItemId Guid`; `QueueId Guid`; `SkippedByUserId Guid`; `TrackName string`. (`SkippedByUserId string` → `Guid`.) |
-| **`TrackChangedEvent`** | EXTEND existing (`Domain/Events/TrackChangedEvent.cs`) | `SongRequestItemId Guid?` (null if provider-native track not from queue); `TrackName string`; `Artist string`; `TrackUri string`; `AlbumArtUrl string?`; `int DurationSeconds`; `Provider string`; `RequestedByDisplayName string?`. (Existing `DurationMs int` → `DurationSeconds int` for schema parity; keep `AlbumArtUrl`.) This is the event the now-playing feed (§ `INowPlayingFeed`) fans out to overlays. |
-| **`SongRequestRejectedEvent`** | NEW (`Domain/Events/SongRequestRejectedEvent.cs`) | `QueueId Guid`; `RequestedByUserId Guid`; `RequestedByDisplayName string`; `Provider string`; `RawQuery string`; `RejectionReason string` (`queue_closed`\|`queue_full`\|`pending_limit`\|`per_stream_limit`\|`min_standing`\|`explicit_blocked`\|`age_restricted`\|`too_long`\|`subscriber_only`\|`trust_too_low`\|`requester_blocked`\|`not_embeddable`\|`no_provider`\|`not_found`\|`not_found_on_target`). |
-| **`SongRequestQueueChangedEvent`** | NEW (`Domain/Events/SongRequestQueueChangedEvent.cs`) | `QueueId Guid`; `ChangeKind string` (`item_added`\|`item_removed`\|`item_played`\|`reordered`\|`bumped`\|`cleared`\|`opened`\|`closed`\|`paused`\|`resumed`); `SongRequestItemId Guid?`; `int QueueLength`. Drives live SR-page and dashboard queue refresh over the feed. `bumped` = an item moved into the bump band (raffle win / `!bump` / queue-jump redeem) — a queue-structure reorder. |
-| **`SongRequestRaffleEvent`** | NEW (`Domain/Events/SongRequestRaffleEvent.cs`) | `QueueId Guid`; `RaffleId Guid`; `Phase string` (`started`\|`drawn`); `int EntryCost`; `int WinnerCount`; `IReadOnlyList<SongRequestRaffleWinner> Winners` (empty on `started`). `SongRequestRaffleWinner` = `record(Guid UserId, string DisplayName, Guid? BumpedItemId, bool GrantedBumpToken)` — `BumpedItemId` set when the winner had a queued song moved to the bump band, `GrantedBumpToken` true when they had none and got a token instead. Overlays celebrate the start + the draw; the feed mirrors it over SignalR (§3.6). |
+| **`SongRequestedEvent`** | EXISTS (`Domain/Music/Events/SongRequestedEvent.cs`; as-built fields `UserId string`, `UserDisplayName`, `TrackUri`, `TrackName`) — target below | `SongRequestItemId Guid`; `QueueId Guid`; `Provider string`; `ProviderTrackId string`; `TrackUri string`; `TrackName string`; `Artist string?`; `int DurationSeconds`; `RequestedByUserId Guid`; `RequestedByDisplayName string`; `int Position`. (Existing fields `UserId`/`UserDisplayName`/`TrackUri`/`TrackName` are retained as `RequestedByUserId`/`RequestedByDisplayName`/`TrackUri`/`TrackName`; `UserId string` → `RequestedByUserId Guid`.) |
+| **`SongSkippedEvent`** | EXISTS (`Domain/Music/Events/SongSkippedEvent.cs`; as-built fields `SkippedByUserId string`, `TrackName`) — target below | `SongRequestItemId Guid`; `QueueId Guid`; `SkippedByUserId Guid`; `TrackName string`. (`SkippedByUserId string` → `Guid`.) |
+| **`TrackChangedEvent`** | EXISTS (`Domain/Music/Events/TrackChangedEvent.cs`; as-built fields `TrackName`, `Artist`, `TrackUri`, `AlbumArtUrl?`, `DurationMs`, `Provider`) — target below | `SongRequestItemId Guid?` (null if provider-native track not from queue); `TrackName string`; `Artist string`; `TrackUri string`; `AlbumArtUrl string?`; `int DurationSeconds`; `Provider string`; `RequestedByDisplayName string?`. (Existing `DurationMs int` → `DurationSeconds int` for schema parity; keep `AlbumArtUrl`.) This is the event the now-playing feed (§ `INowPlayingFeed`) fans out to overlays. |
+| **`SongRequestRejectedEvent`** | NEW, target — not built (`Domain/Music/Events/SongRequestRejectedEvent.cs`) | `QueueId Guid`; `RequestedByUserId Guid`; `RequestedByDisplayName string`; `Provider string`; `RawQuery string`; `RejectionReason string` (`queue_closed`\|`queue_full`\|`pending_limit`\|`per_stream_limit`\|`min_standing`\|`explicit_blocked`\|`age_restricted`\|`too_long`\|`subscriber_only`\|`trust_too_low`\|`requester_blocked`\|`not_embeddable`\|`no_provider`\|`not_found`\|`not_found_on_target`). |
+| **`SongRequestQueueChangedEvent`** | EXISTS (`Domain/Music/Events/SongRequestQueueChangedEvent.cs`; as-built payload `Items: IReadOnlyList<SongRequestQueueSnapshotItem(Title, RequestedBy, DurationSec, Code)>`, published after every queue mutation) — the fields below are the target | `QueueId Guid`; `ChangeKind string` (`item_added`\|`item_removed`\|`item_played`\|`reordered`\|`bumped`\|`cleared`\|`opened`\|`closed`\|`paused`\|`resumed`); `SongRequestItemId Guid?`; `int QueueLength`. Drives live SR-page and dashboard queue refresh over the feed. `bumped` = an item moved into the bump band (raffle win / `!bump` / queue-jump redeem) — a queue-structure reorder. |
+| **`SongRequestRaffleEvent`** | NEW, target — not built (`Domain/Music/Events/SongRequestRaffleEvent.cs`) | `QueueId Guid`; `RaffleId Guid`; `Phase string` (`started`\|`drawn`); `int EntryCost`; `int WinnerCount`; `IReadOnlyList<SongRequestRaffleWinner> Winners` (empty on `started`). `SongRequestRaffleWinner` = `record(Guid UserId, string DisplayName, Guid? BumpedItemId, bool GrantedBumpToken)` — `BumpedItemId` set when the winner had a queued song moved to the bump band, `GrantedBumpToken` true when they had none and got a token instead. Overlays celebrate the start + the draw; the feed mirrors it over SignalR (§3.6). |
 
 ---
 
 ## 3. Service interfaces (full signatures)
 
-All methods async, return `Task<Result<T>>` (or `Task<Result>` for void outcomes). `Guid broadcasterId` is the tenant key. Namespaces: contracts under `NomNomzBot.Application.Contracts.Music`; config/page-token services under `NomNomzBot.Application.Services` (matching the existing `IMusicConfigService` placement).
+**Target conventions** (the as-built `IMusicService` and `IMusicConfigService` still take `string broadcasterId`): all methods async, return `Task<Result<T>>` (or `Task<Result>` for void outcomes). `Guid broadcasterId` is the tenant key. Namespaces: contracts under `NomNomzBot.Application.Contracts.Music`; config/page-token services under `NomNomzBot.Application.Services` (matching the existing `IMusicConfigService` placement).
 
-### 3.1 `IMusicService` — EXTEND existing (`Application/Contracts/Music/IMusicService.cs`)
+### 3.1 `IMusicService` — as-built (`Application/Music/Services/IMusicService.cs`) + target
 
-Widen `string broadcasterId` → `Guid broadcasterId` on every existing member, convert return types to `Result<T>`, and add the persistence-backed SR members. Final surface:
+**As-built.** Namespace `NomNomzBot.Application.Music.Services`; `broadcasterId` is a `string`; `Result` / `Result<T>` come from `Application.Common.Models`. The queue is addressed by zero-based **position**, not by item id. The gate on every request is the channel's `MusicConfig` (§3.4): `SR_DISABLED` when `IsEnabled` is off, `MIN_TRUST_LEVEL` when `requesterRoleLevel` sits below `MinTrustLevel` (a null level skips the floor check, never the `IsEnabled` check), `TRACK_BLOCKED` for a blocklisted track, `SERVICE_UNAVAILABLE` with no active provider, `NOT_FOUND` when nothing resolves.
 
 ```csharp
+namespace NomNomzBot.Application.Music.Services;
+
+public interface IMusicService
+{
+    Task<IReadOnlyList<MusicTrack>> SearchAsync(string broadcasterId, string query, int maxResults = 5, CancellationToken cancellationToken = default);
+    Task<Result> PlayAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<Result> PauseAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<Result> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);       // no skippedByUserId
+    Task<Result> PreviousAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<MusicQueue> GetQueueAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<Result> AddToQueueAsync(string broadcasterId, string trackUri, string? requestedBy = null,
+        CancellationToken cancellationToken = default, string? requesterUserId = null);                    // the one admission path
+    Task<Result<MusicTrack>> RequestTrackAsync(string broadcasterId, string query, string? requestedBy = null,
+        int? requesterRoleLevel = null, CancellationToken cancellationToken = default, string? requesterUserId = null); // the !sr entry point
+    Task<Result> SetVolumeAsync(string broadcasterId, int volume, CancellationToken cancellationToken = default);
+    Task<NowPlaying?> GetNowPlayingAsync(string broadcasterId, CancellationToken cancellationToken = default, bool isBackgroundPoll = false);
+    Task<Result> PlayTrackOnceAsync(string broadcasterId, string trackUri, CancellationToken cancellationToken = default);
+    Task<bool?> TryGetCachedIsPlayingAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<string?> GetActiveProviderKeyAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<string?> GetActiveProviderAuthStatusAsync(string broadcasterId, CancellationToken cancellationToken = default); // needs_reauth | forbidden | null
+    Task<bool> RemoveFromQueueAsync(string broadcasterId, int position, CancellationToken cancellationToken = default);
+    Task<bool> PromoteToTopAsync(string broadcasterId, int position, CancellationToken cancellationToken = default);
+    Task<Result<BlockedTrackDto>> BanQueuedTrackAsync(string broadcasterId, int position, string? blockedByUserId = null, CancellationToken cancellationToken = default);
+    Task<Result> SeekAsync(string broadcasterId, int positionMs, CancellationToken cancellationToken = default);            // milliseconds
+    Task<Result> SetShuffleAsync(string broadcasterId, bool enabled, CancellationToken cancellationToken = default);
+    Task<Result> SetRepeatAsync(string broadcasterId, string mode, CancellationToken cancellationToken = default);         // off | track | context
+    Task<Result> TransferPlaybackAsync(string broadcasterId, string deviceId, bool play = false, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MusicDeviceDto>> GetDevicesAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MusicPlaylistDto>> GetPlaylistsAsync(string broadcasterId, int offset = 0, int limit = 20, CancellationToken cancellationToken = default);
+    Task<bool> PlayContextAsync(string broadcasterId, string contextUri, CancellationToken cancellationToken = default);
+    Task<Result<string>> GetEmbeddedPlaybackTokenAsync(string broadcasterId, CancellationToken cancellationToken = default);
+}
+```
+
+`MusicTrack`, `NowPlaying`, `MusicQueue`, `MusicQueueItem` (with `Code`), `MusicDeviceDto` and `MusicPlaylistDto` are records in the same file. There is no `RequestAsync(SongRequestInputDto)`, `MoveAsync`, `ClearAsync` or `AdvanceAsync`: the reconciler advances the queue (see *As-built*).
+
+**Target surface (unbuilt; every signature below differs from the as-built code above).** Widen `string broadcasterId` → `Guid broadcasterId` on every existing member, convert return types to `Result<T>`, and add the persistence-backed SR members. Final surface:
+
+```csharp
+// TARGET — not the as-built namespace or signatures
 namespace NomNomzBot.Application.Contracts.Music;
 
 public interface IMusicService
@@ -169,7 +227,7 @@ public interface IMusicService
 }
 ```
 
-### 3.2 `ISongRequestQueueStateService` — NEW (`Application/Contracts/Music/ISongRequestQueueStateService.cs`)
+### 3.2 `ISongRequestQueueStateService` — NEW, target (`Application/Contracts/Music/ISongRequestQueueStateService.cs`) — not built
 
 Queue lifecycle/config that is **not** per-track. Separated from `IMusicService` (single responsibility: queue state vs. track operations).
 
@@ -202,7 +260,7 @@ public interface ISongRequestQueueStateService
 }
 ```
 
-### 3.3 `ISongRequestTrustService` — NEW (`Application/Contracts/Music/ISongRequestTrustService.cs`)
+### 3.3 `ISongRequestTrustService` — NEW, target (`Application/Contracts/Music/ISongRequestTrustService.cs`) — not built
 
 Owns L.6 read/compute/gate/block and is the home of **Bamo's trust scoring** (full algorithm + DTOs in §3.9). Distinct from the global moderation `UserTrustScores`; this is SR-specific request trust on a **0–100** scale.
 
@@ -236,11 +294,30 @@ public interface ISongRequestTrustService
 }
 ```
 
-### 3.4 `IMusicConfigService` — EXTEND existing (`Application/Services/IMusicConfigService.cs`)
+### 3.4 `IMusicConfigService` — as-built (`Application/Music/Services/IMusicConfigService.cs`) + target
 
-Already returns `Result<T>`. Widen `string broadcasterId` → `Guid`, and **add** the generic per-provider config accessors backed by the single `MusicProviderConfig` table (today it stores config in a key-value store; the schema makes it relational). One pair of methods serves every provider — the `provider` registry key selects the row; provider-specific knobs ride in `ProviderSettings` and are validated by the registry.
+**As-built.** Namespace `NomNomzBot.Application.Music.Services`; `string broadcasterId`; two methods only. The settings live in the `music:config` key-value blob, not in a relational table.
 
 ```csharp
+namespace NomNomzBot.Application.Music.Services;
+
+public interface IMusicConfigService
+{
+    Task<Result<MusicConfigDto>> GetConfigAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    Task<Result<MusicConfigDto>> UpdateConfigAsync(string broadcasterId, UpdateMusicConfigDto request, CancellationToken cancellationToken = default);
+}
+
+// Application/Music/Dtos/MusicConfigDtos.cs
+public sealed record MusicConfigDto(bool IsEnabled, string PreferredProvider, int MaxQueueSize,
+    int MaxRequestsPerUser, bool AllowYouTube, bool AllowSpotify, string MinTrustLevel);
+// PreferredProvider ∈ auto|spotify|youtube; MinTrustLevel ∈ everyone|subscribers|vip|moderators|broadcaster.
+// UpdateMusicConfigDto = the same fields, all nullable, with [Range]/[RegularExpression] validation.
+```
+
+**Target (unbuilt).** Widen `string broadcasterId` → `Guid`, and **add** the generic per-provider accessors backed by the single `MusicProviderConfig` table. One pair of methods serves every provider — the `provider` registry key selects the row; provider-specific knobs ride in `ProviderSettings` and are validated by the registry.
+
+```csharp
+// TARGET — not the as-built namespace or signatures
 namespace NomNomzBot.Application.Services;
 
 public interface IMusicConfigService
@@ -263,12 +340,14 @@ public interface IMusicConfigService
 ```
 Adding a provider needs **no** new method here — `provider` is the open registry key; the registry validates its settings shape.
 
-### 3.5 `IMusicProvider` — EXTEND existing (`Domain/Interfaces/IMusicProvider.cs`)
+### 3.5 `IMusicProvider` — as-built (`Domain/Music/Interfaces/IMusicProvider.cs`)
 
-Widen `string broadcasterId` → `Guid` on every member; add a `Provider` discriminator, a `Capabilities` flagset (so the SR/now-playing logic gates on **what a provider can do**, not on its name), and a `ResolveTrackAsync` (the SR pipeline needs to turn a raw URI/id into authoritative metadata before persisting). Implementations: `SpotifyMusicProvider`, `YouTubeMusicProvider` (both exist — update signatures, do not rename).
+**As-built.** `IMusicProvider` takes `Guid broadcasterId` on every member, exposes a `Provider` discriminator and a `Capabilities` flagset (so the SR/now-playing logic gates on **what a provider can do**, not on its name), and `ResolveTrackAsync` (turns a raw URI/id into authoritative metadata). Implementations: `SpotifyMusicProvider`, `YouTubeMusicProvider` in `Infrastructure/Music/`. The block below is the as-built surface. **Target-only shapes** that the code does not use: `SearchAsync` returning a bare `IReadOnlyList<TrackInfo>`, `ResolveTrackAsync` returning a bare `TrackInfo?`, `GetCurrentTrackAsync` without the `isBackgroundPoll` flag — all superseded by the failure-reason tuples below.
 
 ```csharp
-namespace NomNomzBot.Domain.Interfaces;
+namespace NomNomzBot.Domain.Music.Interfaces;
+
+public enum MusicProviderFailureReason { None, NotConnected, Unavailable, UnsupportedContentType }
 
 [Flags]
 public enum MusicProviderCapabilities
@@ -289,6 +368,7 @@ public enum MusicProviderCapabilities
     Library            = 1 << 12, // save/remove saved tracks, follow/unfollow, ratings
     Playlists          = 1 << 13, // create/read/update playlists + add/remove tracks
     Subscriptions      = 1 << 14, // follow/unfollow channels (YouTube subscriptions)
+    EmbeddedPlayback   = 1 << 15, // an in-browser SDK player can hold a scoped token (Spotify Web Playback SDK)
 }
 
 public enum MusicRepeatMode { Off, Track, Context }   // Context = playlist/album (Spotify "context")
@@ -312,17 +392,21 @@ public interface IMusicProvider
     Task SetRepeatAsync(Guid broadcasterId, MusicRepeatMode mode, CancellationToken cancellationToken = default);  // requires Repeat
     Task<IReadOnlyList<MusicDeviceInfo>> GetDevicesAsync(Guid broadcasterId, CancellationToken cancellationToken = default);        // requires TransferDevice
     Task TransferPlaybackAsync(Guid broadcasterId, string deviceId, bool play, CancellationToken cancellationToken = default);      // requires TransferDevice
-    Task<TrackInfo?> GetCurrentTrackAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<TrackInfo>> SearchAsync(
+    Task<TrackInfo?> GetCurrentTrackAsync(Guid broadcasterId, CancellationToken cancellationToken = default, bool isBackgroundPoll = false);
+    Task<(IReadOnlyList<TrackInfo> Tracks, MusicProviderFailureReason Failure)> SearchAsync(
         Guid broadcasterId, string query, int maxResults = 5, CancellationToken cancellationToken = default);
-    Task<TrackInfo?> ResolveTrackAsync(Guid broadcasterId, string uriOrId, CancellationToken cancellationToken = default);
-    // Authoritative single-track metadata lookup (provider track id/uri → TrackInfo). Null if not found/unavailable.
+    Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
+        Guid broadcasterId, string uriOrId, CancellationToken cancellationToken = default);
+    // Authoritative single-track metadata lookup (provider track id/uri → TrackInfo). Track null + a Failure reason if not found/unavailable.
     Task<bool> AddToQueueAsync(Guid broadcasterId, string trackUri, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TrackInfo>?> GetQueueAsync(Guid broadcasterId, CancellationToken cancellationToken = default);   // the provider's own queue; null when unsupported
+    Task<string?> GetEmbeddedPlaybackTokenAsync(Guid broadcasterId, CancellationToken cancellationToken = default);     // requires EmbeddedPlayback
+    bool TryGetCoolingUntil(Guid broadcasterId, out DateTimeOffset until);                                              // default interface member: (false, default)
 }
 ```
-`TrackInfo` (existing class) gains `string ProviderTrackId { get; init; }` and `bool IsExplicit { get; init; }` and `bool IsAgeRestricted { get; init; }` and `bool IsEmbeddable { get; init; }` (needed by the gates); `DurationMs` stays (service converts to `DurationSeconds` for persistence).
+`TrackInfo` (`Domain/Music/Interfaces/IMusicProvider.cs`) already carries `ProviderTrackId`, `IsExplicit`, `IsAgeRestricted`, `IsEmbeddable`, plus `ArtistId`, playback-state fields (`IsPlaying`, `ProgressMs`, `VolumePercent`, `ShuffleEnabled`, `RepeatMode`) and the `Can*` transport flags; `DurationMs` stays. `IMusicRemoteProvider` (same folder) is the residual paged-playlists and play-context surface. The explicit/age/embeddable gates that would consume the flags are **target** (they need `MusicProviderConfig`).
 
-**Capability set per shipped provider.** `SpotifyMusicProvider` = `Search | Queue | PlaybackControl | Volume | Skip | Seek | NowPlaying | AcceptsSongRequests | Previous | Shuffle | Repeat | TransferDevice | Library | Playlists` (full remote + library/playlist manage; **no `Subscriptions`** — Spotify has no channel-follow analogue here). `YouTubeMusicProvider` = `Search | Queue | NowPlaying | AcceptsSongRequests | Library | Playlists | Subscriptions` (search-fed queue + manage surface) **minus `Volume`/`Seek`/`Previous`/`Shuffle`/`Repeat`/`TransferDevice`** — YouTube Data API has **no playback-transport control** (those ride the embedded player, not the API), so the remote-transport calls below return `CAPABILITY_UNSUPPORTED` on YouTube. `Library` on YouTube = `videos.rate` (like/dislike); `Subscriptions` = `subscriptions.insert`/`delete`. The rest of the subsystem gates purely on the capability flag — **no name checks anywhere**.
+**Capability set per shipped provider.** `SpotifyMusicProvider` = `Search | Queue | PlaybackControl | Volume | Skip | Seek | NowPlaying | AcceptsSongRequests | Previous | Shuffle | Repeat | TransferDevice | Library | Playlists | EmbeddedPlayback` (full remote + library/playlist manage; **no `Subscriptions`** — Spotify has no channel-follow analogue here). `YouTubeMusicProvider` = `Search | Queue | NowPlaying | AcceptsSongRequests | Library | Playlists | Subscriptions` (search-fed queue + manage surface) **minus `Volume`/`Seek`/`Previous`/`Shuffle`/`Repeat`/`TransferDevice`** — YouTube Data API has **no playback-transport control** (those ride the embedded player, not the API), so the remote-transport calls below return `CAPABILITY_UNSUPPORTED` on YouTube. `Library` on YouTube = `videos.rate` (like/dislike); `Subscriptions` = `subscriptions.insert`/`delete`. The rest of the subsystem gates purely on the capability flag — **no name checks anywhere**.
 
 **YouTube ad-strip.** Because YouTube plays through our **browser-source player** (§3.5.2), the overlay blocks the YouTube **ad-network requests** (YouTube ads arrive as separate network requests — strippable here, unlike Spotify, which streams ads INLINE in the audio and cannot be stripped). Config `SongRequestQueues.StripYouTubeAds` (L.4, default **true**, per-channel toggle) controls it; rationale + ToS stance in §9.
 
@@ -332,7 +416,7 @@ public interface IMusicProvider
 - Per-operation gates check the relevant flag and return `Failure("CAPABILITY_UNSUPPORTED")` if absent (e.g. `SetVolumeAsync` requires `Volume`, `SeekAsync` requires `Seek`, `PreviousAsync` requires `Previous`, `SetShuffleAsync` requires `Shuffle`, `SetRepeatAsync` requires `Repeat`, `TransferPlaybackAsync`/`GetDevicesAsync` require `TransferDevice`, the `IMusicProviderManageApi` library calls require `Library`, playlist calls require `Playlists`, subscription calls require `Subscriptions`).
 - **Spotify playback requires Premium.** Transport/remote control on Spotify additionally needs a **Premium** account (Web API restriction). This is surfaced as a runtime **capability**, not a connect error: a remote call on a non-Premium Spotify account returns `Failure("PREMIUM_REQUIRED")` (distinct from `CAPABILITY_UNSUPPORTED`), and `IntegrationStatusDto.Capabilities["spotify.premium"]` (integrations-oauth §3) is `false` so the dashboard can disable the controls rather than letting them fail. Connect still succeeds without Premium (search/library/playlist read-write all work; only transport is gated).
 
-### 3.5.1 `IMusicProviderRegistry` — NEW (`Application/Contracts/Music/IMusicProviderRegistry.cs`)
+### 3.5.1 `IMusicProviderRegistry` — NEW, target (`Application/Contracts/Music/IMusicProviderRegistry.cs`) — not built
 
 Single resolution point for providers by their open registry key. Providers are DI-keyed by `Provider`; each self-registers its `Capabilities` and a settings-schema/validator (which validates the `MusicProviderConfig.ProviderSettings` JSON for that provider). Adding a provider = register the `IMusicProvider` + its settings schema here; **zero** new tables, service methods, or migrations.
 
@@ -363,7 +447,7 @@ public interface IMusicProviderRegistry
 
 These names (Pretzel, StreamBeats) are illustrative of the kinds the model fits — they are **not** specified as providers; the point is that each slots in by registering capabilities + a settings schema, with no queue-logic or schema change.
 
-### 3.5.2 Playback sequencing — `ISongRequestSequencer` (NEW, `Application/Contracts/Music/ISongRequestSequencer.cs`)
+### 3.5.2 Playback sequencing — `ISongRequestSequencer` (NEW, target — not built; today `MusicService` + `SongRequestQueueReconciler` + `MusicStatePollingService` drive playback, see *As-built*)
 
 The fair queue (§3.8) is the **ordering authority**; the **sequencer** is the **playback driver**. It owns ONE now-playing pointer and plays strictly **one item at a time** across both providers — the queue is interleaved (item N may be Spotify, N+1 YouTube), so the sequencer drives whichever engine the playable head belongs to. Impl `SongRequestSequencer` (Infrastructure), run by the existing now-playing poller / `IHostedService` loop.
 
@@ -420,7 +504,7 @@ public sealed record PlaybackStateDto(
 
 Explicitly: a provider **OUTAGE** holds items in `waiting` indefinitely; only **per-item** errors on a **healthy** provider use the bounded `retrying` path; content errors are removed immediately.
 
-### 3.6 `INowPlayingFeed` — NEW (`Application/Contracts/Music/INowPlayingFeed.cs`)
+### 3.6 `INowPlayingFeed` — NEW, target (`Application/Contracts/Music/INowPlayingFeed.cs`) — not built (today `SrQueueBroadcastHandler` and `SongChangedProjector` feed overlays and the dashboard)
 
 The now-playing **widget feed** boundary. Application-layer abstraction; the Infrastructure/Api impl wraps `IHubContext<OverlayHub, IOverlayClient>` and pushes a `WidgetEventDto` to the channel's overlay group. Keeps `IMusicService` free of SignalR.
 
@@ -441,18 +525,22 @@ public sealed record SongRequestQueueChangedPayload(string ChangeKind, Guid? Son
 ```
 Impl (`NowPlayingFeed`, Infrastructure or Api) is subscribed to `TrackChangedEvent` + `SongRequestQueueChangedEvent` via the `IEventBus` handler registration and calls `_overlayHub.Clients.Group($"widget-{broadcasterId}-now-playing").WidgetEvent(new WidgetEventDto("now-playing", "track.changed", nowPlaying))` (group naming matches `OverlayHub.JoinWidget`: `widget-{broadcasterId}-{widgetId}`).
 
-### 3.7 `ISongRequestPageTokenService` — NEW (`Application/Services/ISongRequestPageTokenService.cs`)
+### 3.7 `ISongRequestPageTokenService` — built (`Application/Music/Services/ISongRequestPageTokenService.cs`)
 
 **Public SR-page tokens.** The public `/(public)/sr/[channel]` page must let viewers submit requests without a JWT. This is a per-channel opaque capability token, **distinct** from `Channels.OverlayToken` (which is for OBS browser sources). It resolves a token → `BroadcasterId` for the public submit endpoint.
 
 ```csharp
-namespace NomNomzBot.Application.Services;
+namespace NomNomzBot.Application.Music.Services;   // as-built (the target had NomNomzBot.Application.Services)
 
 public interface ISongRequestPageTokenService
 {
     Task<Result<SongRequestPageDto>> ResolveAsync(string pageToken, CancellationToken cancellationToken = default);
-    // Maps an opaque SR-page token → channel context (BroadcasterId, channel name, queue open/paused, EnabledProviders list).
+    // Maps an opaque SR-page token → channel context. As-built SongRequestPageDto(Guid BroadcasterId, string ChannelName,
+    // bool IsAcceptingRequests, IReadOnlyList<string> EnabledProviders); the target record (§4) adds IsPaused and CurrentLength.
     // Failure NOT_FOUND on unknown/disabled token. Used by the public (AllowAnonymous) submit/read endpoints.
+
+    Task<Result<SongRequestPageDto>> ResolveByChannelNameAsync(string channelName, CancellationToken cancellationToken = default);
+    // As-built addition: the human-shareable /sr/@name link. Resolves only once the channel has minted a token; NOT_FOUND otherwise.
 
     Task<Result<string>> GetOrCreateAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
     // Returns the channel's SR-page token, minting one (opaque, 32+ chars, not PII) on first call. Idempotent.
@@ -461,13 +549,13 @@ public interface ISongRequestPageTokenService
     // Invalidates the old token and returns a fresh one (revokes public access via the old link).
 }
 ```
-> **Storage.** The SR-page token is the LOCKED-schema `Channels.SongRequestPageToken string(64) Null Unique` column (A.2) — a single per-channel opaque, rotatable string mirroring the existing `OverlayToken` pattern. `GetOrCreateAsync` mints it on first call; `RotateAsync` overwrites it. **No PII** (per A.2 `OverlayToken` precedent).
+> **Storage (as-built).** The SR-page token is the `Channel.SongRequestPageToken` column (`string?`, A.2) — a single per-channel opaque, rotatable string mirroring the existing `OverlayToken` pattern. `GetOrCreateAsync` mints it on first call; `RotateAsync` overwrites it. **No PII** (per A.2 `OverlayToken` precedent).
 
 ---
 
 ### 3.8 Fair-queue ordering — Bamo's algorithm (`IFairQueue<T>`)
 
-Queue order is **not FIFO** — it is **Bamo's rank-based fair scheduler** (`NomNomzBot.Domain.Music.Interfaces.IFairQueue<T>`, impl `NomNomzBot.Infrastructure.Music.FairQueue<T>` — **already in the tree**; reused with the insertion-direction fix in *Code reconciliation* below). One in-memory `IFairQueue<SongRequestItem>` per active channel is the **ordering authority**; `SongRequestItems.Position` (L.5) is its **persisted materialization**.
+Queue order is **not FIFO** — it is **Bamo's rank-based fair scheduler** (`NomNomzBot.Domain.Music.Interfaces.IFairQueue<T>`, impl `NomNomzBot.Infrastructure.Music.FairQueue<T>` — **already in the tree**; reused with the insertion-direction fix in *Code reconciliation* below). One in-memory `FairQueue<SongRequestEntry>` per active channel is the **ordering authority** (as-built); the as-built persisted form is the `SongRequestQueueItem` restart mirror (`Sequence` = play-order index, see *As-built*); `SongRequestItems.Position` (L.5) is the **target** materialization.
 
 **Algorithm (faithful — round-robin fair queueing, the Deficit-Round-Robin family).** A song's **rank is positional: the count of that requester's songs at-or-ahead of it in the CURRENT queue** (`rank_of(i) = count of queue[i].owner in queue[0..i]`). Two rules fully determine order: (1) **no song sits behind a higher-rank song**; (2) **within equal rank, earliest-requested stays ahead** (FIFO). Net effect: if N requesters each have one song queued, **all N play before anyone's 2nd** — no one front-loads the queue (which plain FIFO + a flat per-user cap does not prevent). The per-standing `PendingLimits` cap (§3.1) bounds concurrent items; rank orders what's queued. (Reference: the interactive write-up at `https://fair-queueing.netlify.app/`.)
 
@@ -479,32 +567,42 @@ Queue order is **not FIFO** — it is **Bamo's rank-based fair scheduler** (`Nom
 
 > **Do NOT "fix" this by globally re-sorting on `(rank, arrival)`.** Re-sorting after a dequeue re-promotes the dequeued requester's next song to the front of its rank tier by arrival time, letting it leapfrog requesters who have not played yet — the exact unfairness the scheduler exists to prevent (e.g. `O1,P1,P2,O2`, play `O1`, then a re-sort yields `P1,O2,P2` instead of the correct `P1,P2,O2`). Order is defined by incremental insertion + head-pop, not a global sort.
 
+**As-built `IFairQueue<T>` members** (`Domain/Music/Interfaces/IFairQueue.cs`, impl `Infrastructure/Music/FairQueue.cs`):
+
 ```csharp
-public interface IFairQueue<T>   // NomNomzBot.Domain.Music.Interfaces (exists)
+public interface IFairQueue<T>   // NomNomzBot.Domain.Music.Interfaces
 {
-    void Enqueue(string ownerKey, T item);   // rank = owner's queued count + 1; insert before the first HIGHER-rank song (front-to-back scan)
-    T?   Dequeue();                           // remove the head ONLY — no re-sort, no re-promote (head-pop preserves the fair order)
-    T?   Peek();                              // current head
+    void Enqueue(string ownerKey, T item);                                  // rank = owner's queued count + 1
+    bool TryEnqueueUnique(string ownerKey, T item, Func<T, bool> isDuplicate); // atomic "not already queued" check + enqueue under the queue lock
+    T?   Dequeue();                                                         // remove the head ONLY — no re-sort, no re-promote
+    T?   Peek();                                                            // current head
     int  Count { get; }
     bool IsEmpty { get; }
     void Clear();
-    int  RemoveByOwner(string ownerKey);      // remove the owner's items; surviving order stays valid
-    bool RemoveAt(int position);              // remove one item by position; surviving order stays valid
-    IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();   // items in play order; Rank = live positional rank
+    int  RemoveByOwner(string ownerKey);                                    // remove the owner's items; surviving order stays valid
+    int  RemoveThrough(Func<T, bool> predicate);                            // remove every item up to and including the last match
+    bool RemoveFirst(Func<T, bool> predicate);                              // remove the first item matching the predicate
+    bool RemoveAt(int position);                                            // remove one item by position
+    bool MoveToFront(int position);                                         // moderator "play next" (the dashboard promote action)
+    IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();       // items in play order; Rank = live positional rank
 }
 ```
 
-**Persistence mapping.** `IMusicService.RequestAsync` calls `queue.Enqueue(RequestedByUserId, item)`, then writes `SongRequestItems.Position = snapshot index` for every `queued` row from `queue.GetSnapshot()` under the per-tenant lock. `AdvanceAsync` (track finished) `Dequeue()`s the head and re-materializes Position; `RemoveAsync` → `RemoveByOwner`/`RemoveAt` + re-materialize; `ClearAsync` → `Clear`. `GetQueueAsync` (`ORDER BY Position`) and the SR-page render that persisted order.
+The **target** ordering rule below describes `Enqueue` semantics (front-to-back insert); the as-built `Enqueue` does not yet match it (see *Code reconciliation*).
 
-**Restart-safe.** The in-memory queue is rebuilt on first access from the persisted `Status=queued` rows **in `Position` order — the saved schedule, NOT `RequestedAt`**. Rebuilding from arrival order would re-enqueue songs whose earlier siblings have already played and so re-promote them (the re-sort trap above); loading by `Position` restores the exact pre-restart order, and positional ranks are then recomputed live from the rebuilt list for the next insert.
+**Persistence (as-built).** `MusicService` admits through `TryEnqueueUnique`/`Enqueue`, then calls `ISongRequestQueuePersistence.SyncAsync` with `GetSnapshot()` (rows keyed `(BroadcasterId, Sequence)`, `Sequence` = snapshot index, plus `IsInFlight` for the entry already handed to the provider). Startup restore replays the rows in `Sequence` order; the target rebuild-by-`Position` rule below is what that replay approximates.
 
-**Paid lane — queue-jump + extra-slot (opt-in, OFF by default).** The paid lane is separate from the free lane and **default-deny** — the fair queue admits no paid lane unless the broadcaster turns one on, and paid requests count against `PaidPendingLimit` (L.4), not the free `PendingLimits`. Two opt-in **channel-point redeems**, each off by default:
+**Persistence mapping (target).** `IMusicService.RequestAsync` calls `queue.Enqueue(RequestedByUserId, item)`, then writes `SongRequestItems.Position = snapshot index` for every `queued` row from `queue.GetSnapshot()` under the per-tenant lock. `AdvanceAsync` (track finished) `Dequeue()`s the head and re-materializes Position; `RemoveAsync` → `RemoveByOwner`/`RemoveAt` + re-materialize; `ClearAsync` → `Clear`. `GetQueueAsync` (`ORDER BY Position`) and the SR-page render that persisted order.
+
+**Restart-safe (target design; the as-built restore is described above).** The in-memory queue is rebuilt on first access from the persisted `Status=queued` rows **in `Position` order — the saved schedule, NOT `RequestedAt`**. Rebuilding from arrival order would re-enqueue songs whose earlier siblings have already played and so re-promote them (the re-sort trap above); loading by `Position` restores the exact pre-restart order, and positional ranks are then recomputed live from the rebuilt list for the next insert.
+
+**Paid lane — queue-jump + extra-slot (target — not built; opt-in, OFF by default).** The paid lane is separate from the free lane and **default-deny** — the fair queue admits no paid lane unless the broadcaster turns one on, and paid requests count against `PaidPendingLimit` (L.4), not the free `PendingLimits`. Two opt-in **channel-point redeems**, each off by default:
 - **`queue-jump`** (`QueueJumpEnabled`) — priority placement: a "queue-jump raffle" redeem (redeemers enter a draw for the next priority slot) and a "one-time bump my song" redeem (moves the redeemer's already-queued item ahead of the fair-ordered remainder, once). Placed **ahead of the fair-ordered items** (priority prefix); fairness is preserved among the non-jumped remainder.
 - **`extra-slot`** (`PaidExtraSlotEnabled`) — adds a request at **normal fair position**, bypassing the free `PendingLimits` cap (it buys an additional slot, not priority).
 
 Both link the redemption via `SongRequestItems.CatalogPurchaseId` (`economy.md`). With neither enabled, every request takes fair-rank order under the free cap. Mod `MoveAsync` is a deliberate manual override: it moves the item to the chosen index. Because the schedule is **never globally re-sorted**, the moved item simply stays where it was placed — later inserts splice around it and a head-pop never disturbs it — so the override is durable with no pin flag or extra column.
 
-**Three-band priority model (the bump tier).** The single ordered queue (top plays first) is partitioned into three bands by `SongRequestItems.PriorityBand` (L.5). The sequencer (§3.5.2) always promotes the highest item across the whole queue; the bands stack **bump → auto_bump → normal**, and `Position` orders items WITHIN a band (the fair-rank materialization from §3.8 is computed per-band, not globally). The restart-safe rebuild (above) runs per-band: on first access each band's queue is rebuilt from its `Status=queued` rows **in `Position` order**, partitioned by `PriorityBand`, so a restart never reshuffles.
+**Three-band priority model (the bump tier) — target, not built; `PriorityBand` does not exist.** The single ordered queue (top plays first) is partitioned into three bands by `SongRequestItems.PriorityBand` (L.5). The sequencer (§3.5.2) always promotes the highest item across the whole queue; the bands stack **bump → auto_bump → normal**, and `Position` orders items WITHIN a band (the fair-rank materialization from §3.8 is computed per-band, not globally). The restart-safe rebuild (above) runs per-band: on first access each band's queue is rebuilt from its `Status=queued` rows **in `Position` order**, partitioned by `PriorityBand`, so a restart never reshuffles.
 
 1. **`bump` band — every explicit bump.** Raffle wins (§3.11), `!bump` (§3.11/§6), and the existing channel-point `queue-jump` redeem (§3.8) ALL land here. Ordered **fairly among bumpers** by the same Bamo rule: a bumper's rank within the band = (number of bumps that user already has pending in the band) + 1, FIFO within equal rank. No single bumper monopolizes the band even with multiple bumps. `BumpSource` records which path placed the item (`raffle`\|`command`\|`redeem`).
 2. **`auto_bump` band — each requester's first song of the stream.** When `AutoBumpFirstSong` (L.4, default OFF) is on, a requester's FIRST song this stream is placed here: **above** the regular fair queue, **below** every explicit bump. Fair among the auto-bumped first-songs (same Bamo rule, owner key = `RequestedByUserId`). A user's SUBSEQUENT songs go to the `normal` band. **First-song detection REUSES the per-stream-per-user request tracking the `PerStreamLimit` feature relies on** (§3.1) — first request this stream = that per-stream count is 0; **no second counter is introduced**.
@@ -512,11 +610,13 @@ Both link the redemption via `SongRequestItems.CatalogPurchaseId` (`economy.md`)
 
 A `!bump`/raffle/redeem on an item already queued sets its `PriorityBand=bump` and re-materializes Position within the bump band under the per-tenant lock, then emits `SongRequestQueueChangedEvent(bumped)`. The `queue-jump` redeem's "priority prefix" (above) is exactly the `bump` band — the two descriptions are the same mechanism.
 
-**Code reconciliation.** One impl is in the tree — `NomNomzBot.Infrastructure.Music.FairQueue<T>` (`server/src/NomNomzBot.Infrastructure/Music/FairQueue.cs`) behind `NomNomzBot.Domain.Music.Interfaces.IFairQueue<T>` — and it is **canonical** (no orphan dupe remains). Its `Dequeue` and play order are **correct** (head-pop preserves the schedule; the in-place rank renumber keeps stored rank equal to live positional rank). The bug is in **`Enqueue`: it scans from the END** for the last item with `rank <= newRank` and inserts after it. That equals the front-scan only while the list is rank-monotonic — but a `Dequeue` legitimately leaves it non-monotonic (the dequeued owner's later song is renumbered to a low rank yet stays physically behind higher-rank items), and scanning from the end then **buries a fresh rank-1 request at the back** instead of placing it in the front rank-1 tier. Worked example: `O1,P1,P2,O2` → `Dequeue O1` → `[P1,P2,O2]` (correct), then enqueue newcomer `Q1` → the impl yields `[P1,P2,O2,Q1]` (Q1 buried); correct is `[P1,Q1,P2,O2]`. **Fix on implementation:** scan **front-to-back** and insert before the first higher-rank item (the `insert`/`rank_of` at `https://fair-queueing.netlify.app/`); keep head-pop as-is and do **not** re-sort. **Regression test (prove behavior):** assert the exact order `[P1,Q1,P2,O2]` for insert-after-dequeue — the existing `FairQueueTests` use order-insensitive `BeEquivalentTo` and only a single-owner dequeue, so they miss it; add explicit-order cases for insert-after-dequeue, mid-queue self-remove, and a 3-owner interleave.
+**Code reconciliation — open as `S-FAIRQUEUE-ENQUEUE`.** The `Enqueue` bug below is **still present** (`FairQueue<T>.EnqueueUnderLock` scans from the end); neither the fix nor the regression test is applied. One impl is in the tree — `NomNomzBot.Infrastructure.Music.FairQueue<T>` (`server/src/NomNomzBot.Infrastructure/Music/FairQueue.cs`) behind `NomNomzBot.Domain.Music.Interfaces.IFairQueue<T>` — and it is **canonical** (no orphan dupe remains). Its `Dequeue` and play order are **correct** (head-pop preserves the schedule; the in-place rank renumber keeps stored rank equal to live positional rank). The bug is in **`Enqueue`: it scans from the END** for the last item with `rank <= newRank` and inserts after it. That equals the front-scan only while the list is rank-monotonic — but a `Dequeue` legitimately leaves it non-monotonic (the dequeued owner's later song is renumbered to a low rank yet stays physically behind higher-rank items), and scanning from the end then **buries a fresh rank-1 request at the back** instead of placing it in the front rank-1 tier. Worked example: `O1,P1,P2,O2` → `Dequeue O1` → `[P1,P2,O2]` (correct), then enqueue newcomer `Q1` → the impl yields `[P1,P2,O2,Q1]` (Q1 buried); correct is `[P1,Q1,P2,O2]`. **Fix on implementation:** scan **front-to-back** and insert before the first higher-rank item (the `insert`/`rank_of` at `https://fair-queueing.netlify.app/`); keep head-pop as-is and do **not** re-sort. **Regression test (prove behavior):** assert the exact order `[P1,Q1,P2,O2]` for insert-after-dequeue — the existing `FairQueueTests` use order-insensitive `BeEquivalentTo` and only a single-owner dequeue, so they miss it; add explicit-order cases for insert-after-dequeue, mid-queue self-remove, and a 3-owner interleave.
 
 ### 3.9 Trust scoring — Bamo's exponential-decay algorithm (`TrustScoreCalculator`)
 
-The `MinYouTubeTrustScore` gate (L.4) and `SongRequestTrustScores.Score` (L.6) are produced by **Bamo's exponential-decay trust algorithm** (`NomNomzBot.Infrastructure.Services.Trust.TrustScoreCalculator` — **already in the tree**). Score is **0–100** per (channel, requester). The **core metric base** — the four metric scores (`requestScore`/`accountScore`/`contentScore`/`popularityScore`), their weights (0.25/0.25/0.30/0.20) and decay constants (0.599/0.499/0.999/0.0003) — is **Bamo's fixed foundation and is NOT configurable**. Each **buff and debuff** layered on top of that base (reputation boost, follow penalty, YouTube channel-quality penalties, skip/timeout/ban penalties) is **individually toggleable + tunable by advanced users** via `TrustScoringConfig` (per-channel, L.4 JSON; rides the `config` PUT under `music:config:write`, §5). Every toggle defaults **ON** and every magnitude defaults to **the constant shown below**, so the **default configuration reproduces today's behavior exactly** — nothing changes unless an advanced user deliberately tunes it. The advanced dashboard surfaces these toggles + magnitudes behind an **"Advanced"** panel. This score is the mechanism that **gates low-quality YouTube requests**: a YouTube request auto-approves only when the requester bypasses by role (`Vip`/`Moderator`-and-above) or scores at/above the broadcaster's configurable `MinYouTubeTrustScore`. Spotify is never trust-gated.
+**As-built.** The calculator lives in `Domain/Trust/`, tuned per channel by `TrustPolicy` (`Domain/Trust/Entities/TrustPolicy.cs`, resolved through `ITrustPolicyService`); its caller today is the moderation rollup (`ModerationProjectionService`), not song requests. **Song requests are gated only by the `MinTrustLevel` role enum** on `MusicConfigDto` (`everyone|subscribers|vip|moderators|broadcaster`), checked in `MusicService.RequestTrackAsync` and refused with `MIN_TRUST_LEVEL`. The `MinYouTubeTrustScore` gate, `SongRequestTrustScores`, `ISongRequestTrustService` and the `TrustTier` bands below are **unbuilt (target)**; the `TrustScoringConfig` names below are the target shape of what is `TrustPolicy` today.
+
+The `MinYouTubeTrustScore` gate (L.4) and `SongRequestTrustScores.Score` (L.6) are produced by **Bamo's exponential-decay trust algorithm** (`NomNomzBot.Domain.Trust.TrustScoreCalculator`, `server/src/NomNomzBot.Domain/Trust/TrustScoreCalculator.cs` — **already in the tree**, a static class: `Calculate(TrustContext, TrustPolicy? = null)`). Score is **0–100** per (channel, requester). The **core metric base** — the four metric scores (`requestScore`/`accountScore`/`contentScore`/`popularityScore`), their weights (0.25/0.25/0.30/0.20) and decay constants (0.599/0.499/0.999/0.0003) — is **Bamo's fixed foundation and is NOT configurable**. Each **buff and debuff** layered on top of that base (reputation boost, follow penalty, YouTube channel-quality penalties, skip/timeout/ban penalties) is **individually toggleable + tunable by advanced users** via `TrustScoringConfig` (per-channel, L.4 JSON; rides the `config` PUT under `music:config:write`, §5). Every toggle defaults **ON** and every magnitude defaults to **the constant shown below**, so the **default configuration reproduces today's behavior exactly** — nothing changes unless an advanced user deliberately tunes it. The advanced dashboard surfaces these toggles + magnitudes behind an **"Advanced"** panel. This score is the mechanism that **gates low-quality YouTube requests**: a YouTube request auto-approves only when the requester bypasses by role (`Vip`/`Moderator`-and-above) or scores at/above the broadcaster's configurable `MinYouTubeTrustScore`. Spotify is never trust-gated.
 
 **Inputs — `TrustContext`** (all derived; no extra storage):
 
@@ -607,11 +707,11 @@ public sealed record TrustEvaluationDto(
 public enum TrustTier { Untrusted, Low, Standard, Trusted }   // mirrors Infrastructure TrustTier (0..3)
 ```
 
-**Persistence & wiring.** `ISongRequestTrustService.RecomputeAsync` (§3.3) builds `TrustContext`, calls `TrustScoreCalculator.Calculate`, upserts `SongRequestTrustScores.Score` (`decimal(8,4)`, 0–100 scale) and bumps the L.6 counters on accept/skip/reject. `RequestAsync` calls it before the YouTube trust gate (configurable `MinYouTubeTrustScore` + role bypass); Spotify requests skip the trust gate entirely. YouTube channel stats come from the YouTube provider's `channels.list` read (cached per channel-id).
+**Persistence & wiring (target — not built).** `ISongRequestTrustService.RecomputeAsync` (§3.3) builds `TrustContext`, calls `TrustScoreCalculator.Calculate`, upserts `SongRequestTrustScores.Score` (`decimal(8,4)`, 0–100 scale) and bumps the L.6 counters on accept/skip/reject. `RequestAsync` calls it before the YouTube trust gate (configurable `MinYouTubeTrustScore` + role bypass); Spotify requests skip the trust gate entirely. YouTube channel stats come from the YouTube provider's `channels.list` read (cached per channel-id).
 
-**Code reconciliation.** `TrustScoreCalculator` (0–100, YouTube penalties, `TrustTier` — **canonical**, used by `MusicService.CheckTrustPermission`) supersedes `Services/General/TrustService.cs` (0.0–1.0, Record-table JSON, **no** YouTube penalties — **orphan**, different scale). Keep the calculator + persist via `SongRequestTrustScores` (L.6); **delete `TrustService.cs` + the 0–1 `ITrustService`**, or rescope `ITrustService` to delegate to the calculator. (The legacy `ITrustService` doc-comment claiming "0.0–1.0" is stale.)
+**Code reconciliation (as-built).** `TrustScoreCalculator` (0–100, `TrustPolicy`-tunable) is the only trust calculator in the tree. The orphan `Services/General/TrustService.cs` and the 0–1 `ITrustService` no longer exist (checked 2026-09-30), and `MusicService.CheckTrustPermission` was replaced by the `MinTrustLevel` role check — nothing to delete.
 
-### 3.10 `IMusicProviderManageApi` — NEW (`Application/Contracts/Music/IMusicProviderManageApi.cs`)
+### 3.10 `IMusicProviderManageApi` — built (`Application/Contracts/Music/IMusicProviderManageApi.cs`; the §5 provider-scoped REST routes are not built — pipeline actions and the automation API are its callers)
 
 The **per-user manage surface** that is **not** the SR queue and **not** transport playback: playlist CRUD, saved-tracks/library, follow/unfollow, and ratings/subscriptions. Separated from `IMusicService` (single responsibility — SR queue vs. the user's own library) and from `IMusicProvider` (which is the playback/queue seam). One generic shape across providers; the active provider's `Capabilities` decide which calls are supported (`Library`/`Playlists`/`Subscriptions`), gated by flag — **no name checks**.
 
@@ -693,7 +793,7 @@ public interface IMusicProviderManageApi
 
 These are management-plane writes against the **broadcaster's own** provider account (never a viewer's) — gated by `music:library:write` (§5). No domain events (provider-side state, mirrored on next read). Token decrypt/refresh and the connect/re-auth that grants the `spotify.library`/`youtube.manage` scope-set are delegated to the integrations vault + `integrations-oauth.md`, never handled here.
 
-### 3.11 `ISongRequestBumpService` — NEW (`Application/Contracts/Music/ISongRequestBumpService.cs`)
+### 3.11 `ISongRequestBumpService` — NEW, target (`Application/Contracts/Music/ISongRequestBumpService.cs`) — not built
 
 Owns the **bump band** writes (L.5 `PriorityBand=bump`) and the **song-bump raffle** (L.7/L.8/L.9). Single responsibility — bump/raffle orchestration, distinct from the queue lifecycle (`ISongRequestQueueStateService`) and per-track ops (`IMusicService`). **No standalone raffle/giveaway primitive existed in the design corpus** (economy's "raffle" is the colloquial name of a `queue-jump` redeem, and economy games are gambling, not random-winner draws), so this is an SR-owned raffle; it **reuses the economy `CatalogPurchases` debit** (K.11) for paid entry — the exact `CatalogPurchaseId` link the paid lane uses (§3.8) — rather than inventing a parallel spend path. Bump/raffle moderation reuses the existing `music:queue:moderate` action key; viewer raffle entry reuses `music:request:submit`.
 
@@ -769,7 +869,7 @@ The interval auto-run (`RaffleIntervalMinutes`, L.4) is driven by the existing `
 
 ## 4. DTOs / contracts (records — `NomNomzBot.Application.Contracts.Music` unless noted)
 
-The existing `NowPlayingDto`, `QueueItemDto`, `MusicQueueDto`, `SongRequestDto`, `MusicConfigDto`, `UpdateMusicConfigDto` (`Application/DTOs/Music/`) are **kept and extended**, not duplicated. New records below.
+**As-built DTOs** (`Application/Music/Dtos/`, namespace `NomNomzBot.Application.Music.Dtos`): `SongRequestDto(Query, RequestedBy?)` (`Query` `[Required, MaxLength(500)]`, `RequestedBy` `[MaxLength(50)]` — a free-text display label, untrusted on the public page), `QueueItemDto(Position, TrackName, Artist, ImageUrl?, DurationMs, RequestedBy?, Cost)`, `NowPlayingDto` (adds `ShuffleState`, `RepeatState` and the `Can*` flags), `MusicQueueDto(NowPlayingDto?, IReadOnlyList<QueueItemDto>)`, `MusicConfigDto` / `UpdateMusicConfigDto` (§3.4), `BlockedTrackDto` / `BlockTrackRequest`, `SongRequestPageDto` (§3.7). Provider-manage DTOs are in `Application/Contracts/Music/MusicProviderManageDtos.cs`. Everything below is the **target** (namespace `NomNomzBot.Application.Contracts.Music`); it extends or replaces the as-built records, and every field that differs from them is unbuilt.
 
 ```csharp
 // ── Now playing / queue read models ──────────────────────────────────────────
@@ -794,8 +894,11 @@ public sealed record SongRequestInputDto
 {
     [Required, MaxLength(500)] public required string Query { get; init; }   // URL, provider id, or free-text search
     public string? Provider { get; init; }                                   // "spotify"|"youtube"; null = ProviderPriority
-    public Guid? RequestedByUserId { get; init; }                            // null on public page → resolved from page token + supplied login
-    [MaxLength(50)] public string? RequestedByLogin { get; init; }           // public page: viewer-entered Twitch login (validated, resolved to Users)
+    public Guid? RequestedByUserId { get; init; }                            // null on public page → resolved from the (RequesterProvider, RequesterLoginOrId) pair below
+    [MaxLength(20)] public string? RequesterProvider { get; init; }          // platform key of the viewer-entered identity ("twitch"|"kick"|"youtube"|…)
+    [MaxLength(100)] public string? RequesterLoginOrId { get; init; }        // public page: viewer-entered login or platform id; resolved to Users.Id through IUserIdentityService.ResolveUserAsync (D1/D2)
+    // (Provider, LoginOrId) replaces the Twitch-only RequestedByLogin. A login is first turned into the platform user id by that platform's user lookup;
+    // IUserIdentityService.ResolveUserAsync(provider, providerUserId, getOrCreate, ct) then maps it to the one human (Users.Id).
 }
 
 // ── Queue settings ───────────────────────────────────────────────────────────
@@ -951,41 +1054,59 @@ public sealed record SongRequestPageDto(
 
 ## 5. Controller endpoints
 
-Two controllers. **Authed** queue/control/config under the existing `MusicController` (extend in place); **public** SR-page submit/read in a new `PublicSongRequestController`.
+Two controllers, both built: `MusicController` (`Api/Controllers/V1/MusicController.cs`, authed) and `PublicSongRequestController` (`Api/Controllers/V1/PublicSongRequestController.cs`, public). The 5.1 and 5.2 tables list the **as-built** routes; the tables marked **target** list routes that do not exist.
 
 **Role gate.** Each `MusicController` route names a plane, a role floor, and (where one exists) a Gate-2 action key:
 - **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate 2's — this is what lets Everyone-floored actions like `music:request:submit` actually reach viewers).
 - **Gate 2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, channelId, actionKey)` enforces the per-route floor named in the action-key column before the service call (`FORBIDDEN`/403 when below). The action key is the only contract; the effective caller level is `IRoleResolver.ResolveEffectiveLevelAsync` = MAX(community standing, ManagementRole membership, active `!permit` grant), compared against the action's required level.
-- The keys (`music:request:submit`, `music:queue:moderate`, `music:config:write`, `music:token:read`, `music:token:rotate`, `music:remote:control`, `music:library:write`) are seeded global `ActionDefinitions` (Domain B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. `music:remote:control` gates provider transport/remote (previous/seek/shuffle/repeat/transfer-device) at the **`Moderator`** floor (live-show control, same as queue moderation). `music:library:write` gates the broadcaster-account manage surface (playlist CRUD, saved-tracks, follow/ratings) at the **`Editor`/`Broadcaster`** floor (it writes the broadcaster's own provider account, same posture as token read/rotate).
+- The keys (`music:request:submit`, `music:queue:moderate`, `music:config:write`, `music:token:read`, `music:token:rotate`, `music:remote:control`, `music:library:write`) are seeded global `ActionDefinitions` (Domain B.3), plus the built `music:config:read` and `music:control:write`; a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. `music:remote:control` gates provider transport/remote (previous/seek/shuffle/repeat/transfer-device) at the **`Moderator`** floor (live-show control, same as queue moderation). `music:library:write` gates the broadcaster-account manage surface (playlist CRUD, saved-tracks, follow/ratings) at the **`Editor`/`Broadcaster`** floor (it writes the broadcaster's own provider account, same posture as token read/rotate).
 
-Floors as seeded: read = community plane, `Everyone`; submit a request = community plane, authenticated viewer (dynamically gated by queue config — `MinStandingToRequest`, `SubscriberOnly`, the YouTube `MinYouTubeTrustScore` floor + role bypass, the per-standing `PendingLimits` / `PaidPendingLimit` / `PerStreamLimit` caps, duration limits — in `IMusicService.RequestAsync`); mutating queue state, removing/reordering others' items, clearing, config, trust-block = management plane, `Moderator` (`SuperMod`/`Broadcaster` inherit); provider config + token read/rotate = management plane, `Broadcaster`/`Editor` floor. The **advanced `TrustScoringConfig`** (§3.9 per-modifier buff/debuff toggles + magnitudes, L.4) is sensitive and rides the existing **`config` GET/PUT** route via `MusicConfigDto`/`UpdateMusicConfigDto` (`music:config:write`, **Editor/Broadcaster** floor) — **not** the mod-level `queue/settings` route; **no new route or action key**. The simple `MinYouTubeTrustScore` floor stays on `queue/settings` (`music:queue:moderate`) as before. All the new allowance / duration / provider-enablement / cross-resolve / ad-strip / **auto-bump-first-song + raffle** config (`AutoBumpFirstSong`/`RaffleEnabled`/`RaffleEntryCost`/`RaffleTicketsPerUser`/`RaffleWinnerCount`/`RaffleIntervalMinutes`) lands on the existing `PUT queue/settings` route via the extended `UpdateSongRequestQueueDto` (`music:queue:moderate`) — **no new config routes**; the Spotify locked device + sequencer playback-state ride `music:remote:control` (live-show control). Bump + raffle **moderation** (bump-a-song, raffle start/draw/cancel) reuses `music:queue:moderate` (Moderator floor — matches StreamElements' song-control-commands-default-Moderator+ precedent); **viewer raffle entry** reuses `music:request:submit` (community plane, dynamically gated by `RaffleEnabled`); reading the active raffle is community-plane `Everyone`. **No new action keys are introduced.**
+**As-built floors** (`Infrastructure/Content/Identity/ActionDefinitionSeeder.cs`): `music:request:submit` = community / Everyone; `music:queue:moderate`, `music:remote:control`, `music:library:write` = management / Moderator; `music:config:read` = management / Moderator (broadcaster may lower to Vip); `music:config:write` = management / Editor; `music:token:read` = management / Broadcaster; `music:token:rotate` = management / Broadcaster (Critical, not permit-delegable); `music:control:write` = management / Moderator (Critical, not permit-delegable). The paragraph that follows is the target floor design.
 
-### 5.1 `MusicController` — `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/music")]` `[Authorize]`
+Floors as seeded (target design): read = community plane, `Everyone`; submit a request = community plane, authenticated viewer (dynamically gated by queue config — `MinStandingToRequest`, `SubscriberOnly`, the YouTube `MinYouTubeTrustScore` floor + role bypass, the per-standing `PendingLimits` / `PaidPendingLimit` / `PerStreamLimit` caps, duration limits — in `IMusicService.RequestAsync`); mutating queue state, removing/reordering others' items, clearing, config, trust-block = management plane, `Moderator` (`SuperMod`/`Broadcaster` inherit); provider config + token read/rotate = management plane, `Broadcaster`/`Editor` floor. The **advanced `TrustScoringConfig`** (§3.9 per-modifier buff/debuff toggles + magnitudes, L.4) is sensitive and rides the existing **`config` GET/PUT** route via `MusicConfigDto`/`UpdateMusicConfigDto` (`music:config:write`, **Editor/Broadcaster** floor) — **not** the mod-level `queue/settings` route; **no new route or action key**. The simple `MinYouTubeTrustScore` floor stays on `queue/settings` (`music:queue:moderate`) as before. All the new allowance / duration / provider-enablement / cross-resolve / ad-strip / **auto-bump-first-song + raffle** config (`AutoBumpFirstSong`/`RaffleEnabled`/`RaffleEntryCost`/`RaffleTicketsPerUser`/`RaffleWinnerCount`/`RaffleIntervalMinutes`) lands on the existing `PUT queue/settings` route via the extended `UpdateSongRequestQueueDto` (`music:queue:moderate`) — **no new config routes**; the Spotify locked device + sequencer playback-state ride `music:remote:control` (live-show control). Bump + raffle **moderation** (bump-a-song, raffle start/draw/cancel) reuses `music:queue:moderate` (Moderator floor — matches StreamElements' song-control-commands-default-Moderator+ precedent); **viewer raffle entry** reuses `music:request:submit` (community plane, dynamically gated by `RaffleEnabled`); reading the active raffle is community-plane `Everyone`. **No new action keys are introduced.**
 
-> `channelId` widened `string` → `:guid`. Existing playback endpoints (`config GET/PUT`, `queue GET`, `skip`, `pause`, `resume`, `now-playing`) are kept; routes below are the full target set.
+### 5.1 `MusicController` — `[Route("api/v{version:apiVersion}/channels/{channelId}/music")]` `[Authorize]` (as-built)
+
+> `channelId` is a plain `string` route segment (not `:guid`); the service and blocklist routes parse it. Queue items are addressed by **zero-based position**, not id. Responses are `StatusResponseDto<T>` unless noted; a `204` means no body.
+
+| Verb | Route | Request | Response | Plane / floor · Gate-2 action key |
+|---|---|---|---|---|
+| GET | `config` | — | `StatusResponseDto<MusicConfigDto>` | management / Moderator (floor Vip) · `music:config:read` |
+| PUT | `config` | `UpdateMusicConfigDto` | `StatusResponseDto<MusicConfigDto>` | management / Editor · `music:config:write` |
+| GET | `sr-page-token` | — | `StatusResponseDto<string>` | management / Broadcaster · `music:token:read` |
+| POST | `sr-page-token/rotate` | — | `StatusResponseDto<string>` | management / Broadcaster · `music:token:rotate` |
+| GET | `queue` | — | `StatusResponseDto<MusicQueueDto>` | community / Everyone (`[Authorize]` only, no action key) |
+| POST | `queue` | `SongRequestDto` | `StatusResponseDto<object>` | community / Everyone · `music:request:submit` |
+| DELETE | `queue/{position:int}` | — | 204 | management / Moderator · `music:queue:moderate` |
+| POST | `queue/{position:int}/promote` | — | 204 (moves the item to the front) | management / Moderator · `music:queue:moderate` |
+| POST | `queue/{position:int}/ban` | — | `StatusResponseDto<BlockedTrackDto>` | management / Moderator · `music:queue:moderate` |
+| GET | `blocked-tracks` | `PageRequestDto` (query) | `PaginatedResponse<BlockedTrackDto>` | management / Moderator (floor Vip) · `music:config:read` |
+| POST | `blocked-tracks` | `BlockTrackRequest` | `StatusResponseDto<BlockedTrackDto>` | management / Moderator · `music:queue:moderate` |
+| DELETE | `blocked-tracks/{blockedTrackId:guid}` | — | 204 | management / Moderator · `music:queue:moderate` |
+| POST | `skip` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
+| POST | `pause` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
+| POST | `resume` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
+| POST | `seek` | `SeekDto(PositionMs)` | 204 / 503 | management / Moderator · `music:remote:control` |
+| PATCH | `shuffle` | `ShuffleDto(Enabled)` | 204 / 503 | management / Moderator · `music:remote:control` |
+| PATCH | `repeat` | `RepeatDto(Mode)` (`off`\|`track`\|`context`) | 204 / 503 | management / Moderator · `music:remote:control` |
+| GET | `devices` | — | `StatusResponseDto<IReadOnlyList<MusicDeviceDto>>` | management / Moderator · `music:remote:control` |
+| POST | `transfer` | `TransferDto(DeviceId, Play = false)` | 204 / 503 | management / Moderator · `music:remote:control` |
+| GET | `playlists` | `offset`, `limit` (query) | `StatusResponseDto<IReadOnlyList<MusicPlaylistDto>>` | management / Moderator · `music:library:write` |
+| POST | `play-context` | `PlayContextDto(ContextUri)` | 204 / 503 | management / Moderator · `music:remote:control` |
+| GET | `now-playing` | — | `StatusResponseDto<NowPlayingDto>` | community / Everyone (`[Authorize]` only, no action key) |
+
+**Target routes (unbuilt).** None of these exists in `MusicController`. `previous` has a service method (`IMusicService.PreviousAsync`) and the `song_previous` action but no REST route.
 
 | Verb | Route | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
-| GET | `queue` | — | `StatusResponseDto<MusicQueueDto>` | community / Everyone |
-| POST | `queue` | `SongRequestInputDto` | `StatusResponseDto<SongRequestItemDto>` | community / Everyone · `music:request:submit` |
-| DELETE | `queue/{itemId:guid}` | — | `StatusResponseDto<object>` (204) | management / Moderator · `music:queue:moderate` (own item: Everyone) |
 | PATCH | `queue/{itemId:guid}/move` | `MoveQueueItemDto` | `StatusResponseDto<SongRequestItemDto>` | management / Moderator · `music:queue:moderate` |
 | POST | `queue/clear` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
 | GET | `queue/settings` | — | `StatusResponseDto<SongRequestQueueDto>` | community / Everyone |
 | PUT | `queue/settings` | `UpdateSongRequestQueueDto` | `StatusResponseDto<SongRequestQueueDto>` | management / Moderator · `music:queue:moderate` |
 | POST | `queue/open` `queue/close` `queue/pause` `queue/resume` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
-| POST | `skip` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
-| POST | `pause` / `resume` | — | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
 | POST | `previous` | — | `StatusResponseDto<object>` | management / Moderator · `music:remote:control` |
-| POST | `seek` | `SeekDto` | `StatusResponseDto<object>` | management / Moderator · `music:remote:control` |
-| POST | `shuffle` | `{ "enabled": bool }` | `StatusResponseDto<object>` | management / Moderator · `music:remote:control` |
-| POST | `repeat` | `SetRepeatDto` | `StatusResponseDto<object>` | management / Moderator · `music:remote:control` |
-| GET | `devices` | — | `StatusResponseDto<List<MusicDeviceDto>>` | management / Moderator · `music:remote:control` |
-| POST | `transfer` | `TransferPlaybackDto` | `StatusResponseDto<object>` | management / Moderator · `music:remote:control` |
 | PUT | `devices/locked` | `SetLockedDeviceDto` | `StatusResponseDto<object>` | management / Moderator · `music:remote:control` |
 | GET | `playback-state` | — | `StatusResponseDto<PlaybackStateDto>` | management / Moderator · `music:remote:control` |
-| GET | `now-playing` | — | `StatusResponseDto<NowPlayingDto>` | community / Everyone |
-| GET/PUT | `config` | `UpdateMusicConfigDto` | `StatusResponseDto<MusicConfigDto>` | management / Moderator · `music:config:write` (PUT) |
 | GET/PUT | `config/providers/{provider}` | `UpdateMusicProviderConfigDto` | `StatusResponseDto<MusicProviderConfigDto>` | management / Moderator · `music:config:write` (PUT) |
 | GET | `trust/{userId:guid}` | — | `StatusResponseDto<SongRequestTrustDto>` | management / Moderator · `music:queue:moderate` |
 | PUT | `trust/{userId:guid}/blocked` | `SetTrustBlockedDto` | `StatusResponseDto<object>` | management / Moderator · `music:queue:moderate` |
@@ -1006,44 +1127,74 @@ Floors as seeded: read = community plane, `Everyone`; submit a request = communi
 | POST | `providers/{provider}/library/rate` | `RateTrackDto` | `StatusResponseDto<object>` | management / Editor · `music:library:write` |
 | POST | `providers/{provider}/follow` | `FollowDto` | `StatusResponseDto<object>` | management / Editor · `music:library:write` |
 | POST | `providers/{provider}/unfollow` | `FollowDto` | `StatusResponseDto<object>` | management / Editor · `music:library:write` |
-| GET | `sr-page-token` | — | `StatusResponseDto<string>` | management / Editor · `music:token:read` (`Broadcaster`/`Editor` floor) |
-| POST | `sr-page-token/rotate` | — | `StatusResponseDto<string>` | management / Editor · `music:token:rotate` (`Broadcaster`/`Editor` floor) |
 
-### 5.2 `PublicSongRequestController` — `[Route("api/v{version:apiVersion}/public/sr/{pageToken}")]` `[AllowAnonymous]`
+### 5.2 `PublicSongRequestController` — `[Route("api/v{version:apiVersion}/public/sr")]` `[AllowAnonymous]` (as-built)
 
-Token-gated, no JWT. Rate-limited (`[EnableRateLimiting("public-sr")]`). Backs the `/(public)/sr/[channel]` page.
+No JWT. Rate-limited by the `Anonymous` policy (`[EnableRateLimiting(RateLimitPolicyNames.Anonymous)]`). Backs the `/sr/[channel]` page. The token sits in the route: `{token}` is the opaque SR-page token, `by-channel/{channelName}` is the shareable name link (resolves only once the channel has minted a token).
+
+| Verb | Route | Request DTO | Response | Auth |
+|---|---|---|---|---|
+| GET | `{token}` | — | `StatusResponseDto<SongRequestPageDto>` (404 unknown token) | SR-page token (`ResolveAsync`) |
+| GET | `by-channel/{channelName}` | — | `StatusResponseDto<SongRequestPageDto>` (404 unknown channel / no page) | channel name (`ResolveByChannelNameAsync`) |
+| POST | `{token}` | `SongRequestDto` | `StatusResponseDto<object>`; 404 unknown token, 409 channel not accepting requests, `TRACK_BLOCKED` → 409 | SR-page token |
+| POST | `by-channel/{channelName}` | `SongRequestDto` | same as `POST {token}` | channel name |
+
+The requester label is untrusted display text: `RequestedBy` defaults to `"Anonymous"`, no `Users` row is resolved and no history is written (`requesterUserId` is null).
+
+**Target routes (unbuilt).** Root path in the original design was `.../public/sr/{pageToken}`; these three do not exist.
 
 | Verb | Route | Request DTO | Response DTO | Auth |
 |---|---|---|---|---|
-| GET | _(root)_ | — | `StatusResponseDto<SongRequestPageDto>` | SR-page token (`ISongRequestPageTokenService.ResolveAsync`) |
-| GET | `queue` | — | `StatusResponseDto<MusicQueueDto>` | SR-page token |
-| POST | `request` | `SongRequestInputDto` | `StatusResponseDto<SongRequestItemDto>` | SR-page token; viewer login validated → `Users`; gates in `RequestAsync` |
-| GET | `raffle` | — | `StatusResponseDto<SongRequestRaffleDto>` | SR-page token (active-raffle state for the public page; null body when none open) |
+| GET | `{pageToken}/queue` | — | `StatusResponseDto<MusicQueueDto>` | SR-page token |
+| POST | `{pageToken}/request` | `SongRequestInputDto` | `StatusResponseDto<SongRequestItemDto>` | SR-page token; viewer identity `(RequesterProvider, RequesterLoginOrId)` resolved through `IUserIdentityService` → `Users`; gates in `RequestAsync` |
+| GET | `{pageToken}/raffle` | — | `StatusResponseDto<SongRequestRaffleDto>` | SR-page token (null body when none open) |
 
 ---
 
 ## 6. Pipeline actions
 
-Five chat-command actions already exist in `Infrastructure/Pipeline/Actions/MusicActions.cs` implementing `ICommandAction` — **EXTEND in place** to route through the persistent `IMusicService` (`RequestAsync`/`SkipAsync`/`GetQueueAsync`/`GetNowPlayingAsync`) and widen `ctx.BroadcasterId` to `Guid`. The existing five keep their `ActionType` strings (stable contract). **Two new transport actions** (`song_previous`, `song_seek`) are added for chat-driven remote control (the library/playlist/transfer-device manage surface stays dashboard-only — it writes the broadcaster's own account and has no natural chat-command shape, so no pipeline action for it). Both route through `IMusicService` and surface `CAPABILITY_UNSUPPORTED`/`PREMIUM_REQUIRED` as a chat reply. **Four bump/raffle actions** (`song_bump`, `song_raffle`, `song_raffle_enter`) route through `ISongRequestBumpService` (§3.11): `!bump`/`!raffle` are Moderator+ via command role config (floor `music:queue:moderate`, matching StreamElements' song-control-default-Moderator+ precedent) and viewer raffle entry rides `music:request:submit` (gated by `RaffleEnabled`). The viewer-paid bump path stays the existing channel-point `queue-jump` redeem — there is **no free viewer bump command and no paid command alias**.
+**As-built.** Actions implement `ICommandAction` (`Application/Abstractions/Pipeline/ICommandAction.cs`), live in `Infrastructure/Music/PipelineActions/`, and are registered by assembly scan (`AddImplementationsOf<ICommandAction>`, Transient) — there are no per-class DI lines. Each carries a stable `ActionType` string. The action catalogue itself is served by `GET pipelines/actions` (see `commands-pipelines.md`).
+
+| `ActionType` | File | Behavior (parameters) |
+|---|---|---|
+| `song_request` | `SongRequestAction.cs` | `query` (supports `{var}`). Searches, admits the best match through `IMusicService`, replies with the track and its song code. |
+| `song_skip` | `SongSkipAction.cs` | Skips the current track. |
+| `song_current` | `SongCurrentAction.cs` | Posts the now-playing line to chat. |
+| `song_queue` | `SongQueueAction.cs` | `max` (default 5). Posts the upcoming queue to chat. |
+| `song_volume` | `SongVolumeAction.cs` | `volume` 0–100 (supports `{var}`). Fails `CAPABILITY_UNSUPPORTED` when the provider lacks `Volume`. |
+| `song_previous` | `SongPreviousAction.cs` | Previous track on the active provider. |
+| `song_pause` / `song_resume` | `SongPauseAction.cs` / `SongResumeAction.cs` | Pause / resume the active provider. |
+| `song_ban` | `SongBanAction.cs` | `reason` (optional). Blocks the currently playing track from future requests, then skips it (`!bansong`). |
+| `song_wrong` | `SongWrongAction.cs` | Retracts the caller's request: by song code when given (`!wrongsong K7QM`), else their most recent (`!wrongsong`). |
+| `song_request_favorite` | `SongRequestFavoriteAction.cs` | Queues the viewer's most-requested track from their request history; writes no chat message itself. |
+| `playlist_add` | `PlaylistAddAction.cs` | `playlist_id` (required), `track_uri` (default: the current track). Appends to one of the broadcaster's playlists (`!banger`). |
+| `play_track_once`, `music_play`, `music_pause`, `music_play_pause`, `music_next`, `music_previous`, `music_set_volume`, `music_volume_up`, `music_volume_down`, `music_volume_mute`, `music_seek`, `music_set_shuffle`, `music_toggle_shuffle`, `music_set_repeat`, `music_cycle_repeat`, `music_transfer_device`, `music_save_track`, `music_unsave_track`, `music_toggle_saved`, `music_add_to_playlist`, `music_remove_from_playlist`, `music_follow_artist`, `music_unfollow_artist` | `MusicControlActions.cs` | Provider control and library actions. Save / playlist / follow actions call `IMusicProviderManageApi`. |
+
+There is no `song_seek` action: seek is `music_seek`. Capability and Premium failures (`CAPABILITY_UNSUPPORTED`, `PREMIUM_REQUIRED`) surface as a chat reply.
+
+**Target actions (unbuilt).** `song_bump`, `song_raffle` and `song_raffle_enter` do not exist. They route through `ISongRequestBumpService` (§3.11): `!bump` and `!raffle` are Moderator+ via command role config (floor `music:queue:moderate`), and viewer raffle entry rides `music:request:submit` (gated by `RaffleEnabled`). The viewer-paid bump path stays the channel-point `queue-jump` redeem — there is no free viewer bump command and no paid command alias.
 
 | `ActionType` (string) | Config DTO (action params) | Behavior |
 |---|---|---|
-| `song_request` | `{ "query": string }` (supports `{var}` substitution) | Resolves query → calls `RequestAsync(broadcasterId, new SongRequestInputDto{Query, RequestedByUserId=ctx.TriggeredByUserId})`; replies in chat with queued track or rejection reason. Emits `SongRequestedEvent`/`SongRequestRejectedEvent` via the service. |
-| `song_skip` | `{}` | Calls `SkipAsync(broadcasterId, ctx.TriggeredByUserId)`; chat-confirms. Gated by command's own role config. |
-| `song_current` | `{}` | Calls `GetNowPlayingAsync`; posts now-playing line to chat. |
-| `song_queue` | `{ "max": int = 5 }` | Calls `GetQueueAsync`; posts the first `max` queued items to chat. |
-| `song_volume` | `{ "volume": int 0–100 }` (supports `{var}`) | Calls `SetVolumeAsync`; chat-confirms. Fails `CAPABILITY_UNSUPPORTED` when the active provider lacks the `Volume` capability (e.g. YouTube). |
-| `song_previous` | `{}` | **NEW.** Calls `PreviousAsync(broadcasterId)`; chat-confirms. Fails `CAPABILITY_UNSUPPORTED` (e.g. YouTube) / `PREMIUM_REQUIRED` (non-Premium Spotify) as a chat reply. Gated by command's own role config. |
-| `song_seek` | `{ "position": int seconds }` (supports `{var}`) | **NEW.** Calls `SeekAsync(broadcasterId, position)`; chat-confirms. Same capability/Premium failure surfacing. |
-| `song_bump` | `{ "target": string }` (`<user>` or `<songId>`, supports `{var}`) | **NEW.** `!bump` — Moderator+ (command role config, floor `music:queue:moderate`). Resolves `target` → `ISongRequestBumpService.BumpUserAsync`/`BumpAsync(…, BumpSource.Command)`; chat-confirms the bumped track. Human override — pushes the target's song into the bump band at fair rank. Failure NOT_FOUND replied in chat. |
-| `song_raffle` | `{ "action": string = "start" }` (`start`\|`draw`\|`cancel`) | **NEW.** `!raffle` — Moderator+ (command role config, floor `music:queue:moderate`). Routes to `ISongRequestBumpService.StartRaffleAsync`/`DrawRaffleAsync`/`CancelRaffleAsync` (default `!raffle` = start, then `!raffle draw` to draw); chat-announces start/winners. Fails (chat reply) when `RaffleEnabled` is false. |
-| `song_raffle_enter` | `{}` | **NEW.** Viewer raffle entry (`music:request:submit`, gated by `RaffleEnabled`). Calls `EnterRaffleAsync(broadcasterId, ctx.TriggeredByUserId)`; chat-confirms entry (or replies the channel-point debit failure / per-user ticket cap). The channel-point spend rides the economy `CatalogPurchases` debit (§3.11). |
+| `song_bump` | `{ "target": string }` (`<user>` or `<songId>`, supports `{var}`) | **Target.** `!bump` — Moderator+. Resolves `target` → `ISongRequestBumpService.BumpUserAsync`/`BumpAsync(…, BumpSource.Command)`; chat-confirms the bumped track. NOT_FOUND is replied in chat. |
+| `song_raffle` | `{ "action": string = "start" }` (`start`\|`draw`\|`cancel`) | **Target.** `!raffle` — Moderator+. Routes to `StartRaffleAsync`/`DrawRaffleAsync`/`CancelRaffleAsync`; chat-announces start/winners. Fails (chat reply) when `RaffleEnabled` is false. |
+| `song_raffle_enter` | `{}` | **Target.** Viewer raffle entry (`music:request:submit`, gated by `RaffleEnabled`). Calls `EnterRaffleAsync(broadcasterId, ctx.TriggeredByUserId)`; chat-confirms entry or replies the channel-point debit failure / per-user ticket cap. |
 
 ---
 
 ## 7. DI registration
 
-`Infrastructure/DependencyInjection.cs` (extend the existing music block; existing lines noted). All tenant-scoped services **Scoped** (they touch `IApplicationDbContext`); the overlay feed adapter is **Scoped** too (resolves `IHubContext`, itself singleton). Profile-adapter variants chosen by `App__DeploymentMode` (lite SQLite / SaaS Postgres) — the SR services are profile-agnostic (they use `IApplicationDbContext`, which is the adapter); only `INowPlayingFeed` has no profile variance (SignalR is single-process lite / Redis-backplane SaaS, but the interface is identical — backplane is wired at the SignalR registration, not here).
+**As-built registrations** (`Infrastructure/DependencyInjection.cs`):
+
+- `IMusicProvider` implementations (`SpotifyMusicProvider`, `YouTubeMusicProvider`): `AddImplementationsOf<IMusicProvider>(…, Scoped)` — multi-binding, consumed as `IEnumerable<IMusicProvider>`.
+- `IMusicService`, `IMusicConfigService`, `IBlockedTrackService`, `ISongRequestPageTokenService`: Scoped, bound by the `I<X>Service` convention scan (`AddServicesByConvention`).
+- `ISongRequestQueueStore` → `SongRequestQueueStore`: **Singleton** (the queue must outlive the scoped `MusicService`); `INowPlayingCache`, `IMuteVolumeMemory`, `IPlayOnceResumeTracker`: Singleton.
+- `ISongRequestQueuePersistence`, `IMusicProviderManageApi`: Scoped; `ISongRequestHandover`: Scoped, resolved from the registered `IMusicService` so both views share one instance.
+- Hosted services: `SongRequestQueueRestoreHostedService` (startup restore, run-once lease) and `MusicStatePollingService` (1 s provider poll → `PlaybackStateChangedEvent`).
+- Pipeline actions: `AddImplementationsOf<ICommandAction>(…, Transient)` — scanned, not listed. Event handlers (`SongRequestQueueReconciler`, `SrQueueBroadcastHandler`, `SongChangedProjector`, `PlayOnceResumeHandler`, `SongRequestLostAtProviderChatNotice`) are scanned as `IEventHandler<T>`.
+- `IMusicProviderRegistry` is **not registered** (the type does not exist).
+
+**Target block below (unbuilt).** Extend the existing music block; existing lines noted. All tenant-scoped services **Scoped** (they touch `IApplicationDbContext`); the overlay feed adapter is **Scoped** too (resolves `IHubContext`, itself singleton). Profile-adapter variants chosen by `App__DeploymentMode` (lite SQLite / SaaS Postgres) — the SR services are profile-agnostic (they use `IApplicationDbContext`, which is the adapter); only `INowPlayingFeed` has no profile variance (SignalR is single-process lite / Redis-backplane SaaS, but the interface is identical — backplane is wired at the SignalR registration, not here).
 
 ```csharp
 // Music providers (EXISTING — keep) — registered THROUGH the registry by their Capabilities
@@ -1052,7 +1203,7 @@ services.AddScoped<SpotifyMusicProvider>();
 services.AddScoped<YouTubeMusicProvider>();
 services.AddScoped<IMusicProvider, SpotifyMusicProvider>();   // ADD: expose via interface for the registry's IEnumerable<IMusicProvider>
 services.AddScoped<IMusicProvider, YouTubeMusicProvider>();   // ADD
-services.AddSingleton<IMusicProviderRegistry, MusicProviderRegistry>();  // NEW: keyed by Provider; aggregates Capabilities + settings schemas
+services.AddScoped<IMusicProviderRegistry, MusicProviderRegistry>();     // NEW (target): keyed by Provider; aggregates Capabilities + settings schemas. Must be Scoped — the IMusicProvider implementations are Scoped, so a Singleton registry would hold them as captive dependencies
 
 // SR services
 services.AddScoped<IMusicService, MusicService>();                                   // EXISTING (rewritten to persistence)
@@ -1082,9 +1233,9 @@ services.AddTransient<ICommandAction, SongRaffleEnterAction>(); // NEW (viewer r
 services.AddScoped<IEventHandler<TrackChangedEvent>, NowPlayingFeedHandler>();
 services.AddScoped<IEventHandler<SongRequestQueueChangedEvent>, NowPlayingFeedHandler>();
 ```
-> Remove the obsolete singleton `MusicService` registration tied to the in-memory `Dictionary` queue if present — the persistence-backed service is **Scoped**. Drop the `_db.Services` provider lookup; `MusicService` resolves providers through `IMusicProviderRegistry` over `IntegrationConnections` (`Provider`/`Status=connected`), routing requests only to providers in `SongRequestQueues.EnabledProviders` whose `Capabilities` include `AcceptsSongRequests` (a now-playing-only provider is never picked), and using `ProviderPriority` solely for ambiguous-request preference + cross-resolve (§3.1). Playback itself is owned by `ISongRequestSequencer` (§3.5.2) — it drip-feeds the head to Spotify (never a queue dump) or drives the YouTube browser-source player, one item at a time, never both at once.
+> **As-built:** `MusicService` is already Scoped and the in-memory queue lives in the Singleton `ISongRequestQueueStore`; no `Dictionary` singleton remains. **Target:** drop the `_db.Services` provider lookup; `MusicService` resolves providers through `IMusicProviderRegistry` over `IntegrationConnections` (`Provider`/`Status=connected`), routing requests only to providers in `SongRequestQueues.EnabledProviders` whose `Capabilities` include `AcceptsSongRequests` (a now-playing-only provider is never picked), and using `ProviderPriority` solely for ambiguous-request preference + cross-resolve (§3.1). Playback itself is owned by `ISongRequestSequencer` (§3.5.2) — it drip-feeds the head to Spotify (never a queue dump) or drives the YouTube browser-source player, one item at a time, never both at once.
 
-**Per-tenant ordering lock.** `RequestAsync`/`RemoveAsync`/`MoveAsync`/`ClearAsync`/`AdvanceAsync` and the bump/raffle writes (`ISongRequestBumpService.BumpAsync`/`BumpUserAsync`/`TryConsumeBumpTokenAsync`/`DrawRaffleAsync`) assign/renumber `Position` **within the affected `PriorityBand`** under the per-tenant lock defined by schema §1.4 (`TenantSequences` row `(BroadcasterId, "sr_position")` read-incremented in the same transaction; `SELECT … FOR UPDATE` on Postgres, `BEGIN IMMEDIATE` on SQLite). Use the existing `IUnitOfWork` transaction (`BeginTransactionAsync`/`CommitTransactionAsync`) — the raffle entry/draw and cancel-refund are multi-write and wrapped all-or-nothing (rollback on failure), per the UoW transaction-boundary rule.
+**Per-tenant ordering lock (target; as-built the store's per-channel handover `SemaphoreSlim` and the `FairQueue<T>` lock serialize queue mutation).** `RequestAsync`/`RemoveAsync`/`MoveAsync`/`ClearAsync`/`AdvanceAsync` and the bump/raffle writes (`ISongRequestBumpService.BumpAsync`/`BumpUserAsync`/`TryConsumeBumpTokenAsync`/`DrawRaffleAsync`) assign/renumber `Position` **within the affected `PriorityBand`** under the per-tenant lock defined by schema §1.4 (`TenantSequences` row `(BroadcasterId, "sr_position")` read-incremented in the same transaction; `SELECT … FOR UPDATE` on Postgres, `BEGIN IMMEDIATE` on SQLite). Use the existing `IUnitOfWork` transaction (`BeginTransactionAsync`/`CommitTransactionAsync`) — the raffle entry/draw and cancel-refund are multi-write and wrapped all-or-nothing (rollback on failure), per the UoW transaction-boundary rule.
 
 ---
 
@@ -1105,6 +1256,8 @@ No new third-party dependency is introduced by this subsystem. Provider token de
 ---
 
 ## 9. Decisions (resolved)
+
+These decisions describe the **target** design unless a line cites the as-built code; none of the target items is built or scheduled.
 
 1. **SR-page token storage shape (§3.7).** The LOCKED schema carries `Channels.SongRequestPageToken string(64) Null Unique` (A.2), mirroring `OverlayToken`. The token lives in that column; there is no separate `SongRequestPageTokens` table.
 2. **`TrackInfo` explicit/age/embeddable flags (§3.5).** `TrackInfo` gains `ProviderTrackId`, `IsExplicit`, `IsAgeRestricted`, and `IsEmbeddable` as init-only properties with safe `false`/empty defaults. They are required to enforce the `MusicProviderConfig` gates (`BlockExplicit`, and the YouTube `BlockAgeRestricted`/`EmbeddableOnly` knobs in `ProviderSettings`). The safe defaults keep every existing construction site of this shared Domain type valid without change.

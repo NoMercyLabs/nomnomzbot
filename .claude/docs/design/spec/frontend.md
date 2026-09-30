@@ -1,7 +1,7 @@
 # Frontend — Interface Specification
 
 **Status:** Implementable. Build the dashboard from this directly.
-**Subsystem:** The NomNomzBot dashboard — one **Kotlin Multiplatform (KMP) + Compose Multiplatform** codebase shipping the **identical** app to **JVM desktop** and **web (wasmJs)** (Android/iOS later). Profile-agnostic, direct-connect: REST (v1) + SignalR are reached through one typed shared client; there is no broker. Public viewer/OBS pages (song-request, overlays, OAuth landing) are **not** this app — they are the lightweight `web/` pages and are out of scope here.
+**Subsystem:** The NomNomzBot dashboard — one **Kotlin Multiplatform (KMP) + Compose Multiplatform** codebase shipping the **identical** app to **JVM desktop** and **web (wasmJs)** (Android/iOS later). Profile-agnostic, direct-connect: REST (v1) + SignalR are reached through one typed shared client; there is no broker. Public viewer/OBS pages (song-request, overlays, OAuth landing) are **not** this app — they are served by the API host and are out of scope here.
 
 ## Grounding & locked decisions (binding)
 
@@ -10,7 +10,7 @@
 - **The typed shared client is the *only* integration point.** Screens fetch/mutate exclusively through it (REST + SignalR). No screen constructs an `HttpClient`, URL, or hub connection ad hoc.
 - **i18n: `en` + `nl`, never hardcode user-facing strings.** Compose Multiplatform resources; runtime locale switch without restart.
 - **shadcn/ui (new-york) is the design source of truth** — ported 1:1 to Compose; fully specified in `frontend-design-system.md`. The previous Figma file is discarded (it did not represent a viable dashboard); a fresh Figma, if ever minted, is derived *from* this spec, never the reverse. The OKLCH token contract, component catalogue, and the dynamic chat-color accent live in `frontend-design-system.md` (§8 below is a summary).
-- **Codegen for external contracts** (matches the backend's NSwag-for-Helix rule): REST DTOs + endpoint stubs are **generated from the backend v1 OpenAPI document**, committed, and hand-wrapped. SignalR has no schema → hand-authored.
+- **Hand-synced DTOs, guarded against drift.** REST DTOs and endpoint facades are hand-written `@Serializable` Kotlin types in `core/network`. The backend's committed OpenAPI snapshot (`server/openapi/v1.json`) is the source of truth. `ApiContractTest` fails when a Kotlin DTO field is missing from the matching backend schema. `ApiRouteContractTest` fails when a client URL is not a route the API serves. SignalR has no schema → hand-authored.
 - **Kotlin/Compose house style.** Explicit types, `commonMain`-first, feature packages (never a `misc`/`utils` dump), one responsibility per file, UDF state. AGPL header on every source file (`//` line comments).
 
 ---
@@ -25,18 +25,17 @@ app/
 ├── gradle/libs.versions.toml                # version catalog (the §10 coordinate set)
 ├── build.gradle.kts
 └── composeApp/
-    ├── build.gradle.kts                     # kotlin { jvm(); wasmJs { browser() } }, compose, serialization, openapi-gen task
+    ├── build.gradle.kts                     # kotlin { jvm(); wasmJs { browser() } }, compose, serialization
     └── src/
         ├── commonMain/
         │   ├── kotlin/bot/nomnomz/dashboard/
-        │   │   ├── App.kt                    # root composable: theme + connection gate + NavHost
+        │   │   ├── App.kt                    # root composable: theme + connection/session gate (Destination) + shell
         │   │   ├── core/
-        │   │   │   ├── network/              # Ktor client config, auth, ApiResult mapping, facades
-        │   │   │   │   └── generated/        # OpenAPI-generated DTOs + raw endpoint stubs (committed)
-        │   │   │   ├── realtime/             # hand-rolled SignalR-over-WebSockets client + typed hub clients
+        │   │   │   ├── network/              # Ktor client config, auth, ApiResult mapping, hand-written DTOs + facades
+        │   │   │   ├── realtime/             # HubSocket (expect/actual transport) + hand-rolled SignalR hub clients
         │   │   │   ├── connection/           # ConnectionProfile, store, mDNS (expect), token vault (expect)
-        │   │   │   ├── di/                   # Koin modules
-        │   │   │   ├── navigation/           # route graph (@Serializable routes), top-level shell
+        │   │   │   ├── di/                   # AppGraph — explicit constructor wiring (Koin: owner question pending)
+        │   │   │   ├── navigation/           # Destination gate, RouteStore (URL sync), ShellRouteSlug
         │   │   │   └── designsystem/         # shadcn OKLCH tokens/theme + component/ + pattern/ + icon/  (core also holds query/ + i18n/ — see frontend-structure.md §1)
         │   │   └── feature/
         │   │       ├── setup/                # first-run wizard (connect Twitch, connect bot, basics)
@@ -65,22 +64,26 @@ app/
 
 | Concern | Library | Coordinate (version) | wasmJs note |
 |---|---|---|---|
-| UI + targets | Compose Multiplatform | `org.jetbrains.compose` (CMP plugin) | first-class |
-| Navigation | AndroidX Navigation Compose | `org.jetbrains.androidx.navigation:navigation-compose:2.9.2` | ✅ type-safe `@Serializable` routes |
-| State collection | Lifecycle-aware `Flow` collection | `org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.10.0` | ✅ — `collectAsStateWithLifecycle`; **no ViewModel** (state lives in the QueryClient + state-holders) |
-| DI | Koin | `io.insert-koin:koin-core` + `koin-compose` (4.x) | ✅ — explicit constructor wiring |
-| REST | Ktor client | `io.ktor:ktor-client-core:3.5.0` (+ engines below) | engine per target |
-| REST engine (desktop) | Ktor CIO | `io.ktor:ktor-client-cio:3.5.0` (jvmMain) | — |
-| REST engine (web) | Ktor JS/Fetch | `io.ktor:ktor-client-js:3.5.0` (wasmJsMain) | ✅ Fetch-backed |
-| Content negotiation | Ktor + kotlinx JSON | `io.ktor:ktor-client-content-negotiation:3.5.0`, `io.ktor:ktor-serialization-kotlinx-json:3.5.0` | ✅ |
-| Serialization | kotlinx.serialization | `org.jetbrains.kotlinx:kotlinx-serialization-json` (≥1.7) | ✅ |
-| Realtime (SignalR) | **hand-rolled** over Ktor WebSockets | `io.ktor:ktor-client-websockets:3.5.0` (commonMain) | ✅ one impl, both targets |
-| Realtime (native fallback) | SignalRKore | `eu.lepicekmichal.signalrkore:signalrkore:0.9.13` | jvm/android/ios only — **fallback only** |
-| Resources / i18n | Compose resources | built into the CMP Gradle plugin (`compose.resources`) | ✅ `values-nl/`, async load |
-| Coroutines (desktop main) | kotlinx-coroutines-swing | `org.jetbrains.kotlinx:kotlinx-coroutines-swing` (jvmMain) | n/a |
-| LAN discovery (native) | JmDNS | `org.jmdns:jmdns` (jvmMain) | no-op on web |
+| Language | Kotlin | `org.jetbrains.kotlin.multiplatform` + `.plugin.serialization` + `.plugin.compose` (2.2.21) | first-class |
+| UI + targets | Compose Multiplatform | `org.jetbrains.compose` (CMP plugin, 1.9.0) | first-class |
+| State collection | Lifecycle-aware `Flow` collection | `org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.9.4` (`lifecycle-viewmodel-compose:2.9.4` is also on the classpath) | ✅ — `collectAsStateWithLifecycle`; the state model is an owner question (§4) |
+| DI | **Koin — owner question pending.** Not in the catalogue today | `AppGraph` wires everything by explicit constructor injection | ✅ |
+| REST | Ktor client | `io.ktor:ktor-client-core:3.3.0` (+ engines below) | engine per target |
+| REST engine (desktop) | Ktor CIO | `io.ktor:ktor-client-cio:3.3.0` (jvmMain) | — |
+| REST engine (web) | Ktor JS/Fetch | `io.ktor:ktor-client-js:3.3.0` (wasmJsMain) | ✅ Fetch-backed |
+| Content negotiation | Ktor + kotlinx JSON | `io.ktor:ktor-client-content-negotiation:3.3.0`, `io.ktor:ktor-serialization-kotlinx-json:3.3.0` | ✅ |
+| Serialization | kotlinx.serialization | `org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0` | ✅ |
+| Date/time | kotlinx-datetime | `org.jetbrains.kotlinx:kotlinx-datetime:0.6.2` | ✅ |
+| Realtime (SignalR) | **hand-rolled** over a `HubSocket` expect/actual | jvm: `io.ktor:ktor-client-websockets:3.3.0`; wasmJs: the browser-native `WebSocket` | ✅ one protocol implementation, two thin transports |
+| Coroutines | kotlinx-coroutines | `org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2`; `-swing` (jvmMain, desktop main dispatcher); `-test` (tests) | ✅ |
+| Images | Coil 3 | `io.coil-kt.coil3:coil-compose:3.1.0`, `io.coil-kt.coil3:coil-network-ktor3:3.1.0` | ✅ |
+| Browser interop | kotlinx-browser | `org.jetbrains.kotlinx:kotlinx-browser:0.3` (wasmJsMain) | web only |
+| Resources / i18n | Compose resources | built into the CMP Gradle plugin (`compose.components.resources`) | ✅ `values-nl/`, async load |
+| LAN discovery (native) | JmDNS | `org.jmdns:jmdns:3.6.3` (jvmMain) | no-op on web |
+| Code-editor host (desktop) | SwingWebView | `ca.weblite:webview:1.7.0` (jvmMain) — the OS's own web view, no bundled browser engine | n/a |
+| Native helper (desktop) | JNA | `net.java.dev.jna:jna:5.19.1` (jvmMain) — points WebView2's user-data folder at the app-data dir | n/a |
 
-> **Why hand-rolled SignalR, not SignalRKore everywhere.** SignalRKore (the only mature Kotlin SignalR lib) has **no wasmJs target**, and the MS Java client is JVM-only and heavyweight. The hub JSON protocol is small and stable, so a single `commonMain` implementation (handshake → `0x1E`-framed invocation/completion/ping) gives **identical desktop+web behavior from one file** — the cleanest parity play (§3.2). SignalRKore stays a pinned fallback for native if hand-rolling slips.
+> **Why hand-rolled SignalR.** No Kotlin SignalR library has a wasmJs target, and the MS Java client is JVM-only and heavyweight. The hub JSON protocol is small and stable, so one `commonMain` implementation (handshake → `0x1E`-framed invocation/ack/ping) gives **identical desktop+web behavior** — the cleanest parity play (§3.2). Only the raw text socket differs per target (`HubSocket`): Ktor's WebSockets plugin never opens a socket on the wasmJs Fetch engine, so the web actual uses the browser's native `WebSocket`.
 
 ---
 
@@ -90,8 +93,8 @@ The single integration surface. Two halves: **REST** (request/response) and **Si
 
 ### 3.1 REST
 
-- **Generated layer (`core/network/generated/`).** A Gradle task runs `openapi-generator` (`generatorName=kotlin`, `library=multiplatform`) against the backend's published v1 OpenAPI document, emitting Kotlin `@Serializable` DTOs + raw endpoint stubs into a committed folder. Regenerated on contract change; **never hand-edited** (`// <auto-generated />` first line). This mirrors the backend's NSwag-generated Helix client — external contracts are generated, not transcribed.
-- **Hand-written facade (`core/network/`).** Per-subsystem typed API interfaces (`AuthApi`, `CommandsApi`, `PipelinesApi`, `ModerationApi`, `RewardsApi`, …) wrap the generated stubs, returning **`ApiResult<T>`** (single) or **`ApiResult<Page<T>>`** (paginated) — mirroring the backend envelopes:
+- **Hand-synced DTOs (`core/network/`).** Every DTO is a hand-written `@Serializable` type beside the API that uses it. There is no code generation. The committed snapshot `server/openapi/v1.json` (regenerated by the backend `OpenApiSpecSnapshotTest`) is the contract, and two jvm tests guard it. `ApiContractTest` asserts every typed DTO's serialized field names exist on the matching backend schema; extra backend fields are allowed, a Kotlin field the backend dropped fails. `ApiRouteContractTest` scans the client sources for `api/v1/…` URL literals and asserts each is a route the spec serves. A new typed response DTO gets a line in `ApiContractTest.contracts`.
+- **Hand-written facade (`core/network/`).** Per-subsystem typed API interfaces (`AuthApi`, `CommandsApi`, `PipelinesApi`, `ModerationApi`, `RewardsApi`, …) each with a `Rest…Api` implementation over the shared `ApiClient`, returning **`ApiResult<T>`** (single) or **`ApiResult<Page<T>>`** (paginated) — mirroring the backend envelopes:
 
 ```kotlin
 package bot.nomnomz.dashboard.core.network
@@ -118,40 +121,42 @@ data class Page<T>(val items: List<T>, val page: Int, val pageSize: Int, val tot
 
 ### 3.2 SignalR (`core/realtime`)
 
-A hand-authored client speaking the **SignalR JSON Hub Protocol over a Ktor `WebSocket`** — WebSockets-only (the backend hubs assume WS; skip the long-polling/SSE fallback).
+A hand-authored client speaking the **SignalR JSON Hub Protocol over a raw text WebSocket** — WebSockets-only (the backend hubs assume WS; there is no long-polling/SSE fallback). The transport is `HubSocket` (`expect class`: `open(url)`, `send(text)`, `receive(): String?`, `close()`). The jvm actual uses Ktor CIO WebSockets. The wasmJs actual uses the browser-native `WebSocket`. Everything above it is shared `commonMain` code.
 
-- **Connection sequence.** `GET {base}/hubs/{hub}?access_token=<jwt>` upgraded to WS → send the handshake frame `{"protocol":"json","version":1}` terminated by the record separator `0x1E` → await the empty handshake response → then exchange messages. Every message is UTF-8 JSON terminated by `0x1E`; the reader splits the stream on `0x1E`.
-- **Message types handled:** `1` Invocation (server→client hub method), `3` Completion, `6` Ping (send `{"type":6}` every **15 s**; treat **30 s** of inbound silence as a drop → reconnect), `7` Close (surface reason + trigger reconnect). `2` StreamInvocation / `4` StreamItem / `5` CancelInvocation are **unused** — ignore if received, never sent. Client→server invocations are `type:1` with `target` + `arguments`.
-- **Reconnect/backoff.** Exponential backoff with jitter (`1s·2ⁿ`, **cap 30 s**); on reconnect, re-join groups (e.g. `JoinWidget`) and resubscribe. Connection state is a `StateFlow<HubState>` (`Connecting | Connected | Reconnecting | Disconnected`) the UI surfaces.
-- **Typed hub clients** wrap the raw connection, exposing cold `Flow`s per server event and suspend functions per server method:
+- **Connection sequence.** `{ws|wss}://{base}/hubs/{hub}?access_token=<jwt>` → send the handshake frame `{"protocol":"json","version":1,"useStatefulReconnect":true}` terminated by the record separator `0x1E` → await the handshake response (an `error` key aborts the attempt) → then exchange messages. Every message is UTF-8 JSON terminated by `0x1E`; the reader splits on `0x1E`. The token comes from a `tokenProvider` lambda read on **every** (re)connect, never captured once. When an attempt fails to establish (typically an expired JWT), the client calls the injected `refreshToken` lambda before the next retry.
+- **Message types handled:** `1` Invocation (server→client hub method), `6` Ping (client sends `{"type":6}` every **15 s**; **60 s** — four ping intervals — with no inbound frame counts as a dead socket and triggers reconnect), `7` Close (surface + reconnect), and the stateful-reconnect pair `8` Ack / `9` Sequence. `2`/`3`/`4`/`5` (stream and completion messages) are unused. Client→server invocations are `type:1` with `target` + `arguments`.
+- **Stateful reconnect.** The server runs `WithStatefulReconnect()`. Outbound `JoinChannel`/`LeaveChannel` invocations are numbered and buffered until acked. A reconnect after a prior successful connection sends `Sequence` first and resends only the unacked buffer, so the server's persisted group membership is reused. Inbound invocations are numbered and acked. A resent duplicate (id at or below the highest processed) is dropped, never redelivered. A resume with no confirming frame within **5 s** resets the resume state, and the next attempt is a plain fresh connect with a full group replay.
+- **Reconnect/backoff.** Exponential backoff, `1 s · 2ⁿ`, **cap 30 s**, reset once a session establishes; no jitter. Only an explicit `disconnect()` stops the loop.
+- **Connection state** is a `StateFlow<HubConnectionState>` (`Connected | Reconnecting | Disconnected`). `Connected` holds only while the handshake is complete. `Reconnecting` covers the first attempt and every retry. `Disconnected` holds only before the first `connect` or after `disconnect()`. The shell's live indicator reads it.
 
 ```kotlin
 package bot.nomnomz.dashboard.core.realtime
 
-enum class HubState { Connecting, Connected, Reconnecting, Disconnected }
+enum class HubConnectionState { Connected, Reconnecting, Disconnected }
 
-// Server-event DTOs (ChatMessageDto, DashboardStatsDto, AlertDto, TtsSpeakPayload) are OpenAPI-generated
-// where the backend exposes them, else hand-authored @Serializable types in core/realtime.
-@Serializable data class InvalidateMessage(val key: List<String>, val exact: Boolean = false)
-
-interface DashboardHubClient {                 // /hubs/dashboard
-    val state: StateFlow<HubState>
-    val chatMessages: Flow<ChatMessageDto>     // server "ChatMessage" invocation
-    val statsUpdates: Flow<DashboardStatsDto>
-    val alerts: Flow<AlertDto>
-    val invalidations: Flow<InvalidateMessage> // server "Invalidate" → query-cache invalidation (frontend-data-layer.md §8)
-    suspend fun start(); suspend fun stop()
+class DashboardHubClient {                      // /hubs/dashboard — user JWT
+    val events: SharedFlow<HubEvent>            // every server invocation, decoded to a HubEvent
+    val connectionState: StateFlow<HubConnectionState>
+    val isConnected: Boolean
+    fun connect(baseUrl: String, tokenProvider: () -> String?, channelId: String,
+                refreshToken: (suspend () -> Boolean)? = null)   // opens, handshakes, invokes JoinChannel
+    fun join(channelId: String)                 // add a channel group on the same connection (multi-chat)
+    fun leave(channelId: String)
+    fun disconnect(); fun dispose()
 }
 
-interface OverlayHubClient {                   // /hubs/overlay — OverlayToken auth, not user JWT
-    val state: StateFlow<HubState>
-    suspend fun joinWidget(widgetId: String)
-    suspend fun leaveWidget(widgetId: String)
-    val ttsSpeak: Flow<TtsSpeakPayload>        // owned by widgets-overlays.md §7, consumed here
+sealed interface HubEvent {                     // ChatMessage, StreamStatusChanged, StreamInfoChanged, AlertTriggered,
+                                                // ModAction, CommandExecuted, RewardRedeemed, RedemptionStatusChanged,
+                                                // MusicStateChanged, ChannelEvent, PermissionChanged, ObsBridgeStateChanged,
+                                                // ObsLiveStateChanged, ConfigChanged, RewardChanged, AutoModQueueChanged,
+                                                // Unknown(target, rawArgs)
 }
 ```
 
-Hubs: `DashboardHub` `/hubs/dashboard`, `OverlayHub` `/hubs/overlay`, `OBSRelayHub` `/hubs/obs`, `AdminHub` `/hubs/admin` (admin client gated on platform-IAM principals). Token passed as `?access_token=<jwt>` (overlay uses the channel `OverlayToken`).
+- `ConfigChanged(domain, entityId, action)` is the backend's announcement that any operator (or the bot) mutated config. A page subscribes with `events.onConfigChange("commands", …) { reload }` and **refetches**. It never patches state from the payload, because the rendered list is filtered, sorted and paged server-side.
+- `AdminHubClient` (`/hubs/admin`) has no channel group and no `JoinChannel` step. The handshake is gated on the `iam:manage` platform grant. It exposes `events: SharedFlow<AdminHubEvent>` and mirrors the same reconnect and resume logic.
+
+Hubs on the server: `DashboardHub` `/hubs/dashboard`, `OverlayHub` `/hubs/overlay`, `OBSRelayHub` `/hubs/obs`, `AdminHub` `/hubs/admin`. This app connects only to `/hubs/dashboard` and `/hubs/admin`; the overlay and OBS hubs serve the overlay pages and the OBS bridge. The token is passed as `?access_token=<jwt>`.
 
 ---
 
@@ -170,8 +175,7 @@ and Stores for global state** (the owner's decision; detailed in `frontend-data-
   (`feature/<x>/state/`, exposing `StateFlow` + functions — **not** an androidx `ViewModel`) owns it.
 - **Global state → Stores.** Long-lived cross-screen state (active connection, session, locale, active
   channel) lives in injected `Store` singletons (`StateFlow`).
-- **UDF + DI.** Data flows down as params, events up as lambdas. Koin modules per feature + a
-  `coreModule`; explicit constructor wiring, no reflection (`wasmJs`-safe). Placement: `frontend-structure.md`.
+- **UDF + DI.** Data flows down as params, events up as lambdas. Wiring is explicit constructor injection (`AppGraph`), no reflection (`wasmJs`-safe). Whether to adopt Koin modules is an owner question (pending). Placement: `frontend-structure.md`.
 
 ```kotlin
 // A screen reads server state through a hook — no ViewModel.
@@ -191,50 +195,16 @@ fun CommandsScreen() {
 
 ## 5. Navigation / routing
 
-**Navigation Compose** with **type-safe `@Serializable` route objects** (no string routes). A single `NavHost` lives in the top-level shell; a **connection/auth gate** wraps it.
+Navigation is **state-driven** today: a connection/session gate resolves a `Destination`, and the shell shows one `ShellRoute` at a time. A Navigation Compose `NavHost` with type-safe `@Serializable` routes is an **owner question (pending)**; it is not in the dependency catalogue.
 
-- **Gate order (in `App.kt`):** (1) no active `ConnectionProfile` → **Connect** screen (pick/add backend; web auto-creates the single-origin profile). (2) profile present but no streamer account configured (probe `GET /api/v1/system/setup` → `{ streamerConfigured: Boolean }`) → **Setup wizard** graph. (3) otherwise → **Main shell** graph.
-- **Route graph (sealed):**
-
-```kotlin
-@Serializable sealed interface Route {
-    // ── Entry gates ───────────────────────────────────────────────────────────
-    @Serializable data object Connect : Route
-    @Serializable data object Setup : Route                       // nested: ConnectTwitch → ConnectBot → Basics
-
-    // ── Main shell (Plane B) — grouped in the sidebar per frontend-ia.md §3 ────
-    @Serializable data object Dashboard : Route                   // Home
-    @Serializable data object Commands : Route                    // Chat
-    @Serializable data class  PipelineEditor(val pipelineId: String?) : Route   // null = new
-    @Serializable data object Timers : Route
-    @Serializable data object Moderation : Route
-    @Serializable data object Rewards : Route                     // Loyalty — "Channel Points"
-    @Serializable data object Economy : Route
-    @Serializable data object Games : Route
-    @Serializable data object SongRequests : Route                // Media
-    @Serializable data object Tts : Route
-    @Serializable data object Widgets : Route                     // Stream — "Overlays"
-    @Serializable data class  WidgetEditor(val widgetId: String?) : Route       // code editor; null = new
-    @Serializable data object Alerts : Route                      // "Alerts & Events"
-    @Serializable data object Analytics : Route
-    @Serializable data object Community : Route                   // "Viewers"
-    @Serializable data object Integrations : Route                // pinned
-    @Serializable data object Settings : Route                    // pinned
-
-    // ── Admin area (Plane-C) — gated graph, frontend-ia.md §6 ──────────────────
-    @Serializable data object Admin : Route                       // root → Tenants
-    @Serializable data class  AdminTenant(val tenantId: String) : Route
-    @Serializable data object AdminFeatureFlags : Route
-    @Serializable data object AdminBilling : Route
-    @Serializable data object AdminIamPrincipals : Route
-    @Serializable data object AdminIamRoles : Route
-    @Serializable data object AdminAuditLog : Route
-    @Serializable data object AdminAnalytics : Route
-}
-```
-
-- The **main shell** is a persistent left-nav + content `NavHost`; top-level destinations are the grouped page inventory in **`frontend-ia.md` §3** (Home · Chat · Loyalty · Music · Stream · Community · Moderation · Connect — 8 groups, plus the Setup pages Roles · Integrations · Settings — 21 pages; names mirror `frontend-ia.md` §3). The platform **Admin** graph (`Admin*` routes) is a separate gated graph (`frontend-ia.md` §6), reached from the profile menu only for Plane-C principals. The sealed `Route` hierarchy lives centrally in `core/navigation/`; each feature contributes a `fun NavGraphBuilder.<x>Graph()` that wires its routes into the single `NavHost` — the linter fails the build on a `Route` declared but never wired (`frontend-structure.md` §4). Deep params (e.g. `PipelineEditor.pipelineId`, `WidgetEditor.widgetId`, `AdminTenant.tenantId`) ride the type-safe route. Back-stack is per-shell; entering/exiting the Admin graph swaps the shell chrome.
-- Desktop and web share the identical graph; the web build maps routes to the browser URL/history via the wasmJs browser navigation integration so links/refresh work.
+- **Gate (in `App.kt`).** The `Destination` enum is `Splash | Connect | Unreachable | Setup | Shell`. It resolves from a boot flag and the `SessionPhase` (`NotConnected | NeedsSetup | Connected`):
+  1. **Boot.** `Splash` holds for at least 1.2 s. In parallel, `connectController.restoreSession()` restores a remembered session, so a returning operator lands on the shell without a new login. The gate lifts only after both finish, so there is no Connect→Shell flash.
+  2. **Onboarding probe.** If the phase is still `NotConnected` and the build has a served origin (web is single-origin), the gate pins that origin's profile and calls the anonymous `GET /api/v1/system/status` → `SystemStatus { onboardingComplete, checks }`. `onboardingComplete == false` means no platform app credentials exist yet, so the gate calls `sessionStore.enterSetup(profile)` (phase `NeedsSetup`) and the operator never sees a sign-in affordance before setup. A failed probe falls through to Connect. The probe never depends on the platform bot (that is per-channel work done after login). Native's multi-origin picker has no fixed backend to probe, so it goes to Connect, where the operator enters one.
+  3. **Resolve.** `booting` → `Splash`; phase `Connected` → `Shell`; phase `NeedsSetup` → `Setup`; a remembered session whose backend is unreachable → `Unreachable` (retries the restore every 4 s); otherwise → `Connect`.
+- **Setup wizard (`feature/setup`).** The wizard is self-describing: it renders from `GET /api/v1/system/setup/wizard` (`SetupWizard` → steps, fields, actions), so a new backend step needs no new client code. All calls are anonymous during the first-run window: `PUT /system/setup/credentials/twitch`, `PUT /system/setup/credentials/{provider}` (spotify, discord, youtube), `POST /system/setup/credentials/twitch/use-shared` (the explicit choice of the shared public Twitch app), `GET /system/setup/bot/oauth-url`, `GET /system/setup/bot/status`, and `POST /system/setup/complete`. The streamer sign-in follows. On web the OAuth redirect tears the wizard down, so `SetupController.finish()` leaves a pending record and `resumePendingSetupFinish` completes it once the session is `Connected`.
+- **Route inventory — `ShellNav.pages` / `ShellRoute` is the single home.** The `ShellRoute` enum (`feature/shell/nav/ShellNav.kt`) lists every sidebar page. `ShellNav.pages` gives each one its `NavGroup`, `readFloor`, `manageFloor` and `readActionKey`, in sidebar order. The spec keeps no second route list: read the inventory from those two types, and the group layout from `frontend-ia.md` §3. Two sections exist: the feature groups (Home · Chat · Moderation · Loyalty · Music · Stream · Community · Connect) and the pinned `Setup` area (Roles, Integrations, Settings, …).
+- **Shell.** A persistent left nav plus a content area that renders the selected `ShellRoute`. A parameter such as which pipeline or widget is open lives in the page's own state; there is no per-page route object. The platform **Admin** surface is one `ShellRoute.Admin` page with tabs (Tenants, IAM, Audit, Support, Platform defaults, …). It appears only when `SessionUser.isAdmin`.
+- **URL sync.** `RouteStore` (`expect class`) mirrors the selected page to the address bar on web as `#/<slug>` and feeds browser Back/Forward back in as `externalChanges`. `ShellRouteSlug` derives each slug from the lower-cased enum name, so a new `ShellRoute` gets a slug for free; an empty or unknown slug lands on Dashboard. On jvm the route stays in memory and nothing is emitted.
 
 ---
 
@@ -340,31 +310,33 @@ Surface/smoke tests are void; each test must fail if the behavior breaks.
 
 | Dependency | Party | Use |
 |---|---|---|
-| `org.jetbrains.compose` (Gradle plugin) | 3rd (Apache-2.0) | Compose Multiplatform UI + `compose.resources`. |
-| `org.jetbrains.androidx.navigation:navigation-compose:2.9.2` | 3rd (Apache-2.0) | Type-safe navigation. |
-| `org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.10.0` | 3rd (Apache-2.0) | `collectAsStateWithLifecycle` (no ViewModel). |
-| `io.insert-koin:koin-core` + `koin-compose` (4.x) | 3rd (Apache-2.0) | DI. |
-| `io.ktor:ktor-client-core:3.5.0` (+ `cio` jvm, `js` wasm, `content-negotiation`, `websockets`) | 3rd (Apache-2.0) | REST + WebSocket transport. |
-| `io.ktor:ktor-serialization-kotlinx-json:3.5.0` + `kotlinx-serialization-json` (≥1.7) | 3rd (Apache-2.0) | JSON. |
-| `org.jetbrains.kotlinx:kotlinx-coroutines-swing` | 3rd (Apache-2.0) | Desktop main dispatcher (jvmMain). |
-| `org.jmdns:jmdns` | 3rd (Apache-2.0/EPL) | mDNS LAN discovery (jvmMain). |
-| `eu.lepicekmichal.signalrkore:signalrkore:0.9.13` | 3rd (MIT) | **Fallback only** — native SignalR if hand-roll slips. |
-| `org.openapitools:openapi-generator` (Gradle/CLI) | build-time (Apache-2.0) | Generate Kotlin REST DTOs/stubs from the v1 OpenAPI doc. |
+| `org.jetbrains.compose` (Gradle plugin, 1.9.0) + `org.jetbrains.kotlin.plugin.compose` | 3rd (Apache-2.0) | Compose Multiplatform UI + `compose.components.resources`. |
+| `org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.9.4` (+ `lifecycle-viewmodel-compose:2.9.4`) | 3rd (Apache-2.0) | `collectAsStateWithLifecycle`. The state model is an owner question (§4). |
+| `io.insert-koin:koin-*` | 3rd (Apache-2.0) | **Owner question pending — not in the catalogue.** DI is explicit constructor wiring in `AppGraph`. |
+| `io.ktor:ktor-client-core:3.3.0` (+ `cio` jvm, `js` wasm, `content-negotiation`, `websockets` jvm transport) | 3rd (Apache-2.0) | REST + WebSocket transport. |
+| `io.ktor:ktor-serialization-kotlinx-json:3.3.0` + `kotlinx-serialization-json:1.9.0` | 3rd (Apache-2.0) | JSON. |
+| `org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2` (+ `-swing` jvmMain, `-test`) | 3rd (Apache-2.0) | Coroutines; desktop main dispatcher (jvmMain). |
+| `org.jetbrains.kotlinx:kotlinx-datetime:0.6.2` | 3rd (Apache-2.0) | Date/time. |
+| `org.jetbrains.kotlinx:kotlinx-browser:0.3` | 3rd (Apache-2.0) | Browser interop (wasmJsMain). |
+| `io.coil-kt.coil3:coil-compose:3.1.0` + `coil-network-ktor3:3.1.0` | 3rd (Apache-2.0) | Image loading. |
+| `org.jmdns:jmdns:3.6.3` | 3rd (Apache-2.0) | mDNS LAN discovery (jvmMain). |
+| `ca.weblite:webview:1.7.0` | 3rd (MIT) | SwingWebView: hosts the code-editor page in the OS's own web view (jvmMain). |
+| `net.java.dev.jna:jna:5.19.1` | 3rd (Apache-2.0/LGPL) | One kernel32 call for WebView2's user-data folder (jvmMain). |
 
-**Explicitly NOT used:** moko-resources (legacy vs first-party `Res`); MS `com.microsoft.signalr` Java client (JVM-only, no Wasm); Voyager/Appyx (not the JetBrains direction); any MVI lib at the foundation (YAGNI). React/RN (removed; Stoney dislikes React).
+**Explicitly NOT used:** moko-resources (legacy vs first-party `Res`); MS `com.microsoft.signalr` Java client and SignalRKore (JVM/native only, no Wasm); OpenAPI codegen (DTOs are hand-synced, §3.1); Voyager/Appyx (not the JetBrains direction); any MVI lib at the foundation (YAGNI). React/RN (removed; Stoney dislikes React).
 
 ---
 
 ## 11. Decisions (resolved)
 
 All settled and binding:
-- **Desktop + web (wasmJs) are the identical full app** from one `commonMain`; wasmJs parity constrains every choice. Mobile later, no `commonMain` change.
-- **Navigation Compose + type-safe routes** (Decompose is the only sanctioned fallback if the experimental status bites).
-- **No ViewModels** — server state lives in the injected `QueryClient` (`frontend-data-layer.md`); local state in Compose + plain state-holders; global state in Koin `Store`s. UDF, explicit Koin wiring, no Wasm reflection.
-- **Koin 4.x**, explicit constructor wiring.
-- **Ktor 3.5 REST with OpenAPI-generated DTOs/stubs** (committed, regenerated, hand-wrapped per subsystem) — external contracts generated, not transcribed.
-- **Hand-rolled SignalR JSON-protocol over Ktor WebSockets in `commonMain`** (one impl, both targets, WS-only); SignalRKore native fallback.
-- **Token custody:** native OS vault (DPAPI/Keychain/libsecret); web first-party `sessionStorage` + backend session.
+- **Desktop + web (wasmJs) are the identical full app** from one `commonMain`; wasmJs parity constrains every choice. Mobile targets: owner question (pending).
+- **Navigation:** state-driven `Destination` gate + `ShellRoute` shell + `RouteStore` URL sync today (§5). Navigation Compose / NavHost: owner question (pending).
+- **State model** (no ViewModels / `QueryClient` / Stores, §4): owner question (pending). UDF and explicit constructor wiring, no Wasm reflection, hold today.
+- **DI:** explicit constructor wiring in `AppGraph`. Koin: owner question (pending).
+- **Ktor 3.3 REST with hand-synced DTOs** wrapped per subsystem, guarded by `ApiContractTest` (field names) and `ApiRouteContractTest` (routes) against the committed `server/openapi/v1.json` snapshot.
+- **Hand-rolled SignalR JSON-protocol in `commonMain`** (one protocol implementation, WS-only, stateful reconnect) over a `HubSocket` expect/actual: Ktor WebSockets on jvm, the browser-native `WebSocket` on wasmJs.
+- **Token custody** (§6: native OS vault, web `sessionStorage` + backend session): owner question (pending).
 - **OAuth:** desktop RFC-8252 loopback; web same-origin redirect.
 - **i18n:** first-party Compose resources, `en`/`nl`, runtime locale via Compose environment override.
 - **Design:** shadcn/ui (new-york) ported 1:1 (`frontend-design-system.md`) — OKLCH token contract, neutral base + dynamic chat-color accent, correctness-first component bases; shadcn (not Figma) is the source of truth.

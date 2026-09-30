@@ -1,4 +1,6 @@
-# Onboarding & First-Run — Design (DRAFT)
+# Onboarding & First-Run — Design
+
+**Status:** see the onboarding owner question in `SHORTCOMINGS-EXECUTION-PLAN.md`.
 
 Source: design dialogue 2026-06-16 (decisions via Q&A). Replaces the deleted `setup.mjs`/deploy flow.
 

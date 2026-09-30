@@ -162,7 +162,8 @@ colour alongside the live one, waits for the idle colour to pass its own `/healt
 then stops the old colour with a stop timeout long enough for it to drain in-flight requests
 (SIGTERM → up to 30s → SIGKILL). If the idle colour never becomes ready, the script stops it,
 leaves the old colour serving, and exits non-zero — there is never a moment with zero healthy
-instances. Re-running the script is safe; it converges from whatever state it finds.
+instances. Re-running the script is safe; it converges only when at most one colour runs.
+It refuses when both colours already run (resolve manually or let `guard-single-color.sh` decide).
 
 By default it targets the local compose stack (`docker-compose.yml` in the repo root) and uses
 whatever image `.env`'s `API_IMAGE` resolves to (unset → local build path). Point it at a remote
@@ -214,6 +215,22 @@ It then sets `DEPLOYMENT_MODE=saas` in `.env` and brings the stack up. This give
 **single-node** SaaS deployment; running multiple API replicas behind the proxy uses the same
 image and migrates safely on its own (exactly one replica takes the migration lock), scaled out
 with your own orchestration.
+
+## Discord live-role setup checklist
+
+The Discord live role gives a member a role while their channel is live and removes it when the
+stream ends. Discord's own rules put these steps on the server owner. The bot cannot do them.
+
+- [ ] Install NomNomzBot in the Discord server and grant it **Manage Roles**.
+- [ ] In Server Settings > Roles, drag the bot's own role **above** the role it hands out. A new bot
+      role lands at the bottom by default, and another bot working on the same role proves nothing.
+- [ ] Link the streamer's Discord account to their channel. The bot needs it to find the member to
+      mark live.
+- [ ] If another bot already drives that role or posts go-live announcements, turn that off for the
+      channel first, or point NomNomzBot at a different role while testing. Two bots on one role
+      fight over it and double-post.
+- [ ] Accept one link per friend's channel. Each channel is its own tenant, and no shortcut keeps
+      tenant isolation.
 
 ## Every combination at a glance
 

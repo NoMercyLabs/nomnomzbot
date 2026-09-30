@@ -61,15 +61,16 @@ public interface IVtsTransport
 public interface IVtsConnectionService
 {
     Task<Result<VtsConnectionDto>> GetAsync(Guid broadcasterId, CancellationToken ct = default);
-    Task<Result<VtsConnectionDto>> UpsertAsync(Guid broadcasterId, Guid actorUserId, UpsertVtsConnectionRequest request, CancellationToken ct = default);
+    Task<Result<VtsConnectionDto>> UpsertAsync(Guid broadcasterId, UpsertVtsConnectionRequest request, CancellationToken ct = default);
     Task<Result> AuthorizeAsync(Guid broadcasterId, CancellationToken ct = default);   // runs AuthenticationTokenRequest, stores the AEAD token (D2)
-    Task<Result> RotateBridgeTokenAsync(Guid broadcasterId, Guid actorUserId, CancellationToken ct = default);
+    Task<Result<VtsConnectionDto>> RotateBridgeTokenAsync(Guid broadcasterId, CancellationToken ct = default);
 }
 
 public sealed record VtsMove(double? X, double? Y, double? Rotation, double? Size, double? TimeSeconds, bool Relative);
 public sealed record VtsColorTint(byte R, byte G, byte B, byte A, string? MatchArtMeshTag);
-public sealed record VtsConnectionDto(string Mode, string Endpoint, bool HasPluginToken, bool IsEnabled, string Status, DateTime? LastConnectedAt);
-public sealed record UpsertVtsConnectionRequest(string Mode, string Endpoint, bool IsEnabled);
+public sealed record VtsConnectionDto(string Mode, string Endpoint, bool HasPluginToken, bool HasBridgeToken, int EventSubscriptionsMask, bool IsEnabled, string Status, DateTime? LastConnectedAt);
+// A record with init properties: Mode is required (`direct`|`bridge`); Endpoint (max 200) and EventSubscriptionsMask are optional (a null mask keeps the stored one).
+public sealed record UpsertVtsConnectionRequest { public string Mode { get; init; } public string? Endpoint { get; init; } public int? EventSubscriptionsMask { get; init; } public bool IsEnabled { get; init; } }
 ```
 
 ---
@@ -91,14 +92,14 @@ public sealed record UpsertVtsConnectionRequest(string Mode, string Endpoint, bo
 
 ## 5. REST surface
 
-Controller `VtsController`, `[Route("api/v{version:apiVersion}/vts")]`. `[Authorize]`; Gate-2 keys (mirror the `obs:*` keys).
+Controller `VtsController`, `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/vts")]` — the channel is a route segment (`channelId` = the target tenant), and the paths below are relative to that prefix. `[Authorize]`; Gate-2 keys (mirror the `obs:*` keys).
 
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|
 | GET | `/connection` | — | `StatusResponseDto<VtsConnectionDto>` | management / Moderator · `vts:config:read` |
-| PUT | `/connection` | `UpsertVtsConnectionRequest` | `StatusResponseDto<VtsConnectionDto>` | management / Broadcaster · `vts:config:write` |
+| PUT | `/connection` | `UpsertVtsConnectionRequest` (`Mode`, `Endpoint?`, `EventSubscriptionsMask?`, `IsEnabled`) | `StatusResponseDto<VtsConnectionDto>` | management / Broadcaster · `vts:config:write` |
 | POST | `/connection/authorize` | — | `StatusResponseDto<bool>` | management / Broadcaster · `vts:config:write` |
-| POST | `/connection/rotate-bridge-token` | — | `StatusResponseDto<bool>` | management / Broadcaster · `vts:config:write` |
+| POST | `/connection/rotate-bridge-token` | — | `StatusResponseDto<VtsConnectionDto>` | management / Broadcaster · `vts:config:write` |
 | GET | `/inventory` | — | `StatusResponseDto<VtsModelInventory>` | management / Moderator · `vts:config:read` |
 | POST | `/control` | `{ string RequestType, string PayloadJson }` | `StatusResponseDto<VtsRequestResult>` | management / Moderator · `vts:control` |
 
@@ -108,7 +109,7 @@ Seed in `roles-permissions.md`: **`vts:config:read`** (Moderator 10, `Low`), **`
 
 ## 6. DI & testing
 
-`NomNomzBot.Infrastructure/Vts/DependencyInjection.cs` (`AddVts()`): `IVtsControlService`→`VtsControlService` (Scoped); `IVtsTransport`→`DirectVtsTransport`/`BridgeVtsTransport` by `IDeploymentProfileService.Current` (the `IObsTransport` selection); `IVtsConnectionService`→`VtsConnectionService` (Scoped); `VtsConnectionRepository` (Scoped); the six pipeline actions + `vts_event` trigger source auto-discovered; the bridge reuses the OBS relay/election (`obs-control.md` §4). AEAD via `IFieldCipher`.
+No per-module installer (there is no `AddVts()`): the `AddInfrastructure` scans bind the module (backend-structure.md §4), plus one explicit block in `AddInfrastructure` for the transport. `IVtsControlService`→`VtsControlService` and `IVtsConnectionService`→`VtsConnectionService` (Scoped by the `I<X>Service` convention; no per-entity repository class); `IVtsTransport`→`VtsTransportRouter` (Singleton, the per-channel Mode router over `DirectVtsTransport`/`BridgeVtsTransport`); the six pipeline actions + `vts_event` trigger source auto-discovered; the bridge reuses the OBS relay/election (`obs-control.md` §4). AEAD via `IFieldCipher`.
 
 **Tests (prove behavior):** `AuthorizeAsync` performs the token handshake and persists the token **AEAD** (ciphertext, not plaintext); a session authenticates with the stored token before any control request; `vts_load_model` issues the right VTS request and a generic `vts_request` passes an arbitrary type through unchanged; on SaaS, control routes through the bridge with a single-executor leader and an idempotent `CommandId` (a duplicate relay delivery executes once); `vts_event` fires the bound pipeline on a subscribed event and high-frequency tracking events are **not** delivered unless opted in; a disabled/unconfigured connection rejects control with a typed failure (no transport call); rotating the bridge token invalidates the old one.
 

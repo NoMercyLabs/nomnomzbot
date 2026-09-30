@@ -1,9 +1,11 @@
-# GDPR & Data Foundation — Design (DRAFT)
+# GDPR & Data Foundation — Design
+
+**Status (2026-09-30):** Built — the app-level tenant query filter (`ApplyTenantAndSoftDeleteFilters`), the consent ledger (`ConsentService`), the erasure pipeline (`ErasureService`: profile anonymization in place on the internal surrogate `Users.Id`, cross-channel scrub, vaulted-token revocation, per-subject DEK crypto-shred, auth-session revocation, erasure request + compliance audit ledger), machine-readable export, and the GDPR chat self-service commands. Not built — Postgres RLS (owner question); hashing of the platform user id everywhere in one transaction (owner question).
 
 Source: design dialogue 2026-06-16, decisions locked via Q&A. Pairs with the roles/permissions + custom-command docs. Closes red-team data-isolation gaps.
 
 ## Multi-tenancy / data isolation
-- **SaaS (Postgres):** **RLS + EF Core global query filters** — defense-in-depth. `ITenantScoped` filter bound to `CurrentTenantService` **and** Postgres Row-Level Security (`SET app.tenant_id` per connection). Even a missed `WHERE` can't leak rows.
+- **SaaS (Postgres):** App-level EF global query filter shipped (`ApplyTenantAndSoftDeleteFilters` via `ICurrentTenantService`). Postgres RLS is not built — see the RLS owner question.
 - **Self-host (SQLite):** no RLS available → app-level query filters only. Selected by deployment profile.
 - Closes red-team gap #2; pairs with the shipped Gate 1 fix (tenant id derived from the authenticated principal, not request input).
 

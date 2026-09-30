@@ -12,12 +12,12 @@
 
 | # | Decision |
 |---|---|
-| D1 | **Silent action family, separate from `song_*`.** New file `Infrastructure/Pipeline/Actions/MusicControlActions.cs`, `Category = "Music Control"`, each implementing the canonical `ICommandAction`. None post a chat reply — result surfaces only via the caller (pipeline execution result / `AutomationInvokeResult`). Existing `song_*` actions are untouched. |
+| D1 | **Silent action family, separate from `song_*`.** AS-BUILT: one file, `Infrastructure/Music/PipelineActions/MusicControlActions.cs` (beside the `song_*` actions), one public class per action (`MusicPlayAction`, `MusicSeekAction`, …), each implementing the canonical `ICommandAction`. Category is the shared `pipeline.category.music` (`LocalizedText`) — there is no separate "Music Control" category. Actions are found by the `ICommandAction` assembly scan (`AddImplementationsOf<ICommandAction>`) — no registration edit. None post a chat reply — result surfaces only via the caller (pipeline execution result / `AutomationInvokeResult`). Existing `song_*` actions are untouched. |
 | D2 | **Both discrete and toggle/cycle actions ship — no curation.** Every `IMusicProvider`/`IMusicProviderManageApi` member that makes sense as a single fire gets a discrete action (`music_play`, `music_pause`, `music_save_track`, …) **and**, where the member has an observable on/off/mode state, a convenience toggle/cycle wrapper (`music_play_pause`, `music_toggle_shuffle`, `music_cycle_repeat`, `music_toggle_saved`) that reads current state via `GetCurrentTrackAsync`/`AreTracksSavedAsync` then flips it. A pipeline (or a Stream Deck key) picks whichever fits — this is the full hook surface, not a subset. |
 | D3 | **Read surface added to `IAutomationCommandService`, scope `read`.** `GetNowPlayingAsync`, `GetDevicesAsync`, `GetPlaylistsAsync` — thin wrappers over `IMusicProvider.GetCurrentTrackAsync`/`GetDevicesAsync` and `IMusicProviderManageApi.ListPlaylistsAsync`. Needed for: (a) a key's *initial* paint before the first event arrives, (b) a device/playlist picker in a client's property-inspector-equivalent UI. Same `CAPABILITY_UNSUPPORTED` failure shape as every other music surface. |
-| D4 | **`song.changed` becomes a public automation event.** Register `SongChangedAutomationEventDescriptor : IAutomationEventDescriptor` (auto-discovered, `automation-api.md` D6) wrapping the domain event that already drives the overlay now-playing widget (`widget-sdk.md` §9). Payload is the same position-anchor shape (`title, artist, durationMs, positionMs, isPlaying, serverTime`) **plus `isSaved: bool`** (new field — the favorite-toggle key needs it and nothing upstream emits it today) and `shuffleEnabled`/`repeatMode` (already on `TrackInfo`, just not on the wire payload). Automation clients subscribe once (scope `events`) and extrapolate position locally exactly like overlay widgets do — no per-second polling from any client, Stream Deck included. |
+| D4 | **`song.changed` becomes a public automation event.** Register `SongChangedAutomationEventDescriptor : IAutomationEventDescriptor` (auto-discovered, `automation-api.md` D6) wrapping `SongChangedEvent` (`Domain/Music/Events/`), the domain event that already drives the overlay now-playing widget (`widget-sdk.md` §9). AS-BUILT: `SongChangedEvent` is built by `SongChangedProjector` through the shared `MusicAutomationProjection`, so the descriptor is a field-for-field passthrough to `AutomationNowPlayingDto` (no re-derivation). Payload is the position-anchor shape (`title, artist, durationMs, positionMs, isPlaying, serverTime`) **plus `isSaved: bool?`**, `shuffleEnabled`/`repeatMode`, and the as-built extras `volumePercent`, `albumArtUrl` and the seven live capability flags (`canSetShuffle`, `canSetRepeat`, `canSkipNext`, `canSkipPrevious`, `canSeek`, `canPause`, `canResume`). `serverTime` is the event's `OccurredAt`. Automation clients subscribe once (scope `events`) and extrapolate position locally exactly like overlay widgets do — no per-second polling from any client, Stream Deck included. |
 | D5 | **Gate-2:** new action key `music:control:write` — one seeded floor, **Broadcaster** (every action here operates the broadcaster's own connected Spotify/YouTube account); a broadcaster delegates it per channel via `ChannelActionOverride` (lowering to Moderator or granting a named user), never a second seeded floor. Governs which `AllowedPipelineIds`/scopes a management-plane token mint can grant; the existing `automation:tokens:write` still governs minting the token itself. Read methods ride existing scope `read` — no new key needed for reads. |
-| D6 | **Schema: none.** Every action/read is a wrapper over already-schema'd surfaces (`music-sr.md`, `automation-api.md` P.17). No new tables, no new domain events beyond the existing `song.changed` source event gaining two extra projected fields on its **public** (automation) payload — the internal domain event itself is unchanged, only `SongChangedAutomationEventDescriptor.ProjectPayload` adds `isSaved`/`shuffleEnabled`/`repeatMode`. |
+| D6 | **Schema: none.** Every action/read is a wrapper over already-schema'd surfaces (`music-sr.md`, `automation-api.md` P.17). No new tables, no new domain events beyond the existing `song.changed` source event carrying the extra now-playing fields on its **public** (automation) payload — the extra fields ride the event and `AutomationNowPlayingDto` (as-built above), not a schema change. |
 
 ---
 
@@ -29,15 +29,15 @@
 
 ## 2. Domain events
 
-**None new.** `SongChangedAutomationEventDescriptor` (D4) is an `IAutomationEventDescriptor` over the existing now-playing domain event (`widget-sdk.md` §9's source), not a new `DomainEventBase` subtype. Its `ProjectPayload` calls `IMusicProviderManageApi.AreTracksSavedAsync` (single-track) to resolve `isSaved` at projection time — cheap, capability-gated (`Library` absent ⇒ `isSaved: null`, never a failed projection).
+**None new.** `SongChangedAutomationEventDescriptor` (D4) is an `IAutomationEventDescriptor` over the existing `SongChangedEvent` (`widget-sdk.md` §9's source), not a new `DomainEventBase` subtype. `isSaved` is resolved once, at publish time, by `MusicAutomationProjection` via `IMusicProviderManageApi.AreTracksSavedAsync` (single-track) — cheap, capability-gated (`Library` absent ⇒ `isSaved: null`, never a failed projection).
 
 ---
 
 ## 3. Service interfaces
 
-### 3.1 Pipeline actions — `NomNomzBot.Infrastructure.Pipeline.Actions.MusicControlActions`
+### 3.1 Pipeline actions — `NomNomzBot.Infrastructure.Music.PipelineActions` (`MusicControlActions.cs`)
 
-Each `: ICommandAction` (`commands-pipelines.md` §3.13: `string Type`, `string Category`, `string Description`, `Task<ActionResult> ExecuteAsync(ActionContext context, JsonElement parameters)`). `Category = "Music Control"`. All resolve the broadcaster's active `IMusicProvider` the same way `song_*` does; all fail `CAPABILITY_UNSUPPORTED` when the required `MusicProviderCapabilities` flag is absent, `PREMIUM_REQUIRED` on the same Spotify-transport 403 path `song_*` already surfaces, `MISSING_SCOPE` when the provider connection lacks the needed OAuth scope. None post to chat.
+Each `: ICommandAction` (AS-BUILT contract, `NomNomzBot.Application.Abstractions.Pipeline`: `string ActionType`, `LocalizedText Category`, `LocalizedText Description`, optional `Fields` (`PipelineActionFieldDescriptor`s the builder renders), `Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)`; params read with `action.GetString/GetInt`, tenant = `ctx.BroadcasterId`). The `Type` column below is the `ActionType`. Actions call `IMusicService` (the active-provider seam `song_*` also uses) and, for library/playlist/follow, `IMusicProviderManageApi`. All resolve the broadcaster's active provider the same way `song_*` does; all fail `CAPABILITY_UNSUPPORTED` when the required `MusicProviderCapabilities` flag is absent, `PREMIUM_REQUIRED` on the same Spotify-transport 403 path `song_*` already surfaces, `MISSING_SCOPE` when the provider connection lacks the needed OAuth scope. None post to chat.
 
 | `Type` | Params | Capability required | Calls |
 |---|---|---|---|
@@ -49,9 +49,9 @@ Each `: ICommandAction` (`commands-pipelines.md` §3.13: `string Type`, `string 
 | `music_set_volume` | `{ volume: int 0-100 }` (supports `{var}`) | `Volume` | `SetVolumeAsync` |
 | `music_seek` | `{ positionSeconds: int }` (supports `{var}`) | `Seek` | `SeekAsync` |
 | `music_set_shuffle` | `{ enabled: bool }` | `Shuffle` | `SetShuffleAsync` |
-| `music_toggle_shuffle` | `{}` | `Shuffle`, `NowPlaying` | reads `TrackInfo.ShuffleEnabled` → `SetShuffleAsync(!current)` |
+| `music_toggle_shuffle` | `{}` | `Shuffle`, `NowPlaying` | reads `NowPlaying.ShuffleEnabled` → `SetShuffleAsync(!current)` |
 | `music_set_repeat` | `{ mode: "off"\|"track"\|"context" }` | `Repeat` | `SetRepeatAsync` |
-| `music_cycle_repeat` | `{}` | `Repeat`, `NowPlaying` | reads `TrackInfo.RepeatMode` → advances `Off→Track→Context→Off` → `SetRepeatAsync` |
+| `music_cycle_repeat` | `{}` | `Repeat`, `NowPlaying` | reads `NowPlaying.RepeatMode` → advances `Off→Track→Context→Off` → `SetRepeatAsync` |
 | `music_transfer_device` | `{ deviceId: string }` (supports `{var}`) | `TransferDevice` | `TransferPlaybackAsync(deviceId, play: true)` |
 | `music_save_track` | `{}` | `Library`, `NowPlaying` | current track's `TrackUri` → `SaveTracksAsync([uri])` |
 | `music_unsave_track` | `{}` | `Library`, `NowPlaying` | current track's `TrackUri` → `RemoveSavedTracksAsync([uri])` |
@@ -61,7 +61,9 @@ Each `: ICommandAction` (`commands-pipelines.md` §3.13: `string Type`, `string 
 | `music_follow_artist` | `{}` | `Library`, `NowPlaying` | current track's primary artist id → `FollowAsync(target: Artist, artistId)` |
 | `music_unfollow_artist` | `{}` | `Library`, `NowPlaying` | current track's primary artist id → `UnfollowAsync(target: Artist, artistId)` |
 
-`music_*` actions needing "current track's artist id" resolve it via `TrackInfo` — if `IMusicProvider.GetCurrentTrackAsync`'s `TrackInfo` does not carry a provider artist id today, add `string? ArtistId` to `TrackInfo` (one nullable field, additive, no migration — `TrackInfo` is a plain record, not an entity) rather than a second provider round-trip.
+**Extra actions built beyond the table** (same file, same silent contract): `music_volume_up` / `music_volume_down` (`step` param; read the active device's volume, then set it), `music_volume_mute` (toggles 0 ↔ the remembered pre-mute level via `IMuteVolumeMemory`; optional `unmuteVolume` fallback), and `play_track_once` (`track_uri`; plays one track now via `IMusicService.PlayTrackOnceAsync`, and `PlayOnceResumeHandler` restores what was playing afterwards — never touches the song-request fair queue). The three save/unsave/toggle actions also publish `TrackSavedChangedEvent` so the overlay's heart animation reacts at once.
+
+`music_*` actions needing "current track's artist id" read it from the `NowPlaying` returned by `IMusicService.GetNowPlayingAsync` (`ArtistId` is already carried, as it is on `TrackInfo`) — no second provider round-trip.
 
 ### 3.2 Read surface — extend `IAutomationCommandService` (`automation-api.md` §3)
 
@@ -76,30 +78,37 @@ public interface IAutomationCommandService
     Task<Result<IReadOnlyList<AutomationPlaylistDto>>> GetPlaylistsAsync(AutomationPrincipal principal, int limit = 20, int offset = 0, CancellationToken ct = default);
 }
 
+// NomNomzBot.Application.AutomationApi.Dtos (AS-BUILT)
 public sealed record AutomationNowPlayingDto(
     string? Title, string? Artist, int DurationMs, int PositionMs,
     bool IsPlaying, bool ShuffleEnabled, string RepeatMode, bool? IsSaved,
-    DateTimeOffset ServerTime
+    DateTimeOffset ServerTime, int VolumePercent, string? AlbumArtUrl,
+    bool CanSetShuffle = true, bool CanSetRepeat = true, bool CanSkipNext = true,
+    bool CanSkipPrevious = true, bool CanSeek = true, bool CanPause = true, bool CanResume = true
 );
 public sealed record AutomationDeviceDto(string Id, string Name, string Type, bool IsActive, int? VolumePercent);
 public sealed record AutomationPlaylistDto(string Id, string Name, string Uri, int TrackCount, string? ImageUrl);
 ```
 
-`GetNowPlayingAsync` maps `IMusicProvider.GetCurrentTrackAsync` + one `AreTracksSavedAsync` call (same projection `SongChangedAutomationEventDescriptor` uses — factor the mapping into one shared internal helper, `MusicAutomationProjection`, so the REST read and the event payload can never drift). `GetDevicesAsync`/`GetPlaylistsAsync` map `IMusicProvider.GetDevicesAsync`/`IMusicProviderManageApi.ListPlaylistsAsync` 1:1.
+`GetNowPlayingAsync` maps `IMusicService.GetNowPlayingAsync` + one `AreTracksSavedAsync` call through the static `MusicAutomationProjection.ToNowPlayingAsync(NowPlaying, provider, broadcasterId, manageApi, timeProvider, ct)` (`Infrastructure/AutomationApi/Events/`), the same projection `SongChangedProjector` uses when it builds `SongChangedEvent` — so the REST read and the event payload can never drift. `GetDevicesAsync`/`GetPlaylistsAsync` map `IMusicProvider.GetDevicesAsync`/`IMusicProviderManageApi.ListPlaylistsAsync` 1:1.
 
 ### 3.3 Event descriptor
 
 ```csharp
 namespace NomNomzBot.Infrastructure.AutomationApi.Events;
 
+// AS-BUILT: IAutomationEventDescriptor = PublicName + Description + DomainEventType + ProjectPayload.
 public sealed class SongChangedAutomationEventDescriptor : IAutomationEventDescriptor
 {
     public string PublicName => "song.changed";
-    public Type DomainEventType => typeof(NowPlayingChangedEvent); // the existing widget-sdk.md §9 source event
+    public string Description => "The broadcaster's now-playing track/state changed.";
+    public Type DomainEventType => typeof(SongChangedEvent); // Domain/Music/Events — the widget-sdk.md §9 source event
     public object ProjectPayload(DomainEventBase domainEvent) =>
-        MusicAutomationProjection.ToNowPlayingPayload((NowPlayingChangedEvent)domainEvent); // shared with §3.2
+        new AutomationNowPlayingDto(/* field-for-field from the SongChangedEvent */); // already built via MusicAutomationProjection
 }
 ```
+
+**Move to the unified event catalog.** The per-event `IAutomationEventDescriptor` (and `AutomationEventRegistry`, which fails fast on duplicate names/types) is the as-built seam. Slice **S-AUTOMATION-EXPOSE-ALL** (`automation-api.md` D6, `dev-platform.md` §1–§2) replaces it with the unified `EventCatalog` (`[Event]`/`[NotExposed]`/`[Pii]` attributes on the domain events), and `song.changed` then comes from `SongChangedEvent`'s catalog entry. When that lands, `SongChangedAutomationEventDescriptor` is deleted; the payload shape and `MusicAutomationProjection` stay, because the projection is what builds `SongChangedEvent` itself.
 
 ---
 
@@ -111,7 +120,7 @@ No new controller. Extends the existing data-plane routes (`automation-api.md` �
 |---|---|---|---|
 | GET | `/automation/v1/music/now-playing` | `read` | `StatusResponseDto<AutomationNowPlayingDto>` |
 | GET | `/automation/v1/music/devices` | `read` | `StatusResponseDto<IReadOnlyList<AutomationDeviceDto>>` |
-| GET | `/automation/v1/music/playlists?limit=&offset=` | `read` | `StatusResponseDto<PaginatedResponse<AutomationPlaylistDto>>` |
+| GET | `/automation/v1/music/playlists?limit=&offset=` | `read` | `StatusResponseDto<IReadOnlyList<AutomationPlaylistDto>>` (`limit` 1–50, default 20; `offset` ≥ 0) |
 
 The `music_*` pipeline actions carry no dedicated route — they run exclusively through the existing `POST /automation/v1/invoke` (and the ordinary in-dashboard pipeline editor/manual trigger, same as any other `ICommandAction`).
 
@@ -119,7 +128,7 @@ The `music_*` pipeline actions carry no dedicated route — they run exclusively
 
 ## 5. DI & testing
 
-`AddPipelineActions()` (wherever `song_*` actions register today) also registers each `MusicControlActions` type. `AddAutomationApi()` registers `SongChangedAutomationEventDescriptor` into `IAutomationEventRegistry`'s auto-discovery set and the three new `IAutomationCommandService` reads on the existing `AutomationCommandService` implementation — no new DI module.
+AS-BUILT: no installer names any of these. The `music_*` and `play_track_once` actions ride the `ICommandAction` scan (`AddImplementationsOf<ICommandAction>`, backend-structure.md §4); `SongChangedAutomationEventDescriptor` rides the `IAutomationEventDescriptor` scan into `AutomationEventRegistry`; the three reads live on the existing `AutomationCommandService`. No new DI module.
 
 **Tests (prove behavior, not surface):**
 - Each `music_*` action: capability present → calls the right provider member with the right args (verify via provider test double, not "no exception"); capability absent → `CAPABILITY_UNSUPPORTED`, provider member never invoked.

@@ -166,15 +166,29 @@ public interface IChannelAnalyticsService
     // Top viewers for the channel over a range by a chosen metric (folds M.7) — leaderboard-adjacent but NOT
     // the economy leaderboard (no currency ranking, no opt-out-config; respects M.1 IsAnalyticsOptedOut).
     Task<Result<IReadOnlyList<TopViewerDto>>> GetTopViewersAsync(Guid broadcasterId, TopViewerMetric metric, DateOnly from, DateOnly to, int top, CancellationToken ct = default);
+
+    // The channel's stream history, newest first — the per-stream analytics entry point. Paged.
+    Task<Result<PagedList<StreamListItemDto>>> ListStreamsAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
+
+    // One stream's aggregates, window-folded between its start and end (or now while it is live).
+    Task<Result<StreamAnalyticsDto>> GetStreamAsync(Guid broadcasterId, string streamId, CancellationToken ct = default);
+
+    // The channel's activity over a range, broken out by streaming platform (PRODUCT-ALIGNMENT D1: one channel,
+    // many platform connections). Only providers with real activity in the range appear — never a zero
+    // placeholder — and only metrics whose source event carries a platform tag are broken out.
+    Task<Result<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>> GetPlatformSummaryAsync(Guid broadcasterId, DateOnly from, DateOnly to, CancellationToken ct = default);
 }
 ```
 
 ### 3.4 `IPlatformAnalyticsService` — SaaS-only cross-channel stats
 
 Platform-global basic stats for the SaaS operator dashboard — cross-tenant, **Plane-C** (platform IAM) gated.
-On **self-host** the implementation is the `NullPlatformAnalyticsService` adapter that returns
-`FEATURE_DISABLED` (a self-host operator sees only their own channel via §3.3; there is no cross-tenant view).
-On **SaaS** it reads the global stream / `ChannelAnalyticsDaily` across tenants.
+There is **one** implementation, `PlatformAnalyticsService`, and it **self-gates on the deployment mode**: it reads
+`DeploymentContext.Mode` (never "does any `IamPrincipal` row exist" — self-host bootstraps a real owner principal)
+and, when the mode is not `Saas`, returns `FEATURE_DISABLED` (a self-host operator sees only their own channel via
+§3.3; there is no cross-tenant view). On **SaaS** it folds `ChannelAnalyticsDaily` across tenants. There is no
+`NullPlatformAnalyticsService` adapter and no profile-specific registration. The range is validated first
+(`from ≤ to`, span ≤ 366 days → `VALIDATION_FAILED`).
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Analytics;
@@ -208,6 +222,14 @@ public interface IPlatformAnalyticsService
 - `ChannelAnalyticsSummaryDto` — the M.8 counters summed over the range **plus** a `Deltas` block (% change vs
   the preceding equal window) and `PeakViewers` (max over range).
 - `TopViewerDto` — `ViewerUserId, DisplayName?, MetricValue` (the chosen `TopViewerMetric`).
+- `StreamListItemDto` — `StreamId, Title?, GameName?, StartedAt?, EndedAt?, DurationSeconds?, PeakViewers?` (one
+  row of the stream history list, newest first).
+- `StreamAnalyticsDto` — `StreamId, Title?, GameName?, StartedAt?, EndedAt?, DurationSeconds?, PeakViewers?,
+  TotalMessages, UniqueChatters, NewFollowers, NewSubscribers, CheersCount, CommandsRun, RedemptionsCount,
+  Transcript` (`IReadOnlyList<VoiceTranscriptSegmentDto>`). Counts are window-folded from the raw activity between
+  `StartedAt` and `EndedAt` (or now while live); `PeakViewers` is the value the status poller stamps.
+- `ChannelAnalyticsPlatformSummaryDto` — `Provider, TotalMessages, UniqueChatters, NewFollowers, NewSubscribers,
+  BitsCheered` (one streaming platform's slice of the range).
 - `PlatformAnalyticsDto` — `ActiveChannels, DailyActiveChannels, TotalEventsProcessed, TotalMessages,
   TotalRedemptions, TotalCommandsRun` over the range (no per-tenant identity).
 
@@ -238,7 +260,10 @@ management floor applies. Gate-2 = `IActionAuthorizationService.AuthorizeActionA
 |---|---|---|---|---|
 | GET | `/channel/daily` | `?from&to` | `StatusResponseDto<IReadOnlyList<ChannelAnalyticsDailyDto>>` | management / Moderator · `analytics:read` |
 | GET | `/channel/summary` | `?from&to` | `StatusResponseDto<ChannelAnalyticsSummaryDto>` | management / Moderator · `analytics:read` |
+| GET | `/channel/by-platform` | `?from&to` | `StatusResponseDto<IReadOnlyList<ChannelAnalyticsPlatformSummaryDto>>` | management / Moderator · `analytics:read` |
 | GET | `/channel/top-viewers` | `?metric&from&to&top` | `StatusResponseDto<IReadOnlyList<TopViewerDto>>` | management / Moderator · `analytics:read` |
+| GET | `/streams` | `PageRequestDto` | `PaginatedResponse<StreamListItemDto>` | management / Moderator · `analytics:read` |
+| GET | `/streams/{streamId}` | — | `StatusResponseDto<StreamAnalyticsDto>` | management / Moderator · `analytics:read` |
 | GET | `/viewers` | `ViewerProfileQuery`+`PageRequestDto` | `PaginatedResponse<ViewerProfileListItemDto>` | management / Moderator · `analytics:viewer:read` |
 | GET | `/viewers/{viewerUserId}` | — | `StatusResponseDto<ViewerProfileDto>` | management / Moderator · `analytics:viewer:read` (self-or-Gate-2) |
 | GET | `/viewers/{viewerUserId}/engagement` | `?from&to` | `StatusResponseDto<IReadOnlyList<ViewerEngagementDailyDto>>` | management / Moderator · `analytics:viewer:read` (self-or-Gate-2) |
@@ -249,7 +274,7 @@ management floor applies. Gate-2 = `IActionAuthorizationService.AuthorizeActionA
 
 | Verb | Route | Request | Response | Plane / key |
 |---|---|---|---|---|
-| GET | `/stats` | `?from&to` | `StatusResponseDto<PlatformAnalyticsDto>` | Plane-C · `platform:analytics:read` (SaaS only; self-host → `FEATURE_DISABLED`) |
+| GET | `/stats` | `?from&to` | `StatusResponseDto<PlatformAnalyticsDto>` | Plane-C · `platform:analytics:read` (SaaS only; the service self-gates — self-host → `FEATURE_DISABLED`) |
 
 ---
 
@@ -269,27 +294,23 @@ beyond the display-name snapshot the dashboard already shows.
 
 ## 7. DI registration
 
-In `NomNomzBot.Infrastructure/DependencyInjection.cs`. Projections in the `// Event store projections` block
-(scoped, multi-registered like every `IProjection`); read services in the "Application services" block
-(scoped). Implementations in `NomNomzBot.Infrastructure/Analytics/` and `.../Services/Analytics/`.
+In `NomNomzBot.Infrastructure/DependencyInjection.cs`. **Nothing here is registered by hand.** Projections are
+discovered by `AddImplementationsOf<IProjection>` (scoped, multi-registered) — drop a projection class into the
+Infrastructure assembly and it is live next boot; the six Domain M projections are picked up this way. Read services
+(`ViewerAnalyticsService`, `ChannelAnalyticsService`, `PlatformAnalyticsService`) are scoped (DbContext) and
+registered by the `AddServicesByConvention` scan (class name ends in `Service`). Implementations live in
+`NomNomzBot.Infrastructure/Analytics/` (projections) and `.../Services/Analytics/` (read services).
 
 ```csharp
-// Analytics — projections (scoped, multi-registered IProjection)
-services.AddScoped<IProjection, ViewerProfileProjection>();
-services.AddScoped<IProjection, WatchSessionProjection>();
-services.AddScoped<IProjection, WatchStreakProjection>();
-services.AddScoped<IProjection, MessageActivityDailyProjection>();
-services.AddScoped<IProjection, ViewerEngagementDailyProjection>();
-services.AddScoped<IProjection, ChannelAnalyticsDailyProjection>();
+// Event store — projections, discovered by convention (scoped, multi-registered IProjection)
+services.AddImplementationsOf<IProjection>(infrastructure, ServiceLifetime.Scoped);
 
-// Analytics — read services (scoped: DbContext)
-services.AddScoped<IViewerAnalyticsService, ViewerAnalyticsService>();
-services.AddScoped<IChannelAnalyticsService, ChannelAnalyticsService>();
-
-// Platform stats — deployment-profile adapter (SaaS impl vs self-host null)
-services.AddScoped<IPlatformAnalyticsService, PlatformAnalyticsService>();      // SaaS
-// self_host_* profile overrides with NullPlatformAnalyticsService (FEATURE_DISABLED)
+// Read services: IViewerAnalyticsService, IChannelAnalyticsService, IPlatformAnalyticsService —
+// registered by AddServicesByConvention (no explicit line).
 ```
+
+`PlatformAnalyticsService` is the only `IPlatformAnalyticsService`; it self-gates on `DeploymentContext.Mode` (§3.4),
+so no deployment-profile override exists.
 
 The projections run under the event-store's existing `IProjectionRunner` (no bespoke hosted service);
 checkpoints, lag, rebuild, and pause/resume are the event-store's surface.
@@ -327,7 +348,7 @@ checkpoints, lag, rebuild, and pause/resume are the event-store's surface.
 4. **Daily rollups bucket by channel-local date** and upsert idempotently — replay rebuilds identical numbers.
 5. **Pure read-side: zero new domain events.** Live updates push via `DashboardHub`; projection lifecycle uses
    the event-store's existing replay events + checkpoints.
-6. **Platform (cross-channel) analytics is SaaS-only**, Plane-C gated; self-host gets the
-   `NullPlatformAnalyticsService` (`FEATURE_DISABLED`) and sees only its own channel.
+6. **Platform (cross-channel) analytics is SaaS-only**, Plane-C gated; `PlatformAnalyticsService` self-gates on the
+   deployment mode and returns `FEATURE_DISABLED` off SaaS, so a self-host operator sees only their own channel.
 7. **Permanent storage, manual erasure only** — no retention/auto-purge; M.1 is the anonymization anchor,
    counts survive erasure (M.8 is PII-free by construction).

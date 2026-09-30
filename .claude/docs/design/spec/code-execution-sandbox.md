@@ -1,6 +1,6 @@
 # Security & Sandboxing Deep-Dive — `code-execution-sandbox`
 
-**Status:** design spec, implementable. **Owner of the *feature* contract:** [`custom-code.md`](./custom-code.md)
+**Status:** design spec, **partly built** — the *Implementation status* table below is the truth about what the code does today; the sections after it are the design and carry an *As built* note wherever the code differs. **Owner of the *feature* contract:** [`custom-code.md`](./custom-code.md)
 (the `IScriptExecutor` / `IScriptCapabilityBroker` / `IScriptExecutionMeter` / `IScriptRunner` interfaces, the
 `CodeScript`/`CodeScriptVersion`/`HttpEgressAllowlist` entities, the `run_code` action, the `code:script:author`
 authz gate, and the profile DI switch are all **defined there** and only **referenced** here).
@@ -24,6 +24,29 @@ in-process limits and escape literature; OWASP SSRF Prevention; isolated-vm / no
 Firecracker/gVisor multi-tenant isolation guidance; the four upstream specs above and the live-code state in
 `server/src/NomNomzBot.Infrastructure/…`.
 
+## Implementation status (as of 2026-09-30)
+
+Code lives in `server/src/NomNomzBot.Infrastructure/CustomCode/` and `…/Sandbox/`; contracts in `NomNomzBot.Application/Contracts/CustomCode/`. Items marked **owner question** are design controls the code does not implement; whether and how to build each one is the owner's decision, so they are recorded here and in the section they touch rather than decided.
+
+| Area | Status | As built / gap |
+|---|---|---|
+| Jint executor (self-host) | **Built — in-process** | `Jint/JintScriptExecutor.cs`, `Jint/JintEngineFactory.cs`, Jint **4.10.0** (`Directory.Packages.props`). Hardened per §4.2 (CLR interop off, string compilation off, recursion/stack/array/regex caps, statement/time/memory limits). Runs on the calling thread. **No separate worker process, no dedicated bounded-stack thread, no OS limits** — *owner question: worker process* (§3.3, §5.5, D5). |
+| Wasmtime executor (SaaS) | **Harness only — fails closed** | `Wasmtime/WasmtimeScriptExecutor.cs`, wasmtime-dotnet **44.0.0**. Builds the hardened `Engine` (Cranelift, threads/SIMD/relaxed-SIMD/multi-memory/bulk-memory/reference-types off, fuel + epoch on) and `RunHardenedModule` runs a raw wasm export under `Store.SetLimits` + fuel. `ExecuteAsync` always returns `Faulted` (`"…JS engine module is not configured."` or `"…pending the engine-module ABI binding."`). No epoch watchdog thread, no host-import linking. |
+| Executor selection | **Not built** | `IScriptExecutor` is bound to `JintScriptExecutor` unconditionally (Scoped). `DeploymentProfileSnapshot.CodeExecutor` / `CodeExecutorKind` exist and are persisted, but nothing selects the executor from them. `WasmtimeScriptExecutor` is never registered. |
+| Capability broker + host bridge | **Built** | `ScriptCapabilityBroker` (22 catalogued capabilities, §6.2), `ScriptHostBridge`, `IScriptHostBridge` / `HostImportDelegate` seam (D9 satisfied). Deny-by-default grant; `critical` never granted. No `HttpEgressAllowlist` owner-approval check for `http.fetch`. |
+| Budgets | **Built — compile-time constants** | `ScriptResourceBudget.Baseline` in `ScriptContracts.cs`: **8000 ms** / 64 host calls / 200,000 statements / 64 MiB / 8 KiB output / 256 KiB egress. No `AppSetting` surface, no tier headroom. `MaxEgressBytes` is declared but nothing enforces it. |
+| Metering | **Built — check-then-record** | `ScriptExecutionMeter` over `IUsageMeteringService`, metric `sandbox_exec_ms`; refused `Denied(QuotaExceeded)` before execution, recorded after. **Not** reserve-then-settle (T14b open). Quotas beyond this (global admission, per-tenant import/egress buckets, circuit breaker, N-in-window script auto-disable) are **not built** — *owner question: quotas* (§5.3, §5.4). |
+| SSRF egress client | **Built (core)** | `Sandbox/EgressHttpClient.cs` + `Sandbox/EgressAddressGuard.cs`: resolve-then-pin `ConnectCallback`, https-only, no redirects, blocked-range guard. Gaps: multicast not blocked (**S-EGRESS-GUARD-MULTICAST**); no body clamp; no `MaxConnectionsPerServer`/header timeout. See §7.1. |
+| `http.fetch` allowlist | **Not built** | `ScriptHostBridge.Fetch` accepts any absolute `https` URL (GET only, 256 KiB body cap). It does **not** consult `HttpEgressAllowlist`. *Owner question: fetch allowlist.* |
+| `http_request` pipeline action | **Does not exist** | Nothing in the code registers an action of that name. The design's "two front-ends" collapse to the callers listed in §6.3. |
+| Runner + `run_code` | **Built** | `ScriptRunner` (disabled → quota → valid version → grant → execute → record) and `RunCodeAction` (`code_script_id`, decoded with `OwnedIdCodec`). The engine is fail-closed (§10.4). `ScriptExecutedEvent` / `ScriptExecutionDeniedEvent` are defined but **no code publishes them**. |
+| PII allowlist on `Variables` | **Not built** | `RunCodeAction` copies `ctx.Variables` wholesale into `ScriptInputs.Variables`. `user.get` returns the public profile only (no email/IP). *Owner question: PII allowlist* (§8.5, T9b). |
+| Postgres RLS | **Not built** | The `ITenantScoped` query filter exists; no `app.tenant_id` interceptor or RLS policies. *Owner question: RLS* (§8.3). |
+| TypeScript → JS transpile | **Not built** | `CompileAsync` parses JavaScript only (`Engine.PrepareScript`), computes `CompiledHash`, extracts declared capabilities by regex. There is no TypeScript step and no `forbidden_global` / `undeclared_capability` static check. *Owner question: TS transpile* (§9.2, §9.4). |
+| Authoring gate | **Built, differs from D1** | `code:script:author`: floor **Moderator**, `DangerTier.Critical`, **not** permit-grantable (`ActionDefinitionSeeder`), plus the per-channel `custom_code` feature toggle (default off) on every `/code-scripts` route (`FEATURE_DISABLED`). *Owner question: author floor* (§9.3, D1). |
+| §8.4 prerequisites | **Satisfied** | AES-256-GCM + AAD token crypto, sealed `Configuration.SecureValue`, fail-closed engine — see §8.4. |
+| Security tests (§12) | **Partial** | See the status table at the end of §12. T1 is partial; **T18 and T19 do not exist**; there are no architecture tests in the tree. |
+
 ---
 
 ## 0. Conventions, namespaces, non-negotiables
@@ -44,6 +67,7 @@ Firecracker/gVisor multi-tenant isolation guidance; the four upstream specs abov
   **Wasmtime/wasmtime-dotnet** (SaaS) — both already in the stack doc. Microsoft packages are 2nd-party.
 - **Deployment-profile axis selects the adapter by DI** (`platform-conventions.md` §7). One boot-time switch,
   never a runtime `if`. The profile field `CodeExecutor` (`{wasmtime|jint}`) picks the security tier.
+  **As built the switch does not exist** — Jint is registered unconditionally (§11.2).
 
 ---
 
@@ -87,7 +111,7 @@ Every entry funnels through `RunCodeAction → IScriptRunner.RunAsync → IScrip
 
 | # | Asset | Worst-case loss |
 |---|---|---|
-| A1 | **OAuth tokens / API keys / DB creds** (Twitch, Spotify, Discord, YouTube; Postgres conn string; `ENCRYPTION_KEY`) | Full account takeover of the streamer — and, via the live shared-key transplant defect (§8.4), of *every* streamer. |
+| A1 | **OAuth tokens / API keys / DB creds** (Twitch, Spotify, Discord, YouTube; Postgres conn string; `ENCRYPTION_KEY`) | Full account takeover of the streamer. The shared-key transplant defect that once widened this to *every* streamer (§8.4) is **closed**: token-at-rest crypto is AES-256-GCM with per-field AAD. |
 | A2 | **Other tenants' data** (variables, chat, economy balances, viewer lists, scripts) | Cross-tenant confidentiality/integrity breach — the defining multi-tenant SaaS failure. |
 | A3 | **The host process / host machine** | RCE, cloud-metadata credential theft, lateral movement, platform-wide outage. |
 | A4 | **This tenant's own data & quota** | Self-inflicted is acceptable; we still bound it so a buggy script can't melt the channel. |
@@ -164,6 +188,8 @@ Two boundaries matter most: **(1)** the sandbox boundary — only value types an
 | **D**enial of service | Infinite loop, memory bomb, host-call flood, stack overflow, blocking-host-call park, slow-loris egress, multi-instance fan-out, transpile-time bomb, self-sustaining worker crash | Fuel/epoch/wall-clock watchdog + per-import timeout & plumbed token, StoreLimits, MaxHostCalls (API-side on Jint), separate disposable worker, **distributed** global admission + global egress concurrency, budgeted off-thread transpile, worker-crash→auto-disable (§3.3.1, §4, §5, §7, §9.4) |
 | **E**levation | JIT miscompile escape, CLR reflection escape, confused-deputy import | x86_64-Cranelift-only + fast-patch SLA; CLR hard-off; import value-validation (§3, §4, §6) |
 
+> **STRIDE status, as built.** *Satisfied:* Spoofing (BroadcasterId host-derived; the bridge is created per tenant), Elevation-by-CLR (interop hard-off in `JintEngineFactory`), the token-at-rest transplant (§8.4), and the fail-closed engine (§10.4). *Partial:* DoS (Jint statement/time/memory/recursion caps and a wall-clock `CancellationToken`, but in-process — no worker, no global admission, no per-tenant rate buckets), Repudiation (append-only `CodeScriptVersion` + `CompiledHash` exist; the audit events are not published). *Not built:* Wasmtime as the SaaS boundary (harness only), Postgres RLS, the fast-patch SLA tooling, x86_64-only startup assertion (T18). These are recorded as owner questions in the Implementation status table.
+
 ### 2.5 Out-of-scope residuals (explicit, per profile)
 
 | Residual | Profile | Why accepted / compensating control |
@@ -187,11 +213,13 @@ profile-selected. The split is deliberate and security-driven, not convenience.
 | | **SaaS / `full`** | **self-host / `lite`** |
 |---|---|---|
 | Adapter | `WasmtimeScriptExecutor` | `JintScriptExecutor` |
-| Runtime | wasmtime-dotnet **44.0.0**, **x86_64-Cranelift only** | Jint **4.9.2** (research validated against 4.10.0 limits) |
+| Runtime | wasmtime-dotnet **44.0.0** (`Directory.Packages.props`), **x86_64-Cranelift only** | Jint **4.10.0** (`Directory.Packages.props`; the design text cites 4.9.2 — the shipped package is 4.10.0) |
 | Isolation class | **OS-grade memory isolation** — separate linear memory per Store, guest cannot synthesize a host pointer | **In-process** — JS objects are CLR objects on the shared GC heap; JS frames are real CLR frames |
 | Threat model | **Untrusted-by-default** (anonymous-ish multi-tenant authors) | **Single trusted operator** (operator authors their own scripts) |
 | Is it a security boundary? | **Yes** (memory-safe, deny-by-default) | **No** — a cooperative resource limiter only |
 | Profile field | `DeploymentProfileSnapshot.CodeExecutor == wasmtime` | `… == jint` |
+
+> **As built.** `JintScriptExecutor` is registered **unconditionally** as `IScriptExecutor` (Scoped) — on every profile, including one whose snapshot says `wasmtime`. `WasmtimeScriptExecutor` is a **harness that fails closed**: its hardened `Engine`/`Store` isolation is real and tested with raw wasm (`RunHardenedModule`), but `ExecuteAsync` returns `Faulted` because the JS-in-wasm engine module and its ABI are not wired, and the class is not registered in DI. Nothing runs untrusted multi-tenant code today; the only working boundary is Jint's resource limiter, which §3.3 says is acceptable only for a single trusted operator.
 
 ### 3.2 WHY two, and WHY these two
 
@@ -212,6 +240,8 @@ profile-selected. The split is deliberate and security-driven, not convenience.
    (`platform-conventions.md` §7), so a self-host box cannot accidentally run the weaker engine in a SaaS context.
 
 ### 3.3 The honest Jint residual + compensating controls (self-host)
+
+> **Owner question — worker process: not built.** As built, `JintScriptExecutor.ExecuteAsync` runs the script **in the API process**, on the calling thread, with `MaxRecursionDepth = 64`, `MaxExecutionStackCount = 500`, statement/time/memory limits and a linked wall-clock `CancellationToken`. There is no script-worker process, no IPC host-import contract (§3.3.1), no OS limits (§5.5), and a stack-overflow or in-statement OOM would take the API process down. Whether to build the worker (the design's compensating control) or accept the single-operator residual is an open owner decision; nothing below should be read as shipped.
 
 Jint **cannot** contain three things, by construction (in-process on the CLR):
 
@@ -245,6 +275,8 @@ compensating controls for `JintScriptExecutor` (§5.5 has the numbers):
 
 #### 3.3.1 Self-host host-import IPC contract (and where `MaxHostCalls` is enforced)
 
+> **As built (no worker, so no IPC):** the Jint engine and the `IScriptHostBridge` share the API process. `MaxHostCalls` is enforced by the `__call` delegate inside `JintScriptExecutor` (`++hostCalls > Budget.MaxHostCalls` → `HostBudgetExceeded`), authoritative because the guest cannot reach the counter. The IPC contract below is design intent that applies only if the worker (§3.3) is built.
+
 §3.3 mandates the worker holds **no ambient authority** — no DB, no egress, no secrets. But the §6.2
 side-effecting imports (`chat.send`, `music.queue`, `http.fetch`, `vars.write`) must reach host services that live
 in the **API process**. These two facts force an explicit IPC contract (without it, T3's `HostCallCount ≤
@@ -267,6 +299,8 @@ MaxHostCalls` is unwritable for the Jint executor, and a worker-side counter wou
 ## 4. Isolation guarantees, per executor (exact API knobs)
 
 ### 4.1 Wasmtime (SaaS) — memory, CPU/time, capability model
+
+> **As built — harness only.** `WasmtimeScriptExecutor` implements the hardened `Engine` and the per-execution `Store` below and proves them with raw wasm (`RunHardenedModule`, exercised by `WasmtimeScriptExecutorTests`), but `ExecuteAsync` fails closed without dispatching any JS (§3.1 note). Deltas from the text below: `Store.SetLimits(memorySize 64 MiB, tableElements 100_000, instances 1, tables 1, memories 1)` is applied exactly; `store.Fuel` and `SetEpochDeadline(1)` are set, but **no watchdog thread advances the epoch**, so fuel is the only live CPU bound and the wall-clock-including-host watchdog (below) does not exist; `WithBulkMemory(false)` (the design allowed `true` if the JS runtime needs it), `WithRelaxedSIMD(false, false)` is added (relaxed-SIMD depends on SIMD); `WithMaximumStackSize` and NaN canonicalization are **not** set (core defaults stand); nothing is linked (no `DefineWasi`, no `bot.*` imports). No test asserts the `Config` invariants (T18 open).
 
 All knobs below are **opt-in**; an unconfigured Store is a trivial DoS. The `WasmtimeScriptExecutor` constructor
 builds **one** hardened `Engine`/`Config` (and compiles+caches each tenant `Module` once); **each execution gets a
@@ -435,6 +469,8 @@ RCE. The rule for untrusted Jint: **interop OFF, expose only primitives.** The c
 the **same broker grant** as Wasmtime (§6) — a set of primitive-in/primitive-out delegates, never a DbContext,
 HttpClient, token, or CLR type.
 
+> **As built:** `JintEngineFactory.CreateHardened(budget, ct)` sets exactly the options in the listing above (`MaxStatements`, `TimeoutInterval`, `LimitMemory`, `CancellationToken`, `MaxRecursionDepth = 64`, `MaxExecutionStackCount = 500`, `MaxArraySize = 10_000`, `RegexTimeout = 1 s`, `DisableStringCompilation()`, `Strict()`, interop untouched). A fresh `Engine` is built per execution and the executor itself is Scoped. The tests assert only that `eval(...)` and `(function(){}).constructor('…')()` fail (`Eval_is_blocked`, `The_function_constructor_code_from_string_is_blocked`); the other three dynamic-function constructors and CLR-probe scripts are not asserted (T1 partial).
+
 | Concern | Jint knob | Default | Our setting |
 |---|---|---|---|
 | CLR access | (do not call `AllowClr`); `Interop.Enabled` | **false** ✅ | stays false |
@@ -445,7 +481,7 @@ HttpClient, token, or CLR type.
 | Array size | `Constraints.MaxArraySize` | uint.Max ❌ | 10,000 |
 | ReDoS | `Constraints.RegexTimeout` | 10s ⚠ | 1s |
 | Statements/time/memory | `MaxStatements`/`TimeoutInterval`/`LimitMemory` | none ❌ | from budget |
-| **Real boundary** | separate worker process + OS cgroup/Job Object | — | §3.3 / §5.5 |
+| **Real boundary** | separate worker process + OS cgroup/Job Object | — | §3.3 / §5.5 — **not built (owner question: worker process)** |
 
 ---
 
@@ -469,12 +505,14 @@ to the hard profile ceiling; the table value is the **Base / baseline** row.
 
 | Field | SaaS (Wasmtime) default | self-host (Jint) default | Maps to |
 |---|---|---|---|
-| `WallClockMs` | **2000 ms** (wall-clock **incl. host calls**) | 2000 ms | epoch deadline + watchdog / `TimeoutInterval` |
+| `WallClockMs` | 2000 ms design value — **not wired** (Wasmtime executor is a harness) | **8000 ms as built** (`ScriptResourceBudget.Baseline`, `ScriptContracts.cs`), wall-clock **incl. host calls** | epoch deadline + watchdog / `TimeoutInterval` + the linked `CancellationToken` |
 | `MaxHostCalls` | **64** host calls | 64 | per-execution host-call budget. SaaS: dispatcher-incremented `ctx.HostCallCount` in-process. **Self-host: enforced API-side** — the worker's count is untrusted; the API-process broker increments the authoritative count and returns `HostBudgetExceeded` past 64 (§3.3.1) |
-| `MaxFuelOrStatements` | **50,000,000 fuel** | **200,000 statements** | `Store.Fuel` / `MaxStatements` |
+| `MaxFuelOrStatements` | 50,000,000 fuel design value — **not wired** | **200,000 statements** (as built, the single `Baseline` value) | `Store.Fuel` / `MaxStatements` |
 | `MaxMemoryBytes` | **64 MiB** | 64 MiB (OS `memory.max` is the real cap) | `Store.SetLimits(memorySize)` / `LimitMemory` — **field type MUST be `long`** (see note) |
 | `MaxOutputBytes` | **8 KiB** | 8 KiB | **chat** output truncation in the runner (NOT egress) |
 | `MaxEgressBytes` | **256 KiB** (cumulative request+response over all fetches in one run) | 256 KiB | per-execution egress counter in the `DelegatingHandler` (§7.4) — **new** `ScriptResourceBudget` field |
+
+> **As built — budgets are compile-time constants.** `ScriptResourceBudget.Baseline` is one `static` record: `WallClockMs 8000`, `MaxHostCalls 64`, `MaxFuelOrStatements 200_000`, `MaxMemoryBytes 64 MiB`, `MaxOutputBytes 8 KiB`, `MaxEgressBytes 256 KiB`. `ScriptRunner` passes it unchanged. There is no per-profile column, no `AppSetting` override and no tier headroom. The wall-clock figure was raised from the 2000 ms design value on 2026-08-26: a real script that sent one chat message and one edge-tts synthesis (≈1089 ms for 28 characters) was killed at 2000 ms with `PartiallyFailed`, because the budget covers every granted host call, not just JS statements; 8000 ms covers one slow synthesis plus one chat send while a genuine runaway is still caught quickly. `MaxMemoryBytes`, `MaxOutputBytes` and `MaxEgressBytes` are already `long` (D8a satisfied). `MaxOutputBytes` is enforced (chat output is truncated in the executor); `MaxEgressBytes` is declared but **not enforced** by anything.
 
 > Fuel-vs-time are independent ceilings: a CPU-heavy script may exhaust fuel before 2 s; a host-call-heavy script
 > hits `MaxHostCalls` or the wall-clock watchdog first. All three can trip; whichever trips first wins.
@@ -489,6 +527,8 @@ to the hard profile ceiling; the table value is the **Base / baseline** row.
 > `custom-code.md` §4 to match the runtime signatures. This doc requires `long`; `custom-code.md` declares it.
 
 ### 5.2 Where each is configured
+
+> **As built:** the runner takes `ScriptResourceBudget.Baseline` (§5.1) — no tier scaling, no `AppSetting`. The `sandbox_exec_ms` quota is `IScriptExecutionMeter` → `IUsageMeteringService` (metric `sandbox_exec_ms`): `CheckSandboxBudgetAsync` before execution (over limit → `Denied(QuotaExceeded)`), `RecordSandboxUsageAsync` after (skips a 0 ms run; **not** idempotent per `ExecutionId`, not reserve-then-settle). The `HttpEgressAllowlist.MaxRequestBytes` / `AllowRequestBody` columns exist on the entity and **nothing reads them**. **The gate that turns Custom Code on is the per-channel `custom_code` feature toggle** (`FeatureService` catalogue: label *Custom Code*, default **off**): every `/code-scripts` endpoint returns `FEATURE_DISABLED` while it is off (`CodeScriptsController.FeatureGateAsync`), and `ScriptCapabilityBroker.BuildGrantAsync` refuses every capability of a channel with the toggle off. The runner itself does not check the toggle, so a saved script that declares no capabilities can still execute.
 
 - **Per-execution budget** is assembled by `IScriptRunner` from the **safety baseline** (§5.1 table) plus the
   tenant's **subscription-tier headroom multiplier** (SaaS: Base/Pro/Premium; self-host: host-sized, no
@@ -520,10 +560,12 @@ to the hard profile ceiling; the table value is the **Base / baseline** row.
 
 ### 5.3 Per-tenant rate + concurrency quotas
 
+> **Owner question — quotas: only the `sandbox_exec_ms` row is built** (check-then-record, §5.2). The side-effecting import bucket, the egress rate bucket, the global sandbox admission semaphore, the global egress-concurrency semaphore and the distributed `IRateLimiterPartitionStore` counters described below are **not built**; per-channel pipeline concurrency is the existing `PipelineEngine` cap. Note the egress rows name an `http_request` pipeline action that does not exist (§6.3), so the "two front-ends share one bucket" argument reduces to the callers listed there. Whether and how to build the rest is an open owner decision.
+
 | Quota | Scope | Mechanism | Default |
 |---|---|---|---|
 | **Side-effecting host-import rate** (non-egress: `chat.*`, `music.*`, `vars.write`) | per tenant | token bucket keyed by `(BroadcasterId, capabilityKey)` in the broker; only descriptors with `SideEffecting == true` count | 20 calls / 10 s burst, 2/s refill |
-| **Egress rate** (`http.fetch` **and** the `http_request` pipeline action) | per tenant | token bucket keyed by `(BroadcasterId, 'egress')` enforced **inside the shared egress `DelegatingHandler`** (§6.3), **not** the broker — so **both** front-ends are charged to **one** bucket (see note below) | 20 calls / 10 s burst, 2/s refill |
+| **Egress rate** (`http.fetch`; the design also named an `http_request` pipeline action, which does not exist) | per tenant | token bucket keyed by `(BroadcasterId, 'egress')` enforced **inside the shared egress `DelegatingHandler`** (§6.3), **not** the broker — so **both** front-ends are charged to **one** bucket (see note below) | 20 calls / 10 s burst, 2/s refill |
 | **`sandbox_exec_ms` quota** | per tenant per billing period | **reserve-then-settle** (NOT check-then-record): `IScriptExecutionMeter` atomically **debits the projected max cost (`WallClockMs`) into an in-flight reservation** at admission (Redis `INCR` / atomic `UsageRecord` delta), fail-closed `BILLING_LIMIT` if the reservation would exceed the limit, then **reconciles the reservation to actual elapsed** POST-run (idempotent per `ExecutionId`) | tier-resolved (`-1` = unlimited) |
 | **Per-channel pipeline concurrency** | per channel | existing `PipelineEngine` cap | 5 concurrent |
 | **GLOBAL sandbox concurrency / admission control** | whole host (fleet on SaaS) | **new** global semaphore + admission queue (must-fix #7) — a fleet of tenants cannot collectively exhaust the host even though each is under its per-channel 5. **In-process on lite/self-host; distributed via `IRateLimiterPartitionStore` (`sandbox:global:concurrency`) on SaaS** (see note below) | `min(CPUcount, configured)` per the fleet; (N+1)th queued or `RATE_LIMITED` |
@@ -533,7 +575,7 @@ The **GLOBAL** limit is the difference between one abusive tenant and a platform
 insufficient for SaaS. The admission gate sits in `IScriptRunner` **before** `ExecuteAsync`.
 
 > **Why egress rate lives in the handler, not the broker (closes the §6.3 two-front-end bypass).** The broker
-> only governs the **sandbox `http.fetch`** path; the `http_request` **pipeline action** (T2) is *not* a brokered
+> only governs the **sandbox `http.fetch`** path; the `http_request` **pipeline action** (T2; *does not exist as built, §6.3*) would not be a brokered
 > capability and is never charged against `(BroadcasterId, 'http.fetch')`. If the egress rate limiter sat in the
 > broker, an author could drive unlimited egress through a pipeline full of `http_request` steps (or alternate the
 > two front-ends) and out-pace the intended per-tenant rate — turning the platform into an SSRF/DoS amplifier. The
@@ -562,6 +604,8 @@ insufficient for SaaS. The admission gate sits in `IScriptRunner` **before** `Ex
 
 ### 5.4 Kill switch / circuit breaker
 
+> **As built:** per-execution stop = the Jint `TimeoutInterval` + linked `CancellationToken` (in-process, no worker kill). **Per-script auto-disable and the per-tenant circuit breaker are not built** — the runner records `CodeScript.LastRanAt` / `LastRuntimeError` and never flips `IsEnabled`; only the author does (owner question: quotas). The *global feature kill* is **not platform-wide**: `custom_code` is a **per-channel** feature toggle (§5.2), so disabling it for the platform means disabling it per channel; and `run_code` does not itself fail `FEATURE_DISABLED` — the authoring routes and capability grants do.
+
 - **Per-execution:** the epoch watchdog (SaaS) / external worker kill (self-host) hard-stops a single runaway
   (§4.1.2 / §3.3).
 - **Per-script auto-disable:** N consecutive `Faulted`/`Timeout` outcomes within a window flips
@@ -582,6 +626,8 @@ insufficient for SaaS. The admission gate sits in `IScriptRunner` **before** `Ex
 
 ### 5.5 Self-host worker OS limits (concrete)
 
+> **Owner question — worker process: not built** (see §3.3). The limits below apply only if a worker exists; today nothing sets a cgroup, Job Object or process cap on script execution.
+
 | Limit | Linux (cgroup v2 / systemd) | Windows (Job Object) |
 |---|---|---|
 | Memory | `memory.max = 128M` (above the 64 MiB Jint budget for headroom) | `JOBOBJECT_EXTENDED_LIMIT_INFORMATION.ProcessMemoryLimit` |
@@ -593,6 +639,8 @@ insufficient for SaaS. The admission gate sits in `IScriptRunner` **before** `Ex
 | Stack | dedicated thread, bounded stack (e.g. 1 MiB) | same |
 
 ### 5.6 Fast-patch SLA (SaaS, non-functional requirement)
+
+> **As built:** `Wasmtime` is pinned to `44.0.0` in `server/Directory.Packages.props` (never floated). Because the Wasmtime executor is a fail-closed harness (§3.1), no tenant code runs on it yet; the SLA becomes binding when it is wired.
 
 x86_64-Cranelift is **not** advisory-free (CVE-2026-24116 `f64.copysign`, CVE-2026-34944 `f64x2.splat`,
 CVE-2026-27195 `call_async` DoS). The single mitigation for the residual escape class on the mandated backend is
@@ -633,45 +681,62 @@ memory.**
    host import validates its arguments (length caps, key existence within the tenant's own namespace, enum
    membership) **before** acting. Treat every import as an attacker-controlled syscall.
 
-### 6.2 The host-call API surface (`bot.*`)
+### 6.2 The host-call API surface (`bot.*` / `nnz.api.*`)
+
+> **Regenerated from `ScriptCapabilityBroker.CatalogEntries`** (`NomNomzBot.Infrastructure/CustomCode/ScriptCapabilityBroker.cs`) — 22 capabilities, every one gated by the per-channel `custom_code` feature (`FeatureFlagKey = "custom_code"`), none `critical`. The guest calls a capability either as `bot.call(key, ...stringArgs)` or through the typed `nnz.api.<group>.<method>(…)` wrappers in the executor's bootstrap (`JintScriptExecutor.Bootstrap`); both resolve to the same broker key. `bot.call` marshals every argument as a string and every return is `string?` (JSON for structured results). Host code: `ScriptHostBridge.Resolve` (`NomNomzBot.Infrastructure/CustomCode/ScriptHostBridge.cs`). Keys with no branch in `Resolve` are a granted **no-op** (return `null`).
 
 Each entry: the guest-visible signature (value-in/value-out), the danger `FloorTier`, the `FeatureFlagKey` gate,
 whether it is `SideEffecting` (counts against the per-tenant import rate limit), how the host **authorizes +
 tenant-scopes + audits**, and where the **credential** lives.
 
-| Capability key | Guest signature (value-in/value-out) | Tier | SideEff. | Host authorization / tenant-scope | Credential location |
+| Capability key | Guest surface | Tier | SideEff. | Host behaviour as built | Credential location |
 |---|---|---|---|---|---|
-| `vars.read` | `bot.vars.read(key:string) → string?` | low | no | key resolved **only** within this tenant's pipeline-variable namespace (snapshot in `ScriptInputs.Variables`); no key can name another tenant | none (in-memory snapshot) |
-| `vars.write` | `bot.vars.write(key:string, val:string) → void` | low | yes | writes buffered into `VariablesOut`, merged back into **this** pipeline run only; key/val length-capped | none |
-| `args.get` | `bot.args(i:int) → string?` | low | no | reads `ScriptInputs.Args` snapshot; bounds-checked | none |
-| `user.get` | `bot.user.name → string` / `bot.user.id → string` | low | no | returns `TriggeredByDisplayName` + **internal guid** `TriggeredByUserId` — **NOT Twitch PII** (no email/IP) | none |
-| `chat.send` | `bot.chat.send(text:string) → void` | tos | yes | host sends via the platform chat provider (`IChatProvider`; Twitch = Helix Send Chat Message, no IRC) bound to **this** channel; `text` capped at `MaxOutputBytes`, rate-limited; output also returned as `ChatOutput` | bot OAuth token — **host-side**, in the chat provider, never in guest |
-| `chat.reply` | `bot.chat.reply(text:string) → void` | tos | yes | same as `chat.send`, replies to `ScriptInputs` message id (host-held) | host-side |
-| `music.queue` | `bot.music.queue(query:string) → bool` | tos | yes | host calls the Spotify/YT client **pre-bound to this BroadcasterId**; query length-capped | Spotify/YT OAuth token — **host-side** |
-| `music.nowPlaying` | `bot.music.nowPlaying() → {title,artist}?` | low | no | read-only, this channel's player only | host-side |
-| `economy.read` | `bot.economy.balance(userId?:string) → long` | low | no | reads **this** channel's economy ledger via RLS-scoped service; `userId` validated to belong to this channel or defaults to the trigger user | none (DB via host service) |
-| `http.fetch` | `bot.http.fetch(url:string, init?:{method,body}) → {status,body}` | tos | yes | **gated by `HttpEgressAllowlist` for this tenant**; FQDN must be an enabled allowlist row; SSRF-hardened client (§7); response capped at the row's `MaxResponseBytes` | none (no creds attached; the guest cannot add auth headers) |
+| `vars.read` | `bot.getVar(key)` | low | no | Served by the executor from the in-memory `Variables` snapshot; **not** routed through the broker (`bot.call('vars.read')` is a no-op) | none |
+| `vars.write` | `bot.setVar(key, val)` | low | yes | Written to the executor's variable copy and returned as `VariablesOut`, merged into this pipeline run only; served by the executor, not the bridge | none |
+| `args.get` | `bot.args` (array) | low | no | The invocation's args as a JSON array; executor-served | none |
+| `user.get` | `nnz.api.user.get(id?)` → object / `null` | low | no | Resolves by login, Twitch id or internal Guid (default: the trigger user); returns the **public profile only** — `id`, `username`, `displayName`, `avatarUrl`, optional 7TV `paint`; no email/IP | none |
+| `chat.send` | `nnz.api.chat.send(text)` | tos | yes | `SendChat` → the platform chat provider for **this** `broadcasterId`; text passed as given | bot token — host-side, in the chat provider |
+| `chat.reply` | `nnz.api.chat.reply(text)` | tos | yes | Same `SendChat` handler as `chat.send` (no reply-thread linkage as built) | host-side |
+| `music.queue` | `nnz.api.music.queue(uri)` → bool | tos | yes | `IMusicService.RequestTrackAsync` for this channel, attributed to the trigger user; refusal → `"false"` | provider token — host-side |
+| `music.nowPlaying` | `nnz.api.music.nowPlaying()` → object / `null` | low | no | This channel's current-track snapshot (track, artist, album, durations, `isPlaying`, `requestedBy`, `provider`) | host-side |
+| `economy.read` | `nnz.api.economy.balance(userId?)` → number | low | no | This channel's balance for `userId` (a Guid; default the trigger user); a non-Guid or failure → `"0"` | none (host service) |
+| `http.fetch` | `nnz.api.http.fetch(url)` → string / `null` | tos | yes | **`https` only, GET only**, via the shared `egress-allowlisted` client (§7); body capped at **256 KiB**; non-2xx or any fault → `null`. **Does not consult `HttpEgressAllowlist`** (owner question: fetch allowlist) | none |
+| `storage.get` | `nnz.api.storage.get(key)` | low | no | Per-channel script KV store (`IScriptStorageService`) | none |
+| `storage.set` | `nnz.api.storage.set(key, value)` → bool | low | yes | Bounded by the service: key length, **64 KB** value, **200 keys** per channel; an over-cap write changes nothing | none |
+| `storage.delete` | `nnz.api.storage.delete(key)` → bool | low | yes | Deletes one key in this channel's store | none |
+| `storage.list` | `nnz.api.storage.list(prefix?)` → string[] | low | no | Lists this channel's keys, optionally by prefix | none |
+| `tts.speak` | `nnz.api.tts.speak(text, voiceId?, ratePercent?, pitchPercent?)` → `{durationMs,…}` / `null` | low | yes | Routed through the gated TTS dispatcher (channel enable, caps, censor run host-side); rate/pitch are per-call overrides, never persisted; a refusal → `null` | none |
+| `widget.emit` | `nnz.api.widget.emit(widget, eventType, data?)` → bool | low | yes | Pushes an event to one of **this** channel's widgets, resolved by case-insensitive name; unknown or disabled widget → refused, nothing pushed | none |
+| `reward.get` | `nnz.api.reward.get(idOrTitle)` → object / `null` | low | no | Public projection of one channel-point reward, resolved by id or title | host-side |
+| `reward.update` | `nnz.api.reward.update(idOrTitle, patch)` → bool | tos | yes | Patches cost/title through the rewards service (Helix); a non-manageable reward is refused without calling update | host-side |
+| `stats.viewer` | `nnz.api.stats.viewer(userIdOrLogin?)` → object / `null` | low | no | The per-viewer M.1 analytics snapshot (default the trigger user); a never-seen viewer gets honest zeros | none |
+| `tts.voice.get` | `nnz.api.tts.getVoice(userIdOrLogin)` → object / `null` | low | no | The viewer's assigned voice with its catalogue display name; `null` = channel default | none |
+| `tts.voice.set` | `nnz.api.tts.setVoice(userIdOrLogin, voiceId?)` → bool | low | yes | Validated against the voice catalogue, scoped to the bridge's own tenant; an empty voice clears back to the channel default; a rejected voice fails closed | none |
+| `schedule.pipeline` | `nnz.api.schedule.pipeline(name, delaySeconds, variables?, dedupeKey?)` → bool | low | yes | Enqueues a saved pipeline (by name) to run once after a delay via the scheduler, for this tenant; a malformed variables payload or unknown pipeline name schedules nothing | none |
 
 **Tier rule:** `FloorTier == critical` capabilities are **never granted to T3** scripts
-(`ScriptCapabilityDescriptor.FloorTier`). The catalog above is `low`/`tos` only; any future `critical` capability
+(`ScriptCapabilityDescriptor.FloorTier`; `BuildGrantAsync` returns `FORBIDDEN`). The catalog above is `low`/`tos` only (`The_catalogue_exposes_no_critical_capability` asserts it); any future `critical` capability
 is broker-rejected for `run_code`.
 
 **Notably absent (no ambient authority):** there is **no** `bot.fs.*`, no `bot.exec`, no `bot.eval`, no
 `bot.token`, no `bot.db`, no `bot.tenant(id)`, no generic `bot.http` without an allowlist, and **no PII reader**
 (viewer email/IP are never in the facade).
 
-### 6.3 Single SSRF-hardened egress client (resolves the cross-spec contradiction)
+### 6.3 Single SSRF-hardened egress client (as built)
 
-> **Contradiction resolved.** `commands-pipelines.md` §6.1 models `http_request` as a standalone pipeline action;
-> `custom-code.md` §6 models `http.fetch` as a sandbox capability. **Decision (this doc owns the security
-> boundary):** there is **ONE** SSRF-hardened egress client — a single `DelegatingHandler` registered on
-> `IHttpClientFactory` (named client `egress-allowlisted`) — with **two thin front-ends** that both pass through
-> it: the `http_request` pipeline action (host-side, T2) and the `http.fetch` capability (sandbox, T3). Both
-> consult the **same** `HttpEgressAllowlist` table and the **same** clamps. The `DelegatingHandler` lives in the
-> sandbox subsystem (`NomNomzBot.Infrastructure.CustomCode.Egress`) and is the single owner of egress policy; the
-> pipeline action and the capability are callers, not policy. Neither front-end re-implements SSRF checks.
+> **There is no `http_request` pipeline action.** The design resolved a cross-spec contradiction by giving one egress client two front-ends (an `http_request` action and the `http.fetch` capability). Only one of those exists: nothing in the code registers an action named `http_request`, and the same correction applies to `webhooks.md`. What exists is **one** SSRF-hardened client shared by several callers.
+
+- **The client.** A single named `HttpClient`, `EgressHttpClient.Name` = `"egress-allowlisted"`, registered once in `NomNomzBot.Infrastructure/DependencyInjection.cs`. Its primary handler is `EgressHttpClient.CreateHandler()` (a `SocketsHttpHandler` with a `ConnectCallback`, `AllowAutoRedirect = false`, `ConnectTimeout = 5 s`, `PooledConnectionLifetime = 1 min`) and an outer `EgressSchemeHandler` (a `DelegatingHandler` that rejects any non-`https` request). Location: **`NomNomzBot.Infrastructure/Sandbox/EgressHttpClient.cs`** and **`…/Sandbox/EgressAddressGuard.cs`** (not `…CustomCode.Egress`).
+- **Callers (as built):**
+  - `ScriptHostBridge.Fetch` — the sandbox `http.fetch` capability (`Infrastructure/CustomCode/ScriptHostBridge.cs`).
+  - `OutboundWebhookDispatcher` — signed outbound webhook delivery (`webhooks.md`).
+  - `LinkPreviewService` — chat link previews (`Infrastructure/Chat/LinkPreviewService.cs`).
+  - `CustomDataEgressFetcher` and `CustomDataPollService` — custom-data pull sources (`Infrastructure/CustomEvents/`).
+- **What the client owns:** scheme (https only), no redirects, resolve-then-pin, and the blocked-range guard (§7.1 steps 1, 3, 4, 5). **It does not own the FQDN allowlist** — matching a host against `HttpEgressAllowlist` is each caller's job: `OutboundWebhookEndpointService.CreateAsync` matches at endpoint creation, `CustomDataEgressFetcher` matches on every fetch, and **`ScriptHostBridge.Fetch` and `LinkPreviewService` do not match at all** (owner question: fetch allowlist). It also does not own body/response clamps or rate limits; `ScriptHostBridge.Fetch` applies its own fixed 256 KiB response cap.
 
 ### 6.4 Broker interface (referenced, not redefined)
+
+> **As built.** `BuildGrantAsync` performs, per declared key: catalogue membership (unknown → `FORBIDDEN`), `FloorTier != critical`, and the per-channel `custom_code` feature check (off → `FORBIDDEN`), then returns `ScriptCapabilityGrant(BroadcasterId, Granted)`. **It does not check owner-approval rows** (`HttpEgressAllowlist` for `http.fetch`) and **does not publish `ScriptExecutionDeniedEvent`** — `ScriptRunner` maps a failed grant to `Denied(CapabilityDenied)` and records the message in `CodeScript.LastRuntimeError`. The per-execution bridge is a fresh `ScriptHostBridge` built by `ScriptHostBridgeFactory` for one `broadcasterId` (invariant 3 of the list below holds).
 
 The broker is `IScriptCapabilityBroker` (`custom-code.md` §3.2). This doc adds **no** method; it specifies the
 **enforcement obligations** of `BuildGrantAsync`:
@@ -685,7 +750,9 @@ The broker is `IScriptCapabilityBroker` (`custom-code.md` §3.2). This doc adds 
 3. The grant is **per execution** — a fresh closure set bound to one `broadcasterId`; never shared/pooled across
    tenants (a shared closure leaks captured host state).
 
-> **Required boundary type — the load-bearing seam that is currently missing (critical, coordinated edit to
+> **Required boundary type — SATISFIED as built (D9).** `HostImportDelegate(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)`, `IScriptHostBridge.Resolve(key)` and `IScriptExecutor.ExecuteAsync(request, grant, bridge, ct)` all exist in `ScriptContracts.cs` exactly as specified below; `ScriptCapabilityGrant` stays a pure value record. The text that follows is the original argument, kept for the record.
+>
+> **Required boundary type — the load-bearing seam (was: currently missing; critical, coordinated edit to
 > `custom-code.md` §3.1/§4, §13 D9).** This doc repeatedly says the grant "contains the host-side dispatch table"
 > the guest's `bot.*` calls invoke — but `ScriptCapabilityGrant` as declared in `custom-code.md` §4 is
 > `(Guid BroadcasterId, IReadOnlyList<ScriptCapabilityDescriptor> Granted)` and a descriptor is
@@ -722,34 +789,19 @@ FQDN is an enabled `HttpEgressAllowlist` row for the tenant. This is the canonic
 
 ### 7.1 The egress `DelegatingHandler` (single owner, §6.3)
 
-Pipeline applied to **every** outbound request from `http_request` or `http.fetch`:
+> **As built — status of each step.** Built: step 1 (`EgressSchemeHandler`), step 3 (resolve-then-pin `ConnectCallback`), step 4 (`EgressAddressGuard`, minus multicast and the metadata hostnames), step 5 (`AllowAutoRedirect = false`). **Not built in the client:** step 2 (FQDN allowlist — callers only, §6.3), step 6 (per-row `MaxResponseBytes` — `ScriptHostBridge.Fetch` uses a fixed 256 KiB), step 6b (request-body clamp — `http.fetch` sends GET with no body), step 7 beyond `ConnectTimeout = 5 s` (no response-header timeout, no `MaxConnectionsPerServer`, no global egress-concurrency semaphore), step 8's header allowlist (the client attaches no credentials; the only caller that sets headers is the trusted webhook dispatcher), step 9 (`AllowRequestBody`/`AllowQuery`/path-method columns are unread). Steps 2, 6, 6b, 7 and 9 are *owner questions* (fetch allowlist, quotas). The two-front-end wording below refers to `http_request`, which does not exist; read "every outbound request" as "every request through the `egress-allowlisted` client" (§6.3 callers).
+
+Pipeline the design applies to **every** outbound request through the client:
 
 1. **Scheme allowlist:** **`https` only.** Reject `http://`, `file://`, `gopher://`, `ftp://`, `data:`, `ws://`.
-2. **FQDN allowlist match:** the host must equal an enabled `HttpEgressAllowlist.Fqdn` for **this** tenant
+2. **FQDN allowlist match** *(design; not in the client as built — callers match, §6.3; `http.fetch` does not, owner question: fetch allowlist)*: the host must equal an enabled `HttpEgressAllowlist.Fqdn` for **this** tenant
    (exact match, no wildcard, no suffix tricks). Miss → `Denied(EgressBlocked)`.
-3. **Resolve-then-pin (DNS-rebind / TOCTOU defense, must-fix #6):** resolve the FQDN to A/AAAA **once**, validate
-   **every** resolved IP (below), then **connect to the validated IP** — do **not** re-resolve the hostname at
-   connect time. A rebind between check and connect cannot swing to an internal IP.
-   - **Concrete .NET mechanism (mandatory — the only one that actually pins):** the pin **cannot** be done in the
-     `DelegatingHandler` alone. A `DelegatingHandler` runs **above** the connection pool; the inner
-     `SocketsHttpHandler` **re-resolves** the hostname at connect time, so a handler-level "pin" is advisory and
-     the rebind still wins. The `egress-allowlisted` named client's inner handler **MUST** be a single
-     `SocketsHttpHandler` whose **`ConnectCallback`** performs the connect itself: it (a) takes the
-     already-validated pinned `IPAddress` from this request's step-3 state (carried on the
-     `HttpRequestMessage`/`SocketsHttpConnectionContext`, never re-resolved), (b) opens the TCP socket to **that
-     IP**, and (c) wraps it in an `SslStream` and calls `AuthenticateAsClientAsync` with
-     **`TargetHost = <original FQDN>`** so SNI and certificate-SAN validation run against the **FQDN**, never the
-     IP. Default certificate validation stays **ON**.
-   - **Forbidden:** rewriting the request URI to `https://<pinned-ip>/path` (breaks SNI + SAN → pressures a
-     validation bypass), and **any** `SslClientAuthenticationOptions.RemoteCertificateValidationCallback` /
-     `SocketsHttpHandler.SslOptions` override that returns `true`/weakens validation. A cert mismatch is a hard
-     `Denied(EgressBlocked)`, never a bypass. (§12 T7 asserts socket-to-pinned-IP + FQDN-cert validation; new T7b
-     asserts a cert/SAN mismatch is `Denied`, not silently accepted.)
-4. **Resolved-IP re-validation (block internal/link-local/metadata):** reject if **any** resolved IP is in:
-   `127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` (**incl.
-   `169.254.169.254`** cloud metadata), `100.64.0.0/10` (CGNAT), `::ffff:0:0/96` (IPv4-mapped), `fc00::/7`
-   (ULA), `fe80::/10` (link-local), `224.0.0.0/4` (multicast), `0.0.0.0/8`, and the hostnames
-   `metadata.google.internal` / `metadata.azure.com` / `metadata.aws`. Reject on match → `Denied(EgressBlocked)`.
+3. **Resolve-then-pin (DNS-rebind / TOCTOU defense, must-fix #6) — built.** The pin cannot live in a `DelegatingHandler` (it runs above the connection pool, and the inner `SocketsHttpHandler` re-resolves at connect time), so it lives in the inner handler's **`ConnectCallback`** (`EgressHttpClient.ConnectValidatedAsync`).
+   - **As built:** the callback (a) resolves the target host **once** with `Dns.GetHostAddressesAsync` (an empty result throws `Egress host did not resolve.`), (b) runs `EgressAddressGuard.IsBlocked` on **every** resolved address and throws `HttpRequestException("Egress to a non-public address is blocked.")` if **any** is blocked (fail-closed against split-horizon answers), then (c) opens a plain TCP `Socket` to the **first** validated address (`resolved[0]`, `NoDelay = true`) and returns a `NetworkStream` over it. The hostname is never re-resolved at connect time.
+   - **TLS as built:** the callback returns the raw stream; it does **not** wrap it in an `SslStream`. `SocketsHttpHandler` layers TLS over the returned stream itself for `https`, using the **request's original host** as the TLS target host — so SNI and certificate/SAN validation run against the FQDN, not the pinned IP. `CreateHandler` sets **no** `SslOptions` and no `RemoteCertificateValidationCallback`, so default certificate validation stays on. The forbidden practices in the next bullet are not present in the code, but **no test asserts it** (T7/T7b open).
+   - **Forbidden:** rewriting the request URI to `https://<pinned-ip>/path` (breaks SNI + SAN → pressures a validation bypass), and **any** `SslClientAuthenticationOptions.RemoteCertificateValidationCallback` / `SocketsHttpHandler.SslOptions` override that returns `true`/weakens validation. A cert mismatch is a hard failure, never a bypass.
+   - *Design text superseded by the above:* the original spec had the callback take a pre-validated IP from per-request state and build the `SslStream` itself with `AuthenticateAsClientAsync(TargetHost = FQDN)`. The as-built callback re-derives the IP from DNS inside the callback (resolve and validate in one place), and leaves TLS to the handler.
+4. **Resolved-IP re-validation (block internal/link-local/metadata) — built, with one gap.** `EgressAddressGuard.IsBlocked(IPAddress)` is pure (no DNS). An IPv4-mapped IPv6 address is first normalized with `MapToIPv4()` so `::ffff:169.254.169.254` cannot smuggle a blocked v4; an unknown address family is blocked. **Blocked as built:** IPv4 `0.0.0.0/8`, `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` (incl. `169.254.169.254`), `100.64.0.0/10` (CGNAT), and the limited broadcast `255.255.255.255`; IPv6 `::1`, `::` (unspecified), `fc00::/7` (ULA) and `fe80::/10` (link-local). **Gap — multicast is not blocked** (`224.0.0.0/4`, `ff00::/8`); tracked as **S-EGRESS-GUARD-MULTICAST**. The metadata **hostnames** in the original list (`metadata.google.internal`, `metadata.azure.com`, `metadata.aws`) are not blocked by name — they are caught only if they resolve to a blocked address. A blocked address surfaces as an `HttpRequestException` (the callers treat it as a failed fetch), not as a `Denied(EgressBlocked)` outcome or event. Tests: `EgressAddressGuardTests` (internal/metadata addresses blocked, public allowed), `EgressSchemeHandlerTests` (https-only).
 5. **No redirects:** `HttpClientHandler.AllowAutoRedirect = false`. A `3xx` is returned as-is to policy, **never
    followed** — a redirect cannot bounce a validated host to an internal one. (If a front-end wants to follow a
    redirect, it must re-submit the new URL through steps 1–4.)
@@ -760,7 +812,7 @@ Pipeline applied to **every** outbound request from `http_request` or `http.fetc
    `bot.economy.balance`, accumulated results), concatenates, and `POST`s it. The handler **clamps `init.body`**
    to a small per-row/per-execution ceiling — a new `HttpEgressAllowlist.MaxRequestBytes` (mirroring
    `MaxResponseBytes`, **default a few KiB**); over it → `Denied(EgressBlocked)` (reject, do not silently
-   truncate). This applies to **both** front-ends (the `http_request` action and `http.fetch`).
+   truncate). This applies to **every caller** of the client (design text named two front-ends, the `http_request` action — which does not exist — and `http.fetch`).
 7. **Per-request + connect/header timeouts (slow-loris defense):** the **full** request is bounded by the
    remaining `WallClockMs` budget (the watchdog also cancels the in-flight call, §4.1.2), **but** a slow responder
    could otherwise hold a socket for nearly the whole 2 s. So the `egress-allowlisted` `SocketsHttpHandler` also
@@ -773,7 +825,7 @@ Pipeline applied to **every** outbound request from `http_request` or `http.fetc
    cannot inject auth headers (the `init` object's header set is allowlisted to a safe subset — `Accept`,
    `Content-Type` — never `Authorization`/`Cookie`). Egress carries **no** ambient authority.
    > **Per-caller header/body policy (not hard-wired in the handler).** This `Accept`/`Content-Type` allowlist and the
-   > step-9 body opt-in are the **guest** policy, selected by the *untrusted* front-ends (`http_request`/`http.fetch`).
+   > step-9 body opt-in are the **guest** policy, selected by the *untrusted* front-end (`http.fetch`; the design's `http_request` does not exist).
    > A **trusted first-party caller** (`webhooks.md`'s outbound dispatcher) traverses the **same** `ConnectCallback`
    > SSRF core but under a **trusted policy** that injects server-controlled signature/`webhook-*` headers + a
    > webhook-sized body (its H.7 row sets `AllowRequestBody=true`, `MaxRequestBytes`=256 KiB). The policy is a
@@ -787,6 +839,8 @@ Pipeline applied to **every** outbound request from `http_request` or `http.fetc
    `?url=http://169.254.169.254/...` query unless the owner explicitly opened that door.
 
 ### 7.2 Why each control
+
+> As built: the rows for https-only, resolved-IP re-validation (except multicast, S-EGRESS-GUARD-MULTICAST), resolve-then-pin and no-redirects are implemented; the FQDN allowlist, size caps and body/query opt-in rows are not enforced by the client (§7.1 status note).
 
 | Control | Threat closed |
 |---|---|
@@ -821,6 +875,8 @@ fetch happens on the far side of an allowed FQDN), one hop removed from the A1/A
   (§7.4). Test: §12 T6b.
 
 ### 7.4 Egress byte budgets (outbound exfil clamp)
+
+> **As built: neither clamp is enforced.** `HttpEgressAllowlist.MaxRequestBytes` is unread and `ScriptResourceBudget.MaxEgressBytes` is declared (256 KiB) but not counted by any handler. The guest's only egress today is `http.fetch`, a body-less GET, so the outbound-exfil path the clamps target is bounded by the request URL (which the guest controls) and `MaxHostCalls = 64`. Owner question (fetch allowlist / quotas).
 
 The single-call request-body cap (§7.1 step 6b) is **not enough** on its own: with `MaxHostCalls = 64`, a script
 can ship up to 64 capped `POST`s per run, and the per-run loop repeats across triggers. The `MaxOutputBytes` budget
@@ -861,6 +917,8 @@ egress cap (the original T8 only reasoned about secrets the guest *never* had).
 
 ### 8.3 Cross-tenant data access is impossible (defense-in-depth, not just discipline)
 
+> **Owner question — Postgres RLS: not built.** As built the boundary and service layers hold (`ScriptHostBridge` is constructed for one `broadcasterId`; `CodeScript` is `ITenantScoped` with a global query filter, and the script KV store is keyed by tenant — `Storage_is_tenant_isolated_channel_b_cannot_read_channel_a` proves it). The **Database** row below — `SET app.tenant_id` per connection, `TenantRlsConnectionInterceptor`, RLS policies — does not exist in the code, and there is no architecture test banning `IgnoreQueryFilters()`. A SQLite deployment (the SelfHostLite default) has no RLS at all.
+
 | Layer | Control |
 |---|---|
 | Boundary | Guest cannot name a tenant; BroadcasterId host-only (§8.2) |
@@ -868,24 +926,19 @@ egress cap (the original T8 only reasoned about secrets the guest *never* had).
 | Database | **Postgres RLS** (`SET app.tenant_id` per connection, `TenantRlsConnectionInterceptor`) — cross-tenant reads fail even if a service forgets `.Where(BroadcasterId==…)` |
 | Process | `IgnoreQueryFilters()` is **banned** outside the GDPR re-encryption path (architecture test) |
 
-### 8.4 Live-code dependency (ordering blocker)
+### 8.4 Live-code dependency (ordering blocker) — **all three satisfied**
 
-The broker model is **void until** three live defects are fixed (research: prerequisite/blocker). **This subsystem
-must not ship `run_code` until:**
+The broker model was void until three live defects were fixed. **`run_code` was not to ship until they landed; they have:**
 
-1. **Token-at-rest crypto** is migrated from the live `EncryptionService` (AES-256-**CBC**, key `=
-   SHA256(rawKey)`, **no MAC, no AAD, single platform-wide key**) to **AES-256-GCM + AAD =
-   `tenantId‖provider‖tokenType‖keyVersion`** (`gdpr-crypto.md`). The CBC/shared-key design is **transplantable**:
-   a token ciphertext copied from one tenant's row decrypts under the shared key → a single leaked key = every
-   tenant's tokens.
-2. **`Configuration.SecureValue`** (Twitch/Spotify/Discord client secrets) is encrypted (currently **plaintext**).
-3. The **PipelineEngine is made fail-closed** (currently fail-OPEN in three places — §10.4); a capability/quota
-   denial that the engine "skips and continues" is no gate at all.
+1. **Token-at-rest crypto — SATISFIED.** The legacy `EncryptionService` (AES-256-**CBC**, `SHA256(rawKey)`, no MAC, no AAD, one platform-wide key) is gone: no such class and no `CipherMode.CBC` remain in `server/src`. Secrets are sealed by `ITokenProtector` (`Infrastructure/Platform/Security/TokenProtector.cs`) over `AesGcmFieldCipher` — **AES-256-GCM**, 96-bit random nonce, 128-bit tag, with `CipherAad` (tenant / provider / token type / key version) bound as associated data, and a per-subject DEK (`gdpr-crypto.md`). A ciphertext copied to another tenant's row no longer authenticates.
+2. **`Configuration.SecureValue` — SATISFIED.** Platform client secrets are written through `ITokenProtector.ProtectAsync` (`SystemController`), not stored as plaintext.
+3. **Fail-closed `PipelineEngine` — SATISFIED.** See §10.4.
 
-`custom-code.md` and `platform-conventions.md` own (1)/(3) and the IDOR/RLS fixes respectively; this doc records
-the **ordering dependency** — brokering tokens host-side is unsafe while token crypto is transplantable.
+`custom-code.md` and `platform-conventions.md` own (1)/(3) and the IDOR/RLS fixes respectively. Brokering tokens host-side is therefore no longer unsafe on account of transplantable token crypto. (RLS, §8.3, remains an owner question.)
 
 ### 8.5 PII never crosses the boundary
+
+> **Owner question — PII allowlist: not built.** As built, `RunCodeAction` builds `ScriptInvocation` with `new Dictionary<string,string>(ctx.Variables)` and `ScriptRunner` forwards it into `ScriptInputs.Variables` **unfiltered**: whatever template-variable namespaces the pipeline resolved into `ctx.Variables` (including any `user.*` beyond name/id) reach the guest through `bot.getVar`. What *is* true: `user.get` returns the public profile only, `TriggeredByUserId` is the internal id, and no capability returns email or IP. The default-deny prefix allowlist below, and test T9b, are design intent whose adoption is an open owner decision.
 
 `ScriptInputs` deliberately carries an **internal guid** `TriggeredByUserId` (not Twitch user id/email/IP) and a
 display name. **The `Variables` snapshot handed to the sandbox must be the PII-scrubbed set** — display name only,
@@ -923,6 +976,8 @@ The lifecycle entities/services are owned by `custom-code.md` (§1, §3.4); the 
 
 ### 9.2 Validate-on-save (rejection at authoring time, never mid-stream)
 
+> **Owner question — TS transpile: not built.** As built, `CompileAsync` is JavaScript-only: `Engine.PrepareScript(source)` (parse, never execute) rejects syntax errors as `VALIDATION_FAILED`; then it computes `CompiledHash` (SHA-256 of the source, hex) and `DeclaredCapabilities` by **regex** over `bot.call("key", …)` and `nnz.api.<group>.<method>` — `CompiledJs` equals the submitted source. There is no TypeScript transpile, and no `forbidden_global` / `undeclared_capability` static check (an undeclared capability is caught only by the runtime broker). Relative `import` statements in a multi-file project are resolved and flattened before `CompileAsync` (`CodeScriptService`, `ScriptImportResolutionTests`); an unresolvable import persists no version. A rejected version is persisted and `run_code` on it fails closed (`VersionInvalid`), as designed.
+
 `CompileAsync` (deterministic, side-effect-free, **never executes user code**) transpiles TS→JS, computes
 `CompiledHash`, statically extracts `DeclaredCapabilities`, and sets `ValidationStatus = valid|rejected`. A
 rejected version is **persisted for audit** but `CurrentVersionId` stays null → `run_code` on it fails closed
@@ -939,6 +994,8 @@ rejected version is **persisted for audit** but `CurrentVersionId` stays null �
 > load-bearing.
 
 ### 9.3 The single authz gate — Broadcaster-floor, per-user delegable only
+
+> **As built differs (owner question — author floor).** `ActionDefinitionSeeder` seeds `code:script:author` with a **Moderator** floor, `DangerTier.Critical`, and **`IsGrantableViaPermit = false`**; the seeder comment records that the owner asked for moderators to be able to author scripts on channels they do not own, and that a broadcaster may still raise the requirement through a `ChannelActionOverride`. Every `/code-scripts` route carries `[RequireAction("code:script:author")]` and, in addition, the per-channel `custom_code` feature toggle (`FEATURE_DISABLED` while off). The Broadcaster(40) floor, per-user `!permit` delegation and role-tier override rejection described below (and D1, T17) are the design; which of the two floors is right is the owner's call.
 
 All eight `/code-scripts` endpoints (reads included) enforce **`code:script:author`** — `Plane=management`,
 `FloorLevel=Broadcaster(40)`, **`FloorTier=critical`**, **`IsGrantableViaPermit=true`** (Broadcaster-delegable as a
@@ -958,6 +1015,8 @@ principal, never the route (IDOR fix #1).
 > whole role tier). Recorded in §13 D1.
 
 ### 9.4 Transpile surface (security framing)
+
+> **Owner question — TS transpile: not built** (§9.2). With no TypeScript step there is no transpiler engine parsing untrusted source, so the API-thread transpile DoS surface this section closes does not currently exist; `Engine.PrepareScript` (a parse) runs on the API request thread inside `CompileAsync` and its cost is bounded only by the request size. T21 is open.
 
 The TS→JS transpiler inside `CompileAsync` is a large JS program (`tsc`/`sucrase`/`babel-standalone`) that
 **parses fully attacker-controlled source** — so although `CompileAsync` "never executes user code," it *does* run
@@ -998,6 +1057,8 @@ pin past the transpile budget). Recorded in §13 D2.
 
 ### 10.1 Per-execution audit record
 
+> **As built:** the pipeline engine writes its own execution telemetry (`PipelineExecution`, step logs, failure-shaped rows retained 30 days). `ScriptRunner` sets `CodeScript.LastRanAt` / `LastRuntimeError`. The domain events below (`ScriptExecutedEvent`, `ScriptExecutionDeniedEvent`, …) are **defined** in `Domain/CustomCode/Events/CodeScriptEvents.cs` but **no code publishes the execution/denial events**; the denial reason travels in `ScriptRunResult.DenialReason` and the run result.
+
 Every `run_code` invocation contributes to the **append-only** `PipelineExecution` (H.4):
 `HostCallCount`, `DurationMs`, `Status` (`success|failed|timeout|denied`), `ErrorMessage` (≤1000, generic),
 **bounded, PII-excluded** `StepLogsJson` (TTL-purged). Plus domain events on `IEventBus` (`custom-code.md` §2):
@@ -1030,7 +1091,9 @@ Every `run_code` invocation contributes to the **append-only** `PipelineExecutio
 The executor **never reflects an internal exception/secret into the guest-visible `ErrorMessage`** — it returns a
 **generic, bounded** outcome (`GlobalExceptionMiddleware` already returns generic errors in prod). Test: §12 T8.
 
-### 10.4 The fail-closed engine (the linchpin)
+### 10.4 The fail-closed engine (the linchpin) — **SATISFIED**
+
+> **As built.** `NomNomzBot.Infrastructure/Platform/Pipeline/PipelineEngine.cs` is fail-closed at all three places the design named: an **unknown condition type blocks the step** ("Unknown condition type … blocking step (fail-closed)"); an **unknown action type** returns `ActionResult.Failure` and aborts; an **action that throws or returns failure** aborts the run as `PartiallyFailed` unless the step explicitly opts in to continue. `RunCodeAction` returns `ActionResult.Failure` for every non-`Success` `ScriptExecutionOutcome` (`A_non_success_outcome_fails_the_step`). There is no separate `PipelineOutcome.Denied`; a denied script fails the step. The description below is the original problem statement (the fail-open engine it describes no longer exists).
 
 Every layer's denial is meaningless unless the engine **halts** on it. The live `PipelineEngine` is **fail-OPEN**
 in three places (`server/src/NomNomzBot.Infrastructure/Pipeline/PipelineEngine.cs`): unknown action → skip &
@@ -1046,6 +1109,8 @@ Tests: §12 T10, T11.
 ## 11. Host integration & DI
 
 ### 11.1 Where the code lives (Clean Architecture)
+
+> **As built (differs from the table):** `JintScriptExecutor`, `ScriptRunner`, `ScriptCapabilityBroker`, `ScriptExecutionMeter` and `ScriptHostBridgeFactory` are all registered **Scoped** (D3's Singleton was not applied; `JintEngineFactory` still builds a fresh `Engine` per call, so nothing is shared). `WasmtimeScriptExecutor` is **not registered**. There is no worker-process wrapper and no epoch watchdog. The egress handlers live in `NomNomzBot.Infrastructure.Sandbox` (§6.3), not `…CustomCode.Egress`. `RunCodeAction` is in `Infrastructure/CustomCode/PipelineActions/`.
 
 | Type | Layer / namespace | Lifetime | Notes |
 |---|---|---|---|
@@ -1066,33 +1131,18 @@ Tests: §12 T10, T11.
 > per execution carries all per-tenant state) is correct and cheaper. `platform-conventions.md` §7 should be
 > updated to Singleton (§13 D3).
 
-### 11.2 Profile selection (one boot-time switch)
+### 11.2 Executor registration (as built) — no profile switch
+
+**Jint is registered unconditionally.** In `NomNomzBot.Infrastructure/DependencyInjection.cs`:
 
 ```csharp
-// Infrastructure/DependencyInjection.cs — AddInfrastructure(...) / AddDeploymentAdapters(snapshot)
-// Selected by DeploymentProfileSnapshot.CodeExecutor (CodeExecutorKind { Wasmtime, Jint }), set AFTER
-// IDeploymentProfileService.DetectAndPersistAsync resolves the profile.
-if (snapshot.CodeExecutor == CodeExecutorKind.Wasmtime)
-    services.AddSingleton<IScriptExecutor, WasmtimeScriptExecutor>();   // SaaS: real boundary, x86_64-Cranelift only
-else
-    services.AddSingleton<IScriptExecutor, JintScriptExecutor>();       // self-host: in-process + OS worker
+// The sandbox script executor — Jint on self-host (Wasmtime SaaS adapter is a separate profile binding).
+services.AddScoped<IScriptExecutor, JintScriptExecutor>();
 ```
 
-`CodeExecutorKind` (profile enum, P.12) selects **which** adapter; `ScriptRuntimeKind` (the adapter's `Runtime`
-property) reports **what it is**. Not unified by design (`platform-conventions.md` §3.9).
+`WasmtimeScriptExecutor` is a **harness that fails closed** (§3.1): it is constructible from `IConfiguration` (`Sandbox:WasmJsEnginePath`) and its hardened `Engine`/`Store` are tested, but no registration binds it and `ExecuteAsync` returns `Faulted`. `DeploymentProfileSnapshot.CodeExecutor` (`CodeExecutorKind`) is resolved and persisted by `DeploymentProfileService` and is **not read** by anything that chooses the executor.
 
-> **This §11.2 snippet SUPERSEDES `custom-code.md` §7's selection snippet (cross-spec contradiction, correction
-> needed).** Just as §11.1 supersedes `platform-conventions.md` on the executor **lifetime**, this doc owns the
-> executor **selection**. `custom-code.md` §7 currently selects on
-> `configuration.GetValue<DeploymentMode>("App:DeploymentMode")` then `mode == DeploymentMode.Lite` — that is
-> **wrong twice**: (1) `DeploymentMode.Lite` is **not a member** of the enum (members are `Saas` / `SelfHostLite`
-> / `SelfHostFull`, `platform-conventions.md` §176), so the branch **does not compile**; and (2) even corrected it
-> keys off `DeploymentMode`, **not** the `CodeExecutor` field that actually carries the executor choice — a
-> `SelfHostFull` profile must run **Wasmtime**, but `DeploymentMode`-based selection would mis-route it to Jint
-> (silently dropping the only real isolation boundary). **The correct seam:** selection is on
-> `DeploymentProfileSnapshot.CodeExecutor` (`CodeExecutorKind`), inside `AddDeploymentAdapters(snapshot)`
-> (matching `platform-conventions.md` §7), **never** on `DeploymentMode`. `custom-code.md` §7's
-> `DeploymentMode.Lite` switch is a **correction-needed** item (§13 D10).
+*Design intent (owner question, not built):* selecting the adapter once at boot on `DeploymentProfileSnapshot.CodeExecutor` inside `AddDeploymentAdapters(snapshot)` — `Wasmtime` → `WasmtimeScriptExecutor`, otherwise `JintScriptExecutor` — so a `SelfHostFull` profile could never silently fall back to the weaker engine. The original text corrected `custom-code.md` §7's `DeploymentMode.Lite` switch (a non-existent enum member keyed on the wrong field); that correction stays valid for whenever the switch is built.
 
 ### 11.3 How `run_code` drives it (the runtime path)
 
@@ -1117,6 +1167,8 @@ PipelineEngine (fail-CLOSED)
 
 The executor **never throws a sandbox escape outward**; every fault is a `ScriptExecutionOutcome` value, and the
 action surfaces it as a fail-closed `ActionResult`.
+
+> **As built, the runtime path is:** `PipelineEngine` → `RunCodeAction` (decodes `code_script_id` with `OwnedIdCodec`, splits `ctx.RawMessage` into args, copies `ctx.Variables`) → `ScriptRunner.RunAsync`: (1) load the `CodeScript` (`NOT_FOUND` if absent; the `ITenantScoped` query filter scopes the load; the runner adds no explicit `BroadcasterId` predicate) → (2) `!IsEnabled` → `Faulted`/`ScriptDisabled` → (3) `meter.CheckSandboxBudgetAsync` → over budget → `Denied`/`QuotaExceeded` → (4) load the current version; not `valid` or no `CompiledJs` → `Faulted`/`VersionInvalid` → (5) `broker.BuildGrantAsync` over the version's `DeclaredCapabilitiesJson` → failure → `Denied`/`CapabilityDenied`, recorded in `LastRuntimeError` → (6) `IScriptHostBridgeFactory.Create(script.BroadcasterId, triggeringUserId)` → (7) `IScriptExecutor.ExecuteAsync` (Jint, in-process, `ScriptResourceBudget.Baseline`) → (8) set `LastRanAt` / `LastRuntimeError` → (9) `meter.RecordSandboxUsageAsync(elapsedMs)`. There is **no global admission step**, no domain-event publication, and no crash-attribution step. The per-channel `custom_code` toggle is enforced at authoring time and inside the broker (§5.2), not by the runner. `CodeScriptId` is read from the action's own parameters, not from a typed `CompiledStep.CodeScriptId`.
 
 > **`CodeScriptId` source + tenant-scoped load (closes the config-DTO IDOR/bypass).** The id a `run_code` step
 > executes is double-declared — `RunCodeActionConfig.CodeScriptId` (the step's untyped `ConfigJson`, surfaced as
@@ -1160,7 +1212,7 @@ regresses** (it is not a smoke test). Tests live in `tests/NomNomzBot.Infrastruc
 | **T14** | Quota evasion: tenant over `sandbox_exec_ms`; then retry the same `ExecutionId` | PRE-run fail-closed + idempotent meter | run refused with `BILLING_LIMIT`, `HostCallCount == 0`; replayed `ExecutionId` does **not** double-increment `UsageRecord` |
 | **T14b** | Concurrent-first-run quota race: tenant with ~0 remaining quota fires N concurrent runs that all pass the gate before any records | reserve-then-settle | only as many runs as the **reservation** allows admit; the others get `Denied(QuotaExceeded)`; total metered cost does **not** overshoot by ~N × `WallClockMs` — **fails against a plain check-then-record meter** |
 | **T15** | Global DoS: N+1 concurrent executions across many tenants (each under per-channel 5) | global admission control | the (N+1)th is queued or `RATE_LIMITED` — asserts a **GLOBAL** limiter exists, not only per-channel; on SaaS the counter is **distributed** (§5.3, T15d) |
-| **T15b** | Egress rate bypass via the T2 front-end: a run mixes N `http_request` pipeline steps + M `http.fetch` capability calls | one shared `(BroadcasterId,'egress')` bucket in the handler | both front-ends decrement the **same** bucket; N+M past the burst → `Denied(EgressBlocked)`/`RATE_LIMITED` — **fails if the limiter sits in the broker** (which sees only the T3 path) |
+| **T15b** | *(void as written — the `http_request` T2 front-end does not exist, §6.3)* Egress rate bypass via the T2 front-end: a run mixes N `http_request` pipeline steps + M `http.fetch` capability calls | one shared `(BroadcasterId,'egress')` bucket in the handler | both front-ends decrement the **same** bucket; N+M past the burst → `Denied(EgressBlocked)`/`RATE_LIMITED` — **fails if the limiter sits in the broker** (which sees only the T3 path) |
 | **T15c** | Slow-loris egress: many executions each fetch a slow allowlisted responder that dribbles headers | global egress concurrency + connect/header timeouts | total in-flight fetches ≤ the egress semaphore (independent of execution slots); a dribbling responder trips the `ConnectTimeout`/response-headers timeout, **not** the full `WallClockMs`; connection pool / ephemeral ports not exhausted |
 | **T15d** | Multi-instance global DoS (SaaS): N concurrent `run_code` triggers spread across K API instances behind the LB, each instance reading "under budget" | distributed global admission + distributed import bucket | the **fleet-wide** ceiling holds (not K× the per-instance limit); counters resolve through `IRateLimiterPartitionStore` (Redis); asserts distributed enforcement, not single-instance (§5.3) |
 | **T16** | Forbidden-global / undeclared-capability at **save** time | validate-on-save rejects | `ValidationStatus == rejected`, `CurrentVersionId` stays null; `run_code` → `Denied(VersionInvalid)`; `ScriptValidationError.Code ∈ {forbidden_global, undeclared_capability}` |
@@ -1169,6 +1221,39 @@ regresses** (it is not a smoke test). Tests live in `tests/NomNomzBot.Infrastruc
 | **T19** | Architecture: any inbound `/code-scripts` DTO or `run_code` config declares `BroadcasterId`/tenant/credential/url | broker invariant | arch test **fails** if any such field exists; `RunCodeActionConfig` has **only** `CodeScriptId` |
 | **T20** | Determinism: same source compiled twice (and across hosts) | stable hash | identical `CompiledHash`; `CompileAsync` executes **no** user code (no host import touched) |
 | **T21** | Transpile-time DoS at **save**: adversarial source (deeply nested AST, catastrophic-backtracking regex literal, 10 MB body) submitted to `CompileAsync` | transpile is budgeted + off the API request thread (§9.4) | `ValidationStatus == rejected` with bounded `VALIDATION_FAILED`; the **API process survives** (no `StackOverflow`/OOM/CPU-pin past the transpile budget); if in-runtime, the transpile ran in the worker/`Store`, not the API thread (arch test) |
+
+### 12.1 As-built test status (verified 2026-09-30)
+
+Tests live in `server/tests/NomNomzBot.Infrastructure.Tests/CustomCode/` and `…/Sandbox/`. **There are no architecture tests anywhere in the tree** (no NetArchTest or equivalent), so every "arch test asserts …" clause in this plan is open.
+
+**Verified explicitly**
+
+- **T1 — partial.** `JintScriptExecutorTests.Eval_is_blocked` (`eval('1+1')` → `Faulted`) and `The_function_constructor_code_from_string_is_blocked` (`(function(){}).constructor('return 1')()` → `Faulted`) exist. **Missing:** the CLR probes (`clr(...)`, `this.GetType()`, `({}).constructor.constructor(...)`), the `GeneratorFunction` / `AsyncFunction` / `AsyncGeneratorFunction` constructors, the factory-level assertion that all four are non-callable, and the assertion that the engine is never built with `AllowClr` / `AllowGetType`.
+- **T18 — does not exist.** `WasmtimeScriptExecutorTests` has five tests (`Runtime_is_wasmtime`, `A_benign_module_runs_to_completion`, `A_runaway_loop_is_fuel_bounded_and_contained`, `ExecuteAsync_without_an_engine_module_fails_closed`, `Compile_declares_the_capabilities_the_script_calls`). None asserts Cranelift-only, Winch off, x86_64, no WASI preopen or threads off; `BuildHardenedEngine` sets them but nothing would fail if it regressed.
+- **T19 — does not exist.** No test inspects `/code-scripts` DTOs or the `run_code` config for `BroadcasterId` / tenant / credential / url fields.
+
+**Full status of the plan**
+
+| Test | Status | Evidence / gap |
+|---|---|---|
+| T1 | Partial | see above |
+| T2 | Partial | `A_runaway_loop_is_contained`, `A_script_that_exceeds_its_wall_clock_is_timed_out` (Jint, in-process; no worker kill, no epoch path) |
+| T3 | Partial | `The_host_call_budget_is_enforced`, `The_production_baseline_survives_one_slow_host_call`; **open:** the blocking-import variant and the permit-release assertion (no permits exist) |
+| T4, T5, T5b | **Open** | no memory-bomb, stack-bomb or worker-crash test; no worker |
+| T6, T6b, T7, T7b, T8 | **Open** | only `EgressAddressGuardTests` (blocked/allowed address classes) and `EgressSchemeHandlerTests` (https-only); no end-to-end metadata-SSRF, rebind, cert-mismatch or exfil-clamp test. `ScriptHostBridgeTests.Http_fetch_rejects_a_non_https_url` and `Http_fetch_returns_the_capped_response_body` cover the bridge |
+| T9 | Partial | `Storage_is_tenant_isolated_channel_b_cannot_read_channel_a`, `Tts_voice_set_is_scoped_to_the_bridges_own_tenant`; no cross-tenant `vars.read` / economy / music enumeration test |
+| T9b | **Open** | the PII allowlist is not built (§8.5) |
+| T10 | Partial | `ScriptRunnerTests.A_disabled_script_fails_closed` + `RunCodeActionTests.A_non_success_outcome_fails_the_step` cover the two halves; no single pipeline-level test |
+| T11 | **Open** | the engine blocks an unknown condition (§10.4) but no test located asserts it |
+| T12 | Covered | `JintScriptExecutorTests.An_ungranted_capability_is_denied` |
+| T13 | Partial | `ScriptCapabilityBrokerTests.The_catalogue_exposes_no_critical_capability`; no `BuildGrantAsync`-rejects-critical test |
+| T14 | Partial | `ScriptExecutionMeterTests` (verdict mapping, accumulation, zero-ms skip) and `ScriptRunnerTests`; **open:** replayed `ExecutionId` idempotency (the meter ignores it) |
+| T14b, T15, T15b, T15c, T15d | **Open** | the mechanisms (reserve-then-settle, global admission, shared egress bucket, egress semaphore, distributed counters) are not built |
+| T16 | Partial | `CodeScriptServiceTests.Create_with_invalid_source_rejects_but_persists_the_version` (syntax errors only); `forbidden_global` / `undeclared_capability` are not implemented |
+| T17 | **Open** | the design's scenarios (Broadcaster floor, `!permit` grant, override rejection) are not tested, and the as-built floor differs (§9.3); `Identity/` tests exercise the seeded action separately |
+| T18, T19 | **Do not exist** | see above |
+| T20 | **Open** | no determinism test (the hash is a plain SHA-256 of the source, so it is stable by construction) |
+| T21 | **Open** | no transpile exists (§9.4) |
 
 ---
 
@@ -1187,15 +1272,30 @@ deferrals — implementation order is the §14 checklist's job.
 | **D3** | `IScriptExecutor` is registered **Singleton** (one hardened `Engine`/`Config` + module cache; fresh `Store`/grant per execution). `platform-conventions.md` §7 is corrected from Scoped to Singleton. | §11.1 | Dependency — apply the Singleton correction in `platform-conventions.md` §7. |
 | **D4** | SaaS microarchitectural side channels are an **accepted residual**: the boundary stays **in-process** (no per-execution Firecracker/gVisor), mitigated by config-hardening + the §5.6 fast-patch SLA + §10 timing caps/rate limits. Core/SMT pinning and KVM Spectre mitigations are ops hardening on top, not a structural control. | §2.5 | Business call — risk acceptance of the in-process boundary. |
 | **D5** | Self-host worker isolation runs **full OS limits on day one** (§5.5: cgroup/Job-Object, CPU/memory/PID caps, dropped caps, seccomp, no worker egress). The minimum bar (process + bounded thread + external kill alone) is **not** acceptable, and is mandatory before any future multi-user self-host. | §5.5 | Business call — confirm the full day-one bar for single-operator self-host. |
-| **D6** | Default per-execution budgets are `2000 ms / 64 host calls / 64 MiB / 8 KiB chat-out / 256 KiB egress / 50M fuel / 200k statements`, surfaced as tightenable `AppSetting` rows (operator may tighten, never loosen past the profile ceiling). | §5.1, §5.2 | Business call — ceilings are set; tune via `AppSetting` after first real scripts without a redesign. |
-| **D7** | `run_code` does **not** ship until the §8.4 live-code prerequisites land: AES-GCM+AAD token-at-rest crypto, encrypted `Configuration.SecureValue`, and the fail-closed `PipelineEngine`. This is a hard ordering dependency, not an optional gate. | §8.4 | Sequencing dependency — owned by `gdpr-crypto.md` / `commands-pipelines.md` / `platform-conventions.md`. |
+| **D6** | Default per-execution budgets are `2000 ms / 64 host calls / 64 MiB / 8 KiB chat-out / 256 KiB egress / 50M fuel / 200k statements`, surfaced as tightenable `AppSetting` rows (operator may tighten, never loosen past the profile ceiling). **As built:** `WallClockMs` is **8000 ms** (`ScriptContracts.cs`, raised 2026-08-26 after a real script with one chat send + one TTS synthesis was killed at 2000 ms), the fuel/statement value is 200,000 statements only (50M fuel is Wasmtime-only and unwired), and the budgets are **compile-time constants** in `ScriptResourceBudget.Baseline` — no `AppSetting` rows. | §5.1, §5.2 | Business call — the constants are set; making them operator-tunable is an open owner decision. |
+| **D7** | **SATISFIED (§8.4).** `run_code` does **not** ship until the §8.4 live-code prerequisites land: AES-GCM+AAD token-at-rest crypto, encrypted `Configuration.SecureValue`, and the fail-closed `PipelineEngine`. This is a hard ordering dependency, not an optional gate. | §8.4 | Sequencing dependency — owned by `gdpr-crypto.md` / `commands-pipelines.md` / `platform-conventions.md`. |
 | **D8** | `custom-code.md` §4 boundary types are widened/added as this doc requires: (a) `ScriptResourceBudget.MaxMemoryBytes`/`MaxEgressBytes` are **`long`** (match `Store.SetLimits`/`LimitMemory`); (b) `ScriptResourceBudget.MaxEgressBytes` is added (§7.4); (c) `HttpEgressAllowlist.MaxRequestBytes` + `AllowRequestBody`/`AllowQuery`/path-method-allowlist columns are added (§7.1 step 6b/9). | §5.1, §5.2, §7.1, §7.4 | Dependency — declared in `custom-code.md` §4. |
 | **D9** | The host-call **dispatch seam** is added to `custom-code.md` §3.1/§4: a `HostImportDelegate` (primitive-in/primitive-out) plus an `IScriptHostBridge` **parameter** on `IScriptExecutor.ExecuteAsync` (§6.4). Without it the `bot.*` facade is un-implementable, so it is a hard prerequisite sequenced with §8.4. | §6.4 | Dependency — blocking; `custom-code.md` declares the seam, sequenced with D7. |
 | **D10** | Executor selection is on `DeploymentProfileSnapshot.CodeExecutor` (`CodeExecutorKind`) inside `AddDeploymentAdapters(snapshot)` (§11.2). `custom-code.md` §7's `DeploymentMode.Lite` switch is broken (non-existent enum member, wrong field) and is corrected to match this doc's §11.2. | §11.2 | Dependency — correction in `custom-code.md` §7. |
 
+### 13.1 As-built status of the decisions
+
+- **D1** (author gate on the Broadcaster plane, permit-delegable) — **differs.** Built as Moderator floor / Critical / not permit-grantable, plus the per-channel `custom_code` toggle (§9.3). Owner question.
+- **D2** (build-time TS transpile) — **not built**; `CompileAsync` is a JS parse (§9.2, §9.4). Owner question.
+- **D3** (Singleton executor) — **not applied**; everything is Scoped (§11.1).
+- **D4** (accept in-process SaaS side channels) — a risk acceptance for a boundary that does not carry tenant code yet (§3.1).
+- **D5** (full OS limits on the self-host worker) — **not built**; there is no worker (§3.3, §5.5). Owner question.
+- **D6** — see the row above (8000 ms, compile-time constants).
+- **D7** — **satisfied** (§8.4).
+- **D8** (boundary types) — **satisfied**: `MaxMemoryBytes`, `MaxEgressBytes`, `MaxOutputBytes` are `long`, `MaxEgressBytes` exists, and `HttpEgressAllowlist` carries `MaxRequestBytes`, `AllowRequestBody`, `AllowQuery`, `AllowedMethods`, `PathPrefix`. **The columns are unread** by any code (§7.1).
+- **D9** (`HostImportDelegate` + `IScriptHostBridge` seam) — **satisfied** (§6.4).
+- **D10** (select on `CodeExecutorKind`) — **not built**; Jint is registered unconditionally (§11.2).
+
 ---
 
 ## 14. Implementation checklist (vertical slices)
+
+> **Status:** slices 4 (broker), 6 (runner + fail-closed `run_code`, minus the PII allowlist and crash attribution) and 7 (authz seed, with a different floor) are built; slice 1 (egress) is built for the SSRF core only; slice 2 (Wasmtime) is the fail-closed harness; slice 3 (Jint) is built in-process without the worker; slices 5 (global admission / reserve-then-settle), 8 (audit events) and 9 (transpile) are not built. Slice 0's boundary types are satisfied.
 
 0. **Boundary-type prerequisites (coordinated edits to `custom-code.md`, §13 D8/D9/D10)** — add the
    `HostImportDelegate` + `IScriptHostBridge` dispatch seam (§6.4 — without it nothing below is implementable),

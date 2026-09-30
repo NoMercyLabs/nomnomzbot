@@ -1,4 +1,6 @@
-# TTS, Stream Tools, Admin & Dev-Mode — Design (DRAFT)
+# TTS, Stream Tools, Admin & Dev-Mode — Design
+
+**Status:** TTS and IPC dev mode built; stream presets/scheduled changes not built (owner question); TTS segments open as S054.
 
 Source: design dialogue 2026-06-16 (quick-sweep of the smaller systems).
 

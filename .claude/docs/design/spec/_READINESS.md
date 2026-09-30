@@ -31,7 +31,7 @@ in `_INDEX.md` (regenerated 2026-08-22 against `../PRODUCT-ALIGNMENT.md` D1–D9
 | `frontend.md` (client) | Ready |
 | `frontend-data-layer.md` (client) | Ready |
 | `frontend-design-system.md` (client) | Ready |
-| `frontend-design-system.catalogue.md` (client) | Ready (13 catalogued components marked "to build") |
+| `frontend-design-system.catalogue.md` (client) | Ready (catalogue closed; all rows built) |
 | `frontend-ia.md` (client) | Ready (42 shipped routes reconciled in §3b; participant rung per D4) |
 | `frontend-structure.md` (client) | Ready |
 | `gdpr-crypto.md` | Ready |
@@ -49,6 +49,8 @@ in `_INDEX.md` (regenerated 2026-08-22 against `../PRODUCT-ALIGNMENT.md` D1–D9
 | `onboarding-setup.md` | Ready |
 | `per-viewer-data.md` | Ready |
 | `pipeline-control-flow.md` | Ready |
+| `pipeline-tree-and-editor.md` | Ready |
+| `platform-admin.md` | Ready |
 | `platform-conventions.md` | Ready |
 | `platform-identity.md` | Ready (D1: one channel, many `PlatformConnection`s; D3: X is a sibling platform) |
 | `pronouns.md` | Ready |
@@ -58,6 +60,7 @@ in `_INDEX.md` (regenerated 2026-08-22 against `../PRODUCT-ALIGNMENT.md` D1–D9
 | `rollout-updates.md` (rulebook) | Ready |
 | `scaling-qos.md` | Ready |
 | `sound-system.md` | Ready |
+| `spam-defense.md` | Ready |
 | `stream-admin.md` | Ready |
 | `stream-deck.md` | Ready |
 | `streamdeck-plugin.md` | Ready |
@@ -70,4 +73,4 @@ in `_INDEX.md` (regenerated 2026-08-22 against `../PRODUCT-ALIGNMENT.md` D1–D9
 | `widget-sdk.md` | Ready |
 | `widgets-overlays.md` | Ready |
 
-**Verdict: 60 specs — 60 Ready, 0 blocked, 0 needs-owner.**
+**Verdict: 63 specs — 63 Ready, 0 blocked, 0 needs-owner.**

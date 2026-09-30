@@ -1,13 +1,40 @@
 # Spam & Bot Defense
 
-Status: **design settled, not implemented** (2026-08-23)
+Status: **partly built — the live chat path is wired; three pieces are open** (as-built 2026-09-30; design settled 2026-08-23)
 Sibling spec: `moderation.md` (this spec extends it; it does not replace it)
 
 **Design ledger — complete.** Decisions SD0–SD12 settled; L0–L5 specced; seed corpus built
 (`data/spam-seed-corpus.md`); configuration surfaces specced (§6); moderation retraction merged
-into `widgets-overlays.md` §2a and `tts.md` §3.4a; structural and consistency passes run. Nothing
-below is implemented — §9 Build Order is the remaining work, and it is implementation, gated on
-the owner's word per the settle-specs-before-implementing rule.
+into `widgets-overlays.md` §2a and `tts.md` §3.4a; structural and consistency passes run.
+
+**As-built status (2026-09-30).**
+
+- **Built and wired on the live chat path** (`SpamDefenseHandler` → `ISpamDefenseService.EvaluateAsync` →
+  `SpamCorrelationService` → `SpamEnforcementExecutor`):
+  - L0 normalizer (`MessageNormalizer`).
+  - L2 content signals (`ContentSignals`) — cosmetic abuse, intra-token script mixing, corpus match,
+    near-duplicate, malicious link, promo shape and **selling-audience**.
+  - L3 campaign correlation with exoneration and reversal (`SpamCorrelationService`, `CampaignCohort`,
+    `SpamCampaignReversalExecutor`).
+  - L4 trust tiers and the capability ladder (`TrustTierLadder`, the SD8/SD11 ceilings).
+  - L5 enforcement with dry run (`SpamEnforcement`, `SpamEnforcementExecutor`).
+  - The local signature store (`SpamSignature`: quarantine, corroboration, curated-skips-quarantine,
+    withdrawal), the per-channel policy (`SpamDefensePolicy`) and the platform defaults, and the dashboard
+    routes for policy, detections, campaigns and overturn (`SpamDefenseController`,
+    `AdminSpamDefenseController`).
+- **Domain logic built, not wired:**
+  - Follow-spike detection and the follow-bot block track (`FollowBotTrack`, `ChannelBaseline`) —
+    **S-SPAM-FOLLOWBOT-WIRE**. The `FollowBotBlock` entity and the list/restore routes exist, but nothing
+    writes a block.
+  - Hate-raid lockdown (`Lockdown.Plan`, `LockdownWindow`) — **S-SPAM-LOCKDOWN-WIRE**. No caller applies a
+    plan, and `LockdownWindow` has no persisted entity yet.
+  - L1 account risk (`AccountRisk`) — unit-tested, but no live caller was found (grep, 2026-09-30); no slice
+    id yet.
+- **Open slices:** **S-SPAM-SEED-CORPUS** (load `data/spam-seed-corpus.md` into `SpamSignature`, §4.1),
+  **S-SPAM-FOLLOWBOT-WIRE**, **S-SPAM-LOCKDOWN-WIRE**, **S-SPAM-NETWORK** (signature subscribe/contribute
+  across instances — blocked on a NoMercy signature service that does not exist).
+
+§9 Build Order lists the steps; the state of each is annotated there.
 
 Defends every channel against the automated-spam economy that plagues Twitch and its
 siblings: chat-promo bots, follow bots, view bots, and hate raids. The reference bar is
@@ -202,28 +229,36 @@ Evaluated against the L0 skeleton.
   (`ѕtream`: Cyrillic ѕ + Latin). Near-zero false-positive rate; explicitly **not** the same as
   a message being wholly in another script.
 - **Corpus match** — exact skeleton hit against the local + subscribed signature corpus.
-- **Near-duplicate** — Jaccard similarity over character 4-shingles of the skeleton; **≥ 0.6**
-  against any corpus entry. Catches the next mutation of a known campaign before anyone reports it.
-  *(As-built correction, S-SPAM-4: this said "SimHash, Hamming ≤ 3". SimHash is built for
-  document-length text; chat messages are ~30 characters, far too little input to settle 64 bits.
-  Measured on the seed corpus, a two-character mutation landed 13 bits from the original while two
-  DIFFERENT campaigns landed 19 apart — overlapping ranges, nowhere near "≤ 3". Comparing the
-  shingle sets directly drops the fingerprint step that was discarding the information, and
-  separates the same cases 0.73 vs 0.16. Intent unchanged; instrument changed because the named
-  one does not work at this length.)*
+- **Near-duplicate** — Jaccard similarity over the **sets of character 4-shingles** of the skeleton
+  (`ContentSignals.Shingles` / `ContentSignals.Similarity`: shared 4-character runs ÷ all distinct 4-character runs);
+  **≥ 0.6** (`NearDuplicateSimilarity`, `0` disables) against any corpus entry. Catches the next mutation of a
+  known campaign before anyone reports it. Why the shingle sets are compared directly rather than fingerprinted:
+  chat messages are ~30 characters, far too little input to settle a 64-bit fingerprint. Measured on the seed
+  corpus, a two-character mutation of a campaign scores **0.73** and above, while unrelated chat scores
+  **0.00–0.16** — including messages that share a whole word with the campaign — so 0.6 has a wide margin on both
+  sides.
 - **Link policy** — links extracted from the *skeleton* (so `t.me∕x` and `bit␣ly/x` are seen),
   checked against per-channel allow/deny plus the network's malicious-domain set.
 - **Promo shape** — contact-handle patterns (`@handle`, `t.me/`, `discord.gg/`), price/offer
   vocabulary, and imperative CTAs.
-- **Caps / emote-only / wall-of-text** — retained from the existing `AutoModerationEngine`.
+- **Selling-audience** — an audience for sale (`viewers`, `followers`, `primes`, `prime subs`, `view bots`,
+  `follow bots`) next to a **storefront domain**, including the spaced-out forms these campaigns use to slip past
+  link filters (`twitchstar .com`, `growfast (.) net`, `name [.] shop`, `name dot com`). It is the viewbot-seller
+  campaign's own shape and is **high-confidence on its own**, with no corpus or deny list needed — a campaign
+  nobody has reported yet is still recognised. It is deliberately narrow: `subs`, `views` and `chatters` are not
+  in the product list (real viewers say those); a link to a mainstream platform (`twitch.tv`, `youtube.com`,
+  `kick.com`, the streamer tools, …) or to the channel's own allowed domain never carries it; and a storefront
+  with no audience word beside it, or an audience word with no storefront, does not fire. Read from the raw text
+  (the skeleton has lost the punctuation the spaced-out forms rely on).
+- **Caps / emote-only / wall-of-text** — retained from the existing chat-filter path (`ChatFilterService`,
+  applied by `AutoModerationHandler`).
 
 ### L3 — Correlation
 
 Cross-message and cross-channel, over sliding windows.
 
 - **Campaign** — N distinct accounts posting messages within the L2 near-duplicate threshold of
-  each other inside M seconds (same instrument as L2 — shingle similarity, not SimHash; see the
-  as-built note there). Qualifies the cohort as a whole, then actions each member on their own
+  each other inside M seconds (same instrument as L2 — 4-shingle Jaccard similarity). Qualifies the cohort as a whole, then actions each member on their own
   evidence (SD9), never as a set.
 - **Cross-channel campaign** — the same, observed across channels on this instance (and, when
   subscribed, across the network). This is what turns one channel's catch into everyone's
@@ -231,7 +266,8 @@ Cross-message and cross-channel, over sliding windows.
 - **Join burst** — abnormal chatter-join rate vs. the channel's own rolling baseline.
 - **Follow spike** — follow rate exceeding the channel's baseline by a configurable factor.
   Feeds the follow-bot track, which **blocks** rather than bans (SD4, and Sery_Bot's rationale:
-  a ban on a silent account is wasted work).
+  a ban on a silent account is wasted work). *(As built: domain logic built, not wired —
+  `FollowBotTrack` + `ChannelBaseline` exist and are unit-tested, nothing calls them. S-SPAM-FOLLOWBOT-WIRE.)*
 
 Baselines are per-channel and self-calibrating. A 50-viewer channel and a 50 000-viewer channel
 must not share a threshold.
@@ -416,7 +452,7 @@ Per **SD1**:
 
 | Confidence | Response |
 |---|---|
-| **High** — cosmetic-abuse chars, corpus hit, confirmed campaign cohort, malicious link | Act immediately: delete + timeout/ban per the channel's escalation policy. Logged, explainable, one-click undo. |
+| **High** — cosmetic-abuse chars, corpus hit, confirmed campaign cohort, malicious link, selling-audience | Act immediately: delete + timeout/ban per the channel's escalation policy. Logged, explainable, one-click undo. |
 | **Medium** — capability not yet earned (a Newcomer's first link), promo shape without a corpus hit | **Delete + queue**, reversible: the message is removed and the deletion lands in the mod review queue. Restoring it credits the sender's trust. **No timeout, no ban** — medium confidence never touches the account. |
 | **Low** — a single weak signal | Flag only. Visible to mods in the chat feed, no action. |
 | **Zero** — no content signal fired | Nothing. No record beyond the routine trust-counter update. Per SD10 this is where every silent, new, or odd-looking account saying something ordinary lands, regardless of its marks. |
@@ -425,9 +461,11 @@ Per **SD1**:
 `ModerationEscalationService` already owns the strike ladder — L5 routes into both rather than
 inventing a parallel action path.
 
-**Follow/view-bot track** issues **block**, never ban, and strips the follow.
+**Follow/view-bot track** issues **block**, never ban, and strips the follow. *(Domain logic built, not wired — S-SPAM-FOLLOWBOT-WIRE.)*
 
 #### L5.1 — What "hold" and "lockdown" actually mean (SD12)
+
+> **As built:** the lockdown plan (which platform controls to engage, with their prior values) is domain logic — `Lockdown.Plan`, `PlatformLockdownCapabilities`, `LockdownWindow` — and is unit-tested, but no live caller applies a plan and there is no persisted `LockdownWindow` entity: **domain logic built, not wired — S-SPAM-LOCKDOWN-WIRE.**
 
 We do not host the chat. Twitch, YouTube, Kick and X publish a message the moment it is sent;
 there is no pre-publish hook we can stand in. So the vocabulary has to be exact:
@@ -470,8 +508,9 @@ of judging individuals is the whole point of SD0.
 
 Per **SD3** and **SD5**.
 
-- **Subscribe** — any instance, free, read-only. Pulls the signature set: skeletons, SimHash
-  values, malicious domains, known-bot account ids. Delta-synced.
+- **Subscribe** — any instance, free, read-only. Pulls the signature set: skeletons,
+  malicious domains, known-bot account ids. Delta-synced. (Near-duplicate matching runs over each skeleton's
+  4-shingle set, so no fingerprint is stored or synced.)
 - **Contribute** — gated. A channel earns a **reporter-trust** score from its submission history
   (confirmed by independent corroboration or NoMercy curation). Low-trust submissions enter a
   quarantine tier that only *flags*, never auto-acts, until corroborated by K independent
@@ -512,8 +551,14 @@ Measured against the motivating case: `VI EWERS ON THE STREAM` plus four mutatio
 contains (combining marks + Cyrillic, leetspeak, fullwidth, plain) → **one skeleton**.
 
 Measured limit, also recorded there: exact-skeleton match does not unify `bestviewers` with
-`bestviewerson`. SimHash near-duplicate matching is what closes that, which is why L2 carries both
-rather than either alone.
+`bestviewerson`. Near-duplicate matching (Jaccard similarity over 4-shingles, §L2) is what closes that, which is
+why L2 carries both rather than either alone.
+
+**Loading the seed corpus is S-SPAM-SEED-CORPUS — not done.** The corpus document exists, but nothing loads it
+into `SpamSignature`: no seeder exists, so today the local corpus holds only skeletons this instance's own
+correlation confirmed (`Source = Local`). Until the slice lands, corpus-match and near-duplicate fire only on
+those, and the viewbot-seller shape is caught by the selling-audience signal rather than by the corpus. The slice
+loads the 119 phrase skeletons + 16 malicious domains, keeping the per-skeleton source attribution.
 
 The known-bot **account** ids in the `dak` list are a starting hint for L1, never a standing
 auto-ban list (SD9: every block needs that account's own evidence).
@@ -529,14 +574,14 @@ New entities under `Domain/Moderation/Entities/`:
 
 | Entity | Purpose |
 |---|---|
-| `SpamSignature` | Skeleton, SimHash, kind, source (local / network / curated), quarantine state, hit count |
+| `SpamSignature` | Kind (skeleton / domain), value, source (local / network / curated), corroborations, quarantine state, withdrawn-at, first-seen / last-confirmed |
 | `SpamDetection` | One evaluation: message ref, normalized skeleton, signals fired + weights, score, action taken, reviewer verdict |
 | `TrustTierPolicy` | Per-channel capability → minimum-tier table + channel toggles |
 | `SpamCampaign` | A correlated cohort: window, member accounts, representative skeleton, action outcome |
-| `FollowBotBlock` | Blocked account, **per-account** detection reason (required, non-null — SD9), spike batch ref, restored-at |
+| `FollowBotBlock` | Blocked account, **per-account** detection reason (required, non-null — SD9), spike batch ref, restored-at. *Entity built; nothing writes it until S-SPAM-FOLLOWBOT-WIRE.* |
 | `ReporterTrust` | Per-channel contribution history and earned reporter score |
 | `ViewerStanding` | Portable positive standing (SD11): mod/VIP/sub elsewhere, watch-time totals here and instance-wide, partner/affiliate, resolved tier + why |
-| `LockdownWindow` | An SD0 room-tightening: platform, settings changed **and their prior values**, trigger, expiry, restored-at |
+| `LockdownWindow` | An SD0 room-tightening: platform, settings changed **and their prior values**, trigger, expiry, restored-at. *Domain class only — not persisted until S-SPAM-LOCKDOWN-WIRE.* |
 | `SpamDefensePolicy` | Per-channel settings (§6), with a pinned/tracking flag per field |
 | `SpamDefenseDefaults` | Platform-wide defaults every channel inherits until it pins a field (global, admin-edited) |
 
@@ -572,7 +617,7 @@ overrode it.
 | | Semi-Trusted routes: watch-hours here, instance-wide | 10 / 25 | each route individually toggleable |
 | **Capabilities** | the capability → minimum-tier grid | §L4 | editable per row |
 | | non-Latin script gate | **off** | SD2 |
-| **Content** | SimHash Hamming distance | 3 | 0 disables near-duplicate matching |
+| **Content** | Near-duplicate similarity (Jaccard over 4-shingles, `NearDuplicateSimilarity`) | 0.6 | 0 disables near-duplicate matching |
 | | minimum skeleton length | 8 | guards short-skeleton false positives |
 | **Campaign** | `QualifyPercent` | 80 | ≥ this share with no standing → campaign |
 | | `DeQualifyPercent` | 65 | below this → exonerate and reverse |
@@ -646,6 +691,12 @@ The bar (`CLAUDE.md` testing standard) is behaviour, not surface.
   `ｖｉｅｗｅｒｓ` all collapse to the same skeleton as the plain form.
 - **False-positive corpus** — Japanese, Korean, Russian, Arabic, emoji, kaomoji, and ASCII-art
   messages asserted to trip **no** high-confidence signal with the non-Latin gate off.
+- **Selling-audience corpus** — a fixture table of viewbot-seller messages (`Ai vIewers twitchstar .com`,
+  `Cheap followers and primes at growfast (.) net`, `real viewbots here: viewerboss dot com`, …) each asserted
+  **High** confidence with **no corpus and no deny list loaded**; plus the false-positive guards, asserted to fire
+  nothing — an audience word beside a mainstream link (`twitch.tv/x`, `youtube.com/watch…`), a storefront with no
+  audience for sale, `subs` / `views` / `chatters` vocabulary, and an audience for sale on the channel's own
+  allowed domain.
 - **Tier progression** — an account crossing an age/follow/message threshold gains the
   capability, asserted against persisted state.
 - **Campaign correlation** — N synthetic accounts posting mutations of one skeleton produce one
@@ -718,11 +769,13 @@ afterwards.
    **The SD8 short-circuit and its table-driven invariant test land here, in the same slice as
    the scorer** — never as a follow-up. An engine that can act before it can be immune has a
    window in which it will hurt someone.
-4. L2 content signals + local corpus.
+4. L2 content signals + local corpus. *(Built. Loading the seed corpus into the local corpus is **S-SPAM-SEED-CORPUS**.)*
 5. L3 correlation + burst detection; follow-bot block track — with the SD9 per-account-evidence
-   requirement and its viral-moment test in the same slice, for the same reason.
-6. L5 hate-raid lockdown.
-7. Signature network: subscribe first, contribute + quarantine second.
+   requirement and its viral-moment test in the same slice, for the same reason. *(Campaign correlation is
+   built and wired. Follow-bot tracking: domain logic built, not wired — **S-SPAM-FOLLOWBOT-WIRE**.)*
+6. L5 hate-raid lockdown. *(Domain logic built, not wired — **S-SPAM-LOCKDOWN-WIRE**.)*
+7. Signature network: subscribe first, contribute + quarantine second. *(**S-SPAM-NETWORK** — blocked on a
+   NoMercy signature service; the local store and quarantine are built.)*
 8. Frontend surfaces, per step.
 
 Steps 1–3 alone would have stopped the message that motivated this spec.

@@ -1,7 +1,7 @@
 # Interface Specification — Quotes Subsystem
 
 **Status:** Implementable. Code the owner writes from this should compile first-try.
-**Sources of truth:** locked schema `2026-06-16-database-schema.md` (Domain G — channel content; `Commands` G.2, `NamedCounters` G.4); commands `commands-pipelines.md` (`IBuiltinCommand`/`IBuiltinCommandCatalog` §3.10, `ICommandAction` §3.13, `ITemplateEngine`); platform `platform-conventions.md` (`ITenantSequenceAllocator`, `IEventBus`).
+**Sources of truth:** locked schema `2026-06-16-database-schema.md` (Domain G — channel content; `Commands` G.2, `NamedCounters` G.4); commands `commands-pipelines.md` (`IBuiltinCommand`/`IBuiltinCommandCatalog` §3.10, `ICommandAction` §3.13, `ITemplateResolver`); platform `platform-conventions.md` (`ITenantSequenceAllocator`, `IEventBus`).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; **explicit types — never `var`** (IDE0008 = error); async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PK `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete global filter; AGPL header on every source file.
 
 > **Why.** `!quote` is a baseline engagement feature on every major bot (StreamElements, Nightbot, Fossabot) and the corpus had none. Quotes are channel content (Domain G) — a numbered, searchable library of memorable lines, addable from chat by mods and surfaced via a built-in command, a pipeline action (quote-of-the-day on a timer), and the dashboard.
@@ -25,7 +25,7 @@ Domain G. PK `Guid`/UUIDv7, `BaseEntity` timestamps, soft-delete filter, `Broadc
 
 | Table | Schema ref | Scope | Key fields (type) |
 |---|---|---|---|
-| **`Quote`** | **G.5 (NEW)** `[soft-delete]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `Number int` (per-channel monotonic, D1); `Text string(500)`; `QuotedDisplayName string(100)?` (who said it); `ContextGame string(100)?` (game/category at the time); `QuotedAt DateTime?` (when said — defaults to creation); `CreatedByUserId Guid?` FK→`Users.Id`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(BroadcasterId, Number)`. **Index** `(BroadcasterId, Number)`. |
+| **`Quote`** | **G.5 (NEW)** `[soft-delete]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `Number int` (per-channel monotonic, D1); `Text string(500)`; `QuotedDisplayName string(100)?` (who said it); `ContextGame string(100)?` (game/category at the time); `QuotedAt DateTime?` (when said — defaults to creation); `UserId Guid?` FK→`Users.Id` (the resolved local user the quote is attributed to; null when `QuotedDisplayName` never resolved to a known chatter, including every quote that predates the column); `CreatedByUserId Guid?` FK→`Users.Id`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(BroadcasterId, Number)`. **Index** `(BroadcasterId, Number)`. |
 
 A free-text search over `Text`/`QuotedDisplayName` uses a `(BroadcasterId)` filtered `ILIKE`/`to_tsvector` read (provider-appropriate; no new column).
 
@@ -62,6 +62,9 @@ public interface IQuoteService
     Task<Result<QuoteDto>> GetAsync(Guid broadcasterId, int number, CancellationToken ct = default);          // 404-style Result if missing
     Task<Result<QuoteDto>> GetRandomAsync(Guid broadcasterId, CancellationToken ct = default);                // uniform over non-deleted; Result failure (QUOTES_EMPTY) if none
     Task<Result<PagedList<QuoteDto>>> ListAsync(Guid broadcasterId, QuoteSearch search, PaginationParams pagination, CancellationToken ct = default);
+    // Quotes resolved-attributed to one person (Quote.UserId), newest first — the Community Profile page's "quotes by this person".
+    // A quote whose QuotedDisplayName never resolved to this user never appears, even if the display name matches.
+    Task<Result<PagedList<QuoteDto>>> ListByUserAsync(Guid broadcasterId, Guid userId, PaginationParams pagination, CancellationToken ct = default);
     Task<Result<QuoteDto>> EditAsync(Guid broadcasterId, int number, EditQuoteRequest request, CancellationToken ct = default);  // Number is immutable
     Task<Result> DeleteAsync(Guid broadcasterId, int number, CancellationToken ct = default);                 // soft-delete; Number not reused (D1)
 }
@@ -69,7 +72,7 @@ public interface IQuoteService
 public sealed record AddQuoteRequest(string Text, string? QuotedDisplayName, string? ContextGame, DateTime? QuotedAt, Guid? CreatedByUserId);
 public sealed record EditQuoteRequest(string Text, string? QuotedDisplayName, string? ContextGame);
 public sealed record QuoteSearch(string? Term);
-public sealed record QuoteDto(Guid Id, int Number, string Text, string? QuotedDisplayName, string? ContextGame, DateTime? QuotedAt, DateTime CreatedAt);
+public sealed record QuoteDto(Guid Id, int Number, string Text, string? QuotedDisplayName, string? ContextGame, DateTime? QuotedAt, DateTime CreatedAt, Guid? UserId = null);
 ```
 
 ---
@@ -85,8 +88,6 @@ public sealed record QuoteDto(Guid Id, int Number, string Text, string? QuotedDi
 
 **Pipeline action `post_quote`** (`ICommandAction`, canonical contract): config `{ number:int? }` — null → random, else that quote; writes the rendered line to `ctx.Variables["quote"]` and (when used as a message step) posts it. Lets a timer run quote-of-the-day. Fails closed (`ActionResult.Fail`) if the channel has no quotes.
 
-Template var: `{{quote.random}}` resolves a random quote line via `ITemplateEngine` (commands-pipelines).
-
 ---
 
 ## 5. REST surface
@@ -100,9 +101,9 @@ Controller `QuotesController`, `[Route("api/v{version:apiVersion}/quotes")]`. `[
 | GET | `/{number}` | — | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:read` |
 | POST | `/` | `AddQuoteRequest` | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:write` |
 | PUT | `/{number}` | `EditQuoteRequest` | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:write` |
-| DELETE | `/{number}` | — | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:write` |
+| DELETE | `/{number}` | — | `StatusResponseDto<QuoteDto>` | management / Moderator · `quotes:delete` |
 
-Seed `quotes:read` / `quotes:write` (management, Moderator floor) in `roles-permissions.md`.
+Seed in `roles-permissions.md` (management): **`quotes:read`** and **`quotes:write`** default to Moderator with a **Vip floor** (the broadcaster may lower them so a trusted VIP can read and curate — add/edit); **`quotes:delete`** is Moderator with a **Moderator floor** (deleting is data loss, so it can never be lowered to VIP). The DELETE route carries `quotes:delete`; POST/PUT carry `quotes:write`.
 
 ---
 

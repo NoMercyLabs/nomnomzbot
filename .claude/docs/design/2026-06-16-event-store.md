@@ -1,4 +1,4 @@
-# Event Store & Replay — Design (DRAFT)
+# Event Store & Replay — Design (implemented; spec/event-store.md is the contract)
 
 Source: design dialogue 2026-06-16. An append-only event journal (event sourcing, pragmatically scoped).
 

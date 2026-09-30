@@ -10,7 +10,9 @@ component catalogue, and the rules that make UI generation **mechanical, not cre
 
 **Conventions:** `commonMain`-first with full `wasmJs` parity; explicit types; one public type per
 file; package == folder path; AGPL header on every `.kt`. Components read **tokens only** — never a
-raw hex, `Color(0x…)`, or `.dp` literal (linter-enforced, §8).
+raw hex, `Color(0x…)`, or `.dp` literal (test-enforced, §8).
+
+**Sleak applies.** The design system says which token; the `sleak` skill says which element wins attention. Both are the design bar (D7) — load `sleak` before writing any UI.
 
 ---
 
@@ -49,14 +51,14 @@ raw hex, `Color(0x…)`, or `.dp` literal (linter-enforced, §8).
   shadcn. New components are added when a screen needs them (Rule of Three over speculative ports),
   each faithful to shadcn's spec. One component = one file (§4). The catalogue has two tiers:
   **Components** (shadcn 1:1) and **Patterns** (app composites built from components — same folder,
-  same token/variant rules, listed in `catalogue.md` "Patterns"); a catalogued row not yet built is
-  marked **to build** there.
+  same token/variant rules, listed in `catalogue.md` "Patterns").
 - **DS10 — Icons are the designer's pack, set-agnostic at the call site.** Components reference a typed
   `IconKey` resolved by an injected `IconSet`. The **delivered designer pack** (4 styles × ~1,574
   24×24 stroke glyphs) is the primary set, **style = Line**; **Lucide** stays a fallback for any
   semantic gap. No component hardcodes an icon path; switching style is one registry line (§7).
-- **DS11 — The linter enforces all of the above** (§8): raw color/`dp`, off-catalogue components,
-  off-token reads, and hardcoded strings fail the build.
+- **DS11 — A test enforces the rules it can decide** (§8): `DesignSystemStyleGuardTest` (`jvmTest`) fails
+  on new raw color/`dp` literals in feature screens and on raw Material3 controls that bypass the
+  catalogue. Rules a static check cannot decide (hierarchy, copy, spacing choices) stay review rules.
 
 ---
 
@@ -121,7 +123,7 @@ scales are pinned here too, so nothing is improvised:
   same `FontFamily` also bundles five Noto Sans faces (core + Arabic/Thai/SC/KR, all SIL OFL 1.1) as a
   glyph-fallback cascade — chat text and viewer-entered content can be in any script regardless of the
   app's own `en`/`nl` UI language, and Skia/Wasm has no system fonts to fall back to otherwise (owner
-  punch list §10; `appTypography()` in `core/designsystem/theme/Typography.kt`). Exposed as
+  punch list §10; `appTypography()` in `core/designsystem/theme/Typography.kt`). The family also carries an **emoji face**, chosen live by the operator's persisted `EmojiStyle` preference (`core/emoji/`, picker in Settings): `Color` (default) = Twemoji COLR (`twemoji_color.ttf`); `Monochrome` = Noto Emoji (`noto_emoji.ttf`), the fallback for a browser/Skia build that cannot render COLR glyphs and would show colored emoji as boxes (`appTypography(colorEmoji)`). Exposed as
   `Typography.*`; no inline `TextStyle`.
 
 ---
@@ -235,7 +237,7 @@ The accent's source is the **active theme subject** — whoever the current scre
 - One component = **one file**, `core/designsystem/component/<Name>.kt`, **named exactly as shadcn**
   (`Button`, `Select`, `Dialog`, …). AGPL header, explicit types, one public composable + its enums.
 - Each component mirrors shadcn's **variants, sizes, and states** verbatim. The catalogue manifest
-  (`catalogue.md` beside the components, also the linter's input) is the closed list:
+  (`catalogue.md` beside the components) is the closed list:
 
 | Component | Variants | Sizes | States | Base (DS7) |
 |---|---|---|---|---|
@@ -250,17 +252,18 @@ The accent's source is the **active theme subject** — whoever the current scre
 > **`catalogue.md` is the authority** (ships with this spec as `frontend-design-system.catalogue.md`);
 > the table above is a readable summary — the full per-component variant/size/state/base enumeration is
 > in `catalogue.md`. ¹ `Combobox` = `Popover` + `Command` composite (modeled on shadcn — no 1:1
-> primitive). ² `Toast` is modeled on shadcn's Sonner (no JS lib ported). The **Patterns** tier (the 17
-> shipped app composites — `ActionErrorBanner`, `AppSelectField`, `AppTextField`, `ColorField`,
-> `ConfirmDialog`, `CopyButton`, `CopyLinkButton`, `EntityPickerField`, `FileTree`, `GlyphButton`,
-> `LinkedText`, `ManageGate`, `MetricChart`, `PageHeader`, `ResizableSplit`, `RevealableSecretField`,
-> `SearchPickerField`) and the **to build** marks on catalogued-but-unbuilt components are in `catalogue.md`.
+> primitive). ² `Toast` is modeled on shadcn's Sonner (no JS lib ported). The **Patterns** tier (the 23 shipped app
+> composites — `AppSelectField`, `AppTextField`, `ColorField`, `ConfirmDialog`, `CopyButton`,
+> `CopyLinkButton`, `EntityPickerField`, `FieldPair`, `FileTree`, `GlyphButton`, `InlineError`,
+> `LimitedCreateAction`, `LinkedText`, `ManageGate`, `MetricChart`, `PageHeader`, `PipelineBindPicker`,
+> `ResizableSplit`, `ResourcePickerField`, `RevealableSecretField`, `SearchPickerField`,
+> `ShieldModeToggle`, `TemplateHelpersDialog`) is listed in `catalogue.md`; every catalogue row is built.
 >
 > **No ambiguity in the shorthand.** "shadcn's" = that component's **exact** published variant/size set
 > in shadcn (a deterministic external source, transcribed verbatim, version-pinned); a base of
 > "mixed / recorded per row" means the DS7 base (Foundation vs M3-wrapped) is **decided and written into
-> `catalogue.md` before the component is built** — the linter rejects a component whose row is
-> incomplete. This is the **as-needed first batch** (covers setup, dashboard, commands, pipeline,
+> `catalogue.md` before the component is built** — a component whose row is
+> incomplete is a review defect. This is the **as-needed first batch** (covers setup, dashboard, commands, pipeline,
 > community, moderation, rewards, timers, widgets, integrations, settings); rows are added — never
 > invented ad hoc in a screen — and each grouped component gets its own fully-filled row on creation.
 
@@ -352,19 +355,23 @@ stroke 1.5, round caps/joins** (lucide/shadcn-class), across 59 semantic categor
 
 ---
 
-## 8. Linting — the rule is enforced, not just written
+## 8. Enforcement — a test, not a linter
 
-A detekt ruleset (+ CI gate), mirroring the backend `taxonomy-linter`, fails the build on:
+There is no detekt, ktlint, CI lint step, or scaffold. The gate is `DesignSystemStyleGuardTest`
+(`app/composeApp/src/jvmTest/.../core/designsystem/`), run with the other `jvmTest` tests. It fails on:
 
-- a raw color (`Color(0x…)`, hex string) or raw `.dp`/`.sp` literal inside
-  `core/designsystem/component/`, `core/designsystem/pattern/`, or `feature/**` — must use
-  `LocalTokens` / `Space.*` / `Typography.*` / `radius.*`;
-- a `@Composable` whose name collides with a `catalogue.md` entry but is declared **outside**
-  `core/designsystem/component/`, **or** a reusable styled control under `feature/**` that reads
-  `LocalTokens` yet is neither a screen nor a section (it belongs in the catalogue);
-- a direct `MaterialTheme.colorScheme.*` / `MaterialTheme.typography.*` read in feature code;
-- a **string literal passed as the `text` arg of `Text`/`BasicText`, or as a `contentDescription`/label, not wrapped in `stringResource(...)`** (the one enforceable definition — shared with the structure linter);
-- an icon referenced by raw drawable/path instead of `IconKey`.
+- a raw color (`Color(0x…`) or raw `N.dp` literal in `feature/**` — must use `LocalTokens` / `LocalSpacing` /
+  `Typography.*`. Pre-existing literals are grandfathered per file in a baseline map: lower a number when
+  you tokenize a file, never raise one;
+- a raw Material3 control (`Button`, `Card`, `TextField`, `Checkbox`, `Switch`, `Slider`, `Chip`, …) imported
+  in `commonMain` instead of its catalogue wrapper (the only exception is the catalogue's own `Slider.kt`
+  seam);
+- a `Card` nested directly inside a `Card` (Sleak concentric radius);
+- a delete / ban / revoke-style button with no destructive treatment (`ButtonVariant.Destructive*`, a
+  `tokens.destructive` label, or `TrashGlyph`).
+
+Not enforced by any tool (review rules): direct `MaterialTheme.*` reads in feature code, hardcoded
+strings, icons by raw path instead of `IconKey`, and component-vs-`catalogue.md` row parity.
 
 ---
 
@@ -383,4 +390,4 @@ All settled and binding:
 - Three-tier composition (primitive → pattern → feature); data only in the feature tier (§5).
 - Form-factor-agnostic primitives + `WindowSizeClass` screens = mobile reuse (§6).
 - Set-agnostic icons; designer pack primary, Lucide fallback (DS10, §7).
-- Everything enforced by a detekt ruleset + CI gate (DS11, §8).
+- What a static check can decide is enforced by `DesignSystemStyleGuardTest`; the rest is review (DS11, §8).

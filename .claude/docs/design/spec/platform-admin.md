@@ -1,7 +1,7 @@
 # Interface Specification — Platform Admin: Content Authoring & Propagation
 
 **Status:** Implementable. Code from this directly.
-**Sources (authoritative):** `roles-permissions.md` (Plane C — platform IAM, `IamAuditLog` O.9, `IPlatformIamService.AuthorizePlatformAsync`, §5 cell format); `PRODUCT-ALIGNMENT.md` (D-series decisions, `saas` restricted-option marker); the live tree — `AdminController`, `PlatformAdminController` (9 routes), `PlatformIamController`, `AdminBillingController`, `FeatureFlagAdminController`, `PlatformAnalyticsController`, `AdminSpamDefenseController` (10 admin controllers, 11 admin-plane tabs, 2,732 lines, measured 2026-09-04); the 17 platform-content seeders (`DefaultCommandsSeeder`, `FirstPartyWidgetCatalogueSeeder`, `RaidFlowSeeder`, `RaidStartFlowSeeder`, `RaidCommitFlowSeeder`, `EventResponseDefaultsSeeder`, `TtsVoiceSeeder`, `BillingTierSeeder`, `IamCatalogSeeder`, `ActionDefinitionSeeder`, `PronounSeeder`, `ConfigSeeder`, + 5 more) in `NomNomzBot.Infrastructure/Content/*`; the existing tenant-scoped entities `Command` (`Domain/Commands/Entities/Command.cs`), `Widget` + `WidgetVersion` (`Domain/Widgets/Entities/Widget.cs` — already carries the `GalleryItemId`/`InstalledSourceRevision` staleness pattern this spec generalizes), `CodeScript` + `CodeScriptVersion` (`Domain/CustomCode/Entities/*`, append-only version rows), `Pipeline` (`Domain/Commands/Entities/Pipeline.cs`).
+**Sources (authoritative):** `roles-permissions.md` (Plane C — platform IAM, `IamAuditLog` O.9, `IPlatformIamService.AuthorizePlatformAsync`, §5 cell format); `PRODUCT-ALIGNMENT.md` (D-series decisions, `saas` restricted-option marker); the live tree — `AdminController`, `PlatformAdminController`, `PlatformIamController`, `AdminBillingController`, `FeatureFlagAdminController`, `PlatformAnalyticsController`, `AdminSpamDefenseController`, `PlatformContentController` and the four `*DefaultsAdminController`s; the platform-content seeders (`DefaultCommandsSeeder`, `FirstPartyWidgetCatalogueSeeder`, `RaidFlowSeeder`, `RaidStartFlowSeeder`, `RaidCommitFlowSeeder`, `EventResponseDefaultsSeeder`, `TtsVoiceSeeder`, `BillingTierSeeder`, `IamCatalogSeeder`, `ActionDefinitionSeeder`, `PronounSeeder`, `ConfigSeeder`, and the rest) in `NomNomzBot.Infrastructure/Content/*`; the existing tenant-scoped entities `Command` (`Domain/Commands/Entities/Command.cs`), `Widget` + `WidgetVersion` (`Domain/Widgets/Entities/Widget.cs` — already carries the `GalleryItemId`/`InstalledSourceRevision` staleness pattern this spec generalizes), `CodeScript` + `CodeScriptVersion` (`Domain/CustomCode/Entities/*`, append-only version rows), `Pipeline` (`Domain/Commands/Entities/Pipeline.cs`).
 
 **Binding conventions:** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, no MediatR; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")] [Route("api/v{version:apiVersion}/...")]`; surrogate PK `guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete global filter; explicit types (never `var`); AGPL header on every source file.
 
@@ -61,7 +61,7 @@ All new entities live in `NomNomzBot.Domain/PlatformContent/Entities/` (new doma
 | Field | Type | Notes |
 |---|---|---|
 | `Id` | `Guid` | `Guid.CreateVersion7()` |
-| `Kind` | `string` | `command` \| `widget` \| `pipeline` \| `code_script` |
+| `Kind` | `string` | `command` \| `widget` \| `pipeline` \| `code_script` \| `event_response` \| `timer` \| `reward` \| `pick_list` (the closed set `PlatformContentKinds`; the last four install through `IPlatformTemplateInstaller`) |
 | `Key` | `string` | Natural key within `Kind` (e.g. `sr`, `raid-flow`, `now-playing-widget`); unique per `Kind` |
 | `DisplayName` | `string` | |
 | `Description` | `string?` | |
@@ -87,9 +87,14 @@ All new entities live in `NomNomzBot.Domain/PlatformContent/Entities/` (new doma
 | `PublishedAt` | `DateTime?` | Null while still a draft |
 | `PublishedByPrincipalId` | `Guid?` | |
 
-### 3.3 Tenant-side provenance (extend `Command`, `Widget`, `Pipeline`, `CodeScript`)
+### 3.3 Tenant-side provenance (`IPlatformSourced`)
 
-Four nullable fields added to each of the four tenant-scoped entities — generalizing the existing `Widget.GalleryItemId`/`InstalledSourceRevision` pair:
+Four nullable fields on every tenant-scoped entity that can be installed from platform content — generalizing the existing `Widget.GalleryItemId`/`InstalledSourceRevision` pair. Two groups carry them:
+
+- **Implement the `IPlatformSourced` interface** (`Domain/PlatformContent/IPlatformSourced.cs`): `EventResponse`, `Timer`, `PickList`, `Reward`.
+- **Carry the same four properties directly, without the interface:** `ChannelBuiltinCommand` (the per-channel row behind a built-in command — the `command` kind installs here, not into `Command`), `Widget`, `Pipeline`, `CodeScript`.
+
+The four fields:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -124,9 +129,9 @@ One new controller. `[ApiVersion("1.0")]`, inherits `BaseController`, `[Authoriz
 
 ### `PlatformContentController` — `[Route("api/v{version:apiVersion}/platform/content")]`
 
-`[Authorize]` + Plane-C policy per action (policy name = action key verbatim, `PlatformIamAuthorizationHandler`, always audited — §5). `saas`-only (§0 marker).
+`[Authorize]` + Plane-C policy per action (policy name = IAM permission key verbatim, `PlatformIamAuthorizationHandler`, always audited — §5). `saas`-only (§0 marker).
 
-| Verb | Path | Request | Response | Plane / floor · Gate-2 action key |
+| Verb | Path | Request | Response | Plane · IAM permission key |
 |---|---|---|---|---|
 | GET | `/definitions` | `?kind=` | `StatusResponseDto<PaginatedResponse<PlatformContentDefinitionDto>>` | platform · `content:read` |
 | GET | `/definitions/{id:guid}` | — | `StatusResponseDto<PlatformContentDefinitionDetailDto>` (incl. version history) | platform · `content:read` |
@@ -137,10 +142,11 @@ One new controller. `[ApiVersion("1.0")]`, inherits `BaseController`, `[Authoriz
 | POST | `/definitions/{id:guid}/versions/{versionId:guid}/publish` | `PublishContentRequest(Mode, PublishNote?, ConfirmedPreviewAffectedCount)` | `StatusResponseDto<PlatformContentPublishJobDto>` | platform · `content:publish` (Critical: reaches every installed tenant; `force` additionally requires `content:publish:force`) |
 | GET | `/publish-jobs/{id:guid}` | — | `StatusResponseDto<PlatformContentPublishJobDto>` | platform · `content:read` |
 | DELETE | `/definitions/{id:guid}` | — | `StatusResponseDto<object>` (sets `RetiredAt`; never touches installed tenant copies) | platform · `content:author` |
+| GET | `/event-response-types` | — | `StatusResponseDto<IReadOnlyList<EventResponsePresetDto>>` (the channel event catalogue the `event_response` template form picks its event from) | platform · `content:read` |
 
 `PublishContentRequest.ConfirmedPreviewAffectedCount` must byte-match the count the immediately-prior `publish-preview` call returned — a changed count (a tenant onboarded or edited their copy in between) fails closed with `PREVIEW_STALE`, forcing a fresh preview. This is the mechanical enforcement of "blast radius shown before commit," not just a UI convention.
 
-New Gate-2 action keys seeded in `ActionDefinitionSeeder`/`roles-permissions.md` §7.1 in the same slice that builds this controller: `content:read` (Support-tier), `content:author` (Elevated-tier), `content:publish` (Critical-tier), `content:publish:force` (Critical-tier, distinct from `content:publish` per the guardrail in §2.1).
+`content:read`, `content:author`, `content:publish` and `content:publish:force` are **Plane-C IAM permission keys** (`IamPermissionKeys`, seeded by `IamCatalogSeeder` in the `IamCategory.Content` bucket) — **not** Gate-2 `ActionDefinition` rows. Each is the `[Authorize(Policy = ...)]` policy name verbatim. `content:publish:force` is distinct from `content:publish` per the guardrail in §2.1.
 
 ---
 
@@ -157,23 +163,60 @@ Populated per existing `IamAuditLog` columns: `Permission` = the action key exer
 
 ---
 
-## 6. Scope pointers — S-ADMIN-2..9
+## 6. Platform defaults admin & per-channel reset
 
-One line each; each is its own slice, spec'd in its own pass before being built:
+Platform content (§2–§5) is *installable content*. Platform **defaults** are the other half: the runtime-editable
+values every channel follows until it chooses for itself. Both live in the platform admin plane; both are `saas`-only
+(§0 marker).
 
-- **S-ADMIN-2 — Content authoring UI.** Dashboard screens driving §4 above: definition list, draft/version editor per `Kind` (command template editor, widget Vue-source + render-gallery preview, pipeline tree editor, code-script multi-file editor — reusing the existing tenant-facing editor components, not forking them), and the publish-preview → confirm flow surfacing §2.1's blast radius.
-- **S-ADMIN-3 — Tenant ops.** Act-as (impersonation) already exists in `AdminController` (`POST tenants/{id}/access`, `POST users/{id}/impersonate`) — gate it explicitly and confirm every impersonated session is audited; suspension must be **enforced** at the auth/middleware layer (not merely flagged in the DB, per `truthful-data-not-fake-enforcement`); add per-tenant quota overrides, forced re-migration, and GDPR export/erase.
-- **S-ADMIN-4 — Plans/billing/entitlements.** Extend `AdminBillingController` (tier grants, founder grants, invoice refunds) with entitlement-override visibility and audit parity with §5.
-- **S-ADMIN-5 — Flags/rollout/kill switches.** Extend `FeatureFlagAdminController` with staged percentage rollout and an emergency kill-switch action distinct from a normal flag flip (own action key, own audit note).
-- **S-ADMIN-6 — Operate + diagnose.** `AdminController` (`system`, `health`, `events`) + `PlatformAnalyticsController` (`stats`) become the incident-diagnosis surface — correlate an alert to the tenant(s)/content version(s) responsible.
-- **S-ADMIN-7 — Support desk.** A single support-session view combining tenant lookup + act-as (§S-ADMIN-3) + this content's install/version history (§4) + the tenant's own audit trail, so a support answer doesn't require five separate tabs.
-- **S-ADMIN-8 — Platform-wide trust & safety.** Extend `AdminSpamDefenseController` defaults; cross-tenant ban/nuke propagation; abuse-pattern detection across tenants (distinct from the per-channel `moderation:nuke` in `chat-client.md` §3.5).
-- **S-ADMIN-9 — Navigability.** Regroup the 11 admin tabs by **job** (author content / operate tenants / bill / gate features / diagnose / support / police) instead of by controller; one primary action per surface and concentric-radius/scarce-accent per the Sleak skill, same bar as the tenant dashboard; breakpoints honoured identically.
+### 6.1 Platform defaults admin (Plane-C · `platform:defaults:manage`)
+
+Four controllers, each `[PlatformPlane]` + `[Authorize(Policy = IamPermissionKeys.PlatformDefaultsManage)]`, each
+following the same shape: **read** the current defaults, **preview** the counted blast radius of a change, then
+**write**. Nothing is saved from a blind button — the preview names how many channels a change moves.
+
+| Family | Route prefix | Read | Preview | Write |
+|---|---|---|---|---|
+| Action permission floors | `api/v1/admin/platform-defaults/actions` | `GET` | `GET {actionKey}/blast-radius` | `PUT {actionKey}` (null level clears) |
+| Event responses | `api/v1/admin/platform-defaults/event-responses` | `GET` | `POST {eventType}/blast-radius` | `PUT {eventType}` |
+| Built-in command replies | `api/v1/admin/platform-defaults/builtin-replies` | `GET` | `POST {builtinKey}/{slot}/blast-radius` | `PUT {builtinKey}/{slot}` |
+| TTS voice | `api/v1/admin/platform-defaults/tts-voice` | `GET` (+ `GET candidates`) | `POST blast-radius` | `PUT` |
+
+### 6.2 Per-channel reset to the platform default
+
+A channel owner can put **one** row back on the platform default. Every reset shows what it replaces first.
+
+- **`IPlatformDefaultRestoreService`** (`PlatformDefaultRestoreService`) — for platform-sourced rows. `PreviewAsync` lists
+  every part of the row that differs from the definition's current published version (`PlatformDefaultPreviewDto`:
+  `InstalledVersion`, `DefaultVersion`, `IsEdited`, `Changes[]`); `RestoreAsync` writes the default and returns the fresh
+  preview (empty `Changes` on success). A row the channel authored itself fails `NOT_PLATFORM_CONTENT`. Supported kinds:
+  `pipeline` and `timer`. Routes: `GET channels/{channelId}/pipelines/{id}/platform-default` and
+  `POST channels/{channelId}/pipelines/{id}/platform-default/restore`; the same pair under `channels/{channelId}/timers/{id}/`.
+- **Family-specific resets** (not routed through the restore service): `POST channels/{channelId}/event-responses/{eventType}/reset`,
+  `POST channels/{channelId}/commands/{commandName}/reset-to-preset`, `POST channels/{channelId}/economy/games/{gameType}/reset`,
+  `POST channels/{channelId}/tts/config/reset`.
+
+### 6.3 The admin plane's tabs
+
+The admin screen groups its destinations by **the question an operator is asking**, not by controller — five groups
+(`AdminTabGroup`), each holding `AdminTab` entries:
+
+| Group | Tabs (`AdminTab`) |
+|---|---|
+| **Activity** — what is it doing now | `Overview`, `EventSubHealth`, `WebhookDeliveries`, `ScheduledJobs`, `TenantUsage`, `ErrorBudget`, `EventReplay`, `Audit` |
+| **People** — who is on the platform | `Channels`, `Users`, `Tenants`, `Support` |
+| **Billing** — money | `Billing` |
+| **Safety** | `SpamDefaults`, `TrustSafety`, `DataRequests` |
+| **Configuration** — how it is set up | `System`, `FeatureFlags`, `Providers`, `Content`, `Iam`, `PlatformBot`, `PlatformDefaults` |
+
+`Support`, `TrustSafety`, `DataRequests`, `PlatformBot` and `PlatformDefaults` appear only when the build wired a client for
+them. `Content` hosts the authoring surface for §4 (one authoring form per `Kind`); `PlatformDefaults` hosts §6.1, one
+segment per family.
 
 ---
 
 ## 7. Open dependencies (not blockers — named so the building slices don't re-derive them)
 
-- `content:*` action keys must land in `ActionDefinitionSeeder` + `roles-permissions.md` §7.1 in the **same** slice that ships `PlatformContentController` (per that spec's own hard rule: a §5 cell whose key is absent from the seed catalogue is a seed bug).
+- `content:*` are IAM permission keys and must stay in `IamPermissionKeys` + `IamCatalogSeeder` (a policy whose key is absent from the seeded IAM catalogue is a seed bug).
 - `IamAuditLog`'s two new columns (§5) require a migration in **both** migration assemblies (SQLite + Postgres) per `two-migration-assemblies-always-both`.
-- The four tenant-entity provenance fields (§3.3) require the same dual migration, plus a one-time backfill pass that stamps existing tenant rows created by the current seeders with `PlatformSourceDefinitionId`/`Version`/`Hash` computed retroactively from the seeder's own known payload — otherwise every pre-existing tenant row reads as tenant-authored (`PlatformSourceDefinitionId = null`) and is silently excluded from every future `update_in_place_where_untouched` publish. This backfill is itself S-ADMIN-1's exit condition for "existing tenants are reachable," not a later slice's problem.
+- The tenant-entity provenance fields (§3.3) require the same dual migration, plus a one-time backfill pass that stamps existing tenant rows created by the current seeders with `PlatformSourceDefinitionId`/`Version`/`Hash` computed retroactively from the seeder's own known payload — otherwise every pre-existing tenant row reads as tenant-authored (`PlatformSourceDefinitionId = null`) and is silently excluded from every future `update_in_place_where_untouched` publish. This backfill is the exit condition for "existing tenants are reachable."

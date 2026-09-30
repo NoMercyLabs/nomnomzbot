@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> Vendored from upstream; install/README instructions refer to upstream. In NomNomzBot the shadcn catalogue says which token and Sleak says which element wins attention (D7).
+
 This repo ships **Sleak**, a design-decision guide for building intentional product UI.
 
 ## When to use it

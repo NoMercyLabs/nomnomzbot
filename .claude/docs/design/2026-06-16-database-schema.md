@@ -4,18 +4,18 @@
 
 ## Changelog — audit deltas applied
 
-Every item from `2026-06-16-database-schema-AUDIT.md` applied as targeted edits at lock. Locked key decision: **all surrogate PKs are `guid` via UUIDv7 (`Guid.CreateVersion7()`), Twitch ids are first-class indexed attribute columns, tenant key `BroadcasterId` is `guid`** (§1.1).
+Locked key decision: **all surrogate PKs are `guid` via UUIDv7 (`Guid.CreateVersion7()`), Twitch ids are first-class indexed attribute columns, tenant key `BroadcasterId` is `guid`** (§1.1).
 
 **Scaling/QoS additions (`spec/scaling-qos.md`):**
 - `CommandLogEntry` (O.11) — durable log-first intake/work queue (append→claim→process); sibling to `EventJournal` (the outcome/fact log).
-- `TierLimit` keys += `worker_concurrency`, `rate_api_per_min`, `rate_command_per_min`, `rate_webhook_in_per_min`, `rate_song_request_per_min` (per-tenant fair-scheduling concurrency cap + inbound rate caps).
+- Per-tenant fair-scheduling concurrency cap + inbound rate caps (`worker_concurrency`, `rate_api_per_min`, `rate_command_per_min`, `rate_webhook_in_per_min`, `rate_song_request_per_min`) are designed in `spec/scaling-qos.md` but are **not `TierLimit` keys in the built system** — the shipped key set is `LimitedResourceRegistry` (see N.2).
 
 **Coverage — 7 tables added:**
 - `EarningRules` (K.1a) — per-source earn rate + caps (was undefined data; `CurrencyConfig` only held name/start-balance).
 - `StreamPresets` (F.10) + `ScheduledStreamChanges` (F.11) — per-game title/game/tag presets + scheduled changes (`Channels` holds only current values).
 - `EventSubConduits` (F.8) + `EventSubConduitShards` (F.9, GLOBAL) — app-global SaaS conduit id/shard-count/shard-assignments that survive restart.
 - `UserPreferences` (R.2, per-user) — holds per-user, adjustable-anytime `GuidanceLevel` (was only on global `DeploymentProfile`).
-- `ChannelBuiltinCommands` (G.2a) — enable/disable + override state for seeded/built-in commands; closes the CLAUDE.md "commands show 0 / seeding skipped" known issue.
+- `ChannelBuiltinCommands` (G.2a) — enable/disable + override state for seeded/built-in commands.
 - `NetworkNukeBatches` (J.2a) + `ModerationActions.NetworkNukeBatchId` link — groups one nuke's fan-out so un-nuke reverses as one unit.
 - Confirmed `UsageRecord.MetricKey` meters `sandbox_exec_ms` (matches `TierLimit` quota).
 
@@ -54,15 +54,15 @@ Every item from `2026-06-16-database-schema-AUDIT.md` applied as targeted edits 
 **Commands/counters/prefix additions (owner `commands-pipelines.md`):**
 - `NamedCounters` (G.4) added — tenant-scoped, soft-delete persistent cross-command counter store (`Key string(50)`, `Value bigint`, **Unique** `(BroadcasterId, Key)`); backs `{{count.<name>}}` + the `set_counter`/`adjust_counter` pipeline actions. Closes the catalog's "named counters have no data source" open question.
 - `Commands` (G.2) per-command trigger model added — `PrefixMode string [VC:enum]` (`Default`\|`Custom`\|`None`), `CustomPrefix string(8) Null` (used when `Custom`), `MatchMode string [VC:enum]` (`StartsWith`\|`Exact`\|`Contains`\|`Regex`, default `StartsWith`), `MatchPattern string(200) Null` (author regex; required only when `MatchMode=Regex`). Built-ins default `PrefixMode=Default`. `Regex` is a first-class match mode made ReDoS-safe by .NET's own `RegexOptions.NonBacktracking` engine (linear-time, no Wasmtime/Jint sandbox) — validated + compiled at save via `IRegexMatcher` (`commands-pipelines.md` §6.4).
-- `Channels` (A.2) `DefaultCommandPrefix string(8)` added (default `!`) — the channel-level default command prefix; effective prefix for any `Commands.PrefixMode=Default`. Home = `Channels` (read on every dispatch hot path; avoids an `AppSetting` lookup per message). Surfaced as `{{bot.prefix}}`.
+- `Channels` (A.2) `CommandPrefix string(5)` added (default `!`; one to five non-whitespace characters) — the channel-level default command prefix; effective prefix for any `Commands.PrefixMode=Default`. Home = `Channels` (read on every dispatch hot path; avoids an `AppSetting` lookup per message). Surfaced as `{{bot.prefix}}`.
 
 **Monetization authoring-count quota additions (owner `monetization-billing.md` §8):**
-- `TierLimit.LimitKey` (N.2) `[VC:enum]` set extended with four authoring-count keys — `response_variations_per_trigger` (per-trigger cap on response-variation count: `Command.TemplateResponses` / `random_response.Messages` on event-responses + reward-redemption responses), `custom_commands`, `timers`, `event_responses` (per-tenant trigger-count caps). Same N.2 mechanism, `LimitValue bigint` (`-1`=unlimited), `IBillingTierService.GetEntitlementAsync` map; **no new table/column**. Seeded by `DataSeeder` (indicative `response_variations_per_trigger` 5/15/40/100 across free/base/pro/premium; self-host resolves all to `-1`). Meters quantity only — template expressiveness is untiered. Add-time enforcement in `ICommandService`/`IEventResponseService`/`ITimerService` (`Result.Failure("tier_limit_reached", …)`), grandfathered on downgrade.
-- `TierLimit.LimitKey` (N.2) `[VC:enum]` set extended with `tts_max_characters` — the per-utterance TTS character cap (safety baseline + tier headroom; absolute ceiling 8000), read by `tts.md` via `IBillingTierService.GetLimitAsync`.
+- `TierLimit.LimitKey` (N.2) is a plain `string(50)`; its valid values are the `LimitedResourceRegistry` keys (`server/src/NomNomzBot.Application/Contracts/Billing/LimitedResourceRegistry.cs`) — one registry, guarded by a structural test that fails when a `[CountedResource]` entity has no registry entry. **NEAR_FREE** authoring-count keys carry a flat safety baseline for every tenant, self-host included, and are never tier-scaled: `custom_commands` (1500), `timers` (200) and `response_variations_per_trigger` (100; per-trigger cap on response-variation count — `Command.TemplateResponses` / `random_response.Messages`). `event_responses` is deliberately not a key: event-response rows are a fixed seeded catalogue, never user-created. Meters quantity only — template expressiveness is untiered. Enforcement runs through `IResourceQuotaService`; an over-limit add returns `Result.Failure` with `tier_limit_reached`.
+- **COST_DRIVING** keys are tier-scaled through `TierLimit` rows (self-host resolves them to `-1`): `tts_max_characters` (TTS characters per month; read by `tts.md` via `IBillingTierService`), `sandbox_exec_ms` (script CPU time per month), `sound_clip_storage_bytes` and `channel_asset_storage_bytes` (stored-bytes live gauges). Three neighbouring built tables sit beside `TierLimit` (see N.2): `PricedUnits`, `TenantLimitOverrides` and `EntitlementGrants`.
 
 **No-free-hosted-tier + tier-scaled limits (owner `monetization-billing.md` / `scaling-qos.md`):**
 - `BillingTier` (N.1) — hosted/SaaS is **paid-only, no free hosted tier**. Public hosted plans seeded `base`/`pro`/`premium` at `PriceCents` `399`/`799`/`1499` (`IsPublic=true`). The `free` row is retained as a **non-public** (`IsPublic=false`, `PriceCents=0`) internal marker for self-host / unbilled installs only — never a cloud plan. `AllowsCustomBotName` seeded **true for `pro`+ only** (`base` shared platform bot; self-host always custom). No column change — seed-policy + Purpose note.
-- `TierLimit` (N.2) — per-tier seed rows now cover **`base`/`pro`/`premium` only** (no hosted `free` rows; self-host gets none and resolves all to `-1`). Every limit is a safety baseline + tier-scaled headroom; `sandbox_exec_ms`, `worker_concurrency`, and the `rate_*` keys are tier-scaled (`base`<`pro`<`premium`). Supersedes the earlier "5/15/40/100 across free/base/pro/premium" seed note (the `free` hosted column is dropped: `base`/`pro`/`premium` = 15/40/100 etc.). No column change — seed-policy + Purpose note.
+- `TierLimit` (N.2) — per-tier seed rows cover **`base`/`pro`/`premium` only** (no hosted `free` rows; self-host gets none and resolves all to `-1`). Only the COST_DRIVING keys are tier-scaled (`base` < `pro` < `premium`); NEAR_FREE keys use the registry's flat safety baseline instead of a tier row. No column change — seed-policy + Purpose note.
 
 **Sandbox egress request-cap additions (owner `custom-code.md` / `code-execution-sandbox.md`):**
 - `HttpEgressAllowlist` (H.7) outbound-request controls added — `MaxRequestBytes int` (default 8192, **reject** when exceeded, not truncate), `AllowRequestBody bool` (default false), `AllowedMethods string(100)` (CSV of permitted HTTP methods, default `GET`), `PathPrefix string(255) Null` (optional path-prefix restriction, null = any path). The prior schema capped only the response (`MaxResponseBytes`); these clamp outbound exfil and scope second-order/confused-deputy SSRF per-row (`code-execution-sandbox.md` §7.1 step 6b/step 9, §7.4).
@@ -78,7 +78,7 @@ Every item from `2026-06-16-database-schema-AUDIT.md` applied as targeted edits 
 
 **18+ gambling-gate provable-adult inference (owner `economy.md`):**
 - `GameConfigs.Requires18Plus` (K.7) is **default `false`**, and the age gate is reframed as an **optional, off-by-default streamer toggle over fun-money** (non-purchasable, non-cashable currency → not regulated gambling, no mandatory 18+), **not** a compliance/KYC requirement. Age/18+ status is treated as **regular personal data, not Art. 9 special-category** (special-category remains pronoun-only); the K.8 cache and `gdpr-crypto.md` §3.6 carry no extra-care/special-category framing for the age gate. When `Requires18Plus=false` (default), plays run with no age check; the inference+self-confirm path engages only when a streamer opts in.
-- `ViewerAgeConsents` (K.8) extended so adults aren't always forced through an explicit consent prompt. `ConfirmationMethod` enum gains `inferred_account_age` (PRIMARY) + `inferred_twitch_personnel` (secondary), alongside the existing `chat_command`\|`dashboard`\|`overlay`. New columns: `LawfulBasis string(30)` (`legitimate_interest` for inferences, `consent` otherwise), `InferredAccountCreatedAt timestamp Null` (immutable `Users.CreatedAt` snapshot for the account-age method), `InferredFromStatus string(20) Null` (snapshotted Twitch `type` for the personnel method), `StatusVerifiedAt timestamp Null` (re-check stamp for the revocable personnel status; unused by the monotonic account-age method); `ConsentRecordId` relaxed to `Null` (inferences carry no consent-ledger row). Account-age threshold = configurable `Age18AccountYears` (code default `7`y; `≥5`y is the proven floor since Twitch min signup age is 13; overridable via `AppSetting` P.11 `economy/age18_account_years`). An inference is **never** written to `ConsentRecords` (O.5) — the consent ledger keeps meaning "the human affirmatively consented"; the inference lives in the K.8 cache only, kept auditable + visibly distinct via the snapshot columns. Affiliate/Partner/broadcaster are excluded as adulthood signals (Twitch permits 13–17 minors to hold them). Gate fails closed on unknown `created_at`/`type`.
+- `ViewerAgeConsents` (K.8) extended so adults aren't always forced through an explicit consent prompt. `ConfirmationMethod` built values: `self_confirm` (explicit consent), `inferred_account_age` (PRIMARY) and `inferred_twitch_personnel` (secondary). Built columns: `ConsentRecordId` (non-null `guid` today — an inference stores `Guid.Empty`; relaxing it to `Null` is tracked as **S-AGECONSENT-NULLABLE**), `Granted`, `ConfirmedAt`, `RevokedAt`, `ConfirmationMethod`. The planned `LawfulBasis`, `InferredAccountCreatedAt`, `InferredFromStatus` and `StatusVerifiedAt` columns are **not built**: the gate reads `Users.AccountCreatedAt` (Twitch `created_at`, set once from Helix Get Users) and `Users.Type` live instead of snapshotting them. Account-age threshold = **7 years**, a code constant (`AgeConsentService.Age18AccountYears`; ≥5y is the proven floor since Twitch min signup age is 13) — not overridable through `AppSetting`. An inference is **never** written to `ConsentRecords` (O.5) — the consent ledger keeps meaning "the human affirmatively consented"; the inference lives in the K.8 cache only. Affiliate/Partner/broadcaster are excluded as adulthood signals (Twitch permits 13–17 minors to hold them). The gate fails closed on an unknown `AccountCreatedAt`/`type`.
 
 **Permanent storage — auto-purge/retention layer removed (owner `gdpr-crypto.md`):**
 - Data is stored **permanently for everyone**; PII is removed **only** by manual crypto-shred erasure-on-request — retention is never tiered, never auto-purged.
@@ -148,10 +148,218 @@ Every item from `2026-06-16-database-schema-AUDIT.md` applied as targeted edits 
 - `ChannelModerationStanding` (J.12) added beside the escalation siblings (J.10/J.11) — the negative bot-side moderation axis (graduated ignore tiers `muted`\|`shadowbanned`\|`blacklisted`; absent row = normal); raw platform `UserId` (deliberately **not** [PII-hash] — hot-path equality match on live inbound chat ids + operator panel); **Unique** `(BroadcasterId, Provider, UserId)`, **Index** `(BroadcasterId, Standing)` (`moderation.md` §1 J.12 + §9 decision 3).
 
 **Pipeline control-flow tree added (owner `pipeline-control-flow.md`):**
-- `PipelineSteps` (H.2) extended with two columns (no new table) — `BlockKind string(20) Null` [VC:enum] (`switch`\|`switch_case`\|`loop`\|`random_branch`\|`random_case`; null = leaf action step) + `BlockConfigJson text Null` [VC:JSON] (block params: switch value/case-match + comparison; loop mode/list-var/count/while-condition; case weight). The existing `ParentStepId` self-FK→`PipelineSteps.Id` + its Index now also carry block nesting; `Order` is reframed as **order-within-parent** and the step set forms a **tree** (block steps own ordered children, walked depth-first under iteration/recursion/total-action/runtime caps). New pipeline actions `run_pipeline`/`break`/`continue` + the block-kinds are config-only (no new role keys; `PipelineStep` stays tenant-scoped via `Pipeline`).
+- `PipelineSteps` (H.2) extended with two columns (no new table) — `BlockKind string(20) Null` [VC:enum] (`if`\|`switch`\|`switch_case`\|`loop`\|`random_branch`\|`random_case`; null = leaf action step) + `BlockConfigJson text Null` [VC:JSON] (block params: switch value/case-match + comparison; loop mode/list-var/count/while-condition; case weight). The existing `ParentStepId` self-FK→`PipelineSteps.Id` + its Index now also carry block nesting; `Order` is reframed as **order-within-parent** and the step set forms a **tree** (block steps own ordered children, walked depth-first under iteration/recursion/total-action/runtime caps). New pipeline actions `run_pipeline`/`break`/`continue` + the block-kinds are config-only (no new role keys; `PipelineStep` stays tenant-scoped via `Pipeline`).
 
 **Discord personal live-notification DMs added (owner `2026-06-16-discord-notifications.md`, 2026-07-17):**
 - `DiscordNotificationRole.DmEnabled bool` (P.10, default false — this role also DMs its opted-in members on dispatch) + `DiscordMemberOptIn.DmChannelId string(32) Null` (P.10 — cached Discord DM channel snowflake, set on first DM) added; per-member DMs reuse `DiscordNotificationDispatch` with `DedupeKey = "{baseDedupeKey}:dm:{discordMemberId}"` (no new table).
+
+## Implementation status
+
+Verified 2026-09-30 against the `server/src/NomNomzBot.Domain` entities and the `AppDbContext` DbSets. One row per table below. **BUILT** = an entity with the spec's name exists; **BUILT-AS `<CodeName>`** = built under a different name or shape; **NOT BUILT** = no entity. The last column names the owning plan slice (`SHORTCOMINGS-EXECUTION-PLAN.md`) where one exists, otherwise the owning spec. Regenerate this table when an entity is added or removed.
+
+| Spec | Table | Status | Code entity | Owning plan slice / spec / note |
+|---|---|---|---|---|
+| A.1 | Users | BUILT | `User` | — |
+| A.2 | Channels | BUILT | `Channel` | column deltas noted in A.2 |
+| A.3 | AuthSessions | BUILT | `AuthSession` | — |
+| A.4 | RefreshTokens | BUILT | `RefreshToken` | — |
+| A.5 | IpcDevModeKeys | BUILT | `IpcDevModeKey` | — |
+| B.1 | ChannelMemberships | BUILT | `ChannelMembership` | — |
+| B.2 | ChannelCommunityStandings | BUILT | `ChannelCommunityStanding` | — |
+| B.3 | ActionDefinitions | BUILT | `ActionDefinition` | — |
+| B.4 | ChannelActionOverrides | BUILT | `ChannelActionOverride` | — |
+| B.5 | PermitGrants | BUILT | `PermitGrant` | — |
+| C.1 | IamPermissions | BUILT | `IamPermission` | — |
+| C.2 | IamRoles | BUILT | `IamRole` | — |
+| C.3 | IamRolePermissions | BUILT | `IamRolePermission` | — |
+| C.4 | IamPrincipals | BUILT | `IamPrincipal` | — |
+| C.5 | IamRoleAssignments | BUILT | `IamRoleAssignment` | — |
+| D.1 | FederationPeers | BUILT | `FederationPeer` | — |
+| D.2 | FederationPeerKeys | BUILT | `FederationPeerKey` | — |
+| D.3 | ChannelFederationOptIns | BUILT | `ChannelFederationOptIn` | — |
+| E.1 | IntegrationConnections | BUILT | `IntegrationConnection` | — |
+| E.2 | IntegrationTokens | BUILT | `IntegrationToken` | — |
+| E.3 | BotAccounts | BUILT | `BotAccount` | — |
+| E.4 | ChannelBotAuthorizations | BUILT | `ChannelBotAuthorization` | — |
+| E.5 | MusicProviderConfig | NOT BUILT | — | no slice queued; owner spec `music-sr.md` |
+| F.1 | Streams | BUILT-AS `Stream` | `Stream` | `Stream` (DbSet `Streams`): `Id` is a string (the platform stream id), tenant key is `ChannelId`, `BaseEntity` (no soft-delete) |
+| F.2 | TwitchSubscribers | NOT BUILT | — | no slice queued; owner spec `twitch-eventsub.md` |
+| F.3 | TwitchFollowers | NOT BUILT | — | no slice queued; owner spec `twitch-eventsub.md` |
+| F.4 | TwitchChannelEventLog | BUILT-AS `ChannelEvent` | `ChannelEvent` | `ChannelEvent` (DbSet `ChannelEvents`): string `Id`, `ChannelId`, `UserId`, `Type`, `Data` |
+| F.5 | Rewards | BUILT | `Reward` | column deltas noted in F.5 |
+| F.6 | RewardRedemptions | BUILT-AS `Redemption` | `Redemption` | `Redemption` (DbSet `Redemptions`): Twitch ids are strings (`RedemptionId`, `RewardId`, `UserId`), no FKs to Rewards/Users/EventJournal |
+| F.7 | EventSubSubscriptions | BUILT | `EventSubSubscription` | — |
+| F.8 | EventSubConduits | BUILT | `EventSubConduit` | populated only when `EventSub:Conduits:Enabled=true` |
+| F.9 | EventSubConduitShards | BUILT | `EventSubConduitShard` | — |
+| F.10 | StreamPresets | NOT BUILT | — | S106 (Stream / live-ops page); owner spec `stream-admin.md` |
+| F.11 | ScheduledStreamChanges | NOT BUILT | — | S106 (Stream / live-ops page); owner specs `stream-admin.md`, `broadcaster-liveops.md` |
+| F.12 | ActivePolls | NOT BUILT | — | S106 (polls with live results); owner spec `broadcaster-liveops.md` |
+| F.13 | ActivePredictions | NOT BUILT | — | S106 (predictions with live results); owner spec `broadcaster-liveops.md` |
+| G.1 | ChatMessages | BUILT | `ChatMessage` | — |
+| G.2 | Commands | BUILT | `Command` | — |
+| G.2a | ChannelBuiltinCommands | BUILT | `ChannelBuiltinCommand` | — |
+| G.3 | CommandCooldownStates | BUILT | `CommandCooldownState` | — |
+| G.4 | NamedCounters | BUILT | `NamedCounter` | — |
+| G.5 | Quotes | BUILT | `Quote` | — |
+| G.6 | Giveaways | BUILT | `Giveaway` | — |
+| G.7 | GiveawayEntries | BUILT | `GiveawayEntry` | — |
+| G.8 | GiveawayWinners | BUILT | `GiveawayWinner` | — |
+| G.9 | GiveawayCodePools | BUILT | `GiveawayCodePool` | — |
+| G.10 | GiveawayCodes | BUILT | `GiveawayCode` | — |
+| G.11 | EngagementConfigs | BUILT | `EngagementConfig` | — |
+| G.12 | ViewerEngagementStates | BUILT | `ViewerEngagementState` | — |
+| G.13 | CustomDataSources | BUILT | `CustomDataSource` | — |
+| G.14 | ViewerData | BUILT-AS `ViewerDatum` | `ViewerDatum` | `ViewerDatum` (DbSet `ViewerData`) |
+| H.1 | Pipelines | BUILT | `Pipeline` | — |
+| H.2 | PipelineSteps | BUILT | `PipelineStep` | — |
+| H.3 | PipelineStepConditions | BUILT | `PipelineStepCondition` | — |
+| H.4 | PipelineExecutions | BUILT | `PipelineExecution` | — |
+| H.5 | CodeScripts | BUILT | `CodeScript` | — |
+| H.6 | CodeScriptVersions | BUILT | `CodeScriptVersion` | — |
+| H.7 | HttpEgressAllowlist | BUILT | `HttpEgressAllowlist` | — |
+| H.8 | OutboundWebhookEndpoints | BUILT | `OutboundWebhookEndpoint` | — |
+| H.9 | OutboundWebhookDeliveries | BUILT | `OutboundWebhookDelivery` | — |
+| H.10 | InboundWebhookEndpoints | BUILT | `InboundWebhookEndpoint` | — |
+| H.11 | InstalledBundle | BUILT | `InstalledBundle` | — |
+| I.1 | Timers | BUILT | `Timer` | — |
+| I.2 | EventResponses | BUILT | `EventResponse` | — |
+| J.1 | ModerationQueueItems | BUILT | `ModerationQueueItem` | — |
+| J.2 | ModerationActions | BUILT-AS `ModerationHistoryEntry` | `ModerationHistoryEntry` | append-only per-action log (DbSet `ModerationHistoryEntries`); no `Origin`, `NetworkNukeBatchId`, `IsReverted` or `QueueItemId` columns |
+| J.2a | NetworkNukeBatches | BUILT | `NetworkNukeBatch` | not `ITenantScoped` (`OriginBroadcasterId`) |
+| J.3 | UserNotes | NOT BUILT | — | notes are `ModerationHistoryEntry` rows with `ActionType=note`; no separate table |
+| J.4 | UserModerationHistory | BUILT | `UserModerationHistory` | — |
+| J.5 | UserTrustScores | BUILT | `UserTrustScore` | — |
+| J.6 | ChatFilters | BUILT | `ChatFilter` | — |
+| J.7 | AutoModConfigs | NOT BUILT | — | no slice queued; owner spec `moderation.md` |
+| J.8 | ViewerReports | BUILT | `ViewerReport` | column deltas: `ResolvedByUserId`/`ResolvedAt`, no `QueueItemId` |
+| J.8a | ViewerReportEvidence | NOT BUILT | — | no slice queued; owner spec `moderation.md` |
+| J.9 | SharedBanSettings | BUILT | `SharedBanSettings` | — |
+| J.9a | SharedBanTrustedChannels | BUILT | `SharedBanTrustedChannel` | — |
+| J.10 | ModerationEscalationPolicies | BUILT | `ModerationEscalationPolicy` | — |
+| J.11 | ModerationEscalationStates | BUILT | `ModerationEscalationState` | — |
+| J.12 | ChannelModerationStanding | BUILT | `ChannelModerationStanding` | — |
+| K.1 | CurrencyConfig | BUILT | `CurrencyConfig` | — |
+| K.1a | EarningRules | BUILT | `EarningRule` | — |
+| K.2 | CurrencyAccounts | BUILT | `CurrencyAccount` | — |
+| K.3 | CurrencyLedgerEntries | BUILT | `CurrencyLedgerEntry` | — |
+| K.4 | SavingsJars | BUILT | `SavingsJar` | cross-tenant; not `ITenantScoped` |
+| K.5 | SavingsJarMemberships | BUILT | `SavingsJarMembership` | cross-tenant; not `ITenantScoped` |
+| K.6 | JarContributions | BUILT | `JarContribution` | cross-tenant; not `ITenantScoped` |
+| K.7 | GameConfigs | BUILT | `GameConfig` | — |
+| K.8 | ViewerAgeConsents | BUILT | `ViewerAgeConsent` | built shape recorded in K.8; nullable `ConsentRecordId` is S-AGECONSENT-NULLABLE |
+| K.9 | GamePlays | BUILT | `GamePlay` | — |
+| K.9a | GameSessions | BUILT | `GameSession` | — |
+| K.10 | CatalogItems | BUILT | `CatalogItem` | — |
+| K.11 | CatalogPurchases | BUILT | `CatalogPurchase` | — |
+| L.1 | LeaderboardConfigs | BUILT | `LeaderboardConfig` | nullable `BroadcasterId`; not `ITenantScoped` |
+| L.2 | LeaderboardOptOuts | BUILT | `LeaderboardOptOut` | — |
+| L.3 | LeaderboardSnapshots | BUILT | `LeaderboardSnapshot` | nullable `BroadcasterId`; not `ITenantScoped` |
+| L.4 | SongRequestQueues | NOT BUILT | — | no slice queued; owner spec `music-sr.md` |
+| L.5 | SongRequestItems | NOT BUILT | — | no slice queued; owner spec `music-sr.md` (`SongRequestQueueItem` is only the durable mirror of the in-memory fair queue, not L.5) |
+| L.6 | SongRequestTrustScores | NOT BUILT | — | no slice queued; owner spec `music-sr.md` |
+| L.7 | SongRequestRaffles | NOT BUILT | — | no slice queued; owner spec `music-sr.md` |
+| L.8 | SongRequestRaffleEntries | NOT BUILT | — | no slice queued; owner spec `music-sr.md` |
+| L.9 | SongRequestBumpTokens | NOT BUILT | — | no slice queued; owner spec `music-sr.md` |
+| L.10 | MediaShareConfigs | BUILT | `MediaShareConfig` | — |
+| L.11 | MediaShareRequests | BUILT | `MediaShareRequest` | — |
+| M.1 | ViewerProfiles | BUILT | `ViewerProfile` | — |
+| M.2 | WatchSessions | BUILT | `WatchSession` | — |
+| M.3 | WatchStreaks | BUILT | `WatchStreak` | — |
+| M.4 | MessageActivityDaily | BUILT | `MessageActivityDaily` | — |
+| M.5 | CommandUsage | BUILT | `CommandUsage` | — |
+| M.7 | ViewerEngagementDaily | BUILT | `ViewerEngagementDaily` | — |
+| M.8 | ChannelAnalyticsDaily | BUILT | `ChannelAnalyticsDaily` | — |
+| N.1 | BillingTier | BUILT | `BillingTier` | — |
+| N.2 | TierLimit | BUILT | `TierLimit` | keys = `LimitedResourceRegistry`; companions `PricedUnit`, `TenantLimitOverride`, `EntitlementGrant` |
+| N.3 | Subscriptions | BUILT | `Subscription` | — |
+| N.4 | Invoice | BUILT | `Invoice` | — |
+| N.5 | UsageRecord | BUILT | `UsageRecord` | — |
+| N.6 | FoundersBadge | BUILT | `FoundersBadge` | — |
+| N.7 | InviteCode | BUILT | `InviteCode` | — |
+| O.1 | EventJournal | BUILT | `EventJournal` | not `ITenantScoped` (nullable `BroadcasterId`); column deltas noted in O.1 |
+| O.1a | EventSubjectKeys | BUILT | `EventSubjectKey` | — |
+| O.2 | EventSnapshot | NOT BUILT | — | no slice queued; owner specs `event-store.md`, `gdpr-crypto.md` |
+| O.3 | ProjectionCheckpoint | BUILT | `ProjectionCheckpoint` | — |
+| O.4 | IdempotencyKey | BUILT | `IdempotencyKey` | — |
+| O.5 | ConsentRecords | BUILT | `ConsentRecord` | nullable `BroadcasterId`; not `ITenantScoped` |
+| O.6 | ErasureRequest | BUILT | `ErasureRequest` | — |
+| O.8 | ModerationAuditLog | NOT BUILT | — | no slice queued; owner specs `moderation.md`, `roles-permissions.md` |
+| O.9 | IamAuditLog | BUILT | `IamAuditLog` | — |
+| O.10 | ComplianceAuditLog | BUILT | `ComplianceAuditLog` | — |
+| O.11 | CommandLogEntry | NOT BUILT | — | no slice queued; owner spec `scaling-qos.md` |
+| P.1 | TtsConfig | BUILT | `TtsConfig` | — |
+| P.1a | TtsApprovalQueueEntry | BUILT | `TtsApprovalQueueEntry` | — |
+| P.2 | TtsVoice | BUILT | `TtsVoice` | — |
+| P.3 | UserTtsVoice | BUILT | `UserTtsVoice` | — |
+| P.4 | TtsUsageRecord | BUILT | `TtsUsageRecord` | int `Id` (legacy key type) |
+| P.5 | TtsCacheEntry | BUILT | `TtsCacheEntry` | int `Id` (legacy key type) |
+| P.6 | Widget | BUILT | `Widget` | — |
+| P.7 | WidgetVersion | BUILT | `WidgetVersion` | — |
+| P.8 | WidgetGalleryItem | BUILT | `WidgetGalleryItem` | — |
+| P.9 | WidgetGallerySubmissionEvent | BUILT | `WidgetGallerySubmissionEvent` | — |
+| P.10 | Discord tables | BUILT | `DiscordGuildConnection`, `DiscordNotificationConfig`, `DiscordNotificationRole`, `DiscordMemberOptIn`, `DiscordLiveRoleConfig`, `DiscordNotificationDispatch` | — |
+| P.11 | AppSetting | BUILT-AS `Configuration` | `Configuration` | legacy shape: int `Id`, `BroadcasterId`, `Key`, `Value`, `SecureValue`; no `ValueType` or `ConfigSchemaVersion` |
+| P.12 | DeploymentProfile | BUILT | `DeploymentProfile` | — |
+| P.13 | FeatureFlag / FeatureFlagOverride | BUILT | `FeatureFlag`, `FeatureFlagOverride` | — |
+| P.14 | ObsConnections | BUILT | `ObsConnection` | — |
+| P.15 | SupporterConnections | BUILT | `SupporterConnection` | — |
+| P.16 | SupporterEvents | BUILT | `SupporterEvent` | — |
+| P.17 | AutomationApiToken | BUILT | `AutomationApiToken` | — |
+| P.18 | SoundClip | BUILT | `SoundClip` | — |
+| P.19 | VtsConnection | BUILT | `VtsConnection` | — |
+| Q.1 | CryptoKey | BUILT | `CryptoKey` | — |
+| Q.2 | KeyUsageBinding | BUILT | `KeyUsageBinding` | — |
+| Q.3 | TenantSequences | BUILT | `TenantSequence` | non-null `BroadcasterId`; not `ITenantScoped` |
+| R.1 | Pronouns | BUILT-AS `Pronoun` | `Pronoun` | `Pronoun` (DbSet `Pronouns`): int `Id`; built column shape recorded in R.1 |
+| R.2 | UserPreferences | NOT BUILT | — | no slice queued; owner specs `identity-auth.md`, `onboarding-setup.md` |
+| S.1-S.5 | Platform content and reset-to-default | BUILT | `PlatformContentDefinition`, `PlatformContentVersion`, `PlatformContentPublishJob`, `PlatformEventResponseDefault`, `PlatformBuiltinReplyDefault` | new Domain S section |
+
+**Built tables with no section in this spec** (each has a `DbSet` in `AppDbContext`):
+
+| Code entity | Area | Spec home |
+|---|---|---|
+| `UserIdentity` | identity (D1/D2) | no section yet |
+| `PlatformConnection` | identity (D1) | no section yet |
+| `ChannelMissingScope` | identity | no section yet |
+| `SecurityNotice` | identity | no section yet |
+| `ActionRequiredDismissal` | notifications | no section yet |
+| `ChatTrigger`, `VoiceTrigger`, `VoiceTranscriptSegment` | commands | no section yet |
+| `ScheduledPipelineTask`, `PipelineTrigger`, `PipelineRunState` | pipelines | no section yet |
+| `RedemptionTimer` | rewards | no section yet |
+| `NetworkBlock` | moderation — deployment-wide, deliberately not tenant-filtered | no section yet |
+| `SpamDefensePolicy`, `SpamDetection`, `SpamCampaignRecord`, `FollowBotBlock`, `SpamSignature` | spam defence (`SpamSignature` is instance-wide, not tenant-scoped) | no section yet |
+| `TrustPolicy` | trust | no section yet |
+| `ChatPoll`, `ChatPollVote` | community | no section yet |
+| `YouTubeLiveChatBan` | chat | no section yet |
+| `BlockedTrack`, `SongRequestQueueItem` | music | no section yet |
+| `PickList` | pick lists | no section yet |
+| `ShoutoutOverride` | stream | no section yet |
+| `TtsLexiconEntry` | TTS | no section yet |
+| `ChannelAsset` | assets | no section yet |
+| `AlertQueueEntry`, `RenderedAlertCapture` | alerts / widgets | no section yet |
+| `ChannelChatterDay` | analytics | no section yet |
+| `EventSubInboxMessage` | EventSub | no section yet |
+| `PricedUnit`, `TenantLimitOverride`, `EntitlementGrant` | billing | described in N.2 |
+
+**Legacy tables** (built before the clean-slate rebuild; each is either superseded by a spec table or unaddressed):
+
+| Code entity | DbSet | Relation to this spec |
+|---|---|---|
+| `Service` | `Services` | superseded by `IntegrationConnections` + `IntegrationTokens` + `CryptoKey` (§6 delta 5) |
+| `Storage` | `Storages` | not in any delta (G3) |
+| `Record` | `Records` | not in any delta (G3) |
+| `Permission` | `Permissions` | superseded by `ActionDefinitions` + `ChannelActionOverrides` + `PermitGrants` (§6 delta 3) |
+| `ChannelFeature` | `ChannelFeatures` | not in any delta |
+| `ChannelSubscription` | `ChannelSubscriptions` | superseded by `Subscriptions` (§6 delta 7); int `Id` |
+| `ChannelModerator` | `ChannelModerators` | superseded by `ChannelMemberships` (§6 delta 4) |
+| `DeletionAuditLog` | `DeletionAuditLogs` | superseded by `ComplianceAuditLog` (§6 delta 9); int `Id` |
+
+**Open owner question — legacy tables.** For each legacy table above: keep, fold into a spec table, or drop. Three items from the removed review appendix are still open and ride on this question:
+- **G2 — level ladder has no single source.** `ChannelMemberships.LevelValue`, `ChannelCommunityStandings.LevelValue` and the `ActionDefinitions` floor/default ints encode the same numeric ladder in three places. Options: a `PermissionLevels(Value int PK, Key, DisplayName)` lookup as the one source, or state that the ladder is code-only and re-tiering is a code change.
+- **G3 — `Storage` and `Record` are live but unspecified.** `DbSet<Storage>` and `DbSet<Record>` exist in code and appear in no delta. Keep, fold into `Configuration`/`AppSetting`, or drop.
+- **C4 — `DiscordNotificationConfig.PingRoleId` is a single nullable FK.** If a config may ping more than one role, replace it with a `DiscordNotificationConfigRoles` join table; if exactly one, document the constraint.
+
+**Open, not a table gap — Postgres RLS.** The EF global query filter is wired for every `ITenantScoped` entity (§4). Postgres RLS policies and the cross-tenant predicates (`SavingsJars`, federation, shared bans) are still open; the RLS owner question carries them, including the requirement of a tenant-A-cannot-read-tenant-B test.
 
 ---
 
@@ -166,7 +374,7 @@ This spec resolves every inter-set inconsistency, dedupes every overlap, and gua
 ## 1. CONVENTIONS (apply to every table; stated once, never repeated per row)
 
 ### 1.1 Keys — **LOCKED**
-- **Surrogate PK `Id` on every table.** Type is `guid` generated **app-side as UUIDv7** via native `Guid.CreateVersion7()` (.NET 9+; this build is .NET 10 / C# 14 / EF Core 10) — time-ordered / index-friendly like a ULID, **zero 3rd-party lib**. Never DB-default-generated, never `Guid.NewGuid()` for new rows. Stored portably — `uuid` on Postgres, `TEXT`/`char(36)` on SQLite via EF. **Exception:** append-only high-volume journals/logs/snapshots use `bigint` identity for monotonic ordering. The PK is **never** PII and is the **only** thing FKs reference.
+- **Surrogate PK `Id` on every table.** Type is `guid` generated **app-side as UUIDv7** via native `Guid.CreateVersion7()` (.NET 9+; this build is .NET 10 / C# 14 / EF Core 10) — time-ordered / index-friendly like a ULID, **zero 3rd-party lib**. Never DB-default-generated, never `Guid.NewGuid()` for new rows. Stored portably — `uuid` on Postgres, `TEXT`/`char(36)` on SQLite via EF. **Exceptions:** append-only high-volume journals/logs/snapshots use `bigint` identity for monotonic ordering; the seed lookup `Pronouns` keys on `int` (`Pronouns.Id`), so `Users.PronounId` and `Users.AltPronounId` are `int?` FKs; the legacy int-keyed tables (see *Implementation status*) are the only other `int` keys. The PK is **never** PII and is the **only** thing FKs reference.
 - **External provider ids are first-class indexed attributes, never keys.** `TwitchUserId`, `TwitchChannelId`, `TwitchRewardId`, `TwitchRedemptionId`, `GuildId`, `StripeSubscriptionId`, etc. are stored as plain indexed columns (unique-indexed where they must dedupe) — fully usable consumer-side and for every Helix call. Anonymizing one never touches the FK graph; the guid is internal FK + GDPR-shred only.
 - **All FKs reference surrogate `Id` columns** (`Users.Id`, `Channels.Id`, …). No FK ever points at a Twitch id.
 - **Tenant key `BroadcasterId` is `guid`** (FK→`Channels.Id`) everywhere — `ITenantScoped.BroadcasterId` is widened `string`→`Guid`. One-time clean-slate rebuild; enables O(1) cascade-safe erasure. **DECIDED — adopt (owner decision #1).**
@@ -220,8 +428,10 @@ Columns are flagged in Notes:
 | OfflineImageUrl | string(2048) | Null | |
 | Color | string(7) | Null | `#RRGGBB`. |
 | BroadcasterType | string(50) | | `""`\|`affiliate`\|`partner`. |
-| PronounId | guid | FK→Pronouns, Null, Index | **[PII-S9]** lookup FK (NOT an enum — grammar attrs subject/object/… drive TTS/pronunciation). Special-category; explicit-consent gated. Nulled on scrub. |
-| AltPronounId | guid | FK→Pronouns, Null, Index | **[PII-S9]** secondary pronoun (alejo `alt_pronoun_id`); drives the display badge's second half only. Special-category; nulled on scrub with `PronounId`. |
+| AccountCreatedAt | timestamp | Null | Twitch `created_at`, set once from Helix Get Users (an immutable platform fact; null until hydrated). Basis of the account-age 18+ inference (K.8). |
+| Type | string(20) | | Twitch staff classification (Helix Get Users `type`): `""`\|`staff`\|`admin`\|`global_mod`. Revocable, so re-read live; basis of the personnel 18+ inference (K.8). |
+| PronounId | int | FK→Pronouns, Null, Index | **[PII-S9]** lookup FK (NOT an enum — grammar attrs subject/object/… drive TTS/pronunciation). Special-category; explicit-consent gated. Nulled on scrub. |
+| AltPronounId | int | FK→Pronouns, Null, Index | **[PII-S9]** secondary pronoun (alejo `alt_pronoun_id`); drives the display badge's second half only. Special-category; nulled on scrub with `PronounId`. |
 | PronounManualOverride | bool | | |
 | Timezone | string(50) | Null | |
 | Description | string(500) | Null | |
@@ -249,18 +459,21 @@ Purpose: every distinct platform identity (streamers, mods, viewers) — the sur
 | SuspendedReason | string(500) | Null | Justification (ToS / churn note). |
 | DeploymentMode | string(20) | | `saas`\|`self_host_lite`\|`self_host_full`. [VC:enum]. |
 | BillingTierKey | string(20) | Index | Denormalized current tier (`free`\|`base`\|`pro`\|`premium`); source of truth is `Subscriptions`. |
-| IsFounder | bool | | Cosmetic perk (also tracked in `FoundersBadge`). |
 | IsOnboarded | bool | | |
 | Enabled | bool | | |
 | IsLive | bool | | |
 | OverlayToken | string(36) | Unique | Opaque browser-source token (not PII). |
 | SongRequestPageToken | string(64) | Null, Unique | Opaque, rotatable public song-request page token (not PII; mirrors `OverlayToken`). Resolves the `/(public)/sr/[channel]` page → `BroadcasterId`; null until first minted. See `music-sr.md` §3.7. |
-| DefaultCommandPrefix | string(8) | | Channel-level default command prefix; default `!`. The effective prefix for any command whose `Commands.PrefixMode=Default`. Surfaced as `{{bot.prefix}}`. |
+| CommandPrefix | string(5) | | Channel-level command prefix (one to five non-whitespace characters); default `!`. The effective prefix for any command whose `Commands.PrefixMode=Default`. Surfaced as `{{bot.prefix}}`. |
+| Personality | string(20) | | The channel's built-in-command voice ([VC:enum] `PersonalityTone`: `informative`\|`friendly`\|`sassy`\|`hype`\|…); default `informative`. |
+| BotLinePrefix | string(16) | Null | User-defined visible marker prefixed to bot-emitted chat lines when the bot posts through the streamer's own account (D5); one to four characters; null/empty = none. Separate from the invisible loop-guard stamp. |
 | ShoutoutTemplate | string(450) | Null | (carried from current entity). |
 | LastShoutout | timestamp | Null | |
 | ShoutoutInterval | int | | Default 10. |
 | UsernamePronunciation | string(100) | Null | |
 | BotJoinedAt | timestamp | Null | |
+| AnnounceOnConnect | bool | | Opt-in, default false: the bot posts a short tone-resolved "I'm online" line when it joins the channel. |
+| RewardsSyncedAt | timestamp | Null | When the throttled background Twitch-rewards import last ran for this channel; null until the first Rewards page load. |
 | StreamDelay | int | | |
 | Language | string(50) | Null | |
 | GameId | string(50) | Null | |
@@ -608,6 +821,7 @@ Purpose: SaaS operators (employees + machine service accounts) IAM roles attach 
 ## DOMAIN F — Twitch Domain (Streams, Subs, Followers, Events, Rewards, EventSub)
 
 ### F.1 Streams `[soft-delete]` — live broadcast session
+> **BUILT-AS `Stream`** (DbSet `Streams`). Built shape differs: `Id` is a string (the platform stream id), the tenant key is `ChannelId guid`, the entity is a plain `BaseEntity` (no soft-delete), and it carries `Delay` and `PeakViewers`.
 | Name | Type | Key/Null/Index/Unique | Notes |
 |---|---|---|---|
 | Id | guid | PK | |
@@ -698,12 +912,16 @@ Purpose: dashboard activity feed + per-event aggregates without a table per even
 | GlobalCooldownSeconds | int | Null | |
 | ShouldSkipRequestQueue | bool | | |
 | PipelineId | guid | FK→Pipelines, Null, Index | Attached pipeline (normalized, not inline JSON). |
-| IsManaged | bool | | True = bot's client_id created the reward on Twitch and controls its lifecycle (Helix create/update/delete + fulfill/refund); false = reward exists on Twitch but the bot only observes and reacts. Renamed from `IsPlatform` (inverted: old `IsPlatform=true` "Twitch-native, observe-only" == `IsManaged=false`). Owner: `spec/rewards.md`. |
+| PipelineJson | text | Null | **Legacy inline pipeline blob**, still on the entity; superseded by `PipelineId` and kept only until the inline data is migrated. |
+| IsManageable | bool | | True = the bot's `client_id` created the reward on Twitch and controls its lifecycle (Helix create/update/delete + fulfill/refund); false = the reward exists on Twitch but the bot only observes and reacts (Twitch reports `is_manageable=false`; "take control" recreates it under our client). Owner: `spec/rewards.md`. |
+| IsPlatform | bool | | Still present as its own column; it is **not** replaced by `IsManageable` (the two flags are independent). |
+| PendingMigrationRequestedAt | timestamp | Null | Set when "take control" of an unmanaged reward is blocked by Twitch's title-uniqueness rule; the dashboard then shows "Finalize migration" until the retry completes the recreate and clears it. |
 | CreatedAt/UpdatedAt/DeletedAt | timestamp | DeletedAt Null | |
 
-Purpose: local source-of-truth for a channel-point reward, mirrored to/from Twitch.
+Purpose: local source-of-truth for a channel-point reward, mirrored to/from Twitch. Also built (not modelled above): `Response`, `Permission`, `TimerDurationSeconds` and the four `PlatformSource*` provenance columns (Domain S).
 
 ### F.6 RewardRedemptions `[APPEND-ONLY]`
+> **BUILT-AS `Redemption`** (DbSet `Redemptions`). Built shape differs: Twitch ids are strings (`RedemptionId`, `RewardId`, `UserId`), with no FKs to `Rewards`/`Users`/`EventJournal`; it also carries `UpdatedAt`.
 | Name | Type | Key/Null/Index/Unique | Notes |
 |---|---|---|---|
 | Id | bigint | PK | |
@@ -758,7 +976,7 @@ Purpose: local source-of-truth for a channel-point reward, mirrored to/from Twit
 | LastReconciledAt | timestamp | Null | Last shard-assignment reconcile with Twitch. |
 | CreatedAt/UpdatedAt | timestamp | | |
 
-**Unique** `ConduitId`. Purpose: the app-global SaaS conduit (id + shard count), parent of its shards. `EventSubSubscriptions.ConduitId` denormalizes this id; the conduit object itself (transport `conduit`) lives here so it survives restart and isn't re-derived per subscription.
+**Unique** `ConduitId`. Purpose: the app-global SaaS conduit (id + shard count), parent of its shards. `EventSubSubscriptions.ConduitId` denormalizes this id; the conduit object itself (transport `conduit`) lives here so it survives restart and isn't re-derived per subscription. Populated only when `EventSub:Conduits:Enabled=true` (default `false`).
 
 ### F.9 EventSubConduitShards `[GLOBAL]`
 | Name | Type | Key/Null/Index/Unique | Notes |
@@ -892,7 +1110,7 @@ Purpose: local source-of-truth for a channel-point reward, mirrored to/from Twit
 | BroadcasterId | guid | FK→Channels, Index | Tenant. |
 | Name | string(100) | | Trigger keyword (no prefix; prefix is applied per `PrefixMode` at match time). |
 | NameNormalized | string(100) | Index | Lowercased `Name`; the unique constraint references it (case-insensitive). |
-| PrefixMode | string(20) | | `Default`\|`Custom`\|`None`. [VC:enum]. `Default` = channel `Channels.DefaultCommandPrefix`; `Custom` = `CustomPrefix`; `None` = no prefix. Built-ins default to `Default`. |
+| PrefixMode | string(20) | | `Default`\|`Custom`\|`None`. [VC:enum]. `Default` = channel `Channels.CommandPrefix`; `Custom` = `CustomPrefix`; `None` = no prefix. Built-ins default to `Default`. |
 | CustomPrefix | string(8) | Null | Used only when `PrefixMode=Custom` (e.g. `?`, `+`). Null otherwise. |
 | MatchMode | string(20) | | `StartsWith`\|`Exact`\|`Contains`\|`Regex`. [VC:enum]. Default `StartsWith`. (`Regex` matches via `IRegexMatcher` — `RegexOptions.NonBacktracking`, linear-time/ReDoS-safe by construction, no sandbox; commands-pipelines §6.4.) |
 | MatchPattern | string(200) | Null | Author regex; required only when `MatchMode=Regex`, null otherwise. Validated + `NonBacktracking`-compiled at save via `IRegexMatcher.ValidateAndCompile` (rejects backreference/lookaround/atomic-group + over-length). |
@@ -926,7 +1144,7 @@ Purpose: local source-of-truth for a channel-point reward, mirrored to/from Twit
 | OverridesJson | text | Null | **[VC:JSON]** optional per-channel overrides (cooldown, min role, response). |
 | CreatedAt/UpdatedAt/DeletedAt | timestamp | DeletedAt Null | |
 
-**Unique** `(BroadcasterId, BuiltinKey)`. Purpose: enable/disable + override state for **seeded/built-in** commands (e.g. `!followage`), distinct from authored `Commands`. Closes the CLAUDE.md "commands show 0 / seeding skipped" known issue: a channel with no authored commands still has built-in toggles, so a missing seed never presents as zero commands.
+**Unique** `(BroadcasterId, BuiltinKey)`. Purpose: enable/disable + override state for **seeded/built-in** commands (e.g. `!followage`), distinct from authored `Commands`. A channel with no authored commands still has built-in toggles, so a missing seed never presents as zero commands.
 
 ### G.3 CommandCooldownStates
 | Name | Type | Key/Null/Index/Unique | Notes |
@@ -1410,8 +1628,8 @@ Purpose: immutable audited jar movement log with federation-enforced source chan
 ### K.8 ViewerAgeConsents `[soft-delete]`
 > **Consolidated with GDPR `ConsentRecord` (Domain O).** This is the economy-facing view; the authoritative consent row lives in `ConsentRecords` with `ConsentType=age_18_gambling`. Kept as a thin 1:1 cache for fast gambling-gate checks.
 
-`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `ViewerUserId guid FK→Users Index`; `ViewerTwitchUserId string(50) Index` **[PII-hash]**; `ConsentRecordId guid FK→ConsentRecords Null Index` (Null for inferences — they have no consent-ledger row); `Granted bool`; `ConfirmedAt timestamp`; `RevokedAt timestamp Null`; `ConfirmationMethod string(30)` (`chat_command`\|`dashboard`\|`overlay`\|`inferred_account_age`\|`inferred_twitch_personnel` [VC:enum]); `LawfulBasis string(30)` (`consent`\|`legitimate_interest` [VC:enum]; `legitimate_interest` for the two `inferred_*` methods, `consent` otherwise); `InferredAccountCreatedAt timestamp Null` (snapshot basis for `inferred_account_age` — the immutable `Users.CreatedAt` the gate compared); `InferredFromStatus string(20) Null` (snapshot basis for `inferred_twitch_personnel` — the Twitch `type` observed: `staff`\|`admin`\|`global_mod`); `StatusVerifiedAt timestamp Null` (last live re-check of the revocable personnel status; **unused** by the monotonic account-age method); `CreatedAt/UpdatedAt/DeletedAt`.
-**Unique** `(BroadcasterId, ViewerUserId)`. Purpose: lightweight per-channel cache for the **optional, off-by-default** fun-money 18+ toggle (engages only when a streamer sets `GameConfigs.Requires18Plus=true`; see `economy.md` §3.5/§3.6) — a "remember this viewer is 18+ in this channel" record, NOT a special-category consent store. Age/18+ status is **regular personal data**, not Art. 9 special-category (that treatment is for pronouns, separate). Carries BOTH self-confirmation (`ConfirmationMethod ∈ {chat_command,dashboard,overlay}`, `LawfulBasis=consent`, IP/version proof on the linked `ConsentRecords`) AND provable-adult **inferences** (`ConfirmationMethod ∈ {inferred_account_age,inferred_twitch_personnel}`, `LawfulBasis=legitimate_interest`, `ConsentRecordId` null). The `LawfulBasis`/snapshot columns are kept because they stay useful and honest (each inference auditable + visibly distinct), but no extra-care/special-category handling applies. An inference is **never** materialized as a `ConsentRecords(age_18_gambling,granted,consent)` row — the consent ledger keeps meaning strictly "the human affirmatively self-confirmed". Account-age inference is monotonic (immutable `created_at`, no TTL); personnel inference is revocable (re-checked via `StatusVerifiedAt`). Affiliate/Partner/broadcaster are excluded as adulthood signals (Twitch permits 13–17 minors to hold them). See `economy.md` §3.6.
+`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `ViewerUserId guid FK→Users Index`; `ViewerTwitchUserId string(50) Index` **[PII-hash]**; `ConsentRecordId guid` (**built as non-null**: an inference stores `Guid.Empty` because it has no consent-ledger row; making it `Null` + FK→`ConsentRecords` is tracked as **S-AGECONSENT-NULLABLE**); `Granted bool`; `ConfirmedAt timestamp`; `RevokedAt timestamp Null`; `ConfirmationMethod string(30)` (`self_confirm`\|`inferred_account_age`\|`inferred_twitch_personnel` [VC:enum]); `CreatedAt/UpdatedAt/DeletedAt`.
+**Index** `(BroadcasterId, ViewerUserId)` — non-unique; one row per pair is enforced in `IAgeConsentService`. Purpose: lightweight per-channel cache for the **optional, off-by-default** fun-money 18+ toggle (engages only when a streamer sets `GameConfigs.Requires18Plus=true`; see `economy.md` §3.5/§3.6) — a "remember this viewer is 18+ in this channel" record, NOT a special-category consent store. Age/18+ status is **regular personal data**, not Art. 9 special-category (that treatment is for pronouns, separate). Carries BOTH self-confirmation (`ConfirmationMethod=self_confirm`, backed by a `ConsentRecords` row) AND provable-adult **inferences** (`inferred_account_age`, `inferred_twitch_personnel`; `ConsentRecordId=Guid.Empty`). **Not built:** `LawfulBasis`, `InferredAccountCreatedAt`, `InferredFromStatus`, `StatusVerifiedAt` — the gate reads `Users.AccountCreatedAt` (A.1; Twitch `created_at`, set once from Helix Get Users) and `Users.Type` live instead of snapshotting them on the cache row. An inference is **never** materialized as a `ConsentRecords(age_18_gambling,granted,consent)` row — the consent ledger keeps meaning strictly "the human affirmatively self-confirmed". The account-age inference is monotonic (immutable `created_at`, no TTL) with a threshold of **7 years**, a code constant (`AgeConsentService.Age18AccountYears`; ≥5y is the proven floor since Twitch min signup age is 13) — not configurable through `AppSetting`. The personnel inference (`staff`\|`admin`\|`global_mod`) is revocable and re-checked live on every gate call, never short-circuited from the cache. Affiliate/Partner/broadcaster are excluded as adulthood signals (Twitch permits 13–17 minors to hold them). The gate fails closed on an unknown user, `AccountCreatedAt` or `type`. See `economy.md` §3.6.
 
 ### K.9 GamePlays `[APPEND-ONLY]`
 `Id bigint PK`; `BroadcasterId guid FK→Channels Index`; `GameConfigId guid FK→GameConfigs Index`; `GameSessionId guid FK→GameSessions Null Index` (null for instant `PlayAsync` games; set for every live-game award row — see K.9a); `PlayerAccountId guid FK→CurrencyAccounts Index`; `PlayerUserId guid FK→Users Index` **[PII via id]**; `BetAmount bigint`; `Outcome string(20) Index` (`win`\|`lose`\|`push`\|`jackpot` [VC:enum]); `PayoutAmount bigint`; `NetResult bigint`; `ResultJson text Null` **[VC:JSON]**; `BetLedgerEntryId bigint FK→CurrencyLedgerEntries Null`; `PayoutLedgerEntryId bigint FK→CurrencyLedgerEntries Null`; `CreatedAt Index`.
@@ -1520,8 +1738,17 @@ Purpose: each queued track with requester attribution + lifecycle. `waiting` = p
 Purpose: tier catalog + commercial attributes (Stripe mapping, premium gates). **Hosted/SaaS is paid-only — there is no free hosted tier.** The seeded **public** hosted plans are `base` (`399` cents), `pro` (`799`), `premium` (`1499`), all `IsPublic=true`. The `free` row is seeded `PriceCents=0`, `IsPublic=false` and exists **only** as the internal marker for self-host / unbilled installs — it is never a cloud plan and SaaS signup can never land on it. `AllowsCustomBotName` is **true for `pro`+ only** (`base` uses the shared platform bot; self-host always allows a custom bot identity). Seed values are reference data (`spec/monetization-billing.md` §10).
 
 ### N.2 TierLimit `[GLOBAL]`
-`Id guid PK`; `TierId guid FK→BillingTier Index`; `LimitKey string(50) Index` (sandbox_exec_ms/widget_count/asset_storage_mb/queue_size/request_quota_per_day/response_variations_per_trigger/custom_commands/timers/event_responses/worker_concurrency/rate_api_per_min/rate_command_per_min/rate_webhook_in_per_min/rate_song_request_per_min/tts_max_characters [VC:enum]); `LimitValue bigint` (-1 = unlimited).
-**Unique** `(TierId, LimitKey)`. Purpose: per-tier quotas around real cost drivers + authoring-count caps (`response_variations_per_trigger`, `custom_commands`, `timers`, `event_responses` — meter quantity, never template expressiveness; self-host resolves all to -1). Every limit is a **safety baseline plus tier-scaled headroom** (`base` < `pro` < `premium`; `scaling-qos.md` §0 D11); the sandbox-budget quota (`sandbox_exec_ms`) and the rate/concurrency keys (`worker_concurrency`, `rate_*`) are **tier-scaled** the same way. Seeded by `DataSeeder` for the **three hosted tiers `base`/`pro`/`premium` only** — there is no hosted `free` tier, so no `free` `TierLimit` rows are seeded; **self-host receives no rows and resolves every limit to `-1`**. See `spec/monetization-billing.md` §8 / §10.
+`Id guid PK`; `TierId guid FK→BillingTier Index`; `LimitKey string(50) Index` (a `LimitedResourceRegistry` key — see below); `LimitValue bigint` (-1 = unlimited).
+**Unique** `(TierId, LimitKey)`. Purpose: per-tier quotas around real cost drivers. `LimitedResourceRegistry` (`server/src/NomNomzBot.Application/Contracts/Billing/LimitedResourceRegistry.cs`) is the single declaration of every limit key:
+- **NEAR_FREE** (one DB row, effectively free to serve) — a flat safety baseline for every tenant, self-host included; **never tier-scaled and no `TierLimit` rows**: `custom_commands` (1500), `timers` (200), `response_variations_per_trigger` (100).
+- **COST_DRIVING** (maps to a real bill) — tier-scaled through `TierLimit` rows (`base` < `pro` < `premium`; self-host resolves to `-1`): `tts_max_characters` (TTS characters per month), `sandbox_exec_ms` (script CPU time per month), `sound_clip_storage_bytes` and `channel_asset_storage_bytes` (stored-bytes live gauges — the SUM of currently-live rows' `SizeBytes`, so deleting a clip or asset lowers usage at once).
+
+`event_responses` is deliberately not a key (event-response rows are a fixed seeded catalogue, never user-created). The earlier design also listed `widget_count`, `asset_storage_mb`, `queue_size`, `request_quota_per_day`, `worker_concurrency` and the `rate_*` keys; none of them is in the registry, so none exists. Meters quantity only — template expressiveness is untiered. Seeded by `DataSeeder` for the **three hosted tiers `base`/`pro`/`premium` only** — there is no hosted `free` tier, so no `free` `TierLimit` rows are seeded; **self-host receives no rows and resolves every limit to `-1`**. See `spec/monetization-billing.md` §8 / §10.
+
+**Companion tables (built; not in the original spec):**
+- `PricedUnits` (GLOBAL, soft-delete) — the owner-authored real-world price of one usage unit: `UnitKey` (a `UsageRecord.MetricKey`, or the synthetic `tts_characters`), `Currency`, `PriceMinorUnitsPerBatch bigint`, `BatchSize bigint`. No row = unpriced (never assumed zero); cost is computed live at the current rate.
+- `TenantLimitOverrides` (tenant, soft-delete) — an operator-set per-tenant ceiling: `BroadcasterId`, `LimitKey`, `LimitValue` (`-1` = unlimited), `Reason`, `GrantedByPrincipalId`, `ExpiresAt Null`. Overrides both the NEAR_FREE baseline and the tier limit for that tenant alone.
+- `EntitlementGrants` (tenant, soft-delete) — a comp: `BroadcasterId`, `GrantedTierId`, `Reason`, mandatory `ExpiresAt`, `IssuedAt`, `IssuedByAdminId Null`. A live grant lifts the tenant's effective tier.
 
 ### N.3 Subscriptions `[soft-delete]`
 `Id guid PK`; `BroadcasterId guid FK→Channels **Unique** Index`; `TierId guid FK→BillingTier Index`; `Status string(20) Index` (active/trialing/past_due/canceled/incomplete [VC:enum]); `StripeCustomerIdCipher string(512) Null` **[PII-shred]**; `StripeSubscriptionId string(255) Null Index`; `BillingEmailCipher string(512) Null` **[PII-shred]**; `SubjectKeyId guid FK→CryptoKey Null` (DEK for billing PII); `CurrentPeriodStart timestamp Null`; `CurrentPeriodEnd timestamp Null`; `TrialEndsAt timestamp Null` (drives `trialing`→active/past_due); `GracePeriodEndsAt timestamp Null` (drives `past_due` dunning/grace transitions from Stripe webhooks); `CancelAtPeriodEnd bool`; `CanceledAt timestamp Null`; `IsInviteOnlyGrant bool`; `CreatedAt/UpdatedAt/DeletedAt`.
@@ -1563,7 +1790,10 @@ Purpose: tier catalog + commercial attributes (Stripe mapping, premium gates). *
 | CorrelationId | guid | Index, Null | |
 | CausationId | guid | Null | |
 | ActorUserId | guid | FK→Users, Null, Index | Internal surrogate of actor. |
-| ActorTwitchUserId | string(50) | Null | **[PII-hash]** (when present). |
+| ActorExternalUserId | string(50) | Null | The actor's platform-specific external user id, interpreted under `ActorProvider`; **[PII-hash]** when present; null for system/historical rows with no external actor. |
+| ActorProvider | string(20) | Null | Namespace of `ActorExternalUserId`: `twitch`\|`kick`\|`youtube`\|`twitter` (the provider vocabulary shared with `Channels.Provider` / `UserIdentity`); null when there is no external actor. |
+| OnBehalfOfUserId | guid | Null, Index | Internal surrogate of the user a write was made **on behalf of** — set only when `ActorUserId` was impersonating someone (act-as). With `ImpersonationSessionId` it is the dual-actor trail every impersonated write leaves; `ActorUserId` stays the operator. |
+| ImpersonationSessionId | guid | Null | The impersonation session (the backing support-access grant id, also the token's `sid`) the write was made under, when `OnBehalfOfUserId` is set. |
 | Metadata | text | | **[VC:JSON]** headers/trace. |
 | OccurredAt | timestamp | Index | Domain time. |
 | RecordedAt | timestamp | | Ingest time. |
@@ -1772,7 +2002,7 @@ Purpose: per-tenant + per-subject DEK metadata (never raw keys). Destroying a ro
 ### R.1 Pronouns `[GLOBAL, seed]` — kept as a lookup table (NOT an enum)
 | Name | Type | Key/Null/Index/Unique | Notes |
 |---|---|---|---|
-| Id | guid | PK | Surrogate (UUIDv7); FK target from `Users.PronounId`. |
+| Id | int | PK | Identity int — the deliberate non-guid key on this seed lookup (§1.1); FK target from `Users.PronounId` and `Users.AltPronounId` (both `int?`). |
 | Key | string(20) | Unique, Index | Stable code (e.g. `she_her`, `they_them`, `he_him`, `any`). |
 | DisplayName | string(50) | | UI label (e.g. "She/Her"). |
 | Subject | string(20) | | Grammar attr: subject form ("she"/"they"). |
@@ -1783,7 +2013,9 @@ Purpose: per-tenant + per-subject DEK metadata (never raw keys). Destroying a ro
 | IsSingular | bool | | Verb agreement for TTS/templating. |
 | CreatedAt/UpdatedAt | timestamp | | |
 
-**Unique** `Key`. Purpose: kept as a normalized lookup (NOT collapsed to a `[VC:enum]`) because TTS/pronunciation templating needs the grammar attributes. `Users.PronounId` FKs here; the selection is still **[PII-S9]** special-category and explicit-consent gated.
+**Unique** `Key`. Purpose: kept as a normalized lookup (NOT collapsed to a `[VC:enum]`) because TTS/pronunciation templating needs the grammar attributes. `Users.PronounId`/`Users.AltPronounId` FK here; the selection is still **[PII-S9]** special-category and explicit-consent gated.
+
+**Built shape (`Pronoun`, no `BaseEntity` — no `CreatedAt`/`UpdatedAt`):** `Id int`; `Name string(50)` (the spec's `DisplayName`); `Key string(30) Null` (alejo.io identifier, e.g. `theythem`; null for the combination pronouns alejo does not return; **Unique** filtered to non-null); `Subject string(20)`; `Object string(20)`; `Possessive string(20)` (the spec's `PossessiveDeterminer`); `GenderedTerm string(20)` (neutral noun for the `{genderedTerm}` variable); `Singular bool`. The spec's `PossessivePronoun` and `Reflexive` are not built.
 
 ### R.2 UserPreferences `[per-user]`
 | Name | Type | Key/Null/Index/Unique | Notes |
@@ -1802,14 +2034,102 @@ Purpose: per-tenant + per-subject DEK metadata (never raw keys). Destroying a ro
 
 ---
 
+## DOMAIN S — Platform content and reset-to-default
+
+> Owner spec: `spec/platform-admin.md` (§2–§3). Platform-authored content (system commands, first-party widgets, pipelines, code scripts, event responses, timers, rewards, pick lists) ships as versioned **definitions**. A tenant's own row records where it came from, so a channel can edit its copy and later reset it to the platform default. The definition tables are GLOBAL (no `BroadcasterId`); they are the SaaS platform-employee surface. Per-channel edit and reset-to-default exist for system widgets, built-in commands (cooldown, permission, replies, TTS), games, timers, pipelines, fun preset commands and TTS config.
+
+### S.1 PlatformContentDefinitions `[GLOBAL]`
+| Name | Type | Key/Null/Index/Unique | Notes |
+|---|---|---|---|
+| Id | guid | PK | Surrogate (UUIDv7). |
+| Kind | string(20) | | `command`\|`widget`\|`pipeline`\|`code_script`\|`event_response`\|`timer`\|`reward`\|`pick_list` (`PlatformContentKinds`). |
+| Key | string(100) | | Natural key within `Kind` (e.g. a `ChannelBuiltinCommand.BuiltinKey`). |
+| DisplayName | string(200) | | |
+| Description | string(1000) | Null | |
+| CurrentVersionId | guid | Null | The latest PUBLISHED version; null until the first publish. |
+| LatestDraftVersionId | guid | Null | The newest version regardless of publish state. |
+| CreatedAt | timestamp | | No `UpdatedAt` / `DeletedAt` — not a `BaseEntity`. |
+| CreatedByPrincipalId | guid | FK→IamPrincipals | Platform operator who created it. |
+| RetiredAt | timestamp | Null | Soft-retire: stops future installs and never touches installed tenant copies. |
+
+**Unique** `(Kind, Key)`. Purpose: one shipped piece of platform content; owns an ordered sequence of `PlatformContentVersions`.
+
+### S.2 PlatformContentVersions `[GLOBAL]`
+`Id guid PK`; `DefinitionId guid FK→PlatformContentDefinitions Index`; `Version int`; `ContentHash string(64)`; `PayloadJson text` (the installable payload); `RenderGalleryRefs text` **[VC:JSON]** `List<string>`; `PublishNote string(2000) Null`; `DraftedAt timestamp`; `DraftedByPrincipalId guid`; `PublishedAt timestamp Null` (null = draft); `PublishedByPrincipalId guid Null`.
+Purpose: one version of a definition; the payload a tenant copy is installed or reset from.
+
+### S.3 PlatformContentPublishJobs `[GLOBAL]`
+`Id guid PK`; `DefinitionId guid`; `FromVersion int Null`; `ToVersion int`; `Mode string(40)` (`publish_as_new`\|`update_in_place_where_untouched`\|`force` [VC:enum]); `RequestedByPrincipalId guid`; `RequestedAt timestamp`; `PreviewAffectedCount int`; `PreviewSkippedCount int`; `ConfirmedAffectedCount int Null`; `Status string(20)` (`running`\|`completed`\|`failed` [VC:enum]); `CompletedAt timestamp Null`; `FailureReason string(2000) Null`; `RebuildFailedWidgetIds`, `ValidationFailedPipelineIds`, `ValidationFailedCodeScriptIds`, `UpdateFailedTemplateRowIds` (each `text` **[VC:JSON]** `List<guid>`).
+Purpose: one publish-to-tenants run with its preview (blast radius shown before it is confirmed) and per-kind failure lists.
+
+### S.4 PlatformEventResponseDefaults `[GLOBAL]`
+`Id guid PK`; `EventType string(100) **Unique**`; `IsEnabled bool`; `Message string(2000) Null`; `SpeakWithTts bool`; `UpdatedByUserId guid Null`; `CreatedAt/UpdatedAt`.
+Purpose: the operator-edited platform default for one event response; a channel's `EventResponses` row resets to it.
+
+### S.5 PlatformBuiltinReplyDefaults `[GLOBAL]`
+`Id guid PK`; `BuiltinKey string(50)`; `Slot string(50)`; `Template string(500)`; `UpdatedByUserId guid Null`; `CreatedAt/UpdatedAt`.
+**Unique** `(BuiltinKey, Slot)`. Purpose: the platform default reply template for one built-in command slot. A channel's overrides live in `ChannelBuiltinCommands.OverridesJson`; resetting clears the override so this default applies again.
+
+### S.6 `IPlatformSourced` provenance columns (on tenant tables)
+Eight tenant tables carry the same four nullable columns: `Widgets`, `Pipelines`, `CodeScripts`, `EventResponses`, `Timers`, `PickLists`, `Rewards`, `ChannelBuiltinCommands` (`EventResponse`, `Timer`, `PickList` and `Reward` implement the `IPlatformSourced` interface; the other four carry the columns without it).
+| Name | Type | Key/Null/Index/Unique | Notes |
+|---|---|---|---|
+| PlatformSourceDefinitionId | guid | Null | The `PlatformContentDefinitions` row this copy was installed from; null = tenant-authored. A provenance pointer, **not** a live FK — the tenant row survives without the definition. |
+| PlatformSourceVersion | int | Null | The `PlatformContentVersions.Version` installed. |
+| PlatformSourceHash | string(64) | Null | Hash of the row's template-shaped fields at install time; the row counts as "untouched" while it still matches, which is what makes `update_in_place_where_untouched` safe. |
+| PlatformSourceSyncedAt | timestamp | Null | When the row last received platform content (install, update or reset). |
+
+Purpose: lets the platform update untouched copies in place, skip edited ones, and lets a channel reset its copy to the current platform version.
+
+---
+
 ## 4. TENANT-ISOLATION STORY (RLS-ready)
 
-**Tenant-scoped (carry `BroadcasterId guid` → implement `ITenantScoped` → EF global filter + Postgres RLS `USING (BroadcasterId = current_setting('app.tenant_id')::uuid)`):**
-Channels (self, `Id`), AuthSessions, ChannelMemberships, ChannelCommunityStandings, ChannelActionOverrides, PermitGrants, ChannelFederationOptIns, IntegrationConnections, IntegrationTokens, ChannelBotAuthorizations, MusicProviderConfig, Streams, StreamPresets, ScheduledStreamChanges, TwitchSubscribers, TwitchFollowers, TwitchChannelEventLog, Rewards, RewardRedemptions, EventSubSubscriptions, ChatMessages, Commands, ChannelBuiltinCommands, CommandCooldownStates, NamedCounters, Quotes, Giveaways, GiveawayEntries, GiveawayWinners, GiveawayCodePools, GiveawayCodes, EngagementConfigs, ViewerEngagementStates, CustomDataSources, ViewerData, Pipelines, PipelineSteps, PipelineStepConditions, PipelineExecutions, CodeScripts, CodeScriptVersions, HttpEgressAllowlist, InstalledBundles, Timers, EventResponses, all `Moderation*`/`User*`/`Chat*`/`AutoMod*`/`ViewerReports`/`ViewerReportEvidence`/`NetworkNukeBatches`/`SharedBanSettings`/`SharedBanTrustedChannels`, ModerationEscalationPolicies, ModerationEscalationStates, CurrencyConfig, EarningRules, CurrencyAccounts, CurrencyLedgerEntries, GameConfigs, ViewerAgeConsents, GamePlays, GameSessions, CatalogItems, CatalogPurchases, Leaderboard*, SongRequest*, MediaShareConfigs, MediaShareRequests, all Analytics (M.1–M.8), TtsConfig, UserTtsVoice, TtsUsageRecord, Widget, WidgetVersion, ObsConnections, VtsConnections, SupporterConnections, SupporterEvents, AutomationApiTokens, SoundClips, all `Discord*`, Subscriptions, Invoice, UsageRecord, FoundersBadge, FeatureFlagOverride, ConsentRecords, ErasureRequest, AppSetting(when non-null), TenantSequences, EventSubjectKeys, and journal/audit tables with nullable `BroadcasterId` (O.1–O.4, O.8–O.10).
+**Tenant-scoped — implement `ITenantScoped` (`Guid BroadcasterId`) and get the EF global query filter.** Regenerated 2026-09-30 from the 124 `ITenantScoped` implementers in `server/src/NomNomzBot.Domain`, grouped by module folder. `Channels` is the tenant root (its own `Id` is the tenant id). Postgres RLS (`USING (BroadcasterId = current_setting('app.tenant_id')::uuid)`) on top of the filter is an **open owner question**; today the EF filter is the isolation mechanism on every provider.
+- `Alerts/` — `AlertQueueEntry`
+- `Analytics/` — `ChannelAnalyticsDaily`, `ChannelChatterDay`, `MessageActivityDaily`, `ViewerEngagementDaily`, `ViewerProfile`, `WatchSession`
+- `Assets/` — `ChannelAsset`
+- `Automation/` — `AutomationApiToken`
+- `Billing/` — `EntitlementGrant`, `FoundersBadge`, `Invoice`, `Subscription`, `TenantLimitOverride`, `UsageRecord`
+- `Chat/` — `ChatMessage`, `YouTubeLiveChatBan`
+- `Commands/` — `ChannelBuiltinCommand`, `ChatTrigger`, `Command`, `CommandCooldownState`, `CommandUsage`, `EventResponse`, `NamedCounter`, `Pipeline`, `PipelineExecution`, `PipelineRunState`, `PipelineStep`, `PipelineStepCondition`, `PipelineTrigger`, `ScheduledPipelineTask`, `Timer`, `VoiceTranscriptSegment`, `VoiceTrigger`
+- `Community/` — `ChatPoll`, `ChatPollVote`
+- `CustomCode/` — `CodeScript`, `CodeScriptVersion`
+- `CustomEvents/` — `CustomDataSource`
+- `Discord/` — `DiscordGuildConnection`, `DiscordLiveRoleConfig`, `DiscordMemberOptIn`, `DiscordNotificationConfig`, `DiscordNotificationDispatch`, `DiscordNotificationRole`
+- `Economy/` — `CatalogItem`, `CatalogPurchase`, `CurrencyAccount`, `CurrencyConfig`, `CurrencyLedgerEntry`, `EarningRule`, `GameConfig`, `GamePlay`, `GameSession`, `LeaderboardOptOut`, `ViewerAgeConsent`
+- `Engagement/` — `EngagementConfig`, `ViewerEngagementState`
+- `Federation/` — `ChannelFederationOptIn`
+- `Giveaways/` — `Giveaway`, `GiveawayCode`, `GiveawayCodePool`, `GiveawayEntry`, `GiveawayWinner`
+- `Identity/` — `ChannelActionOverride`, `ChannelBotAuthorization`, `ChannelCommunityStanding`, `ChannelMembership`, `ChannelMissingScope`, `ChannelModerator`, `ChannelSubscription`, `Permission`, `PermitGrant`, `SecurityNotice`
+- `Marketplace/` — `InstalledBundle`
+- `MediaShare/` — `MediaShareConfig`, `MediaShareRequest`
+- `Moderation/` — `ChannelModerationStanding`, `ChatFilter`, `FollowBotBlock`, `ModerationEscalationPolicy`, `ModerationEscalationState`, `ModerationHistoryEntry`, `ModerationQueueItem`, `SharedBanSettings`, `SharedBanTrustedChannel`, `SpamCampaignRecord`, `SpamDefensePolicy`, `SpamDetection`, `UserModerationHistory`, `UserTrustScore`, `ViewerReport`
+- `Music/` — `BlockedTrack`
+- `Notifications/` — `ActionRequiredDismissal`
+- `Obs/` — `ObsConnection`
+- `PickLists/` — `PickList`
+- `Platform/` — `ChannelFeature`, `EventSubSubscription`, `FeatureFlagOverride`, `HttpEgressAllowlist`, `Record`
+- `Quotes/` — `Quote`
+- `Rewards/` — `Redemption`, `RedemptionTimer`, `Reward`, `WatchStreak`
+- `Sound/` — `SoundClip`
+- `Stream/` — `ShoutoutOverride`
+- `Supporters/` — `SupporterConnection`, `SupporterEvent`
+- `Trust/` — `TrustPolicy`
+- `Tts/` — `TtsApprovalQueueEntry`, `TtsConfig`, `TtsLexiconEntry`, `TtsUsageRecord`, `UserTtsVoice`
+- `ViewerData/` — `ViewerDatum`
+- `Vts/` — `VtsConnection`
+- `Webhooks/` — `InboundWebhookEndpoint`, `OutboundWebhookDelivery`, `OutboundWebhookEndpoint`
+- `Widgets/` — `RenderedAlertCapture`, `Widget`, `WidgetVersion`
 
-**Cross-tenant (membership/trust-predicate RLS, NOT single `BroadcasterId`):** SavingsJars, SavingsJarMemberships, JarContributions — predicate = `JarId ∈ (jars where this tenant has an accepted SavingsJarMembership)`. Federation propagation rows gated by `ChannelFederationOptIns` + `FederationPeers.TrustState`.
+**Tenant key present, but NOT `ITenantScoped` (no ambient filter — read through an explicit predicate):**
+- Nullable `BroadcasterId` (null = platform-wide): `ConsentRecords`, `AuthSessions`, `IntegrationConnections`, `IntegrationTokens`, `CryptoKeys`, `KeyUsageBindings`, `ErasureRequests`, `ComplianceAuditLogs`, `EventJournals`, `ProjectionCheckpoints`, `EventSubjectKeys`, `IdempotencyKeys`, `LeaderboardConfigs`, `LeaderboardSnapshots`; legacy: `Services`, `Configurations`, `Storages`.
+- Non-null `BroadcasterId`: `TenantSequences`.
+- Differently named tenant column: `Streams`, `PlatformConnections`, `ChannelEvents` (`ChannelId`); `IamRoleAssignments` (`ScopeChannelId`); `IamAuditLogs` (`TargetBroadcasterId`); `SongRequestQueueItems` (`BroadcasterId` as a `string` — the in-memory queue key).
 
-**Global (NO `BroadcasterId`, guarded by IAM/trust/seed-reference, not RLS):** Users (subject registry, accessed via tenant-scoped junctions), UserPreferences (per-user, not per-tenant), Pronouns (seed lookup), all `Iam*`, all `Federation*`, ActionDefinitions, IamPermissions/Roles/RolePermissions/Principals/RoleAssignments, BillingTier, TierLimit, FeatureFlag, DeploymentProfile, EventSubConduits, EventSubConduitShards, TtsVoice, TtsCacheEntry, WidgetGalleryItem, WidgetGallerySubmissionEvent, InviteCode, platform-scope CryptoKey, KeyUsageBinding.
+**Cross-tenant (membership/trust predicate, NOT a single `BroadcasterId`):** `SavingsJars` (`OwnerBroadcasterId`), `SavingsJarMemberships` (`MemberBroadcasterId`), `JarContributions` (`SourceBroadcasterId`), `NetworkNukeBatches` (`OriginBroadcasterId`). Jar predicate = `JarId ∈ (jars where this tenant has an accepted SavingsJarMembership)`. Federation propagation rows are gated by `ChannelFederationOptIns` + `FederationPeers.TrustState`.
+
+**Global (NO tenant column; guarded by IAM/trust/seed-reference, not RLS):** `Users`, `UserIdentities`, `Pronouns`, `BotAccounts`, `RefreshTokens`, `IpcDevModeKeys`, `DeletionAuditLogs`, all `Iam*` (`IamPermissions`, `IamRoles`, `IamRolePermissions`, `IamPrincipals`), `ActionDefinitions`, `BillingTiers`, `TierLimits`, `PricedUnits`, `InviteCodes`, `FederationPeers`, `FederationPeerKeys`, `DeploymentProfiles`, `FeatureFlags`, `EventSubConduits`, `EventSubConduitShards`, `EventSubInboxMessages`, `TtsVoices`, `TtsCacheEntries`, `WidgetGalleryItems`, `WidgetGallerySubmissionEvents`, the Domain S tables (`PlatformContentDefinitions`, `PlatformContentVersions`, `PlatformContentPublishJobs`, `PlatformEventResponseDefaults`, `PlatformBuiltinReplyDefaults`), and the deliberately instance-wide `NetworkBlocks` and `SpamSignatures`. Spec-only, not built: `UserPreferences` (R.2, per-user).
 
 **SQLite/self-host:** `RlsEnabled=false` — the EF global query filter is the sole isolation mechanism (single-tenant or trusted self-host; same filter code path, no RLS policies).
 
@@ -1818,7 +2138,7 @@ Channels (self, `Id`), AuthSessions, ChannelMemberships, ChannelCommunityStandin
 ## 5. GDPR STORY (erasure/anonymization, cascade-safe)
 
 **PII surface (the only columns ever touched on erasure):**
-- **[PII-hash]** — every `*TwitchUserId` / `*DiscordMemberId` / `ApprovedByDiscordUserId` / `SubjectTwitchUserId` / `ActorTwitchUserId` (all carry the same Twitch id) → replaced by one consistent deterministic hash in a single transaction.
+- **[PII-hash]** — every `*TwitchUserId` / `*DiscordMemberId` / `ApprovedByDiscordUserId` / `SubjectTwitchUserId` / `ActorTwitchUserId` (F.4) / `EventJournal.ActorExternalUserId` (all carry the same platform user id) → replaced by one consistent deterministic hash in a single transaction.
 - **[PII-scrub]** — `Username`+`UsernameNormalized`, `*DisplayNameSnapshot`, `*UsernameSnapshot`, `ChatMessages.Content`, `MessageContentSnapshot`, `UserNotes.Content`, free-text `Reason`/`UserInput`/`InputArgs`/`ArgsSnapshot`/`GuildName` → nulled/tombstoned. Every snapshot-bearing append-only table now carries a `(BroadcasterId, SubjectUserId)` (or `(BroadcasterId, *UserId)`) index so scrub is an indexed lookup per subject, not a full scan — without these the "O(1) erasure" claim was false for `[PII-scrub]` (only `[PII-shred]` is truly O(1)).
 - **[PII-shred]** — `EmailCipher`, `IpAddressCipher`, all `*TokenCipher`/`CipherText`, `Azure/ElevenLabsApiKeyCipher`, `Billing/StripeCustomerIdCipher`, `SecureValueCipher`, `EventJournal.Payload` (when encrypted) → made unreadable by destroying the DEK.
 - **[PII-S9]** — `Users.PronounId` + `Users.AltPronounId` (FK→`Pronouns` lookup) → nulled (special-category). The `Pronouns` lookup itself is seed data (never PII); only the per-user selection is scrubbed.
@@ -1853,153 +2173,14 @@ Channels (self, `Id`), AuthSessions, ChannelMemberships, ChannelCommunityStandin
 **Overlaps deduped:** one `EventJournal` (was 2), one `RewardRedemptions` (was Economy + Integrations), one `SongRequestItems` (Economy `SongRequestHistory` dropped → derive from terminal status), one `IamAuditLog` (was `IamAccessAuditLogs` + `IamAuditLog`), one `IntegrationConnections` (was 2), one IAM principal table, `ViewerAgeConsents` folded onto authoritative `ConsentRecords`.
 
 **Audit deltas folded in at lock (2026-06-16):**
-11. **7 new tables added:** `EarningRules` (K.1a), `StreamPresets` (F.10) + `ScheduledStreamChanges` (F.11), `EventSubConduits`/`EventSubConduitShards` (F.8/F.9, global), `UserPreferences` (R.2, per-user `GuidanceLevel`), `ChannelBuiltinCommands` (G.2a — built-in command toggles; closes "commands show 0 / seeding skipped"), `NetworkNukeBatches` (J.2a + `ModerationActions.NetworkNukeBatchId` link).
+11. **7 new tables added:** `EarningRules` (K.1a), `StreamPresets` (F.10) + `ScheduledStreamChanges` (F.11), `EventSubConduits`/`EventSubConduitShards` (F.8/F.9, global), `UserPreferences` (R.2, per-user `GuidanceLevel`), `ChannelBuiltinCommands` (G.2a — built-in command toggles), `NetworkNukeBatches` (J.2a + `ModerationActions.NetworkNukeBatchId` link).
 12. **FK-in-JSON-blob → join tables:** `SharedBanSettings.TrustedChannelsJson` → `SharedBanTrustedChannels` (J.9a); `ViewerReports.EvidenceMessageIds` → `ViewerReportEvidence` (J.8a).
 13. **`EventJournal (BroadcasterId, StreamPosition)` is now UNIQUE** (was Index) for idempotent replay; per-tenant monotonic positions are app-assigned via `TenantSequences` (Q.3), never DB auto-increment.
 14. **`Pronouns` kept as a lookup table** (R.1) with grammar attrs; `Users.PronounId` FKs it — NOT enum-ified.
 15. **Portability:** SQLite provider wired by DI adapter; `Microsoft.EntityFrameworkCore.Sqlite` referenced; native `jsonb`/`HasDefaultValueSql` banned, every `[VC:JSON]` is a real converter; `*Normalized` lowercase unique columns on `Users.Username`/`Channels.Name`/`Commands.Name`/`CatalogItems.Name`; `TtsCacheEntry.StorageRef` for out-of-row audio; `ConfigSchemaVersion` on every app-interpreted JSON-config table; `(BroadcasterId, SubjectUserId)` indexes on snapshot tables; `EventSubjectKeys` (O.1a) for multi-subject event shred; `decimal` scores documented as SQLite REAL-affinity.
 16. **Lifecycle columns:** `Channels.Status`/`SuspendedAt`/`SuspendedReason` (Plane-C `tenant:suspend` target); `Subscriptions.TrialEndsAt`/`GracePeriodEndsAt`; `Users.IsBot`/`LastSeenAt`; `IntegrationConnections` refresh-health columns; `AppSetting.ValueType`; `FeatureFlag.MinTierId` FK.
-17. **Commands/counters/prefix (owner `commands-pipelines.md`):** `NamedCounters` (G.4) persistent cross-command counter store; `Commands.PrefixMode`/`CustomPrefix`/`MatchMode`/`MatchPattern` per-command trigger model (`Regex` is a first-class match mode made ReDoS-safe by .NET's `RegexOptions.NonBacktracking` engine — no sandbox — via `IRegexMatcher`); `Channels.DefaultCommandPrefix` (default `!`) channel-level default. Closes the catalog's named-counters + `bot.prefix`-storage open questions.
+17. **Commands/counters/prefix (owner `commands-pipelines.md`):** `NamedCounters` (G.4) persistent cross-command counter store; `Commands.PrefixMode`/`CustomPrefix`/`MatchMode`/`MatchPattern` per-command trigger model (`Regex` is a first-class match mode made ReDoS-safe by .NET's `RegexOptions.NonBacktracking` engine — no sandbox — via `IRegexMatcher`); `Channels.CommandPrefix` (default `!`) channel-level default. Closes the catalog's named-counters + `bot.prefix`-storage open questions.
 
 > **Grounding correction (was false in the draft):** `Channel.Tags`/`ContentLabels` do **NOT** already use a portable value-converter — `ChannelConfiguration.cs` uses Postgres-native `.HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb")`, which breaks on SQLite. `[VC:JSON]` is net-new work on every existing JSON column, and no SQLite provider/dual-migration exists yet (`UseNpgsql` only). Both are now mandated above, not assumed done.
 
-**Grounding (absolute paths):** base types `c:\Projects\NoMercyLabs\nomnomzbot\server\src\NomNomzBot.Domain\Common\{BaseEntity,SoftDeletableEntity,ITenantScoped,ISoftDeletable}.cs`; existing entities to refactor `...\Domain\Entities\{User,Channel,Service,Permission,ChannelModerator,ChannelBotAuthorization,DiscordServerAuthorization,ChannelSubscription,EventSubscription,Configuration,DeletionAuditLog,Stream,Command,Pipeline,EventResponse,ChatMessage,Timer,Reward,TtsVoice,TtsUsageRecord,UserTtsVoice,TtsCacheEntry,Widget,WatchStreak}.cs`; design docs `...\docs\design\2026-06-16-*.md`. Confirmed against source: `ITenantScoped.BroadcasterId` is currently `string`; `User.Id`/`Channel.Id` are `string(50)` Twitch-id PKs; `List<>` columns (`Channel.Tags`) already use the EF JSON-converter pattern this spec mandates.
-
----
-
-# Appendix — Adversarial Hardening Pass (no-churn audit)
-
-This is a decisive finding. The spec claims `Channel.Tags` "already use the EF JSON-converter pattern this spec mandates" and that there's "no jsonb." The actual code does the opposite: `.HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb")` — hard Postgres-native `jsonb` with a Postgres-only default SQL. That is a SQLite-breaking pattern and directly contradicts the spec's grounding claim and its provider-agnostic rule. The current code is NOT provider-agnostic at all.
-
-I have enough ground truth. I've confirmed every load-bearing claim and found two false grounding claims plus the real schema gaps. Let me write the adversarial review.
-
----
-
-# Adversarial Schema Review — "What Will Force a Migration Later?"
-
-I grounded every load-bearing claim against the real source. Two of the spec's grounding claims are **false**, and they matter because they're the foundation the "do it now" argument rests on. The rest of the hunt follows.
-
-## 0. Ground-truth corrections (the spec misrepresents current state)
-
-- **`Channel.Tags`/`ContentLabels` do NOT use a portable value-converter.** `ChannelConfiguration.cs:51-56` uses `.HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb")` — hard Postgres-native `jsonb` plus Postgres-only default SQL. The spec asserts "Confirmed against source: `List<>` columns (`Channel.Tags`) already use the EF JSON-converter pattern this spec mandates." **That is wrong.** The current pattern is exactly the anti-pattern the spec forbids, and it will throw on SQLite today. The `[VC:JSON]` rule is net-new work on **every** existing JSON column, not a "match the existing pattern."
-- **There is no SQLite provider and no dual-migration setup.** `DependencyInjection.cs:69` wires `UseNpgsql` only; migrations live in one assembly with `jsonb`/`uuid` types baked in. The "two migration sets generate from one model" claim is aspirational — nothing today produces them. This is the single biggest provider-agnostic risk and it's understated.
-- `Channel.Id` is currently a **shared PK with `User.Id`** (`Channel.cs:65` `[ForeignKey(nameof(Id))]`), not a `string(50)` with a separate owner FK. The spec's `Channels.OwnerUserId` unique FK is correct as a target but the migration is bigger than "demote PK to attribute" — it's also "split the shared 1:1 key."
-- `Pronoun` is **already a lookup table** (`Pronoun.cs`, `DbSet<Pronoun>`). The spec models `Users.Pronoun` as `string(50) [VC:enum]`. That's a regression from a normalized table to an enum-string — see PII/normalization finding below.
-
-Everything else the spec claims about current state (`BroadcasterId` is `string`, raw-Twitch-id PKs, `Service` holds plaintext tokens, `Permission` generic shape, no query filter/RLS wired) checks out.
-
----
-
-## A. Provider-agnostic breakers (highest churn risk — these force re-platform migrations)
-
-| # | Table/Area | Gap | Fix |
-|---|---|---|---|
-| A1 | **All `[VC:JSON]` columns** | The model says "portable text via ValueConverter," but the only existing implementation uses native `jsonb`. If migrations are generated from the current config, SQLite is dead on arrival and you migrate every JSON column later. | Mandate `.HasConversion<T>()` + `ValueComparer` for **every** collection/dict column **now**; ban `HasColumnType("jsonb")` and `HasDefaultValueSql("…::jsonb")` in a config-review gate. Generate a SQLite migration in CI as a provider-parity test before declaring "ship-ready." |
-| A2 | **`bigint` identity PKs on journals** | "bigint identity for monotonic ordering" + "monotonic per tenant" (`CurrencyLedgerEntries`, `EventJournal.StreamPosition`). Postgres `IDENTITY`/sequences and SQLite `AUTOINCREMENT` give **global** monotonicity, not per-tenant, and SQLite has no sequences. Per-tenant monotonic `StreamPosition` is application-assigned and will race under concurrency. | Specify `StreamPosition` as an **application-computed** value under a per-tenant advisory lock / `SELECT max+1` in the same txn (or an `EventStreamSequences(BroadcasterId, NextPosition)` row), not a DB sequence. State the concurrency-control mechanism, or you'll migrate it after the first double-position collision. |
-| A3 | **`decimal(8,4)` trust/heat scores** | Fine on PG; SQLite stores `decimal` as `TEXT`/`REAL` via EF and **cannot** do correct `ORDER BY`/range on it without the converter. `UserTrustScores.TrustScore Index` + threshold comparisons in AutoMod will silently mis-sort on SQLite. | Either store scores as scaled `int`/`bigint` (e.g. basis points) for portable ordering, or document the SQLite REAL-affinity behavior and accept lossy compare. Decide now. |
-| A4 | **`blob` audio cache** (`TtsCacheEntry.AudioData`) | Large `blob` in-row is fine on PG (TOAST) but bloats SQLite page cache and has no out-of-line storage. Not a correctness break, but a "we'll move audio to disk/object-store later" migration waiting to happen. | Add `StorageRef string(2048)` now (path/object-key) and make `AudioData` nullable, so the blob can move out without a schema change. |
-| A5 | **Case-insensitive lookups** | Spec says "normalized lowercase column + index (no citext)" but **defines none.** `Users.Username`, `Channels.Name`, `Commands.Name`, `CatalogItems` are looked up case-insensitively in a Twitch context. Without a `UsernameNormalized` column you either use `citext` (banned) or `LOWER()` indexes (PG-only expression index, not SQLite-portable). | Add explicit `*Normalized string(n) Index` columns (e.g. `Channels.NameNormalized`, `Users.UsernameNormalized`, `Commands.NameNormalized`) and make the unique constraints reference them. This is a guaranteed later-migration if omitted. |
-
----
-
-## B. Missing columns you'll obviously wish you had
-
-| # | Table | Gap | Fix |
-|---|---|---|---|
-| B1 | **`Users`** | No `IsBot` flag, no `LastSeenAt`. Every viewer-analytics path wants "is this account the bot / a known bot" and "when did we last see this identity globally." `BotAccounts` exists but a viewer `User` row that *is* a bot can't be flagged. | Add `IsBot bool Index`, `LastSeenAt timestamp Null`. |
-| B2 | **`Channels`** | No `Status`/lifecycle state (active / suspended / churned / banned-by-platform). `Enabled bool` + `DeletedAt` cannot express "suspended for ToS" vs "owner disabled" vs "soft-deleted." Platform-IAM `tenant:suspend` permission exists with **nothing to write to.** | Add `Status string(20) Index` (`active`\|`suspended`\|`churned`\|`platform_banned`) + `SuspendedAt`, `SuspendedReason`. |
-| B3 | **`Subscriptions`** | No `TrialEndsAt`, no `GracePeriodEndsAt`. `Status` has `trialing`/`past_due` but no dates to drive the dunning/grace transitions Stripe webhooks set. You will add these the first week of real billing. | Add `TrialEndsAt timestamp Null`, `GracePeriodEndsAt timestamp Null`. |
-| B4 | **`PipelineSteps` / `Commands` / `Timers` / `EventResponses`** | `ConfigJson`/`Messages`/`TemplateResponses` carry no schema version. The moment you change a config shape you have no per-row version to upcast from → a data migration over JSON blobs. The event side has `EventVersion`; the config side has nothing. | Add `ConfigSchemaVersion int` (default 1) to every table holding a `[VC:JSON]` config blob that the app interprets. |
-| B5 | **`Widget` / `CodeScripts`** | No `LastError`/`LastRunAt` on the *instance* (versions have build status, but the running widget/script has no "last runtime failure"). Overlay debugging will demand it. | Add `LastRuntimeError text Null`, `LastRanAt timestamp Null` to `Widget` and `CodeScripts`. |
-| B6 | **`IntegrationConnections`** | No `LastRefreshAt`/`LastErrorAt`/`FailureCount`. Token-refresh health is operationally essential and `Status` alone (`expired`/`needs_reauth`) can't drive backoff. | Add `LastRefreshedAt`, `LastErrorAt timestamp Null`, `ConsecutiveFailureCount int`. |
-| B7 | **`AppSetting`** | No `ValueType` discriminator. A polymorphic `Value text` blob with `IsSecret` but no type tag forces consumers to guess; adding typed validation later is a migration. | Add `ValueType string(20)` (`string`\|`int`\|`bool`\|`json`\|`secret`). |
-
----
-
-## C. Missing / wrong FKs and join tables
-
-| # | Location | Gap | Fix |
-|---|---|---|---|
-| C1 | **`SharedBanSettings.TrustedChannelsJson`** + **`SongRequestQueues.ProviderPriority`** + **`LeaderboardConfigs`** | `TrustedChannelsJson text [VC:JSON] List<guid>` is a **set of FKs hidden in a JSON blob.** You cannot FK-enforce, cannot index, cannot join, cannot cascade on channel erasure. This is exactly the "should be a join table" smell. | Replace with `SharedBanTrustedChannels(Id, BroadcasterId FK, TrustedChannelId guid FK→Channels, …)` join table. A trusted-channel relationship is a first-class, query-driven, erasure-cascading entity — not a blob. |
-| C2 | **`RewardRedemptions.EventId` / `CurrencyLedgerEntries.EventId`** | Typed as bare `guid Null Index` "correlates to `EventJournal.EventId`" but **not an actual FK** (EventJournal PK is `bigint Id`, `EventId` is a unique `guid`). It's a soft correlation that no constraint protects. Fine *if intentional* (append-only cross-ref), but it's undeclared whether this is enforced. | State explicitly: declare FK→`EventJournal.EventId` (since `EventId` is unique it's a valid FK target) **or** document it as an intentionally-unenforced correlation. Don't leave it ambiguous — that ambiguity becomes a "add the FK" migration. |
-| C3 | **`Pronoun` regression** | Spec demotes the existing `Pronoun` lookup table to `Users.Pronoun string(50) [VC:enum]`. You lose `Subject`/`Object`/`Singular` grammar data that `UsernamePronunciation`/TTS templating uses. | Keep `Pronouns` as a lookup table; `Users.PronounId guid FK→Pronouns Null`. Don't enum-ify a table that carries attributes. |
-| C4 | **`DiscordNotificationConfig.PingRoleId`** | FK→`DiscordNotificationRole` but a config can plausibly ping **multiple** roles. Single nullable FK locks you to one. | If multi-role ping is foreseeable (it is, for tiered notifications), make it a `DiscordNotificationConfigRoles` join table now. If truly one, document the constraint. |
-| C5 | **`FeatureFlag.MinTierKey` / `Channels.BillingTierKey` / `TtsConfig.DefaultVoiceId`** | These reference `BillingTier.Key` and `TtsVoice.Id` by **denormalized string**, not FK. `BillingTierKey` on `Channels` is explicitly "denormalized," fine — but `FeatureFlag.MinTierKey` and `DiscordNotificationConfig` string refs to roles have no integrity guarantee. A renamed tier key silently orphans flags. | For `FeatureFlag.MinTierKey`, use `MinTierId guid FK→BillingTier Null`. Denormalized convenience columns are fine *with* an FK'd source of truth; here there's no FK at all. |
-
----
-
-## D. Indexes missing on FKs / hot paths / unique constraints
-
-The spec indexes many FKs but is **inconsistent** — it relies on prose "Indexes" lines per table and skips several. Concrete gaps:
-
-| # | Table | Missing index | Why it's a hot path |
-|---|---|---|---|
-| D1 | **`CurrencyLedgerEntries`** | `(BroadcasterId, AccountId, Id)` composite | Balance = fold over ledger by account. Without a composite, every balance recompute is a scan. Listed indexes are single-column only. |
-| D2 | **`ChatMessages`** | `(BroadcasterId, AuthorUserId, CreatedAt)` | Per-user message history in the mod panel + erasure scrub by user. `CreatedAt` alone serves time-range scans, but per-user lookups scan without the composite. |
-| D3 | **`EventJournal`** | unique on `(BroadcasterId, StreamPosition)` is declared as **Index, not Unique** | Per-tenant position **must** be unique or projections double-apply. Spec says "Index" — must be a UNIQUE constraint. |
-| D4 | **`RefreshTokens`** | index on `(UserId, RevokedAt)` | "Revoke-all-by-user on erasure" is a stated hot path; `UserId` index alone without `RevokedAt` still scans revoked rows. |
-| D5 | **All `*Snapshot`/append-only with `BroadcasterId`** | Many APPEND-ONLY tables (`GamePlays`, `CatalogPurchases`, `WatchSessions`, `CommandUsage`) only get `CreatedAt Index` per spec; dashboard queries filter `(BroadcasterId, CreatedAt)`. | Single-column `CreatedAt` index across all tenants is useless for per-tenant time-range scans. Need `(BroadcasterId, CreatedAt)` composites. |
-| D6 | **`ConsentRecords`** | unique on `(BroadcasterId, SubjectUserId, ConsentType)` | Nothing prevents duplicate active consent rows of the same type. The 18+ gambling gate reads "the" consent — needs a uniqueness guarantee (or explicit "latest-wins by GrantedAt" documented). |
-| D7 | **`IdempotencyKey`** | TTL/cleanup index on `ExpiresAt` is present, good — but no index supporting the actual lookup `(Scope, Key, BroadcasterId)` beyond the unique. Unique covers it. OK. (Noting it's fine to preempt a false flag.) |
-
-**Systemic fix:** add a schema rule — *every FK column and every `(BroadcasterId, <time>)` query path gets a composite index, declared explicitly per table.* The current per-table prose makes omissions invisible.
-
----
-
-## E. Multi-tenancy isolation gaps
-
-| # | Finding | Fix |
-|---|---|---|
-| E1 | **`Users` is global with no tenant-junction integrity story for cross-tenant leakage.** A viewer in channel A and channel B is one `Users` row. The spec says "accessed via tenant-scoped junctions," but `ViewerProfiles`, `CurrencyAccounts`, etc. are scoped — **`Users` itself isn't**, and `Users.EmailCipher`/`Pronoun` are global PII readable by any tenant query that joins to `Users`. | Confirm that no tenant-facing query selects `Users.EmailCipher`/global PII; expose viewer data **only** through tenant-scoped projection tables. Add a guard (view or DTO boundary) — this is an isolation hole, not just a modeling note. |
-| E2 | **RLS is unbuilt and the model can't be RLS-tested until the `Guid` migration lands.** The entire isolation story depends on a rebuild that hasn't happened. "Ship-ready" cannot be claimed against a tenant model whose isolation mechanism (global query filter) is **not even wired** (`AppDbContext.OnModelCreating` applies zero filters today). | Wire the `ITenantScoped` global query filter in `OnModelCreating` and add RLS policies in the Postgres migration as part of *this* schema delivery, with an isolation test (tenant A cannot read tenant B). Until that test passes, isolation is unproven. |
-| E3 | **Cross-tenant `SavingsJars` RLS is described in prose, not modeled.** "Membership-predicate RLS" has no concrete policy and the `JarContributions`/`SavingsJarMemberships` predicate spans tables. This is the single hardest RLS policy and it's hand-waved. | Write the actual policy SQL (or the EF filter expression) now and test it. A membership-based RLS predicate that's wrong leaks pooled currency across channels. |
-
----
-
-## F. Event-sourcing / GDPR gaps
-
-| # | Finding | Fix |
-|---|---|---|
-| F1 | **Crypto-shred vs. denormalized plaintext snapshots.** The erasure story relies on crypto-shred for `[PII-shred]` and in-place scrub for `[PII-scrub]`. But `*DisplayNameSnapshot`/`*UsernameSnapshot` are plaintext, denormalized across **~20 tables** (redemptions, ledger, leaderboards, moderation, analytics). Erasure must scrub **all** of them in one txn. The spec lists them but there's **no index** to *find* them by subject on most append-only tables (see D5). Erasure becomes a full-table scan per table. | Add `(BroadcasterId, SubjectTwitchUserId)` or `(SubjectUserId)` indexes on every table carrying a scrubable snapshot, or erasure SLA is unbounded. The GDPR "O(1)" claim is false for `[PII-scrub]` columns — only `[PII-shred]` is O(1). |
-| F2 | **`EventJournal.Payload` PII is all-or-nothing per row.** `PayloadIsEncrypted bool` + one `SubjectKeyId`. An event involving **two** subjects (gift sub: gifter + recipient; raid: raider + raided) can only key to one DEK. Erasing one subject can't shred a shared-payload event. | Either guarantee one-subject-per-event (document and enforce), or model `EventSubjectKeys(EventJournalId, SubjectKeyId)` so multi-subject events shred correctly. This is a real GDPR hole for gift/raid events. |
-| F3 | **No `EventUpcaster`/version-map persistence.** `EventVersion int` is the "upcaster anchor" but there's no table or declared mechanism recording which upcaster transforms vN→vN+1. Replay across a deployed version boundary is undefined. | Acceptable as code-only (upcasters are code), but **state it** — otherwise someone adds a table later. Document: upcasters are compiled, keyed by `(EventType, EventVersion)`. |
-| F4 | **`ComplianceAuditLog.TablesAffected text [VC:JSON] List<string>`** | Same anti-pattern as C1 — a list of table names in a blob. Fine for an audit record (never joined), so this one is acceptable. Flagging only to confirm it's a deliberate exception, not an oversight. |
-
----
-
-## G. Under/over-normalization & enum-vs-lookup
-
-| # | Finding | Fix |
-|---|---|---|
-| G1 | **Pervasive `[VC:enum]` string enums that are really lookup data.** `ManagementRole`, `Standing`, `BillingTier.Key`, `GameType`, `EntryType`, dozens more. Most are fine as enums. But several carry **attributes** that want a lookup table: `BillingTier` already is one (good); `GameType` has odds/edge that vary — already in `GameConfigs` (good). **`SubTier` (`1000`/`2000`/`3000`)** appears as a bare string in 4+ tables with no lookup — if Twitch adds a tier or you attach perks per tier, it's a multi-table migration. | Minor: acceptable as-is given Twitch's fixed tiers, but note the risk. The bigger one is **G2.** |
-| G2 | **`ActionDefinitions.FloorTier`/`DefaultLevel`/`FloorLevel` as bare ints** with the level→role mapping (10/20/30/40) **denormalized into `ChannelMemberships.LevelValue` and `ChannelCommunityStandings.LevelValue`.** The numeric ladder is encoded in **three** places with no single source. Re-tiering the ladder (insert a level between mod=10 and editor=30) touches every row in two tables. | Introduce a `PermissionLevels(Value int PK, Key string, DisplayName)` lookup as the one source; `LevelValue` columns FK to it. Inserting a rung becomes one row, not a data migration. |
-| G3 | **`Storage`/`Record` entities exist in code but are absent from the spec.** `DbSet<Storage>`, `DbSet<Record>` (used by `TimerSchedulerService`). The spec's "key deltas" don't mention them — are they dropped, kept, or replaced? Silent omission = a "where did Records go" migration surprise. | Explicitly account for `Storage` and `Record` in the deltas: keep, fold into `AppSetting`, or drop. Don't leave live tables unaddressed. |
-
----
-
-## H. Things the spec got right (so you don't re-litigate them)
-
-Surrogate-key strategy, `CryptoKey` registry as shred linchpin, `KeyUsageBinding` inventory, splitting `Permission` into definition/override/permit, single canonical `EventJournal`/`RewardRedemptions`/`SongRequestItems` dedup, append-only-with-CreatedAt-only convention, snapshot columns surviving FK deletion, `ConsentRecords` as authoritative with `ViewerAgeConsents` as cache, transport-aware `EventSubSubscriptions`, and the founders-badge-decoupled-from-subscription call. These are sound and churn-resistant.
-
----
-
-# VERDICT: **NEEDS-FIXES**
-
-The model is architecturally strong and genuinely thinks ahead on identity, crypto-shred, and event-sourcing. But it **cannot be claimed churn-proof** because (a) two grounding claims about current state are false in the direction that hides work, (b) the provider-agnostic guarantee is contradicted by the only existing implementation, and (c) several FK-in-a-blob and missing-index decisions are exactly the patterns that force migrations.
-
-## Must-fix list to make it churn-proof (ordered)
-
-1. **A1 — Kill native `jsonb`/`HasDefaultValueSql` everywhere; mandate `HasConversion`+`ValueComparer`; add a CI SQLite migration-parity test.** (The provider-agnostic claim is currently false.)
-2. **C1 — `SharedBanSettings.TrustedChannelsJson` → real `SharedBanTrustedChannels` join table** (FK-in-blob; blocks erasure cascade + integrity). Sweep for other `List<guid>` FK-blobs.
-3. **E2 — Wire the `ITenantScoped` global query filter + Postgres RLS policies and ship a tenant-isolation test in this delivery.** Isolation is currently unwired (zero filters in `OnModelCreating`).
-4. **F1 + D5 — Add `(BroadcasterId, SubjectUserId)` indexes on every snapshot-bearing append-only table**, or GDPR erasure is an unbounded scan and the O(1) claim is false for `[PII-scrub]`.
-5. **F2 — Model multi-subject event PII** (`EventSubjectKeys`) or enforce one-subject-per-event; gift/raid events currently can't be fully shredded.
-6. **D3 — Make `EventJournal (BroadcasterId, StreamPosition)` a UNIQUE constraint**, and specify the app-level per-tenant sequence mechanism (A2).
-7. **B2 + B3 — Add `Channels.Status` (suspend/churn) and `Subscriptions.TrialEndsAt`/`GracePeriodEndsAt`.** The IAM `tenant:suspend` permission and Stripe dunning have nowhere to write today.
-8. **B4 (ConfigSchemaVersion) — Add a schema-version int to every app-interpreted `[VC:JSON]` config blob**, mirroring the event side, so config shape changes upcast instead of migrate.
-9. **A5 — Add explicit `*Normalized` columns for every case-insensitive unique lookup** (`Channels.Name`, `Users.Username`, `Commands.Name`).
-10. **G3 — Account for the live `Storage`/`Record` tables** in the deltas (keep/fold/drop), and **C3/G1 — keep `Pronouns` as a lookup table** instead of enum-ifying it.
-
-Fix 1–6 are the load-bearing churn-proofing; 7–10 are the "obviously wish we had" column/lookup set. With those, the spec earns SHIP-READY. Without fix 1 and 3 in particular, the headline promises (provider-agnostic, isolated, O(1)-erasure) are unproven in code.
-
-Grounding paths: `c:\Projects\NoMercyLabs\nomnomzbot\server\src\NomNomzBot.Infrastructure\Persistence\Configurations\ChannelConfiguration.cs` (native jsonb), `...\Infrastructure\DependencyInjection.cs:69` (Npgsql-only), `...\Infrastructure\Persistence\AppDbContext.cs:81-87` (no query filter wired), `...\Domain\Common\ITenantScoped.cs` (`string BroadcasterId`), `...\Domain\Entities\{Channel,User,Pronoun,Service,Permission}.cs`.
+**Grounding (repo-relative):** base types `server/src/NomNomzBot.Domain/Platform/{BaseEntity,SoftDeletableEntity,ITenantScoped,ISoftDeletable}.cs`; entities live module-first at `server/src/NomNomzBot.Domain/<Module>/Entities/*.cs` (for example `Identity/Entities/{User,Channel}.cs`, `Commands/Entities/{Command,Pipeline,EventResponse,Timer}.cs`, `Platform/Entities/*.cs`); EF configurations sit beside their module (`server/src/NomNomzBot.Infrastructure/<Module>/Persistence/`) or under `server/src/NomNomzBot.Infrastructure/Platform/Persistence/Configurations/`; the context is `server/src/NomNomzBot.Infrastructure/Platform/Persistence/AppDbContext.cs`; design docs live at `.claude/docs/design/`.

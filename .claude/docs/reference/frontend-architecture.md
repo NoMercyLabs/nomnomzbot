@@ -29,8 +29,9 @@
   - OAuth callback landing
 
   These public surfaces are **compiled widgets** — built from source at build time, served by the bot, and
-  CDN-cached for SaaS; **not** static files (there is no `web/` folder). The compiled-widget build→serve→cache
-  pipeline is being specced.
+  CDN-cached for SaaS; **not** static files (there is no `web/` folder). Widget source is compiled on the
+  server and served by the bot from the compiled-widget cache — see `spec/widget-sdk.md` and
+  `spec/widgets-overlays.md`.
 
 ### Backend comms
 
@@ -66,3 +67,10 @@ the Twitch Developer Console for local dev. `start.sh` runs both together this w
 bundle is bundled automatically into the API
 publish and Docker image (that build serves everything from one origin — no proxy, no port split); the deploy script's `--app` flag wraps
 the installer task (see `DEPLOY.md`).
+
+### Verify before commit
+
+- `:composeApp:jvmTest` — includes the design-system guard suite and `ApiContractTest`.
+- `:composeApp:compileKotlinWasmJs` — jvmTest cannot catch Wasm-only breaks.
+- `scripts/refresh-openapi.ps1` + `ApiContractTest` / `ApiRouteContractTest` on any contract change.
+- One import per Compose string resource (`import ...generated.resources.<key>`) — a missing per-string import breaks the build.

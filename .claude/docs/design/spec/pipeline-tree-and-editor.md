@@ -1,14 +1,13 @@
 # Interface Specification — Pipeline Tree Model & Authoring Editor
 
-**Status:** Implementable. Code the owner writes from this should compile first-try.
+**Status:** Design spec with the as-built status marked per primitive (§3.0) and per editor feature (§4.0). Code written from a part marked **unbuilt** should compile first-try; the built parts are already in the tree.
 **Extends:** `pipeline-control-flow.md` (D1–D7: `PipelineStep` tree, `if`/`switch`/`loop`/`random_branch`/`run_pipeline`,
 termination budget) and `commands-pipelines.md` (engine, actions §6.1, conditions §6.2, templates §6.3, §10 deferred
 one-shot scheduling). **This spec does not redefine anything already decided there** — it adds condition TREES, N
 triggers per pipeline, wait-for-event/resume-later persisted runs, sub-pipeline args+return, execution caps for the
-new constructs, the primitive set that closes the old-bot gap list, and the block-list editor. Every fact about
-existing behaviour is cited `path:line`.
+new constructs, the primitive set that closes the old-bot gap list, and the block-list editor.
 **Grounding corpus:** `old-bot-pipeline-capability-analysis.md` (26 behaviours, 22-item gap list, 5 can't-be-generic
-cases — all mapped below), `PRODUCT-ALIGNMENT.md` D1–D12, `CLAUDE.md` consequence-visibility law.
+cases — all mapped below), `PRODUCT-ALIGNMENT.md` D1–D12, `SHORTCOMINGS-EXECUTION-PLAN.md` binding rule 4 (the consequence-visibility rule quoted in §4.6).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable
 enable`; explicit types — never `var`; async all the way; `Result<T>`; Repository + `IUnitOfWork`; UUIDv7 `Guid` PKs;
 `BroadcasterId Guid` tenant scope; Newtonsoft.Json.
@@ -134,7 +133,7 @@ the ladder so pipeline authors and the engine agree on lookup order and lifetime
 
 | Scope | Backing | Lifetime | Template namespace |
 |---|---|---|---|
-| **Run** | `ActionContext.Variables` (in-memory bag; persisted into `PipelineRunState.VariablesJson` only across a suspend) | one execution (incl. all its suspend/resume cycles and its `inline` sub-pipeline calls, which **share** this bag — control-flow D4) | unnamespaced `{{myvar}}` (author `set_variable` keys) + the seeded `user.*`/`channel.*`/`stream.*`/`args.*`/`loop.*`/`switch.*`/`call.*` namespaces |
+| **Run** | `ActionContext.Variables` (in-memory bag; persisted into `PipelineRunState.VariablesJson` only across a suspend) | one execution (incl. all its suspend/resume cycles and its `inline` sub-pipeline calls, which **share** this bag — control-flow D4) | unnamespaced `{{myvar}}` (author `set_variable` keys) + the seeded `user.*`/`channel.*`/`stream.*`/`args.*`/`loop.*`/`call.*` namespaces |
 | **User** | `ViewerDatum` (G.14, `per-viewer-data.md`) via `set_viewer_data`/`adjust_viewer_data` | forever (per broadcaster+viewer), until explicitly overwritten or GDPR-erased | not template-namespaced directly — read back via a fresh `set_viewer_data`-adjacent lookup action into a run variable (existing actions, §6.1 of `commands-pipelines.md`) |
 | **Channel** | `NamedCounter` (G.4) via `set_counter`/`adjust_counter` | forever (per broadcaster), until explicitly overwritten | `{{count.<name>}}` |
 | **Global** | none — **deliberately not offered.** A cross-channel variable would violate tenant isolation (every table is `BroadcasterId`-scoped by design, `platform-conventions.md`). "Global" in old-bot terms (e.g. a bot-wide setting) is config, not a pipeline variable — authors needing cross-channel state use `run_pipeline` against a shared pipeline definition template, not a shared variable. |
@@ -272,6 +271,32 @@ otherwise no long-lived automation could ever exist under a sane cap.
 
 ## 3. The primitive set — full catalogue mapped to the gap list
 
+### 3.0 Build status (as-built, checked 2026-09-30)
+
+Every primitive below is specced in this section; this table says which ones exist in the tree. "Built" means the type or behaviour is in `server/src` today; "unbuilt" means nothing implements it. The build-or-cut call for each unbuilt row is the owner's.
+
+| Primitive | Spec | Status |
+|---|---|---|
+| `PipelineTrigger` child table (E1) | §1.3 | **Built** — `Domain/Commands/Entities/PipelineTrigger.cs`, `Pipeline.Triggers`, read by the chat, timer and event dispatchers. The `ambiguous_trigger_ownership` save rule is unbuilt. |
+| Condition tree (E2) | §1.2 | **Built** in the entity (`PipelineStepCondition.ParentConditionId`, `GroupOp`) and the engine (`EvaluateConditionTreeAsync`); the flat-AND upcast is `IPipelineTreeCompatibilityService`. The `condition_tree_too_deep` validation is unbuilt. The as-built condition types are `user_role`, `random` and `comparison` (there is no `var_compare` or `cooldown` condition). |
+| `PipelineRunState` + `wait_for_event` (E3) | §1.4, §2.3 | **Built**, in a different shape: `wait_for_event` takes `event_name` + `timeout_seconds` (no `MatchOn`); a run resumes when `IPipelineEngine.ResumeSuspendedRunsForEventAsync` is called with an equal event name (`EventResponseExecutor` calls it); `WaitForEventTimeoutSweepWorker` resumes timed-out waits down the honest timeout path (`event.timed_out=true`, run continues — there is no `OnTimeout` abort). Offline cancel is built. `PipelineRunResumeListener` and `PipelineRunTimeoutService` do not exist. |
+| Named `run_pipeline` args, `return_value`, `{{call.result}}` (E4) | §2.5 | **Built** — `Pipeline.ParameterNamesJson`, `return_value`, `call.result`. |
+| `MaxRecursionDepth` = 8 (E5) | §2.6 | **Built** — `PipelineEngine.MaxRecursionDepth`. |
+| `{{loop.previous_item}}`, `MaxLoopRuntimeSeconds` (E6) | §2.4 | **Built** — engine and loop `BlockConfigJson`. |
+| `try` block, `detached_step` block | §1.1, §2.1 | **Built** in the engine. The editor authors `try`, not `detached_step` (§4.0). |
+| `wait_until` action | §3.3 | **Unbuilt.** Only the raid-specific `wait_until_raid_fires` exists. |
+| Templated `wait` duration | §3.3 | **Built in part** — `wait` resolves templates inside `seconds` / `milliseconds`. The `SecondsExpr` alternate form and the arithmetic to compute a duration are unbuilt. |
+| `update_reward` | §3.2 | **Unbuilt.** |
+| `record_add` / `record_list` / `record_update` / `record_remove`, `ViewerRecordList` | §3.4 | **Unbuilt.** |
+| `list_find` | §3.2 | **Unbuilt.** (`pick_from_list` exists and is a different action.) |
+| Template functions `{{json.*}}`, `{{expr:}}`, `{{random.from:}}`, `{{random.weighted:}}`, `{{str.*}}`, `{{commands.list:}}`, `{{commands.describe:}}` | §3.3 | **Unbuilt.** The helper registry today carries `count.<key>`, `list.pick.<name>`, `args.<n>`, `random.number.*`, `random.pick.*` and the seeded namespaces. |
+| `FailureCode` on `ActionResult`, `{{last.failurecode}}` | §3.5 | **Unbuilt.** The engine seeds `last.success`, `last.output` and `last.error` after every step. |
+| Debounce/latch recipe | §3.6 | Composition of built primitives (`adjust_counter`, `if`); no editor recipe entry exists. |
+| `DryRun` flag on `ActionContext` | §4.6 | **Unbuilt.** The dry run that exists is `POST pipelines/{id}/test-run`: the real engine runs a *saved* pipeline and captures every side-effecting action (`CapturingCommandAction`). |
+| `GET pipelines/{id}/usages` | §4.6 | **Unbuilt.** The built route is `GET pipelines/{id}/blast-radius` (counted commands, chat triggers, timers, event responses; delete only). |
+| `DELETE pipelines/runs/{runStateId}` | §2.3.5 | **Unbuilt.** |
+| `stale_client_tree_payload` rejection | §6.3 | **Unbuilt.** |
+
 ### 3.1 New block-kinds (this spec, beyond control-flow's five)
 
 | `BlockKind` | Closes gap # |
@@ -350,41 +375,56 @@ schema/action delta.
 
 ### 3.7 Full 26-behaviour → primitive map
 
+The Status column says **specced**: every row composes primitives that this spec or an earlier one defines. A row is only authorable once its primitives are built — §3.0 lists the unbuilt ones.
+
 | # | Behaviour | Primitives used | Status |
 |---|---|---|---|
-| 1 | Fight/Hug 5-way | `PipelineTrigger` ×2 (E1), condition-tree `if`/`switch` (E2, D2), `record_list`/live-lookup existing action, `random_response`, TTS action (existing per `commands-pipelines.md` — confirm exists, out of this spec's scope) | covered |
-| 2 | Hug | same as #1 | covered |
-| 3 | BSOD | `{{json.*}}` (§3.3), `{{random.from:}}`/`{{random.weighted:}}` (§3.3), `{{str.regexreplace}}`/`{{expr:}}` (§3.3), templated `wait` (§3.3), `try`/`catch` (§1.1/§2.1) for refund-on-failure, Spotify pause/resume (existing music actions per `commands-pipelines.md` §6.1 — pause/resume additions are that subsystem's, referenced not owned here) | covered (pending music subsystem's own pause/resume action additions — flagged, not this spec's gap) |
-| 4 | Raid | `wait_until` (§3.3), `loop foreach` + `{{loop.previous_item}}` (§2.4), `detached_step` (§1.1) for OBS switch, `FailureCode` (§3.5) for "already raiding" | covered |
-| 5 | Lucky Feather steal | `update_reward` (§3.2), `record_list`-adjacent "latest record" via `record_list`+filter, multi-placeholder `random_response` (confirmed satisfied §3.3) | covered |
-| 6 | Lucky Feather config-change | **new trigger kind** — `PipelineTrigger.Kind=event` bound to reward-lifecycle event types (`reward.enabled`/`reward.disabled`/`reward.paused`/`reward.resumed` — event-catalogue additions owned by the rewards subsystem, referenced here as the `event` trigger kind already generic in E1/H.1) | covered (reward-lifecycle event *types* are the rewards subsystem's own addition; the *trigger kind* to bind them is generic and already exists) |
-| 7 | Lucky Feather timer cycle | `wait_for_event` (E3) **or** two chained `schedule_pipeline` calls (existing §10) — this spec's `wait_for_event` is the generalized fix control-flow's can't-be-generic #3 called for | covered |
-| 8 | Voice Swap | `record_update` ×2 (§3.4) for the cross-user swap, `schedule_pipeline` with `DedupeKey` (existing §10, already spec'd — confirmed wired) | covered |
-| 9 | `!sus` | `{{expr:}}` (§3.3) for the score formula, nested `if`/`switch` (existing D2) for tier buckets, `random_response` | covered |
-| 10 | `!stats` | existing parallel DB-read actions (economy/analytics tokens, `commands-pipelines.md` §6.3) — no new primitive | covered |
-| 11 | Todo | `record_add`/`record_list`/`record_update`/`record_remove` (§3.4), `switch` on `{{args.1}}` (existing D2) | covered |
-| 12 | Voice | `record_list`, `list_find` (§3.2/§3.4) for fuzzy match, `loop foreach` (existing D3) for per-locale grouping | covered |
-| 13 | SongRequest | `record_add` (history), existing music actions, `{{str.*}}` (§3.3) for URL-vs-search parsing via `{{expr:}}`+string fns | covered |
-| 14 | `!ratio` | `{{expr:}}` (§3.3), nested `if`/`switch` (existing D2), `random_response` | covered |
-| 15 | `!quote` | existing index-based random DB read — no new primitive (a data-access detail inside an existing `random_response`-adjacent read action, out of scope) | covered |
-| 16 | ~20 TTS-bit commands | `{{random.number:min:max}}` (existing per CLAUDE.md), `random_response`, single canonical `speak`/TTS action (existing, confirm one canonical action per `commands-pipelines.md` — not a gap this spec introduces) | covered |
-| 17 | `!mock` | `record_list` (last message — needs the chat-history read action, existing/adjacent), `{{str.alternate}}` (§3.3) | covered |
-| 18 | Lurk/Unlurk | `record_add`/`record_remove`/`list_find` (§3.4) as a channel-scoped id-set | covered |
-| 19 | `!wrongsong` | `record_list` (most-recent filter), `record_remove`, existing music skip action | covered |
-| 20 | `!leaderboard` | existing economy leaderboard tokens/actions — no new primitive | covered |
-| 21 | `!setpronoun` | existing `set_viewer_data` (G.14) + a new **allow-list validation condition** `var_compare` against a `record_list`-backed allow-list (no raw SQL; the old-bot shortcut, gap-adjacent to #19, closed by `list_find`) | covered |
-| 22 | `!followage` | existing Helix follow-lookup token (`{{target.followage}}`, §6.3 of `commands-pipelines.md`) — no new primitive | covered |
-| 23 | Banger/BanSong | `record_add`/`list_find` (§3.4) for the ban-list, existing music playlist actions | covered |
-| 24 | `!skip` | existing permission-scoped condition (`user_role`) + `record_list` filtered by requester | covered |
-| 25 | `!commands` | `{{commands.list:}}` (§3.3) | covered |
-| 26 | `!help` | `{{commands.describe:}}` (§3.3) | covered |
+| 1 | Fight/Hug 5-way | `PipelineTrigger` ×2 (E1), condition-tree `if`/`switch` (E2, D2), `record_list`/live-lookup existing action, `random_response`, TTS action (existing per `commands-pipelines.md` — confirm exists, out of this spec's scope) | specced |
+| 2 | Hug | same as #1 | specced |
+| 3 | BSOD | `{{json.*}}` (§3.3), `{{random.from:}}`/`{{random.weighted:}}` (§3.3), `{{str.regexreplace}}`/`{{expr:}}` (§3.3), templated `wait` (§3.3), `try`/`catch` (§1.1/§2.1) for refund-on-failure, Spotify pause/resume (existing music actions per `commands-pipelines.md` §6.1 — pause/resume additions are that subsystem's, referenced not owned here) | specced (`song_pause` / `song_resume` now exist; the rest per §3.0) |
+| 4 | Raid | `wait_until` (§3.3), `loop foreach` + `{{loop.previous_item}}` (§2.4), `detached_step` (§1.1) for OBS switch, `FailureCode` (§3.5) for "already raiding" | specced |
+| 5 | Lucky Feather steal | `update_reward` (§3.2), `record_list`-adjacent "latest record" via `record_list`+filter, multi-placeholder `random_response` (confirmed satisfied §3.3) | specced |
+| 6 | Lucky Feather config-change | **new trigger kind** — `PipelineTrigger.Kind=event` bound to reward-lifecycle event types (`reward.enabled`/`reward.disabled`/`reward.paused`/`reward.resumed` — event-catalogue additions owned by the rewards subsystem, referenced here as the `event` trigger kind already generic in E1/H.1) | specced (reward-lifecycle event *types* are the rewards subsystem's own addition; the *trigger kind* to bind them is generic and already exists) |
+| 7 | Lucky Feather timer cycle | `wait_for_event` (E3) **or** two chained `schedule_pipeline` calls (existing §10) — this spec's `wait_for_event` is the generalized fix control-flow's can't-be-generic #3 called for | specced |
+| 8 | Voice Swap | `record_update` ×2 (§3.4) for the cross-user swap, `schedule_pipeline` with `DedupeKey` (existing §10, already spec'd — confirmed wired) | specced |
+| 9 | `!sus` | `{{expr:}}` (§3.3) for the score formula, nested `if`/`switch` (existing D2) for tier buckets, `random_response` | specced |
+| 10 | `!stats` | existing parallel DB-read actions (economy/analytics tokens, `commands-pipelines.md` §6.3) — no new primitive | specced |
+| 11 | Todo | `record_add`/`record_list`/`record_update`/`record_remove` (§3.4), `switch` on `{{args.1}}` (existing D2) | specced |
+| 12 | Voice | `record_list`, `list_find` (§3.2/§3.4) for fuzzy match, `loop foreach` (existing D3) for per-locale grouping | specced |
+| 13 | SongRequest | `record_add` (history), existing music actions, `{{str.*}}` (§3.3) for URL-vs-search parsing via `{{expr:}}`+string fns | specced |
+| 14 | `!ratio` | `{{expr:}}` (§3.3), nested `if`/`switch` (existing D2), `random_response` | specced |
+| 15 | `!quote` | existing index-based random DB read — no new primitive (a data-access detail inside an existing `random_response`-adjacent read action, out of scope) | specced |
+| 16 | ~20 TTS-bit commands | `{{random.number:min:max}}` (existing per CLAUDE.md), `random_response`, single canonical `speak`/TTS action (existing, confirm one canonical action per `commands-pipelines.md` — not a gap this spec introduces) | specced |
+| 17 | `!mock` | `record_list` (last message — needs the chat-history read action, existing/adjacent), `{{str.alternate}}` (§3.3) | specced |
+| 18 | Lurk/Unlurk | `record_add`/`record_remove`/`list_find` (§3.4) as a channel-scoped id-set | specced |
+| 19 | `!wrongsong` | `record_list` (most-recent filter), `record_remove`, existing music skip action | specced |
+| 20 | `!leaderboard` | existing economy leaderboard tokens/actions — no new primitive | specced |
+| 21 | `!setpronoun` | existing `set_viewer_data` (G.14) + a new **allow-list validation condition** `var_compare` against a `record_list`-backed allow-list (no raw SQL; the old-bot shortcut, gap-adjacent to #19, closed by `list_find`) | specced |
+| 22 | `!followage` | existing Helix follow-lookup token (`{{target.followage}}`, §6.3 of `commands-pipelines.md`) — no new primitive | specced |
+| 23 | Banger/BanSong | `record_add`/`list_find` (§3.4) for the ban-list, existing music playlist actions | specced |
+| 24 | `!skip` | existing permission-scoped condition (`user_role`) + `record_list` filtered by requester | specced |
+| 25 | `!commands` | `{{commands.list:}}` (§3.3) | specced |
+| 26 | `!help` | `{{commands.describe:}}` (§3.3) | specced |
 
-**26/26 covered.** No bespoke block anywhere in the map — every row composes primitives from control-flow.md,
+**26/26 specced.** No bespoke block anywhere in the map — every row composes primitives from control-flow.md,
 commands-pipelines.md §6, or this spec's §3.
 
 ---
 
 ## 4. The editor — nested block-list interaction design
+
+### 4.0 As-built editor (Compose, checked 2026-09-30)
+
+The shipped editor is `app/composeApp/.../feature/pipelines/ui/PipelinesScreen.kt`. It is a nested block list built from dialogs and cards, not the full design below.
+
+**Built:**
+- **Block authoring.** The chain editor adds `if`, `switch`, `loop`, `random_branch` and `try` blocks at the root or inside another block's lane. Each renders as a card with its lanes (`then`/`else`, `try`/`catch`, `switch_case` / `random_case` bodies, the loop body). Cases and per-block config are set in dialogs (`SwitchBlockFormDialog`, `SwitchCaseFormDialog`, `RandomCaseFormDialog`, `LoopBlockFormDialog`).
+- **One condition per `if` and per `while` loop.** The condition comes from the backend-sourced palette (`user_role`, `random`, `comparison`) through the same picker and param editor a step's own condition uses. There is no group, ungroup, `AND`/`OR` toggle or `NOT` toggle, so the editor cannot author a condition tree even though the engine evaluates one (§1.2).
+- **Loop config.** Mode (`repeat` / `foreach` / `while`), count or list variable, `MaxIterations` and `MaxLoopRuntimeSeconds`.
+- **Reorder.** Up and down buttons move a step within its lane; a depth-shaded card tint and radius show nesting.
+- **Consequence routes.** `GET pipelines/{id}/blast-radius` feeds the delete confirm (`PipelineDeleteConfirmDialog`, counted dependents). `POST pipelines/{id}/test-run` feeds the dry-run dialog (`PipelineTestRunDialog`, `key=value` sample variables, side effects captured). A read-only run-history screen exists (`PipelineHistoryScreen.kt`).
+
+**Unbuilt (§4.1–§4.6 describe them):** the trigger-chip strip above the tree (E1 triggers are not editable here); the `+` block palette grouped by category and the inspector panel; drag reorder and drag into/out of blocks; per-block collapse and indent guides; the step-count / cap readout; the inspector breadcrumb; keyboard support (arrow focus, `Tab` nesting, `Ctrl+D`, `Ctrl+F`); undo/redo; the condition-tree sub-editor and its plain-language summary; the per-step generated description line; save-time `usages` confirm and the suspended-run warning; validation on every edit (the `POST pipelines/validate` route exists, the editor does not call it); `detached_step` authoring.
 
 ### 4.1 Canvas shape
 
@@ -470,9 +510,10 @@ lighter card background) so it reads as "inside this step," never mistaken for t
 
 ### 4.6 Consequence-visibility law — wired into the editor, not a later pass
 
-Per the binding law: every control states what it does and what changes; destructive/wide saves show a
-real-data blast radius; dependents are named before save; disabled controls give a reason; dry-run wherever
-possible.
+Per `SHORTCOMINGS-EXECUTION-PLAN.md` binding rule 4 (every control says what it does; destructive saves show a
+counted blast radius), extended here for the editor: destructive/wide saves show a real-data blast radius;
+dependents are named before save; disabled controls give a reason; dry-run wherever possible. (This is the
+"consequence-visibility law" named elsewhere in this spec.)
 
 - **Per-step plain-language line.** Every step row, in its collapsed one-line form, renders a **generated
   description** from its `Type`+`ConfigJson` (e.g. `send_message: "Hey {{user.name}}!"`, `wait_for_event: waits up
@@ -514,10 +555,18 @@ possible.
 ### 5.1 Step failure mid-tree
 
 Unchanged fail-closed default (control-flow, `commands-pipelines.md` §0 migration note: unknown action/condition ⇒
-abort; action exception ⇒ stop, `Status=failed`) **except** inside a `try` block (§1.1/§2.1): a failure inside
-`try`'s `body` children is caught, walks `catch` children instead, and the run **continues** past the `try` block
-rather than aborting — this is the only opt-in exception to fail-closed, and it is explicit (an author must add a
-`try` wrapper; the default for every other step remains hard-abort).
+abort; action exception ⇒ stop, `Status=failed`) with **two** explicit opt-ins:
+
+1. **`try` block** (§1.1/§2.1): a failure inside `try`'s `body` children is caught, walks `catch` children instead,
+   and the run **continues** past the `try` block rather than aborting.
+2. **`PipelineStep.ContinueOnError`** (H.2, `bool`, default `false`; wire name `continue_on_error`): when a step's
+   action **returns a failed `ActionResult`**, the run does **not** abort — the walk carries on with the next step.
+   The engine honours it on both the flat path (`RunStepsAsync`) and the tree leaf executor. `last.success`,
+   `last.output` and `last.error` are seeded from the failed step either way, so an author can branch on the failure
+   with an `if` right after it (the pattern behind "refund the redemption when TTS fails"). An **unhandled exception**
+   thrown by an action still aborts the run; `ContinueOnError` does not catch it.
+
+Every other step keeps the hard-abort default.
 
 ### 5.2 Partial execution
 

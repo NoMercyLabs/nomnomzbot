@@ -1,6 +1,6 @@
 # Interface Specification — `twitch-helix` subsystem
 
-**Status:** Directly implementable. Owner codes from this first-try.
+**Status:** As-built reference (checked 2026-09-30). The 26 façade sub-clients, the operator methods, the conduits sub-client, the scope bookkeeping and the diagnostics routes below are in the tree. Parts that are not built are marked **unbuilt**.
 **Subsystem area:** Helix API client (`IHttpClientFactory` + resilience), channel info, followers, subs, bans, scopes, rate-limit handling.
 **Source of truth:** locked DB schema `2026-06-16-database-schema.md`, design `2026-06-16-twitch-rebuild.md`, stack `2026-06-16-stack-and-dependencies.md`, decisions `2026-06-16-decisions-resolved.md`.
 
@@ -12,7 +12,7 @@
 
 ## 1. Entities
 
-This subsystem **reads from and writes to** locked-schema tables; it **owns none exclusively** (Helix is a projection/mutation layer over Twitch state mirrored into these tables by EventSub + sync jobs). It is the canonical **writer** of the rate-limit/scope bookkeeping rows below. All field definitions are authoritative in `2026-06-16-database-schema.md`; referenced here by name + the fields this subsystem touches.
+This subsystem **reads from and writes to** locked-schema tables; it **owns none exclusively** (Helix is a projection/mutation layer over Twitch state mirrored into these tables by EventSub + sync jobs). The sub-clients are pure Helix I/O and write nothing themselves; the scope-gap bookkeeping rows are written by handlers that react to the events in §2 (see §3.6). All field definitions are authoritative in `2026-06-16-database-schema.md`; referenced here by name + the fields this subsystem touches.
 
 | Table | Schema ref | Role for this subsystem | Key fields touched |
 |---|---|---|---|
@@ -23,26 +23,27 @@ This subsystem **reads from and writes to** locked-schema tables; it **owns none
 | `Rewards` | F.5 | Read/mirror channel-point rewards from Helix `GET /channel_points/custom_rewards` | `Id`, `BroadcasterId`, `TwitchRewardId`, `Title`, `Cost`, `IsEnabled`, `IsPaused` |
 | `IntegrationConnections` | E.1 | **Read** granted `Scopes ([VC:JSON])`, `Status`, `ProviderAccountId` for scope pre-check; **write** `LastErrorAt`, `LastRefreshedAt`, `ConsecutiveFailureCount`, `Status` on Helix call outcomes | `Id`, `BroadcasterId (guid, Null=global)`, `Provider (=twitch)`, `ProviderAccountId`, `Status`, `Scopes ([VC:JSON] List<string>)`, `LastRefreshedAt`, `LastErrorAt`, `ConsecutiveFailureCount` |
 | `IntegrationTokens` | E.2 | **Read-only** — decrypted access token obtained via `ITwitchAuthService` (this subsystem never reads `CipherText` directly) | (via auth service) |
-| `IdempotencyKey` | (Domain Q, `Id bigint PK`; `Scope`,`Key`,`BroadcasterId`,`ExpiresAt`) | **Write** at-most-once guard for mutating Helix calls (ban/timeout/shoutout/redemption-update/channel-update) so retries don't double-apply | `Scope (string100)`, `Key (string255)`, `BroadcasterId (guid Null)`, `ExpiresAt`, `ResultHash` |
+| `ChannelMissingScope` | (identity-auth §3.4a) | **Write** (by `MissingScopeRecordingHandler`, not by a sub-client) — one row per `(BroadcasterId, Scope)` the first time a Helix call short-circuits or fails with `missing_scope`; feeds the dashboard banner and the one-time chat notice | `BroadcasterId`, `Scope`, `Feature`, `DetectedAt`, `ChatNotifiedAt` |
 
-> **No new tables introduced.** Self-host rate-limit buckets are **in-memory** (`System.Threading.RateLimiter`, per-token, per-process — not persisted; self-host is single-node). On SaaS, `ITwitchRateLimiter` delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2) — a global `helix:app` bucket (720/60s) plus a per-channel `helix:ch:{id}` fair sub-budget — so neither variant adds to this subsystem's data model. Scope state is read from `IntegrationConnections.Scopes`, never duplicated.
+> **No table is owned by the sub-clients.** Rate-limit buckets are **in-memory** and per token (`TwitchRateLimiter`, per-process — not persisted; single-node). **Design intent, unbuilt:** on SaaS, `ITwitchRateLimiter` delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2) — a global `helix:app` bucket (720/60s) plus a per-channel `helix:ch:{id}` fair sub-budget. There is no `IdempotencyKey` guard on Helix mutations: a retry of a ban/timeout/shoutout is left to Twitch's own semantics. Granted-scope state is read from `IntegrationConnections.Scopes`, never duplicated.
 
 ---
 
 ## 2. Domain events
 
-Emitted on the in-process `IEventBus` (`NomNomzBot.Domain.Interfaces.IEventBus`). All inherit the canonical `DomainEventBase` (`platform-conventions.md` §2.0 — provides `Guid EventId`, `Guid BroadcasterId`, `DateTimeOffset OccurredAt`; events do **not** redeclare these). Records live in `NomNomzBot.Domain.Events.Twitch`. The publisher sets the inherited `BroadcasterId` to the owning channel — `Guid.Empty` for app/bot-token, non-tenant events (rate-limit / circuit-breaker). Twitch ids ride alongside as strings; no PII free-text beyond display-name snapshots already permitted by schema.
+Emitted on the in-process `IEventBus` (`NomNomzBot.Domain.Interfaces.IEventBus`). All inherit the canonical `DomainEventBase` (`platform-conventions.md` §2.0 — provides `Guid EventId`, `Guid BroadcasterId`, `DateTimeOffset OccurredAt`; events do **not** redeclare these). The three types live in `NomNomzBot.Domain.Twitch.Events`, as `sealed class` types with `required … { get; init; }` members (the field set below is exact; the code block shows the shape as a record). The publisher sets the inherited `BroadcasterId` to the owning channel — `Guid.Empty` for app/bot-token, non-tenant events (rate-limit / circuit-breaker). Twitch ids ride alongside as strings; no PII free-text beyond display-name snapshots already permitted by schema.
 
 ```csharp
-namespace NomNomzBot.Domain.Events.Twitch;
+namespace NomNomzBot.Domain.Twitch.Events;
 
 /// Raised when a Helix call returns 401 and the single refresh-and-retry also fails,
-/// or when a required scope is absent. Drives IntegrationConnections.Status = needs_reauth.
+/// or when a required scope is absent. Published by TwitchTokenResolver.HasScopeAsync on every failed scope
+/// pre-check and consumed by MissingScopeRecordingHandler (§3.6).
 public sealed record TwitchHelixReauthRequiredEvent(
     string Provider,            // "twitch"
     string ServiceName,         // "twitch" | "twitch_bot"
     string Reason,              // "unauthorized" | "missing_scope" | "token_revoked"
-    string? MissingScope        // e.g. "channel:read:subscriptions"; null unless Reason="missing_scope"
+    string? MissingScope        // e.g. "channel:read:subscriptions"; null unless Reason="missing_scope" (also set with Reason="no_token" when the connection lookup itself fails)
 ) : DomainEventBase;
 
 /// Raised when the adaptive limiter or a 429 forces a Helix call to be throttled/queued.
@@ -70,7 +71,7 @@ public sealed record TwitchHelixCircuitOpenedEvent(
 
 ## 3. Service interface(s)
 
-All in `NomNomzBot.Application.Contracts.Twitch`. `ITwitchHelixClient` is the top-level façade exposing the **category sub-clients** by name (§3.1; the built surface is the 26 granular clients, not four coarse buckets). The legacy `ITwitchApiService` has been **retired entirely** — there is no compatibility shim. Every caller (`DashboardController`, `StreamController`, `CommunityController`, `ChannelsController`, `ModerationService`, `RewardService`, the pipeline actions, the event handlers, `HelixChatProvider`) now targets the sub-clients directly (no-backwards-compat: the codebase has no external consumers yet, so the interface was deleted rather than shimmed). Every method returns `Task<Result<T>>` (or `Task<Result>` for void mutations). `Result.Failure` carries `ErrorCode` ∈ `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "conflict", "twitch_error", "transport" }` (the closed `TwitchErrorCodes` set).
+All in `NomNomzBot.Application.Contracts.Twitch`. `ITwitchHelixClient` is the top-level façade exposing the **category sub-clients** by name (§3.1; the built surface is the 26 granular clients, not four coarse buckets; a 27th, `ITwitchEventSubConduitsApi`, is registered beside them but is not on the façade — §3.4b). The legacy `ITwitchApiService` has been **retired entirely** — there is no compatibility shim. Every caller (`DashboardController`, `StreamController`, `CommunityController`, `ChannelsController`, `ModerationService`, `RewardService`, the pipeline actions, the event handlers, `HelixChatProvider`) now targets the sub-clients directly (no-backwards-compat: the codebase has no external consumers yet, so the interface was deleted rather than shimmed). Every method returns `Task<Result<T>>` (or `Task<Result>` for void mutations). `Result.Failure` carries `ErrorCode` ∈ `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "conflict", "twitch_error", "transport" }` (the closed `TwitchErrorCodes` set).
 
 ### 3.1 `ITwitchHelixClient` — top-level façade
 
@@ -205,7 +206,7 @@ public interface ITwitchStreamsApi
 
 ### 3.3 `ITwitchModerationApi` — bans/timeouts, unban requests, blocked terms, message deletion, Shield Mode, warnings, suspicious users, AutoMod
 
-Moderator/VIP rosters live on §3.3a, rewards/redemptions on §3.3b, shoutouts/announcements on §3.3c, chatters/emotes/badges on §3.3d. All endpoints use the broadcaster's user token; endpoints needing both `broadcaster_id` and `moderator_id` send the single resolved Twitch id for both (the tenant moderates their own channel) — except the two `*AsOperatorAsync` methods, which run on the logged-in operator's OWN token against a raw Twitch channel id (chat-client.md §3.5).
+Moderator/VIP rosters live on §3.3a, rewards/redemptions on §3.3b, shoutouts/announcements on §3.3c, chatters/emotes/badges on §3.3d. The plain methods use the broadcaster's user token; endpoints needing both `broadcaster_id` and `moderator_id` send the single resolved Twitch id for both (the tenant moderates their own channel). The 14 `*AsOperatorAsync` methods (listed after the table) run on the logged-in operator's OWN token against a raw Twitch channel id, so a moderator acts in any channel Twitch made them a moderator of (chat-client.md §3.5).
 
 ```csharp
 namespace NomNomzBot.Application.Contracts.Twitch;
@@ -218,6 +219,7 @@ public interface ITwitchModerationApi
     Task<Result<TwitchBanResult>> TimeoutUserAsync(Guid broadcasterId, string targetTwitchUserId, int durationSeconds, string? reason, CancellationToken ct = default);
     Task<Result> UnbanUserAsync(Guid broadcasterId, string targetTwitchUserId, CancellationToken ct = default);
     Task<Result<TwitchPage<TwitchBannedUser>>> GetBannedUsersAsync(Guid broadcasterId, TwitchPageRequest page, CancellationToken ct = default);
+    // (operator variants of unban / timeout / unban-requests / blocked terms / shield mode / warnings / suspicious users follow the AsOperator list below the table)
 
     // ─ Unban requests ─
     Task<Result<TwitchPage<TwitchUnbanRequest>>> GetUnbanRequestsAsync(Guid broadcasterId, string status, TwitchPageRequest page, CancellationToken ct = default);
@@ -251,7 +253,7 @@ public interface ITwitchModerationApi
 | Method | Behavior |
 |---|---|
 | `BanUserAsync` | `POST /moderation/bans` (permanent). Requires `moderator:manage:banned_users`. Returns the applied `TwitchBanResult`. Pure Helix I/O — local `ModerationActions` rows are written by the moderation subsystem reacting to the resulting EventSub `channel.ban`, not here. |
-| `BanAsOperatorAsync` | Same endpoint on the **operator's own token** (`moderator_id` = the operator) against a raw Twitch `broadcasterTwitchId` — works in ANY channel Twitch has made the operator a moderator of, tenant or not. Twitch enforces the mod relationship; no privilege escalation. |
+| `BanAsOperatorAsync` (and the rest of the operator family, see below) | Same endpoint on the **operator's own token** (`moderator_id` = the operator) against a raw Twitch `broadcasterTwitchId` — works in ANY channel Twitch has made the operator a moderator of, tenant or not. Twitch enforces the mod relationship; no privilege escalation. |
 | `TimeoutUserAsync` | `POST /moderation/bans` with `duration`. Same scope/side-effect note as ban; `TwitchBanResult.EndTime` carries the timeout end. |
 | `UnbanUserAsync` | `DELETE /moderation/bans`. Requires `moderator:manage:banned_users`. |
 | `GetBannedUsersAsync` | Read paged `GET /moderation/banned`. Requires `moderation:read`. No state change. |
@@ -269,6 +271,27 @@ public interface ITwitchModerationApi
 | `CheckAutoModStatusAsync` | `POST /moderation/enforcements/status` — tests whether each message would be held by AutoMod. Requires `moderation:read`. |
 | `ManageHeldAutoModMessageAsync` | `POST /moderation/automod/message` with `action`=`ALLOW`/`DENY`. Requires `moderator:manage:automod`. Releases or drops a held AutoMod message. |
 | `GetAutoModSettingsAsync` / `UpdateAutoModSettingsAsync` | `GET` / `PUT /moderation/automod/settings` — overall level or the nine per-category levels; update returns the applied settings. Requires `moderator:read:automod_settings` / `moderator:manage:automod_settings`. |
+
+**Operator family (as-built).** Every method below takes `Guid operatorUserId, string broadcasterTwitchId` first, sends `TwitchHelixAuth.Operator` (the operator's own user token, resolved by `ITwitchTokenResolver.GetUserTokenAsync`) and never resolves the channel from a `Guid`, because the target channel may not be a tenant. Twitch enforces the moderator relationship, so there is no privilege escalation; a scope the operator's grant lacks surfaces as a typed failure. Each has the same scope and endpoint as its plain twin above.
+
+```csharp
+Task<Result<TwitchBanResult>> BanAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, string? reason, CancellationToken ct = default);
+Task<Result> UnbanAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, CancellationToken ct = default);
+Task<Result<TwitchBanResult>> TimeoutAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, int durationSeconds, string? reason, CancellationToken ct = default);
+Task<Result<TwitchPage<TwitchUnbanRequest>>> GetUnbanRequestsAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string status, TwitchPageRequest page, CancellationToken ct = default);
+Task<Result<TwitchUnbanRequest>> ResolveUnbanRequestAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string unbanRequestId, string status, string? resolutionText, CancellationToken ct = default);
+Task<Result<TwitchPage<TwitchBlockedTerm>>> GetBlockedTermsAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, TwitchPageRequest page, CancellationToken ct = default);
+Task<Result<TwitchBlockedTerm>> AddBlockedTermAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string text, CancellationToken ct = default);
+Task<Result> RemoveBlockedTermAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string blockedTermId, CancellationToken ct = default);
+Task<Result> DeleteChatMessageAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string messageId, CancellationToken ct = default);
+Task<Result<TwitchShieldModeStatus>> GetShieldModeStatusAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, CancellationToken ct = default);
+Task<Result<TwitchShieldModeStatus>> UpdateShieldModeStatusAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, bool isActive, CancellationToken ct = default);
+Task<Result<TwitchWarningResult>> WarnChatUserAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, string reason, CancellationToken ct = default);
+Task<Result<TwitchSuspiciousUserStatus>> AddSuspiciousStatusAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, string status, CancellationToken ct = default);
+Task<Result<TwitchSuspiciousUserStatus>> RemoveSuspiciousStatusAsOperatorAsync(Guid operatorUserId, string broadcasterTwitchId, string targetTwitchUserId, CancellationToken ct = default);
+```
+
+The operator family is not limited to `ITwitchModerationApi`: `ITwitchChatAssetsApi.GetUserEmotesAsOperatorAsync` (§3.3d) follows the same pattern. `TwitchHelixAuth` has five modes: `App`, `User`, `Operator`, `BotApp` (the platform app token, used by the conduits sub-client and the badge-bearing chat send) and `UserStrict` (the broadcaster's own token with no bot fallback).
 
 ### 3.3a `ITwitchModeratorsApi` — moderator & VIP rosters, moderated channels
 
@@ -363,7 +386,7 @@ public interface ITwitchChatAssetsApi
 
 | Method | Behavior |
 |---|---|
-| `GetChattersAsync` | Read paged `GET /chat/chatters` — the present-viewer list (one page per call, caller follows the cursor); the moderator is the tenant itself (resolved internally). Requires `moderator:read:chatters` — a **progressive** scope (requested only when a chatter-list feature is enabled, e.g. the `{{random.chatter}}` token / chatter-driven actions), not part of the base grant; returns `missing_scope` if not granted. No state change; callers cache short-TTL (per `commands-pipelines.md` §6.3). |
+| `GetChattersAsync` | Read paged `GET /chat/chatters` — the present-viewer list (one page per call, caller follows the cursor); the moderator is the tenant itself (resolved internally). Requires `moderator:read:chatters` — a **progressive** scope (requested only when a chatter-list feature is enabled, e.g. the `{{random.chatter}}` token / chatter-driven actions), not part of the base grant; returns `missing_scope` if not granted. No state change. **As-built note:** no service, controller or pipeline action calls `GetChattersAsync` today (grep, 2026-09-30) and the `random.chatter` template token is not in `TemplateHelperRegistry`; both are unbuilt consumers (`commands-pipelines.md` §6.3 is design intent). A future caller caches the page with a short TTL. |
 | `GetChannelEmotesAsync` / `GetGlobalEmotesAsync` / `GetEmoteSetsAsync` | Read — channel custom emotes, Twitch's global emotes, and the emotes in one or more emote sets (repeated `emote_set_id`). App token; no scope. |
 | `GetUserEmotesAsync` | Read cursor-paged (no `total`) — the emotes available to the **tenant** across all channels. Requires `user:read:emotes`. |
 | `GetUserEmotesAsOperatorAsync` | Same read on the **logged-in operator's own token** (`TwitchHelixAuth.Operator` via `OperatorUserId`) — a moderator sees THEIR personal emotes regardless of whose channel is active (chat-client.md §3.2). Optional `broadcasterTwitchId` (raw Twitch id — the channel may not be a tenant, so it is NEVER resolved from a Guid) guarantees that channel's follower emotes are included. Requires `user:read:emotes` on the operator's grant — enforced by Twitch, never a local tenant-token pre-check; a missing scope surfaces as a typed failure the caller degrades to empty. |
@@ -389,7 +412,7 @@ public interface ITwitchSubscriptionsApi
 | `CheckUserSubscriptionAsync` | Read `GET /subscriptions/user` — whether a target user (raw Twitch id) subscribes to the channel; an empty response (`not_found`) means "not subscribed". Requires `user:read:subscriptions`. |
 | `GetSubscriberCountAsync` | Read `GET /subscriptions?first=1`; returns `total`. Requires `channel:read:subscriptions` (pre-checked — closes the "subscriber count always 0" known issue by returning `missing_scope` instead of a silent 0). No state change. |
 
-### 3.4a Live-ops, engagement & discovery sub-clients (the remaining 16 categories)
+### 3.4a Live-ops, engagement & discovery sub-clients (the remaining 16 façade categories)
 
 The early draft's coarse `ITwitchLiveOpsApi` bucket was **split into its constituent category clients** — each a single-responsibility Helix I/O wrapper (deps: transport + identity + token only). `broadcaster-liveops.md` owns the consuming controllers/services/scopes/state; the full endpoint + progressive-scope mapping is in `broadcaster-liveops.md` §8.2. Signatures below are the shipped interfaces verbatim (single-line form); `// scope` comments are the required grant.
 
@@ -537,6 +560,22 @@ public interface ITwitchGuestStarApi
 }
 ```
 
+### 3.4b `ITwitchEventSubConduitsApi` — EventSub conduits and shards (registered, not on the façade)
+
+The 27th Helix sub-client. It is registered scoped beside the 26 façade clients (`DependencyInjection.cs`), but `ITwitchHelixClient` has no accessor for it: its only consumers are `EventSubConduitShardCoordinator` and the conduit handover (twitch-eventsub.md §10), which resolve it directly. **Every call rides the platform app access token** (`TwitchHelixAuth.BotApp`), so it fails with `no_token` on a self-host without an app secret. Conduit mode itself is opt-in: `EventSub:Conduits:Enabled`, off by default.
+
+```csharp
+public interface ITwitchEventSubConduitsApi
+{
+    Task<Result<IReadOnlyList<TwitchConduit>>> GetConduitsAsync(CancellationToken ct = default);                                // GET    /eventsub/conduits
+    Task<Result<TwitchConduit>> CreateConduitAsync(int shardCount, CancellationToken ct = default);                              // POST   /eventsub/conduits
+    Task<Result<TwitchConduit>> UpdateConduitAsync(string conduitId, int shardCount, CancellationToken ct = default);            // PATCH  /eventsub/conduits
+    Task<Result> DeleteConduitAsync(string conduitId, CancellationToken ct = default);                                          // DELETE /eventsub/conduits?id= (idempotent: already deleted = success)
+    Task<Result<IReadOnlyList<TwitchConduitShard>>> GetConduitShardsAsync(string conduitId, string? status = null, CancellationToken ct = default);   // GET /eventsub/conduits/shards (follows the cursor)
+    Task<Result<TwitchConduitShardUpdateResult>> UpdateConduitShardsAsync(string conduitId, IReadOnlyList<TwitchConduitShardAssignment> shards, CancellationToken ct = default); // PATCH /eventsub/conduits/shards (binds shards to a WebSocket session or webhook)
+}
+```
+
 The request/response records (`CreatePollRequest`, `TwitchPoll`, …) are the **hand-written** per-category records in `Dtos/Twitch{Category}Dtos.cs` (§4 — no codegen); `broadcaster-liveops.md` §4 owns the app-facing shapes.
 
 ### 3.5 Supporting interfaces (Infrastructure-internal, registered in DI)
@@ -544,16 +583,20 @@ The request/response records (`CreatePollRequest`, `TwitchPoll`, …) are the **
 ```csharp
 namespace NomNomzBot.Application.Contracts.Twitch;
 
-/// Resolves a usable, decrypted Helix bearer token for a call — the bot/app token, the broadcaster's
-/// user token, or the logged-in operator's own token — and exposes scope state for pre-checks.
+/// Resolves a usable, decrypted Helix bearer token for a call — the bot token, the platform app token,
+/// the broadcaster's user token, or the logged-in operator's own token — and exposes scope state for pre-checks.
 public interface ITwitchTokenResolver
 {
     // Returns the bot account token (service "twitch_bot", no broadcaster); no_token Failure if absent.
     Task<Result<TwitchAccessContext>> GetBotTokenAsync(CancellationToken ct = default);
 
-    // Returns the broadcaster's user token ("twitch"); falls back to the bot token when no user token
-    // exists. Fails with no_token when neither is present.
-    Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(Guid broadcasterId, CancellationToken ct = default);
+    // Returns the platform app access token (client_credentials, via ITwitchAppTokenProvider); no_token when
+    // the platform app secret is not configured (a secret-less self-host on the shared public client).
+    Task<Result<TwitchAccessContext>> GetAppTokenAsync(CancellationToken ct = default);
+
+    // Returns the broadcaster's user token ("twitch"). With allowBotFallback (default true) it falls back to
+    // the bot token when no user token exists; with false it fails with no_token instead (the UserStrict mode).
+    Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(Guid broadcasterId, bool allowBotFallback = true, CancellationToken ct = default);
 
     // Returns the logged-in operator's OWN Twitch user token — to act AS the operator in channels they
     // moderate, independent of the active tenant (chat-client.md §3.1). no_token when the user has no
@@ -565,7 +608,8 @@ public interface ITwitchTokenResolver
     // refresh is possible (e.g. the app/bot token, or the refresh itself failed).
     Task<Result<TwitchAccessContext>> RefreshAsync(TwitchAccessContext context, CancellationToken ct = default);
 
-    // True if the connection backing the resolved token has been granted the scope.
+    // True if the IntegrationConnection backing the resolved token has been granted the scope. A false result
+    // also publishes TwitchHelixReauthRequiredEvent (Reason="missing_scope") — the one chokepoint that feeds §3.6.
     Task<bool> HasScopeAsync(Guid broadcasterId, string scope, CancellationToken ct = default);
 }
 
@@ -594,7 +638,17 @@ public sealed record TwitchAccessContext(
 );
 ```
 
-*Behavior notes:* `ITwitchTokenResolver` reads `IntegrationConnections` + `IntegrationTokens` (decrypting via the auth/crypto layer, never the raw vault); on 401 the transport calls `ITwitchTokenResolver.RefreshAsync` exactly once (refresh-and-retry), which delegates the actual refresh to the auth layer. `HasScopeAsync` reads `IntegrationConnections.Scopes ([VC:JSON])`; a missing scope short-circuits the call with `missing_scope` + emits `TwitchHelixReauthRequiredEvent`. `ITwitchRateLimiter` is a singleton; on self-host it wraps `System.Threading.RateLimiter` per bucket, on SaaS it delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2). `Observe` is called by the rate-limit `DelegatingHandler` after every response.
+*Behavior notes:* `ITwitchTokenResolver` reads `IntegrationConnections` + `IntegrationTokens` (decrypting via the auth/crypto layer, never the raw vault); on 401 the transport calls `ITwitchTokenResolver.RefreshAsync` exactly once (refresh-and-retry), which delegates the actual refresh to the auth layer. `HasScopeAsync` reads `IntegrationConnections.Scopes ([VC:JSON])`; a missing scope short-circuits the call with `missing_scope` + emits `TwitchHelixReauthRequiredEvent`. `ITwitchRateLimiter` is a singleton and has **one** implementation, `TwitchRateLimiter(TimeProvider)`: per-token buckets in a `ConcurrentDictionary`, remaining/reset taken from observed `Ratelimit-*` headers, a hard 429 blocking the bucket until reset, and a two-band gate so a `UserInteractive` call is served before a queued `Background` poll. **Design intent, unbuilt:** a SaaS `DistributedTwitchRateLimiter` delegating to `IRateLimiter` (`scaling-qos.md` §4.2). `Observe` is called by `TwitchRateLimitHandler` after every response, which also publishes `TwitchHelixRateLimitedEvent`; `AddTwitchResilienceHandler` (retry + breaker + timeout, in `ResiliencePolicies`) publishes `TwitchHelixCircuitOpenedEvent`. `ITwitchAppTokenProvider` (singleton) mints and caches the app token and is invalidated on a 401.
+
+### 3.6 Scope bookkeeping (as-built)
+
+Scope state has four moving parts. None of them is a new table owned by the sub-clients.
+
+1. **Declaration.** Each sub-client method that needs a scope carries `[RequiresTwitchScope(TwitchScopes.X)]` (`Application/Contracts/Twitch/RequiresTwitchScopeAttribute.cs`, repeatable). Scope strings are constants on `TwitchScopes`, never literals. `Infrastructure/Identity/TwitchScopeRegistry` (singleton) reflects the attributes once into `AllDeclaredScopes`, plus a hand-kept `ResidualEventSubScopes` set for scopes that gate only an EventSub topic or a non-Helix claim. `AuthService.RequiredScopes` unions with it, so a new attribute widens the login grant automatically.
+2. **Feature gating.** `FeatureScopeMap` maps a feature key to its progressive scopes; `IScopeGrantService` (`RequiredScopesFor`, `EnsureFeatureScopesAsync`, `ReconcileGrantedScopesAsync`) turns "feature enabled" into an incremental authorize URL or a reconciled grant. There is no `TwitchScopeRequirements` class.
+3. **Runtime detection.** `TwitchTokenResolver.HasScopeAsync` reads `IntegrationConnection.Scopes` and, when the scope is absent, publishes `TwitchHelixReauthRequiredEvent`. `MissingScopeRecordingHandler` records a `ChannelMissingScope` row (idempotent per `(channel, scope)`) and `IScopeNotificationService` posts one debounced chat notice (`ScopeNotificationDebouncer`). A gap also appears as an action-required item (`TwitchGrantGapSource`).
+4. **Surfacing.** The diagnostics routes in §5.
+
 
 ---
 
@@ -714,13 +768,15 @@ Timestamps are `DateTimeOffset` throughout (never bare `DateTime`).
 
 ## 5. Controller endpoints
 
-This subsystem's calls are consumed by **existing** controllers (`DashboardController`, `CommunityController`, `StreamController`, `ModerationController`, `RewardsController`) — it does **not** introduce a new public controller. One **new diagnostics endpoint** is added so the dashboard can surface scope/connection health (closes the "subscriber count always 0" and "403 chat" known issues by making the missing-scope state observable).
+This subsystem's calls are consumed by **existing** controllers (`DashboardController`, `CommunityController`, `StreamController`, `ModerationController`, `RewardsController`). Its one own controller is `TwitchDiagnosticsController`, which lets the dashboard surface scope/connection health (closes the "subscriber count always 0" and "403 chat" known issues by making the missing-scope state observable).
 
-**Role gate** — the diagnostics route is **management plane**. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the **Action key** column before the service call (403 `FORBIDDEN` when below). The key is a seeded global `ActionDefinition` (schema B.3, §5.1.1); a broadcaster may raise its floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. All under `/api/v1`.
+**Role gate** — the diagnostics route is **management plane**. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** = the `[RequireAction("<key>")]` attribute, which calls `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` and enforces the per-route floor named in the **Action key** column before the service call (403 `FORBIDDEN` when below). The key is a seeded global `ActionDefinition` (schema B.3, §5.1.1); a broadcaster may raise its floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. All under `/api/v1`.
 
 | Route | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | `api/v{version:apiVersion}/twitch/diagnostics/scopes` | GET | — (tenant from JWT/`ICurrentTenantService`) | `StatusResponseDto<TwitchScopeDiagnosticsDto>` | management / Moderator · `twitch:diagnostics:read` |
+| `api/v{version:apiVersion}/twitch/diagnostics/missing-scopes` | GET | — | `StatusResponseDto<MissingScopesDto>` | management / Moderator · `twitch:diagnostics:read` |
+| `api/v{version:apiVersion}/twitch/diagnostics/regrant` | POST | — | `StatusResponseDto<ScopeRegrantStartDto>` | management / Moderator · `twitch:diagnostics:read` |
 
 ```csharp
 public sealed record TwitchScopeDiagnosticsDto(
@@ -738,21 +794,32 @@ public sealed record TwitchScopeRequirementDto(
 );
 ```
 
+```csharp
+// GET missing-scopes — the deduplicated gaps (proactive FeatureScopeMap diff ∪ reactive ChannelMissingScope rows)
+public sealed record MissingScopesDto(string ConnectionStatus, IReadOnlyList<MissingScopeDto> Scopes);
+public sealed record MissingScopeDto(string Scope, IReadOnlyList<string> Features, bool DetectedAtRuntime, bool ChatNotified);
+
+// POST regrant — starts a secret-free streamer Device Code Flow requesting (granted ∪ missing), so the
+// re-consent never drops an existing grant; the client then polls POST /auth/twitch/device/poll.
+public sealed record ScopeRegrantStartDto(string DeviceCode, string UserCode, string VerificationUri, int Interval, int ExpiresIn, IReadOnlyList<string> RequestedScopes);
+```
+`missing-scopes` returns 404 when the tenant has no Twitch connection; `regrant` returns 404 with no connection and 409 when nothing is missing. In this section `TwitchScopeDiagnosticsDto` and its requirement rows live in `Application/DTOs/Twitch/`.
+
 > Progressive scopes (`IsProgressive = true`) are requested on **feature-enable**, not up front — when the gating feature (`GatedByFeature`) is toggled on; the diagnostics matrix surfaces a missing progressive scope as "feature-gated", not an error.
 
 *Behavior:* the service method first calls `IActionAuthorizationService.AuthorizeActionAsync("twitch:diagnostics:read", ...)` for the current tenant (fails closed → `403` problem-details on deny), then reads `IntegrationConnections.Scopes`/`Status`, diffs against the required-scope map (§9 below references the scope constants), and returns the per-feature granted/missing matrix. No mutation. Returns `404` problem-details if the tenant has no Twitch connection.
 
-#### 5.1.1 Seeded `ActionDefinitions` row (this subsystem owns this seed entry)
+#### 5.1.1 Seeded `ActionDefinitions` row
 
-The action key the diagnostics service-body gate resolves is **not** defined elsewhere — this subsystem adds it to the `[GLOBAL, seed]` `ActionDefinitions` seed set in the existing `DataSeeder` (the same seed pass that owns Domain-B B.3 rows, per `roles-permissions.md`). It is a read-only channel-management diagnostics action (Plane `management`, danger tier `low`, permit-grantable); `DefaultLevel` ships at `FloorLevel` (read ≥ Moderator 10). Without this row the resolver fails closed and the diagnostics call 403s.
+The seed is `M("twitch:diagnostics:read", Mod)` in `ActionDefinitionSeeder` (the seed pass that owns the Domain-B B.3 rows, per `roles-permissions.md`). It is a read-only channel-management diagnostics action (Plane `management`, danger tier `low`, permit-grantable); `DefaultLevel` ships at `FloorLevel` (Moderator). Without this row the resolver fails closed and the diagnostics calls 403.
 
 | `ActionKey` | `Plane` | `DefaultLevel` | `FloorLevel` | `FloorTier` | `IsGrantableViaPermit` | `Description` |
 |---|---|---|---|---|---|---|
-| `twitch:diagnostics:read` | `management` | 10 (Moderator) | 10 (Moderator) | `low` | `true` | View this channel's Twitch scope/connection health diagnostics. |
+| `twitch:diagnostics:read` | `management` | Moderator | Moderator | `low` | `true` | View this channel's Twitch scope/connection health diagnostics. |
 
 `Id` is `Guid.CreateVersion7()` at seed time; the seed is idempotent on the `ActionKey` unique index (upsert, no duplicate on re-run). `Plane` uses the `AuthPlane` `[VC:enum]`, `FloorTier` the `DangerTier` `[VC:enum]` (matching B.3). Mirrors the twitch-eventsub §5.1.1 seed pattern exactly.
 
-> **Gate wiring (as built):** the `TwitchDiagnosticsController` is Gate-1 (`[Authorize]` + tenant resolved from the JWT via `ICurrentTenantService` — the route carries no `channelId`; diagnostics are inherently "my own channel") **plus Gate-2**: every action carries `[RequireAction("twitch:diagnostics:read")]`, enforced by `IActionAuthorizationService` against the seeded `ActionDefinitions` row above; self-host collapses to "owner = full". The service reads the channel's `IntegrationConnection` (Provider `Twitch`) for `Status`/`Scopes` and flattens the progressive `FeatureScopeMap` into the per-feature matrix; `NOT_FOUND` → 404 when the tenant has no Twitch connection. **Note:** the live Helix *enforcement* path (`TwitchTokenResolver.HasScopeAsync`) still reads the legacy `Service.Scopes` store while login writes `IntegrationConnection.Scopes` — diagnostics read the login-truthful `IntegrationConnection`; reconciling the token resolver onto the same store is tracked separately.
+> **Gate wiring (as built):** the `TwitchDiagnosticsController` is Gate-1 (`[Authorize]` + tenant resolved from the JWT via `ICurrentTenantService` — the routes carry no `channelId`; diagnostics are inherently "my own channel") **plus Gate-2**: every action carries `[RequireAction("twitch:diagnostics:read")]`, enforced by `IActionAuthorizationService` against the seeded `ActionDefinitions` row above; self-host collapses to "owner = full". `ITwitchScopeDiagnosticsService` reads the channel's `IntegrationConnection` (Provider `Twitch`) for `Status`/`Scopes` and flattens the progressive `FeatureScopeMap` into the per-feature matrix; `NOT_FOUND` → 404 when the tenant has no Twitch connection. The Helix enforcement path (`TwitchTokenResolver.HasScopeAsync`) reads the same `IntegrationConnection.Scopes` store, so the diagnostics matrix and the runtime pre-check agree.
 
 > No write endpoints are added here — channel/mod/reward mutations are exposed through the existing `StreamController`/`ModerationController`/`RewardsController`, which now call the sub-clients and translate `Result.Failure(ErrorCode)` into the standard problem-details (`missing_scope`→403, `no_token`→409, `rate_limited`→429, `not_found`→404).
 
@@ -766,43 +833,31 @@ The action key the diagnostics service-body gate resolves is **not** defined els
 
 ## 7. DI registration
 
-In `NomNomzBot.Infrastructure.DependencyInjection.AddInfrastructure` (extends the existing Twitch block, lines ~244–262). Lifetimes follow the existing pattern: HTTP-bound clients **scoped**, the rate limiter **singleton** (holds per-token buckets across requests).
+In `NomNomzBot.Infrastructure.DependencyInjection.AddInfrastructure` (the Twitch block, from about line 1424). Lifetimes: HTTP-bound clients **scoped**, the rate limiter and the app-token provider **singleton** (they hold state across requests).
 
 ```csharp
-// ── HTTP clients (existing) ──
-services.Configure<TwitchOptions>(configuration.GetSection(TwitchOptions.SectionName));
-services.AddHttpClient("twitch-helix")
-    .AddTwitchResilienceHandler()                       // existing Polly retry+breaker+timeout
-    .AddHttpMessageHandler<TwitchRateLimitHandler>()    // NEW: adaptive header-driven limiter
-    .AddHttpMessageHandler<TwitchAuthHeaderHandler>();  // NEW: injects Bearer + Client-Id, scrubs from logs
-
-// ── Rate limiter: singleton, per-token buckets, survives requests ──
-// Adapter selected by App__DeploymentMode: in-process for self-host, distributed for SaaS.
-if (deploymentMode == DeploymentMode.SaaS)
-    services.AddSingleton<ITwitchRateLimiter, DistributedTwitchRateLimiter>();  // delegates to IRateLimiter (scaling-qos §4.2)
-else
-    services.AddSingleton<ITwitchRateLimiter, TwitchRateLimiter>();             // in-process System.Threading.RateLimiter
-services.AddTransient<TwitchRateLimitHandler>();        // DelegatingHandler, resolves the singleton limiter
+// ── HTTP client: resilience (outermost) → rate limit → auth header (closest to the wire) ──
 services.AddTransient<TwitchAuthHeaderHandler>();
+services.AddTransient<TwitchRateLimitHandler>();
+services.AddHttpClient("twitch-helix")
+    .AddTwitchResilienceHandler()                       // Polly retry + breaker + timeout, no 4xx retry
+    .AddHttpMessageHandler<TwitchRateLimitHandler>()    // adaptive header-driven limiter
+    .AddHttpMessageHandler<TwitchAuthHeaderHandler>();  // Client-Id + Bearer from the request options
 
-// ── Token resolver: scoped (reads IntegrationConnections via scoped DbContext) ──
+// ── Singletons: per-token buckets and the platform app token survive requests ──
+services.AddSingleton<ITwitchRateLimiter, TwitchRateLimiter>();          // the only implementation (in-process)
+services.AddSingleton<ITwitchAppTokenProvider, TwitchAppTokenProvider>();
+services.AddSingleton<Identity.TwitchScopeRegistry>();                   // reflects [RequiresTwitchScope] once
+
+// ── Scoped: token resolver, transport, the sub-clients and the façade ──
 services.AddScoped<ITwitchTokenResolver, TwitchTokenResolver>();
-
-// ── Sub-clients: scoped — one registration per category, 26 total (representative sample; impls
-//    live in Platform/Transport/Helix/SubClients) ──
-services.AddScoped<ITwitchChannelsApi, TwitchChannelsApi>();
-services.AddScoped<ITwitchModerationApi, TwitchModerationApi>();
-services.AddScoped<ITwitchSubscriptionsApi, TwitchSubscriptionsApi>();
-// … + ITwitchUsersApi, ITwitchSearchApi, ITwitchStreamsApi, ITwitchChannelPointsApi, ITwitchModeratorsApi,
-//     ITwitchPollsApi, ITwitchPredictionsApi, ITwitchRaidsApi, ITwitchChatApi, ITwitchChatAssetsApi,
-//     ITwitchBitsApi, ITwitchClipsApi, ITwitchVideosApi, ITwitchScheduleApi, ITwitchAdsApi, ITwitchCharityApi,
-//     ITwitchGoalsApi, ITwitchHypeTrainApi, ITwitchTeamsApi, ITwitchGamesApi, ITwitchContentClassificationApi,
-//     ITwitchWhispersApi, ITwitchGuestStarApi — same pattern.
-
-// ── Façade: scoped (composes the sub-clients) ──
-services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
+services.AddScoped<ITwitchHelixTransport, TwitchHelixTransport>();
+services.AddScoped<ITwitchChannelsApi, Platform.Transport.Helix.SubClients.TwitchChannelsApi>();
+// … one AddScoped line per category: the 26 façade clients (§3.1) plus ITwitchEventSubConduitsApi (§3.4b),
+//   impls in Platform/Transport/Helix/SubClients
+services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();             // composes the 26; no conduits accessor
 ```
-(The granular per-category sub-clients are each registered explicitly — 26 of them — and the façade composes them; there is no `ITwitchApiService` shim registration, the interface having been retired.)
+(The sub-clients are each registered explicitly and the façade composes them; there is no `ITwitchApiService` shim registration, the interface having been retired. `DistributedTwitchRateLimiter` and a deployment-mode branch for the limiter do not exist.)
 
 **Interface → impl:**
 
@@ -813,10 +868,12 @@ services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
 | `ITwitchModerationApi` | `TwitchModerationApi` | Scoped | |
 | `ITwitchSubscriptionsApi` | `TwitchSubscriptionsApi` | Scoped | |
 | `ITwitchTokenResolver` | `TwitchTokenResolver` | Scoped | Reads `IntegrationConnections`/`IntegrationTokens`; refreshes via `ITwitchAuthService`. |
-| `ITwitchRateLimiter` | `TwitchRateLimiter` (self-host) / `DistributedTwitchRateLimiter` (SaaS) | Singleton | Selected by `App__DeploymentMode`. Self-host: in-memory per-token buckets (`System.Threading.RateLimiter`). SaaS: delegates to distributed `IRateLimiter` (`scaling-qos.md` §4.2) — `helix:app` global bucket (720/60s) + per-channel `helix:ch:{id}` sub-budget. |
+| `ITwitchRateLimiter` | `TwitchRateLimiter` | Singleton | In-memory per-token buckets in every profile. **Design intent, unbuilt:** a SaaS `DistributedTwitchRateLimiter` over `IRateLimiter` (`scaling-qos.md` §4.2) — `helix:app` global bucket (720/60s) + per-channel `helix:ch:{id}` sub-budget. |
+| `ITwitchEventSubConduitsApi` | `TwitchEventSubConduitsApi` | Scoped | Registered beside the façade clients but not exposed by `ITwitchHelixClient` (§3.4b). |
+| `ITwitchAppTokenProvider` | `TwitchAppTokenProvider` | Singleton | Mints and caches the client-credentials app token; `Invalidate()` after a 401. |
 | _(retired)_ `ITwitchApiService` | — | — | Deleted. Every caller targets the granular sub-clients directly; no shim. |
 
-**Deployment-profile adapter variants:** the Helix `HttpClient` itself is profile-agnostic (one `HttpClient` on both self-host and SaaS). The single profile divergence is the rate-limiter *coordination*. `ITwitchRateLimiter` has two registrations selected by `App__DeploymentMode`: self-host binds the in-process `TwitchRateLimiter` (per-process `System.Threading.RateLimiter` buckets); SaaS binds `DistributedTwitchRateLimiter`, which delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2) — a global `helix:app` bucket (720/60s) and a per-channel `helix:ch:{id}` fair sub-budget — so multi-node nodes share one Helix quota. Both implement the same `ITwitchRateLimiter` contract; sub-clients are unaware which is bound. This adapter selection depends on the `IRateLimiter` abstraction from `scaling-qos.md` §4.2.
+**Deployment-profile adapter variants:** the Helix `HttpClient` is profile-agnostic, and today so is the rate limiter: every profile binds the in-process `TwitchRateLimiter`. **Design intent, unbuilt:** on a multi-node SaaS deployment `ITwitchRateLimiter` would bind a `DistributedTwitchRateLimiter` that delegates to the distributed `IRateLimiter` (`scaling-qos.md` §4.2) — a global `helix:app` bucket (720/60s) and a per-channel `helix:ch:{id}` fair sub-budget — so all nodes share one Helix quota. The contract already allows it; sub-clients are unaware which limiter is bound.
 
 ---
 
@@ -831,7 +888,7 @@ Stack-doc libs used by this subsystem (all 2nd-party / in-box except none 3rd-pa
 | `System.Threading.RateLimiter` (in-box .NET 10 BCL) | 1st | Per-token adaptive buckets in `TwitchRateLimiter`. |
 | `Newtonsoft.Json` | (app-JSON convention) | App-side `[VC:JSON]` (`IntegrationConnections.Scopes`, `Channels.Tags`) read/write via the EF `ValueConverter`. **The Helix records deserialize via the transport's `snake_case` naming policy** (no per-property annotations, no codegen). |
 | _(none — no codegen)_ | — | The Helix records are **hand-written** per category in `Dtos/Twitch{Category}Dtos.cs` (§4); there is no NSwag/NJsonSchema step and no separate wire-DTO layer. |
-| EF Core 10 + provider (Npgsql / SQLite via DI adapter) | 2nd / 3rd | `IntegrationConnections`, `Channels`, `TwitchSubscribers`, `TwitchFollowers`, `Rewards`, `IdempotencyKey` access through `IUnitOfWork` + repositories. |
+| EF Core 10 + provider (Npgsql / SQLite via DI adapter) | 2nd / 3rd | `IntegrationConnections` (scope reads in `TwitchTokenResolver`), `Channels` (tenant → Twitch id resolution) and `ChannelMissingScope` (written by `MissingScopeRecordingHandler`) access. `TwitchSubscribers` / `TwitchFollowers` are unbuilt (§1). |
 | `Microsoft.Extensions.Logging` `ILogger` + `[LoggerMessage]` | 2nd | Structured logs; **token/PII scrubbed** (PII discipline, logging decision). |
 | `NomNomzBot.Domain.Interfaces.IEventBus` (in-process) | 1st | Emits the §2 domain events. |
 
@@ -843,73 +900,48 @@ Stack-doc libs used by this subsystem (all 2nd-party / in-box except none 3rd-pa
 
 Two implementation conventions are fixed here so the owner codes first-try:
 
-1. **Required-scope map location.** The per-method scope requirements (e.g. `GetSubscriberCountAsync` → `channel:read:subscriptions`, `GetChattersAsync` → `moderator:read:chatters`) are codified as a static `TwitchScopes` constants class + a `TwitchScopeRequirements` lookup in `NomNomzBot.Infrastructure.Twitch`, consulted by both `HasScopeAsync` and the §5 diagnostics endpoint. Single source of truth; no per-call string literals. Each entry carries a **progressive** flag: base-grant scopes are requested at connect; progressive scopes (e.g. `moderator:read:chatters`) are requested only when the dependent feature is enabled — the diagnostics matrix surfaces a missing progressive scope as "feature-gated", not an error.
+1. **Required-scope map location.** The per-method scope requirements (e.g. `GetSubscriberCountAsync` → `channel:read:subscriptions`, `GetChattersAsync` → `moderator:read:chatters`) are codified as the static `TwitchScopes` constants class (`Application/Contracts/Twitch/TwitchScopes.cs`) plus the `[RequiresTwitchScope]` attribute on each sub-client method, reflected into `TwitchScopeRegistry` and the `FeatureScopeMap` (§3.6); the §5 diagnostics service consults the same map. Single source of truth; no per-call string literals. (The `TwitchScopeRequirements` lookup class of the original design was not built.) Each entry carries a **progressive** flag: base-grant scopes are requested at connect; progressive scopes (e.g. `moderator:read:chatters`) are requested only when the dependent feature is enabled — the diagnostics matrix surfaces a missing progressive scope as "feature-gated", not an error.
 2. **`Guid` ↔ `TwitchChannelId` resolution.** Public methods take `Guid broadcasterId`; the sub-clients resolve to `TwitchChannelId` via `Channels` (cached through `ICacheService`) before building the Helix URL. `GetUsersByIdsAsync`/`GetUsersByLoginsAsync`/`SearchCategoriesAsync`/`GetModeratedChannelsAsync` take raw Twitch ids because their subject is not necessarily a local tenant. This split is intentional and matches the schema's "Twitch ids are indexed attributes, `BroadcasterId` is `Guid`" rule.
 
 ---
 
 ## 10. Test doubles & fixtures
 
-**Principle: no test hits live Twitch — CI is hermetic.** Helix/EventSub/chat are faked at **two seams**: the Helix sub-client (`ITwitchChannelsApi`, …) / `IChatProvider` interface boundary (for tests of *consumers* of Twitch) and the `HttpMessageHandler` boundary (for tests of the *real client's* deserialization + rate-limit handling). This is the Twitch-specific complement to the stack doc's testing decision (`2026-06-16-stack-and-dependencies.md` §"Testing / quality"): `Mvc.Testing` `WebApplicationFactory<Program>` for full-stack security tests, **SQLite + in-memory adapters as the default integration DB**, Testcontainers only for the SaaS RLS/pub-sub subset. All doubles below live in the **test projects** (`tests/...`), never in a production assembly.
+**Principle: no test hits live Twitch — CI is hermetic.** Helix/EventSub/chat are faked at **two seams**: the Helix sub-client / `ITwitchHelixTransport` / `IChatProvider` interface boundary (for tests of *consumers* of Twitch and of a sub-client's orchestration) and the `HttpMessageHandler` boundary (for tests of the *real client's* envelope parsing and rate-limit handling). This is the Twitch-specific complement to the stack doc's testing decision (`2026-06-16-stack-and-dependencies.md` §"Testing / quality"): `Mvc.Testing` `WebApplicationFactory<Program>` for full-stack security tests, **SQLite + in-memory adapters as the default integration DB**, Testcontainers only for the SaaS RLS/pub-sub subset. All doubles below live in the **test projects** (`server/tests/...`), never in a production assembly. The doubles listed are the ones that exist; names from the original design that were never written are marked.
 
-### 10.1 Seam fakes — for unit/integration tests of Twitch *consumers*
+### 10.1 Seam fakes — for tests of Twitch *consumers* and of sub-client orchestration
 
-A consumer test (followage, subscriber count, chatters, send-message, a pipeline action) substitutes a hand-written fake at the public interface so it runs with **zero network**. The fakes return canned app-facing domain objects (the §4 DTOs, with `Guid BroadcasterId`), letting a test assert the consumer's resulting **state change / emitted events / side effects** rather than Twitch I/O.
+There is **no** per-sub-client `Fake<X>Api` family (`FakeTwitchChannelsApi` and its siblings were not built). The shipped doubles (all under `server/tests/NomNomzBot.Infrastructure.Tests/`):
 
-- Per-sub-client fakes (`FakeTwitchChannelsApi : ITwitchChannelsApi`, etc. — one per consumed sub-client, §3) — each method returns a pre-seeded `Result<T>` (success canned-DTO or a specific `Result.Failure(ErrorCode)` from `{ "no_token", "missing_scope", "unauthorized", "rate_limited", "not_found", "conflict", "twitch_error", "transport" }`) so consumers can be tested against both happy-path and every failure mode.
-- A fake `IChatProvider` (`HelixChatProvider` seam, `scaling-qos.md` §6 / `commands-pipelines.md` §6) — records outbound sends and yields canned inbound messages, so chat-send actions and `{{random.chatter}}`-style reads are verified without a socket.
+| Double | Path | Seam and use |
+|---|---|---|
+| `CapturingHelixTransport : ITwitchHelixTransport` | `Platform/Transport/Helix/SubClients/Fakes/SubClientFakes.cs` | Records `LastRequest` and every built `TwitchHelixRequest` (verb, path, auth mode, query, body) and returns pre-seeded canned results (`SingleResult`, `ListResult`, `PageResult`, `SendResult`, a `SendResults` queue for a first-fail-then-succeed flow). Every `Twitch*ApiTests` sub-client test uses it. |
+| `StubIdentityResolver`, `StubScopeTokenResolver : ITwitchTokenResolver` | same file | A known tenant → Twitch id map; a token resolver that grants exactly the scopes it was built with, so the per-method scope pre-check and `missing_scope` path are asserted. |
+| `FakeTwitchTokenResolver : ITwitchTokenResolver` | `Platform/Transport/Helix/FakeTwitchTokenResolver.cs` | Token resolution for the transport-level tests. |
+| `CapturingEventBus : IEventBus` | `Platform/Transport/Helix/CapturingEventBus.cs` | Captures the published `TwitchHelix*Event`s so a test asserts the emitted event, not just the return value. |
+| `FakeTwitchConduits : ITwitchEventSubConduitsApi` | `Platform/Eventing/FakeTwitchConduits.cs` | An in-memory conduit and shard store for the shard coordinator and handover tests. |
+| `SpyChatProvider`, `RecordingChatProvider : IChatProvider` | test-local classes in the chat and handler tests | Record outbound sends so chat-send actions are verified without a socket. |
 
-```csharp
-namespace NomNomzBot.Application.Tests.Fakes;   // also Infrastructure.Tests.Fakes per the consuming layer
+The fakes return canned app-facing records (the §4 records, with a `Guid` tenant argument), so a test asserts the consumer's resulting **state change / emitted events / side effects**, not Twitch I/O.
 
-public sealed class FakeTwitchChannelsApi : ITwitchChannelsApi   // pattern repeats per consumed sub-client
-{
-    // Tests pre-seed canned Result<T> per method (success DTO or a specific Result.Failure(ErrorCode)).
-    // No HttpClient, no token resolver, no network. Captures call args for behavioral assertions.
-}
-```
+### 10.2 Wire-level tests — for the *real* sub-client and transport internals
 
-These never reference `HttpClient` or `ITwitchRateLimiter`; they replace the whole subsystem at its seam.
+`RecordingHelixHandler : HttpMessageHandler` (`Platform/Transport/Helix/RecordingHelixHandler.cs`) sits at the wire seam. It records every outgoing request (so a test asserts the `Client-Id` and `Authorization` actually sent) and replays a scripted queue of `Func<HttpResponseMessage>` responses, so a test drives `401` → refresh-and-retry, `429` → reset, `5xx` → retry, and envelope parsing. It backs `TwitchRateLimiterTests`, `TwitchRateLimitHandlerTests` and `TwitchResilienceTests`; there is no network and no live credential.
 
-### 10.2 Recorded Helix fixtures — for testing the *real* `TwitchHelixClient` sub-client internals
+- **No committed fixture folder.** The design's `tests/Fixtures/Helix/*.json` and `StubHelixHandler` were not built: each test supplies its response body inline as a JSON string, using public-shape sample data only (no tokens, client ids, secrets or real viewer data — consistent with "no fake/seed community data": these are response-shape samples for client parsing, not seeded application data).
+- **Rate-limit replay.** The scripted responses carry `Ratelimit-Limit` / `Ratelimit-Remaining` / `Ratelimit-Reset` headers (and, for the throttle path, a `429` with `Retry-After`), so a test asserts `TwitchRateLimitHandler` → `ITwitchRateLimiter.Observe(...)` adapts the bucket and that a `TwitchHelixRateLimitedEvent` (§2) is published on a hard `429`. The `TwitchAuthHeaderHandler` and the `401` → single refresh-and-retry → `TwitchHelixReauthRequiredEvent` path are covered the same way.
 
-To exercise the **actual** sub-client deserialization (wire DTO → §4 app DTO mapping) **and** the adaptive `ITwitchRateLimiter` reading `Ratelimit-*` headers, committed sample Helix JSON responses are replayed through a stub `HttpMessageHandler` / `DelegatingHandler` injected into `HttpClient("twitch-helix")`. No live call, fully deterministic.
+### 10.3 EventSub — dispatcher and transport tests
 
-- **Fixture location:** `tests/Fixtures/Helix/` — one JSON file per Helix shape, named after the endpoint (e.g. `get-users.json`, `get-channels.json`, `get-subscriptions.json`, `get-channels-followers.json`, `get-chatters.json`).
-- **Provenance:** captured from the **Twitch Helix reference examples** or from real responses (the records themselves are hand-written, §4 — no codegen), with **all tokens, client-ids, and secrets scrubbed** before commit — fixtures carry only public-shape sample data, no live credentials and no real-viewer PII (consistent with "no fake/seed community data" — these are response-shape fixtures for client parsing, not seeded application data).
-- **Rate-limit replay:** the stub handler attaches synthetic `Ratelimit-Limit` / `Ratelimit-Remaining` / `Ratelimit-Reset` response headers (and, for the throttle path, a `429` with `Retry-After`) so a test can assert `TwitchRateLimitHandler` → `ITwitchRateLimiter.Observe(...)` adapts the bucket and that a `TwitchHelixRateLimitedEvent` (§2) is emitted on a hard `429`. Pairs with the `TwitchAuthHeaderHandler` (§7) for the `401` → single refresh-and-retry → `TwitchHelixReauthRequiredEvent` path.
-
-```csharp
-namespace NomNomzBot.Infrastructure.Tests.Twitch;
-
-// Replays a committed fixture body + canned Ratelimit-* headers for one request, in-process.
-public sealed class StubHelixHandler(string fixtureBody, IReadOnlyDictionary<string, string> responseHeaders)
-    : DelegatingHandler
-{
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct);
-}
-```
-
-### 10.3 EventSub — `FakeEventSubSource` harness
-
-Event-driven subsystem behavior (a handler reacting to `channel.chat.message`, `stream.online`, `channel.follow`, …) is tested by injecting notification frames **straight into the dispatcher** — no live WebSocket/conduit. The harness builds a transport-agnostic `EventSubNotification` (twitch-eventsub.md §4.1) and calls `INotificationDispatcher.DispatchAsync(...)` (twitch-eventsub.md §3.4), driving the real dedupe → journal → `IEventBus` fan-out path; the test then asserts the resulting domain event(s) and subsystem state. Cross-reference **twitch-eventsub.md** §3.1 (`IEventSource` seam), §3.4 (dispatcher), §4.1 (`EventSubNotification`).
-
-```csharp
-namespace NomNomzBot.Infrastructure.Tests.Twitch;
-
-// Feeds canned EventSub notification frames into the real INotificationDispatcher — no WS/conduit.
-public sealed class FakeEventSubSource(INotificationDispatcher dispatcher)
-{
-    public Task<Result<NotificationDispatchResult>> InjectAsync(EventSubNotification notification, CancellationToken ct = default);
-}
-```
+There is **no** `FakeEventSubSource` class. Event-driven behavior is tested by building an `EventSubNotification` and driving the real `INotificationDispatcher` directly (`NotificationDispatcherTests`, the translator tests under `Platform/Eventing/Translators/`, and the handler tests in `Platform/Eventing/EventHandlers/`), so the real dedupe → journal → `IEventBus` fan-out path runs; the test then asserts the resulting domain events and subsystem state. Transport behavior (`TwitchEventSubSessionLifecycleTests`, `TwitchEventSubReconnectTests`, `WebSocketEventSubTransportTests`) and the conduit handover (`TwitchEventSubConduitHandoverTests`, `EventSubConduitShardCoordinatorTests`, `ConduitModeRegistrationTests`) are covered in the same folder with `FakeTwitchConduits`. Cross-reference **twitch-eventsub.md** §3.1 (`IEventSource` seam), §3.4 (dispatcher), §4.1 (`EventSubNotification`).
 
 ### 10.4 Binding summary
 
 | Test target | Seam | Double |
 |---|---|---|
-| Twitch **consumers** (followage, sub count, chatters, send-message, pipeline actions) | Helix sub-client / `IChatProvider` interface | per-sub-client fakes (`FakeTwitchChannelsApi`, …) + chat fake (§10.1) |
-| **Real client internals** (wire→app DTO mapping, `Ratelimit-*` adaptation, `401`/`429` handling) | `HttpMessageHandler` on `HttpClient("twitch-helix")` | `StubHelixHandler` + recorded fixtures `tests/Fixtures/Helix/` (§10.2) |
-| **Event-driven** subsystem behavior | `INotificationDispatcher.DispatchAsync` | `FakeEventSubSource` (§10.3, twitch-eventsub.md §3.4) |
+| A **sub-client's** orchestration (URL, auth mode, scope pre-check, result mapping) | `ITwitchHelixTransport` | `CapturingHelixTransport` + `StubScopeTokenResolver` / `StubIdentityResolver` (§10.1) |
+| Twitch **consumers** (followage, sub count, send-message, pipeline actions) | `IChatProvider` / the consumed service interface | `SpyChatProvider` / `RecordingChatProvider` and test-local stubs (§10.1) |
+| **Real client internals** (envelope parsing, `Ratelimit-*` adaptation, `401`/`429`/`5xx` handling) | `HttpMessageHandler` on `HttpClient("twitch-helix")` | `RecordingHelixHandler` with inline bodies (§10.2) |
+| **Event-driven** subsystem behavior | `INotificationDispatcher.DispatchAsync` | real dispatcher fed a built `EventSubNotification`; `FakeTwitchConduits` for conduits (§10.3) |
 
 No path in this matrix performs a live Twitch request; the suite is fully deterministic and offline.

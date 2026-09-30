@@ -4,6 +4,15 @@
 **Sources of truth:** the Streamer.bot WebSocket/HTTP API (`docs.streamer.bot/api/websocket` — the ecosystem reference whose `request`/`id`/`status` + `event` message shape third-party tools, Stream Deck plugins, Touch Portal and `@streamerbot/client`-style libraries already speak; modeled, not copied). Corpus: `commands-pipelines.md` (§3.3 `IPipelineEngine.ExecuteAsync(PipelineRequest)`, §3.4 `IPipelineService`/`ICommandService` list, `TriggerKind=manual`); `event-store.md` (§3.1 `IEventJournal`, event naming); `platform-conventions.md` (§2.0 `DomainEventBase`, §3.3 `IDeploymentProfileService.Current`, `IEventBus`, `ICacheService`); `scaling-qos.md` (§4.1 `IRateLimiter`, §6 `IChatProvider`); `identity-auth.md` (`RefreshToken.TokenHash` hashing + `Channels.OverlayToken` opaque-token patterns); `roles-permissions.md` (Gate-2, §5 cell format, `DangerTier`); locked schema `2026-06-16-database-schema.md` (Domain P — platform integrations).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; **explicit types — never `var`** (IDE0008 = error); async all the way (never `.Result`/`.Wait()`); `Result<T>` over exceptions/null; Repository + `IUnitOfWork` (no raw `DbContext` in controllers); typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]`; UUIDv7 `Guid` PKs (`Guid.CreateVersion7()`); `BroadcasterId Guid` tenant scope; soft-delete filter; Newtonsoft.Json for app JSON; secrets via `IFieldCipher` / hashed-token pattern.
 
+> **AS-BUILT vs TARGET.** The **descriptor-based registry ships**: `IAutomationEventRegistry` is fed by hand-written
+> `IAutomationEventDescriptor` implementations (`PublicName`, `Description`, `DomainEventType`, `ProjectPayload`), discovered by
+> assembly scan in `NomNomzBot.Infrastructure/AutomationApi/Events/` — exposing a new event today means adding one descriptor,
+> and only events that have a descriptor are on the stream. The **expose-all event stream** that D6 and §3 (`IAutomationEventRegistry`,
+> the `[Event]`/`[NotExposed]`/`[Pii]` attribute projection over the unified event catalog of `dev-platform.md` §1–§2) describe is the
+> **target**, not yet built; it is the slice **S-AUTOMATION-EXPOSE-ALL**. Read D6, §2's `Visibility=Internal` audit events, §3's
+> `IAutomationEventRegistry` block, §4.2's event rules and §6's "delivers **every** catalog event" test as the target contract.
+> The data-plane REST surface in §4.1 is as built.
+
 > **Why.** Streamer.bot's biggest extensibility win is its WebSocket/HTTP server: external surfaces — Stream Deck, Touch Portal, Bitfocus Companion, mobile remotes, custom scripts in any language — connect, **run any action**, **subscribe to the event stream**, read state, and send chat. Our SignalR hubs (`DashboardHub`/`OverlayHub`/`OBSRelayHub`/`AdminHub`) serve our own frontend/overlays over a Microsoft-client transport; they are **not** a language-agnostic third-party surface, and `webhooks.md` is a passive event-adapter layer, not a command/query/subscribe API. This subsystem adds the missing active control surface: a documented **plain WebSocket + REST** API, authed by per-channel scoped tokens, that drives pipelines and streams events to any tool. It is the foundation the first-party **Stream Deck** integration and any community control surface ride on.
 
 ---
@@ -147,6 +156,19 @@ JSON in/out, `StatusResponseDto<T>` envelope (it is still our API). Auth: `Autho
 | GET | `/automation/v1/commands` | `read` | commands (name, aliases) |
 | POST | `/automation/v1/invoke` | `invoke` | run a pipeline (`AutomationInvokeRequest` → `AutomationInvokeResult`) |
 | POST | `/automation/v1/chat` | `chat` | send message / reply / whisper (`AutomationChatRequest`) |
+| GET | `/automation/v1/music/now-playing` | `read` | current playback state (`AutomationNowPlayingDto`) |
+| GET | `/automation/v1/music/devices` | `read` | the broadcaster's playback devices on the active music provider (`AutomationDeviceDto` list) |
+| GET | `/automation/v1/music/playlists` | `read` | the broadcaster's playlists on the active music provider, paged (`?limit` 1-50, default 20; `?offset`) |
+| GET | `/automation/v1/obs/scenes` | `read` | the channel's OBS scenes (`AutomationObsSceneDto` list) |
+| GET | `/automation/v1/obs/inputs` | `read` | the channel's OBS inputs |
+| GET | `/automation/v1/obs/scene-items` | `read` | scene items of an OBS scene (`?sceneName`) |
+| GET | `/automation/v1/obs/scene-transitions` | `read` | the channel's OBS scene transitions |
+| GET | `/automation/v1/obs/source-filters` | `read` | filters on an OBS source (`?sourceName`) |
+| GET | `/automation/v1/obs/state` | `read` | live streaming/recording state (`AutomationObsStateDto`) — the seed read a tile makes before the first push event |
+| POST | `/automation/v1/pair` | anonymous | redeem a dashboard-issued pairing code for a one-time token secret (single-use, brute-force guarded) |
+| POST | `/automation/v1/pair/device/init` | anonymous | device-initiated pairing, step 1 — returns an opaque device code to poll plus a short user code + verification URL |
+| POST | `/automation/v1/pair/device/poll` | anonymous | device-initiated pairing, step 3 — poll by device code until an operator approves (step 2 is the JWT-authed `GET`/`POST api/v1/automation/pair/device/approve`) |
+| POST | `/automation/v1/refresh` | any token | self-refresh the presented token's secret before it expires |
 | GET | `/automation/v1/stream` | `events` | **WebSocket upgrade** (see §4.2) |
 
 ### 4.2 WebSocket (`/automation/v1/stream`)

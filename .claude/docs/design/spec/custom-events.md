@@ -1,6 +1,8 @@
 # Interface Specification — Custom Events & Data Sources
 
 **Status:** Implementable. Code the owner writes from this should compile first-try.
+
+> **As-built (2026-09-30):** `poll` and `socket` ingress are built. **Not built — S-CUSTOMDATA-PUSH:** the `CustomData` webhook adapter (the `push` ingress). No adapter resolves a source by `InboundWebhookEndpointId` and calls `IngestAsync`, so `SourceKind = push` is accepted by the API but receives nothing. Each unbuilt part is marked where it appears and stays as the target design.
 **Sources of truth:** Streamer.bot's custom-event + integration-trigger model (Pulsoid/HypeRate heart-rate, custom WebSocket triggers — the ecosystem reference) generalized into one mechanism. Corpus: `commands-pipelines.md` (trigger registry, `event` `TriggerKind`, `ITemplateEngine`, I/O-free resolver rule, `HttpEgressAllowlist` egress); `webhooks.md` (inbound endpoint H.10 + adapter-kind enum — the push ingress); `supporter-events.md` (the per-channel outbound `SocketIOClient`/`ClientWebSocket` hosted-service pattern — `SupporterSocketHostedService`, the socket ingress); `widgets-overlays.md` (`IOverlayClient`/`widget_event` — the overlay feed); `platform-conventions.md` (§2.0 `DomainEventBase`, `IEventBus`, `ICacheService`, `IRunOnceGuard`, `IDeploymentProfileService`); `scaling-qos.md` (`IRateLimiter`); `gdpr-crypto.md` (`IFieldCipher` AEAD); `automation-api.md` (exposes `Custom.<name>` to the external event stream); locked schema `2026-06-16-database-schema.md` (Domain G — channel content/automation).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; **explicit types — never `var`** (IDE0008 = error); async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; `StatusResponseDto<T>` / `PaginatedResponse<T>`; `[ApiVersion("1.0")]`; UUIDv7 `Guid` PKs; `BroadcasterId Guid` tenant scope; soft-delete filter; Newtonsoft.Json; secrets via `IFieldCipher`.
 
@@ -13,7 +15,7 @@
 | # | Decision |
 |---|---|
 | D1 | **One generic mechanism.** A `CustomDataSource` produces a normalized **`custom.<name>` event**. Each event (a) fires the pipeline trigger `custom.<name>` (registered as an `event` trigger kind, like the engagement triggers — **no new `TriggerKind` enum value**), (b) exposes `{{custom.<name>.<field>}}` + `{{custom.<name>.raw}}` + `{{custom.<name>.at}}`, and (c) updates the source's **latest value** for overlays. Heart rate is just a source named e.g. `heartrate`. |
-| D2 | **Three ingress kinds, decided per source (`SourceKind`):** **`push`** — an inbound webhook (reuses `webhooks.md` H.10 via a new `CustomData` adapter kind: verify→dedup→journal→ingest, no parallel ingress); **`poll`** — an interval HTTP fetch, FQDN-constrained by the tenant's existing `HttpEgressAllowlist` (no new SSRF surface), one runner per source via `IRunOnceGuard`; **`socket`** — an outbound WS/Socket.IO client (the `supporter-events.md` hosted-service pattern), one connection per source via `IRunOnceGuard`. |
+| D2 | **Three ingress kinds, decided per source (`SourceKind`):** **`push`** — **not built (S-CUSTOMDATA-PUSH)**; an inbound webhook (reuses `webhooks.md` H.10 via a new `CustomData` adapter kind: verify→dedup→journal→ingest, no parallel ingress); **`poll`** — an interval HTTP fetch, FQDN-constrained by the tenant's existing `HttpEgressAllowlist` (no new SSRF surface), one runner per source via `IRunOnceGuard`; **`socket`** — an outbound WS/Socket.IO client (the `supporter-events.md` hosted-service pattern), one connection per source via `IRunOnceGuard`. |
 | D3 | **Arbitrary payload, structured access via a field-mapping.** Each source carries a JSON-path **field map** (`bpm <- $.data.heartRate`) extracting named fields from the raw payload; the bounded raw payload stays available as `{{custom.<name>.raw}}`. The mechanism never assumes a schema. |
 | D4 | **Latest value is cached, events are journaled — no event/snapshot table.** The latest extracted value per source lives in `ICacheService` (transient, fast). Every `CustomDataReceivedEvent` flows through `IEventBus` and is journaled by the existing decorator (full history, replay). The pipeline **dispatcher seeds the `custom.*` latest values into the run's `InitialVariables`** at dispatch (one cache read at dispatch — keeps the template resolver I/O-free per the corpus rule), so a `!heartrate` command can read `{{custom.heartrate.bpm}}` even when it wasn't the trigger. |
 | D5 | **Overlay feed via the existing surface.** A first-party **"Custom Data" widget** (catalogue entry in `widgets-overlays.md`) binds a source name and renders its live value (number, gauge, text); updates ride the existing `IOverlayClient`/`widget_event` push. No bespoke overlay transport. |
@@ -29,7 +31,7 @@ Domain G. UUIDv7 PK, `BaseEntity` timestamps, soft-delete filter, `BroadcasterId
 
 | Table | Schema ref | Scope | Key fields (type) |
 |---|---|---|---|
-| **`CustomDataSource`** | **G.13 (NEW)** `[soft-delete]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `Name string(50)` (the `<name>` in `custom.<name>`; lowercase, slug); `DisplayName string(100)`; `SourceKind string(20)` **[VC:enum]** (`push`\|`poll`\|`socket`); `PresetKey string(50)?` (the `ICustomDataSourcePreset` key, null for a hand-rolled source); `EndpointUrl string(500)?` (poll URL / socket URL; null for push); `AuthSecretCipher text?` **[PII]** (AEAD via `IFieldCipher` — bearer token / OAuth access token for socket/poll/push auth); `FieldMapJson text` **[VC:JSON]** (`{ "<field>": "<jsonpath>" }`); `PollIntervalSeconds int?` (poll only; clamped to a tier-scaled floor); `InboundWebhookEndpointId Guid?` FK→`InboundWebhookEndpoint.Id` (push only — the H.10 endpoint backing this source); `IsEnabled bool` (default false); `LastReceivedAt DateTime?`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(BroadcasterId, Name)`. |
+| **`CustomDataSource`** | **G.13 (NEW)** `[soft-delete]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `Name string(50)` (the `<name>` in `custom.<name>`; lowercase, slug); `DisplayName string(100)`; `SourceKind string(20)` **[VC:enum]** (`push`\|`poll`\|`socket`); `PresetKey string(50)?` (the `ICustomDataSourcePreset` key, null for a hand-rolled source); `EndpointUrl string(500)?` (poll URL / socket URL; null for push); `AuthSecretCipher text?` **[PII]** (AEAD via `IFieldCipher` — bearer token / OAuth access token for socket/poll/push auth); `FieldMapJson text` **[VC:JSON]** (`{ "<field>": "<jsonpath>" }`); `PollIntervalSeconds int?` (poll only; clamped to a tier-scaled floor); `InboundWebhookEndpointId Guid?` FK→`InboundWebhookEndpoint.Id` (push only — the H.10 endpoint backing this source); `IsEnabled bool` (default false); `LastReceivedAt DateTime?`; `LastAttemptAt DateTime?` (last fetch attempt, success or failure — poll only); `LastError string(1000)?` (last fetch/ingest error, null after a success); `ConsecutiveFailureCount int` (reset to 0 on success); `LastFieldErrorsJson string(1000)?` **[VC:JSON]** (`{ "<field>": "<error>" }` for field-map entries that failed on the last ingest — the working fields still ingest); `NextRetryAt DateTime?` (earliest next poll, set by `CustomDataPollBackoffPolicy`, cleared on success); `DisabledAt DateTime?` + `DisabledReason string(500)?` (set when the source is auto-disabled after crossing the failure threshold); `CreatedByUserId Guid` FK→`Users.Id`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(BroadcasterId, Name)`. |
 
 A "latest value" is **not** a table — it is `ICacheService` key `customdata:{broadcasterId}:{name}` (D4). Event history is the event journal (D4).
 
@@ -60,6 +62,8 @@ Namespace `NomNomzBot.Application.CustomEvents`. `Task<Result<T>>` / `Task<Resul
 public interface ICustomDataSourceService
 {
     Task<Result<PagedList<CustomDataSourceDto>>> ListAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
+    // Autocomplete over name/display name for pick-list inputs; empty query = first `limit` by display name; limit clamped.
+    Task<Result<IReadOnlyList<CustomDataSourceOptionDto>>> SearchAsync(Guid broadcasterId, string? query, int limit, CancellationToken ct = default);
     Task<Result<CustomDataSourceDto>> GetAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
     Task<Result<CustomDataSourceDto>> CreateAsync(Guid broadcasterId, Guid actorUserId, UpsertCustomDataSourceRequest request, CancellationToken ct = default);
     Task<Result<CustomDataSourceDto>> UpdateAsync(Guid broadcasterId, Guid id, Guid actorUserId, UpsertCustomDataSourceRequest request, CancellationToken ct = default);
@@ -69,6 +73,12 @@ public interface ICustomDataSourceService
     Task<Result> TestAsync(Guid broadcasterId, Guid id, string samplePayload, CancellationToken ct = default);
 
     Task<Result<IReadOnlyList<CustomDataSourcePresetDto>>> ListPresetsAsync(CancellationToken ct = default);
+
+    // One-off GET against the source's EndpointUrl (the SSRF-gated poll egress seam): returns the fetched body plus the flattened leaf `$.foo.bar` key-paths so the streamer picks a key instead of typing a JSONPath blind.
+    Task<Result<CustomDataSourceTestFetchDto>> TestFetchAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
+
+    // Real, counted blast radius of deleting the source (S-CONSEQ): event responses bound to `custom.<name>` + widgets reading the same key. A MINIMUM — template text and code scripts can name it and cannot be read.
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
 }
 
 // The single ingest path — extracts fields per the field-map, publishes the event, updates the cached latest value.
@@ -87,11 +97,13 @@ public interface ICustomDataSourcePreset
 }
 
 public sealed record UpsertCustomDataSourceRequest(string Name, string DisplayName, string SourceKind, string? PresetKey, string? EndpointUrl, string? AuthSecret, IReadOnlyDictionary<string, string> FieldMap, int? PollIntervalSeconds, bool IsEnabled);
-public sealed record CustomDataSourceDto(Guid Id, string Name, string DisplayName, string SourceKind, string? PresetKey, string? EndpointUrl, bool HasAuthSecret, IReadOnlyDictionary<string, string> FieldMap, int? PollIntervalSeconds, bool IsEnabled, DateTime? LastReceivedAt);
+public sealed record CustomDataSourceDto(Guid Id, string Name, string DisplayName, string SourceKind, string? PresetKey, string? EndpointUrl, bool HasAuthSecret, IReadOnlyDictionary<string, string> FieldMap, int? PollIntervalSeconds, bool IsEnabled, DateTime? LastReceivedAt, IReadOnlyDictionary<string, string> FieldErrors);
 public sealed record CustomDataSourcePresetDto(string Key, string DisplayName, string SourceKind);
+public sealed record CustomDataSourceOptionDto(Guid Id, string Name, string DisplayName);
+public sealed record CustomDataSourceTestFetchDto(string RawJson, IReadOnlyList<string> KeyPaths, bool Truncated);
 ```
 
-`CustomEventTriggerSource` (Singleton, consumes `CustomDataReceivedEvent`) matches bound pipelines/event-responses whose trigger kind is `custom.<SourceName>` and dispatches with the event fields as variables. `CustomDataSocketHostedService` / `CustomDataPollHostedService` (`IHostedService`, `IRunOnceGuard`-guarded) own the socket/poll ingress and call `ICustomDataIngestService`. Push sources ingest through the new `CustomData` webhook adapter (`webhooks.md`), which resolves the source by `InboundWebhookEndpointId` and calls the same `IngestAsync`.
+`CustomEventTriggerSource` (Singleton, consumes `CustomDataReceivedEvent`) matches bound pipelines/event-responses whose trigger kind is `custom.<SourceName>` and dispatches with the event fields as variables. `CustomDataSocketHostedService` / `CustomDataPollHostedService` (`IHostedService`, `IRunOnceGuard`-guarded) own the socket/poll ingress and call `ICustomDataIngestService`. Push sources are meant to ingest through a new `CustomData` webhook adapter (`webhooks.md`), which resolves the source by `InboundWebhookEndpointId` and calls the same `IngestAsync`. **Not built (S-CUSTOMDATA-PUSH):** the adapter does not exist; a `push` source has no ingress today.
 
 ---
 
@@ -112,11 +124,14 @@ Controller `CustomDataSourcesController`, `[Route("api/v{version:apiVersion}/cus
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|
 | GET | `/` | — | `PaginatedResponse<CustomDataSourceDto>` | management / Moderator · `customdata:read` |
+| GET | `/search` | `?q=&limit=` (default 20) | `StatusResponseDto<IReadOnlyList<CustomDataSourceOptionDto>>` | management / Moderator · `customdata:read` |
 | GET | `/{id}` | — | `StatusResponseDto<CustomDataSourceDto>` | management / Moderator · `customdata:read` |
 | POST | `/` | `UpsertCustomDataSourceRequest` | `StatusResponseDto<CustomDataSourceDto>` | management / Editor · `customdata:write` |
 | PUT | `/{id}` | `UpsertCustomDataSourceRequest` | `StatusResponseDto<CustomDataSourceDto>` | management / Editor · `customdata:write` |
+| GET | `/{id}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Editor · `customdata:write` |
 | DELETE | `/{id}` | — | `StatusResponseDto<bool>` | management / Editor · `customdata:write` |
 | POST | `/{id}/test` | `{ string SamplePayload }` | `StatusResponseDto<bool>` | management / Editor · `customdata:write` |
+| POST | `/{id}/test-fetch` | — | `StatusResponseDto<CustomDataSourceTestFetchDto>` | management / Editor · `customdata:write` |
 | GET | `/presets` | — | `StatusResponseDto<IReadOnlyList<CustomDataSourcePresetDto>>` | management / Moderator · `customdata:read` |
 
 Seed in `roles-permissions.md`: **`customdata:read`** (`management`, Moderator 10, `Low`), **`customdata:write`** (`management`, Editor 30, `Low`). The trigger *bindings* are ordinary pipeline config (`pipelines:write`).
@@ -125,9 +140,9 @@ Seed in `roles-permissions.md`: **`customdata:read`** (`management`, Moderator 1
 
 ## 6. DI & testing
 
-`NomNomzBot.Infrastructure/CustomEvents/DependencyInjection.cs` (`AddCustomEvents()`): `ICustomDataSourceService`→`CustomDataSourceService` (Scoped); `ICustomDataIngestService`→`CustomDataIngestService` (Scoped); `CustomDataSourceRepository` (Scoped); `CustomEventTriggerSource` (Singleton); `CustomDataSocketHostedService` + `CustomDataPollHostedService` (`IHostedService`, `IRunOnceGuard`-guarded, started for enabled `socket`/`poll` sources); all `ICustomDataSourcePreset` impls **auto-discovered** (Pulsoid, HypeRate). The `CustomData` webhook adapter registers with `webhooks.md`'s adapter registry. `CustomDataReceivedEvent` is picked up by the unified event catalog via its `[Event("Custom.<name>", Public)]` attribute — no descriptor registration.
+No per-module installer (there is no `AddCustomEvents()`): the `AddInfrastructure` scans bind everything (backend-structure.md §4). `ICustomDataSourceService`→`CustomDataSourceService` and `ICustomDataIngestService`→`CustomDataIngestService` (Scoped by the `I<X>Service` convention; no per-entity repository class); `CustomDataSocketHostedService` + `CustomDataPollHostedService` (`AddHostedWorkers`, `IRunOnceGuard`-guarded, started for enabled `socket`/`poll` sources); all `ICustomDataSourcePreset` impls **auto-discovered** (Pulsoid, HypeRate). The `CustomData` webhook adapter registers with `webhooks.md`'s adapter registry (**not built — S-CUSTOMDATA-PUSH**). `CustomDataReceivedEvent` is picked up by the unified event catalog via its `[Event("Custom.<name>", Public)]` attribute — no descriptor registration.
 
-**Tests (prove behavior):** ingesting a raw payload through `IngestAsync` extracts the mapped fields (`$.data.heartRate`→`bpm`), publishes exactly one `CustomDataReceivedEvent`, updates the cached latest value, and stamps `LastReceivedAt`; the `custom.<name>` trigger fires the bound pipeline with `{{custom.<name>.bpm}}` populated, and a **non-triggered** pipeline referencing the same var reads the cached latest (resolver stays I/O-free — the value is in `InitialVariables`); a `poll` source only fetches an allowlisted FQDN (a non-allowlisted URL is rejected at create/update); a disabled source ingests nothing and starts no socket/poll runner; the `CustomData` webhook adapter routes a verified inbound delivery to `IngestAsync` for the right source; the Pulsoid/HypeRate presets resolve to a `socket` template with the `bpm` field-map; the Automation API receives the event as `Custom.<name>` with the PII-safe projection; rate-limit denial drops the datum without publishing.
+**Tests (prove behavior):** ingesting a raw payload through `IngestAsync` extracts the mapped fields (`$.data.heartRate`→`bpm`), publishes exactly one `CustomDataReceivedEvent`, updates the cached latest value, and stamps `LastReceivedAt`; the `custom.<name>` trigger fires the bound pipeline with `{{custom.<name>.bpm}}` populated, and a **non-triggered** pipeline referencing the same var reads the cached latest (resolver stays I/O-free — the value is in `InitialVariables`); a `poll` source only fetches an allowlisted FQDN (a non-allowlisted URL is rejected at create/update); a disabled source ingests nothing and starts no socket/poll runner; the `CustomData` webhook adapter routes a verified inbound delivery to `IngestAsync` for the right source (**not built — S-CUSTOMDATA-PUSH**); the Pulsoid/HypeRate presets resolve to a `socket` template with the `bpm` field-map; the Automation API receives the event as `Custom.<name>` with the PII-safe projection; rate-limit denial drops the datum without publishing.
 
 ---
 

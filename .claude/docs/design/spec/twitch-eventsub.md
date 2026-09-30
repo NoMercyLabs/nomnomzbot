@@ -24,9 +24,10 @@ All entities are EF Core 10 classes in `NomNomzBot.Domain/Entities/`. Each imple
 | `EventSubjectKey` | §O.1a | tenant-nullable | `Id Guid` PK; `EventId Guid` (FK→EventJournal.EventId); `BroadcasterId Guid?`; `SubjectIdHash string(64)`; `SubjectKeyId Guid` (FK→CryptoKey); `Role string(20)?` (`gifter`\|`recipient`\|`raider`\|`raided`). **Unique** `(EventId, SubjectKeyId)`. |
 | `IdempotencyKey` | §O.4 | tenant-nullable | `Id bigint` PK; `Scope string(100)`; `Key string(255)`; `BroadcasterId Guid?`; `ResultHash string(64)?`; `ExpiresAt timestamp`. **Unique** `(Scope, Key, BroadcasterId)`. |
 | `TenantSequence` | §Q.3 | tenant | `Id Guid` PK; `BroadcasterId Guid` (FK→Channels); `SequenceName string(50)` (`event_stream_position`); `NextValue bigint`. **Unique** `(BroadcasterId, SequenceName)`. |
-| `TwitchChannelEventLog` | §F.4 `[APPEND-ONLY]` | tenant | read-model written by the projection; `Id bigint` PK; `BroadcasterId Guid`; `EventType string(100)`; `ActorUserId Guid?`; `ActorTwitchUserId string(50)?`; `ActorDisplayNameSnapshot string(255)?`; `StreamId Guid?`; `Payload string?` `[VC:JSON]`; `OccurredAt timestamp`. |
+| `EventSubInboxMessage` | §10.1 (platform) | global | `Id Guid` PK (UUIDv7); `MessageId string(255)` **Unique** (Twitch `message_id`); `MessageTimestamp DateTime`; `SubscriptionType string(100)`; `SubscriptionVersion string(20)`; `TwitchBroadcasterUserId string(255)`; `EventJson string` (the notification's `event` object, verbatim); `ReceivedAt DateTime` (drain order; index `(ReceivedAt, Id)`). Postgres only; reached only through `IEventSubInbox`. |
+| `ChannelEvent` (schema F.4 "`TwitchChannelEventLog`") | §F.4 | tenant | The F.4 read-model is the live **`ChannelEvent`** entity (`Domain/Identity/Entities/ChannelEvent.cs`, `DbSet<ChannelEvent> ChannelEvents`), not a table named `TwitchChannelEventLog`. Written by `TwitchChannelEventLogProjection`: `Id string(50)` PK (= the journal `EventId`, so replay upserts the same row); `ChannelId Guid?` (FK→Channels, tenant); `UserId Guid?` (FK→Users, linked after a rebuild by `ChannelEventActorBackfill`); `Type string(100)` (stable `channel.*` dashboard type); `Data string?` (`jsonb`; carries the actor snapshot `actorTwitchUserId` + display name); `CreatedAt`/`UpdatedAt` from `BaseEntity`. |
 
-**Ownership boundary.** This subsystem **writes** `EventSubSubscription`, `EventSubConduit`, `EventSubConduitShard`, `IdempotencyKey`. It **appends to** `EventJournal`/`EventSubjectKey` and **allocates** `TenantSequence` **through event-store** — those write paths are owned by event-store (`IEventJournal.AppendAsync` + `ITenantSequenceAllocator`; see event-store.md, canonical journal owner), not directly here. It **does not** own the read models projected *from* `EventJournal` (`Streams` F.1, `TwitchSubscribers` F.2, `TwitchFollowers` F.3, `RewardRedemptions` F.6, `TwitchChannelEventLog` F.4) — those belong to the projection subsystem. The seam is: this subsystem appends to `EventJournal` (via event-store) and publishes domain events on `IEventBus`; projections consume.
+**Ownership boundary.** This subsystem **writes** `EventSubSubscription`, `EventSubConduit`, `EventSubConduitShard`, `EventSubInboxMessage`, `IdempotencyKey`. It **appends to** `EventJournal`/`EventSubjectKey` and **allocates** `TenantSequence` **through event-store** — those write paths are owned by event-store (`IEventJournal.AppendAsync` + `ITenantSequenceAllocator`; see event-store.md, canonical journal owner), not directly here. It **does not** own the read models projected *from* `EventJournal` (`Streams` F.1, `TwitchSubscribers` F.2, `TwitchFollowers` F.3, `RewardRedemptions` F.6, the F.4 channel-event log = `ChannelEvent`) — those belong to the projection subsystem. The seam is: this subsystem appends to `EventJournal` (via event-store) and publishes domain events on `IEventBus`; projections consume.
 
 New `IApplicationDbContext` `DbSet`s to add (replacing `DbSet<EventSubscription> EventSubscriptions`):
 `DbSet<EventSubSubscription> EventSubSubscriptions`, `DbSet<EventSubConduit> EventSubConduits`, `DbSet<EventSubConduitShard> EventSubConduitShards`, `DbSet<EventJournal> EventJournal`, `DbSet<EventSubjectKey> EventSubjectKeys`, `DbSet<IdempotencyKey> IdempotencyKeys`, `DbSet<TenantSequence> TenantSequences`.
@@ -111,14 +112,18 @@ namespace NomNomzBot.Application.Contracts.Platform;
 
 public interface IEventSource
 {
-    string Provider { get; }   // "twitch" | "kick" | "youtube" | "x" — one IEventSource per platform connection (PRODUCT-ALIGNMENT D1)
+    string Provider { get; }   // "twitch" — the only implementation today
 
     Task<Result> EnsureSubscribedAsync(Guid broadcasterId, IReadOnlyCollection<string> eventTypes, CancellationToken ct = default);
     Task<Result> UnsubscribeAllAsync(Guid broadcasterId, CancellationToken ct = default);
     EventSourceHealth Health { get; }
 }
 ```
-- `Provider` — discriminator; one implementation per platform (`TwitchEventSource` = EventSub, `KickEventSource` = Kick webhooks, `YouTubeEventSource` = Live Chat / Data API polling, `XEventSource` = X Live). Every source translates its raw events into the **same domain events** with `Provider` stamped (Kick subs/gifts/Kicks and YouTube memberships/Super Chats → `NewSubscriptionEvent`/`ResubscriptionEvent`/`GiftSubscriptionEvent`/`CheerEvent`, table in `supporter-events.md` §4.1) — one event response config, one Alert surface, one `domain.action` name per fact (`widget-sdk.md` §2.1).
+- **One implementation.** `IEventSource` has exactly one implementation: `TwitchEventSubHostedService` (`Provider = "twitch"`, the same singleton behind `ITwitchEventSubService`, `IActiveInstanceGate`, `IEventSubHandoverReadiness` and `IHostedService`). The seam is provider-agnostic, so a second `IEventSource` is an additive implementation, not a seam change — but no `KickEventSource`, `YouTubeEventSource` or `XEventSource` exists.
+- **The other platforms ingest without `IEventSource`,** each through its own path, and every path translates raw events into the **same canonical domain events** with `Provider` stamped (Kick subs/gifts/Kicks and YouTube memberships/Super Chats → `NewSubscriptionEvent`/`ResubscriptionEvent`/`GiftSubscriptionEvent`/`CheerEvent`, table in `supporter-events.md` §4.1) — one event response config, one Alert surface, one `domain.action` name per fact (`widget-sdk.md` §2.1):
+  - **Kick** — webhooks. `KickWebhookController` (`POST api/v1/webhooks/kick`, anonymous; signature + freshness checked there) calls `IKickWebhookIngest.HandleAsync(eventType, rawBody, messageId)`, which owns tenant resolution, redelivery dedupe and translation (`chat.message.sent` → `ChatMessageReceivedEvent` with `Provider = kick`; follows/subs/gifts/kicks/redemptions → the Twitch twins; livestream events stamp the Kick tenant `Channel`'s `IsLive`/title/category). `KickEventSubscriptionWorker` reconciles the wanted webhook subscription set on each connected streamer's token every 5 minutes.
+  - **YouTube** — Live Chat polling. `YouTubeLiveChatPollWorker` polls each connected streamer's live chat(s) (quota-aware: a 2-minute liveness probe while offline; the API-directed `pollingIntervalMillis` with a 5 s floor while live) and `YouTubeLiveChatEventTranslator` publishes the canonical events with `Provider = youtube`.
+  - **X Live** — not built; no ingest path exists.
 - `EnsureSubscribedAsync` — declaratively reconciles the channel's subscription set to exactly `eventTypes` (creates missing, leaves existing, no-ops duplicates); persists registry rows; returns failure with `ErrorCode` `SCOPE_MISSING`/`SERVICE_UNAVAILABLE` on Twitch rejection.
 - `UnsubscribeAllAsync` — revokes every active subscription for the tenant at Twitch and soft-deletes its registry rows (channel offboarding / erasure).
 - `Health` — synchronous transport-health snapshot for the dashboard/health endpoint.
@@ -157,34 +162,53 @@ public interface ITwitchEventSubService : IEventSource
 
 ### 3.3 `IEventSubTransport` — deployment-profile adapter seam
 
-`NomNomzBot.Application/Contracts/Twitch/`. Two impls, one chosen by DI (§7). The hosted service owns lifecycle; the transport owns the wire.
+`NomNomzBot.Application/Contracts/Twitch/`. The hosted service owns lifecycle; the transport owns the wire. Twitch forbids subscriptions from different users on one WebSocket session, so each **token owner** (`EventSubOwnerKeys`: `"bot"`, a broadcaster's tenant Guid string for a broadcaster-scoped topic, or `"conduit-shard"`) gets its own session; `IEventSubTransport` therefore addresses sessions by owner key.
 
 ```csharp
 public interface IEventSubTransport
 {
     EventSubTransportKind Kind { get; }
 
-    // Bring the transport up: connect WS / ensure conduit+shards exist. Returns the session/conduit handle
-    // the service uses when creating subscriptions. Idempotent; safe to call after reconnect.
+    // Bring the transport up for the bot owner (EventSubOwnerKeys.Bot): connect WS / return its handle. Idempotent; safe after reconnect.
+    // Equivalent to EnsureSessionAsync(EventSubOwnerKeys.Bot).
     Task<Result<EventSubTransportHandle>> StartAsync(CancellationToken ct = default);
+
+    // Ensure a live session for the given token owner (connect + await the welcome if needed) and return its handle. Idempotent.
+    // For a conduit a single conduit backs every owner, so it resolves to the same handle.
+    Task<Result<EventSubTransportHandle>> EnsureSessionAsync(string ownerKey, CancellationToken ct = default);
 
     // Create one subscription at Twitch under this transport (session_id for WS, conduit_id for conduit).
     // Returns Twitch's subscription id + cost + status. Failure carries Twitch error body.
     Task<Result<TwitchSubscriptionResult>> CreateSubscriptionAsync(EventSubSubscriptionRequest request, EventSubTransportHandle handle, CancellationToken ct = default);
 
-    // DELETE /eventsub/subscriptions?id=. Idempotent (404 → Success).
-    Task<Result> DeleteSubscriptionAsync(string twitchSubscriptionId, CancellationToken ct = default);
+    // The live session/conduit id currently backing the owner, or null when none is open. Reconcile uses it to tell a live
+    // subscription from one stranded on a dead session (per owner).
+    string? CurrentSessionId(string ownerKey);
+
+    // Every owner key with a session opened this process. A full reconnect (ITwitchEventSubService.ReconnectAsync) re-opens EVERY owner's session.
+    IReadOnlyCollection<string> KnownOwnerKeys { get; }
+
+    // DELETE /eventsub/subscriptions?id=. Idempotent (404 → Success). `ownerBroadcasterId` = the tenant whose token CREATED the subscription
+    // (null = bot/app-owned): Twitch scopes a delete to the calling token's own user, so the wrong token would 404 (reported as success) and delete nothing.
+    Task<Result> DeleteSubscriptionAsync(string twitchSubscriptionId, Guid? ownerBroadcasterId = null, CancellationToken ct = default);
+
+    // DELETE for a CONDUIT subscription: it belongs to the app, so only the app access token can delete it. Idempotent (404 → Success).
+    Task<Result> DeleteConduitSubscriptionAsync(string twitchSubscriptionId, CancellationToken ct = default);
 
     // List the app/user's current subscriptions at Twitch (paged, follows cursor). For ReconcileAsync.
     Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListSubscriptionsAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    // The app's conduit subscriptions for one Twitch user (GET /eventsub/subscriptions?user_id= on the app token — a user token never sees them). Reconcile in conduit mode.
+    Task<Result<IReadOnlyList<TwitchSubscriptionResult>>> ListConduitSubscriptionsAsync(string twitchUserId, CancellationToken ct = default);
 
     // Gracefully tear down (close WS / leave conduit shards). Called on shutdown.
     Task StopAsync(CancellationToken ct = default);
 }
 ```
 
-- **WebSocket impl** (`WebSocketEventSubTransport`, lite/self-host): `StartAsync` connects `wss://eventsub.wss.twitch.tv/ws`, awaits `session_welcome`, returns a handle carrying `SessionId`; its own receive loop reads `notification`/`session_reconnect`/`revocation`/`session_keepalive` frames and forwards each notification envelope to `INotificationDispatcher`. Reconnect/backoff lives here.
-- **Conduit impl** (`ConduitEventSubTransport`, SaaS): `StartAsync` ensures the app-global `EventSubConduit` row + shards exist (creating via Helix if absent), returns a handle carrying `ConduitId`; notifications arrive out-of-band via the webhook controller (§5), not a receive loop. `CreateSubscriptionAsync` uses `transport: { method: "conduit", conduit_id }`.
+- **The one implementation is `WebSocketEventSubTransport`** (`Kind = WebSocket`, registered unconditionally as a singleton): `StartAsync`/`EnsureSessionAsync` connect `wss://eventsub.wss.twitch.tv/ws`, await `session_welcome`, and return a handle carrying `SessionId`; its receive loop reads `notification`/`session_reconnect`/`revocation`/`session_keepalive` frames and hands each to the hosted service through `IEventSubNotificationSink` (§3.8), which owns tenant resolution and dispatch. Reconnect/backoff lives here.
+- **Conduit mode (§10) rides the same transport.** The conduit's WebSocket shard is one more owner session (`EventSubOwnerKeys.ConduitShard`); `IEventSubConduitShardCoordinator` (§3.8) owns the conduit + shard; subscriptions are created with `transport: { method: "conduit", conduit_id }` on the app token, using a handle whose `Kind = Conduit` and `ConduitId` is set. Notifications still arrive on a WebSocket shard, not a webhook.
+- **A `ConduitEventSubTransport`, a webhook transport, `EventSubWebhookController` and `IWebhookSignatureVerifier` are not built.** §3.6 and §5.2 record the designed contract for that webhook path; nothing in `IEventSubTransport` needs to change to add it.
 
 ### 3.4 `INotificationDispatcher` — envelope → domain events + journal
 
@@ -205,6 +229,8 @@ public interface INotificationDispatcher
 ```
 
 `EventSubNotification` (input contract, §4) is the transport-agnostic shape both transports build from their wire frame.
+
+**Two dedupe layers, in order.** (1) The journal append is idempotent on the message-id-derived `EventId`, so an exact redelivery of one wire message returns the existing row and consumes no position. (2) A genuinely new message id is then passed to `IDuplicateNotificationSuppressor.TryClaimAsync(broadcasterId, subscriptionType, rawPayloadJson, now, window = 5 min)` (S-DUPE, §3.8): the same real-world event under **two different message ids** — both colours of a blue/green overlap, or a reconnect where Twitch keeps the dying session alive — claims the same triple twice, and the second claim skips fan-out. The raw row is still journaled and `EventSubNotificationJournaledEvent.WasDuplicate` is `true` for either kind of duplicate.
 
 The dispatcher does **not** hand-roll a per-type `switch` for the typed mapping (step 3). It resolves the matching `IEventSubEventTranslator` from `IEventSubTranslatorRegistry` (§3.7) and lets it publish the concrete domain event(s). The typed publish rides the same `IEventBus`, so the journaling decorator (`JournalingEventBusDecorator`, event-store §7) records the derived `domain`-source row(s) in addition to the dispatcher's explicit raw `eventsub`-source row — **by design**: the raw row is the replay source, the derived rows feed live handlers and projections. The fan-out runs on the **genuinely-new path only** (a redelivery already fanned out on its first delivery); an unknown subscription type with no translator yet is journaled raw and skipped (no event is ever lost). A faulting translator is isolated and logged — one malformed payload never fails the journal append.
 
@@ -246,6 +272,88 @@ public interface IEventSubTranslatorRegistry
 **Why one-per-type and not a `switch`.** `IEventBus.PublishAsync<TEvent>` binds handlers by the **compile-time** event type (`GetServices<IEventHandler<TEvent>>()`), so a typed event must be published from a call site that knows its concrete type — a generic `DomainEventBase` publish would resolve no handlers. Each translator knows its concrete type at its publish call site, which is exactly the seam that turns a raw envelope into typed delivery **without reflection** on the hot path. New type → new file (auto-discovered, §7); the dispatcher and registry never change. Translators are **pure parse + publish** (deps: `IEventBus` + `TimeProvider` only — no DbContext): they read the already-resolved tenant off the notification and stamp the injected clock. Implementations live in `NomNomzBot.Infrastructure/Platform/Eventing/Translators/` (engine plumbing), grouped one file per category; the domain events they publish live in their domain modules (§2). The abstract `EventSubEventTranslator` base supplies the clock + a typed `PublishAsync<TEvent>` helper; the `EventSubPayload` extension readers parse the raw `JsonElement` null-tolerantly (a missing/omitted field degrades to a default, never throws).
 
 A translator may publish **zero** events (a payload variant that carries no actionable domain event), **one** (the common case), or **several** (e.g. `channel.subscription.message` → a resubscription event; `channel.moderate` → the specific moderation-action event its `action` discriminates). The translator owns that branching internally.
+
+### 3.8 Supporting seams (as built)
+
+All in `NomNomzBot.Application/Contracts/Twitch/` except `IActiveInstanceGate` (`NomNomzBot.Application/Common/Interfaces/`).
+
+```csharp
+// Transport → hosted service. The transport parses the frame to primitives; the sink owns tenant resolution (Twitch id → tenant Guid) and dispatch.
+public interface IEventSubNotificationSink
+{
+    Task OnNotificationAsync(string messageId, DateTimeOffset messageTimestamp, string subscriptionType, string subscriptionVersion,
+                             string twitchBroadcasterUserId, JsonElement @event, CancellationToken ct);
+    Task OnRevocationAsync(string twitchSubscriptionId, string subscriptionType, string status, string twitchBroadcasterUserId, CancellationToken ct);
+    // A session reached steady state. Must return promptly (the receive loop stops reading otherwise; Twitch closes a subscription-less session in 10 s).
+    // handoffFromSessionId != null: the welcome came on a session_reconnect URL — Twitch migrates the subscriptions itself.
+    Task OnSessionWelcomeAsync(string sessionId, string ownerKey, string? handoffFromSessionId, CancellationToken ct);
+    // False parks the owner's session (every topic refused until its grant changes) instead of reconnect-looping.
+    Task<bool> ShouldReconnectAsync(string ownerKey, CancellationToken ct);
+    Task OnSessionDisconnectedAsync(string ownerKey, string? sessionId, string reason, TimeSpan nextRetryIn, CancellationToken ct);   // → EventSubDisconnectedEvent
+}
+
+// Per-topic create-time facts, kept in one place so the transport and service stay generic.
+public interface IEventSubConditionBuilder
+{
+    IReadOnlyDictionary<string, string> BuildCondition(string eventType, string twitchBroadcasterUserId, string? botTwitchUserId = null);
+    // botTwitchUserId fills the user_id / moderator_user_id slot when a dedicated bot exists; null (single-user self-host) falls back to the broadcaster id.
+    string GetVersion(string eventType);     // "2" for channel.follow / channel.update, else "1"
+    string GetWireType(string eventType);    // the type Twitch is asked for; channel.raid.out is our key for the SECOND channel.raid subscription (from_broadcaster_user_id)
+    bool RequiresBroadcasterToken(string eventType);   // broadcaster-scoped topic → the create rides the broadcaster's user token
+}
+
+// Second-layer dedupe (S-DUPE). The journal's Unique(EventId) collapses only an exact redelivery of one message-id; the same real event under TWO message ids
+// (both colours of a blue/green overlap, or a reconnect where Twitch keeps the dying session alive ~1 min) needs a semantic claim.
+public interface IDuplicateNotificationSuppressor
+{
+    // true = first claim of (broadcasterId, subscriptionType, rawPayloadJson) inside `window` → fan out; false = already claimed by this OR another process → journal raw, skip fan-out.
+    Task<bool> TryClaimAsync(Guid broadcasterId, string subscriptionType, string rawPayloadJson, DateTimeOffset now, TimeSpan window, CancellationToken ct = default);
+}
+
+// The shared inbox (§10.1). Registered only on Postgres.
+public interface IEventSubInbox
+{
+    Task<bool> EnqueueAsync(EventSubInboxMessage message, CancellationToken ct = default);   // false when the message id is already waiting (a resend)
+    Task<IReadOnlyList<EventSubInboxMessage>> PeekAsync(int max, CancellationToken ct = default);   // oldest first
+    Task RemoveAsync(Guid id, CancellationToken ct = default);   // after the notification was dispatched
+}
+
+// Which of two overlapping instances is the ACTIVE bot (the chat-ingest lease doubles as the signal). Chat ingest, the music hand-over poller and the
+// startup subscription sync ask this instead of assuming they are alone.
+public interface IActiveInstanceGate
+{
+    bool IsActiveInstance { get; }                                          // false while a standby, and again after handing over at shutdown; true for a single-instance host
+    Task WaitUntilActiveAsync(CancellationToken ct);
+    Task<bool> HasWaitingSuccessorAsync(CancellationToken ct);              // a blue/green handover (true) vs plain restart / crash / manual stop (false)
+}
+
+// Whether this instance can take EventSub over from the one a deploy is about to stop. A latch: once true, always true.
+public interface IEventSubHandoverReadiness
+{
+    bool IsReadyForHandover { get; }   // always true unless a standby; a standby is ready once its shard is bound or ShardReadyTimeout (60 s) has passed
+}
+
+// The conduit and the one shard this instance holds (§10). Registered only when EventSub:Conduits:Enabled.
+public interface IEventSubConduitShardCoordinator
+{
+    const int ShardCount = 2;                       // one per colour of a blue/green pair
+    string? ConduitId { get; }
+    string? ClaimedShardId { get; }
+    Task<Result<string>> EnsureConduitAsync(CancellationToken ct = default);                 // persisted conduit when Twitch still has it, else a new one; fails `no_token` without an app token
+    Task<Result<string>> ClaimShardAsync(string sessionId, CancellationToken ct = default);  // bind a non-enabled shard to the session and confirm it; within 10 s of the welcome
+    Task<bool> WaitForSuccessorShardAsync(TimeSpan timeout, CancellationToken ct = default); // true once a shard other than ours is enabled
+    void ReleaseClaim();
+}
+
+// Reconnect gap backfill (§7).
+public interface IEventSubGapBackfillService
+{
+    Task<Result<int>> BackfillGapAsync(Guid broadcasterId, DateTimeOffset gapStart, DateTimeOffset gapEnd, CancellationToken ct = default);   // count of NEWLY published events
+}
+```
+
+- `IEventSubHandoverReadiness` backs the `/health/ready` check `eventsub-handover` (`EventSubHandoverReadinessHealthCheck`); `IActiveInstanceGate` is the same hosted-service instance, so "active" and "lease holder" are one fact.
+- `IEventSubConduitShardCoordinator` is **not registered** unless `EventSub:Conduits:Enabled` is true (§10 point 1); the hosted service then never enters conduit mode.
 
 ---
 
@@ -336,7 +444,7 @@ Two controllers, both `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, r
 
 ### 5.1 `EventSubController` — tenant subscription management (management plane)
 
-`[Route("api/v{version:apiVersion}/eventsub")]`, `[Authorize]`, `[Tags("EventSub")]`. Tenant resolved from JWT `sub` → `BroadcasterId`. **Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (§5.1.1); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Self-host collapses to "owner = full".
+`[Route("api/v{version:apiVersion}/channels/{channelId}/eventsub")]`, `[Authorize]`, `[Tags("EventSub")]`. The tenant is the route `{channelId}` (a string parsed to `Guid`; `400` when malformed), resolved and authorized per channel by Gate-1/Gate-2. **Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions` (§5.1.1); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Self-host collapses to "owner = full".
 
 #### 5.1.1 Seeded `ActionDefinitions` rows (this subsystem owns these seed entries)
 
@@ -348,18 +456,18 @@ The three action keys the §5.1 gate resolves are **not** defined elsewhere — 
 | `eventsub:subscribe` | `management` | 30 (Editor) | 30 (Editor) | `low` | `true` | Create EventSub subscriptions and reconcile the registry for this channel. |
 | `eventsub:unsubscribe` | `management` | 30 (Editor) | 30 (Editor) | `low` | `true` | Revoke EventSub subscriptions for this channel. |
 
-`Id` is `Guid.CreateVersion7()` at seed time; the seed is idempotent on the `ActionKey` unique index (upsert, no duplicate on re-run). `Plane` uses the `AuthPlane` `[VC:enum]`, `FloorTier` the `DangerTier` `[VC:enum]` (matching B.3). The `POST /eventsub/reconcile` action reuses `eventsub:subscribe` (no separate key — reconcile only ever creates/repairs, never exceeds subscribe's authority).
+`Id` is `Guid.CreateVersion7()` at seed time; the seed is idempotent on the `ActionKey` unique index (upsert, no duplicate on re-run). `Plane` uses the `AuthPlane` `[VC:enum]`, `FloorTier` the `DangerTier` `[VC:enum]` (matching B.3). The `POST /channels/{channelId}/eventsub/reconcile` action reuses `eventsub:subscribe` (no separate key — reconcile only ever creates/repairs, never exceeds subscribe's authority).
 
 | Verb | Route | Request | Response | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
-| GET | `/eventsub/subscriptions` | `[FromQuery] PageRequestDto` | `PaginatedResponse<EventSubSubscriptionDto>` | management / Moderator · `eventsub:read` |
-| POST | `/eventsub/subscriptions` | `CreateEventSubSubscriptionRequest` | `StatusResponseDto<EventSubSubscriptionDto>` | management / Editor · `eventsub:subscribe` |
-| DELETE | `/eventsub/subscriptions/{id:guid}` | — (route `id`) | `StatusResponseDto<object>` | management / Editor · `eventsub:unsubscribe` |
-| POST | `/eventsub/reconcile` | — | `StatusResponseDto<EventSubReconcileReportDto>` | management / Editor · `eventsub:subscribe` (reuses subscribe) |
+| GET | `/channels/{channelId}/eventsub/subscriptions` | `[FromQuery] PageRequestDto` | `PaginatedResponse<EventSubSubscriptionDto>` | management / Moderator · `eventsub:read` |
+| POST | `/channels/{channelId}/eventsub/subscriptions` | `CreateEventSubSubscriptionRequest` | `StatusResponseDto<EventSubSubscriptionDto>` | management / Editor · `eventsub:subscribe` |
+| DELETE | `/channels/{channelId}/eventsub/subscriptions/{id:guid}` | — (route `id`) | `StatusResponseDto<object>` | management / Editor · `eventsub:unsubscribe` |
+| POST | `/channels/{channelId}/eventsub/reconcile` | — | `StatusResponseDto<EventSubReconcileReportDto>` | management / Editor · `eventsub:subscribe` (reuses subscribe) |
 
 ### 5.2 `EventSubWebhookController` — SaaS conduit/webhook ingest (public, signature-gated)
 
-`[Route("api/v{version:apiVersion}/eventsub/webhook")]`, `[AllowAnonymous]`, `[Tags("EventSub")]`. **Registered only in the SaaS DI profile** (conduit transport). Authentication is the HMAC signature, not JWT. Reads the **raw** request body (buffered) for signature verification before deserializing.
+**Not built** — no `EventSubWebhookController` exists; the contract below is the designed shape of the webhook ingest for the SaaS profile. `[Route("api/v{version:apiVersion}/eventsub/webhook")]`, `[AllowAnonymous]`, `[Tags("EventSub")]`. **Registered only in the SaaS DI profile** (conduit transport). Authentication is the HMAC signature, not JWT. Reads the **raw** request body (buffered) for signature verification before deserializing.
 
 | Verb | Route | Request | Response | Auth |
 |---|---|---|---|---|
@@ -384,31 +492,39 @@ Behavior: verify signature (fail-closed `403`); branch on `Twitch-Eventsub-Messa
 | `INotificationDispatcher` | `NotificationDispatcher` | Scoped | Dedupe + fan-out; journals via event-store's `IEventJournal`/`ITenantSequenceAllocator` (see event-store.md, canonical journal owner); resolves scoped `IEventBus` publish + the singleton translator registry. |
 | `IEventSubEventTranslator` (many) | `*Translator` per subscription type | Singleton | Auto-discovered via `AddImplementationsOf<IEventSubEventTranslator>` (§3.7); pure parse + publish, stateless. Drop a file → live next boot. |
 | `IEventSubTranslatorRegistry` | `EventSubTranslatorRegistry` | Singleton | Indexes the translator set by `SubscriptionType`; throws at construction on a duplicate type (fail fast). |
-| `IWebhookSignatureVerifier` | `HmacWebhookSignatureVerifier` | Singleton | Pure; in-box `HMACSHA256`. (SaaS profile only.) |
-| `IEventSubTransport` | `WebSocketEventSubTransport` | Singleton | **lite / `self_host_*`** profile branch. Owns the WS receive loop. |
-| `IEventSubTransport` | `ConduitEventSubTransport` | Singleton | **SaaS** profile branch. Ensures conduit+shards. |
-| `ITwitchEventSubService` / `IEventSource` | `TwitchEventSubHostedService` | Singleton | Same instance for both interfaces (`AddSingleton<TwitchEventSubHostedService>()` + two forwarding registrations). |
+| `IWebhookSignatureVerifier` | `HmacWebhookSignatureVerifier` | Singleton | **Not built** (webhook path, §5.2). Pure; in-box `HMACSHA256`. |
+| `IWebSocketChannelFactory` | `ClientWebSocketChannelFactory` | Singleton | The socket seam under the WS transport (test double point). |
+| `IEventSubTransport` | `WebSocketEventSubTransport` | Singleton | Registered **unconditionally** — the only implementation; owns the WS receive loop and, in conduit mode, the shard session (§3.3, §10). A `ConduitEventSubTransport` is not built. |
+| `IEventSubConduitShardCoordinator` | `EventSubConduitShardCoordinator` | Singleton | Registered **only when `EventSub:Conduits:Enabled` is true** (§10 point 1). |
+| `IEventSubInbox` | `DatabaseEventSubInbox` | Singleton | **Postgres only** — the database two instances can share (§10.1). SQLite dispatches in process. |
+| `IDuplicateNotificationSuppressor` | `DuplicateNotificationSuppressor` | Scoped | Second-layer semantic dedupe over the shared `IdempotencyKey` table (`Scope="eventsub-semantic"`, 5-minute window); durable so both blue/green processes see one claim. |
+| `IEventSubGapBackfillService` | `EventSubGapBackfillService` | Scoped | Reconnect gap backfill (paragraph below). |
+| `IEventSubConditionBuilder` | `EventSubConditionBuilder` | Singleton | Per-topic condition/version/wire-type/token facts. |
+| `ITwitchEventSubService` / `IEventSource` / `IEventSubHandoverReadiness` / `IActiveInstanceGate` | `TwitchEventSubHostedService` | Singleton | Same instance for all four interfaces (`AddSingleton<TwitchEventSubHostedService>()` + forwarding registrations). |
 | `IHostedService` | → `TwitchEventSubHostedService` | hosted | `AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>())`. Starts transport, drives reconnect + post-reconnect `ReconcileAsync`/resubscribe, calls scoped services via `IServiceScopeFactory` (singleton→scoped boundary, matching the existing `GetBotTokenAsync` pattern). |
 
-Profile branch (pseudocode):
+Registration as built (pseudocode):
 ```csharp
-if (deploymentMode is "saas")
-{
-    services.AddSingleton<IEventSubTransport, ConduitEventSubTransport>();
-    services.AddSingleton<IWebhookSignatureVerifier, HmacWebhookSignatureVerifier>();
-    // EventSubWebhookController is discovered by MVC; gate its route via a feature/endpoint filter in SaaS only.
-}
-else // self_host_lite | self_host_full
-{
-    services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();
-}
+services.AddSingleton<IWebSocketChannelFactory, ClientWebSocketChannelFactory>();
+services.AddSingleton<IEventSubTransport, WebSocketEventSubTransport>();          // the only transport, every profile
+if (configuration.GetValue<bool>("EventSub:Conduits:Enabled"))                      // opt-in; default off since 2026-09-29
+    services.AddSingleton<IEventSubConduitShardCoordinator, EventSubConduitShardCoordinator>();
+if (dbProvider == DbProviderKind.Postgres)
+    services.AddSingleton<IEventSubInbox, DatabaseEventSubInbox>();                 // the database two instances can share
 // IEventJournal / ITenantSequenceAllocator registered by event-store (see event-store.md, canonical journal owner).
+services.AddScoped<IDuplicateNotificationSuppressor, DuplicateNotificationSuppressor>();
 services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+services.AddScoped<IEventSubGapBackfillService, EventSubGapBackfillService>();
 services.AddSingleton<TwitchEventSubHostedService>();
 services.AddSingleton<ITwitchEventSubService>(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
+services.AddSingleton<IEventSubHandoverReadiness>(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
 services.AddSingleton<IEventSource>(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
+services.AddSingleton<IActiveInstanceGate>(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
 services.AddHostedService(sp => sp.GetRequiredService<TwitchEventSubHostedService>());
+services.AddHostedService<BotShutdownAnnouncementService>();   // registered AFTER the host: hosted services stop in reverse order
 ```
+
+**Reconnect gap backfill.** EventSub never redelivers anything after a disconnect — it resumes live — so a dropped WebSocket session silently loses what happened in between. After a **reconnect** welcome for an owner (never the first welcome, and not a `session_reconnect` handoff, where Twitch migrates the subscriptions itself), the hosted service re-registers that owner's topics and then calls `IEventSubGapBackfillService.BackfillGapAsync(tenant, gapStart, now)` for each of the owner's broadcasters. `gapStart` is that tenant's own last-event watermark; a tenant with no watermark is skipped rather than given a guessed window, and one tenant's failure never blocks the others. Twitch has no generic "everything that happened" API, so the backfill covers only what Twitch lets a client list with a timestamp: **channel point redemptions** (`UNFULFILLED` + `FULFILLED`, manageable custom rewards) and **follows**. Each recovered event is published through the same `IEventBus` path a live translator uses, with a **deterministic `EventId`** derived from the event's own stable identity (redemption id; user id + follow timestamp), oldest first; a candidate already in the journal (`IEventJournal.GetExistingEventIdsAsync`) is skipped **before** publish, so two overlapping backfills never double-fire chat announcements, pipeline triggers or currency awards. A Twitch read failure (missing scope, rate limit) is reported per source and does not abort the other source. It returns the count of newly published events; `0` is a legitimate success. Everything else a gap loses (chat, subs, cheers, raids, …) is not recoverable and stays lost, which is why §10 exists.
 
 EF configurations (`NomNomzBot.Infrastructure/Persistence/Configurations/`): `EventSubSubscriptionConfiguration` (replaces `EventSubscriptionConfiguration`), `EventSubConduitConfiguration`, `EventSubConduitShardConfiguration`, `EventJournalConfiguration`, `EventSubjectKeyConfiguration`, `IdempotencyKeyConfiguration`, `TenantSequenceConfiguration`. All `[VC:JSON]` columns use the hand-rolled Newtonsoft converter convention; **no `HasColumnType("jsonb")`/`HasDefaultValueSql`**.
 
@@ -420,15 +536,15 @@ EF configurations (`NomNomzBot.Infrastructure/Persistence/Configurations/`): `Ev
 |---|---|---|
 | `System.Net.WebSockets` (`ClientWebSocket`) | 1st (in-box) | WebSocket transport (lite/self-host). |
 | `System.Net.Http` / `IHttpClientFactory` | 1st (in-box) | Helix `POST/DELETE/GET /eventsub/subscriptions`, conduit provisioning. |
-| `Microsoft.Extensions.Http.Resilience` 10.7.0 | 2nd | Retry/circuit-breaker on the Helix client (shared with the Helix subsystem). |
+| `Microsoft.Extensions.Http.Resilience` | 2nd | Retry/circuit-breaker on the Helix client (shared with the Helix subsystem). |
 | `System.Security.Cryptography` (`HMACSHA256`, `CryptographicOperations.FixedTimeEquals`) | 1st (in-box) | Webhook signature verification (SaaS). |
 | `System.Text.Json` (`.Strict` on inbound) | 1st (in-box) | EventSub **wire-frame** parse (hot path, untrusted). |
 | Newtonsoft.Json | app JSON | `[VC:JSON]` entity columns + app-facing DTO serialization (project convention). |
-| `Microsoft.EntityFrameworkCore` 10.0.9 (+ Npgsql 10.0.2 / EF.Sqlite 10.0.9) | 2nd/3rd | Registry + journal persistence; provider chosen by profile adapter. |
+| `Microsoft.EntityFrameworkCore` (+ Npgsql / EF.Sqlite) | 2nd/3rd | Registry + journal persistence; provider chosen by profile adapter. |
 | `Microsoft.Extensions.Hosting` (`IHostedService`, `IServiceScopeFactory`) | 1st | Lifecycle host + singleton→scoped boundary. |
 | `Microsoft.Extensions.Logging` (`ILogger`, `[LoggerMessage]`) | 1st | Structured logs (scrub tokens/usernames; `tenant_id` scope). |
 
-No new 3rd-party dependency. (Conduit transport stays in-box; no `TwitchLib`.)
+Versions live in `server/Directory.Packages.props`. No new 3rd-party dependency. (Conduit mode stays in-box; no `TwitchLib`.)
 
 ---
 
@@ -439,7 +555,7 @@ No new 3rd-party dependency. (Conduit transport stays in-box; no `TwitchLib`.)
 
 ### 9.1 Chat read/send boundary (relationship to `IChatProvider`)
 
-Chat **read** (ingest) is EventSub `channel.chat.message` on **both** deployment profiles — this subsystem journals and fans it out via `INotificationDispatcher` like any other notification; the Kick/YouTube/X sources ingest their chat the same way through `IEventSource`. There is **no per-channel chat socket on any profile** for ingest. Chat **send** is **not** this subsystem — it is the platform-keyed `IChatProvider` seam behind `IChatProviderRouter` (`HelixChatProvider` = Helix `POST /helix/chat/messages` for Twitch; Kick/YouTube/X providers beside it; scaling-qos.md §6). This subsystem owns inbound events only; outbound chat is the chat-provider seam's concern.
+Chat **read** (ingest) is EventSub `channel.chat.message` on **both** deployment profiles — this subsystem journals and fans it out via `INotificationDispatcher` like any other notification. Kick and YouTube chat ingest through their own paths (Kick webhooks via `IKickWebhookIngest`, YouTube Live Chat polling via `YouTubeLiveChatPollWorker`; §3.1), publishing the same canonical `ChatMessageReceivedEvent` with `Provider` stamped; X Live ingest is not built. There is **no per-channel chat socket on any profile** for ingest. Chat **send** is **not** this subsystem — it is the platform-keyed `IChatProvider` seam behind `ChatPlatformRouter` (`HelixChatProvider` = Helix `POST /helix/chat/messages` for Twitch; `KickChatPlatform` / `YouTubeChatPlatform` beside it; scaling-qos.md §6). This subsystem owns inbound events only; outbound chat is the chat-provider seam's concern.
 
 ---
 
@@ -462,7 +578,7 @@ Chat **read** (ingest) is EventSub `channel.chat.message` on **both** deployment
 
 **Design — one conduit, two WebSocket shards, one shard per running instance.**
 
-1. **Conduit mode is on when the app access token can be minted** (client id + secret configured). A secret-less self-host stays on the per-owner WebSocket sessions (§3.3) — nothing changes for it.
+1. **Conduit mode is opt-in: `EventSub:Conduits:Enabled` (default off since 2026-09-29).** When it is off, `IEventSubConduitShardCoordinator` is not registered, the hosted service never enters conduit mode, and the per-owner WebSocket sessions (§3.3) carry everything — this is the shipped default. The first conduit deploy (2026-09-29) left the bot deaf for 18 minutes, so the flag stays off until the blue/green takeover is proven against live Twitch. When it is on, conduit mode additionally needs the app access token to be mintable (client id + secret configured); a secret-less self-host fails `no_token` and stays on the per-owner sessions.
 2. **Provisioning.** The active or standby instance ensures ONE conduit with `shard_count = 2`, persisted in `EventSubConduits`. On boot it lists the app's conduits (Get Conduits): the persisted id is reused when Twitch still has it (shard count corrected to 2 when it drifted); otherwise a new conduit is created and the row is repointed (BYOC: a different client id never sees the old conduit, so it gets its own). An unpersisted conduit is **never adopted** — another deployment on the same client id (local dev next to the dev server) owns it.
 3. **Every running instance holds exactly one shard** through one WebSocket session (owner key `conduit-shard`). On the session welcome it immediately PATCHes the first shard that is not `enabled` onto its session id (inside the 10 s window), then re-reads the shards to confirm the shard now carries its session (a concurrent claimer loses cleanly and its session is re-dialled). This runs for the **standby too** — the standby receives events from the moment it is up.
 4. **Subscriptions live on the conduit**, created with the app token (`transport: { method: "conduit", conduit_id }`), only by the lease holder. They outlive every session, so a handover never re-subscribes anything: the successor's startup reconcile adopts rows whose `ConduitId` equals the current conduit without a Twitch call.

@@ -24,22 +24,23 @@ Authoring language: **TypeScript** — DECIDED 2026-06-16 (DX preserved via tsse
 
 6. **DX (Streamer.bot-grade) preserved:** one typed `bot` facade (`bot.chat.send`, `bot.music.queue`, `bot.vars`, `bot.args`); editor types generated from the same source the engine validates against (zero drift); validate-on-save (fail at save, never mid-stream); per-unit cache swap keyed by `tenant+version` for no-restart hot reload.
 
-## Red-Team verdict: NEEDS-WORK
+## Red-Team findings — resolved and open
 
-### Three LIVE pre-existing defects in current code (fix regardless of the code tier)
-1. **Cross-tenant IDOR (live breach).** `TenantResolutionMiddleware` sets tenant from route / `X-Channel-Id` header / `channelId` query with NO check the JWT subject owns that channel → any tenant acts as another via `?channelId=<victim>`, using the victim's injected Spotify/Discord client. The entire capability-broker model is void until `ctx.BroadcasterId` is unforgeable. Fix: derive + verify channel from the authenticated principal; route/header/query may only select among provably-owned channels; mismatch = 403.
-2. **No tenant query filter / no Postgres RLS.** Only a `DeletedAt` soft-delete filter exists. Cross-tenant reads rely on every service remembering `.Where(BroadcasterId == ...)`. Fix: `ITenantScoped` global query filter bound to `CurrentTenantService` + Postgres RLS (`SET app.tenant_id` per connection).
-3. **Transplantable token crypto.** AES-CBC, no MAC, key = `SHA256(rawKey)`, no AAD → a token ciphertext copies from one tenant's row into another and decrypts under the shared key. Fix: AES-256-GCM with AAD = tenant+provider+keyVersion, key via HKDF.
+The original verdict was NEEDS-WORK. Status of each finding against current code:
 
-### Code-tier must-fixes (before T3 `RunCode`/`HttpRequest` ships)
-4. **Fail-closed engine semantics.** Currently unknown action = skip, unknown condition = treat-as-true, action error = continue → security gates are structurally bypassable. Make unknown type/condition a hard fail; reject unknown types at save-time validation.
-5. **Lock the WIT host-import contract.** Value-in/value-out only (copied/owned/value types); no host handles, shared memory, or re-entrant callbacks; no PII fields (viewer email/IP) exposed to the `bot` facade; fuzz every import as a release gate.
-6. **No general `HttpRequest` egress.** Per-channel, owner-approved destination allowlist; FQDN-pinned resolution (DNS-rebind + DNS-exfil defense); no redirects; response-size cap; SSRF-hardened (block loopback/RFC-1918/169.254.169.254).
-7. **Aggregate + host-call DoS controls.** Per-execution host-call budget + wall-clock-incl-host watchdog (covers Wasmtime epoch gap #9188 on tight host-call loops); per-tenant rate limits on side-effecting imports; **global** (not just per-channel) concurrency + admission control; bounded `StepLogs`; cap step count at save-time; seconds-not-minutes timeout; cumulative `Wait` cap.
-8. **Reject "OS-confined worker + Jint" interim as a multi-tenant boundary** unless it is one confined process *per tenant per execution* — Jint multiplexed inside a shared worker is Jint-as-sole-boundary between co-tenants.
-9. **GDPR erasure beyond tokens.** Hard-delete/anonymization for viewer/chat PII (soft-delete ≠ erasure); include execution logs/telemetry in the erasure path with TTL + PII exclusion.
+### Resolved
+1. **Cross-tenant IDOR.** `TenantResolutionMiddleware` now verifies the authenticated caller may act as the requested channel (`IChannelAccessService.CanResolveTenantAsync`). A mismatch fails closed with 403. Anonymous callers select a channel for public endpoints only, and suspended tenants are refused.
+2. **Tenant query filter (app-level half).** `ITenantScoped` entities get a global query filter bound to `ICurrentTenantService` (`ModelBuilderExtensions`), next to the `DeletedAt` soft-delete filter.
+3. **Transplantable token crypto.** The AES-CBC `IEncryptionService` is replaced by `IFieldCipher` (`AesGcmFieldCipher`, AES-256-GCM) with AAD = `CipherAad` (tenant + provider + key version).
+4. **Fail-closed engine semantics.** `PipelineEngine` blocks the step on an unknown condition type, unknown action type and unknown block kind.
+6. **Egress.** `HttpEgressAllowlist` (per-channel destinations), `EgressAddressGuard` (loopback, RFC-1918, link-local incl. 169.254.169.254, IPv4-mapped IPv6) and `EgressHttpClient` (redirects off).
+9. **GDPR erasure.** `ErasureService` anonymizes the profile and hard-deletes chat messages, with an `ErasureRequest` pipeline and preview.
 
-Items 1–3 are live defects in the current codebase, independent of whether the code tier ever ships.
+### Open
+- **Postgres RLS (second half of #2).** `SET app.tenant_id` per connection plus RLS policies are not built. Tracked under the RLS owner question.
+- **#5 WIT host-import contract.** A fuzz release gate for every host import does not exist yet.
+- **#7 Aggregate DoS controls.** Per-execution host-call budget, fuel and epoch interruption exist (`JintScriptExecutor`, `WasmtimeScriptExecutor`). Global (cross-channel) concurrency and admission control, per-tenant rate limits on side-effecting imports, and a cumulative `Wait` cap need a re-check.
+- **#8 Interim OS-confined worker + Jint.** Still rejected as a multi-tenant boundary unless it is one confined process per tenant per execution.
 
 ### Key files
-`Api/Middleware/TenantResolutionMiddleware.cs` (#1), `Infrastructure/Services/Identity/CurrentTenantService.cs` (#1), `Infrastructure/Persistence/Extensions/ModelBuilderExtensions.cs` + `*Configuration.cs` (#2), `Infrastructure/Services/Security/EncryptionService.cs` (#3), `Infrastructure/Pipeline/PipelineEngine.cs` (#4/#7), `Infrastructure/Pipeline/Actions/MusicActions.cs` (`SongRequestAction` — correct broker pattern, only as safe as `ctx.BroadcasterId`).
+`Api/Middleware/TenantResolutionMiddleware.cs` (#1), `Infrastructure/Platform/Auth/CurrentTenantService.cs` (#1), `Infrastructure/Platform/Persistence/Extensions/ModelBuilderExtensions.cs` (#2), `Infrastructure/Platform/Security/AesGcmFieldCipher.cs` (#3), `Infrastructure/Platform/Pipeline/PipelineEngine.cs` (#4/#7), `Infrastructure/CustomCode/` (`JintScriptExecutor`, `WasmtimeScriptExecutor`; #5/#7), `Infrastructure/Sandbox/` (`EgressAddressGuard`, `EgressHttpClient`; #6), `Infrastructure/Identity/ErasureService.cs` (#9), `Infrastructure/Music/PipelineActions/SongRequestAction.cs` (correct broker pattern, only as safe as `ctx.BroadcasterId`).

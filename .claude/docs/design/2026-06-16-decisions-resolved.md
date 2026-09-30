@@ -14,11 +14,11 @@ Provenance: items 1, 2, 6, 3, 9 were decided directly by the owner (carried in v
 
 ## 1. Distributed rate limiting (SaaS) — tension #1
 
-**DECISION:** Adopt a **profile-adapter rate limiter** behind one `IRateLimiter` abstraction:
+**DECISION:** Adopt a **profile-adapter rate limiter** behind one `IRateLimiterPartitionStore` abstraction (`RedisRateLimiterPartitionStore` / `InMemoryRateLimiterPartitionStore`):
 **SaaS = Redis-backed distributed limiter** (custom glue over the already-present StackExchange.Redis);
 **self-host/lite = in-box ASP.NET Core `RateLimiter`, in-memory** (per-instance is correct for single-node).
 Rationale: closes the N× brute-force/auth-protection correctness gap on multi-node SaaS without forcing a
-Redis dependency onto the zero-dep lite profile.
+Redis dependency onto the zero-dep lite profile. Limit tiers are governed by PRODUCT-ALIGNMENT D11.
 
 ## 2. Jint is not a security boundary — tension #2
 

@@ -8,8 +8,15 @@ standing in for what the new tree must do declaratively.
 
 Cross-checked against current specs: `commands-pipelines.md` (flat pipeline actions/conditions,
 §10 deferred one-shot scheduling — already as-built) and `pipeline-control-flow.md` (tree D1–D6:
-`if`/`switch`/`loop`/`random_branch`/`run_pipeline`, **no AND/OR condition tree, no wait-for-event**
-— confirmed absent by grep, matches the owner's 2026-08-24 decision that these are still to design).
+`if`/`switch`/`loop`/`random_branch`/`run_pipeline`). When this analysis was written (2026-08-24) the AND/OR
+condition tree and wait-for-event were absent from the code; both are built now (see "Where this went").
+
+**Where this went.** The gap list below fed `spec/pipeline-tree-and-editor.md` (condition tree, `try`,
+`detached_step`, `wait_for_event`, persisted runs, triggers) and the code that followed it. Old-bot behaviour
+is now shipped as ordinary editable pipelines built from generic blocks, not as bespoke features:
+`server/src/NomNomzBot.Infrastructure/Content/Commands/CommandFlowImporter.cs` turns a command spec into
+pick lists plus an `if` chain, and `RaidFlowSeeder.cs` seeds `!raid` from `start_raid`, `obs_switch_scene`,
+`send_message` and `wait`. Section 3 is the closed-versus-open ledger.
 
 ---
 
@@ -203,80 +210,42 @@ Banger-text/Weather/Whisper/Slow/Yell all reduce to:
 
 ---
 
-## 3. THE GAP LIST — required generic primitives (prioritized)
+## 3. Gap list — closed vs open (2026-09-30)
 
-Legend: **[SPEC'D]** = already designed in `commands-pipelines.md`/`pipeline-control-flow.md` but
-not evidenced as used by an authored pipeline yet; **[GAP]** = not designed anywhere found; **[BUG]**
-= old-bot defect that becomes a hard requirement, not a nice-to-have.
+Checked against the code on 2026-09-30. Numbers refer to the original 22-item gap list (the original text was
+removed; `spec/pipeline-tree-and-editor.md` §3 maps each number to its primitive).
 
-1. **[GAP] Boolean condition TREE (AND/OR/NOT grouping) per branch** — every classification branch
-   (Fight/Hug's 5-way split, Sus's scoring) is currently one flat `if` per case; a real boolean tree
-   lets one condition express "known user AND not self AND not bot" instead of nested `if`s. Owner
-   already named this explicitly; no old-bot file strictly requires nesting depth >2, but the
-   5-way/3-tier classifications are the concrete evidence it's needed to avoid a wall of nested `if`s.
-2. **[GAP] Wait-for-event / resume-later persisted pipeline runs** — the Lucky Feather hold→hide→
-   cooldown→reappear cycle is a single long-lived state machine; today's engine is fire-and-forget.
-   Needed for: Lucky Feather cycle, any future "redemption open for N minutes then auto-closes" shape.
-3. **[GAP] `for-each` over an arbitrary list variable** (not just CSV/JSON literal) — Raid's countdown
-   marker loop, Voice's per-locale grouping loop, Todo's list-rendering loop. **[SPEC'D as D3
-   `foreach`]** — confirm it accepts a *computed* list (e.g. filtered JSON-path result), not just a
-   literal.
-4. **[GAP] Weighted/filtered random pick over a LIST variable**, not just a static string array —
-   BSOD's "random enabled OS key from a JSON-filtered list", Sus's tiered pool selection.
-   `random_branch`/`random_case` **[SPEC'D]** covers static weighted branches; picking randomly from
-   a *runtime-sized* list (filtered JSON array) is the missing piece.
-5. **[GAP] JSON-path / structured-field extraction from a variable** (template function or dedicated
-   action) — BSOD reading nested widget settings, any future "read this reward's config" case.
-6. **[GAP] Template arithmetic** (`+`, `-`, `min`, `max`, `clamp`, numeric compare against a computed
-   value) usable inside `set_variable`/wait-duration/condition operands — Sus's score formula, Raid's
-   remaining-time computation, BSOD's summed TTS-duration timings.
-7. **[GAP] `wait_until <absolute timestamp expression>`**, distinct from `wait <duration>` — Raid's
-   drift-correcting final wait computed from an earlier action's completion timestamp.
-8. **[GAP] Per-user / per-channel LIST-of-structured-records data primitive** (add/list/update-by-
-   index/remove-by-index), not just scalar `NamedCounters`/`ViewerDatum` — Todo, Voice history,
-   Lurk/Unlurk id-set, song-request history, banned-song list.
-9. **[GAP] Generic `update_reward` action** (title/cost/prompt/paused, templated) — Lucky Feather's
-   live price/prompt rewrite on every steal and on pause/resume.
-10. **[GAP] Reward-lifecycle trigger kind** (enabled/disabled/paused/resumed/cost-changed), separate
-    from "redeemed" — `LuckyFeatherChange.cs`'s four `On*` hooks have no equivalent trigger today.
-11. **[GAP] Debounce/latch primitive — "only the first occurrence in a window starts this pipeline,
-    later ones are no-ops until the window clears"** — Lucky Feather's `OnFeatherStolen` re-steal
-    guard, Voice Swap's "don't restart the revert timer" guard.
-12. **[GAP] Typed action failure reasons (`ActionResult.FailureCode`), never string-matched exception
-    text** — **[BUG]** Raid's `ex.Message.Contains("already raiding")` is exactly the kind of
-    fragility the new system must make structurally impossible: every provider action needs an enum
-    of typed outcomes a condition can branch on.
-13. **[GAP] Per-block/step error handling ("on this step's failure, run these steps and stop")** —
-    BSOD's refund-on-any-failure wraps its entire body; today's engine has no per-block try/catch
-    equivalent, only whole-run abort on unhandled failure.
-14. **[GAP] Detached/fire-and-forget single action (not a whole sub-pipeline)** — Raid's OBS scene
-    switch must not block the chat countdown; `run_pipeline detached` **[SPEC'D]** covers a whole
-    sub-pipeline but not "run this one action without waiting."
-15. **[GAP] String-manipulation template functions** (`length`, `regex_replace`, `upper/lower/
-    alternate-case`, `truncate`) — BSOD's length-conditional SSML rewrite, Mock's per-character
-    transform.
-16. **[GAP] Templated wait duration fed from a prior action's `Output`/`ResultVariable`** — BSOD's
-    summed TTS-duration wait; **[SPEC'D `wait`]** takes literal seconds/ms only per §6.1's table —
-    confirm it accepts a template expression, not just a literal int.
-17. **[GAP] Register more than one trigger phrase for the same pipeline without a code-level alias
-    hack** — Fight/Hit is exactly the "N triggers per pipeline" the owner already decided (multiple
-    `command` triggers → one pipeline); old-bot's `Init()`-time re-registration confirms this was
-    a workaround for a missing feature, not a deliberate design.
-18. **[GAP] Multiple independently-named placeholders substitutable into a chosen random template**
-    (`{name}` + `{name2}` in Lucky Feather) — confirm `random_response`/template rendering supports
-    arbitrary author-defined placeholder names resolved from `set_variable` results, not just fixed
-    context fields.
-19. **[GAP] Fuzzy/contains lookup over a list variable** ("find first item where field contains X")
-    — Voice's partial-name voice search.
-20. **[GAP] Read-only introspection of the live trigger/command catalogue, filtered by caller role,
-    as pipeline-usable data** — `!commands`/`!help`.
-21. **[SPEC'D, confirm implemented+wired] Deferred one-shot scheduled pipeline with dedupe key**
-    (§10 `ScheduledPipelineTask`/`schedule_pipeline` action) — exactly matches Voice Swap's revert
-    and would replace Lucky Feather's bespoke `LuckyFeatherTimerService` hosted service if extended
-    to chain two hops (see gap #2).
-22. **[SPEC'D, confirm covers "computed per-iteration wait"] `loop`/`switch`/`if`/`random_branch`/
-    `run_pipeline`** (D1–D5) — the tree shape itself is right; gaps #3, #4, #6, #7 above are what's
-    missing *inside* that shape.
+**Closed (built):**
+- #1 boolean condition tree — `PipelineStepCondition` is a self-referencing tree.
+- #2 wait-for-event / resume-later — `wait_for_event` + persisted `PipelineRunState`.
+- #3 `for-each` over a list variable — `loop` mode `foreach` (comma-separated list; JSON arrays are open, see #5).
+- #10 reward-lifecycle trigger — EventSub `channel.channel_points_custom_reward.add/update/remove`.
+- #11 debounce/latch — closed by composition (`adjust_counter` + `if`), no new block.
+- #13 per-block error handling — `try` block.
+- #14 detached single action — `detached_step` block.
+- #16 templated wait duration — `wait` resolves a template string.
+- #17 several triggers per pipeline — `PipelineTrigger`.
+- #18 several named placeholders — `set_variable` values feed any template.
+- #21 deferred one-shot pipeline — `schedule_pipeline`.
+- #22 tree shape — `if`/`switch`/`loop`/`random_branch`/`run_pipeline`.
+
+**Partly closed:**
+- #4 random pick — `pick_from_list` and `random.pick.*` ship; a weighted/filtered pick over a runtime list
+  variable does not.
+- #15 string functions — `{transform.upper|lower|title|spaced|alternating|reverse|trim|truncate.N:text}` ship;
+  `length` and `regex_replace` do not.
+
+**Open (the real remaining gaps):**
+- #5 JSON-path extraction from a variable (no `json.*` template function; `foreach` cannot walk a JSON array).
+- #6 template arithmetic (no `expr` function: `+ - * / min max clamp`).
+- #7 `wait_until <absolute timestamp>` (only the raid-specific `wait_until_raid_fires` exists).
+- #8 per-user / per-channel list-of-records primitive (`record_add` / `record_list` / `record_update` /
+  `record_remove`; no `ViewerRecordList`).
+- #9 generic `update_reward` action (`ITwitchChannelPointsApi.UpdateCustomReward` exists, but no pipeline action
+  calls it).
+- #12 typed action failure reasons (`ActionResult` has no `FailureCode`; authors can only read `ErrorMessage`).
+- #19 fuzzy/contains lookup over a list variable (`list_find`).
+- #20 read-only command-catalogue introspection (`commands.list` / `commands.describe`).
 
 ---
 

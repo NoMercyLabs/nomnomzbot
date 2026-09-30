@@ -2,7 +2,7 @@
 
 **Status:** Implementable. Code from this directly.
 **Scope:** Per-channel Discord guild link (both-opt-in handshake), encrypted bot token storage, notification rules (event → Discord channel → template), member opt-in roles, and the dispatch + dedupe log.
-**Grounds:** locked schema `docs/design/2026-06-16-database-schema.md` §P.10; design `docs/design/2026-06-16-discord-notifications.md`; stack `docs/design/2026-06-16-stack-and-dependencies.md`; decisions `docs/design/2026-06-16-decisions-resolved.md`.
+**Grounds:** locked schema `.claude/docs/design/2026-06-16-database-schema.md` §P.10; design `.claude/docs/design/2026-06-16-discord-notifications.md`; stack `.claude/docs/design/2026-06-16-stack-and-dependencies.md`; decisions `.claude/docs/design/2026-06-16-decisions-resolved.md`.
 
 ## Conventions inherited (binding)
 
@@ -14,7 +14,7 @@
 - Repository + `IUnitOfWork`; controllers never touch `DbContext`. Responses `StatusResponseDto<T>` / `PaginatedResponse<T>`. Controllers `[ApiVersion("1.0")]`.
 - App JSON via **Newtonsoft.Json** (the `EmbedConfig` `[VC:JSON]` converter and all DTO bodies). Bot OAuth token persistence goes through `IIntegrationTokenVault` (`identity-auth.md` §3.4) — the canonical crypto-shred-ready vault over `ISubjectKeyService` + `IFieldCipher` (AES-256-GCM AEAD). **This subsystem never hand-rolls crypto and never touches `IFieldCipher`/`ISubjectKeyService` directly**; it calls the vault, which stores/returns/shreds the ciphertext. (The legacy `IEncryptionService` AES-CBC adapter is retired per `gdpr-crypto.md` §9 — do not target it.)
 
-> **Replaces** the live `DiscordServerAuthorization` entity (int PK, `string(50) BroadcasterId`, ad-hoc `Status`/`ApprovedBy`) and the inline OAuth/persist logic in `IntegrationOAuthController.HandleDiscordCallback`. The OAuth callback keeps its route but delegates persistence to `IDiscordGuildService` (no behavior inline). All five P.10 tables are net-new on the guid/UUIDv7 rebuild.
+> **Replaces** the live `DiscordServerAuthorization` entity (int PK, `string(50) BroadcasterId`, ad-hoc `Status`/`ApprovedBy`) and the inline OAuth/persist logic in the former `IntegrationOAuthController.HandleDiscordCallback`. The OAuth callback now lives in `DiscordOAuthController` (same route) and delegates persistence to `IDiscordGuildService` (no behavior inline). All five P.10 tables are net-new on the guid/UUIDv7 rebuild.
 
 ---
 
@@ -29,15 +29,21 @@ All entities live in `NomNomzBot.Domain.Entities`. Types/keys are **as locked in
 `Id guid PK`; `BroadcasterId guid FK→Channels Index`; `GuildConnectionId guid FK→DiscordGuildConnection Index`; `TriggerType string(30) Index` (`go_live`|`new_clip`|`schedule`|`milestone`) [VC:enum]; `Enabled bool`; `TargetChannelId string(50)`; `PingRoleId guid FK→DiscordNotificationRole Null Index`; `MessageTemplate text Null`; `EmbedConfig text Null` **[VC:JSON]**; `MilestoneType string(20) Null`; `MilestoneThreshold int Null`; `ConfigSchemaVersion int` (default 1; upcast anchor for `EmbedConfig` — consumed on read by `IDiscordNotificationConfigService`, §3.2). **Unique** `(GuildConnectionId, TriggerType)`.
 
 ### `DiscordNotificationRole : SoftDeletableEntity` — per-streamer self-assign notify role
-`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `GuildConnectionId guid FK→DiscordGuildConnection Index`; `DiscordRoleId string(50) Index`; `RoleName string(255) Null`; `SelfAssignEnabled bool`; `ButtonMessageId string(50) Null`; `ButtonChannelId string(50) Null`. **Unique** `(GuildConnectionId, DiscordRoleId)`.
+`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `GuildConnectionId guid FK→DiscordGuildConnection Index`; `DiscordRoleId string(50) Index`; `RoleName string(255) Null`; `SelfAssignEnabled bool`; `DmEnabled bool` (default false; also DELIVER by DM, §11.1); `ButtonMessageId string(50) Null`; `ButtonChannelId string(50) Null`. **Unique** `(GuildConnectionId, DiscordRoleId)`.
 
 ### `DiscordMemberOptIn : SoftDeletableEntity` — who gets pinged
-`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `NotificationRoleId guid FK→DiscordNotificationRole Index`; `DiscordMemberId string(50) Index` **[PII-hash]**; `OptInSource string(20)` (`manual_role`|`command`|`button`) [VC:enum]; `OptedInAt timestamp`; `OptedOutAt timestamp Null`. **Unique** `(NotificationRoleId, DiscordMemberId)`.
+`Id guid PK`; `BroadcasterId guid FK→Channels Index`; `NotificationRoleId guid FK→DiscordNotificationRole Index`; `DiscordMemberId string(50) Index` **[PII-hash]**; `OptInSource string(20)` (`manual_role`|`command`|`button`) [VC:enum]; `OptedInAt timestamp`; `OptedOutAt timestamp Null`; `DmChannelId string(50) Null` (the member's DM channel, cached on first DM, §11.1). **Unique** `(NotificationRoleId, DiscordMemberId)`.
 
 ### `DiscordNotificationDispatch` — **[APPEND-ONLY]** dispatch + dedupe log
-`Id guid PK` (UUIDv7, app-assigned; append-only carries `CreatedAt` only — no `UpdatedAt`/`DeletedAt`); `BroadcasterId guid FK→Channels Index`; `NotificationConfigId guid FK→DiscordNotificationConfig Index`; `TriggerType string(30)`; `DedupeKey string(255) Index`; `StreamId guid FK→Streams Null Index`; `PostedMessageId string(50) Null`; `Status string(20)` (`sent`|`failed`|`skipped_dupe`) [VC:enum]; `Error text Null`; `DispatchedAt timestamp Index`. **Unique** `(NotificationConfigId, DedupeKey)` — the DB-level dedupe guarantee: one post per go-live.
+`Id guid PK` (UUIDv7, app-assigned; append-only carries `CreatedAt` only — no `UpdatedAt`/`DeletedAt`); `BroadcasterId guid FK→Channels Index`; `NotificationConfigId guid FK→DiscordNotificationConfig Index`; `TriggerType string(30)`; `DedupeKey string(255) Index`; `StreamId guid FK→Streams Null Index`; `PostedMessageId string(50) Null`; `Status string(20)` (`sent`|`failed`|`skipped_dupe`|`skipped`) [VC:enum]; `Error text Null`; `DispatchedAt timestamp Index`. **Unique** `(NotificationConfigId, DedupeKey)` — the DB-level dedupe guarantee: one post per go-live.
 
-> **Dedupe key contract:** `DedupeKey = $"{TriggerType}:{StreamId:N}"` for `go_live` (one row per stream session); for `milestone`, `$"milestone:{MilestoneType}:{MilestoneThreshold}"`; for `new_clip`, `$"clip:{ClipId}"`; for `schedule`, `$"schedule:{ScheduledSegmentId}"`. The unique index makes a duplicate insert the dedupe mechanism (catch the unique-violation → `skipped_dupe`).
+> **Dedupe key contract (as-built).** The unique `(NotificationConfigId, DedupeKey)` index is the guard: the first insert of a live key wins; a second insert of the same key is caught as a unique violation and recorded as `skipped_dupe` (no second post).
+> - `go_live`: `go_live:{StartedAt UTC, ISO-8601 "O"}` — the stream-start instant (one row per stream session; the handler has no `StreamId` to hand, so `StreamId` is null).
+> - `send_discord_notification` pipeline action: the `dedupe_key` param when set, otherwise `pipeline:{MessageId}` (or the `ExecutionId` when there is no message).
+> - Personal DMs (§11.1): `{baseDedupeKey}:dm:{discordMemberId}` — one row per member.
+> - Live role (§10): `live_role:{StartedAt UTC, "O"}`, kept on `DiscordLiveRoleConfig.AppliedDedupeKey`, not in this table.
+> - **`skipped` status.** When the both-opt-in gate fails (`IsLinkActiveAsync` false) the dispatcher appends a `skipped` row and posts nothing. `skipped` and `skipped_dupe` rows carry a suffixed key `{key}#{status}:{ticks}` so the unique index admits them without colliding with the live key.
+> - Only `go_live` has an automatic producer. `new_clip`, `schedule` and `milestone` rules can be stored and validated (milestone fields required iff `TriggerType=milestone`), but they dispatch only through the `send_discord_notification` action with the keys above; the earlier `clip:` / `schedule:` / `milestone:` key shapes have no producer.
 
 > **Ping-role cardinality (schema C4):** the locked schema keeps `DiscordNotificationConfig.PingRoleId` as a **single nullable FK** — one ping role per rule. This spec implements exactly that. Multi-role tiered ping is outside this subsystem's surface: it is a distinct schema (`DiscordNotificationConfigRoles` join table) that this spec does not define, and is not built against this locked schema (see §9).
 
@@ -80,7 +86,7 @@ public sealed record DiscordNotificationDispatchedEvent : DomainEventBase
     public required Guid NotificationConfigId { get; init; }
     public required string TriggerType { get; init; }
     public required string DedupeKey { get; init; }
-    public required string Status { get; init; } // "sent" | "failed" | "skipped_dupe"
+    public required string Status { get; init; } // "sent" | "failed" | "skipped_dupe" | "skipped"
     public string? PostedMessageId { get; init; }
     public string? Error { get; init; }
 }
@@ -341,14 +347,14 @@ public sealed record DiscordNotificationPreviewDto(
 // ── Notify role + opt-in ────────────────────────────────────────────────────
 public sealed record DiscordNotificationRoleDto(
     Guid Id, Guid GuildConnectionId, string DiscordRoleId, string? RoleName,
-    bool SelfAssignEnabled, string? ButtonMessageId, string? ButtonChannelId,
+    bool SelfAssignEnabled, bool DmEnabled, string? ButtonMessageId, string? ButtonChannelId,
     int OptInCount, DateTime CreatedAt, DateTime UpdatedAt);
 
 public sealed record CreateDiscordNotificationRoleRequest(
-    string DiscordRoleId, string? RoleName, bool SelfAssignEnabled);
+    string DiscordRoleId, string? RoleName, bool SelfAssignEnabled, bool DmEnabled = false);
 
 public sealed record UpdateDiscordNotificationRoleRequest(
-    string? RoleName, bool SelfAssignEnabled);
+    string? RoleName, bool SelfAssignEnabled, bool DmEnabled = false);
 
 public sealed record DiscordMemberOptInRequest(string DiscordMemberId, string Source);
 
@@ -381,54 +387,60 @@ public sealed record DiscordOptInButton(
 Controller `DiscordController : BaseController` in `NomNomzBot.Api.Controllers.V1`.
 `[ApiVersion("1.0")]`, `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/discord")]`, `[Authorize]`, `[Tags("Discord")]`. Tenant `channelId` (`Guid`) is resolved/authorized by `TenantResolutionMiddleware` + `IChannelAccessService` (caller may act on that tenant). Responses `StatusResponseDto<T>` (success) or `PaginatedResponse<T>` (logs). All actions take `CancellationToken ct`.
 
-**Role gate** — all routes are **management plane (Plane B)**. `[Authorize]` + tenant resolution yields only **Gate-1** (pure entry — any authenticated caller, channel must exist); it **cannot** distinguish the write floor from the read floor. The per-route floor is enforced in **Gate-2** by calling `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)` (roles-permissions.md §3.3) on the action key in the table's **Action key** column **before** the service call — returning `FORBIDDEN` (403) when the caller's resolved `ChannelMemberships.LevelValue` is below the action's effective level. Writes floor **`SuperMod`** (level 20), reads (list/log/preview) floor **`Moderator`** (level 10), matching the design's "both sides consent; streamer/admin configures." Member opt-in/out endpoints carry the **write** key (`SuperMod`) — they push role changes into the guild; member self-service happens through the Discord button/command path, not this HTTP surface. Every floor is the action's seeded **default**; a broadcaster may raise it via `ChannelActionOverride` but not lower it past the seeded `FloorLevel`. The keys are seeded global `ActionDefinitions` (schema B.3) — see §7.
+**Role gate** — all routes are **management plane (Plane B)**. `[Authorize]` + tenant resolution yields only **Gate-1** (pure entry — any authenticated caller, channel must exist); it **cannot** distinguish the write floor from the read floor. The per-route floor is enforced in **Gate-2** by calling `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)` (roles-permissions.md §3.3) on the action key in the table's **Action key** column **before** the service call — returning `FORBIDDEN` (403) when the caller's resolved `ChannelMemberships.LevelValue` is below the action's effective level. Writes floor **`LeadModerator`** (level 20), reads (list/log/preview) floor **`Moderator`** (level 10), matching the design's "both sides consent; streamer/admin configures." The one exception is `discord:connection:write` (approve/revoke server consent, enable, disconnect): it touches the guild credential, so it floors **`Broadcaster`** (level 40, `609ae0fc2`), like every other identity/credential action. Member opt-in/out endpoints carry the **write** key (`LeadModerator`) — they push role changes into the guild; member self-service happens through the Discord button/command path, not this HTTP surface. Every floor is the action's seeded **default**; a broadcaster may raise it via `ChannelActionOverride` but not lower it past the seeded `FloorLevel`. The keys are seeded global `ActionDefinitions` (schema B.3) — see §7.
 
 | # | Verb | Route (under base) | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|------|--------------------|-------------|--------------|--------------------|
 | 1 | GET | `/connections` | — | `StatusResponseDto<IReadOnlyList<DiscordGuildConnectionDto>>` | management / Moderator · `discord:connection:read` |
 | 2 | GET | `/connections/{connectionId:guid}` | — | `StatusResponseDto<DiscordGuildConnectionDto>` | management / Moderator · `discord:connection:read` |
-| 3 | POST | `/connections/{connectionId:guid}/server-consent` | `ServerConsentRequest(string ApprovedByDiscordUserId)` | `StatusResponseDto<object>` | management / SuperMod · `discord:connection:write` |
-| 4 | DELETE | `/connections/{connectionId:guid}/server-consent` | — | `StatusResponseDto<object>` | management / SuperMod · `discord:connection:write` |
-| 5 | PUT | `/connections/{connectionId:guid}/streamer-enabled` | `StreamerEnabledRequest(bool Enabled)` | `StatusResponseDto<object>` | management / SuperMod · `discord:connection:write` |
-| 6 | DELETE | `/connections/{connectionId:guid}` | — | `StatusResponseDto<object>` (disconnect) | management / SuperMod · `discord:connection:write` |
+| 3 | POST | `/connections/{connectionId:guid}/server-consent` | `ServerConsentRequest(string ApprovedByDiscordUserId)` | `StatusResponseDto<object>` | management / Broadcaster · `discord:connection:write` |
+| 4 | DELETE | `/connections/{connectionId:guid}/server-consent` | — | `StatusResponseDto<object>` | management / Broadcaster · `discord:connection:write` |
+| 5 | PUT | `/connections/{connectionId:guid}/streamer-enabled` | `StreamerEnabledRequest(bool Enabled)` | `StatusResponseDto<object>` | management / Broadcaster · `discord:connection:write` |
+| 6 | DELETE | `/connections/{connectionId:guid}` | — | `StatusResponseDto<object>` (disconnect) | management / Broadcaster · `discord:connection:write` |
 | 7 | GET | `/connections/{connectionId:guid}/configs` | — | `StatusResponseDto<IReadOnlyList<DiscordNotificationConfigDto>>` | management / Moderator · `discord:config:read` |
-| 8 | POST | `/connections/{connectionId:guid}/configs` | `CreateDiscordNotificationConfigRequest` | `StatusResponseDto<DiscordNotificationConfigDto>` | management / SuperMod · `discord:config:write` |
-| 9 | PUT | `/configs/{configId:guid}` | `UpdateDiscordNotificationConfigRequest` | `StatusResponseDto<DiscordNotificationConfigDto>` | management / SuperMod · `discord:config:write` |
-| 10 | DELETE | `/configs/{configId:guid}` | — | `StatusResponseDto<object>` | management / SuperMod · `discord:config:write` |
+| 8 | POST | `/connections/{connectionId:guid}/configs` | `CreateDiscordNotificationConfigRequest` | `StatusResponseDto<DiscordNotificationConfigDto>` | management / LeadModerator · `discord:config:write` |
+| 9 | PUT | `/configs/{configId:guid}` | `UpdateDiscordNotificationConfigRequest` | `StatusResponseDto<DiscordNotificationConfigDto>` | management / LeadModerator · `discord:config:write` |
+| 10 | DELETE | `/configs/{configId:guid}` | — | `StatusResponseDto<object>` | management / LeadModerator · `discord:config:write` |
 | 11 | GET | `/configs/{configId:guid}/preview` | — | `StatusResponseDto<DiscordNotificationPreviewDto>` | management / Moderator · `discord:config:read` |
 | 12 | GET | `/connections/{connectionId:guid}/roles` | — | `StatusResponseDto<IReadOnlyList<DiscordNotificationRoleDto>>` | management / Moderator · `discord:role:read` |
-| 13 | POST | `/connections/{connectionId:guid}/roles` | `CreateDiscordNotificationRoleRequest` | `StatusResponseDto<DiscordNotificationRoleDto>` | management / SuperMod · `discord:role:write` |
-| 14 | PUT | `/roles/{roleId:guid}` | `UpdateDiscordNotificationRoleRequest` | `StatusResponseDto<DiscordNotificationRoleDto>` | management / SuperMod · `discord:role:write` |
-| 15 | DELETE | `/roles/{roleId:guid}` | — | `StatusResponseDto<object>` | management / SuperMod · `discord:role:write` |
-| 16 | POST | `/roles/{roleId:guid}/button` | `PostOptInButtonRequest(string ButtonChannelId)` | `StatusResponseDto<DiscordNotificationRoleDto>` | management / SuperMod · `discord:role:write` |
-| 17 | POST | `/roles/{roleId:guid}/opt-in` | `DiscordMemberOptInRequest` | `StatusResponseDto<object>` | management / SuperMod · `discord:optin:write` |
-| 18 | POST | `/roles/{roleId:guid}/opt-out` | `DiscordMemberOptInRequest` | `StatusResponseDto<object>` | management / SuperMod · `discord:optin:write` |
+| 13 | POST | `/connections/{connectionId:guid}/roles` | `CreateDiscordNotificationRoleRequest` | `StatusResponseDto<DiscordNotificationRoleDto>` | management / LeadModerator · `discord:role:write` |
+| 14 | PUT | `/roles/{roleId:guid}` | `UpdateDiscordNotificationRoleRequest` | `StatusResponseDto<DiscordNotificationRoleDto>` | management / LeadModerator · `discord:role:write` |
+| 15 | DELETE | `/roles/{roleId:guid}` | — | `StatusResponseDto<object>` | management / LeadModerator · `discord:role:write` |
+| 16 | POST | `/roles/{roleId:guid}/button` | `PostOptInButtonRequest(string ButtonChannelId)` | `StatusResponseDto<DiscordNotificationRoleDto>` | management / LeadModerator · `discord:role:write` |
+| 17 | POST | `/roles/{roleId:guid}/opt-in` | `DiscordMemberOptInRequest` | `StatusResponseDto<object>` | management / LeadModerator · `discord:optin:write` |
+| 18 | POST | `/roles/{roleId:guid}/opt-out` | `DiscordMemberOptInRequest` | `StatusResponseDto<object>` | management / LeadModerator · `discord:optin:write` |
 | 19 | GET | `/connections/{connectionId:guid}/dispatch-log?page=1&pageSize=25` | — | `PaginatedResponse<DiscordDispatchLogDto>` | management / Moderator · `discord:dispatch:read` |
+| 20 | GET | `/connections/{connectionId:guid}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Moderator · `discord:connection:read` (§11.3) |
+| 21 | GET | `/connections/{connectionId:guid}/guild` | — | `StatusResponseDto<DiscordGuildInfoDto>` | management / Moderator · `discord:connection:read` (§11.2) |
+| 22 | GET | `/connections/{connectionId:guid}/guild/roles` | — | `StatusResponseDto<IReadOnlyList<DiscordGuildRoleDto>>` | management / Moderator · `discord:role:read` (§11.2) |
+| 23 | GET | `/connections/{connectionId:guid}/guild/channels` | — | `StatusResponseDto<IReadOnlyList<DiscordGuildChannelDto>>` | management / Moderator · `discord:connection:read` (§11.2) |
+| 24 | GET | `/connections/{connectionId:guid}/guild/roles/assignable` | — | `StatusResponseDto<IReadOnlyList<DiscordAssignableRoleDto>>` | management / Moderator · `discord:role:read` (§11.2) |
+| 25 | GET | `/connections/{connectionId:guid}/guild/channels/postable` | — | `StatusResponseDto<IReadOnlyList<DiscordPostableChannelDto>>` | management / Moderator · `discord:connection:read` (§11.2) |
 
 Controller maps every `Result`/`Result<T>` through the existing `BaseController.ResultResponse(...)` overloads (which translate `ErrorCode` → HTTP). Request-DTO records 3, 5, 16 are declared on the controller (or in `Contracts.Discord` alongside the others).
 
-> **Gate-2 action keys (`ActionDefinitions`, schema B.3 — `[GLOBAL, seed]`).** Eight keys gate this surface; all `Plane=management`, none grantable via `!permit` (`IsGrantableViaPermit=false` — Discord wiring is not a per-viewer capability). `FloorTier=low` throughout (config/operational, not ToS/Critical). Reads → `DefaultLevel`/`FloorLevel` = `Moderator(10)`; writes = `SuperMod(20)`:
-> `discord:connection:read`(Moderator), `discord:connection:write`(SuperMod), `discord:config:read`(Moderator), `discord:config:write`(SuperMod), `discord:role:read`(Moderator), `discord:role:write`(SuperMod), `discord:optin:write`(SuperMod), `discord:dispatch:read`(Moderator). Register these rows in `DataSeeder` (§7) alongside the other subsystems' action-definition seeds; the controller enforces each via `IActionAuthorizationService.AuthorizeActionAsync(...)` on the matching key.
+> **Gate-2 action keys (`ActionDefinitions`, schema B.3 — `[GLOBAL, seed]`).** Eight keys gate this surface; all `Plane=management`, none grantable via `!permit` (`IsGrantableViaPermit=false` — Discord wiring is not a per-viewer capability). `FloorTier=low` throughout (config/operational, not ToS/Critical). Reads → `DefaultLevel`/`FloorLevel` = `Moderator(10)`; writes = `LeadModerator(20)`, except `discord:connection:write` = `Broadcaster(40)`:
+> `discord:connection:read`(Moderator), `discord:connection:write`(Broadcaster), `discord:config:read`(Moderator), `discord:config:write`(LeadModerator), `discord:role:read`(Moderator), `discord:role:write`(LeadModerator), `discord:optin:write`(LeadModerator), `discord:dispatch:read`(Moderator). Register these rows in `DataSeeder` (§7) alongside the other subsystems' action-definition seeds; the controller enforces each via `IActionAuthorizationService.AuthorizeActionAsync(...)` on the matching key.
 
-**OAuth callback (existing, unchanged route):** `IntegrationOAuthController.HandleDiscordCallback` (`GET /api/v1/integrations/discord/callback`, `[AllowAnonymous]`) is refactored to parse the token response into a `DiscordGuildOAuthResult` and call `IDiscordGuildService.UpsertFromOAuthAsync` — replacing the inline `Service` + `DiscordServerAuthorization` writes. The `/connect` start route stays in `IntegrationOAuthController`/`IntegrationsController` as today.
+**OAuth (`DiscordOAuthController`, route prefix `api/v{version:apiVersion}`).** Discord is not an ordinary user-resource provider (it carries a guild authorization), so it is excluded from the generic descriptor-driven vaulted flow (`IntegrationOAuthController`) by design. Two routes, both `[AllowAnonymous]`:
+- `GET /channels/{channelId}/integrations/discord/callback/start` — redirects to Discord's authorize page with scopes `bot guilds` and `integration_type=0` (guild install). The channel id and an optional loopback `redirect_uri` (desktop client; checked by `ClientRedirectPolicy`) are held server-side under a single-use CSRF state nonce (`IDiscordOAuthStateService`), never in the query string. A missing `discord.client_id` returns `PROVIDER_NOT_CONFIGURED`.
+- `GET /integrations/discord/callback` — consumes the state nonce (missing, expired or forged state is rejected), exchanges the code, parses the token response into a `DiscordGuildOAuthResult` and calls `IDiscordGuildService.UpsertFromOAuthAsync`, which vaults the bot token through `IIntegrationTokenVault`. No persistence is done inline in the controller.
 
 ---
 
 ## 6. Pipeline actions
 
-One action: `SendDiscordNotificationAction : ICommandAction` in `NomNomzBot.Infrastructure.Pipeline.Actions`, implementing the **single canonical `ICommandAction`** owned by `commands-pipelines.md` §3.13 (`string Type` + `Category`/`Description`; `Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken ct)`). Lets a command/event pipeline push an ad-hoc Discord post through the same dispatch path (with dedupe).
+One action: `SendDiscordNotificationAction : ICommandAction` in `NomNomzBot.Infrastructure/Discord/PipelineActions/`, implementing the **single canonical `ICommandAction`** owned by `commands-pipelines.md` §3.13. Lets a command/event pipeline push a Discord post through the same dispatch path (with dedupe).
 
-- **`Type`** = `"send_discord_notification"`
-- **`Category`** = `"Integrations"`, **`Description`** = `"Post a notification to a linked Discord channel."`
-- **Config DTO** (the action's `Parameters`, mirrored as a typed contract in `Contracts.Pipeline`):
-  ```csharp
-  public sealed record SendDiscordNotificationActionConfig(
-      Guid ConnectionId, string TriggerType, string? TargetChannelIdOverride,
-      string MessageTemplate, DiscordEmbedDto? Embed, string? DedupeKeyOverride);
-  ```
-- **Behavior:** resolves `BroadcasterId` from `ActionContext`, builds a `DiscordDispatchRequest` (DedupeKey = `DedupeKeyOverride ?? $"pipeline:{ActionContext.MessageId ?? EventId}"`), calls `IDiscordNotificationDispatcher.DispatchAsync`. Returns `ActionResult.Ok(output: postedMessageId)` on `sent`/`skipped_dupe`, `ActionResult.Fail(error)` on `failed`. Does not stop the pipeline. Templates resolve through the existing `ITemplateEngine` before dispatch.
+- **`ActionType`** = `"send_discord_notification"`; **`Category`** = the localized key `pipeline.category.discord`; **`Description`** = `pipeline.send_discord_notification.description` (translations live in the resource files, never in code).
+- **Params (as-built)** — the action's `Fields`:
+  - `trigger_type` (required; field kind `ResourceId`) — which notification rule to fire (`go_live`, `new_clip`, `schedule`, `milestone`).
+  - `dedupe_key` (optional text) — overrides the default `pipeline:{MessageId}` (or `ExecutionId` when there is no message).
 
-Registered as `services.AddTransient<ICommandAction, SendDiscordNotificationAction>();` alongside the other pipeline actions in §7. The action surfaces in the pipeline-builder UI under Integrations; that card is the frontend spec's deliverable (this is a backend spec), wired against the `Type`/`Category`/`Description`/`SendDiscordNotificationActionConfig` contract defined here.
+  There is no per-step connection, channel, template or embed param. The **matching enabled notification rule** for `trigger_type` supplies the target channel, message template, embed and ping role; the pipeline's resolved variables (plus `user.name` and `raw.message`) become the template data the dispatcher renders through `ITemplateResolver`.
+- **Behavior:** builds a `DiscordDispatchRequest(BroadcasterId, trigger_type, dedupeKey, StreamId: null, templateData)` from the execution context and calls `IDiscordNotificationDispatcher.DispatchAsync`, which dispatches to every enabled rule of that trigger across the channel's linked guilds and returns the last outcome. `ActionResult.Success(postedMessageId)` on `sent` / `skipped` / `skipped_dupe`; `ActionResult.Failure(reason)` when no enabled rule exists (`NOT_FOUND`) or the outcome is `failed`. Does not stop the pipeline.
+
+Registered as `services.AddTransient<ICommandAction, SendDiscordNotificationAction>();` alongside the other pipeline actions in §7. The pipeline builder renders it under the Discord category; `trigger_type` is picked from the channel's stored rules.
 
 ---
 
@@ -462,15 +474,15 @@ services.AddTransient<ICommandAction, SendDiscordNotificationAction>();
 
 EF configurations registered through `AppDbContext.OnModelCreating` (apply-from-assembly), replacing `DiscordServerAuthorizationConfiguration`. New `DbSet`s on `IApplicationDbContext` / `AppDbContext`: `DiscordGuildConnections`, `DiscordNotificationConfigs`, `DiscordNotificationRoles`, `DiscordMemberOptIns`, `DiscordNotificationDispatches` (the old `DiscordServerAuthorizations` set is removed).
 
-**Seeding (`[GLOBAL, seed]`):** the eight Discord `ActionDefinitions` rows from §5 (`discord:connection:read|write`, `discord:config:read|write`, `discord:role:read|write`, `discord:optin:write`, `discord:dispatch:read`) are added to the existing `DataSeeder` alongside the other subsystems' action-definition seeds (TTS/stream-admin/eventsub pattern) — `Plane=management`, `FloorTier=low`, `IsGrantableViaPermit=false`, `DefaultLevel`/`FloorLevel` = 10 (reads) / 20 (writes). These are reference data, not per-channel rows; a fresh channel resolves them through `IActionAuthorizationService` with no Discord-specific seeding.
+**Seeding (`[GLOBAL, seed]`):** the eight Discord `ActionDefinitions` rows from §5 (`discord:connection:read|write`, `discord:config:read|write`, `discord:role:read|write`, `discord:optin:write`, `discord:dispatch:read`) are added to the existing `DataSeeder` alongside the other subsystems' action-definition seeds (TTS/stream-admin/eventsub pattern) — `Plane=management`, `FloorTier=low`, `IsGrantableViaPermit=false`, `DefaultLevel`/`FloorLevel` = 10 (reads) / 20 (writes), except `discord:connection:write` = 40. These are reference data, not per-channel rows; a fresh channel resolves them through `IActionAuthorizationService` with no Discord-specific seeding.
 
 ---
 
 ## 8. Dependencies (stack-doc libs used)
 
-- **Microsoft.EntityFrameworkCore 10** (+ profile provider `Npgsql.EntityFrameworkCore.PostgreSQL` / `Microsoft.EntityFrameworkCore.Sqlite`) — entities, repositories, the `(NotificationConfigId, DedupeKey)` unique-index dedupe, EF10 named query filters (soft-delete + tenant).
+- **Microsoft.EntityFrameworkCore** (+ profile provider `Npgsql.EntityFrameworkCore.PostgreSQL` / `Microsoft.EntityFrameworkCore.Sqlite`) — entities, repositories, the `(NotificationConfigId, DedupeKey)` unique-index dedupe, EF named query filters (soft-delete + tenant).
 - **Newtonsoft.Json** — app JSON: the `EmbedConfig` `[VC:JSON]` `ValueConverter` and all request/response DTO bodies (project rule: Newtonsoft for app JSON).
-- **Microsoft.Extensions.Http.Resilience 10.7.0** (Polly v8 engine) — retry/circuit-breaker/timeout on the `discord` typed `HttpClient`, via a `DiscordRestBotGateway` `DelegatingHandler` honoring Discord's `Retry-After` (same pattern as the Twitch resilience handler). No third-party Discord SDK — the gateway is a hand-rolled REST client over `IHttpClientFactory` + `System.Text.Json` for Discord's own wire format (Twitch precedent: hand-rolled beats a stale SDK).
+- **Microsoft.Extensions.Http.Resilience** (Polly engine) — retry/circuit-breaker/timeout on the `discord` typed `HttpClient`, via a `DiscordRestBotGateway` `DelegatingHandler` honoring Discord's `Retry-After` (same pattern as the Twitch resilience handler). No third-party Discord SDK — the gateway is a hand-rolled REST client over `IHttpClientFactory` + `System.Text.Json` for Discord's own wire format (Twitch precedent: hand-rolled beats a stale SDK).
 - **`IIntegrationTokenVault`** (identity-auth.md §3.4; owned + registered there) — the only path this subsystem uses to store/read/revoke the bot OAuth token. The underlying AES-256-GCM AEAD + DEK lifecycle (`IFieldCipher` / `ISubjectKeyService`, in-box `System.Security.Cryptography`) is owned by `gdpr-crypto.md`; this subsystem consumes the vault, never the crypto primitives, and never pulls a crypto package itself.
 - **In-box** `IEventBus` (existing), `IHttpClientFactory`, `ILogger` + `[LoggerMessage]` source-gen + OpenTelemetry (PII discipline: never log tokens, member ids, or message bodies).
 
@@ -543,3 +555,52 @@ Both messages name the exact Discord Server Settings screen the streamer needs t
 ### 10.5 Startup reconciliation
 
 `DiscordLiveRoleReconciliationHostedService : IHostedService` runs once on startup, gated by `IRunOnceGuard.TryAcquireAsync("discord-live-role-reconcile", TimeSpan.FromMinutes(5), ct)` — the same lease seam `SongRequestQueueRestoreHostedService` uses — so a zero-downtime blue/green overlap (two API instances starting against one database) does not double the removal calls. When the lease is acquired it calls `IDiscordLiveRoleService.ReconcileStaleAsync`; when another instance already holds it, this instance no-ops for the startup.
+
+---
+
+## 11. Shipped extensions (as built)
+
+Features built on top of §1–§10; each consumes the same both-opt-in `DiscordGuildConnection` link and the same `IDiscordBotGateway`.
+
+### 11.1 Personal DM opt-in delivery
+
+A notify role can also deliver by direct message (decided 2026-07-17). `DiscordNotificationRole.DmEnabled` (default `false`) is set through `CreateDiscordNotificationRoleRequest` / `UpdateDiscordNotificationRoleRequest` and returned on `DiscordNotificationRoleDto`.
+
+After a rule's channel post, `DiscordNotificationDispatcher` fans out DMs when the rule's `PingRoleId` role has `DmEnabled`: every member with an active opt-in (`OptedOutAt` null) receives the rendered notification (content + embed, no role ping) as a DM.
+- The DMs are an independent output of the same dispatch — a channel failure never blocks them, and a DM failure never fails the channel post.
+- Sequential, best-effort per member. Each DM is its own append-only `DiscordNotificationDispatch` row keyed `{baseDedupeKey}:dm:{discordMemberId}`, so a re-dispatch is a per-member no-op (the unique index rejects the repeat).
+- The member's DM channel is opened with `IDiscordBotGateway.OpenDmChannelAsync` and cached on `DiscordMemberOptIn.DmChannelId`, so the next go-live skips the open call. A member with DMs closed is recorded as a `failed` row with the Discord reason; the fan-out continues with the next member.
+
+### 11.2 Guild directory (live pickers)
+
+`IDiscordGuildDirectoryService` (`Contracts.Discord`; impl `DiscordGuildDirectoryService`) proxies the linked guild's live data to the dashboard pickers. Nothing is persisted. Backed by the gateway reads `GetGuildAsync`, `GetGuildRolesAsync`, `GetGuildChannelsAsync`, `GetAssignableGuildRolesAsync`, `GetPostableGuildChannelsAsync`.
+
+| Method | Route (§5 rows 21–25) | Returns |
+|---|---|---|
+| `GetGuildAsync` | `/guild` | `DiscordGuildInfoDto(Id, Name, Icon, Description)` |
+| `GetGuildRolesAsync` | `/guild/roles` | `DiscordGuildRoleDto(Id, Name, Color, Position, Managed, Mentionable, Permissions)` |
+| `GetGuildChannelsAsync` | `/guild/channels` | `DiscordGuildChannelDto(Id, Name, Type, ParentId, Position)` |
+| `GetAssignableGuildRolesAsync` | `/guild/roles/assignable` | the role list plus `CanAssign`, `UnavailableReasonCode`, `UnavailableReason` per role (S055c) |
+| `GetPostableGuildChannelsAsync` | `/guild/channels/postable` | the channel list plus `CanPost`, `UnavailableReasonCode`, `UnavailableReason` per channel (honors per-channel permission overwrites, not just guild-level ones) |
+
+The assignable and postable reads fail with `DISCORD_LINK_INACTIVE` when the both-opt-in handshake is not fully active — distinct from an empty list and from a per-item "the bot cannot use this one". The per-role reason reuses the §10.4 checks (`DISCORD_MISSING_MANAGE_ROLES`, `DISCORD_ROLE_HIERARCHY`).
+
+### 11.3 Disconnect blast radius
+
+`GET /connections/{connectionId:guid}/blast-radius` (`discord:connection:read`, `[DestructiveAction(HasCountedBlastRadius = true)]`) returns `StatusResponseDto<BlastRadiusDto>` from `IDiscordGuildService.GetDisconnectBlastRadiusAsync`: what STOPS WORKING on disconnect, counted, not just the rows removed. Categories (a zero-count category is omitted): `DiscordNotificationRules` (rules on the connection), `DiscordRoleButtons` (notify roles on the connection), `PipelineSteps` (pipeline steps of type `send_discord_notification`, with the pipeline names; the count is flagged as a MINIMUM when some references can only be resolved at run time). `NOT_FOUND` when the connection is absent or another tenant's. The dashboard calls it and renders the result before the disconnect confirm (`DELETE /connections/{connectionId:guid}`, also `[DestructiveAction(HasCountedBlastRadius = true)]`).
+
+### 11.4 Interactions endpoint
+
+`POST /api/v1/discord/interactions` (`DiscordInteractionsController`) is the URL registered as the application's **Interactions Endpoint URL** in the Discord Developer Portal. `[AllowAnonymous]` with the anonymous rate-limit policy — Discord calls it unauthenticated, and security is the mandatory Ed25519 check:
+- `IDiscordInteractionVerifier` verifies `X-Signature-Ed25519` over `X-Signature-Timestamp` + the **raw body bytes** against the application public key `Discord:PublicKey` (32-byte hex). The body is read straight off the request stream (no model binding), so the signature covers exactly what Discord sent.
+- Missing headers or a bad signature answer **401** before the body is parsed (Discord probes with invalid signatures at registration and afterwards). An unconfigured `Discord:PublicKey` answers **503** (feature not configured, never a crash). A body over 256 KiB answers **413**.
+- `IDiscordInteractionService.HandleAsync` routes the verified payload: `PING` (1) -> `PONG` (`{"type":1}`); `MESSAGE_COMPONENT` (3) with `custom_id` `notify_optin:{roleId:N}` (the id the gateway stamps on the posted opt-in button, §3.3) -> toggles the clicking member's opt-in through `IDiscordNotificationRoleService` with source `button` and answers with an ephemeral message (type 4, flags 64). An unknown interaction type or `custom_id` gets an ephemeral "not supported" reply, never an error status; only an unparseable body fails (`VALIDATION_FAILED`). The response JSON is returned verbatim within Discord's 3-second deadline.
+- The webhook is app-level (no tenant context): the tenant is resolved FROM the role row the `custom_id` names.
+
+### 11.5 `!discord` invite command
+
+`DiscordInviteBuiltin` (builtin key `discord`, default cooldown 30 s, minimum permission level 0) replies with a live invite link to the channel's linked server. There is no stored invite URL anywhere in the schema, so it builds a real one on demand: the first connection whose `IsLinkActive` is true, the first channel the bot can post in (`GetPostableGuildChannelsAsync`), then `IDiscordBotGateway.CreateChannelInviteAsync` (a permanent invite; Discord's own de-dupe reuses an existing one). Every failure mode degrades to an honest reply through a personality response slot — `Discord.NotConnected` (no active link) or `Discord.Unavailable` (no postable channel, or the Discord call failed); it never fabricates an invite.
+
+### 11.6 Pipeline option providers
+
+`DiscordChannelOptionProvider` (`PipelineActionFieldKind.DiscordChannel`) and `DiscordRoleOptionProvider` (`DiscordRole`) back the rich pickers for pipeline step fields (S-RICH-PICKERS), so a step never asks for a bare snowflake id. Both resolve the tenant's active guild link through the shared `DiscordGuildOptionProviderBase` (approved AND `StreamerEnabled`) and read the live lists through `IDiscordGuildDirectoryService`. Channels are ordered by position, searchable by name, with `SecondaryText` = the channel type plus its parent category; roles carry their colour (hex) and whether they are mentionable. With no active link the provider answers `PipelineOptionListResult.Unavailable("No active Discord server link for this channel — link and enable a server in the Discord integration settings.")`; a Discord read failure answers `Unavailable` with the reason. Only real Discord data is shown, never a fabricated label.

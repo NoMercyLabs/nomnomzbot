@@ -1,7 +1,7 @@
 # Interface Specification — Live Games Subsystem (interactive overlay games)
 
-**Status:** Implementable. Code the owner writes from this should compile first-try.
-**Sources of truth:** locked schema `2026-06-16-database-schema.md` (Domain K — `GameConfig` K.7, `GamePlay` K.9, the currency ledger K.2/K.3); economy `economy.md` (`ICurrencyAccountService`, `IGameService`); widgets `widgets-overlays.md` (`IWidgetNotifier`, `widget_event`); pipeline `commands-pipelines.md` (`ICommandAction`/`ActionContext` §3.13); platform `platform-conventions.md` (`IRunOnceGuard`, `IEventBus`, auto-discovery); roles `roles-permissions.md` (Gate-2 keys, planes).
+**Status:** Engine built. Games built: **Drop** (`drop_game`), **Raffle** (`raffle`), **Heist** (`heist`), **Crash** (`crash`) — each with its first-party overlay widget and default `GameConfig`. Remaining: **Battle Royale, Trivia, Bingo** (tier 1) and **Marble Race, Plinko, Wheel, Horse Race** (tier 2, art-gated) — see §4.2. Each is one new `ILiveGame` class; no engine edit.
+**Sources of truth:** locked schema `2026-06-16-database-schema.md` (Domain K — `GameConfig` K.7, `GamePlay` K.9, the currency ledger K.2/K.3); economy `economy.md` (`ICurrencyAccountService`, `IGameService`); widgets `widgets-overlays.md` (`IWidgetEventNotifier`, `widget_event`); pipeline `commands-pipelines.md` (`ICommandAction`/`ActionContext` §3.13); platform `platform-conventions.md` (`IRunOnceGuard`, `IEventBus`, auto-discovery); roles `roles-permissions.md` (Gate-2 keys, planes).
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; **explicit types — never `var`** (IDE0008 = error); async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PK `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete global filter; AGPL header on every source file.
 
 > **Why this subsystem exists.** `economy.md` `IGameService.PlayAsync` covers **instant-resolve** chat games
@@ -110,14 +110,15 @@ public interface ILiveGameEngine
 ### 3.2 `ILiveGameCatalog` (NEW — the discovered registry)
 
 ```csharp
+// NomNomzBot.Application.Games.Services (AS-BUILT)
 public interface ILiveGameCatalog
 {
-    IReadOnlyCollection<LiveGameManifest> All { get; }           // every discovered ILiveGame's manifest
-    bool TryGet(string gameKey, out ILiveGame game);             // resolve a game by key
+    IReadOnlyDictionary<string, LiveGameManifest> All { get; }               // GameKey -> manifest (case-insensitive key)
+    bool TryGet(string gameKey, [NotNullWhen(true)] out ILiveGame? game);    // resolve a game by key
 }
 ```
 
-Populated by auto-discovery (§7). Startup validation: duplicate `GameKey` → fail fast; each `Manifest.OverlayWidgetKey` must resolve to a seeded first-party widget (fail-closed).
+Populated by auto-discovery (§7) — `LiveGameCatalog` (Singleton) takes `IEnumerable<ILiveGame>`. Startup validation: a duplicate `GameKey` throws `InvalidOperationException` (fail fast). `OverlayWidgetKey` is **not** validated at startup: it resolves per push through `ILiveGameOverlayResolver` (D5), and an uninstalled widget leaves the overlay dark while the round still runs.
 
 ### 3.3 Economy delta — `IGameService` gains three methods (owned by `economy.md`)
 
@@ -226,8 +227,8 @@ Auto-discovery registers (1); the engine, REST, the `start_live_game` action, th
 
 The `ILiveGame` class needs no art; only its `OverlayWidgetKey` does. Games therefore split by how much their overlay demands, and **that split is the build order**:
 
-- **Tier 1 — data overlays (ship first, no illustration).** The overlay is styled data + motion the design system already provides: a name list, a climbing counter, a countdown, a struck-through roster, a card grid. **Heist, Raffle, Crash, Battle Royale, Trivia, Bingo.** Authored first-party from `frontend-design-system` primitives — no designer dependency.
-- **Tier 2 — art/physics overlays (engine-ready, art-gated).** The overlay needs illustration or physics: parachutes, marbles, a Plinko board, a prize wheel. **Drop, Marble Race, Plinko, Wheel, Horse Race.** The engine runs them today; each ships when its overlay widget exists — authored by the designer or arriving via the verified-community gallery + clone-to-edit (`widgets-overlays.md`). **No engine change when the art lands** — the game class and config are already valid; only the `OverlayWidgetKey` target appears.
+- **Tier 1 — data overlays (ship first, no illustration).** The overlay is styled data + motion the design system already provides: a name list, a climbing counter, a countdown, a struck-through roster, a card grid. **Heist, Raffle, Crash (shipped); Battle Royale, Trivia, Bingo (remaining).** Authored first-party from `frontend-design-system` primitives — no designer dependency.
+- **Tier 2 — art/physics overlays (engine-ready, art-gated).** The overlay needs illustration or physics: parachutes, marbles, a Plinko board, a prize wheel. **Drop (shipped); Marble Race, Plinko, Wheel, Horse Race (remaining).** The engine runs them today; each ships when its overlay widget exists — authored by the designer or arriving via the verified-community gallery + clone-to-edit (`widgets-overlays.md`). **No engine change when the art lands** — the game class and config are already valid; only the `OverlayWidgetKey` target appears.
 
 ---
 
@@ -246,7 +247,7 @@ does not serialize cleanly).
 | GET | `/` | `GameSessionFilter`+`PageRequestDto` | `PaginatedResponse<GameSessionDto>` | management / Moderator · `games:session:read` |
 | POST | `/` | `StartLiveGameRequest(GameType)` | `StatusResponseDto<GameSessionDto>` | management / Moderator · `games:session:start` |
 | DELETE | `/{sessionId}` | — | `StatusResponseDto<GameSessionDto>` | management / Moderator · `games:session:cancel` |
-| GET | `/catalog` | — | `StatusResponseDto<IReadOnlyList<LiveGameManifest>>` | management / Moderator · `games:session:read` |
+| GET | `/catalog` | — | `StatusResponseDto<IReadOnlyList<LiveGameCatalogEntryDto>>` | management / Moderator · `games:session:read` |
 
 DTOs: `GameSessionDto(Guid Id, string GameType, string Status, int ParticipantCount, DateTime StartedAt, DateTime? JoinClosesAt, DateTime? ResolvedAt, IReadOnlyDictionary<string,object?>? State, IReadOnlyDictionary<string,object?>? Outcome)`; `GameSessionFilter(string? GameType, string? Status)`. Per-game **config** CRUD is **not** here — it is economy's `GET/PUT /economy/games` (`economy:games:read`/`write`); the dashboard Games page composes both surfaces.
 
@@ -269,18 +270,22 @@ In-round joins (`!drop`, etc.) are **not** pipeline actions — they are routed 
 
 ## 7. DI & auto-discovery
 
-`NomNomzBot.Infrastructure/Games/DependencyInjection.cs` (`AddLiveGames()`), called from the root `DependencyInjection.cs`.
+AS-BUILT: there is no `Games/DependencyInjection.cs` and no `AddLiveGames()`. The registrations are inline in the root `NomNomzBot.Infrastructure/DependencyInjection.cs` (the "Live games" block); the scanned parts ride the shared assembly scans.
 
 | Interface | Implementation | Lifetime | Notes |
 |---|---|---|---|
-| `ILiveGameEngine` | `LiveGameEngine` | Scoped | orchestration; depends on `IGameService` (economy), `IWidgetNotifier` (widgets), `ILiveGameCatalog`, repos, `IEventBus` |
+| `ILiveGameEngine` | `LiveGameEngine` | Scoped (the concrete `LiveGameEngine` is registered too; the interface resolves to it) | orchestration; depends on `IApplicationDbContext`, `IGameService` (economy), `IChatProvider`, `IWidgetEventNotifier` (widgets), `ILiveGameCatalog`, `ILiveGameOverlayResolver`, `LiveGameSessionRegistry`, `IGameRandomizer`, `IEventBus` |
 | `ILiveGameCatalog` | `LiveGameCatalog` | Singleton | built from all discovered `ILiveGame` |
-| `ILiveGame` (each game) | `DropGame`, … | Singleton | **auto-discovered** by assembly scan — `AddLiveGames()` registers every `ILiveGame` in the games assembly (the platform auto-discovery convention; no manual edit to add one). Pure/stateless ⇒ singleton-safe. |
-| `LiveGameRunner` | `LiveGameRunner` | Singleton `IHostedService` | wall-clock + the single chat-input subscription; per-session loops under `IRunOnceGuard` |
-| `ICommandAction` (`start_live_game`, `cancel_live_game`) | `StartLiveGameAction`, `CancelLiveGameAction` | Transient | registered with the pipeline action set |
-| `GameSessionRepository` | `GameSessionRepository` | Scoped | tenant-filtered |
+| `ILiveGame` (each game) | `DropGame`, `RaffleGame`, `HeistGame`, `CrashGame` | Singleton | **auto-discovered** by `services.AddImplementationsOf<ILiveGame>(infrastructure, ServiceLifetime.Singleton)` — adding a game class is the only edit. Pure/stateless ⇒ singleton-safe. |
+| `ILiveGameOverlayResolver` | `LiveGameOverlayResolver` | Scoped | gallery `NaturalKey` → the channel's installed, enabled widget (D5) |
+| `LiveGameSessionRegistry` | `LiveGameSessionRegistry` | Singleton | live per-channel round state shared by the engine, the chat listener and the runner |
+| `LiveGameRunner` | `LiveGameRunner` | `BackgroundService` (hosted-worker scan) | 1-second wall-clock sweep; startup crash sweep under `IRunOnceGuard` |
+| `IEventHandler<ChatMessageReceivedEvent>` | `LiveGameInputListener` | `IEventHandler` scan | the single chat-input subscription (D6) |
+| `ICommandAction` (`start_live_game`, `cancel_live_game`) | `StartLiveGameAction`, `CancelLiveGameAction` | Transient | `ICommandAction` scan |
 
-**Auto-discovery (the no-hack guarantee):** `AddLiveGames()` scans the games assembly for `ILiveGame` implementors and registers each — adding a game class is the *only* edit. A startup `ILiveGameCatalog` build fails fast on duplicate `GameKey` or an `OverlayWidgetKey` with no seeded widget. **Crash-recovery sweep:** on startup, under `IRunOnceGuard`, non-terminal `GameSession` rows are cancelled and refunded (D9).
+There is no `GameSessionRepository`: the engine reads and writes `GameSession` through `IApplicationDbContext`.
+
+**Auto-discovery (the no-hack guarantee):** the `ILiveGame` scan registers every implementor — adding a game class is the *only* edit. The `ILiveGameCatalog` build fails fast on a duplicate `GameKey` (§3.2). **Crash-recovery sweep:** on startup, under `IRunOnceGuard`, non-terminal `GameSession` rows are cancelled and refunded (D9).
 
 ---
 
@@ -293,7 +298,7 @@ Per the project standard: assert state changes, emitted events, and ledger side-
 - **Min-players + crash refund** — a session that resolves under `MinPlayers` cancels and **fully refunds** every stake (reversing entries); a non-terminal session present at startup is swept, cancelled, and refunded exactly once (idempotent under `IRunOnceGuard`).
 - **D7 single-session** — `StartAsync` while a non-terminal session exists fails `SESSION_ALREADY_ACTIVE`.
 - **Drop-in proof** — a second fake `ILiveGame` with a distinct `GameKey` is discovered and runnable **without** any engine/registration edit; a duplicate `GameKey` fails the catalog build at startup.
-- **Overlay push** — assert the engine emits `IWidgetNotifier.SendWidgetEventAsync` frames with `EventType="game.lobby"/"game.running"/"game.resolved"` and the game's payload on each transition.
+- **Overlay push** — assert the engine emits `IWidgetEventNotifier.SendWidgetEventAsync` frames with `EventType="game.lobby"/"game.running"/"game.resolved"` and the game's payload on each transition.
 
 ---
 

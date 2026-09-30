@@ -15,7 +15,7 @@ Directly-implementable interface contract. Owner codes from this first-try. No a
 
 ## 1. Entities
 
-All tables are defined in the **LOCKED** schema `docs/design/2026-06-16-database-schema.md`. This subsystem **owns** (reads + writes) the following; it does not redefine them — fields/types are authoritative there. Key columns restated only for the surface this spec touches.
+All tables are defined in the **LOCKED** schema `.claude/docs/design/2026-06-16-database-schema.md`. This subsystem **owns** (reads + writes) the following; it does not redefine them — fields/types are authoritative there. Key columns restated only for the surface this spec touches.
 
 ### Stream tools
 - **`StreamPresets`** (schema F.10) `[soft-delete, tenant]` — saved title/game/tag presets.
@@ -42,12 +42,14 @@ All tables are defined in the **LOCKED** schema `docs/design/2026-06-16-database
 
 ## 2. Domain events
 
-All inherit `NomNomzBot.Domain.Events.DomainEventBase` — the canonical, authoritative base (platform-conventions §2.0): it provides `Guid EventId` (UUIDv7), `Guid BroadcasterId` (the locked UUIDv7 tenant key; `Guid.Empty` = platform-level), and `DateTimeOffset OccurredAt`. Events **must NOT redeclare** `EventId`/`BroadcasterId`/`OccurredAt` — they add only their own payload fields, and the publisher sets the inherited `BroadcasterId` for tenant-scoped events. Match the existing init-property style (`FeatureToggledEvent`, `ChannelUpdatedEvent`). New events live in `NomNomzBot.Domain/Events/`. Namespace `NomNomzBot.Domain.Events`.
+All inherit `NomNomzBot.Domain.Platform.DomainEventBase` — the canonical, authoritative **abstract class** (platform-conventions §2.0): it provides `Guid EventId` (UUIDv7), `Guid BroadcasterId` (the locked UUIDv7 tenant key; `Guid.Empty` = platform-level), and `DateTimeOffset OccurredAt`. Events are **sealed classes** (`public sealed class XEvent : DomainEventBase`), never records. They **must NOT redeclare** `EventId`/`BroadcasterId`/`OccurredAt` — they add only their own payload fields, and the publisher sets the inherited `BroadcasterId` for tenant-scoped events. Match the existing init-property style (`FeatureToggledEvent`, `ChannelUpdatedEvent`). Events live beside their domain: Plane-C admin events in `NomNomzBot.Domain/Identity/Events/PlatformAdminEvents.cs` (namespace `NomNomzBot.Domain.Identity.Events`), feature-flag events in `NomNomzBot.Domain/Platform/Events/`.
+
+**As-built status.** The two stream-tools events below (`StreamMetadataUpdatedEvent`, `ScheduledStreamChangeAppliedEvent`) are **not built** — there is no `IStreamToolsService` yet (§3.1). The four Plane-C events are built; the snippets show their as-built shape.
 
 ```csharp
 // Fired after stream title/game/tags successfully pushed to Twitch + persisted to Channels.
 // Tenant-scoped: publisher sets the inherited DomainEventBase.BroadcasterId (do not redeclare it).
-public sealed record StreamMetadataUpdatedEvent : DomainEventBase
+public sealed class StreamMetadataUpdatedEvent : DomainEventBase
 {
     public string? NewTitle { get; init; }
     public string? NewGameId { get; init; }
@@ -60,21 +62,22 @@ public sealed record StreamMetadataUpdatedEvent : DomainEventBase
 
 // Fired when a scheduled change is applied (success or failure terminal).
 // Tenant-scoped: publisher sets the inherited DomainEventBase.BroadcasterId (do not redeclare it).
-public sealed record ScheduledStreamChangeAppliedEvent : DomainEventBase
+public sealed class ScheduledStreamChangeAppliedEvent : DomainEventBase
 {
     public required Guid ScheduledChangeId { get; init; }
     public required bool Succeeded { get; init; }
     public string? Error { get; init; }                    // set when Succeeded == false
 }
 
-// Fired when an operator begins/ends audited support access to a tenant (tenant:access).
+// Fired when an operator begins audited support access to a tenant (tenant:access).
 // Platform-scoped (Plane-C operator action): inherited DomainEventBase.BroadcasterId stays Guid.Empty;
-// the affected tenant rides in the TargetBroadcasterId payload field.
-public sealed record TenantAccessGrantedEvent : DomainEventBase
+// the affected tenant rides in the TargetBroadcasterId payload field. (The justification is on the
+// IamAuditLog row, not on the event.) Ending the access writes a closing audit row and no event.
+public sealed class TenantAccessGrantedEvent : DomainEventBase
 {
     public required Guid PrincipalId { get; init; }
     public required Guid TargetBroadcasterId { get; init; }
-    public required string Justification { get; init; }
+    public required Guid AccessGrantId { get; init; }      // the created IamRoleAssignment.Id — revoking it ends the access
     public required bool BreakGlass { get; init; }
     public DateTime? ExpiresAt { get; init; }
 }
@@ -82,7 +85,7 @@ public sealed record TenantAccessGrantedEvent : DomainEventBase
 // Fired when an operator suspends / un-suspends a tenant (tenant:suspend).
 // Platform-scoped (Plane-C operator action): inherited DomainEventBase.BroadcasterId stays Guid.Empty;
 // the affected tenant rides in the TargetBroadcasterId payload field.
-public sealed record TenantSuspensionChangedEvent : DomainEventBase
+public sealed class TenantSuspensionChangedEvent : DomainEventBase
 {
     public required Guid PrincipalId { get; init; }
     public required Guid TargetBroadcasterId { get; init; }
@@ -90,30 +93,47 @@ public sealed record TenantSuspensionChangedEvent : DomainEventBase
     public string? Reason { get; init; }
 }
 
-// Fired when an OPERATOR administers a feature flag (global definition or per-tenant override) from the admin
-// console — carries operator identity for the Plane-C audit trail. Distinct from the platform-conventions
-// `FeatureFlagChangedEvent` (cache-invalidation event: FlagKey/IsEnabledGlobally/RolloutPercentage/
-// TenantOverrideValue, no operator id). Renamed to avoid the name collision; this one is the admin-action event.
-// Platform-scoped (Plane-C operator action): inherited DomainEventBase.BroadcasterId stays Guid.Empty;
-// a per-tenant override's target rides in the OverrideBroadcasterId payload field.
-public sealed record FeatureFlagAdministeredEvent : DomainEventBase
+// Fired when an operator starts / ends an act-as impersonation session (user:impersonate). The session rides
+// on an open support-access grant; AccessGrantId is that grant AND the minted act-as token's `sid` claim.
+// Platform-scoped: inherited BroadcasterId stays Guid.Empty. The tenant owner is notified from these events.
+public sealed class ImpersonationStartedEvent : DomainEventBase
 {
-    public required Guid PrincipalId { get; init; }
+    public required Guid OperatorPrincipalId { get; init; }
+    public required Guid TargetUserId { get; init; }
+    public required Guid AccessGrantId { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+}
+
+public sealed class ImpersonationEndedEvent : DomainEventBase
+{
+    public required Guid OperatorPrincipalId { get; init; }
+    public required Guid TargetUserId { get; init; }
+    public required Guid AccessGrantId { get; init; }
+}
+
+// Fired when an OPERATOR administers a feature flag (global definition or per-tenant override) from the admin
+// console — the Plane-C audit-trail event. Distinct from the platform-conventions `FeatureFlagChangedEvent`
+// (cache-invalidation event: FlagKey only, BroadcasterId carries the tenant). Lives in
+// NomNomzBot.Domain.Platform.Events. Platform-scoped: inherited BroadcasterId stays Guid.Empty.
+public sealed class FeatureFlagAdministeredEvent : DomainEventBase
+{
     public required string FlagKey { get; init; }
-    public Guid? OverrideBroadcasterId { get; init; }      // null = global definition change
-    public required bool IsEnabled { get; init; }
+    public required string Action { get; init; }           // "flag_set" | "override_set" | "override_removed"
+    public Guid? ActorUserId { get; init; }
 }
 ```
 
-> Existing `FeatureToggledEvent` (per-channel feature on/off, key+bool) is a **different, narrower** event already consumed by the pipeline; do not collapse `FeatureFlagAdministeredEvent` into it. Likewise it is **not** the platform-conventions `FeatureFlagChangedEvent` (which `IFeatureFlagService` raises to invalidate cached evaluations) — this one carries operator identity + override scope for the admin audit trail. The admin service emits **both**: `FeatureFlagAdministeredEvent` (audit) and the platform-conventions `FeatureFlagChangedEvent` (cache invalidation).
+> Existing `FeatureToggledEvent` (per-channel feature on/off, key+bool) is a **different, narrower** event already consumed by the pipeline; do not collapse `FeatureFlagAdministeredEvent` into it. Likewise it is **not** the platform-conventions `FeatureFlagChangedEvent` (which `IFeatureFlagService` raises to invalidate cached evaluations) — this one carries operator identity + override scope for the admin audit trail. The admin service (`IFeatureFlagAdminService`, §3.2 note) emits **both**: `FeatureFlagAdministeredEvent` (audit) and the platform-conventions `FeatureFlagChangedEvent` (cache invalidation).
 
 ---
 
 ## 3. Service interfaces
 
-All in `NomNomzBot.Application/Services/` (interface) implemented in `NomNomzBot.Infrastructure/Services/<area>/`. All async, `Result<T>`, `CancellationToken ct = default` last. Implementations use repositories + `IUnitOfWork`, never raw `DbContext` from a controller path.
+Module-first paths: the Plane-C interface is `NomNomzBot.Application/Identity/Services/IPlatformAdminService.cs` (DTOs in `Application/Identity/Dtos/PlatformAdminDtos.cs`), implemented in `NomNomzBot.Infrastructure/Identity/PlatformAdminService.cs`; the stream-tools interfaces (not built yet) belong in the Stream domain folder. All async, `Result<T>`, `CancellationToken ct = default` last. Implementations use repositories + `IUnitOfWork`, never raw `DbContext` from a controller path.
 
 ### 3.1 `IStreamToolsService` — `NomNomzBot.Application.Services`
+
+> **As-built status: not built.** Neither `IStreamToolsService` nor `IStreamEditAuthorizer` exists in code yet; the live `StreamController` (`/channels/{channelId}/stream`) calls the Helix sub-clients directly. This section is the target contract.
 
 ```csharp
 public interface IStreamToolsService
@@ -205,113 +225,102 @@ public interface IStreamEditAuthorizer  // NomNomzBot.Application.Services
 ```
 - `AuthorizeAsync` — a **sanctioned thin mapper**, not a parallel gate: it resolves the per-field action key (`channel:title:write`/`channel:game:write`/`channel:tags:write`/`channel:ccl:write`/`channel:language:write`/`channel:brandedcontent:write` — and `channel:extensions:write` for the extensions-config write — all floor at Editor — Twitch defines our defaults: native Editors edit stream info, Moderators only moderate chat) and **delegates the actual decision to the canonical Plane-B `IActionAuthorizationService.AuthorizeActionAsync`** (which itself reads `ActionDefinitions[actionKey]`, applies any `ChannelActionOverrides`, and compares the actor's `IRoleResolver`-resolved `ChannelMemberships.LevelValue` against the floor-clamped level). It performs **no** level comparison of its own. Surfaces `FORBIDDEN` on insufficient level and `NOT_FOUND` if `actionKey` is unknown, both propagated from `IActionAuthorizationService`. This is a Plane-B (own-channel) gate — never Plane-C; it adds only the title/game/tags key-selection convenience, reusing the shared authorizer rather than duplicating it.
 
-### 3.2 `IPlatformAdminService` — `NomNomzBot.Application.Services`
+### 3.2 `IPlatformAdminService` — `NomNomzBot.Application.Identity.Services`
 
-> Plane-C operations. The coarse `[Authorize(Roles="admin")]` model on the live `AdminController` is the legacy gate being **replaced** by permission-checked, audited operator actions (each method gates on `IPlatformIamService.AuthorizePlatformAsync` with the per-action key). Self-host collapses to "owner = full" (IAM tables empty → the `OwnerIsFullIamService` adapter returns allow). Extends the existing `IAdminService` (stats/list/health stay there); this interface adds the privileged tenant/flag/access surface.
+> Plane-C operations. The coarse `[Authorize(Roles="admin")]` model on the legacy `AdminController` is replaced by permission-checked, audited operator actions: each route carries `[Authorize(Policy = "<permission key>")]` (the policy name **is** the `IamPermission.Key` verbatim) and the service call gates on `IPlatformIamService.AuthorizePlatformAsync` with the per-action key. **One** `PlatformIamService` serves every deployment: on self-host (`DeploymentContext.Mode != Saas`) `AuthorizePlatformAsync` returns allow with no audit (owner = full — decided by deployment mode, never by counting `IamPrincipal` rows; the bootstrapped owner does hold a real principal); on SaaS it is default-deny and writes an `IamAuditLog` row per check. Extends the existing `IAdminService` (stats/list/health stay there); this interface adds the privileged tenant/access surface. **Feature flags are not on this interface** — they moved to `IFeatureFlagAdminService` / `FeatureFlagAdminController` (see the feature-flag note below and §5).
 
 ```csharp
 public interface IPlatformAdminService
 {
     // ── Tenant management ────────────────────────────────────────────────────
     Task<Result<PagedList<AdminTenantDto>>> ListTenantsAsync(
-        Guid principalId, AdminTenantQuery query, PaginationParams pagination,
-        CancellationToken ct = default);
-
+        Guid principalId, AdminTenantQuery query, PaginationParams pagination, CancellationToken ct = default);
     Task<Result<AdminTenantDetailDto>> GetTenantAsync(
         Guid principalId, Guid broadcasterId, CancellationToken ct = default);
-
     Task<Result> SuspendTenantAsync(
-        Guid principalId, Guid broadcasterId, SuspendTenantRequest request,
-        CancellationToken ct = default);
-
+        Guid principalId, Guid broadcasterId, SuspendTenantRequest request, CancellationToken ct = default);
     Task<Result> ReinstateTenantAsync(
-        Guid principalId, Guid broadcasterId, string justification,
+        Guid principalId, Guid broadcasterId, string justification, CancellationToken ct = default);
+    Task<Result<PagedList<TenantMemberDto>>> ListTenantMembersAsync(
+        Guid principalId, Guid broadcasterId, string? search, PaginationParams pagination,
         CancellationToken ct = default);
 
     // ── Audited support access (tenant:access) ───────────────────────────────
     Task<Result<TenantAccessGrantDto>> BeginTenantAccessAsync(
-        Guid principalId, Guid broadcasterId, BeginTenantAccessRequest request,
-        CancellationToken ct = default);
-
+        Guid principalId, Guid broadcasterId, BeginTenantAccessRequest request, CancellationToken ct = default);
     Task<Result> EndTenantAccessAsync(
         Guid principalId, Guid accessGrantId, CancellationToken ct = default);
 
-    // ── Impersonation (support act-as, platform-owner only) ──────────────────
-    Task<Result<ImpersonationTokenDto>> ImpersonateUserAsync(
-        Guid principalId, Guid accessGrantId, Guid subjectUserId,
+    // ── Impersonation (full identity swap, user:impersonate, platform-owner only) ─
+    Task<Result<ImpersonationTokenDto>> StartImpersonationAsync(
+        Guid actingPrincipalId, Guid targetUserId, Guid accessGrantId, string justification,
         CancellationToken ct = default);
-
     Task<Result> EndImpersonationAsync(
-        Guid principalId, Guid accessGrantId, CancellationToken ct = default);
-
-    // ── Feature flags ────────────────────────────────────────────────────────
-    Task<Result<IReadOnlyList<FeatureFlagDto>>> ListFeatureFlagsAsync(
-        Guid principalId, CancellationToken ct = default);
-
-    Task<Result<FeatureFlagDto>> UpsertFeatureFlagAsync(
-        Guid principalId, UpsertFeatureFlagRequest request, CancellationToken ct = default);
-
-    Task<Result> SetFeatureFlagOverrideAsync(
-        Guid principalId, string flagKey, Guid broadcasterId, SetFlagOverrideRequest request,
-        CancellationToken ct = default);
+        Guid actingPrincipalId, Guid accessGrantId, CancellationToken ct = default);
 
     // ── Audit search ─────────────────────────────────────────────────────────
     Task<Result<PagedList<IamAuditEntryDto>>> SearchAuditAsync(
-        Guid principalId, AuditSearchQuery query, PaginationParams pagination,
-        CancellationToken ct = default);
+        Guid principalId, AuditSearchQuery query, PaginationParams pagination, CancellationToken ct = default);
+
+    // ── Per-tenant quota overrides (tenant:read to list, tenant:quota:manage to write) ─
+    Task<Result<IReadOnlyList<TenantLimitOverrideDto>>> ListTenantLimitOverridesAsync(
+        Guid principalId, Guid broadcasterId, CancellationToken ct = default);
+    Task<Result<TenantLimitOverrideDto>> SetTenantLimitOverrideAsync(
+        Guid principalId, Guid broadcasterId, SetTenantLimitOverrideRequest request, CancellationToken ct = default);
+    Task<Result> ClearTenantLimitOverrideAsync(
+        Guid principalId, Guid broadcasterId, string limitKey, CancellationToken ct = default);
+
+    // ── Tenant lifecycle (tenant:remigrate / tenant:erase) ───────────────────
+    Task<Result<TenantRemigrationResultDto>> ForceRemigrationAsync(
+        Guid principalId, Guid broadcasterId, string justification, CancellationToken ct = default);
+    Task<Result<ChannelDeletePreviewDto>> PreviewEraseTenantAsync(
+        Guid principalId, Guid broadcasterId, CancellationToken ct = default);
+    Task<Result> EraseTenantAsync(
+        Guid principalId, Guid broadcasterId, string justification, CancellationToken ct = default);
+    Task<Result<string>> ExportTenantAsync(
+        Guid principalId, Guid broadcasterId, CancellationToken ct = default);
 }
 ```
 
 Behavior notes:
 - `ListTenantsAsync` — requires `tenant:read`; returns paged `Channels` projection (no per-tenant viewer data fabricated). Writes one `IamAuditLog` row `Outcome=allowed` only when `query` targets cross-tenant scope (list itself is `tenant:read`). `FORBIDDEN` (+ `denied` audit row) if principal lacks permission.
 - `GetTenantAsync` — requires `tenant:read`; returns tenant detail (status, tier, owner, counts). Audited as above.
-- `SuspendTenantAsync` — requires `tenant:suspend`; sets `Channels.Status=suspended|platform_banned`, `SuspendedAt=now`, `SuspendedReason=request.Reason`; emits `TenantSuspensionChangedEvent`; writes `IamAuditLog(Permission="tenant:suspend", TargetBroadcasterId, Justification, Outcome)`. `FORBIDDEN`+denied-audit if lacking.
+- `SuspendTenantAsync` — requires `tenant:suspend`; sets `Channels.Status=suspended|platform_banned`, `SuspendedAt=now`, `SuspendedReason=request.Reason`; emits `TenantSuspensionChangedEvent`; writes `IamAuditLog(Permission="tenant:suspend", TargetBroadcasterId, Justification, Outcome)`. A suspended tenant is refused at Gate 1 (`IChannelAccessService`), taking its channel-scoped API surface dark until reinstated. `FORBIDDEN`+denied-audit if lacking.
 - `ReinstateTenantAsync` — requires `tenant:suspend`; sets `Status=active`, clears `SuspendedAt`/`SuspendedReason`; emits `TenantSuspensionChangedEvent(NewStatus="active")`; audited.
-- `BeginTenantAccessAsync` — requires `tenant:access`; grants support access by creating a time-boxed `IamRoleAssignment` (schema C.5) narrowed to `ScopeChannelId=broadcasterId`, with `AssignedByPrincipalId=principalId`, `ExpiresAt=request.ExpiresAt`, and `Reason=request.Justification`; the returned `TenantAccessGrantDto.Id` is that assignment's `Id`. Emits `TenantAccessGrantedEvent`; writes `IamAuditLog(Permission="tenant:access", BreakGlass=request.BreakGlass, Justification, Outcome=allowed)`. `request.Justification` required → `VALIDATION_FAILED` if blank.
+- `ListTenantMembersAsync` — requires `tenant:read`; the people who belong to the tenant (owner, management members, community members, seen viewers), searchable by name — the act-as target picker. An act-as under a support session scoped to this tenant may target only one of these people. Paged `TenantMemberDto`.
+- `BeginTenantAccessAsync` — requires `tenant:access`; grants support access by creating a time-boxed `IamRoleAssignment` (schema C.5) of the seeded `platform-support` role narrowed to `ScopeChannelId=broadcasterId`, with `AssignedByPrincipalId=principalId`, `ExpiresAt=request.ExpiresAt`, and `Reason=request.Justification`; the returned `TenantAccessGrantDto.Id` is that assignment's `Id`. The caller's own still-open support session on the same tenant is ended (and its session id revoked) first, so an operator holds at most one per tenant. Emits `TenantAccessGrantedEvent`; writes `IamAuditLog(Permission="tenant:access", BreakGlass=request.BreakGlass, Justification, Outcome=allowed)`. `request.Justification` required → `VALIDATION_FAILED` if blank.
 - `EndTenantAccessAsync` — revokes the access grant by setting the `IamRoleAssignment.RevokedAt=now` (`accessGrantId` is the assignment `Id`); writes a closing `IamAuditLog` row; `NOT_FOUND` if the assignment is not owned by the principal or not active (already revoked/expired).
-- `ImpersonateUserAsync` — requires `user:impersonate` (**platform-owner role only — restricted**; held solely by the platform-owner role, removed from the `platform-support` bundle). Deployment mode is **not** a gate: an act-as is guarded by the permission, an open time-boxed support grant, a mandatory justification, the audit row and a revocable session, and those hold identically on self-host, where the operator is the instance owner acting on their own deployment. Requires an already-open support session — `accessGrantId` must be an unrevoked, unexpired `IamRoleAssignment` from `BeginTenantAccessAsync`; with none open the mint is refused with a typed `VALIDATION_FAILED` (`NoOpenSupportSession`) error. Mints an act-as access token carrying `act={principalId}` and `sid={accessGrantId}`, honored only for that principal and that session id; the token's `ExpiresAt` is **clamped** to the support session's remaining time, never longer, and no refresh-token row is persisted for it (act-as tokens cannot be refreshed). Mints are rate-limited by `SecuritySensitiveRateLimitPolicy`. Writes `IamAuditLog(Permission="user:impersonate", TargetBroadcasterId, TargetResource=subjectUserId, Outcome)` naming operator, subject and session id; notifies the tenant owner that impersonation began. While the minted token is active, `ICurrentUserService.Impersonation` carries the act/sid/sub claims and `EventJournalService` stamps every append with the operator as actor plus `OnBehalfOfUserId` and `ImpersonationSessionId`, so one audit query over a write made during an impersonated session returns operator, subject and session id.
-- `EndImpersonationAsync` — requires `user:impersonate`; revokes the minted act-as token's `sid` through `ISessionRevocationService` so the token stops authenticating on the very next request, ending the underlying support session with it; writes a closing `IamAuditLog` row; notifies the tenant owner that impersonation ended.
-- `ListFeatureFlagsAsync` — requires `featureflag:write` (read implies the admin flag surface) ; returns global `FeatureFlag` defs with `MinTierKey`.
-- `UpsertFeatureFlagAsync` — requires `featureflag:write`; inserts/updates a global `FeatureFlag` (resolves `MinTierKey`→`MinTierId` FK); emits `FeatureFlagAdministeredEvent(OverrideBroadcasterId=null)` (audit) + the platform-conventions `FeatureFlagChangedEvent` (cache invalidation); audited.
-- `SetFeatureFlagOverrideAsync` — requires `featureflag:write`; upserts `FeatureFlagOverride(FlagId, BroadcasterId)`; emits `FeatureFlagAdministeredEvent(OverrideBroadcasterId)` (audit) + the platform-conventions `FeatureFlagChangedEvent`; audited. `NOT_FOUND` if `flagKey` unknown.
+- `StartImpersonationAsync` — **a full identity swap.** Requires `user:impersonate` (**platform-owner role only — restricted**; not bundled into `platform-support`). Deployment mode is **not** a gate: an act-as is guarded by the permission, an open time-boxed support grant, a mandatory justification, the audit row and a revocable session, and those hold identically on self-host. `accessGrantId` must be an unrevoked, unexpired `IamRoleAssignment` from `BeginTenantAccessAsync` that belongs to the caller; with none open the mint is refused with `SESSION_REQUIRED`; an unknown target is `NOT_FOUND`. The target must belong to the grant's channel (owner or any member, see `ListTenantMembersAsync`), else `TARGET_OUTSIDE_SESSION`. It mints an **access-only** JWT that carries the **target's** identity, tenant and roles — computed exactly as a normal login for the target (`ImpersonationTokenMinter`), **never the operator's** — with the operator named only on the non-authoritative `act` claim (a user id) and the grant id as `sid`. The dashboard therefore renders as the target, and only the Exit control reveals the operator. The token's `ExpiresAt` is **clamped** to the support session's remaining time, never longer. No refresh-token row is persisted for it. Mints are rate-limited by `SecuritySensitiveRateLimitPolicy`. Emits `ImpersonationStartedEvent` (the tenant owner is notified) and writes `IamAuditLog(Permission="user:impersonate", TargetBroadcasterId, TargetResource=subjectUserId, Outcome)` naming operator, subject and session id. While the token is active, `ICurrentUserService.Impersonation` carries the act/sid/sub claims and `EventJournalService` stamps every append with the operator as actor plus `OnBehalfOfUserId` and `ImpersonationSessionId`, so one audit query over a write made during an impersonated session returns operator, subject and session id.
+  - **Token custody.** On the served web the minted token is also set as the **httpOnly** `nnz_act_as` cookie (`SameSite=Strict`, `Path=/api/v1/auth`, `Secure` on an HTTPS public origin; `ActAsCookie` in `Api/Authentication/`), so a reload comes back as the target until the session ends. It is never readable by script. A native client ignores the cookie and holds the token from the response body (`ImpersonationTokenDto.AccessToken`), sending it back as `actAsToken` in the refresh body.
+  - **Refresh re-mints, it does not fail.** `POST /api/v1/auth/refresh` checks for an act-as token first (cookie on web, `actAsToken` in the body on native). While the grant is open, unrevoked, names the same operator and the target is still a member of the grant's channel, it **re-mints** the act-as token for the same target under the same session (`ImpersonationSessionService.RefreshAsync`) and returns `impersonation` with no refresh token; the operator's own refresh token is left untouched. When the session is over, the act-as cookie is cleared and the operator's own session is refreshed instead, so the dashboard reloads as the operator.
+- `EndImpersonationAsync` — requires `user:impersonate`; revokes the minted token's `sid` through `ISessionRevocationService` so the token stops authenticating on the very next request, ending the underlying support session with it; clears the act-as cookie; emits `ImpersonationEndedEvent` (the tenant owner is notified); writes a closing `IamAuditLog` row. **Exit from inside the session:** `POST /api/v1/auth/impersonation/exit` (`AuthController`, `[Authorize]`, `auth` rate tier) lets the acting session end itself — it closes the support session by the same audited path, clears the `nnz_act_as` cookie, and hands back the **operator's own** session (web: through the httpOnly refresh cookie; native: the operator refresh token in the body). With no operator refresh token to resume, the session still ends and the response carries no token. A session that is already over is a success; a token that is not an act-as token gets `INVALID_STATE`.
 - `SearchAuditAsync` — requires `audit:read`; returns paged `IamAuditLog` (and optionally `ComplianceAuditLog`) projection filtered by principal/tenant/permission/time; read-only but itself audited (`audit:read` viewed).
+- `ListTenantLimitOverridesAsync` / `SetTenantLimitOverrideAsync` / `ClearTenantLimitOverrideAsync` — list needs `tenant:read`; set/clear need `tenant:quota:manage`. A live override is the exact ceiling `ResourceQuotaService.CheckAsync` enforces for that tenant, ahead of the NEAR_FREE safety baseline and the tier-resolved limit. Set requires a reason (audited); clear soft-deletes the override and reverts to the normal resolution.
+- `ForceRemigrationAsync` — requires `tenant:remigrate`; re-applies pending EF migrations on demand (database-wide; audited against the tenant the operator was working on; justification required). Returns `TenantRemigrationResultDto(MigrationsAppliedThisCall, StillPending)`.
+- `PreviewEraseTenantAsync` — requires `tenant:erase`; the counted blast radius of erasing the tenant whole (real row counts across the tenant-scoped tables, grouped as the owner's own delete preview renders them). Mutates nothing.
+- `EraseTenantAsync` — requires `tenant:erase`; a **soft delete** of the channel through the same `ChannelService` path the owner's self-service delete uses (30-day restore window). Justification is mandatory and audited. An operator-initiated offboarding is not itself a GDPR Article-17 request; a genuine subject erasure is the separate, irreversible path on `ComplianceController`.
+- `ExportTenantAsync` — requires `tenant:erase`; a machine-readable JSON export of every row attributed to the tenant. Read-only.
+
+**Feature flags (moved out of this interface).** Feature-flag administration is `IFeatureFlagAdminService` (`Application/Abstractions/Platform/`), driven by `FeatureFlagAdminController` (§5). It requires `featureflag:write` for every route, emits `FeatureFlagAdministeredEvent` (audit) + the platform-conventions `FeatureFlagChangedEvent` (cache invalidation), and its full contract is platform-conventions §3.4.
 
 **Authorization gate (the Plane-C resolver)** — **consumed, not redefined** (owner: `roles-permissions.md` §3.7):
 
 > **Single public Plane-C entry point: `IPlatformIamService.AuthorizePlatformAsync`** (owned by
 > `roles-permissions.md`, which owns Domain C). Every method above calls it first. The canonical signature:
 > ```csharp
-> // roles-permissions.md §3.7 — authorizes AND audits in ONE call (an authz decision can never go un-audited).
-> // Default-deny; ALWAYS writes IamAuditLog (allowed|denied) + emits IamAccessEvaluatedEvent.
-> // Self-host (no IamPrincipals) → owner = full (true), audit no-op. Profile adapters
-> // PlatformIamService (SaaS) / OwnerIsFullIamService (self-host).
+> // Application/Contracts/Authorization/IPlatformIamService.cs — authorizes AND audits in ONE call
+> // (an authz decision can never go un-audited). Default-deny on SaaS: ALWAYS writes IamAuditLog
+> // (allowed|denied) + emits IamAccessEvaluatedEvent. Self-host (deployment mode != Saas) → true, no audit.
 > Task<Result<bool>> AuthorizePlatformAsync(
 >     Guid principalId, string permissionKey, Guid? targetBroadcasterId,
->     bool breakGlass, string? justification, CancellationToken cancellationToken = default);
+>     bool breakGlass, string? justification, CancellationToken cancellationToken = default,
+>     string? targetResource = null);
 > ```
 > This subsystem does **not** define a second public authorization interface (the earlier split
 > `IIamAuthorizationService` "pure decision, caller audits separately" path is dropped — it let an authz
 > decision go un-audited, which `AuthorizePlatformAsync` structurally prevents by combining the two).
 
-`IIamAuditWriter` is retained **only** as the internal append-only `IamAuditLog` sink that
-`IPlatformIamService` writes *through* — it is **not** a second public authorization or audit entry point, and
-callers in this subsystem never invoke it directly (they call `AuthorizePlatformAsync`, which audits for them):
-
-```csharp
-public interface IIamAuditWriter  // NomNomzBot.Application.Services — INTERNAL sink; written through by IPlatformIamService only
-{
-    // Append-only IamAuditLog write; never throws on the hot path — failures are logged + swallowed
-    // (audit-write must not block the audited action's own result).
-    Task WriteAsync(IamAuditEntry entry, CancellationToken ct = default);
-}
-
-public sealed record IamAuditEntry(
-    Guid PrincipalId, string PrincipalType, string Permission, Guid? TargetBroadcasterId,
-    string? TargetResource, string? Justification, bool BreakGlass, string Outcome,
-    string? SourceIpCipher);
-```
-- `IPlatformIamService.AuthorizePlatformAsync` — the sole public Plane-C gate; returns the allow/deny decision **and** writes the `IamAuditLog` row (via the internal `IIamAuditWriter`) in one call. No caller is responsible for a separate audit write.
-- `IIamAuditWriter.WriteAsync` — internal: inserts one `IamAuditLog` row; resilient (audit failure must not fail the operation). Not exposed as an authorization path.
+**One service writes `IamAuditLog`.** `PlatformIamService` (`Infrastructure/Identity/`) is the single implementation of `IPlatformIamService` on every profile and appends the `IamAuditLog` rows itself through `IApplicationDbContext`. There is **no** separate audit-writer sink and **no** separate self-host adapter class (both were dropped); callers never write an audit row directly — they call `AuthorizePlatformAsync`, which audits for them. Deployment shape is a fact read once from `DeploymentContext`, exposed as `IsSaasDeploymentAsync`.
 
 ### 3.3 `IIpcDevModeService` — `NomNomzBot.Application.Services`
 
@@ -343,7 +352,7 @@ public interface IIpcDevModeService
 
 ## 4. DTOs / contracts
 
-All `public sealed record`, in `NomNomzBot.Application/DTOs/StreamTools/`, `…/DTOs/PlatformAdmin/`, `…/DTOs/Ipc/`. App JSON uses Newtonsoft.Json; property names PascalCase (existing `AdminDtos` convention).
+All `public sealed record`. As-built, the Plane-C DTOs live in `NomNomzBot.Application/Identity/Dtos/PlatformAdminDtos.cs`; the stream-tools and IPC DTOs sit beside their own services. App JSON uses Newtonsoft.Json for `[VC:JSON]` columns; the wire is System.Text.Json with camelCase properties.
 
 ### Stream tools
 ```csharp
@@ -420,15 +429,26 @@ public sealed record ImpersonationTokenDto(
     UserDto User
 );
 
-public sealed record FeatureFlagDto(
-    Guid Id, string Key, string? Description, bool IsEnabledGlobally, int RolloutPercentage,
-    string? MinTierKey, string? RequiresConsent, string? DeploymentMode);
+public sealed record TenantMemberDto(
+    Guid UserId, string Username, string DisplayName, string? ProfileImageUrl,
+    string Relation, string? ManagementRole, string? CommunityStanding);
 
-public sealed record UpsertFeatureFlagRequest(
-    string Key, string? Description, bool IsEnabledGlobally, int RolloutPercentage,
-    string? MinTierKey, string? RequiresConsent, string? DeploymentMode);
+public sealed record SetTenantLimitOverrideRequest(string LimitKey, long LimitValue, string Reason, DateTime? ExpiresAt);
 
-public sealed record SetFlagOverrideRequest(bool IsEnabled, string? Reason, DateTime? ExpiresAt);
+public sealed record TenantLimitOverrideDto(
+    Guid Id, Guid BroadcasterId, string LimitKey, long LimitValue, string Reason,
+    Guid GrantedByPrincipalId, DateTime CreatedAt, DateTime? ExpiresAt);
+
+public sealed record TenantRemigrationResultDto(
+    IReadOnlyList<string> MigrationsAppliedThisCall, IReadOnlyList<string> StillPending);
+
+// Request bodies declared beside PlatformAdminController: ReinstateTenantRequest(string Justification),
+// ForceRemigrationRequest(string Justification), EraseTenantRequest(string Justification).
+// ChannelDeletePreviewDto is the shared counted-blast-radius DTO (Application/Identity/Dtos/).
+
+// Feature-flag DTOs (FeatureFlagDto, SetFeatureFlagRequest, SetFeatureFlagOverrideRequest,
+// FeatureFlagOverrideDto, FeatureFlagBlastRadiusDto) are NOT here — they live in
+// Application/Abstractions/Platform/FeatureFlagDtos.cs; see platform-conventions §4-§5.
 
 public sealed record AuditSearchQuery(
     Guid? PrincipalId, Guid? TargetBroadcasterId, string? Permission,
@@ -453,10 +473,10 @@ public sealed record IpcDevModeKeyDto(
 
 ## 5. Controller endpoints
 
-All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[ApiVersion("1.0")]`, `[Authorize]`, return via `ResultResponse(...)` / `GetPaginatedResponse(...)`. Tenant key on the route is the `Guid` `broadcasterId`.
+All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[ApiVersion("1.0")]`, `[Authorize]`, return via `ResultResponse(...)` / `GetPaginatedResponse(...)`. Channel-scoped routes use the `{channelId}` string template (a 26-char ULID on the wire, decoded to the tenant `Guid` — platform-conventions §5 "Wire id format"); Plane-C admin tenant routes use `{broadcasterId:guid}` (the `guid` constraint accepts a ULID too).
 
 ### `StreamToolsController : BaseController`
-`[Route("api/v{version:apiVersion}/channels/{broadcasterId:guid}/stream")]` `[Tags("Stream")]`
+`[Route("api/v{version:apiVersion}/channels/{channelId}/stream")]` `[Tags("Stream")]`
 **Role gate** — all write routes are **management plane (Plane-B)**. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's) — it only proves authentication + tenant access, not the write floor. **Gate-2** = the per-route floor named in the Gate-2 action-key column, enforced before the service call via `IStreamEditAuthorizer` (a sanctioned thin mapper that selects the per-field action key and delegates the decision to `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey, ct)`), returning `403 FORBIDDEN` when the caller's resolved level is below the action's effective floor. Title/game/tags all floor at Editor — Twitch defines our defaults: native Editors edit stream info, Moderators only moderate chat. Each floor is the action's seeded global `ActionDefinitions` (schema B.3) default; a broadcaster may raise it via `ChannelActionOverride` but never below the seeded `FloorLevel`. Read/autocomplete routes carry no Gate-2 key (Gate-1 only).
 
 > **Supersedes/merges the existing `StreamController`.** The current `StreamController` (`GET/PUT`, `PATCH title|game|tags`, `GET status|categories`) is rewritten to delegate to `IStreamToolsService` instead of calling the Helix sub-clients (`ITwitchChannelsApi`/`ITwitchStreamsApi`/`ITwitchSearchApi`) directly and to use `Guid` route keys. Keep the existing route paths; add presets + scheduled-change routes.
@@ -484,51 +504,79 @@ All controllers extend `BaseController` (`NomNomzBot.Api.Controllers`), are `[Ap
 `StreamStatusDto` reused from the existing `StreamController` (`record StreamStatusDto(bool IsLive, int ViewerCount)`) — relocate to `DTOs/StreamTools/`.
 
 ### `PlatformAdminController : BaseController`
-`[Route("api/v{version:apiVersion}/admin")]` `[Tags("Admin")]`
-**Role gate** — these are **Plane-C (platform IAM)** rows, default-deny, **no community/management role**. The class-level `[Authorize(Roles="admin")]` is replaced by per-action permission checks inside `IPlatformAdminService`, each resolved through `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)` (owner `roles-permissions.md` §3.7 — authorizes and audits in one call; the ASP.NET `[Authorize(Policy="<key>")]` policy name **is** the permission key verbatim). The controller passes the resolved `Guid principalId` (from `ICurrentUserService` → `IamPrincipals.Id`). This **extends** the existing `AdminController` (stats/channels/users/system/health/events stay, now routed through the IAM gate); the privileged routes below are added.
+`[Route("api/v{version:apiVersion}/admin")]` `[Tags("Admin")]` `[PlatformPlane]` `[EnableRateLimiting("admin")]`
+**Role gate** — these are **Plane-C (platform IAM)** rows, default-deny, **no community/management role**. Each action carries `[Authorize(Policy = "<permission key>")]` (the policy name **is** the permission key verbatim) and the service call resolves through `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, ...)` (owner `roles-permissions.md` §3.7 — authorizes and audits in one call). The controller resolves the acting `Guid principalId` from `ICurrentUserService` → `IamPrincipals.Id`. Mutating and sensitive routes use the `security-sensitive` rate tier, reads use `read`.
 
 | Verb | Route | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |------|-------|-------------|--------------|-----------------------------------|
 | GET | `/tenants` | `AdminTenantQuery` (query) + `PageRequestDto` | `PaginatedResponse<AdminTenantDto>` | platform · `tenant:read` |
 | GET | `/tenants/{broadcasterId:guid}` | — | `StatusResponseDto<AdminTenantDetailDto>` | platform · `tenant:read` |
+| GET | `/tenants/{broadcasterId:guid}/members` | `?search=` + `PageRequestDto` | `PaginatedResponse<TenantMemberDto>` | platform · `tenant:read` |
 | POST | `/tenants/{broadcasterId:guid}/suspend` | `SuspendTenantRequest` | `StatusResponseDto<object>` | platform · `tenant:suspend` |
-| POST | `/tenants/{broadcasterId:guid}/reinstate` | `{ "justification": string }` | `StatusResponseDto<object>` | platform · `tenant:suspend` |
+| POST | `/tenants/{broadcasterId:guid}/reinstate` | `ReinstateTenantRequest` (`{ "justification": string }`) | `StatusResponseDto<object>` | platform · `tenant:suspend` |
 | POST | `/tenants/{broadcasterId:guid}/access` | `BeginTenantAccessRequest` | `StatusResponseDto<TenantAccessGrantDto>` | platform · `tenant:access` |
 | DELETE | `/access/{accessGrantId:guid}` | — | `StatusResponseDto<object>` | platform · `tenant:access` |
-| POST | `/users/{userId:guid}/impersonate` | `ImpersonateUserRequest` | `StatusResponseDto<ImpersonationTokenDto>` | platform · `user:impersonate` (**platform-owner only — restricted**; available on every deployment mode) |
-| DELETE | `/impersonation/{accessGrantId:guid}` | — | `StatusResponseDto<object>` | platform · `user:impersonate` (**platform-owner only — restricted**; available on every deployment mode) |
-| GET | `/feature-flags` | — | `StatusResponseDto<List<FeatureFlagDto>>` | platform · `featureflag:write` |
-| PUT | `/feature-flags` | `UpsertFeatureFlagRequest` | `StatusResponseDto<FeatureFlagDto>` | platform · `featureflag:write` |
-| PUT | `/feature-flags/{flagKey}/overrides/{broadcasterId:guid}` | `SetFlagOverrideRequest` | `StatusResponseDto<object>` | platform · `featureflag:write` |
+| POST | `/users/{userId:guid}/impersonate` | `ImpersonateUserRequest` | `StatusResponseDto<ImpersonationTokenDto>` (also sets the `nnz_act_as` cookie) | platform · `user:impersonate` (**platform-owner only — restricted**; available on every deployment mode) |
+| DELETE | `/impersonation/{accessGrantId:guid}` | — | `StatusResponseDto<object>` (clears the `nnz_act_as` cookie) | platform · `user:impersonate` (**platform-owner only — restricted**; available on every deployment mode) |
 | GET | `/audit` | `AuditSearchQuery` (query) + `PageRequestDto` | `PaginatedResponse<IamAuditEntryDto>` | platform · `audit:read` |
+| GET | `/tenants/{broadcasterId:guid}/limits` | — | `StatusResponseDto<IReadOnlyList<TenantLimitOverrideDto>>` | platform · `tenant:read` |
+| PUT | `/tenants/{broadcasterId:guid}/limits` | `SetTenantLimitOverrideRequest` | `StatusResponseDto<TenantLimitOverrideDto>` | platform · `tenant:quota:manage` |
+| DELETE | `/tenants/{broadcasterId:guid}/limits/{limitKey}` | — | `StatusResponseDto<object>` | platform · `tenant:quota:manage` |
+| POST | `/tenants/{broadcasterId:guid}/remigrate` | `ForceRemigrationRequest` | `StatusResponseDto<TenantRemigrationResultDto>` | platform · `tenant:remigrate` |
+| GET | `/tenants/{broadcasterId:guid}/erase/preview` | — | `StatusResponseDto<ChannelDeletePreviewDto>` | platform · `tenant:erase` |
+| POST | `/tenants/{broadcasterId:guid}/erase` | `EraseTenantRequest` | `StatusResponseDto<object>` | platform · `tenant:erase` (destructive; counted blast radius shown first) |
+| GET | `/tenants/{broadcasterId:guid}/export` | — | `StatusResponseDto<string>` (JSON export) | platform · `tenant:erase` |
 
-Self-host (IAM tables empty): `IPlatformIamService.AuthorizePlatformAsync` returns allow (owner = full) via the `OwnerIsFullIamService` adapter, so these endpoints work without operator seeding.
+Act-as exit lives on the auth surface, not here: `POST /api/v1/auth/impersonation/exit` (`AuthController`, `[Authorize]`, `auth` rate tier) — see §3.2 `EndImpersonationAsync`. `POST /api/v1/auth/refresh` re-mints an open act-as session (cookie or `actAsToken` body) before it falls back to the operator's own refresh.
+
+Self-host: `IPlatformIamService.AuthorizePlatformAsync` returns allow (owner = full, no audit) because the deployment mode is not SaaS, so these endpoints work without operator seeding. The same single `PlatformIamService` runs on every profile.
+
+### `FeatureFlagAdminController : BaseController`
+`[Route("api/v{version:apiVersion}/admin/feature-flags")]` `[Tags("Feature Flags")]` `[PlatformPlane]` `[Authorize(Policy = "featureflag:write")]` `[EnableRateLimiting("admin")]`
+Plane-C, default-deny. **Every** route (reads included) requires `featureflag:write`. It drives `IFeatureFlagAdminService` (platform-conventions §3.4); the DTOs are in `Application/Abstractions/Platform/FeatureFlagDtos.cs`. The route table is the platform-conventions §5 table (list, upsert, list-overrides, set/remove override, blast-radius preview) — restated there, not here.
 
 ### `IpcDevModeController : BaseController`
-`[Route("api/v{version:apiVersion}/system/ipc")]` `[Tags("System")]` `[Authorize]`
+`[Route("api/v{version:apiVersion}/system/ipc")]` `[Tags("System")]` `[Authorize(Policy = "system:ipc:manage")]`
 Manages the **key registry** only (the socket itself is process-local, never HTTP). Gated to owner/self-host: returns `503 ServiceUnavailable` when `DeploymentProfile.Mode == saas`.
 
 | Verb | Route | Request DTO | Response DTO | Auth |
 |------|-------|-------------|--------------|------|
-| GET | `/` | — | `StatusResponseDto<bool>` (enabled?) | authenticated owner |
-| GET | `/keys` | — | `StatusResponseDto<List<IpcDevModeKeyDto>>` | authenticated owner |
-| POST | `/keys` | `CreateIpcKeyRequest` | `StatusResponseDto<IpcDevModeKeyDto>` (plaintext once) | authenticated owner |
-| DELETE | `/keys/{keyId:guid}` | — | `StatusResponseDto<object>` | authenticated owner |
+| GET | `/` | — | `StatusResponseDto<bool>` (enabled?) | platform · `system:ipc:manage` |
+| GET | `/keys` | — | `StatusResponseDto<List<IpcDevModeKeyDto>>` | platform · `system:ipc:manage` |
+| POST | `/keys` | `CreateIpcKeyRequest` | `StatusResponseDto<IpcDevModeKeyDto>` (plaintext once) | platform · `system:ipc:manage` |
+| DELETE | `/keys/{keyId:guid}` | — | `StatusResponseDto<object>` | platform · `system:ipc:manage` |
 
 ---
 
 ## 6. Pipeline actions
 
-Pipeline actions in this build implement the **single canonical `ICommandAction`** defined in `commands-pipelines.md` §3.13 (`Application/Pipeline`): `string Type` (+ `Category`/`Description`); `Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken ct)`. They live in `NomNomzBot.Infrastructure/Pipeline/Actions/` and read params from `context.Parameters` (the step's resolved `ConfigJson`). Match the re-targeted `ShoutoutAction`. (The pre-consolidation Infrastructure shape — `ActionType`/`ExecuteAsync(PipelineExecutionContext, ActionDefinition)` — is collapsed away per commands-pipelines §0; do not target it.)
+Pipeline actions implement the **single live `ICommandAction`** (`NomNomzBot.Application.Abstractions.Pipeline`, `commands-pipelines.md` §3.13):
 
-### `SetStreamMetadataAction`
+```csharp
+public interface ICommandAction
+{
+    string ActionType { get; }                                   // the pipeline `type` string, e.g. "shoutout"
+    LocalizedText Category { get; }                              // palette group — a resource KEY, one per domain folder
+    LocalizedText Description { get; }                           // builder description — a resource KEY, unique per action
+    IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];   // typed config schema the step form renders
+    bool ResolvesOwnTemplates => false;                          // true → the engine skips its template pass for this action
+    Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action);
+}
+```
+
+- **Config** is read from the step's `ActionDefinition` (`action.GetString("key")`, `GetInt`, …), not from a context dictionary. `PipelineExecutionContext` supplies `BroadcasterId` (`Guid`), the trigger identity, `Variables`, and `CancellationToken`.
+- **Result** is `ActionResult.Success(output)` / `ActionResult.Failure(error)` (plus the suspend variants for wait actions). Fail closed on missing or unknown config.
+- **Placement and registration:** an action lives beside its domain, in that domain's `PipelineActions/` folder (for example `Infrastructure/Stream/PipelineActions/ShoutoutAction.cs`). It is auto-discovered by the `AddImplementationsOf<ICommandAction>` scan — drop the file in, no manual DI line.
+- **Never target** the pre-consolidation shapes (`ActionType`/`ExecuteAsync(PipelineExecutionContext, ActionDefinition)` with a separate hand-registered list, or `ExecuteAsync(ActionContext, CancellationToken)`).
+
+### `SetStreamMetadataAction` — **not built** (open)
 - **Type string:** `set_stream_metadata`
-- **Config (`context.Parameters` keys — the step's resolved `ConfigJson`):**
+- **Config (`action` parameters):**
   - `title` (string, optional, supports `{variable}` substitution)
   - `game` (string, optional — game name, resolved to id via Helix search)
   - `tags` (string, optional — comma-separated)
-  - `preset_id` (string GUID, optional — apply a saved preset instead of inline fields; inline fields override preset on conflict)
-- **Behavior:** reads the tenant from `context.BroadcasterId` (already a `Guid`); applies the metadata via `IStreamToolsService.UpdateMetadataAsync` / `ApplyPresetAsync` (so the **same role floor + Helix push + `Channels` persist + `StreamMetadataUpdatedEvent`** apply); the acting identity is the channel/broadcaster (event triggers run with broadcaster authority, so the floor passes). Returns `ActionResult.Success("metadata updated")` or `ActionResult.Failure(...)` on Helix/validation failure. Fail-closed: unknown/empty config → `Failure`.
+  - `preset_id` (string, optional — a saved preset id in ULID or Guid form, decoded with `OwnedIdCodec`; inline fields override the preset on conflict)
+- **Behavior:** reads the tenant from `ctx.BroadcasterId` (a `Guid`); applies the metadata via `IStreamToolsService.UpdateMetadataAsync` / `ApplyPresetAsync` (so the **same role floor + Helix push + `Channels` persist + `StreamMetadataUpdatedEvent`** apply); the acting identity is the channel/broadcaster (event triggers run with broadcaster authority, so the floor passes). Returns `ActionResult.Success("metadata updated")` or `ActionResult.Failure(...)` on Helix/validation failure. Fail-closed: unknown/empty config → `Failure`. It depends on `IStreamToolsService`, which is not built (§3.1).
 
 > No admin/IPC pipeline actions — Plane-C ops and IPC dev mode are out-of-band of the per-channel pipeline engine.
 
@@ -536,24 +584,23 @@ Pipeline actions in this build implement the **single canonical `ICommandAction`
 
 ## 7. DI registration
 
-All registrations added to `NomNomzBot.Infrastructure/DependencyInjection.cs` (the single `AddInfrastructure`). Match existing lifetimes: stateless app services = `Scoped`; pipeline actions = `Transient`; hosted listeners = `Singleton` + `AddHostedService`.
+Registrations are added to `NomNomzBot.Infrastructure/DependencyInjection.cs` (the single `AddInfrastructure`) or picked up by its convention scans. Match existing lifetimes: stateless app services = `Scoped`; hosted listeners = `Singleton` + `AddHostedService`; pipeline actions are auto-discovered by the `ICommandAction` scan (no manual line).
 
 ```csharp
 // Stream tools
-services.AddScoped<IStreamToolsService, StreamToolsService>();          // Infrastructure/Services/Stream
-services.AddScoped<IStreamEditAuthorizer, StreamEditAuthorizer>();      // Infrastructure/Services/Stream
+services.AddScoped<IStreamToolsService, StreamToolsService>();          // NOT BUILT — belongs in Infrastructure/Stream
+services.AddScoped<IStreamEditAuthorizer, StreamEditAuthorizer>();      // NOT BUILT — belongs in Infrastructure/Stream
 
 // Platform admin (Plane-C IAM)
-services.AddScoped<IPlatformAdminService, PlatformAdminService>();      // Infrastructure/Services/Admin
+services.AddScoped<IPlatformAdminService, PlatformAdminService>();      // Infrastructure/Identity
 // IPlatformIamService (the public Plane-C gate) is registered by roles-permissions.md §7 — NOT here.
-//   PlatformIamService (SaaS) / OwnerIsFullIamService (self-host), profile-selected. This subsystem consumes it.
-services.AddScoped<IIamAuditWriter, IamAuditWriter>();                  // Infrastructure/Services/Identity — INTERNAL audit sink written through by IPlatformIamService
+//   ONE PlatformIamService on every profile (self-host = allow/no audit, SaaS = default-deny + audit); this subsystem consumes it.
+// IFeatureFlagAdminService / FeatureFlagAdminService (Infrastructure/Platform) — feature-flag admin, platform-conventions §3.4
 
 // IPC developer mode
 services.AddScoped<IIpcDevModeService, IpcDevModeService>();            // Infrastructure/Services/Ipc
 
-// Pipeline action (transient — stateless), registered alongside the existing ICommandAction list
-services.AddTransient<ICommandAction, SetStreamMetadataAction>();
+// Pipeline action — SetStreamMetadataAction is NOT built; when it is, it needs no line here (ICommandAction scan).
 
 // Repositories (match existing AddScoped<XRepository>() pattern)
 services.AddScoped<StreamPresetRepository>();
@@ -565,7 +612,7 @@ services.AddScoped<IpcDevModeKeyRepository>();
 **Deployment-profile adapter variants (chosen by DI, per the stack doc):**
 - **Scheduler** — `ScheduledStreamChangeSchedulerService : BackgroundService` (Infrastructure/BackgroundServices) sweeps `ScheduledStreamChanges` where `Status=pending AND ScheduledFor<=now` and applies them via `IStreamToolsService`. Registered `AddHostedService<...>()`. **Wrap the sweep in `IRunOnceGuard`** (stack-doc tension #8): no-op on lite (single instance), `pg_try_advisory_lock`/`DistributedLock.Postgres` on SaaS, so multi-node does not double-apply. `ScheduledStreamChanges` rows are one-shot (`ScheduledFor` is an absolute instant); the sweep applies each once and moves it to a terminal `Status`. Any recurring-schedule next-fire arithmetic uses **Cronos** (stack §1c) — never hand-rolled.
 - **IPC socket listener** — `IpcDevModeListenerService : IHostedService` (Infrastructure) bound to a **local socket only** (Unix domain socket / named pipe per OS); registered **only when** `DeploymentProfile.Mode != saas` AND `ExposureModel` permits — guarded in the DI branch so the SaaS binary never opens it. Authenticates each connection via `IIpcDevModeService.AuthenticateConnectionAsync`. Never binds a TCP/remote endpoint.
-- **IAM authorizer** — consumed from `roles-permissions.md` as `IPlatformIamService` (profile-selected: `PlatformIamService` SaaS / `OwnerIsFullIamService` self-host, the latter owner-allow with audit no-op). This subsystem registers no authorizer of its own.
+- **IAM authorizer** — consumed from `roles-permissions.md` as `IPlatformIamService`: one `PlatformIamService` on every profile; it branches on the deployment mode (self-host owner-allow with no audit, SaaS default-deny + audit), not on a swapped adapter. This subsystem registers no authorizer of its own.
 - **Audit/feature-flag persistence** — provider-agnostic via EF Core (Postgres/SQLite chosen by the existing `DbProvider` adapter); `IamAuditLog` is `[APPEND-ONLY]` (`bigint` identity PK, insert-only).
 
 ---
@@ -595,7 +642,7 @@ No **new** third-party dependency is introduced by this subsystem. `DistributedL
 - **Extensions config — included, low priority.** Channel extensions panel/overlay/component activation (Helix `GET`/`PUT /users/extensions`, Twitch scope `user:edit:broadcast`) is exposed via `IStreamToolsService.Get/UpdateExtensionsAsync` and the `/extensions` routes, gated by `channel:extensions:write` (Editor floor). The scope is progressive (requested when the operator first opens the extensions surface). No domain event — extensions are Twitch-side panel config, not a streamed-metadata change.
 - **Whispers — included, gated + rate-limited; lives in chat/messaging, not here.** Sending whispers (Helix `POST /whispers`, Twitch scope `user:manage:whispers`) is a **chat/messaging** capability (spam/ban risk → must be gated + rate-limited), not a stream-admin concern. It is **not** implemented in this subsystem. Its home is the chat/messaging surface (the Helix Whispers sub-client `ITwitchWhispersApi.SendWhisperAsync` for the wire call / `commands-pipelines.md` chat-send path); its action key is **`chat:whisper:send`** (management plane, `Low` danger tier, Editor floor, rate-limited via the same per-channel send budget as chat sends). **Orchestrator pointer:** assign `chat:whisper:send` + the `POST /whispers` method to the chat/messaging spec (it has no dedicated home yet — twitch-helix §3.3 covers moderation writes but not chat-send; chat-send lives behind `IChatProvider`, whispers behind `ITwitchWhispersApi.SendWhisperAsync`).
 - **Guest Star — ingest-only, EventSub-owned (no manageable Helix write endpoints in this app).** Twitch has **not** deprecated Guest Star — live docs still list all four EventSub topics (`channel.guest_star_session.begin|.end`, `channel.guest_star_guest.update`, `channel.guest_star_settings.update`, all `beta`). This app does not build a Guest Star session-management UI; it ingests the four topics read-side (`GuestStarTranslators.cs` → domain events), scope-gated on the read scopes (`channel:read:guest_star` / `moderator:read:guest_star`) with the same per-topic graceful degradation as every other beta/optional topic. Not a stream-admin write surface.
-- **Charity & Goals — ingest-only, EventSub-owned.** Charity campaigns and creator Goals have **no manageable Helix write endpoints** (Twitch exposes them only as read/EventSub topics — `channel.charity_campaign.*`, `channel.goal.*`). They are therefore **not** a stream-admin write surface. **Orchestrator pointer for the eventsub owner:** add them as an **EventSub ingest** in `twitch-eventsub.md` (subscribe the `channel.charity_campaign.start|progress|stop` and `channel.goal.begin|progress|end` topics → read-side domain events), no write-side service here. (Pointer only — do not heavily edit twitch-eventsub for this; the eventsub owner sizes the ingest.)
+- **Charity & Goals — ingest-only, EventSub-owned.** Charity campaigns and creator Goals have **no manageable Helix write endpoints** (Twitch exposes them only as read/EventSub topics — `channel.charity_campaign.*`, `channel.goal.*`). They are therefore **not** a stream-admin write surface, and there is no write-side service here. The read-side ingest is built (`HypeTrainGoalCharityTranslators.cs` → the `Community` charity/goal domain events).
 
 All surfaces are pinned by the locked schema, the existing code conventions, and the stack/decisions docs; there is no remaining ambiguity.
 

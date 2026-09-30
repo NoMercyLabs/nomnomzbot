@@ -4,14 +4,12 @@
 **Sources of truth:** locked schema `2026-06-16-database-schema.md` (§P.6–P.9, §A.2 `Channels.OverlayToken`); design `2026-06-16-widgets.md`; stack `2026-06-16-stack-and-dependencies.md`; defaults `2026-06-16-decisions-resolved.md`.
 **Conventions (binding):** namespace `NomNomzBot.*`; .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable enable`; async all the way; `Result<T>` over exceptions/null; Repository + `IUnitOfWork`; typed-interface DI, no MediatR, no Roslyn; responses `StatusResponseDto<T>` / `PaginatedResponse<T>`; controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`; Newtonsoft.Json for app JSON; surrogate PK `Guid` via `Guid.CreateVersion7()`; tenant key `BroadcasterId` is `Guid`; soft-delete (`IsDeleted`+`DeletedAt`) global filter.
 
-> **Relationship to existing code (EXTEND, do not duplicate).** A thin v0 already exists and is **aligned, not replaced**, by this spec:
-> - `NomNomzBot.Domain/Entities/Widget.cs` — widen `Id`/`BroadcasterId` `string`→`Guid`, add the locked-schema columns (`Source`, `GalleryItemId`, `ActiveVersionId`, `LastRuntimeError`, `LastRanAt`, `ConfigSchemaVersion`), drop the ad-hoc `Version`/`TemplateId`/`CustomCode` fields (source/version now live on `WidgetVersion`).
-> - `NomNomzBot.Application/Services/IWidgetService.cs` — keep CRUD shape, widen ids to `Guid`, add compile/version/gallery/trust methods below.
-> - `NomNomzBot.Application/DTOs/Widgets/WidgetDtos.cs` — extend records below.
-> - `NomNomzBot.Api/Hubs/OverlayHub.cs`, `Hubs/Clients/IOverlayClient.cs`, `Hubs/WidgetNotifier.cs`, `Hubs/Dtos/HubResponseDtos.cs` — extend (add `WidgetCompileFailed`, `WidgetSettingsChanged` already present, CSP-nonce delivery; XSS-safe payloads).
-> - `NomNomzBot.Api/Controllers/V1/WidgetsController.cs` — extend with version/compile/gallery routes.
-> - `NomNomzBot.Infrastructure/Widgets/Persistence/WidgetConfiguration.cs`, `WidgetService.cs`, `WidgetRepository.cs` — aligned (`[VC:JSON]` Newtonsoft converters, no `HasColumnType("jsonb")` — re-verified against the file 2026-08-22; UUIDv7 ids).
-> - `NomNomzBot.Domain/Events/WidgetConnectedEvent.cs` / `WidgetDisconnectedEvent.cs` — keep; widen ids to `Guid`; add the new events below.
+> **As-built file map** (paths relative to `server/src/`). The subsystem is built; this is where it lives.
+> - **Domain** `NomNomzBot.Domain/Widgets/` — `Entities/` (`Widget`, `WidgetVersion`, `WidgetGalleryItem`, `WidgetGallerySubmissionEvent`); `Events/` (`WidgetConnectedEvent`, `WidgetDisconnectedEvent`, `WidgetLifecycleEvents` = build / settings / gallery-status events, `OverlayContentRetractedEvent`).
+> - **Application** `NomNomzBot.Application/Widgets/` — `Services/` (`IWidgetService`, `IWidgetBuildService`, `IWidgetGalleryService`, `IWidgetEventNotifier`, `IOverlayRetractionNotifier`, `IOverlayPresenceRegistry`, `IRenderedAlertReplayer`, `IVueSfcCompiler`, `IWidgetDependencyAllowlist`, `IWidgetSettingsSchemaProvider`); `Dtos/` (`WidgetDtos`, `WidgetGalleryDtos`, `WidgetSettingsSchemaDtos`). `IWidgetService` takes `string` broadcaster/widget ids and parses them to `Guid` inside; the §3.1 listing keeps the `Guid` contract shape.
+> - **Infrastructure** `NomNomzBot.Infrastructure/Widgets/` — `WidgetService`, `WidgetGalleryService`, `WidgetTemplateCatalogue`; `Persistence/` (EF configurations + `WidgetRepository`); `Bundling/` (`EsbuildWidgetBuildService`, `JintVueSfcCompiler`, `WidgetDependencyAllowlist`, `ProcessRunner`); `EventHandlers/` (`OverlayModerationRetractionHandler`, goal / supporter / voice-trigger widget handlers, `SystemWidgetSeedOnOnboardingHandler`); `PipelineActions/WidgetEventAction`; `Pipeline/WidgetOptionProvider`. Also `Content/Widgets/` (`FirstPartyWidgetCatalogue`, `FirstPartyWidgetCatalogueSeeder`, `WidgetSettingsSchemaProvider`) and `Overlays/` (`OverlayEventFeedHook`, `OverlayEventFilter`).
+> - **Api** `NomNomzBot.Api/` — `Controllers/V1/` (`WidgetsController`, `WidgetGalleryController`, `WidgetTestEventController`, `OverlayController`); `Controllers/` (`OverlayHostController` = the `GET /overlay` browser-source page, `OverlaySdkController` = `/overlay/sdk.js`, `OverlayVueRuntimeController` = `/overlay/vue.js`, `OverlayTicketController` = `POST /overlay/ticket`); `Hubs/` (`OverlayHub`, `WidgetNotifier` + the `*NotifierAdapter` classes, `Clients/IOverlayClient`, `Dtos/HubResponseDtos`, `Overlay/` = ticket service, presence registry, connection throttle, `Broadcasters/` = widget alert and build-lifecycle handlers).
+> - EF: `[VC:JSON]` Newtonsoft converters, no `HasColumnType("jsonb")` (re-verified against `WidgetConfiguration.cs` 2026-08-22); UUIDv7 ids.
 
 ---
 
@@ -21,12 +19,12 @@ All owned by this subsystem; **defined in the locked schema — referenced here,
 
 | Table | Schema ref | Scope | Key fields (type) |
 |---|---|---|---|
-| **`Widget`** | §P.6 `[soft-delete]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `Name string(255)`; `Description string(500)?`; `Framework string(20)` [VC:enum] (`vue`\|`react`\|`svelte`\|`vanilla`); `Source string(20)` [VC:enum] (`first_party`\|`verified_gallery`\|`custom`); `GalleryItemId Guid?` FK→`WidgetGalleryItem.Id` Index; `ActiveVersionId Guid?` FK→`WidgetVersion.Id` Index; `EventSubscriptions text?` **[VC:JSON]** `List<string>`; `Settings text?` **[VC:JSON]** `Dictionary<string,object?>`; `IsEnabled bool`; `LastRuntimeError text?` (audit B5); `LastRanAt timestamp?` (audit B5); `ConfigSchemaVersion int` (default 1); `CreatedAt/UpdatedAt/DeletedAt`. |
-| **`WidgetVersion`** | §P.7 `[APPEND-ONLY]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `WidgetId Guid` FK→`Widget.Id` Index; `VersionNumber int`; `SourceCode text?`; `CompiledBundle text?`; `BuildStatus string(20)` [VC:enum] (`pending`\|`success`\|`error`); `BuildError text?`; `BuildLog text?`; `ContentHash string(64)` Index; `CompiledAt timestamp?`; `CreatedAt`. **Unique** `(WidgetId, VersionNumber)`. Append-only: corrections are new versions, never edits. |
-| **`WidgetGalleryItem`** | §P.8 `[GLOBAL, soft-delete]` (no `BroadcasterId`) | global | `Id Guid` PK; `SubmitterUserId Guid` FK→`Users.Id` Index; `SubmitterTwitchUserId string(50)` Index [PII-hash]; `SubmitterDisplayNameSnapshot string(255)?` [PII-scrub]; `Name string(255)`; `Description text?`; `Framework string(20)`; `TrustTier string(20)` [VC:enum] Index (`first_party`\|`verified_community`\|`unverified`); `GitHubRepoUrl string(2048)`; `PinnedCommitSha string(40)`; `PinnedTag string(100)?`; `ReviewStatus string(20)` [VC:enum] Index (`submitted`\|`in_review`\|`verified`\|`rejected`); `ReviewedByUserId Guid?` FK→`Users.Id`; `ReviewNotes text?`; `ReviewedAt timestamp?`; `AvailableInSaaS bool`; `InstallCount int`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(GitHubRepoUrl, PinnedCommitSha)`. |
+| **`Widget`** | §P.6 `[soft-delete]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `Name string(255)`; `Description string(500)?`; `Framework string(20)` [VC:enum] (`vue`\|`react`\|`svelte`\|`vanilla`); `Source string(20)` [VC:enum] (`first_party`\|`verified_gallery`\|`custom`); `GalleryItemId Guid?` FK→`WidgetGalleryItem.Id` Index; `ActiveVersionId Guid?` FK→`WidgetVersion.Id` Index; `EventSubscriptions text?` **[VC:JSON]** `List<string>`; `Settings text?` **[VC:JSON]** `Dictionary<string,object?>`; `IsEnabled bool`; `LastRuntimeError text?` (audit B5); `LastRanAt timestamp?` (audit B5); `ConfigSchemaVersion int` (default 1); `InstalledSourceRevision int?` (the gallery item's `SourceRevision` this widget was last built from); `CatalogueVersionNumber int?` (the last `WidgetVersion` that carried the catalogue's own source verbatim; null for `custom`); `PlatformSourceDefinitionId Guid?` / `PlatformSourceVersion int?` / `PlatformSourceHash string(64)?` / `PlatformSourceSyncedAt timestamp?` (platform-content spine provenance); `OverlayToken string(64)` (this widget's own 48-hex browser-source credential); `PreviousOverlayToken string(64)?` + `PreviousOverlayTokenExpiresAt timestamp?` (rotation grace window); `CreatedAt/UpdatedAt/DeletedAt`. |
+| **`WidgetVersion`** | §P.7 `[APPEND-ONLY]` `ITenantScoped` | tenant | `Id Guid` PK; `BroadcasterId Guid` FK→`Channels.Id` Index; `WidgetId Guid` FK→`Widget.Id` Index; `VersionNumber int`; `SourceCode text?`; `FilesJson text?` (multi-file project: raw JSON `path → content`); `ManifestJson text?` (raw JSON `{ entry, kind, framework, dependencies[] }`); `CompiledBundle text?`; `BuildStatus string(20)` [VC:enum] (`pending`\|`success`\|`error`); `BuildError text?`; `BuildLog text?`; `ContentHash string(64)` Index; `CompiledAt timestamp?`; `CreatedAt`. **Unique** `(WidgetId, VersionNumber)`. Append-only: corrections are new versions, never edits. |
+| **`WidgetGalleryItem`** | §P.8 `[GLOBAL, soft-delete]` (no `BroadcasterId`) | global | `Id Guid` PK; `SubmitterUserId Guid?` FK→`Users.Id` Index (null for the platform-owned catalogue); `SubmitterTwitchUserId string(50)` Index [PII-hash]; `SubmitterDisplayNameSnapshot string(255)?` [PII-scrub]; `Name string(255)`; `Description text?`; `Framework string(20)`; `TrustTier string(20)` [VC:enum] Index (`first_party`\|`verified_community`\|`unverified`); `SourceKind string(20)` (`in_repo`\|`github`); `NaturalKey string?` (stable seed key, null for submissions); `GitHubRepoUrl string(2048)?`; `PinnedCommitSha string(40)?`; `PinnedTag string(100)?`; `SourceCode text?` (the curated source install/clone copy from); `SourceRevision int` (default 1; bumped only when `SourceCode` actually changes); `DefaultSettings` **[VC:JSON]**; `DefaultEventSubscriptions` **[VC:JSON]**; `ReviewStatus string(20)` [VC:enum] Index (`submitted`\|`in_review`\|`verified`\|`rejected`); `ReviewedByUserId Guid?` FK→`Users.Id`; `ReviewNotes text?`; `ReviewedAt timestamp?`; `AvailableInSaaS bool`; `InstallCount int`; `CreatedAt/UpdatedAt/DeletedAt`. **Unique** `(GitHubRepoUrl, PinnedCommitSha)`. |
 | **`WidgetGallerySubmissionEvent`** | §P.9 `[GLOBAL, APPEND-ONLY]` (no `BroadcasterId`) | global | `Id Guid` PK; `GalleryItemId Guid` FK→`WidgetGalleryItem.Id` Index; `FromStatus string(20)?`; `ToStatus string(20)`; `ChangedByUserId Guid?` FK→`Users.Id`; `NewPinnedCommitSha string(40)?`; `Note text?`; `OccurredAt timestamp` Index; `CreatedAt`. Immutable review/pin-change history. |
 
-**Adjacent (read-only here, owned elsewhere):** `Channels.OverlayToken string(36)` Unique (§A.2) — the opaque per-channel overlay token; each widget and system surface receives a **per-widget token derived from it** (`widget-sdk.md` §6) which this subsystem verifies at OverlayHub connect; not PII; **never** the user JWT (stack §Realtime). `WidgetGalleryItem.TrustTier` drives the SaaS rendering CSP tier (§ below).
+**Adjacent (read-only here, owned elsewhere):** `Channels.OverlayToken string(36)` Unique (§A.2) — the opaque per-channel overlay token, kept as a **legacy channel-wide** credential that still resolves. AS-BUILT each widget and system surface has its **own independent** token, `Widget.OverlayToken` (48 hex, random, never derived from the channel token), rotated per widget with a grace window (`PreviousOverlayToken`); rotating one widget's token never touches another's. `IWidgetService.ResolveOverlayScopeAsync` resolves a presented token in this order: the widget's own token, a still-live previous token, then the legacy channel token — and returns an `OverlayTokenScope(BroadcasterId, WidgetId?)`; a widget token confines the connection to that widget. Verified at the ticket exchange (§7); not PII; **never** the user JWT (stack §Realtime). `WidgetGalleryItem.TrustTier` drives the SaaS rendering CSP tier (§ below).
 
 **TrustTier source mapping (binding — security-load-bearing).** `OverlayWidgetEntry.TrustTier` (non-null, the CSP-tier input) is derived per widget from `Widget.Source`, **not** stored on `Widget`. A gallery-installed widget (`Source ∈ {verified_gallery, first_party}`, `GalleryItemId` set) inherits `WidgetGalleryItem.TrustTier` (`first_party`\|`verified_community`). A `Source=custom` widget (`GalleryItemId=null` — self-authored, the only output of `CreateAsync`+`CompileAsync`) has **no** `WidgetGalleryItem` and maps to **`unverified`** — fail-closed, never silently guessed. Mapping (exhaustive): `first_party` source → gallery `first_party`; `verified_gallery` source → gallery `verified_community`; `custom` source → `unverified`. A gallery-sourced widget whose `WidgetGalleryItem` is unexpectedly missing also falls back to `unverified` (fail-closed).
 
@@ -71,13 +69,13 @@ Event bindings are the `domain.action` names of `widget-sdk.md` §2.1 (one name 
 
 ### 1.2 System surfaces (channel-owned, auto-provisioned — not gallery items)
 
-A **system surface** is a channel-owned page that is never installed from the gallery: it is provisioned for every channel at channel creation (and on first use if missing), served like a widget (own SPA, own per-widget token derived from `Channels.OverlayToken`, `widget-sdk.md` §6), configured from the page that owns it, and cannot be uninstalled — only disabled. Three ship:
+A **system surface** is a channel-owned page that is never installed from the gallery: it is provisioned for every channel at channel creation (and on first use if missing), served like a widget (own SPA, own per-widget `Widget.OverlayToken`, see §1 Adjacent), configured from the page that owns it, and cannot be uninstalled — only disabled. Three ship:
 
 | Surface | Owner page | Behavior | Config |
 |---|---|---|---|
 | **Alert surface** | Alerts & Events (event responses) | **The one alert queue across every platform connection.** Renders every on-air alert an event response produces — `viewer.followed` / `viewer.subscribed` / `viewer.gifted` / `bits.cheered` / `channel.raided` / `supporter.*` (branched on `Kind`, `supporter-events.md`) — from Twitch, Kick, YouTube and X alike, strictly in order, one at a time. It consumes `IOverlayClient.WidgetEvent` pushes from the event-response engine; there is no per-platform alert page. | `events[]` (per-event enable), `sound`, `image`, `textTemplate`, `durationMs`, `minBits`, `minGiftCount`, `minAmount` |
-| **TTS surface** | TTS page (`tts.md` §6.2) | Holds the `<audio>` element for TTS. Consumes `IOverlayClient.TtsSpeak`; plays one utterance at a time from an **ordered audio queue**, each utterance's `Segments` in order (server-synthesized segments by `audioUrl`, `client_edge` segments via the browser's `speechSynthesis` with `utter.voice`/`lang` resolved from `voiceId`); an optional caption (speaking indicator + text) renders when `showText` is on. The former `tts_caption` gallery item is this surface. | `showText`, `voiceLabel`, `position`, `volume` |
-| **Sound surface** | Sound clips page (`sound-system.md`) | Holds the `<audio>` elements for sound clips. Consumes `IOverlayClient.PlaySound` / stop; plays overlap by default, a `Handle` lets `stop_sound` target one playback. | `volume` |
+| **TTS surface** | TTS page (`tts.md` §6.2) | Holds the `<audio>` element for TTS. Consumes `IOverlayClient.TtsSpeak`; plays one utterance at a time from an **ordered audio queue** (AS-BUILT one `TtsSpeak` push = one utterance = one voice; multi-segment utterances are the S054 target, §7). Server-synthesized audio arrives as a `PlaySound` on the shared audio bus; `client_edge` utterances use the browser's `speechSynthesis` with `utter.voice`/`lang` resolved from `voiceId`/`locale`; an optional caption (speaking indicator + text) renders when `showText` is on. The former `tts_caption` gallery item is this surface. | `showText`, `voiceLabel`, `position`, `volume` |
+| **Sound surface** | Sound clips page (`sound-system.md`) | Sound plays on the **shared overlay audio bus**: the overlay SDK (`/overlay/sdk.js`) that every widget page loads holds the `<audio>` elements and handles `PlaySound` / `StopSound`, so a clip plays on whichever browser source is connected. **Single-clip rule (S-OBS-06, `75dd21483`):** a clip started with no `Handle` is the one "current" clip — starting another stops it first, so clips never stack. A clip with a `Handle` is its own independent slot, stopped only by that handle or by `StopSound(All)`. `POST /sound-clips/stop` (`sounds:write`) pushes `StopSound(All)`; with no overlay connected it reports `NOT_ATTACHED` instead of a silent no-op. | `volume` |
 
 The Alert, TTS and Sound surfaces are each added to OBS once (one browser source per surface); every other on-air element is a gallery widget.
 
@@ -164,7 +162,9 @@ public sealed record RetractPayload(
     string Reason);            // message_deleted | user_timeout | user_ban | mod_retract
 ```
 
-Every surface honours it, and each surface's obligation is explicit:
+**Status.** Server push is built (S-RETRACT-a: `OverlayContentRetractedEvent`, `OverlayModerationRetractionHandler`, `IOverlayClient.Retract`, `RetractPayload`). Client honouring is **not built**: the overlay SDK and the system surfaces do not yet act on `Retract` — S-RETRACT-b (Chat + Alert), S-RETRACT-c (TTS, `tts.md` §3.4a) and S-RETRACT-d (Sound + custom-widget SDK). The table below is the obligation each surface must meet, not shipped behavior.
+
+Every surface must honour it, and each surface's obligation is explicit:
 
 | Surface | On retract |
 |---|---|
@@ -230,7 +230,7 @@ Behavior (one line each):
 - `UpdateAsync` — patches name/settings/subscriptions/enabled; if `Settings` changed, publishes `WidgetSettingsChangedEvent` → OverlayHub `WidgetSettingsChanged` push; does **not** rebuild.
 - `DeleteAsync` — soft-deletes (`DeletedAt` set); pushes nothing (overlay drops on next reconnect).
 - `ListAsync`/`GetAsync` — tenant-filtered reads; `GetAsync` returns 404-style `Result` failure if not owned.
-- `GetOverlayManifestAsync` — resolves channel by `OverlayToken`, returns the channel's enabled widgets + their served bundle URLs + CSP nonce + trust tier; the **only** public (token-auth) read path; XSS-safe (no raw user HTML, see §rendering). Each entry's non-null `TrustTier` is derived from `Widget.Source` per the **TrustTier source mapping** (§1): gallery widgets inherit `WidgetGalleryItem.TrustTier`; `Source=custom` (`GalleryItemId=null`) maps to `unverified` (fail-closed) — never silently defaulted to a higher tier.
+- `GetOverlayManifestAsync` — resolves channel by `OverlayToken`, returns the channel's enabled widgets + their served bundle URLs + CSP nonce + trust tier; a public (token-auth) read path (the other token-resolved reads are in §5b); XSS-safe (no raw user HTML, see §rendering). Each entry's non-null `TrustTier` is derived from `Widget.Source` per the **TrustTier source mapping** (§1): gallery widgets inherit `WidgetGalleryItem.TrustTier`; `Source=custom` (`GalleryItemId=null`) maps to `unverified` (fail-closed) — never silently defaulted to a higher tier.
 - `CompileAsync` — **compile-on-save core**: creates the next `WidgetVersion` (`VersionNumber = max+1`, `BuildStatus=pending`), invokes `IWidgetBuildService.BuildAsync`, persists `success`+`CompiledBundle`+`ContentHash` or `error`+`BuildError`+`BuildLog`; on success sets `Widget.ActiveVersionId`, publishes `WidgetBuildSucceededEvent` → OverlayHub `WidgetReload`; on failure publishes `WidgetBuildFailedEvent` → editor `WidgetCompileFailed` (never silent). Append-only — a failed build is a persisted version, not a discard.
 - `ListVersionsAsync`/`GetVersionAsync` — version history (rollback/debug); `GetVersionAsync` includes `BuildLog`.
 - `RollbackAsync` — re-points `Widget.ActiveVersionId` to an earlier **successful** version (fails if target build status ≠ `success`), publishes `WidgetBuildSucceededEvent` (cache-bust reload) without recompiling.
@@ -238,9 +238,32 @@ Behavior (one line each):
 - `InstallFromGalleryAsync` — fails unless the `WidgetGalleryItem` is `ReviewStatus=verified` **and** (SaaS profile) `AvailableInSaaS=true`; creates a `Widget` (`Source=verified_gallery`/`first_party`, `GalleryItemId` set), increments `InstallCount`, compiles the pinned-commit source into the first `WidgetVersion`. Unverified items are self-host-only (rejected on SaaS profile).
 - `CloneToEditAsync` — forks a verified-gallery item OR an installed widget into a NEW, fully-owned `Source=custom` widget (⇒ `TrustTier=unverified`, fail-closed), `GalleryItemId=null`, `ActiveVersionId=null`; copies the source `SourceCode` into a fresh `WidgetVersion` (`VersionNumber=1`, `BuildStatus=pending`) but **not** the `CompiledBundle` — the clone recompiles on the owner's first save (`IWidgetBuildService.BuildAsync` sets `ActiveVersionId` then); new UUIDv7 `Id`, caller's `BroadcasterId`, `Name`/`Description`/`Framework` copied from the source; the clone is fully detached (no link back to the gallery item, independently editable). **Test:** the cloned widget has `Source=custom`, `GalleryItemId=null`, `ActiveVersionId=null`, a new `WidgetVersion` with the copied `SourceCode` + `BuildStatus=pending` and NO copied `CompiledBundle`, a fresh `Id`/`BroadcasterId`, and is unlinked from + independently editable of the gallery item.
 
-### 3.2 `IWidgetBuildService` (NEW — esbuild compile boundary; profile adapter)
+**AS-BUILT — `CloneToEditAsync`.** The copy is compiled immediately (the clone is live on creation), not left at `ActiveVersionId=null` until the owner's first save; it stays `Source=custom`, `GalleryItemId=null`, fully detached.
 
-Namespace `NomNomzBot.Application.Services`. Pure compile boundary; no DB. Impl shells out to a bundled `esbuild` (stdin source → stdout bundle); failure is a `Result` failure, never a throw.
+**As-built additions to `IWidgetService`** (ids are `string` on the interface, see the file map):
+- `GetDeleteBlastRadiusAsync` — the counted blast radius of a delete: stored versions plus the pipeline steps that name the widget in `PipelineStep.ConfigJson` (a MINIMUM when some references only resolve at run time). The dashboard renders it before the delete confirm.
+- `GetByTokenAsync` — a widget by its public overlay token.
+- `GetSettingsSchemaAsync` — the typed settings schema behind the generic settings form; `NOT_FOUND` for a `custom` widget (configured through the code editor).
+- `GetProjectAsync` / `SaveProjectAsync` — the multi-file project (`ProjectDto` = `Files` + `Manifest`). Save re-builds through `IWidgetBuildService` (the trust boundary — a client bundle is never trusted); a clean build appends a new successful `WidgetVersion` (files + manifest + bundle + hash) and activates it; a failed build returns the reason and persists NO version.
+- `ClearRuntimeErrorAsync` — the success-side twin of `RecordRuntimeErrorAsync`: clears a stamped `LastRuntimeError` and stamps `LastRanAt` when the browser source reconnects cleanly; a no-op when no error is stamped.
+- Token-resolved public reads (token-auth only, never the user JWT): `GetOverlayBundleAsync`, `GetSpotifyPlaybackTokenAsync` (short-lived scoped access token, never the refresh token), `GetNowPlayingSnapshotAsync`, `GetScriptStorageValueAsync`, `GetQueueSnapshotAsync`.
+- `GetTemplates` — the static starter templates for a new custom widget.
+- `EnsureSystemWidgetAsync` — get-or-create a channel-owned system surface (§1.2) by the gallery item's natural key; returns the existing widget unchanged, otherwise installs it like `InstallFromGalleryAsync`.
+- `UpdateFromGalleryAsync` — see *Catalogue update and reset-to-default* below.
+- `RotateOverlayTokenAsync` — mints a new `Widget.OverlayToken` for exactly one widget; the retired token stays live for a grace window (`WidgetTokenRotationResult.GraceExpiresAt`).
+- `ResolveOverlayScopeAsync` / `ResolveBroadcasterIdByOverlayTokenAsync` — token → `OverlayTokenScope` / channel (resolution order in §1 Adjacent).
+
+#### Catalogue update and reset-to-default
+
+An installed widget is a tracked copy of a gallery item; the platform never rebuilds it on its own.
+- **Update available.** `WidgetDetail.GalleryUpdateAvailable` is true when the linked item's `SourceRevision` is greater than the widget's `InstalledSourceRevision`. The item's revision moves only when its `SourceCode` really changes (a first-party reseed with new in-repo source, or a community re-pin).
+- **Customized.** `Widget.IsSourceCustomized(latestVersionNumber)` is true when the widget's newest `WidgetVersion` came after `CatalogueVersionNumber` (the channel saved its own source over the catalogue's). `WidgetDetail.IsCustomized` carries it. A catalogue update must never overwrite a customized widget on its own.
+- **`POST /widgets/{widgetId}/update-from-gallery`** (`UpdateFromGalleryAsync`, `widget:write`) is BOTH the explicit "take the update" action and the "Reset to system default" action. It compiles the linked item's current source as a NEW `WidgetVersion` (compile-on-save; the channel's edited versions stay in history and rollback still reaches them), sets `CatalogueVersionNumber` to that version and `InstalledSourceRevision` to the item's revision. Settings and subscriptions the streamer changed are left untouched — only the source moves. Failures: `WIDGET_NOT_GALLERY_LINKED` (no `GalleryItemId`), `WIDGET_NO_SOURCE` (item has no source), `WIDGET_BUILD_FAILED` (the failed version is kept, the overlay keeps its previous code, and the call reports the failure instead of a reset that did not reach the stream).
+- System surfaces (§1.2) use the same path: a per-channel edit is a new version, and reset-to-default re-pulls the catalogue source.
+
+### 3.2 `IWidgetBuildService` (esbuild compile boundary; multi-file project input)
+
+Namespace `NomNomzBot.Application.Widgets.Services`. Pure compile boundary; no DB. Impl `EsbuildWidgetBuildService` (`Infrastructure/Widgets/Bundling/`); failure is a `Result` failure, never a throw.
 
 ```csharp
 public interface IWidgetBuildService
@@ -248,11 +271,19 @@ public interface IWidgetBuildService
     Task<Result<WidgetBuildOutput>> BuildAsync(WidgetBuildInput input, CancellationToken ct = default);
 }
 
-public sealed record WidgetBuildInput(string Framework, string SourceCode);   // Framework ∈ vue|react|svelte|vanilla
-public sealed record WidgetBuildOutput(string CompiledBundle, string ContentHash, string BuildLog);  // ContentHash = sha256(CompiledBundle), 64 hex
+// A project, not one string: manifest (entry, kind, framework, dependencies[]) + path -> content files.
+public sealed record WidgetBuildInput(ProjectManifest Manifest, IReadOnlyDictionary<string, string> Files)
+{
+    public static WidgetBuildInput SingleFile(string framework, string source);   // wraps one source into a one-file project
+}
+public sealed record WidgetBuildOutput(string CompiledBundle, string ContentHash, string BuildLog);  // ContentHash = sha256(CompiledBundle), 64 lower-case hex
 ```
 
-Behavior: `BuildAsync` — runs esbuild for the framework, computes `ContentHash`, returns bundle+log on success or a `Result` failure carrying the esbuild stderr as `ErrorMessage` (→ `WidgetVersion.BuildError`). Deterministic: same input → same `ContentHash` (cache-bust correctness).
+Behavior (`dev-platform.md` §4.2):
+- **Checks first.** The manifest `Entry` must be in `Files` (`WIDGET_PROJECT_ENTRY_MISSING`); every path is checked against traversal before anything touches disk; every declared dependency must be on `IWidgetDependencyAllowlist` (`WIDGET_DEPENDENCY_NOT_ALLOWED`) — vetted, bot-provided libraries only, there is no npm.
+- **Materialize and bundle.** The files are written to a temp directory (always deleted, `try/finally`) and the standalone `esbuild` binary (`Widgets:EsbuildPath`, default `esbuild` on PATH) bundles from `Entry` with `--bundle`, so cross-file relative imports resolve into ONE bundle. Failure carries esbuild's stderr as `ErrorMessage` (-> `WidgetVersion.BuildError`).
+- **Per framework.** `vanilla`: no build step, the entry file IS the bundle. `react`: esbuild with `--jsx=automatic`. `vue`: a **two-stage build** — stage 1 compiles every `.vue` file to an ES module with `IVueSfcCompiler` (`JintVueSfcCompiler`: the vendored `@vue/compiler-sfc` run in a pooled set of pre-warmed Jint engines, a singleton; a compile problem is a coded failure); stage 2 bundles a synthetic mount module (`__nnz_mount__.ts`) with `vue` kept external, mapped to the host-injected `window.Vue` (`/overlay/vue.js`) by a `require` shim, so each bundle is its own closure and several coexist on one page. `svelte` needs the plugin-based build and is not on the standalone path: `WIDGET_FRAMEWORK_UNSUPPORTED`.
+- Deterministic: same input -> same `ContentHash` (cache-bust correctness).
 
 ### 3.3 `IWidgetGalleryService` (NEW — global, curated/verified GitHub-sourced)
 
@@ -314,9 +345,16 @@ public sealed record WidgetListItem(Guid Id, string Name, string Framework, stri
 
 public sealed record WidgetDetail(
     Guid Id, string Name, string? Description, string Framework, string Source,
-    bool IsEnabled, string OverlayUrl, Guid? ActiveVersionId, Guid? GalleryItemId,
+    bool IsEnabled, string? OverlayUrl, Guid? ActiveVersionId, Guid? GalleryItemId,
     Dictionary<string, object?> Settings, List<string> EventSubscriptions,
-    string? LastRuntimeError, DateTime? LastRanAt, DateTime CreatedAt, DateTime UpdatedAt);
+    string? LastRuntimeError, DateTime? LastRanAt, DateTime CreatedAt, DateTime UpdatedAt,
+    bool GalleryUpdateAvailable, bool IsAttached, bool IsCustomized);   // AS-BUILT: staleness, live-presence, and customized flags
+
+// AS-BUILT additions used by §3.1 / §5a / §5b:
+public sealed record WidgetTokenRotationResult(Guid WidgetId, string PreviousUrl, string NewUrl, DateTimeOffset GraceExpiresAt);
+public sealed record OverlayBundle(string Content, string Framework, string ContentHash);
+public sealed record OverlayTokenScope(Guid BroadcasterId, Guid? WidgetId);   // WidgetId set = confined to that widget
+public sealed record WidgetTemplate(string Key, string Name, string Description, string Framework, string Source);
 
 public sealed record CreateWidgetRequest
 {
@@ -351,7 +389,7 @@ public sealed record WidgetVersionSummary(
     DateTime? CompiledAt, DateTime CreatedAt);
 
 public sealed record WidgetVersionDetail(
-    Guid Id, Guid WidgetId, int VersionNumber, string BuildStatus,
+    Guid Id, Guid WidgetId, int VersionNumber, string BuildStatus, string? SourceCode,
     string? BuildError, string? BuildLog, string? ContentHash,
     DateTime? CompiledAt, DateTime CreatedAt);
 
@@ -417,31 +455,54 @@ public sealed record UpdatePinRequest
 
 All under `[ApiVersion("1.0")]`, return `StatusResponseDto<T>` / `PaginatedResponse<T>`, inherit `BaseController`.
 
-**Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the gate column's action key before the service call (403 `FORBIDDEN` when below). Rows marked `platform` are **Plane-C** (platform IAM) = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, …)`; the ASP.NET `[Authorize(Policy="<key>")]` policy-name **is** the permission key verbatim. The keys are seeded global `ActionDefinitions` (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Widget authoring is an **Editor-floor** management action (overlays touch what's on stream); gallery review is a **platform** action.
+**Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the gate column's action key before the service call (403 `FORBIDDEN` when below). Rows marked `platform` are **Plane-C** (platform IAM) = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, …)`; the ASP.NET `[Authorize(Policy="<key>")]` policy-name **is** the permission key verbatim. The keys are seeded global `ActionDefinitions` (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. Widget authoring is a **Moderator-default** management action (`609ae0fc2`: bot-internal tooling is reversible and auditable, so a Twitch mod manages it out of the box); a broadcaster may raise a floor via `ChannelActionOverride`. Reads (`widget:read`, `widget:version:read`) default to Moderator and may be lowered to VIP; the write keys (`widget:write`, `widget:compile`, `widget:rollback`, `widget:install`) default to Moderator and cannot be lowered. Gallery review is a **platform** action.
 
-### 5a. Tenant widget CRUD + versions — `WidgetsController` (EXTEND)
-`[Route("api/v{version:apiVersion}/channels/{channelId}/widgets")]` `[Authorize]`
+### 5a. Tenant widget CRUD, project, versions — `WidgetsController` (as-built)
+`[Route("api/v{version:apiVersion}/channels/{channelId}/widgets")]` `[Authorize]` — every route below carries `[RequireAction("<key>")]`.
 
 | Verb | Route | Request | Response | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
 | GET | `/` | `PageRequestDto` (query) | `PaginatedResponse<WidgetDetail>` | management / Moderator · `widget:read` |
+| GET | `/templates` | — | `StatusResponseDto<IReadOnlyList<WidgetTemplate>>` | management / Moderator · `widget:read` |
 | GET | `/{widgetId}` | — | `StatusResponseDto<WidgetDetail>` | management / Moderator · `widget:read` |
-| POST | `/` | `CreateWidgetRequest` | `StatusResponseDto<WidgetDetail>` (201) | management / Editor · `widget:create` |
-| PUT | `/{widgetId}` | `UpdateWidgetRequest` | `StatusResponseDto<WidgetDetail>` | management / Editor · `widget:update` |
-| DELETE | `/{widgetId}` | — | 204 | management / Editor · `widget:delete` |
-| POST | `/{widgetId}/compile` | `CompileWidgetRequest` | `StatusResponseDto<WidgetVersionDetail>` | management / Editor · `widget:compile` |
+| GET | `/{widgetId}/settings-schema` | — | `StatusResponseDto<WidgetSettingsSchema>` | management / Moderator · `widget:read` |
+| POST | `/` | `CreateWidgetRequest` | `StatusResponseDto<WidgetDetail>` (201) | management / Moderator · `widget:write` |
+| POST | `/clone` | `CloneWidgetRequest` | `StatusResponseDto<WidgetDetail>` (201) | management / Moderator · `widget:write` |
+| POST | `/install/{galleryItemId}` | — | `StatusResponseDto<WidgetDetail>` (201) | management / Moderator · `widget:install` |
+| POST | `/{widgetId}/update-from-gallery` | — | `StatusResponseDto<WidgetDetail>` | management / Moderator · `widget:write` |
+| PUT | `/{widgetId}` | `UpdateWidgetRequest` | `StatusResponseDto<WidgetDetail>` | management / Moderator · `widget:write` |
+| GET | `/{widgetId}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Moderator · `widget:write` |
+| DELETE | `/{widgetId}` | — | 204 | management / Moderator · `widget:write` |
+| POST | `/{widgetId}/compile` | `CompileWidgetRequest` | `StatusResponseDto<WidgetVersionDetail>` | management / Moderator · `widget:compile` |
+| GET | `/{widgetId}/project` | — | `StatusResponseDto<ProjectDto>` | management / Moderator · `widget:read` |
+| PUT | `/{widgetId}/project` | `ProjectDto` | `StatusResponseDto<WidgetVersionDetail>` | management / Moderator · `widget:write` |
 | GET | `/{widgetId}/versions` | `PageRequestDto` (query) | `PaginatedResponse<WidgetVersionSummary>` | management / Moderator · `widget:version:read` |
 | GET | `/{widgetId}/versions/{versionId}` | — | `StatusResponseDto<WidgetVersionDetail>` | management / Moderator · `widget:version:read` |
-| POST | `/{widgetId}/rollback/{versionId}` | — | `StatusResponseDto<WidgetDetail>` | management / Editor · `widget:rollback` |
-| POST | `/{widgetId}/install/{galleryItemId}` | — | `StatusResponseDto<WidgetDetail>` (201) | management / Editor · `widget:install` |
-| POST | `clone` | `CloneWidgetRequest` | `StatusResponseDto<WidgetDetail>` (201) | management / Editor · `widget:create` |
+| POST | `/{widgetId}/rollback/{versionId}` | — | `StatusResponseDto<WidgetDetail>` | management / Moderator · `widget:rollback` |
+| POST | `/{widgetId}/overlay-token/rotate` | — | `StatusResponseDto<WidgetTokenRotationResult>` | management / Moderator · `widget:write` |
+| POST | `/test-event` (`WidgetTestEventController`) | `WidgetTestEventRequest` (`EventType`, optional `Data`) | `StatusResponseDto<string>` (who could have received it) | management / Moderator · `widget:write` |
 
-### 5b. Public overlay manifest — `OverlayController` (NEW)
-`[Route("api/v{version:apiVersion}/overlay")]` `[AllowAnonymous]` — **OverlayToken auth only** (never user JWT).
+### 5b. Public overlay routes — `OverlayController`, `OverlayTicketController`, host page
+**OverlayToken auth only** (never the user JWT), all `[AllowAnonymous]`. A token is a widget's own `OverlayToken`, its still-live previous token, or the legacy channel token (§1 Adjacent); a missing token is 400.
 
-| Verb | Route | Request | Response | Auth |
-|---|---|---|---|---|
-| GET | `/manifest` | `?token={overlayToken}` (query) | `StatusResponseDto<OverlayManifest>` | OverlayToken (validated against `Channels.OverlayToken`); rate-limited; `access_token` scrubbed from logs |
+`OverlayController` — `[Route("api/v{version:apiVersion}/overlay")]`, token in the `?token=` query:
+
+| Verb | Route | Response | Purpose |
+|---|---|---|---|
+| GET | `/manifest` | `StatusResponseDto<OverlayManifest>` | the channel's enabled, built widgets + bundle URLs, hashes, trust tiers, settings; `access_token` scrubbed from logs |
+| GET | `/bundle/{widgetId}` | `text/html` (vanilla) or `application/javascript`, `Cache-Control: public, max-age=31536000, immutable`, header `X-Widget-Framework` | one widget's active compiled bundle; the URL carries the content hash as `?v=` |
+| GET | `/now-playing` | `StatusResponseDto<OverlayNowPlayingSnapshot>` (`Data` null when idle) | initial playback state for a `now_playing` widget |
+| GET | `/queue` | `StatusResponseDto<IReadOnlyList<MusicQueueItem>>` | the playback queue for a "next up" widget |
+| GET | `/spotify-token` | `StatusResponseDto<string>` | short-lived scoped Spotify token for the in-browser player |
+| GET | `/storage/{key}` | `StatusResponseDto<string>` | one script-storage value to bootstrap durable widget state |
+
+`OverlayTicketController` — `[Route("overlay")]` (unversioned, hidden from OpenAPI, anonymous rate-limit policy):
+
+| Verb | Route | Request | Response |
+|---|---|---|---|
+| POST | `/overlay/ticket` | header `X-Overlay-Token: <token>` | `{ "ticket": "<opaque>" }`; 401 when the header is missing or the token matches nothing live; 429 when the per-token throttle trips |
+
+Host and asset routes (unversioned, anonymous, rate-limited): `GET /overlay?widgetId=&token=` (`OverlayHostController`, the per-widget browser-source page), `GET /overlay/sdk.js` (`OverlaySdkController`), `GET /overlay/vue.js` (`OverlayVueRuntimeController`, vendored Vue global build).
 
 ### 5c. Global gallery — `WidgetGalleryController` (NEW)
 `[Route("api/v{version:apiVersion}/widget-gallery")]`
@@ -464,7 +525,7 @@ One action — overlays are pushed from pipelines (alerts/now-playing). Folder `
 
 | Type string | Config DTO | Behavior |
 |---|---|---|
-| `widget_event` | `WidgetEventActionConfig(Guid WidgetId, string EventType, Dictionary<string,object?>? Data)` | Pushes one `WidgetEventDto` to the target widget's Overlay group via `IWidgetNotifier.SendWidgetEventAsync(broadcasterId, widgetId, dto)`. `EventType` is validated at **config time** (pipeline save / dry-run validate) against the event registry (`IAutomationEventRegistry`, `widget-sdk.md` §2.2 — a `domain.action` name or the widget's declared `EventSubscriptions`); an unknown name is `VALIDATION_FAILED` on save, never a silent no-op at run time. Payload is XSS-token-pipeline-sanitized before send. Fail-closed if widget not found/disabled in tenant. |
+| `widget_event` | params (no typed config DTO): `widget_id` (owned id, ULID or GUID, decoded by `OwnedIdCodec`; picker field kind `Widget`), `event_type` (text, required), `data` (optional JSON object) | Pushes one `WidgetEventDto(widgetId, eventType, data)` to the target widget's group via `IWidgetEventNotifier.SendWidgetEventAsync`. Values are template-resolved by the engine before the action runs. `data` is materialized to a plain CLR graph (dictionaries, lists, primitives) so it round-trips over the MessagePack hub protocol. **Fail-closed, typed `ActionResult.Failure`, no push, no throw:** `widget_id` missing or undecodable, `event_type` blank, or the widget not found or disabled in the executing tenant (`GetAsync` is tenant-scoped, so another channel's widget reads as not found). **Not built:** config-time validation of `event_type` against `IAutomationEventRegistry` (an unknown name is a run-time no-op the widget ignores) and server-side XSS sanitization of `data` — text safety rests on the Vue runtime escaping interpolations. |
 
 (Reload/settings pushes are **not** pipeline actions — they are service-internal side effects of compile/update.)
 
@@ -485,47 +546,65 @@ One action — overlays are pushed from pipelines (alerts/now-playing). Folder `
 | `OverlayHub` | (SignalR) | — | `Program.cs` `MapHub<OverlayHub>("/hubs/overlay")` | SaaS adds `SignalR.StackExchangeRedis` backplane; lite in-memory |
 | `ICommandAction` (`widget_event`) | `WidgetEventAction` | Transient | Infrastructure DI — `AddTransient<ICommandAction, WidgetEventAction>()` (registered with the pipeline action set per commands-pipelines §3.13) | — |
 
-**OverlayHub wire surface (extend `IOverlayClient`):**
+**OverlayHub wire surface (`IOverlayClient`, as-built):**
 ```csharp
 public interface IOverlayClient
 {
-    Task WidgetEvent(WidgetEventDto evt);                 // EXISTING
-    Task WidgetReload();                                  // EXISTING (compile success / rollback)
-    Task WidgetSettingsChanged(WidgetSettingsDto settings); // EXISTING
-    Task WidgetCompileFailed(WidgetCompileFailedDto error);  // NEW — editor surfaces build error
-    Task TtsSpeak(TtsSpeakPayload payload);                  // NEW — server-sent utterance; consumed by the system TTS surface (§1.2; tts.md §6.2)
-    Task PlaySound(PlaySoundPayload payload);                // NEW — server-sent sound-clip play; consumed by the system Sound surface (§1.2; sound-system.md play_sound)
-    Task Retract(RetractPayload payload);                    // NEW — moderation retraction; every surface pulls matching content (§2a)
+    Task WidgetEvent(WidgetEventDto evt);                    // to the widget group: WidgetEventDto(string WidgetId, string EventType, object? Data)
+    Task WidgetReload();                                     // widget group: compile success / rollback
+    Task WidgetSettingsChanged(WidgetSettingsDto settings);  // widget group
+    Task WidgetCompileFailed(WidgetCompileFailedDto error);  // widget group: editor surfaces the build error
+    Task Event(OverlayEventDto evt);                         // overlay group: the generic channel-wide event feed, OverlayEventDto(string Type, string Payload = raw JSON)
+    Task PlaySound(PlaySoundPayload payload);                // overlay group: start a clip on the shared audio bus (§1.2 Sound)
+    Task StopSound(StopSoundPayload payload);                // overlay group: stop one handle, or everything when All
+    Task TtsSpeak(TtsSpeakPayload payload);                  // overlay group: one client-edge utterance for the TTS surface (§1.2; tts.md §6.2)
+    Task Retract(RetractPayload payload);                    // overlay group: moderation retraction (§2a)
 }
 ```
-Hub server methods (extend `OverlayHub`): keep `JoinWidget`/`LeaveWidget`/`WidgetReady`; add `Task ReportRuntimeError(string widgetId, string error)` → `IWidgetService.RecordRuntimeErrorAsync`. Connect-time auth stays OverlayToken-only (validate `Channels.OverlayToken`; abort on mismatch) — **never** the user JWT. Add `WidgetCompileFailedDto(string WidgetId, int VersionNumber, string BuildError)` to `Hubs/Dtos/HubResponseDtos.cs`.
+Groups: every connection joins `overlay-{broadcasterId}` on connect; `JoinWidget` adds `widget-{broadcasterId}-{widgetId}`.
 
-**TTS utterance payload (extend `Hubs/Dtos/HubResponseDtos.cs`):** the `TtsSpeak` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by the system TTS surface** (§1.2; dispatch rules in `tts.md` §3.4/§6.2). One utterance = ONE `TtsSpeak` push carrying an **ordered segment array**; the surface enqueues the utterance and plays its segments back-to-back (`client_edge` segments via `speechSynthesis` with `utter.voice`/`lang` set from `VoiceId`; `byok`/`self_host` segments by `AudioUrl`).
+Hub server methods (`OverlayHub`): `JoinWidget(string widgetId)` -> `JoinWidgetResponse(Success, Error, InitialState = the widget's saved settings)`; `LeaveWidget(string widgetId)`; `WidgetReady(string widgetId)`; `ReportRuntimeError(string widgetId, string error)` -> `IWidgetService.RecordRuntimeErrorAsync` (message truncated to 2000 chars). A widget-scoped connection (its ticket carries a `WidgetId`) may `JoinWidget` only its own widget; a successful `JoinWidget` also clears a stale `LastRuntimeError`.
+
+**Connect-time auth: single-use ticket, never the token on the WebSocket URL.** OBS browser sources cannot set WebSocket headers, and a long-lived token in the `/hubs/overlay` query string would leak into proxy logs and browser history. So: (1) the overlay SDK sends the overlay token in the `X-Overlay-Token` header of `POST /overlay/ticket` (§5b); (2) the server resolves it (`ResolveOverlayScopeAsync`), applies the per-token throttle, and mints an opaque ticket bound to the resulting `OverlayTokenScope`; (3) the SDK connects to `/hubs/overlay?ticket=<ticket>`; (4) `OnConnectedAsync` redeems the ticket (`IOverlayTicketService.RedeemTicket`). A ticket lives **30 seconds** and burns on first use; a missing, unknown, expired or reused ticket aborts the connection. **Never** the user JWT. `WidgetCompileFailedDto(string WidgetId, int VersionNumber, string BuildError)` lives in `Hubs/Dtos/HubResponseDtos.cs`.
+
+**TTS utterance payload (`Hubs/Dtos/HubResponseDtos.cs`, as-built):** the `TtsSpeak` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by the system TTS surface** (§1.2; dispatch rules in `tts.md` §3.4/§6.2). AS-BUILT one `TtsSpeak` push is ONE utterance with ONE voice — a single `Text`, not a segment array.
 ```csharp
 public sealed record TtsSpeakPayload(
-    Guid BroadcasterId,                       // tenant key (Guid) — overlay group scope
-    IReadOnlyList<TtsSpeakSegment> Segments,  // ordered; played back-to-back as one utterance
-    string? CueId,                            // optional client-side dedupe / cancellation handle
-    TtsSpeakOptions? Options);                // optional prosody overrides (apply to every segment)
+    Guid BroadcasterId,        // tenant key (Guid) — overlay group scope
+    string Text,               // the utterance text
+    string VoiceId,            // resolved voice (tts.md §6.2 precedence) — the surface sets utter.voice/lang from it on client_edge
+    string Provider,           // edge|elevenlabs|azure
+    string? CueId,             // optional client-side dedupe / cancellation handle
+    TtsSpeakOptions? Options,  // optional prosody overrides
+    string? Locale = null);    // BCP-47 hint; steers utter.lang when no browser voice matches VoiceId
 
-public sealed record TtsSpeakSegment(
-    string Text,                    // segment text (XSS-token-pipeline-cleaned before send)
-    string VoiceId,                 // resolved voice (tts.md §6.2 precedence) — the surface sets utter.voice/lang from it on client_edge
-    string Provider,                // edge|elevenlabs|azure
-    string? AudioUrl);              // tokened audio URL when server-synthesized (byok/self_host); null on client_edge
-
-public sealed record TtsSpeakOptions(
-    double? Rate,                   // playback rate multiplier
-    double? Pitch,                  // pitch adjustment
-    double? Volume);                // output volume (0–1)
+public sealed record TtsSpeakOptions(double? Rate, double? Pitch, double? Volume);
 ```
 
-**Sound-clip play payload (extend `Hubs/Dtos/HubResponseDtos.cs`):** the `PlaySound` push DTO is **owned here** (the `IOverlayClient` contract lives in this subsystem) and **consumed by `sound-system.md` `play_sound`/`stop_sound`** — parallel to `TtsSpeak`, the **system Sound surface** (§1.2) holds the `<audio>` elements and plays (or stops) the clip on this push; plays overlap by default (each independent), and a non-null `Handle` lets `stop_sound` target one playback.
+#### S054 target — multi-segment utterances (NOT built)
+
+S054 (`SHORTCOMINGS-EXECUTION-PLAN.md`) replaces the single `Text`/`VoiceId`/`Provider` with an ordered segment array, so ONE push carries an utterance whose parts use different voices; the surface enqueues the utterance and plays its segments back-to-back (`client_edge` segments via `speechSynthesis` with `utter.voice`/`lang` from `VoiceId`; `byok`/`self_host` segments by `AudioUrl`). The `tts.md` request side (`TtsSegment` list, per-segment voice mode) is already written against this target shape.
+```csharp
+// TARGET shape — not the shipped record above
+public sealed record TtsSpeakPayload(
+    Guid BroadcasterId,
+    IReadOnlyList<TtsSpeakSegment> Segments,  // ordered; played back-to-back as one utterance
+    string? CueId,
+    TtsSpeakOptions? Options);
+
+public sealed record TtsSpeakSegment(string Text, string VoiceId, string Provider, string? AudioUrl);
+```
+
+**Sound-clip payloads (`Hubs/Dtos/HubResponseDtos.cs`):** `PlaySound` / `StopSound` are **owned here** and **consumed by `sound-system.md` `play_sound`/`stop_sound`**. The overlay SDK holds the `<audio>` elements on the shared audio bus (§1.2 Sound, single-clip rule S-OBS-06).
 ```csharp
 public sealed record PlaySoundPayload(
     string PlaybackUrl,             // tokened, overlay-fetchable clip URL (ISoundClipStore)
     int Volume,                     // effective output volume (0–100)
-    string? Handle);                // optional name for a targeted stop_sound
+    string? Handle);                // optional name: an independent slot a targeted stop_sound can stop
+
+public sealed record StopSoundPayload(
+    string? Handle,                 // stop this named clip
+    bool All);                      // true = stop the current clip and every handled clip
 ```
 
 ---
@@ -550,5 +629,5 @@ No new 3rd-party NuGet packages are introduced by this subsystem (esbuild is an 
 
 ## 9. Decisions (resolved)
 
-1. **Widget authoring role floor — `Editor` (management plane).** The floor for create/update/compile/rollback/install is `Editor`, since overlays change on-stream content; reads are at `Moderator`. A broadcaster may raise the floor via `ChannelActionOverride` (no signature change), but the seeded `FloorLevel` is `Editor`.
+1. **Widget authoring role — `Moderator` default (management plane).** Create/update/delete/compile/rollback/install (`widget:write`, `widget:compile`, `widget:rollback`, `widget:install`) default to `Moderator` (`609ae0fc2`: bot-internal tooling is reversible and auditable); reads (`widget:read`, `widget:version:read`) default to `Moderator` and may be lowered to `Vip`. A broadcaster may RAISE any of them via `ChannelActionOverride` (no signature change); the write keys cannot be lowered below `Moderator`.
 2. **esbuild execution form — out-of-process CLI binary.** `EsbuildWidgetBuildService` shells out to a bundled `esbuild` CLI binary behind `IWidgetBuildService` (matches design §"server-side build (esbuild)"). The interface is stable regardless of runner, so the binary's path/runner is supplied from config (lite + SaaS) per §7.

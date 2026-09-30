@@ -1,9 +1,9 @@
 # Interface Specification — `commands-pipelines` subsystem
 
-**Status:** implementable. Code from this directly. Source of truth: locked DB schema
-`docs/design/2026-06-16-database-schema.md` (G.2, G.2a, G.3, H.1–H.7, I.1, I.2, M.5), execution-model decision
-`docs/design/2026-06-16-custom-command-execution.md`, stack `docs/design/2026-06-16-stack-and-dependencies.md`,
-defaults `docs/design/2026-06-16-decisions-resolved.md`.
+**Status:** as-built reference + design intent. Each section says what ships in `server/src` today; text marked **unbuilt** is design intent that no code implements, and its build-or-cut call belongs to the owner (§0 has the per-section status table). Data source of truth: locked DB schema
+`.claude/docs/design/2026-06-16-database-schema.md` (G.2, G.2a, G.3, H.1–H.7, I.1, I.2, M.5), execution-model decision
+`.claude/docs/design/2026-06-16-custom-command-execution.md`, stack `.claude/docs/design/2026-06-16-stack-and-dependencies.md`,
+defaults `.claude/docs/design/2026-06-16-decisions-resolved.md`.
 
 **Namespace:** `NomNomzBot.*`. **.NET 10 / C# 14 / EF Core 10.** File-scoped namespaces, `Nullable`
 enabled, async all the way, `Result<T>` (`NomNomzBot.Application.Common.Models`) over exceptions/null. App JSON =
@@ -13,8 +13,8 @@ enabled, async all the way, `Result<T>` (`NomNomzBot.Application.Common.Models`)
 > **Scope of this subsystem (owns):** authored `Commands` (T1 template / T2 pipeline / T3 code-trigger), built-in
 > command enable/disable+override (`ChannelBuiltinCommands`), the normalized pipeline model
 > (`Pipelines`/`PipelineSteps`/`PipelineStepConditions`) + execution engine + `ICommandAction` blocks + condition
-> evaluators + template variables (`VariableResolver`), per-command cooldowns (`CommandCooldownStates` +
-> `ICooldownManager`), `Timers`, `EventResponses`, and the per-run telemetry (`PipelineExecutions`, `CommandUsage`).
+> evaluators + template variables (`ITemplateResolver`), per-command cooldowns (`ICooldownManager`, in-memory),
+> `Timers`, `EventResponses`, and the per-run telemetry (`PipelineExecutions`; `CommandUsage` is an entity with no writer today).
 >
 > **Out of scope (consumed via existing interfaces, NOT redefined here):** the T3 sandbox itself
 > (`IScriptExecutor` / Wasmtime+Jint, owned by the sandbox-execution subsystem — this subsystem only references
@@ -25,36 +25,53 @@ enabled, async all the way, `Result<T>` (`NomNomzBot.Application.Common.Models`)
 
 ---
 
-## 0. Migration note — existing surface this spec REPLACES (do not duplicate)
+## 0. History note and implementation status
 
-The repo currently has **two** parallel pipeline stacks plus `int`-keyed entities. This spec consolidates onto the
-canonical one and widens keys to the locked schema. Concrete deltas the implementer must apply:
+**History.** This spec began as the rebuild plan for two parallel pipeline stacks and `int`-keyed entities. That rebuild landed: one action/condition contract (`ICommandAction` / `ICommandCondition`, `Application/Abstractions/Pipeline`), `Guid` keys, the normalized `Pipeline` / `PipelineStep` / `PipelineStepCondition` model, and a fail-closed engine (an unknown action or condition aborts the run; an action exception stops it). The old per-row "existing → action" table is retired. Later work added the tree model (`pipeline-control-flow.md`, `pipeline-tree-and-editor.md`), deferred execution (§10) and the built-in reply catalogue (§11).
 
-| Existing (today) | Action |
-|---|---|
-| `NomNomzBot.Application.Pipeline.*` (ICommandAction/ActionContext/ActionResult/PipelineContext/CommandActionRegistry/VariableResolver/PipelineDefinition) **and** `NomNomzBot.Infrastructure.Pipeline.*` (ICommandAction/ICommandCondition/PipelineExecutionContext/ActionDefinition/PipelineEngine) | **Collapse to ONE** action/condition contract in `NomNomzBot.Application.Pipeline` (the names below). Delete the Infrastructure duplicates `ICommandAction`/`ICommandCondition`/`ActionResult`/`PipelineExecutionContext`. Infrastructure actions re-target the Application contract. |
-| `Domain/Interfaces/IPipelineEngine.cs` — `PipelineRequest.BroadcasterId : string`, `PipelineJson : string` (inline JSON), `int` step indexes | Keep `IPipelineEngine` name; change `BroadcasterId`→`Guid`, replace `PipelineJson` with `PipelineId : Guid` (normalized model is truth; `GraphJsonCache` is cache only). Add fail-closed fields below. |
-| `PipelineEngine` fail-OPEN semantics (unknown condition ⇒ true, unknown action ⇒ skip, action throw ⇒ continue) | **Reverse to fail-CLOSED** (must-fix #4): unknown action/condition ⇒ hard fail the run; action exception ⇒ stop with `Status=failed`. |
-| `Command.Id : int`, `Command.BroadcasterId : string(50)`, `Command.Type`, `Command.Response/Responses/PipelineJson` | Re-key to `Guid`; `BroadcasterId : Guid`; rename `Type`→`Tier` (`template`/`pipeline`/`code`); `Response`→`TemplateResponse`, `Responses`→`TemplateResponses`, drop inline `PipelineJson` for `PipelineId : Guid?`. Add `NameNormalized`, `UserCooldownSeconds`, `UseCount`, `LastUsedAt`, `ConfigSchemaVersion`, `MinPermissionLevel:int`. |
-| `Pipeline.Id : int`, `GraphJson`, no steps | Re-key `Guid`; add `TriggerKind`, `MaxStepCount`, `TriggerCount`, `LastTriggeredAt`, `GraphJsonCache`; introduce child `PipelineSteps`/`PipelineStepConditions`. |
-| DTOs `CommandDto/PipelineDto/TimerDto/EventResponseDto` with `int Id` | Widen all `Id`/`PipelineId` to `Guid`; update as in §4. |
-| `ICommandService/IPipelineService/IEventResponseService` (`string broadcasterId`, `int id`) | Keep names; change `broadcasterId`→`Guid`, `id`→`Guid`. Add **net-new** `ITimerService`, `IBuiltinCommandService`, `ICommandDispatcher`, `IPipelineCompiler`, `ICommandConfigValidator`. |
-| `VariableResolver` (regex `{{\w+}}`, no namespaced vars, no `{{args.N}}`) | Replace with namespaced resolver (§6) supporting `{{user.name}}`, `{{args.1}}`, `{{random.number:1:100}}`, etc. Keep the `static partial` + `GeneratedRegex` shape. |
-| `ICooldownManager` (in-memory only, `string commandName`) | Keep interface; back it with `CommandCooldownStates` (G.3) write-through for durability across restart/multi-instance. Signatures change to `Guid` (§3). |
+### Implementation status (checked 2026-09-30)
+
+| § | Subject | Status |
+|---|---|---|
+| 1 | Entities | Built. Column deltas and the extra entities are listed in §1. `CommandCooldownState` (G.3) and `CommandUsage` (M.5) exist but no code writes them. |
+| 2 | Domain events | Partly built: `CommandExecutedEvent`, `CommandFailedEvent` (plus `VoiceTriggerFiredEvent`). Every other event is **unbuilt**. |
+| 3.1 | `ICommandService` | Built; different signatures. |
+| 3.2 | Command dispatch | Built as `ChatMessageHandler`; `ICommandDispatcher` does not exist. |
+| 3.3 | `IPipelineEngine` | Built; different request/outcome shape plus the resume methods. |
+| 3.4 | `IPipelineService` | Built; no `ValidateAsync` (validation is `POST pipelines/validate` → `ICommandConfigValidator`); adds `GetBlastRadiusAsync`. |
+| 3.5 | `IPipelineCompiler` | **Unbuilt.** |
+| 3.6 | `ICommandConfigValidator` | Built in a smaller shape; the tainted-payload guard and trigger validation are **unbuilt**. |
+| 3.7 | Timers | Built as `ITimerManagementService` + the `TimerService` background worker. |
+| 3.8 | `IEventResponseService` | Built; no `TriggerAsync` (runtime is `IEventResponseExecutor`). |
+| 3.9 | `IBuiltinCommandService` | Built; different shape. |
+| 3.10 | `IBuiltinCommandCatalog` / `IBuiltinCommand` | Built. |
+| 3.11 | `ICooldownManager` | Built; synchronous and in-memory, string-keyed. |
+| 3.12 | Registries | **Unbuilt**; actions and conditions are DI-scanned. |
+| 3.13 | Action / condition contract | Built as `ICommandAction` / `ICommandCondition`. |
+| 3.13a | Tier authoring caps | Wired for `custom_commands` through `LimitedResourceRegistry`; the other keys were not re-checked. |
+| 4 | DTOs | Built; the shapes differ (§4). |
+| 5 | Endpoints | Built; §5 lists the as-built routes. |
+| 6.1 | Actions | Built except `random_response`, `http_request`, `send_whisper`. Catalogue: `GET channels/{channelId}/pipelines/actions`. |
+| 6.2 | Conditions | `user_role`, `random`, `comparison` built; `var_compare`, `cooldown` **unbuilt**. |
+| 6.3 | Template variables | Built as `ITemplateResolver`; the placeholder grammar is single-brace `{name}`. The `{{ }}` grammar, `if.*` helper and duration/instant formatter are **unbuilt** (the grammar decision is the owner's). |
+| 6.4 | Regex matching | `IRegexMatcher` **unbuilt**; `MatchMode=Regex` uses a plain `Regex` with a 100 ms timeout. |
+| 7 | DI | As-built listing in §7. |
+| 10 | Deferred execution | Built. |
+| 11 | Built-in reply catalogue | Built. |
 
 ---
 
 ## 1. Entities (locked schema — owned by this subsystem)
 
-All defined in `docs/design/2026-06-16-database-schema.md`. **Do not redefine columns**; this lists ownership, the
-EF entity class to create in `NomNomzBot.Domain/Entities/`, key fields, and the converter/enum flags. Every row carries
+All defined in `.claude/docs/design/2026-06-16-database-schema.md`. **Do not redefine columns**; this lists ownership, the
+EF entity class (`NomNomzBot.Domain/Commands/Entities/`), key fields, and the converter/enum flags. The as-built column deltas follow the table. Every row carries
 `BroadcasterId : Guid` (FK→`Channels.Id`, `ITenantScoped`) unless noted. `[VC:JSON]` = `ValueConverter`+`ValueComparer`
 over Newtonsoft.Json; `[VC:enum]` = enum↔text converter. `ConfigSchemaVersion : int` (default 1) on every
 app-interpreted-JSON config table is the per-row upcast anchor.
 
-| # | Entity (`Domain/Entities/*.cs`) | Base | PK | Key fields / types |
+| # | Entity (`Domain/Commands/Entities/*.cs`) | Base | PK | Key fields / types |
 |---|---|---|---|---|
-| **G.2** | `Command` | `SoftDeletableEntity` | `Id : Guid` | `BroadcasterId:Guid`; `Name:string(100)`; `NameNormalized:string(100)` (unique `(BroadcasterId,NameNormalized)`); `PrefixMode:string(20)`[VC:enum] `Default`\|`Custom`\|`None`; `CustomPrefix:string(8)?` (when `Custom`); `MatchMode:string(20)`[VC:enum] `StartsWith`\|`Exact`\|`Contains`\|`Regex` (default `StartsWith`); `MatchPattern:string(200)?` (required when `MatchMode=Regex`, else null); `Tier:string(20)`[VC:enum] `template`\|`pipeline`\|`code`; `Description:string(500)?`; `Aliases:List<string>`[VC:JSON]; `TemplateResponse:string(2000)?`; `TemplateResponses:List<string>?`[VC:JSON]; `ConfigSchemaVersion:int`; `PipelineId:Guid?` (FK→Pipelines); `MinPermissionLevel:int`[VC:enum, community ladder]; `CooldownSeconds:int`; `UserCooldownSeconds:int` (0=off); `CooldownPerUser:bool`; `IsEnabled:bool`; `IsPlatform:bool`; `UseCount:long`; `LastUsedAt:DateTime?` |
+| **G.2** | `Command` | `SoftDeletableEntity` | `Id : Guid` | `BroadcasterId:Guid`; `Name:string(100)`; `NameNormalized:string(100)` (unique `(BroadcasterId,NameNormalized)`); `PrefixMode:string(20)`[VC:enum] `Default`\|`Custom`\|`None`; `CustomPrefix:string(8)?` (when `Custom`); `MatchMode:string(20)`[VC:enum] `StartsWith`\|`Exact`\|`Contains`\|`Regex` (default `StartsWith`); `MatchPattern:string(200)?` (required when `MatchMode=Regex`, else null); `Tier:string(20)`[VC:enum] `template`\|`pipeline`\|`code`; `Description:string(500)?`; `Aliases:List<string>`[VC:JSON]; `TemplateResponse:string(2000)?`; `TemplateResponses:List<string>?`[VC:JSON]; `ConfigSchemaVersion:int`; `PipelineId:Guid?` (FK→Pipelines); `MinPermissionLevel:int` (persisted ladder value; the DTOs expose the rung name, §4.1); `CooldownSeconds:int`; `UserCooldownSeconds:int` (0=off); `CooldownPerUser:bool`; `IsEnabled:bool`; `IsPlatform:bool`; `UseCount:long`; `LastUsedAt:DateTime?` |
 | **G.2a** | `ChannelBuiltinCommand` | `SoftDeletableEntity` | `Id : Guid` | `BroadcasterId:Guid`; `BuiltinKey:string(100)` (unique `(BroadcasterId,BuiltinKey)`); `IsEnabled:bool`; `ConfigSchemaVersion:int`; `OverridesJson:BuiltinCommandOverrides?`[VC:JSON] (POCO shape in §4.5: `Enabled:bool` toggle + `CustomResponseTemplate`/`CooldownSeconds`/`MinRole`, each nullable=inherit) |
 | **G.3** | `CommandCooldownState` | *(append-ish, no soft-delete)* | `Id : long` | `CommandId:Guid` (FK→Commands); `BroadcasterId:Guid`; `UserId:Guid?` (null=global per-command); `LastInvokedAt:DateTime`; `ExpiresAt:DateTime` (TTL sweep); unique `(CommandId,UserId)` |
 | **G.4** | `NamedCounter` | `SoftDeletableEntity` | `Id : Guid` | `BroadcasterId:Guid`; `Key:string(50)` (unique `(BroadcasterId,Key)`); `Value:long` — persistent cross-command counter backing `{{count.<name>}}` + `set_counter`/`adjust_counter`. Owned by this subsystem. |
@@ -69,13 +86,24 @@ app-interpreted-JSON config table is the per-row upcast anchor.
 | **I.2** | `EventResponse` | `SoftDeletableEntity` | `Id : Guid` | `BroadcasterId`; `EventType:string(100)` (index `(BroadcasterId,EventType)`); `ResponseType:string(50)`[VC:enum] `chat_message`\|`overlay`\|`pipeline`\|`none`; `Message:string(2000)?`; `PipelineId:Guid?`; `MetadataJson:Dictionary<string,string>`[VC:JSON]; `ConfigSchemaVersion:int`; `IsEnabled:bool` |
 | **M.5** | `CommandUsage` | **[APPEND-ONLY]** | `Id : long` | `BroadcasterId`; `CommandId:Guid?`; `CommandNameSnapshot:string(100)`; `ViewerProfileId:Guid`; `ViewerUserId:Guid` [PII via id]; `ArgsSnapshot:string(500)?` **[PII-scrub]**; `WasSuccessful:bool`; `CreatedAt` (index `(BroadcasterId,ViewerUserId)`) |
 
-> **Note (key widening, repo-wide, must do now):** existing `Command`/`Pipeline`/`Timer`/`EventResponse` entities use
-> `int Id` + `string(50) BroadcasterId`. Per locked schema §1.1 all become `Guid` and `ITenantScoped.BroadcasterId`
-> widens `string`→`Guid`. This is the deliberate one-time rebuild; do not migrate incrementally.
+**As-built column deltas and extra entities.** The key widening (`Guid` ids, `Guid` `BroadcasterId`) is done. Where the code differs from the table above:
+
+- **`Command` (G.2)** adds `PresetKey string?` (the fun-command preset the row came from; `POST commands/{commandName}/reset-to-preset` restores it).
+- **`ChannelBuiltinCommand` (G.2a)** adds the platform-source columns `PlatformSourceDefinitionId`, `PlatformSourceVersion`, `PlatformSourceHash`, `PlatformSourceSyncedAt`. `OverridesJson` is a plain `string?` blob, not a typed POCO — its shape is in §11.
+- **`CommandCooldownState` (G.3)** has an entity, a configuration and a `DbSet`, but nothing reads or writes it: cooldowns live in the in-memory `CooldownManager` (§3.11).
+- **`Pipeline` (H.1)** adds `ParameterNamesJson`, the `Triggers` collection (`PipelineTrigger`) and the platform-source columns; `TriggerKind` defaults to `manual` and `MaxStepCount` to 50.
+- **`PipelineStep` (H.2)** adds `BlockKind`, `BlockConfigJson` and `ContinueOnError`; `ConfigJson` is a JSON `string`.
+- **`PipelineStepCondition` (H.3)** adds `ParentConditionId` and `GroupOp` (the condition tree). The as-built `ConditionType` values are `user_role`, `random`, `comparison` (§6.2).
+- **`PipelineExecution` (H.4)** has a nullable `PipelineId`; `StepLogsJson` is a `string`.
+- **`Timer` (I.1)** adds `FireOnce` and the platform-source columns. **`EventResponse` (I.2)** adds `SpeakWithTts`, `FollowsPlatformDefault` and the platform-source columns.
+- **`CommandUsage` (M.5)** has an entity and a `DbSet`, is read by the analytics services, and has **no writer**; the command's `UseCount` / `LastUsedAt` are folded by `CommandUseCountHandler` from `CommandExecutedEvent` instead.
+- **Entities not in the table:** `ChatTrigger` (pattern triggers: `Pattern`, `MatchType` `contains|exact|starts_with|regex`, `CaseSensitive`, `Response` or `PipelineId`, `CooldownSeconds`, `MinPermissionLevel`); `VoiceTrigger` and `VoiceTranscriptSegment` (spoken-word triggers); `PipelineTrigger` and `PipelineRunState` (`pipeline-tree-and-editor.md`); `ScheduledPipelineTask` (§10); `PlatformBuiltinReplyDefault` (`BuiltinKey`, `Slot`, `Template`) and `PlatformEventResponseDefault` (`EventType`, `IsEnabled`, `Message`, `SpeakWithTts`) — the platform-admin defaults behind §11 and §3.8.
 
 ---
 
 ## 2. Domain events
+
+**As-built:** only `CommandExecutedEvent` and `CommandFailedEvent` exist (in `Domain/Commands/Events/`, plus `VoiceTriggerFiredEvent`). `BeforeCommandExecutedEvent`, `AfterCommandExecutedEvent` and every net-new event below are **unbuilt**; the engine records runs in `PipelineExecution` rows instead. The rest of this section is the design intent.
 
 In `NomNomzBot.Domain/Events/`, inheriting the canonical **`DomainEventBase`** (platform-conventions §2.0 — supplies
 `Guid EventId`, `DateTimeOffset OccurredAt`, `Guid BroadcasterId`; events add only payload fields, never redeclaring the base members). **Existing events to KEEP** (already correct shape — reuse, do
@@ -99,39 +127,43 @@ not recreate): `BeforeCommandExecutedEvent`, `AfterCommandExecutedEvent`, `Comma
 ## 3. Service interfaces
 
 All in `NomNomzBot.Application` (interfaces in `Services/` or `Common/Interfaces/`; impls in
-`NomNomzBot.Infrastructure/Services/...` unless noted). `broadcasterId` is `Guid` everywhere. Repositories via
+`NomNomzBot.Infrastructure/Services/...` unless noted). **As-built:** the command/pipeline/timer/event-response services take `string broadcasterId` (parsed to a `Guid` inside; a bad id fails `VALIDATION_FAILED`), and each subsection gives the shipped signatures. `Guid broadcasterId` is the design intent. Repositories via
 `IUnitOfWork` + `IApplicationDbContext`; never raw `DbContext` in controllers.
 
-### 3.1 `ICommandService` (EXTEND existing — `Services/ICommandService.cs`)
+### 3.1 `ICommandService` (as-built — `Application/Commands/Services/ICommandService.cs`)
 
-Management CRUD + runtime resolution for authored commands. **Widen `broadcasterId`→`Guid`.** Identify by name (route)
-or id.
-
-```csharp
-Task<Result<PagedList<CommandListItem>>> ListAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
-Task<Result<CommandDto>>                 GetAsync(Guid broadcasterId, string commandName, CancellationToken ct = default);
-Task<Result<CommandDto>>                 CreateAsync(Guid broadcasterId, CreateCommandDto request, CancellationToken ct = default);
-Task<Result<CommandDto>>                 UpdateAsync(Guid broadcasterId, string commandName, UpdateCommandDto request, CancellationToken ct = default);
-Task<Result>                             DeleteAsync(Guid broadcasterId, string commandName, CancellationToken ct = default);
-Task<Result<CommandResolution>>          ResolveAsync(Guid broadcasterId, string trigger, CancellationToken ct = default);
-```
-- `CreateAsync` — validates name uniqueness (`NameNormalized`) + tier-specific config via `ICommandConfigValidator`; for pipeline/code tiers requires an existing `PipelineId`; **enforces the tier authoring-count caps** (§3.13a) — `custom_commands` against the live command count, and `response_variations_per_trigger` against the new `TemplateResponses` length — before persisting `Command` (UUIDv7) + `SaveChangesAsync`. Returns persisted `CommandDto`. **Reject at save** if name collides with a built-in key or an alias already in use.
-- `UpdateAsync` — partial update; re-validates config + uniqueness; **re-checks `response_variations_per_trigger`** when the update grows `TemplateResponses` (add-time only — never truncates); bumps `UpdatedAt`. Tier change re-runs validation.
-- `DeleteAsync` — soft-delete (`DeletedAt`), clears cooldown states for the command. No hard delete.
-- `ResolveAsync` — resolves a chat trigger (name or alias) to a `CommandResolution` (tier, `PipelineId?`, `TemplateResponse(s)`, cooldown config, min level) for the dispatcher. Read-through cache by `(BroadcasterId, version)`; no side effects.
-
-### 3.2 `ICommandDispatcher` (NET-NEW — `Common/Interfaces/ICommandDispatcher.cs`)
-
-The single runtime entry: a chat message arrives → decide if it's a command → gate → execute (template/pipeline/code)
-→ record usage. Owns the order-of-checks (enabled → permission → cooldown → execute).
+Management CRUD for authored commands, keyed by command **name**. Runtime resolution is not on this interface: the chat handler resolves triggers from the in-memory `ChannelRegistry` cache (§3.2).
 
 ```csharp
-Task<Result<CommandDispatchResult>> DispatchAsync(CommandDispatchRequest request, CancellationToken ct = default);
+Task<Result<CommandDto>> CreateAsync(string broadcasterId, CreateCommandDto request, CancellationToken ct = default);
+Task<Result<CommandDto>> UpdateAsync(string broadcasterId, string commandName, UpdateCommandDto request, CancellationToken ct = default);
+Task<Result>             DeleteAsync(string broadcasterId, string commandName, string? actorId = null, CancellationToken ct = default);
+Task<Result<CommandDto>> GetAsync(string broadcasterId, string commandName, CancellationToken ct = default);
+Task<Result<PagedList<CommandListItem>>> ListAsync(string broadcasterId, PaginationParams pagination, CancellationToken ct = default);
+Task<Result<string>>     ExecuteAsync(string broadcasterId, string commandName, string userId, string? input = null, CancellationToken ct = default);
 ```
-- Resolves the trigger (authored via `ICommandService.ResolveAsync`, else a built-in via `IBuiltinCommandService`). Unknown trigger ⇒ `Result.Success` with `Matched=false` (not an error). Disabled ⇒ no-op result. Permission below `MinPermissionLevel` ⇒ denied result, no chat side effect unless configured. Cooldown active ⇒ emits `CommandCooldownBlockedEvent`, returns blocked result.
-- On pass: T1 renders `TemplateResponse(s)` via `ITemplateEngine` and sends through `IChatProvider`; T2/T3 builds a `PipelineRequest` and calls `IPipelineEngine.ExecuteAsync`. Sets cooldown via `ICooldownManager`, increments `Command.UseCount`/`LastUsedAt`, appends `CommandUsage` (append-only), emits `Before/AfterCommandExecutedEvent` + `CommandExecutedEvent`/`CommandFailedEvent`.
+- `CreateAsync` — normalizes and validates the name and prefix, validates template responses and template helpers, enforces name uniqueness on `NameNormalized`, checks the `custom_commands` quota and the response-variation quota through the limit registry, and validates the pipeline binding, then persists the `Command` and invalidates the channel's registry cache.
+- `UpdateAsync` — partial update; re-validates a rename, the templates and the quotas; invalidates the registry cache.
+- `DeleteAsync` — writes an audit `Record` (`command_deleted`, actor = `actorId`, else the broadcaster) **before** the soft delete, then invalidates the registry cache and publishes a config-changed event. It does **not** touch cooldown state (cooldowns are in-memory, §3.11). No entity holds a foreign key to `Command.Id`, so nothing else needs clearing.
+- `ExecuteAsync` — runs an enabled command by name as `userId` outside chat (a `pipeline` or `code` command dispatches through its bound pipeline). Fails `NOT_FOUND` for an unknown or disabled command.
+
+**Design intent, unbuilt:** `ListAsync`/`GetAsync` etc. over `Guid broadcasterId`, and `ResolveAsync(Guid broadcasterId, string trigger)` returning a `CommandResolution` (§4.2).
+
+### 3.2 Command dispatch — as-built `ChatMessageHandler` (`Infrastructure/Chat/EventHandlers/ChatMessageHandler.cs`)
+
+`ICommandDispatcher` and `CommandDispatchRequest` / `CommandDispatchResult` do **not** exist. The single runtime entry is `ChatMessageHandler`, an `IEventHandler<ChatMessageReceivedEvent>` on the hot path for every chat message. Its order of checks:
+
+1. Read the channel prefix (`ChannelContext.CommandPrefix`, default `!`) from the in-memory `ChannelRegistry`; resolve an authored command from the registry cache (`ResolveAuthoredCommand`, §3.2.1), else a built-in from `IBuiltinCommandCatalog`. No database hit on this path.
+2. Check the caller's effective rung against the command's `MinPermissionLevel`; a refusal sends a system notice (`system/permissiondenied`).
+3. Check global and per-user cooldowns through `ICooldownManager` (§3.11); a hit sends a cooldown notice.
+4. Execute: a `template` command renders through `ITemplateResolver` and sends the reply; a `pipeline` or `code` command builds a `PipelineRequest` and calls `IPipelineEngine.ExecuteAsync`; a built-in calls `IBuiltinCommand.ExecuteAsync` and sends the reply through `IBuiltinResponseComposer` (§11).
+5. Set the cooldown and publish `CommandExecutedEvent` or `CommandFailedEvent`. `CommandUseCountHandler` folds a success into `Command.UseCount` / `LastUsedAt`.
+
+The same handler also fires chat triggers (`ChatTrigger`), sound triggers, passive clip links and poll votes for a message. **Design intent, unbuilt:** the `ICommandDispatcher.DispatchAsync` contract with a typed result, the `CommandCooldownBlockedEvent`, and `CommandUsage` appends.
 
 #### 3.2.1 Prefix + match resolution (how an inbound message becomes a command hit)
+
+**As-built:** implemented in `ChatMessageHandler.ResolveAuthoredCommand` over the `ChannelRegistry` cache. `PrefixMode` (`Default`/`Custom`/`None`) and `MatchMode` (`StartsWith`/`Exact`/`Contains`/`Regex`) both work. The prefix comes from `Channel.CommandPrefix`. A `Regex` pattern is compiled once per cache load as a plain `Regex` (`IgnoreCase`, 100 ms match timeout) — not `NonBacktracking` (§6.4); an invalid pattern is skipped with a warning. The reserved data-rights precedence in step 3 is not re-verified here.
 
 Both authored `Commands` and built-ins carry the per-command trigger model from the locked schema (`Commands.PrefixMode`,
 `CustomPrefix`, `MatchMode`; built-ins default `PrefixMode=Default`, `MatchMode=StartsWith`). The dispatcher resolves a hit
@@ -153,24 +185,32 @@ per message as follows — the channel's `Channels.DefaultCommandPrefix` (defaul
 `DefaultCommandPrefix`. **`Regex` is a first-class `MatchMode`**, made ReDoS-safe by .NET's own `NonBacktracking` engine —
 **no Wasmtime/Jint sandbox is involved** (see §6.4); `MatchMode`'s shipped enum is `StartsWith`\|`Exact`\|`Contains`\|`Regex`.
 
-### 3.3 `IPipelineEngine` (EXTEND existing — `Domain/Interfaces/IPipelineEngine.cs`)
+### 3.3 `IPipelineEngine` (as-built — `Application/Abstractions/Pipeline/IPipelineEngine.cs`)
 
-Executes a normalized pipeline. **Replace inline `PipelineJson` with `PipelineId`; widen ids to `Guid`; add
-fail-closed + DoS-control fields.**
+Executes a normalized pipeline. Implemented by `PipelineEngine` (`Infrastructure/Platform/Pipeline/PipelineEngine.cs`), registered scoped.
 
 ```csharp
 Task<PipelineExecutionResult> ExecuteAsync(PipelineRequest request, CancellationToken ct = default);
-Task                          CancelAllForChannelAsync(Guid broadcasterId, CancellationToken ct = default);
+Task                          CancelAllForChannelAsync(Guid broadcasterId);
 int                           GetActiveCountForChannel(Guid broadcasterId);
+Task<Result<string?>>         RunInlineSubPipelineAsync(PipelineExecutionContext callerCtx, Guid targetPipelineId,
+                                  IReadOnlyList<string>? args, IReadOnlyDictionary<string, string>? namedArgs = null, CancellationToken ct = default);
+Task<PipelineExecutionResult> ResumeAsync(Guid runStateId, CancellationToken ct = default);
+Task<int>                     ResumeSuspendedRunsForEventAsync(Guid broadcasterId, string eventName,
+                                  IReadOnlyDictionary<string, string> eventData, CancellationToken ct = default);
+Task<int>                     ResumeTimedOutWaitsAsync(CancellationToken ct = default);
 ```
-- `ExecuteAsync` — loads the compiled pipeline (`IPipelineCompiler`), seeds variables, runs steps **fail-closed**: unknown `ActionType` or unknown `ConditionType` ⇒ abort run with `Status=denied`/`failed` (never skip/treat-true); any action exception ⇒ stop with `Status=failed`. Enforces global + per-channel concurrency admission, per-execution **host-call budget** and **wall-clock-including-host watchdog** (seconds timeout, cumulative `Wait` cap, step-count cap). Persists one `PipelineExecution` (append-only) with bounded `StepLogsJson`; emits started/completed/denied/step-failed events. Branch steps (`ParentStepId`/`Branch`) recurse `then`/`else` (linear-with-branch, not DAG). **Steps form a tree** — block steps (`PipelineStep.BlockKind` = `switch`/`loop`/`random_branch`/…) own ordered child steps via `ParentStepId`, walked depth-first under iteration/recursion/total-action/runtime caps; control-flow tree execution is owned by `pipeline-control-flow.md`.
-- `CancelAllForChannelAsync` — cancels every active run for the tenant (stream-offline path); best-effort.
+- `ExecuteAsync` — loads the pipeline, seeds variables and runs the step tree **fail-closed**: an unknown `ActionType` or `ConditionType` aborts the run; an action exception or a failed result stops it (`Failed`); a step that opted in with `ContinueOnError` survives a failed result, and a `try` block catches a failure inside its body. Enforces the global and per-channel concurrency gates, the total-action, iteration, recursion-depth and runtime caps, and persists one `PipelineExecution` row with bounded step logs. The tree walk (block kinds, `if`/`switch`/`loop`/`random_branch`/`try`/`detached_step`, suspend and resume) is owned by `pipeline-control-flow.md` and `pipeline-tree-and-editor.md`.
+- The three resume methods back `wait_for_event` (`pipeline-tree-and-editor.md` §2.3): `ResumeAsync` continues one persisted run, `ResumeSuspendedRunsForEventAsync` wakes every run parked on an equal event name (`EventResponseExecutor` calls it), `ResumeTimedOutWaitsAsync` is driven by `WaitForEventTimeoutSweepWorker`.
+- `CancelAllForChannelAsync` — cancels every active run for the tenant (stream-offline path), best-effort, and cancels suspended waits.
 
-`PipelineRequest` (Domain) — **changed shape:** `BroadcasterId:Guid`; `PipelineId:Guid`; `TriggerKind:string`;
-`TriggeredByUserId:Guid`; `TriggeredByDisplayName:string`; `MessageId:string?`; `RedemptionId:string?`;
-`RewardId:string?`; `RawMessage:string=""`; `Args:IReadOnlyList<string>` (pre-split); `InitialVariables:IDictionary<string,string>`;
-`TaintedVariables:IReadOnlyDictionary<string,string>?` (attacker-authored bag, seeded into `ActionContext.TaintedVariables` — webhooks.md §7.1);
-`EventType:string?` and `JournalEventId:Guid?` (the triggering event's type/journal id — seeded onto `ActionContext` for `send_webhook`, §4.4).
+`PipelineRequest` (same file) — `BroadcasterId:Guid`; `PipelineId:Guid?`; `PipelineJson:string` (inline JSON, default `"{}"`; used when no `PipelineId`); `TriggeredByUserId:string`; `TriggeredByDisplayName:string`; `MessageId:string?`; `RedemptionId:string?`; `RewardId:string?`; `ChannelEventId:string?`; `RawMessage:string`; `InitialVariables:Dictionary<string,string>`. There is no `TriggerKind`, `Args`, `TaintedVariables`, `EventType` or `JournalEventId` field.
+
+`PipelineExecutionResult` — `ExecutionId:string`; `Outcome:PipelineOutcome`; `Duration:TimeSpan`; `StepsExecuted:int`; `StepsSkipped:int`; `Total:int`; `ErrorMessage:string?`; `StepLogs:IReadOnlyList<StepExecutionLog>`; plus the suspend fields `SuspendedAtStepId`, `SuspendCursorJson`, `SuspendedRunStateId`, `SuspendWaitEventName`, `SuspendWaitTimeoutSeconds`. There is no `HostCallCount`.
+
+`PipelineOutcome` — `Completed`, `Stopped`, `Failed`, `PartiallyFailed`, `TimedOut`, `Cancelled`, `AbortedBudget`, `Suspended`. (There is no `Denied`.)
+
+**Design intent, unbuilt.** The non-user trigger contract below (a `WebhookSystemActor.UserId = Guid.Empty` sentinel) has no constant or engine branch in the tree.
 
 > **Non-user (system-actor) triggers — binding contract.** Not every trigger has a Twitch user: a `TriggerKind=webhook`
 > run (owner `webhooks.md` §3.2.2) and a `TriggerKind=manual`/system run (both shipped enum values, H.1) have **no**
@@ -180,81 +220,76 @@ int                           GetActiveCountForChannel(Guid broadcasterId);
 > **system trigger**: it is **never** dereferenced as a `Users` FK and **skips per-user permission/cooldown gates**
 > (there is no user to gate), while **global + per-channel concurrency admission still applies**. Define the constant
 > once (`NomNomzBot.Domain.Constants.WebhookSystemActor`); both this engine and the webhook dispatcher use it.
-`PipelineExecutionResult` (Domain) — `ExecutionId:string`; `Outcome:PipelineOutcome`; `Duration:TimeSpan`;
-`StepsExecuted:int`; `StepsSkipped:int`; `Total:int`; `HostCallCount:int`; `ErrorMessage:string?`;
-`StepLogs:IReadOnlyList<StepExecutionLog>`. `PipelineOutcome` enum gains `Denied` (alongside existing
-`Completed`/`Stopped`/`Failed`/`TimedOut`/`Cancelled`).
+### 3.4 `IPipelineService` (as-built — `Application/Commands/Services/IPipelineService.cs`)
 
-### 3.4 `IPipelineService` (EXTEND existing — `Services/IPipelineService.cs`)
-
-Management CRUD for the normalized pipeline model. **Widen `int id`→`Guid id`, `broadcasterId`→`Guid`.**
+Management CRUD for the normalized pipeline model. `string broadcasterId`; `Guid id`.
 
 ```csharp
-Task<Result<PagedList<PipelineListItemDto>>> ListAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
-Task<Result<PipelineDto>>                    GetAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
-Task<Result<PipelineDto>>                    CreateAsync(Guid broadcasterId, CreatePipelineDto request, CancellationToken ct = default);
-Task<Result<PipelineDto>>                    UpdateAsync(Guid broadcasterId, Guid id, UpdatePipelineDto request, CancellationToken ct = default);
-Task<Result>                                 DeleteAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
-Task<Result<PipelineValidationResult>>       ValidateAsync(Guid broadcasterId, PipelineGraphDto graph, CancellationToken ct = default);
+Task<Result<PagedList<PipelineListItemDto>>> ListAsync(string broadcasterId, PaginationParams pagination, CancellationToken ct = default);
+Task<Result<PipelineDto>>                    GetAsync(string broadcasterId, Guid id, CancellationToken ct = default);
+Task<Result<PipelineDto>>                    CreateAsync(string broadcasterId, CreatePipelineDto request, CancellationToken ct = default);
+Task<Result<PipelineDto>>                    UpdateAsync(string broadcasterId, Guid id, UpdatePipelineDto request, CancellationToken ct = default);
+Task<Result>                                 DeleteAsync(string broadcasterId, Guid id, CancellationToken ct = default);
+Task<Result<PipelineBlastRadiusDto>>         GetBlastRadiusAsync(string broadcasterId, Guid id, CancellationToken ct = default);
 ```
-- `Create/UpdateAsync` — accepts the editor `PipelineGraphDto` (steps + conditions), runs **validate-on-save** through `ICommandConfigValidator` (unknown action ⇒ reject; step-count > `MaxStepCount` ⇒ reject; tenant/credential/url params ⇒ reject), normalizes into `Pipeline`+`PipelineStep`+`PipelineStepCondition` rows in one transaction, refreshes `GraphJsonCache`. Returns the persisted graph.
-- `DeleteAsync` — soft-delete pipeline + cascade soft-delete child steps/conditions; rejected if a `Command`/`Timer`/`EventResponse` still references it (`Result.Failure` with `pipeline_in_use`).
-- `ValidateAsync` — dry-run validation (no persist) for the editor's live feedback.
+- `Create/UpdateAsync` — accept the editor graph (`graph` JSON), validate through `ICommandConfigValidator`, normalize into `Pipeline` + `PipelineStep` + `PipelineStepCondition` rows, refresh `GraphJsonCache`, publish a config-changed event and invalidate the bound caches.
+- `GetBlastRadiusAsync` — the **counted** dependents of a pipeline right now: the commands, chat triggers, timers and event responses whose `PipelineId` points at it (`PipelineBlastRadiusDto`: a count and the names for each, plus `TotalReferences`). The dashboard calls it and shows the result before a delete (`GET pipelines/{id}/blast-radius`).
+- `DeleteAsync` — a **soft** delete that does **not** fail when the pipeline is in use. Because a soft delete never fires the database's `ON DELETE SET NULL`, it first clears `PipelineId` on every referencing `Command`, `ChatTrigger`, `Timer` and `EventResponse` explicitly, so the blast radius the preview promised is the blast radius that happens; then it removes the pipeline, publishes a config-changed event and invalidates the caches. (The design's `pipeline_in_use` rejection was not built.)
+- There is no `ValidateAsync` on the service: the editor's dry validation is `POST pipelines/validate` → `ICommandConfigValidator.ValidatePipelineAsync` (§3.6), and a dry run of a saved pipeline is `POST pipelines/{id}/test-run` (`IPipelineTestRunService`).
 
-### 3.5 `IPipelineCompiler` (NET-NEW — `Application/Pipeline/IPipelineCompiler.cs`)
+### 3.5 `IPipelineCompiler` — unbuilt
 
-Turns persisted rows into an in-memory executable plan, cached per `(BroadcasterId, PipelineId, version)` for
-no-restart hot reload.
+No `IPipelineCompiler`, `CompiledPipeline`, `CompiledStep` or `CompiledCondition` exist. `PipelineEngine` loads the persisted `PipelineStep` rows (or, for a flat command pipeline, the cached graph JSON that `ChannelRegistry` builds through `PipelineGraphBuilder`) and resolves each action and condition from the DI-scanned `IEnumerable<ICommandAction>` / `IEnumerable<ICommandCondition>` at run time. Hot reload comes from `IChannelRegistry` cache invalidation on save, not a compiler cache.
+
+### 3.6 `ICommandConfigValidator` (as-built — `Application/Abstractions/Pipeline/ICommandConfigValidator.cs`)
+
+Save-time, fail-closed validator; the capability-broker invariant lives here. Implemented by `CommandConfigValidator` (`Infrastructure/Platform/Pipeline/`), registered scoped.
 
 ```csharp
-Task<CompiledPipeline> GetAsync(Guid broadcasterId, Guid pipelineId, CancellationToken ct = default);
-void                   Invalidate(Guid broadcasterId, Guid pipelineId);
+Task<Result<PipelineValidationResult>> ValidatePipelineAsync(PipelineGraphInput graph, CancellationToken ct = default);
+Result<PipelineValidationResult>       ValidateAction(ActionDefinition action);
+ActionDefinition                       NormalizeResourceIdFields(ActionDefinition action);
 ```
-- `GetAsync` — loads steps+conditions ordered by `(Order)`, resolves each `ActionType`→`ICommandAction` and `ConditionType`→`IConditionEvaluator` from the registries (**unknown ⇒ throws compile error**, surfaced as fail-closed at execution), builds the branch tree. Cached; `Invalidate` called by `IPipelineService` on save.
+`PipelineValidationResult` carries `IsValid`, `ErrorCode`, `ErrorMessage`. `PipelineGraphInput(IReadOnlyList<PipelineStepInput> Steps)`, `PipelineStepInput(ActionType, Config, ConditionType?, ConditionParams?, IsEnabled)`.
 
-### 3.6 `ICommandConfigValidator` (NET-NEW — `Application/Pipeline/ICommandConfigValidator.cs`)
+- Rejects with `MISSING_ACTION_TYPE`, `UNKNOWN_ACTION_TYPE` (checked against the DI-scanned actions), `STEP_COUNT_EXCEEDED` (more than 100 steps), `BANNED_CONFIG_KEY` (a config key named `url`, `secret`, `webhook_url`, `api_key`, `token`, `password`, `credential`, `authorization` or `bearer`), `URL_IN_CONFIG` (a value that looks like a URL or credential), `UNKNOWN_TEMPLATE_HELPER` (a field the action marks templated names a helper the pipeline registry does not know) and `INVALID_RESOURCE_ID` (a resource-picker field that is neither a ULID nor a Guid).
+- `NormalizeResourceIdFields` rewrites a picker's ULID wire form to the owned `Guid` before persist.
 
-Save-time, fail-closed validator. The capability-broker invariant lives here (must-fix #4/#5; broker-pattern §4).
+**Unbuilt (design intent):** `ValidateCommand` (trigger validation: `PrefixMode`/`CustomPrefix` consistency, `MatchPattern` required and length-capped for `Regex`, `invalid_custom_prefix`, `invalid_match_pattern`, `unsupported_regex_construct`) — the trigger fields are stored as sent and an invalid regex is only skipped, with a warning, when the registry loads; and the **tainted-payload guard** for webhook-triggered pipelines (`tainted_payload_in_sensitive_param`) — no `TaintedVariables` bag exists. There is no architecture test for the no-tenant/credential/url-config invariant; the validator enforces it at save.
+
+**Design-intent text (unbuilt parts only, kept for the build-or-cut call):**
+
+- **Tainted-payload guard (webhook triggers — `webhooks.md` §7.1).** When validating a pipeline whose `TriggerKind=webhook`, `ValidatePipeline` fails closed (`tainted_payload_in_sensitive_param`) if any security-sensitive action parameter binds a `{{payload.*}}` token: `ban`/`timeout` `UserRef`, `shoutout` `TargetChannel`, `http_request` `Fqdn`/`Path`/`Method`, `send_webhook` `OutboundWebhookEndpointId`. `payload.*` is attacker-authored; it may feed display sinks but never the target of a moderation/egress action.
+- **Command trigger validation.** `PrefixMode=Custom` requires a non-empty `CustomPrefix` (≤8 chars); `PrefixMode∈{Default,None}` requires `CustomPrefix` null/empty. `MatchMode` must be one of `StartsWith`/`Exact`/`Contains`/`Regex`; for `Regex`, `MatchPattern` is required (non-empty, ≤200 chars) and must compile; for any other mode it must be null/empty.
+
+### 3.7 `ITimerManagementService` + `TimerService` (as-built)
+
+Timers are split in two. **CRUD** is `ITimerManagementService` (`Application/Commands/Services/ITimerManagementService.cs`, scoped, convention-registered); **scheduling** is `TimerService` (`Infrastructure/Commands/Jobs/TimerService.cs`), a `BackgroundService` — there is no `ITimerService` and no `FireDueAsync`.
 
 ```csharp
-Result ValidateCommand(CommandTier tier, CreateCommandDto request);
-Result ValidatePipeline(PipelineGraphDto graph, int maxStepCount);
-Result ValidateStepConfig(string actionType, IReadOnlyDictionary<string, object?> configJson);
+Task<Result<PagedList<TimerListItem>>> ListAsync(string broadcasterId, PaginationParams pagination, CancellationToken ct = default);
+Task<Result<TimerDto>>                 GetAsync(string broadcasterId, Guid id, CancellationToken ct = default);
+Task<Result<TimerDto>>                 CreateAsync(string broadcasterId, CreateTimerDto request, CancellationToken ct = default);
+Task<Result<TimerDto>>                 UpdateAsync(string broadcasterId, Guid id, UpdateTimerDto request, CancellationToken ct = default);
+Task<Result>                           DeleteAsync(string broadcasterId, Guid id, CancellationToken ct = default);
+Task<Result<TimerDto>>                 ToggleAsync(string broadcasterId, Guid id, CancellationToken ct = default);
 ```
-- All return `Result.Failure(code)` for: unknown `actionType`/`conditionType`, step count over cap, and **any config key naming a tenant/credential/url** (`broadcaster_id`, `channel_id`, `access_token`, `client_secret`, raw `url`/`uri` on non-`http_request` actions, peer-channel ids). Enforced as an architecture-test invariant too.
-- **Tainted-payload guard (webhook triggers — `webhooks.md` §7.1).** When validating a pipeline whose `TriggerKind=webhook`, `ValidatePipeline` **fails closed** (`tainted_payload_in_sensitive_param`) if any **security-sensitive action parameter** binds a `{{payload.*}}` token: `ban`/`timeout` `UserRef`, `shoutout` `TargetChannel`, `http_request` `Fqdn`/`Path`/`Method`, `send_webhook` `OutboundWebhookEndpointId`. `payload.*` is attacker-authored; it may feed display sinks but never the *target* of a moderation/egress action. The validator additionally surfaces a **warning** whenever a `webhook`-triggered pipeline references `payload.*` anywhere (author is told the namespace is untrusted). Enforced as an architecture-test invariant.
-- `ValidateCommand` additionally enforces the trigger model: `PrefixMode=Custom` requires a non-empty `CustomPrefix` (≤8 chars); `PrefixMode∈{Default,None}` requires `CustomPrefix` null/empty (`invalid_custom_prefix`). `MatchMode` must be one of `StartsWith`/`Exact`/`Contains`/`Regex`. When `MatchMode=Regex`, `MatchPattern` is **required** (non-empty, ≤200 chars) and must pass `IRegexMatcher.ValidateAndCompile` (§6.4) — an unsupported construct or over-length pattern ⇒ `Result.Failure("unsupported_regex_construct")` / `Result.Failure("invalid_match_pattern")`; for any non-`Regex` mode `MatchPattern` must be null/empty (`invalid_match_pattern`).
+- `TimerService` ticks every 30 seconds under an `IRunOnceGuard` lease (so two instances do not double-fire). For each enabled due timer — `IntervalMinutes` elapsed **and** enough new chat messages since its last fire (`MinChatActivity`, tracked in memory per timer) — it sends `Messages[NextMessageIndex]` (rendered through `ITemplateResolver`) or, when `PipelineId` is set, dispatches that pipeline with the message as `{timer.message}`. It advances `NextMessageIndex` (rotating), sets `LastFiredAt`, and persists both. `FireOnce` timers disable after their first fire.
+- `TimerFiredEvent` does not exist (§2).
 
-### 3.7 `ITimerService` (NET-NEW — `Services/ITimerService.cs`)
+### 3.8 `IEventResponseService` (as-built — `Application/Commands/Services/IEventResponseService.cs`)
 
-CRUD + scheduling state for rotating timers (I.1). Backed by a `BackgroundService` tick guarded by `IRunOnceGuard`
-(no-op lite / advisory-lock SaaS) so multi-instance does not double-fire.
+CRUD for per-event reactions (I.2). `string broadcasterId`.
 
 ```csharp
-Task<Result<PagedList<TimerListItem>>> ListAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
-Task<Result<TimerDto>>                 GetAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
-Task<Result<TimerDto>>                 CreateAsync(Guid broadcasterId, CreateTimerDto request, CancellationToken ct = default);
-Task<Result<TimerDto>>                 UpdateAsync(Guid broadcasterId, Guid id, UpdateTimerDto request, CancellationToken ct = default);
-Task<Result>                           DeleteAsync(Guid broadcasterId, Guid id, CancellationToken ct = default);
-Task<Result>                           FireDueAsync(Guid broadcasterId, long sessionMessageCount, CancellationToken ct = default);
-```
-- `CreateAsync` — **enforces the `timers` tier authoring-count cap** (§3.13a) against the live timer count before persisting a new `Timer`. `response_variations_per_trigger` is **not** applied to `Timer.Messages` (a timer's message list is a rotation schedule, not response variations on a single trigger fire).
-- `FireDueAsync` — called by the scheduler per channel: for each enabled due timer (`IntervalMinutes` elapsed **and** `sessionMessageCount ≥ MinChatActivity`), sends `Messages[NextMessageIndex]` via `IChatProvider` (or dispatches `PipelineId`), advances `NextMessageIndex` (rotating), sets `LastFiredAt`, emits `TimerFiredEvent`. Mutating-state writes are persisted.
-
-### 3.8 `IEventResponseService` (EXTEND existing — `Services/IEventResponseService.cs`)
-
-CRUD for per-event reactions (I.2). **Widen `broadcasterId`→`Guid`; add a runtime trigger.**
-
-```csharp
-Task<Result<PagedList<EventResponseListItem>>> ListAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
-Task<Result<EventResponseDto>>                 GetByEventTypeAsync(Guid broadcasterId, string eventType, CancellationToken ct = default);
-Task<Result<EventResponseDto>>                 UpsertAsync(Guid broadcasterId, string eventType, UpdateEventResponseDto request, CancellationToken ct = default);
-Task<Result>                                   ResetToDefaultAsync(Guid broadcasterId, string eventType, CancellationToken ct = default);
-Task<Result>                                   TriggerAsync(Guid broadcasterId, string eventType, IReadOnlyDictionary<string, string> eventVariables, CancellationToken ct = default);
+Task<Result<PagedList<EventResponseListItem>>> ListAsync(string broadcasterId, PaginationParams pagination, CancellationToken ct = default);
+Task<Result<EventResponseDto>>                 GetByEventTypeAsync(string broadcasterId, string eventType, CancellationToken ct = default);
+Task<Result<EventResponseDto>>                 UpsertAsync(string broadcasterId, string eventType, UpdateEventResponseDto request, CancellationToken ct = default);
+Task<Result>                                   ResetToDefaultAsync(string broadcasterId, string eventType, CancellationToken ct = default);
 ```
 - `UpsertAsync` — when `ResponseType="pipeline"` requires a valid `PipelineId` (else `Result.Failure`); validates `MetadataJson` shape. Creates-or-updates one row per `(BroadcasterId, EventType)`.
 - `ResetToDefaultAsync` — resets one row's fields back to its seeded default (disabled, `chat_message`, no message/pipeline/metadata) **in place**. Never removes the row — see the settled model below. Backend route: `POST .../event-responses/{eventType}/reset` (204).
-- `TriggerAsync` — looks up the enabled response for the inbound event, renders `Message` (template) or dispatches `PipelineId`, emits `EventResponseTriggeredEvent`. No-op if disabled/missing.
+- **Runtime trigger is `IEventResponseExecutor`** (`Application/Commands/Services/IEventResponseExecutor.cs`), not a `TriggerAsync` on this service: `ExecuteAsync(broadcasterId, eventTypeKey, userId, userDisplayName, variables)` looks up the enabled response for the inbound event and runs it (chat message, overlay and/or bound pipeline, plus TTS when `SpeakWithTts`), and also wakes pipelines parked on `wait_for_event` (§3.3). `ReplayAsync(...)` re-runs the **full** response — chat, TTS and overlay, including gift-bomb chains — and returns an `EventResponseOutcome`. `EventResponseTriggeredEvent` does not exist.
 
 **Settled model (S-EVENTRESPONSE-NO-CREATE, 2026-08-28) — a seeded catalogue, not a user-authored list.**
 An `EventResponse` row is a **fixed, seeded catalogue entry**, one per known platform event type
@@ -269,38 +304,45 @@ An `EventResponse` row is a **fixed, seeded catalogue entry**, one per known pla
   `LimitedResourceRegistry` — a per-channel cap on a resource the operator can never create more of than the
   catalog's fixed size would be decorative, unenforceable state (the truthful-data house rule).
 
-### 3.9 `IBuiltinCommandService` (NET-NEW — `Services/IBuiltinCommandService.cs`)
+### 3.9 `IBuiltinCommandService` (as-built — `Application/Commands/Services/IBuiltinCommandService.cs`)
 
-Owns the seed catalog + per-channel enable/disable/override of built-ins (G.2a). **Closes the "commands show 0 /
-seeding skipped" known issue**: built-ins are catalog-defined, never per-channel-seeded rows, so a fresh channel always
-lists them.
+Owns per-channel enable/disable and overrides of the code-defined built-ins (G.2a). Built-ins are catalogue-defined, never per-channel-seeded rows, so a fresh channel always lists them (this closed the "commands show 0 / seeding skipped" issue).
 
 ```csharp
-Task<Result<IReadOnlyList<BuiltinCommandDto>>> ListAsync(Guid broadcasterId, CancellationToken ct = default);
-Task<Result<BuiltinCommandDto>>                SetEnabledAsync(Guid broadcasterId, string builtinKey, bool isEnabled, CancellationToken ct = default);
-Task<Result<BuiltinCommandDto>>                SetOverridesAsync(Guid broadcasterId, string builtinKey, BuiltinCommandOverridesDto overrides, CancellationToken ct = default);
-Task<Result<BuiltinResolution>>                ResolveAsync(Guid broadcasterId, string trigger, CancellationToken ct = default);
+Task<Result<IReadOnlyList<BuiltinCommandDto>>> ListAsync(string broadcasterId, CancellationToken ct = default);
+Task<Result<BuiltinCommandDto>>                GetAsync(string broadcasterId, string builtinKey, CancellationToken ct = default);
+Task<Result>                                   SetEnabledAsync(string broadcasterId, string builtinKey, bool enabled, CancellationToken ct = default);
+Task<Result>                                   SetSpeakWithTtsAsync(string broadcasterId, string builtinKey, bool enabled, CancellationToken ct = default);
+Task<Result<BuiltinCommandDto>>                UpdateSettingsAsync(string broadcasterId, string builtinKey, BuiltinSettingsUpdate update, CancellationToken ct = default);
+Task<Result<BuiltinCommandDto>>                ResetAsync(string broadcasterId, string builtinKey, CancellationToken ct = default);
+
+sealed record BuiltinSettingsUpdate(int? CooldownSeconds, string? MinPermissionLevel);   // MinPermissionLevel is a rung name
+sealed record BuiltinCommandDto(string BuiltinKey, string Name, bool IsEnabled, int DefaultCooldownSeconds,
+    string DefaultMinPermissionLevel, string ReplyGroup, bool SpeakWithTts, bool IsReserved,
+    int? CooldownSecondsOverride, string? MinPermissionLevelOverride, int ReplyOverrideCount);
 ```
-- `SetEnabledAsync`/`SetOverridesAsync` — upsert the `ChannelBuiltinCommand` toggle row (default state = catalog default; absent row = enabled-with-catalog-defaults), emit `BuiltinCommandToggledEvent`.
-- `ResolveAsync` — merges the static `IBuiltinCommandCatalog` definition with the channel's toggle/override row into a runtime `BuiltinResolution` for `ICommandDispatcher`. Returns `Matched=false` when no built-in owns the trigger.
+- `SetEnabledAsync` upserts the `ChannelBuiltinCommand` toggle row (an absent row means enabled with the catalogue defaults). `SetSpeakWithTtsAsync` and `UpdateSettingsAsync` write into the row's `OverridesJson` blob, merged so setting one field never drops another (§11). `ResetAsync` clears the cooldown and permission overrides back to the catalogue defaults.
+- There is no `ResolveAsync`, no `BuiltinResolution` and no `BuiltinCommandToggledEvent`; the chat handler reads the merged state from the channel registry cache. Reply texts are edited through `IBuiltinReplyService` (§11).
 
-### 3.10 `IBuiltinCommandCatalog` + `IBuiltinCommand` (NET-NEW — `Application/Commands/Builtin/`)
+### 3.10 `IBuiltinCommandCatalog` + `IBuiltinCommand` (as-built — `Application/Commands/Builtin/`)
 
-Static registry of code-defined built-ins (`followage`, `uptime`, `shoutout`, `stats`, …). One class per built-in; no DB
-seed rows.
+Static registry of code-defined built-ins (`followage`, `uptime`, `shoutout`, `stats`, …). One class per built-in
+(`Infrastructure/Commands/Builtins/`); no DB seed rows.
 
 **`stats` (alias `profile`) built-in** (`StatsBuiltin`, `BuiltinKey="stats"`, owned by `per-viewer-data.md`) — renders the
 caller's (or `@target`'s) headline stats (messages, watch-time, points + rank, streak, first-seen) by composing
 `IViewerAnalyticsService.GetProfileAsync` + `ICurrencyAccountService` + `IEconomyLeaderboardService` (no new projection —
-parity with the legacy `Stats` command). Output text is template-customizable via the `BuiltinCommandOverrides.CustomResponseTemplate`
-override (§4.5), like every other built-in.
+parity with the legacy `Stats` command). Its output text is customizable per slot through the reply catalogue (§11), like
+every other built-in.
 
 ```csharp
+// Application/Commands/Builtin/IBuiltinCommand.cs
 public interface IBuiltinCommand
 {
     string BuiltinKey { get; }                       // e.g. "followage"
     int DefaultCooldownSeconds { get; }
-    int DefaultMinPermissionLevel { get; }
+    int DefaultMinPermissionLevel { get; }           // the catalogue default; DTOs expose the rung name
+    bool IsReserved => false;                        // reserved data-rights built-ins cannot be overridden (§11)
     Task<Result<string>> ExecuteAsync(BuiltinCommandContext context, CancellationToken ct = default);
 }
 
@@ -309,52 +351,55 @@ public interface IBuiltinCommandCatalog
     IReadOnlyCollection<IBuiltinCommand> GetAll();
     IBuiltinCommand? Get(string builtinKey);
 }
+
+// BuiltinCommandContext (class): BroadcasterId (Guid), TriggeringUserId (string), TriggeringUserDisplayName, TriggeringUserLogin,
+// MessageId, RoleLevel (int), Args (string), ReplyParentMessageBody?, ReplyParentUserName?, Personality (tone), SpeakWithTts, CancellationToken.
 ```
+Each built-in is a class registered scoped in `DependencyInjection` (one `AddScoped<IBuiltinCommand, …>` line each). The design's `ChannelSnapshot` / `StreamSnapshot` / `ITemplateEngine` context members were not built; a built-in reads what it needs from injected services and composes its reply through `IBuiltinResponseComposer` (§11).
 
-### 3.11 `ICooldownManager` (EXTEND existing — `Common/Interfaces/ICooldownManager.cs`)
+### 3.11 `ICooldownManager` (as-built — `Application/Abstractions/RateLimiting/ICooldownManager.cs`)
 
-Keep the interface; **widen `string commandName`→`Guid commandId`, ids→`Guid?`; back with `CommandCooldownStates`**
-(G.3) write-through so cooldowns survive restart and are correct multi-instance.
+Synchronous and **in-memory**: the singleton `CooldownManager(TimeProvider)` keeps cooldown timestamps in process memory, keyed by channel id string and command name. Cooldowns therefore do not survive a restart and are not shared across instances.
 
 ```csharp
-Task<bool>      IsOnCooldownAsync(Guid broadcasterId, Guid commandId, Guid? userId = null, CancellationToken ct = default);
-Task<TimeSpan?> GetRemainingAsync(Guid broadcasterId, Guid commandId, Guid? userId = null, CancellationToken ct = default);
-Task            SetCooldownAsync(Guid broadcasterId, Guid commandId, TimeSpan duration, Guid? userId = null, CancellationToken ct = default);
-Task            ClearAsync(Guid broadcasterId, Guid commandId, Guid? userId = null, CancellationToken ct = default);
-Task            ClearAllForChannelAsync(Guid broadcasterId, CancellationToken ct = default);
+bool      IsOnCooldown(string channelId, string commandName, bool isExemptFromCooldown, string? userId = null);
+TimeSpan? GetRemainingCooldown(string channelId, string commandName, string? userId = null);
+void      SetCooldown(string channelId, string commandName, TimeSpan duration, string? userId = null);
+void      ClearCooldown(string channelId, string commandName, string? userId = null);
+void      ClearAllCooldowns(string channelId);
 ```
-- `SetCooldownAsync` — upserts `CommandCooldownState (CommandId, UserId)` with `LastInvokedAt`/`ExpiresAt`; L1 cache write-through. `IsOnCooldownAsync` checks both global (`UserId=null`) and per-user rows.
+The `CommandCooldownState` table (G.3) is **unused** — nothing reads or writes it. **Design intent, unbuilt:** an async `Guid commandId` interface written through to that table, and a Redis-backed variant for multi-node.
 
-### 3.12 Registries (EXTEND existing — `Application/Pipeline/`)
+### 3.12 Registries — unbuilt
 
-Keep `ICommandActionRegistry` (`GetAction`/`GetAll`/`Register`) and `IConditionEvaluatorRegistry`
-(`GetEvaluator`/`Register`) as-is. **Add** `IReadOnlyCollection<IConditionEvaluator> GetAll()` to the condition registry
-(needed by `IPipelineCompiler`). Both are singletons populated from DI at startup.
+`ICommandActionRegistry` and `IConditionEvaluatorRegistry` do not exist. Actions and conditions are multi-bound in DI by an assembly scan (`AddImplementationsOf<ICommandAction>` and `AddImplementationsOf<ICommandCondition>`, transient) and consumed as `IEnumerable<ICommandAction>` / `IEnumerable<ICommandCondition>` by `PipelineEngine`, `CommandConfigValidator` and `PipelinesController`. Dropping a class in is enough to register it.
 
-### 3.13 `ICommandAction` / `IConditionEvaluator` (canonical contract — `Application/Pipeline/`)
+### 3.13 `ICommandAction` / `ICommandCondition` (as-built — `Application/Abstractions/Pipeline/`)
 
-The **single** consolidated contract (delete the Infrastructure duplicates). `ICommandAction` stays self-describing
-for the editor.
+The single consolidated contract. `ICommandAction` is self-describing for the editor.
 
 ```csharp
 public interface ICommandAction
 {
-    string Type { get; }            // snake_case registry key, matches PipelineStep.ActionType
-    string Category { get; }        // editor grouping
-    string Description { get; }     // editor copy
-    Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken ct = default);
+    string ActionType { get; }                       // snake_case registry key, matches PipelineStep.ActionType
+    LocalizedText Category { get; }                  // editor grouping
+    LocalizedText Description { get; }               // editor copy
+    IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];   // typed fields the editor renders
+    bool ResolvesOwnTemplates => false;
+    Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action);
 }
 
-public interface IConditionEvaluator
+public interface ICommandCondition
 {
-    string Type { get; }            // matches PipelineStepCondition.ConditionType
-    Task<bool> EvaluateAsync(CompiledCondition condition, ActionContext context, CancellationToken ct = default);
+    string ConditionType { get; }                    // matches PipelineStepCondition.ConditionType
+    Task<bool> EvaluateAsync(PipelineExecutionContext ctx, ConditionDefinition condition);
 }
 ```
+`IConditionEvaluator`, `CompiledCondition` and `ActionContext` (the design's names) do not exist; §4.4 has the as-built runtime types.
 
-### 3.13a Tier authoring-count enforcement (shared rule for §3.1 / §3.7)
+### 3.13a Tier authoring-count enforcement (shared rule for §3.1 / §3.7; design intent — the tier wiring is not re-verified against the as-built services)
 
-`ICommandService` and `ITimerService` cap the **count** of author-created content per the
+`ICommandService` and `ITimerManagementService` cap the **count** of author-created content per the
 `TierLimit` mechanism (`monetization-billing.md` §8 — the authoritative owner; this is the consumer-side wiring). No new
 infrastructure: each create/update path reads the tenant entitlement through **`IBillingTierService.GetEntitlementAsync`**
 (the single tier-aware source — `IFeatureGateService` is **not** forked) and compares the relevant `LimitValue` to the
@@ -385,42 +430,43 @@ fixed, seeded catalogue keyed by event type, never user-created, so an authoring
 All `sealed record`, in `NomNomzBot.Application` (`DTOs/...` for transport, `Pipeline/`/`Contracts/` for engine).
 **All `Id`/`PipelineId`/`CommandId` are `Guid`.** Request DTOs carry DataAnnotations (`.NET 10 AddValidation()`).
 
-### 4.1 Commands (`DTOs/Commands/CommandDtos.cs` — replace existing)
+### 4.1 Commands (as-built — `Application/Commands/Dtos/CommandDtos.cs`)
+
+`MinPermissionLevel` is a rung **name** (`Everyone`, `Subscriber`, `Vip`, `Artist`, `Moderator`, `LeadModerator`, `Editor`, `Broadcaster`), never a number; the numeric `AllowedValues` ladder list of the original design is gone. `Tier`, `PrefixMode` and `MatchMode` are plain strings on the wire.
 ```csharp
-sealed record CommandDto(Guid Id, string Name, string PrefixMode, string? CustomPrefix, string MatchMode,
-    string? MatchPattern, string Tier, int MinPermissionLevel, bool IsEnabled,
+sealed record CommandDto(Guid Id, string Name, string Tier, string MinPermissionLevel, bool IsEnabled,
+    string PrefixMode, string? CustomPrefix, string MatchMode, string? MatchPattern,
     string? TemplateResponse, List<string>? TemplateResponses, Guid? PipelineId,
     int CooldownSeconds, int UserCooldownSeconds, bool CooldownPerUser, string? Description,
-    List<string> Aliases, long UseCount, DateTime? LastUsedAt, DateTime CreatedAt, DateTime UpdatedAt);
+    List<string> Aliases, long UseCount, DateTime CreatedAt, DateTime UpdatedAt) { string? PresetKey { get; init; } }
 
-sealed record CommandListItem(Guid Id, string Name, string PrefixMode, string? CustomPrefix, string MatchMode,
-    string Tier, int MinPermissionLevel, bool IsEnabled,
-    int CooldownSeconds, string? Description, List<string> Aliases, long UseCount, DateTime CreatedAt);
+sealed record CommandListItem(Guid Id, string Name, string Tier, string MinPermissionLevel, bool IsEnabled,
+    string PrefixMode, string? CustomPrefix, string MatchMode, string? MatchPattern,
+    int CooldownSeconds, int UserCooldownSeconds, bool CooldownPerUser, string? Description,
+    List<string> Aliases, long UseCount, DateTime CreatedAt,
+    string? TemplateResponse, List<string>? TemplateResponses, Guid? PipelineId) { string? PresetKey { get; init; } }
 
 sealed record CreateCommandDto {
     [Required, MaxLength(100)] required string Name;
-    [RegularExpression("^(Default|Custom|None)$")] string PrefixMode = "Default";
-    [MaxLength(8)] string? CustomPrefix;             // required when PrefixMode=Custom
-    [RegularExpression("^(StartsWith|Exact|Contains|Regex)$")] string MatchMode = "StartsWith";
-    [MaxLength(200)] string? MatchPattern;           // required when MatchMode=Regex; must pass IRegexMatcher.ValidateAndCompile (§6.4)
-    [Required, RegularExpression("^(template|pipeline|code)$")] string Tier = "template";
-    [AllowedValues(0,2,4,6,10,20,30,40)] int MinPermissionLevel;  // unified A+B ladder LevelValue (roles-permissions.md §1: CommunityStanding {Everyone 0,Subscriber 2,Vip 4,Artist 6,Moderator 10} ∪ ManagementRole {Moderator 10,SuperMod 20,Editor 30,Broadcaster 40}); caller passes if MAX(community,management) level ≥ this
+    string Tier = "template";                                   // template|pipeline|code
+    [MaxLength(20)] string MinPermissionLevel = "Everyone";     // a rung name
+    [MaxLength(20)] string PrefixMode = "Default";              // Default|Custom|None
+    [MaxLength(8)] string? CustomPrefix;                        // meaningful when PrefixMode=Custom
+    [MaxLength(20)] string MatchMode = "StartsWith";            // StartsWith|Exact|Contains|Regex
+    [MaxLength(200)] string? MatchPattern;                      // meaningful when MatchMode=Regex; stored unvalidated (§3.6)
     [MaxLength(2000)] string? TemplateResponse;
     List<string>? TemplateResponses;
-    Guid? PipelineId;                                // required when Tier != template
+    Guid? PipelineId;
     [Range(0,86400)] int CooldownSeconds;
     [Range(0,86400)] int UserCooldownSeconds;
     bool CooldownPerUser;
     [MaxLength(500)] string? Description;
     List<string>? Aliases;
-}
-sealed record UpdateCommandDto { string? PrefixMode; string? CustomPrefix; string? MatchMode; string? MatchPattern;
-    string? Tier; int? MinPermissionLevel; string? TemplateResponse;
-    List<string>? TemplateResponses; Guid? PipelineId; int? CooldownSeconds; int? UserCooldownSeconds;
-    bool? CooldownPerUser; string? Description; List<string>? Aliases; bool? IsEnabled; }
+    bool IsEnabled = true; }
+sealed record UpdateCommandDto { /* every CreateCommandDto field, nullable; adds Name and IsEnabled */ }
 ```
 
-### 4.2 Dispatch / resolution (engine contracts — `Contracts/Commands/`)
+### 4.2 Dispatch / resolution (design intent, unbuilt — no `ICommandDispatcher`, so none of these records exist; `UserPermissionLevel` here would be a rung, not a number)
 ```csharp
 sealed record CommandDispatchRequest(Guid BroadcasterId, string Trigger, IReadOnlyList<string> Args,
     Guid UserId, string DisplayName, int UserPermissionLevel, string? MessageId, string RawMessage);
@@ -432,106 +478,67 @@ sealed record CommandResolution(Guid CommandId, string Name, CommandTier Tier, G
     int CooldownSeconds, int UserCooldownSeconds, bool CooldownPerUser, bool IsEnabled);
 ```
 
-### 4.3 Pipelines (`DTOs/Pipelines/PipelineDtos.cs` — replace existing)
+### 4.3 Pipelines (as-built — `Application/Commands/Dtos/PipelineDtos.cs`)
 ```csharp
-sealed record PipelineDto(Guid Id, Guid BroadcasterId, string Name, string? Description, string TriggerKind,
-    bool IsEnabled, PipelineGraphDto Graph, long TriggerCount, DateTime? LastTriggeredAt,
-    DateTime CreatedAt, DateTime UpdatedAt);
-sealed record PipelineListItemDto(Guid Id, string Name, string? Description, string TriggerKind, bool IsEnabled,
-    long TriggerCount, DateTime? LastTriggeredAt, DateTime UpdatedAt);
+sealed record PipelineDto(Guid Id, string ChannelId, string Name, string? Description, bool IsEnabled, string TriggerKind,
+    [property: JsonPropertyName("graph")] JsonElement? GraphJsonCache, long TriggerCount, DateTime? LastTriggeredAt,
+    DateTime CreatedAt, DateTime UpdatedAt, IReadOnlyList<string>? ParameterNames);
+sealed record PipelineListItemDto(Guid Id, string Name, string? Description, bool IsEnabled, long TriggerCount,
+    DateTime? LastTriggeredAt, DateTime UpdatedAt, IReadOnlyList<string>? ParameterNames) { bool HasPlatformDefault { get; init; } }
 sealed record CreatePipelineDto { [Required,MaxLength(200)] string Name; [MaxLength(500)] string? Description;
-    [RegularExpression("^(command|event|timer|manual|webhook)$")] string TriggerKind = "command";
-    bool IsEnabled = true; required PipelineGraphDto Graph; }
+    bool IsEnabled = true; [MaxLength(30)] string TriggerKind = "manual"; [JsonPropertyName("graph")] object? GraphJsonCache; }
 sealed record UpdatePipelineDto { [MaxLength(200)] string? Name; [MaxLength(500)] string? Description;
-    bool? IsEnabled; PipelineGraphDto? Graph; }
+    bool? IsEnabled; [MaxLength(30)] string? TriggerKind; [JsonPropertyName("graph")] object? GraphJsonCache; }
+sealed record PipelineBlastRadiusDto(int CommandCount, IReadOnlyList<string> CommandNames,
+    int ChatTriggerCount, IReadOnlyList<string> ChatTriggerPatterns, int TimerCount, IReadOnlyList<string> TimerNames,
+    int EventResponseCount, IReadOnlyList<string> EventResponseEventTypes) { int TotalReferences { get; } }
 
-sealed record PipelineGraphDto(List<PipelineStepDto> Steps);
-sealed record PipelineStepDto(Guid? Id, Guid? ParentStepId, string? Branch, int Order,
-    [Required,MaxLength(60)] string ActionType, Dictionary<string,object?> ConfigJson, Guid? CodeScriptId,
-    bool IsEnabled, List<PipelineStepConditionDto> Conditions);
-sealed record PipelineStepConditionDto(Guid? Id, [Required,MaxLength(40)] string ConditionType,
-    string? Operator, string? LeftOperand, string? RightOperand, bool Negate, int Order);
-sealed record PipelineValidationResult(bool IsValid, IReadOnlyList<PipelineValidationError> Errors);
-sealed record PipelineValidationError(int? Order, string Code, string Message);
+// GET pipelines/actions — the editor's palette source
+sealed record PipelineCatalogueDto(IReadOnlyList<PipelineActionDescriptorDto> Actions, IReadOnlyList<PipelineConditionDescriptorDto> Conditions);
+sealed record PipelineActionDescriptorDto(string Type, LocalizedText Category, LocalizedText Description, IReadOnlyList<PipelineActionFieldDto> Fields);
+sealed record PipelineActionFieldDto(string Name, string Kind, bool Required, bool Repeatable, IReadOnlyList<string>? Options, LocalizedText? Description);
+sealed record PipelineConditionDescriptorDto(string Type);
 ```
+The graph is one JSON document (`graph`), not a typed `PipelineGraphDto`: its steps are `PipelineStepDefinition` (`condition`, `action`, `stop_on_match`, `continue_on_error`, plus the tree fields `id`, `parent_step_id`, `branch`, `block_kind`, `block_config`, `order`). The design's `PipelineGraphDto` / `PipelineStepDto` / `PipelineStepConditionDto` and `PipelineValidationResult(IsValid, Errors[])` were not built; the validation result is `PipelineValidationResult(IsValid, ErrorCode, ErrorMessage)` (§3.6).
 
-### 4.4 Engine runtime contracts (`Application/Pipeline/`)
+### 4.4 Engine runtime contracts (as-built — `Application/Abstractions/Pipeline/`)
 ```csharp
-sealed class ActionContext {                          // replaces both old ActionContext + PipelineExecutionContext
-    required string ExecutionId; required Guid BroadcasterId; required Guid TriggeredByUserId;
-    required string TriggeredByDisplayName; string? MessageId; string? RedemptionId; string? RewardId;
-    required string RawMessage; required IReadOnlyList<string> Args;
-    required IReadOnlyDictionary<string,object?> Parameters;     // this step's resolved ConfigJson
-    required IDictionary<string,string> Variables;              // pipeline-scoped, namespaced keys — TRUSTED (platform-resolved)
-    IReadOnlyDictionary<string,string> TaintedVariables          // UNTRUSTED, attacker-authored (webhook payload.* — webhooks.md §7.1);
-        = new Dictionary<string,string>();                       //   resolver renders these for display sinks but the engine FAILS-CLOSED
-                                                                 //   if a tainted token feeds a security-sensitive param (ban/timeout UserRef,
-                                                                 //   shoutout target, http_request Fqdn/Path/Method, send_webhook endpoint).
-    string? EventType;                                           // the triggering event type (webhook.<provider>.<kind> / domain event) — source for send_webhook
-    Guid? JournalEventId;                                        // EventJournal.EventId of the triggering event (null for non-journaled triggers)
-    int HostCallCount; }                                        // engine-incremented; budget-enforced
-sealed record ActionResult(bool Success, string? Output, string? ErrorMessage,
-    IReadOnlyDictionary<string,string>? VariablesSet, bool StopPipeline) {
-    static ActionResult Ok(string? output = null, IReadOnlyDictionary<string,string>? vars = null);
-    static ActionResult Fail(string error);
-    static ActionResult Stop(string? output = null); }
-sealed record CompiledPipeline(Guid PipelineId, Guid BroadcasterId, int Version, int MaxStepCount,
-    IReadOnlyList<CompiledStep> RootSteps);
-sealed record CompiledStep(Guid StepId, int Order, ICommandAction Action,
-    IReadOnlyDictionary<string,object?> ConfigJson, Guid? CodeScriptId,
-    IReadOnlyList<CompiledCondition> Conditions, IReadOnlyList<CompiledStep> ThenBranch,
-    IReadOnlyList<CompiledStep> ElseBranch);
-sealed record CompiledCondition(IConditionEvaluator Evaluator, string? Operator,
-    string? LeftOperand, string? RightOperand, bool Negate);
+sealed class PipelineExecutionContext {                // replaces the design's ActionContext
+    string ExecutionId; Guid BroadcasterId; string TriggeredByUserId; string TriggeredByDisplayName;
+    string MessageId; string? RedemptionId; string? RewardId; string? ChannelEventId; string RawMessage;
+    CancellationToken CancellationToken;
+    Dictionary<string,string> Variables;               // the run's variable bag, case-insensitive
+    int CurrentStepIndex; bool ShouldStop; bool ShouldBreakLoop; bool ShouldContinueLoop;
+    int LoopDepth; int CallDepth; string? ReturnValue; List<StepExecutionLog> StepLogs; }
+sealed class ActionDefinition { string Type; Dictionary<string,JsonElement>? Parameters; /* GetString / GetInt / GetBool */ }
+sealed class ConditionDefinition { string Type; Dictionary<string,JsonElement>? Parameters; /* GetString */ }
+sealed class ActionResult { bool Succeeded; string? Output; string? ErrorMessage; bool Suspended; string? WaitEventName; int? WaitTimeoutSeconds;
+    static ActionResult Success(string? output = null); static ActionResult Failure(string error);
+    static ActionResult Suspend(string? output = null); static ActionResult SuspendWaitingForEvent(string eventName, int timeoutSeconds); }
 ```
+A deliberate stop is `ShouldStop` (set by the `stop` action), not a result flag; there is no `StopPipeline`, `VariablesSet`, `HostCallCount`, `TaintedVariables`, `EventType` or `JournalEventId`. `CompiledPipeline` / `CompiledStep` / `CompiledCondition` were not built (§3.5). Action `ConfigJson` keys are snake_case (`event_name`, `playlist_id`, `min_role`).
 
-### 4.5 Timers / Event responses / Built-ins
+### 4.5 Timers / Event responses (as-built)
+
 ```csharp
-// Timers (DTOs/Timers/TimerDtos.cs — widen Id→Guid, add PipelineId)
-sealed record TimerDto(Guid Id, string Name, List<string> Messages, Guid? PipelineId, int IntervalMinutes,
-    int MinChatActivity, bool IsEnabled, DateTime? LastFiredAt, int NextMessageIndex, DateTime CreatedAt, DateTime UpdatedAt);
-sealed record TimerListItem(Guid Id, string Name, int IntervalMinutes, bool IsEnabled, DateTime? LastFiredAt, int MessageCount, DateTime CreatedAt);
-sealed record CreateTimerDto { [Required,MaxLength(100)] required string Name; [Required,MinLength(1)] required List<string> Messages;
-    Guid? PipelineId; [Range(1,1440)] int IntervalMinutes = 30; [Range(0,10000)] int MinChatActivity; bool IsEnabled = true; }
-sealed record UpdateTimerDto { [MaxLength(100)] string? Name; List<string>? Messages; Guid? PipelineId;
-    [Range(1,1440)] int? IntervalMinutes; [Range(0,10000)] int? MinChatActivity; bool? IsEnabled; }
+// Application/Commands/Dtos/TimerDtos.cs
+sealed record TimerDto(Guid Id, string Name, List<string> Messages, int IntervalMinutes, int MinChatActivity,
+    bool IsEnabled, bool FireOnce, Guid? PipelineId, DateTime? LastFiredAt, int NextMessageIndex, DateTime CreatedAt, DateTime UpdatedAt);
+sealed record TimerListItem(Guid Id, string Name, int IntervalMinutes, bool IsEnabled, bool FireOnce,
+    DateTime? LastFiredAt, int MessageCount, DateTime CreatedAt) { bool HasPlatformDefault { get; init; } }
+sealed record CreateTimerDto { [Required,MaxLength(100)] required string Name; required List<string> Messages;
+    Guid? PipelineId; [Range(1,1440)] int IntervalMinutes = 30; [Range(0,10000)] int MinChatActivity; bool IsEnabled = true; bool FireOnce; }
+sealed record UpdateTimerDto { /* every field nullable */ }
 
-// Event responses (DTOs/EventResponses/EventResponseDtos.cs — widen Id→Guid, PipelineJson→PipelineId)
-sealed record EventResponseDto(Guid Id, string EventType, bool IsEnabled, string ResponseType, string? Message,
-    Guid? PipelineId, Dictionary<string,string> Metadata, DateTime CreatedAt, DateTime UpdatedAt);
-sealed record EventResponseListItem(Guid Id, string EventType, bool IsEnabled, string ResponseType, DateTime UpdatedAt);
+// Application/Commands/Dtos/EventResponseDtos.cs
+sealed record EventResponseDto(Guid Id, string EventType, bool IsEnabled, string ResponseType, string? Message, Guid? PipelineId,
+    Dictionary<string,string> Metadata, DateTime CreatedAt, DateTime UpdatedAt, bool FollowsPlatformDefault, bool SpeakWithTts);
+sealed record EventResponseListItem(Guid Id, string EventType, bool IsEnabled, string ResponseType, DateTime UpdatedAt, bool FollowsPlatformDefault);
+sealed record EventResponsePresetDto(string EventType, LocalizedText DefaultTemplate, IReadOnlyList<string> Variables);   // GET event-responses/catalog
 sealed record UpdateEventResponseDto { bool? IsEnabled; [RegularExpression("^(chat_message|overlay|pipeline|none)$")] string? ResponseType;
-    [MaxLength(2000)] string? Message; Guid? PipelineId; Dictionary<string,string>? Metadata; }
-
-// Persisted JSON POCO for ChannelBuiltinCommand.OverridesJson (G.2a) — Newtonsoft [VC:JSON] target.
-// Lives in NomNomzBot.Domain/Entities/ beside the entity. Concrete shape so the Newtonsoft converter
-// has a type. `Enabled` is the per-channel toggle; the remaining fields nullable = "no override; inherit
-// the built-in's default". Service maps to/from BuiltinCommandOverridesDto (transport carries the
-// override fields; persisted POCO also holds the per-channel `Enabled` toggle).
-sealed record BuiltinCommandOverrides(bool Enabled, string? CustomResponseTemplate, int? CooldownSeconds,
-    CommunityStanding? MinRole);
-
-// Read-only snapshots seeded onto BuiltinCommandContext by the dispatcher from twitch-helix.md projections
-// (channel info + stream state). StreamSnapshot.StartedAt feeds {{stream.uptime}}; IsLive gates online-only
-// built-ins (e.g. uptime/title). Both live here beside BuiltinCommandContext.
-sealed record ChannelSnapshot(Guid BroadcasterId, string Title, string GameName);
-sealed record StreamSnapshot(bool IsLive, DateTimeOffset? StartedAt, int ViewerCount);
-
-// Built-in execution context (Application/Pipeline/ — passed to IBuiltinCommand.ExecuteAsync, §3.10).
-// Kept parallel to the pipeline ActionContext (§4.4): same tenant/user/args/snapshot inputs, plus the
-// chat + template collaborators a built-in needs to produce its reply. `Chat` is the canonical IChatProvider
-// (owned by twitch-helix.md, consumed here); `Templates` is the canonical ITemplateEngine render entry (§6.3).
-sealed record BuiltinCommandContext(Guid BroadcasterId, Guid TriggeringUserId, CommunityStanding TriggeringUserRole,
-    IReadOnlyList<string> Args, string RawArgs, ChannelSnapshot Channel, StreamSnapshot? Stream,
-    IChatProvider Chat, ITemplateEngine Templates);
-
-// Built-ins (DTOs/Commands/BuiltinCommandDtos.cs)
-sealed record BuiltinCommandDto(string BuiltinKey, string Name, string Description, bool IsEnabled,
-    int EffectiveCooldownSeconds, int EffectiveMinPermissionLevel, BuiltinCommandOverridesDto? Overrides);
-sealed record BuiltinCommandOverridesDto(int? CooldownSeconds, int? MinPermissionLevel, string? ResponseTemplate);
-sealed record BuiltinResolution(bool Matched, string BuiltinKey, IBuiltinCommand? Command, bool IsEnabled,
-    int CooldownSeconds, int MinPermissionLevel);
+    [MaxLength(2000)] string? Message; Guid? PipelineId; Dictionary<string,string>? Metadata; bool? SpeakWithTts; }
 ```
+The built-in command DTOs are `BuiltinCommandDto` / `BuiltinSettingsUpdate` (§3.9) and `BuiltinReplyGroupDto` / `BuiltinReplyDto` / `BuiltinReplyVariableDto` (§11). The design's typed `BuiltinCommandOverrides` POCO, `BuiltinCommandOverridesDto`, `BuiltinResolution`, `ChannelSnapshot`, `StreamSnapshot` and the dispatcher-seeded `BuiltinCommandContext` were never built and are removed from this spec; the persisted blob shape is in §11.
 
 ---
 
@@ -543,39 +550,80 @@ verified owned by the authenticated principal** (IDOR must-fix #1 — `ICurrentT
 mismatch ⇒ 403.
 
 **Role gate.** Gate-1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). Gate-2 =
-`IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in
-the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global `ActionDefinitions`
-(schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. The
-management floors are `Moderator`=10, `SuperMod`=20, `Editor`=30, `Broadcaster`=40.
+the `[RequireAction("<key>")]` attribute on the action, which runs `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)`
+and enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). The keys are seeded global
+`ActionDefinitions` (`ActionDefinitionSeeder`, schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded
+`FloorLevel`. Floors are rung names, never numbers. As seeded:
 
-| Controller | Verb + Route (`api/v{version:apiVersion}/...`) | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
+- **`*:read` keys** (`commands:read`, `pipelines:read`, `pipelines:validate`, `eventresponses:read`, `timers:read`) default to **Moderator** and the broadcaster may lower them to **Vip**.
+- **`*:write` keys** (`commands:write`, `pipelines:write`, `eventresponses:write`, `timers:write`) default to **Moderator** and cannot be lowered (the write bundles delete). The broadcaster may still raise them.
+- `commands:builtin:read` / `commands:builtin:write` are seeded but no route uses them; `BuiltinsController` gates on `commands:read` / `commands:write`.
+
+All controllers below are per channel, under `api/v{version:apiVersion}/channels/{channelId}/...`. The `{commandName}` segment is the command's name; `{id}`, `{eventType}` and `{builtinKey}` are as named.
+
+| Controller | Verb + Route | Request DTO | Response DTO | Gate-2 action key |
 |---|---|---|---|---|
-| `CommandsController` (extend) | `GET channels/{channelId}/commands` | `PageRequestDto` | `PaginatedResponse<CommandListItem>` | management / Moderator · `commands:read` |
-| | `GET channels/{channelId}/commands/{commandName}` | — | `StatusResponseDto<CommandDto>` | management / Moderator · `commands:read` |
-| | `POST channels/{channelId}/commands` | `CreateCommandDto` | `StatusResponseDto<CommandDto>` (201) | management / Editor · `commands:write` |
-| | `PUT channels/{channelId}/commands/{commandName}` | `UpdateCommandDto` | `StatusResponseDto<CommandDto>` | management / Editor · `commands:write` |
-| | `DELETE channels/{channelId}/commands/{commandName}` | — | 204 | management / Editor · `commands:write` |
-| `BuiltinCommandsController` (new) | `GET channels/{channelId}/commands/builtin` | — | `StatusResponseDto<IReadOnlyList<BuiltinCommandDto>>` | management / Moderator · `commands:builtin:read` |
-| | `PUT channels/{channelId}/commands/builtin/{builtinKey}/enabled` | `{ bool IsEnabled }` | `StatusResponseDto<BuiltinCommandDto>` | management / Editor · `commands:builtin:write` |
-| | `PUT channels/{channelId}/commands/builtin/{builtinKey}/overrides` | `BuiltinCommandOverridesDto` | `StatusResponseDto<BuiltinCommandDto>` | management / Editor · `commands:builtin:write` |
-| `PipelinesController` (extend) | `GET channels/{channelId}/pipelines` | `PageRequestDto` | `PaginatedResponse<PipelineListItemDto>` | management / Moderator · `pipelines:read` |
-| | `GET channels/{channelId}/pipelines/{id:guid}` | — | `StatusResponseDto<PipelineDto>` | management / Moderator · `pipelines:read` |
-| | `POST channels/{channelId}/pipelines` | `CreatePipelineDto` | `StatusResponseDto<PipelineDto>` (201) | management / Editor · `pipelines:write` |
-| | `PUT channels/{channelId}/pipelines/{id:guid}` | `UpdatePipelineDto` | `StatusResponseDto<PipelineDto>` | management / Editor · `pipelines:write` |
-| | `DELETE channels/{channelId}/pipelines/{id:guid}` | — | 204 | management / Editor · `pipelines:write` |
-| | `POST channels/{channelId}/pipelines/validate` | `PipelineGraphDto` | `StatusResponseDto<PipelineValidationResult>` | management / Editor · `pipelines:validate` |
-| `TimersController` (extend) | `GET channels/{channelId}/timers` | `PageRequestDto` | `PaginatedResponse<TimerListItem>` | management / Moderator · `timers:read` |
-| | `GET channels/{channelId}/timers/{id:guid}` | — | `StatusResponseDto<TimerDto>` | management / Moderator · `timers:read` |
-| | `POST channels/{channelId}/timers` | `CreateTimerDto` | `StatusResponseDto<TimerDto>` (201) | management / Editor · `timers:write` |
-| | `PUT channels/{channelId}/timers/{id:guid}` | `UpdateTimerDto` | `StatusResponseDto<TimerDto>` | management / Editor · `timers:write` |
-| | `DELETE channels/{channelId}/timers/{id:guid}` | — | 204 | management / Editor · `timers:write` |
-| `EventResponsesController` (extend) | `GET channels/{channelId}/event-responses` | `PageRequestDto` | `PaginatedResponse<EventResponseListItem>` | management / Moderator · `eventresponses:read` |
-| | `GET channels/{channelId}/event-responses/{eventType}` | — | `StatusResponseDto<EventResponseDto>` | management / Moderator · `eventresponses:read` |
-| | `PUT channels/{channelId}/event-responses/{eventType}` | `UpdateEventResponseDto` | `StatusResponseDto<EventResponseDto>` | management / Editor · `eventresponses:write` |
-| | `DELETE channels/{channelId}/event-responses/{eventType}` | — | 204 | management / Editor · `eventresponses:write` |
+| `CommandsController` | `GET commands` | `PageRequestDto` | `PaginatedResponse<CommandListItem>` | `commands:read` |
+| | `GET commands/{commandName}` | — | `StatusResponseDto<CommandDto>` | `commands:read` |
+| | `POST commands` | `CreateCommandDto` | `StatusResponseDto<CommandDto>` (201) | `commands:write` |
+| | `PUT commands/{commandName}` | `UpdateCommandDto` | `StatusResponseDto<CommandDto>` | `commands:write` |
+| | `DELETE commands/{commandName}` | — | 204 | `commands:write` |
+| | `GET command-presets` | — | `StatusResponseDto<IReadOnlyList<CommandPresetDto>>` | `commands:read` |
+| | `POST commands/{commandName}/reset-to-preset` | — | `StatusResponseDto<CommandDto>` | `commands:write` |
+| `BuiltinsController` (route base `builtins`) | `GET builtins` | — | `StatusResponseDto<IReadOnlyList<BuiltinCommandDto>>` | `commands:read` |
+| | `GET builtins/{builtinKey}` | — | `StatusResponseDto<BuiltinCommandDto>` | `commands:read` |
+| | `PATCH builtins/{builtinKey}` | `{ bool Enabled }` | `StatusResponseDto<object>` | `commands:write` |
+| | `PUT builtins/{builtinKey}/settings` | `UpdateBuiltinSettingsRequest` (`CooldownSeconds`, `MinPermissionLevel` rung name) | `StatusResponseDto<BuiltinCommandDto>` | `commands:write` |
+| | `DELETE builtins/{builtinKey}/settings` | — | `StatusResponseDto<BuiltinCommandDto>` (reset to defaults) | `commands:write` |
+| | `PUT builtins/{builtinKey}/tts` | `{ bool Enabled }` | `StatusResponseDto<object>` | `commands:write` |
+| | `GET builtins/replies` · `PUT builtins/{builtinKey}/replies/{slot}` · `DELETE builtins/{builtinKey}/replies/{slot}` | see §11 | see §11 | `commands:read` / `commands:write` |
+| `PipelinesController` | `GET pipelines` | `PageRequestDto` | `PaginatedResponse<PipelineListItemDto>` | `pipelines:read` |
+| | `GET pipelines/{id:guid}` | — | `StatusResponseDto<PipelineDto>` | `pipelines:read` |
+| | `GET pipelines/actions` | — | `StatusResponseDto<PipelineCatalogueDto>` (the editor palette, §6.1) | `pipelines:read` |
+| | `POST pipelines` | `CreatePipelineDto` | `StatusResponseDto<PipelineDto>` (201) | `pipelines:write` |
+| | `PUT pipelines/{id:guid}` | `UpdatePipelineDto` | `StatusResponseDto<PipelineDto>` | `pipelines:write` |
+| | `GET pipelines/{id:guid}/blast-radius` | — | `StatusResponseDto<PipelineBlastRadiusDto>` | `pipelines:write` |
+| | `DELETE pipelines/{id:guid}` | — | 204 | `pipelines:write` |
+| | `POST pipelines/{id:guid}/test-run` | `PipelineTestRunRequest` (sample variables) | `StatusResponseDto<TestRunResultDto>` | `pipelines:write` |
+| | `POST pipelines/validate` | `PipelineGraphInput` | `StatusResponseDto<PipelineValidationResult>` | `pipelines:validate` |
+| | `GET pipelines/{id:guid}/platform-default` · `POST pipelines/{id:guid}/platform-default/restore` | — | see "Per-channel edit and reset" | `pipelines:read` / `pipelines:write` |
+| `PipelineExecutionsController` | `GET pipeline-executions` · `GET pipeline-executions/{id:long}` | paging | run history (H.4) | `pipelines:read` |
+| `TimersController` | `GET timers` | `PageRequestDto` | `PaginatedResponse<TimerListItem>` | `timers:read` |
+| | `GET timers/{id:guid}` | — | `StatusResponseDto<TimerDto>` | `timers:read` |
+| | `POST timers` | `CreateTimerDto` | `StatusResponseDto<TimerDto>` (201) | `timers:write` |
+| | `PUT timers/{id:guid}` | `UpdateTimerDto` | `StatusResponseDto<TimerDto>` | `timers:write` |
+| | `POST timers/{id:guid}/toggle` | — | `StatusResponseDto<TimerDto>` | `timers:write` |
+| | `DELETE timers/{id:guid}` | — | 204 | `timers:write` |
+| | `GET timers/{id:guid}/platform-default` · `POST timers/{id:guid}/platform-default/restore` | — | see "Per-channel edit and reset" | `timers:read` / `timers:write` |
+| `EventResponsesController` | `GET event-responses` | `PageRequestDto` | `PaginatedResponse<EventResponseListItem>` | `eventresponses:read` |
+| | `GET event-responses/catalog` | — | `StatusResponseDto<IReadOnlyList<EventResponsePresetDto>>` | `eventresponses:read` |
+| | `GET event-responses/{eventType}` | — | `StatusResponseDto<EventResponseDto>` | `eventresponses:read` |
+| | `PUT event-responses/{eventType}` | `UpdateEventResponseDto` | `StatusResponseDto<EventResponseDto>` | `eventresponses:write` |
+| | `POST event-responses/{eventType}/reset` | — | 204 (row reset in place, never deleted) | `eventresponses:write` |
+| | `GET event-responses/overlay` · `GET event-responses/alert-queue` | — | alert-overlay state | `eventresponses:read` |
 
-> No public controller for `IPipelineEngine`/`ICommandDispatcher`/`IPipelineCompiler`/`ICooldownManager` — those are
-> runtime-internal (driven by chat/EventSub ingestion + the timer `BackgroundService`), not HTTP-exposed.
+There is no `DELETE event-responses/{eventType}` (S-EVENTRESPONSE-NO-CREATE) and no `PUT .../commands/builtin/{key}/enabled` or `/overrides` route; the design's `BuiltinCommandsController` and `BuiltinCommandOverridesDto` were never built.
+
+### 5.1 Per-channel edit and reset-to-default
+
+The rule: **every system-provided thing is editable per channel and can be put back on the platform default.** Editing never touches the platform copy; a channel's own row carries the change and the reset undoes it for that channel only.
+
+| Thing | Edit (per channel) | Reset to default |
+|---|---|---|
+| Built-in command | `PUT builtins/{builtinKey}/settings`, `PATCH builtins/{builtinKey}`, `PUT builtins/{builtinKey}/tts` | `DELETE builtins/{builtinKey}/settings` |
+| Built-in reply text | `PUT builtins/{builtinKey}/replies/{slot}` | `DELETE builtins/{builtinKey}/replies/{slot}` |
+| Fun-command preset (`!8ball`, `!hug`, …) | `PUT commands/{commandName}` | `POST commands/{commandName}/reset-to-preset` (keeps the name and the on/off state; `GET command-presets` previews what a reset writes) |
+| Timer installed from a platform template | `PUT timers/{id}` | `POST timers/{id}/platform-default/restore` (`GET .../platform-default` previews it; `TimerListItem.HasPlatformDefault`) |
+| Pipeline installed from a platform template | `PUT pipelines/{id}` | `POST pipelines/{id}/platform-default/restore` (`PipelineListItemDto.HasPlatformDefault`) |
+| Event response | `PUT event-responses/{eventType}` | `POST event-responses/{eventType}/reset` (`FollowsPlatformDefault` says whether the channel still tracks the default) |
+| Economy game | `PUT economy/games` | `POST economy/games/{gameType}/reset` (keeps on/off; `economy:games:write`) |
+| TTS config | `PUT tts/config` | `POST tts/config/reset` (`GET tts/config/defaults` shows the defaults; `tts:config:write`) |
+| System widget | per-channel widget edit (`WidgetsController`, `widget:write`) | see the widgets spec — no reset route was re-verified here |
+
+Platform-wide defaults are edited by platform admins through the `*DefaultsAdminController` family (`BuiltinReplyDefaultsAdminController`, `EventResponseDefaultsAdminController`, `ActionDefaultsAdminController`, `TtsVoiceDefaultsAdminController`); a channel that has not overridden a field follows the new default.
+
+> No public controller for `IPipelineEngine` / `ICooldownManager` — those are runtime-internal (driven by chat/EventSub
+> ingestion + the timer `BackgroundService`), not HTTP-exposed. (`ICommandDispatcher` and `IPipelineCompiler` do not exist.)
 
 ---
 
@@ -583,63 +631,89 @@ management floors are `Moderator`=10, `SuperMod`=20, `Editor`=30, `Broadcaster`=
 
 ### 6.1 Built-in `ICommandAction` blocks (`Type` = snake_case registry key)
 
-Existing actions to re-target onto the canonical `ICommandAction` (keep their `Type` strings): `send_message`,
-`send_reply`, `set_variable`, `delay`/`wait`, `random_response`, `stop`, `timeout`, `ban`, `shoutout`,
-`delete_message`, `song_request`, `song_skip`, `song_current`, `song_queue`, `song_volume`. **Net-new for ~18-block
-80% coverage + long-tail valves:** `set_counter` / `adjust_counter` (persistent `NamedCounters` G.4, tenant-scoped),
-`run_code` (T3 — references `CodeScript.CurrentVersionId`, executes via `IScriptExecutor`), `http_request` (SSRF-hardened,
-`HttpEgressAllowlist`-gated).
+**The source of truth is the registry, not this table.** `GET pipelines/actions` (§5) returns every registered
+`ICommandAction` with its category, description and typed field descriptors — over 100 action types as of 2026-09-30, grouped by
+domain. The editor palette renders from it, so a new action never needs a spec edit to show up. Types in the tree today
+(snake_case `ActionType`): chat and flow (`send_message`, `send_reply`, `announce`, `set_variable`, `wait`, `wait_for_event`,
+`wait_until_raid_fires`, `stop`, `break`, `continue`, `run_pipeline`, `return_value`, `schedule_pipeline`, `pick_from_list`),
+counters and viewer data (`set_counter`, `adjust_counter`, `set_viewer_data`, `adjust_viewer_data`, `clear_viewer_data`), moderation
+(`timeout`, `ban`, `delete_message`, `shoutout`, `start_raid`, `permit`, `unpermit`), music (`song_*`, `music_*`, `play_track_once`,
+`playlist_add`), sound and speech (`play_sound`, `stop_sound`, `play_tts`, `tts_synthesize`), rewards and economy
+(`redemption_fulfill`, `redemption_refund`, `grant_currency`, `deduct_currency`, `check_balance`, `play_game`, giveaways, `jar_contribute`,
+`require_tier`), integrations (`obs_*`, `vts_*`, `send_discord_notification`, `send_webhook`, `widget_event`, `post_quote`, `submit_media`,
+`set_pronoun`, `start_live_game` / `cancel_live_game`), and `run_code`.
+
+**Specced here, unbuilt:** `random_response`, `http_request` and `send_whisper` have no `ICommandAction`, and `delay` is not a
+type (the shipped type is `wait`). Their tables below stay as the design for when they are built; the `send_whisper` row names the
+shipped `ITwitchWhispersApi` it would call. Everything else in the table is built under the type name shown, with the config
+key names in snake_case (`event_name`, `min_role`, `delay_seconds`) rather than the PascalCase shown in the design column.
+
+**Design table (config keys shown PascalCase as designed; read each `Type` against the registry):**
 
 | `Type` | Config DTO (the step's `ConfigJson` shape) | Behavior (state change / side effect) |
 |---|---|---|
-| `send_message` | `{ string Message }` | renders `Message` via `ITemplateEngine`, sends via `IChatProvider.SendMessageAsync` |
+| `send_message` | `{ string Message }` | renders `Message` via `ITemplateResolver`, sends via `IChatProvider.SendMessageAsync` |
 | `send_reply` | `{ string Message }` | reply to `MessageId` via `IChatProvider.SendReplyAsync` |
-| `set_variable` | `{ string Name, string Value }` | sets `Variables[Name]` (rendered); returns `VariablesSet` |
+| `set_variable` | `{ string Name, string Value }` | sets `Variables[Name]` (rendered) |
 | `set_counter` | `{ string Name, long Value }` | sets the persistent counter `(ctx.BroadcasterId, Name)` to `Value` — upserts `NamedCounters` (G.4); tenant-scoped via `ctx.BroadcasterId` |
 | `adjust_counter` | `{ string Name, long Delta }` | increments/decrements counter `(ctx.BroadcasterId, Name)` by `Delta` (atomic upsert; absent ⇒ starts at 0); returns the **new value** as `Output` and sets it into `Variables[Name]`; tenant-scoped via `ctx.BroadcasterId` |
 | `set_viewer_data` | `{ string Key, string Value, string? Target }` | upserts the per-viewer `ViewerDatum` (G.14) for the target viewer (default = triggering viewer; `Target` resolves a `@name`/id) — string set; tenant+viewer-scoped via `ctx.BroadcasterId`. (owned by `per-viewer-data.md`) |
 | `adjust_viewer_data` | `{ string Key, long Delta, string? Target }` | atomic numeric increment of the per-viewer `ViewerDatum` (G.14) for the target viewer (default = triggering viewer; absent ⇒ starts at `Delta`); returns the **new value** as `Output` and sets it into `Variables[Key]`; tenant+viewer-scoped via `ctx.BroadcasterId`. (owned by `per-viewer-data.md`) |
 | `wait` | `{ int? Seconds, int? Milliseconds }` | delays (capped per-step; counts against cumulative `Wait` cap) |
-| `random_response` | `{ List<string> Messages }` | picks one at random, sends to chat |
-| `stop` | `{}` | sets `StopPipeline` — terminates the run cleanly |
+| `random_response` *(unbuilt)* | `{ List<string> Messages }` | picks one at random, sends to chat |
+| `stop` | `{}` | sets `ctx.ShouldStop` — terminates the run cleanly |
 | `timeout` | `{ string UserRef, int DurationSeconds, string? Reason }` | `IChatProvider.TimeoutUserAsync` |
 | `ban` | `{ string UserRef, string? Reason }` | `IChatProvider.BanUserAsync` |
 | `delete_message` | `{ string MessageId }` | `IChatProvider.DeleteMessageAsync` |
 | `shoutout` | `{ string TargetChannel }` | shoutout via chat provider |
 | `song_request`/`song_skip`/`song_current`/`song_queue`/`song_volume` | as today | broker-pattern music ops bound to `ctx.BroadcasterId` (token injected host-side; **no token/url in config**) |
-| `run_code` | `{ Guid CodeScriptId }` *(only this guid — no inline source in config)* | resolves `CurrentVersionId`, calls `IScriptExecutor.ExecuteAsync` (Wasmtime SaaS / Jint lite); increments `HostCallCount`; capability-brokered |
-| `http_request` | `{ string Fqdn, string Method, string? Path, string? BodyTemplate, string? ResultVariable }` | egress **only** to an enabled `HttpEgressAllowlist` row for the tenant; FQDN-pinned, no redirects, response-size capped (`MaxResponseBytes`). **Method enforcement:** `Method` must be in the row's `AllowedMethods` CSV (else reject). **Request-body cap:** a body is permitted only when `AllowRequestBody=true` (and never for GET/HEAD); the rendered `BodyTemplate` is **rejected, not truncated**, when it exceeds `MaxRequestBytes`. **Path enforcement:** when `PathPrefix` is set, the request `Path` must start with it (null `PathPrefix` = any path on the FQDN). Result into `ResultVariable` |
-| `send_webhook` | `{ Guid OutboundWebhookEndpointId }` *(only this guid — **no** url/secret/headers/body in config; broker pattern)* | resolves the `OutboundWebhookEndpoints` (H.8) row for `ctx.BroadcasterId` and calls `IOutboundWebhookDispatcher.EnqueueForEndpointAsync(ctx.BroadcasterId, endpointId, ctx.EventType ?? "webhook.manual.send", ctx.Variables, ctx.JournalEventId)` (`webhooks.md` §3.6 — `EventType`/`JournalEventId` come from the `ActionContext` fields §4.4; `JournalEventId` is null for action-initiated sends in a non-event-triggered pipeline, matching the nullable `OutboundWebhookDelivery.JournalEventId` column). The target url, `whsec_` signing secret, body/header templates, and SSRF boundary all live on the endpoint + its `HttpEgressAllowlist` (H.7) row — Standard-Webhooks signed, FQDN-pinned, retried/dead-lettered async. Fast-ack: returns `ActionResult.Success` on enqueue; delivery is the background worker's job. The sole config key is an opaque endpoint `Guid` (carries no url/secret) so the `ICommandConfigValidator` (§3.11) invariant holds by construction. |
-| `send_whisper` | `{ string TargetUserRef, string Message }` | renders `Message` via `ITemplateEngine` and sends the whisper through the shipped `ITwitchWhispersApi.SendWhisperAsync(Guid fromUserId, string toTwitchUserId, string message)`: the sender is whichever identity Guid the action passes as `fromUserId` — the action passes the channel's bot account's User Guid for `ctx.BroadcasterId` — resolved internally to `from_user_id` and sent on that identity's **own** user token (`user:manage:whispers` pre-checked per call by the sub-client; no bot-token brokering happens inside the whispers API, and no `send_whisper` action is shipped today — the from-identity contract stated here is the shipped API's, no token in config). Gated by `chat:whisper:send`; **rate-limited** per-tenant via the distributed limiter (whisper spam is a ban risk — the limits-baseline applies). `user:manage:whispers` requested progressively. |
+| `run_code` | `{ Guid CodeScriptId }` *(only this guid — no inline source in config)* | resolves `CurrentVersionId`, calls `IScriptExecutor.ExecuteAsync` (Jint self-host; the Wasmtime SaaS adapter is a separate profile binding); capability-brokered |
+| `http_request` *(unbuilt)* | `{ string Fqdn, string Method, string? Path, string? BodyTemplate, string? ResultVariable }` | egress **only** to an enabled `HttpEgressAllowlist` row for the tenant; FQDN-pinned, no redirects, response-size capped (`MaxResponseBytes`). **Method enforcement:** `Method` must be in the row's `AllowedMethods` CSV (else reject). **Request-body cap:** a body is permitted only when `AllowRequestBody=true` (and never for GET/HEAD); the rendered `BodyTemplate` is **rejected, not truncated**, when it exceeds `MaxRequestBytes`. **Path enforcement:** when `PathPrefix` is set, the request `Path` must start with it (null `PathPrefix` = any path on the FQDN). Result into `ResultVariable` |
+| `send_webhook` | `{ Guid OutboundWebhookEndpointId }` *(only this guid — **no** url/secret/headers/body in config; broker pattern)* | resolves the `OutboundWebhookEndpoints` (H.8) row for `ctx.BroadcasterId` and enqueues a delivery through `IOutboundWebhookDispatcher` (`webhooks.md` §3.6). The target url, `whsec_` signing secret, body/header templates, and SSRF boundary all live on the endpoint + its `HttpEgressAllowlist` (H.7) row — Standard-Webhooks signed, FQDN-pinned, retried/dead-lettered async. Fast-ack: returns `ActionResult.Success` on enqueue; delivery is the background worker's job. The sole config key is an opaque endpoint `Guid` (carries no url/secret) so the `ICommandConfigValidator` (§3.6) invariant holds by construction. |
+| `send_whisper` *(unbuilt)* | `{ string TargetUserRef, string Message }` | renders `Message` via `ITemplateResolver` and sends the whisper through the shipped `ITwitchWhispersApi.SendWhisperAsync(Guid fromUserId, string toTwitchUserId, string message)`: the sender is whichever identity Guid the action passes as `fromUserId` — the action would pass the channel's bot account's User Guid for `ctx.BroadcasterId` — resolved internally to `from_user_id` and sent on that identity's **own** user token (`user:manage:whispers` pre-checked per call by the sub-client; no bot-token brokering happens inside the whispers API; no token in config). Gated by `chat:whisper:send`; **rate-limited** per-tenant via the distributed limiter (whisper spam is a ban risk — the limits-baseline applies). `user:manage:whispers` requested progressively. |
 | `play_sound` | `{ string Clip, int? Volume, bool WaitForFinish, string? Handle }` *(no url/token in config; broker pattern)* | resolves the library clip (`Clip` = id or name) for `ctx.BroadcasterId` via `ISoundClipService.ResolveForPlaybackAsync` and pushes exactly one `IOverlayClient.PlaySound` to the always-loaded overlay (effective volume = clip default unless `Volume` overrides). When `WaitForFinish`, the action awaits the clip's (capped) `DurationMs` before completing so a following action runs after playback. Unknown/disabled clip ⇒ typed action failure (no throw, **no overlay push**). (owned by `sound-system.md`) |
 | `stop_sound` | `{ string? Handle, bool All }` | pushes a stop to the overlay for the named `Handle`, or stops all overlay playback when `All` (bound to `ctx.BroadcasterId`). (owned by `sound-system.md`) |
 | `run_pipeline` | `{ string Pipeline, string Mode (inline\|detached), IReadOnlyList<string>? Args, bool Wait }` | invokes another of the channel's pipelines — `inline` shares the current run's variable bag (merged on return), `detached` is an independent run (optional `Wait`); recursion-depth-capped (fail-closed at `MaxRecursionDepth`). (owned by `pipeline-control-flow.md`) |
 | `break` | — | exits the enclosing `loop` block (no-op outside a loop). (owned by `pipeline-control-flow.md`) |
 | `continue` | — | skips to the enclosing loop's next iteration (no-op outside a loop). (owned by `pipeline-control-flow.md`) |
 
-All actions: **fail-closed** (unknown `Type` rejected at save and at compile), **no tenant/credential/url config keys**
-(`ICommandConfigValidator` invariant), `Guid`-typed `BroadcasterId` from `ActionContext`.
+All actions: **fail-closed** (unknown `Type` rejected at save and at run), **no tenant/credential/url config keys**
+(`ICommandConfigValidator` invariant), `Guid`-typed `BroadcasterId` from `PipelineExecutionContext`.
 
 ### 6.2 Condition evaluators (`Type` matches `PipelineStepCondition.ConditionType`)
 
+Built (`ICommandCondition`, `Infrastructure/Platform/Pipeline/`): `user_role`, `random` and `comparison`. `var_compare` and `cooldown` below are **unbuilt**; `comparison` is the shipped variable comparator.
+
 | `Type` | Operands | Behavior |
 |---|---|---|
-| `user_role` | `LeftOperand` = required role/level | true when `ctx` user level ≥ required (ascending ladder); fail-closed unknown role |
-| `random` | `LeftOperand` = percent/chance | true with given probability |
-| `var_compare` | `LeftOperand`, `Operator` (`contains`\|`equals`\|`iequals`\|`startswith`\|`endswith`\|`matches`\|`gt`\|`lt`\|`gte`\|`lte`), `RightOperand` | compares a (rendered) variable to a value via the **shared comparator** (below) |
-| `cooldown` | `LeftOperand` = scope key | true when not on the named cooldown (checks `ICooldownManager`) |
+| `user_role` | param `min_role` (or `role`) = a rung name | true when the triggering user's rung ≥ the required rung (ascending ladder: Everyone, Subscriber, Vip, Artist, Moderator, LeadModerator, Editor, Broadcaster); fail-closed on an unknown rung name |
+| `random` | param `chance` (or `percent`) | true with the given probability |
+| `comparison` | left / operator / right params | compares a (rendered) value to another value |
+| `var_compare` *(unbuilt)* | `LeftOperand`, `Operator` (`contains`\|`equals`\|`iequals`\|`startswith`\|`endswith`\|`matches`\|`gt`\|`lt`\|`gte`\|`lte`), `RightOperand` | compares a (rendered) variable to a value via the **shared comparator** (below) |
+| `cooldown` *(unbuilt)* | `LeftOperand` = scope key | true when not on the named cooldown (checks `ICooldownManager`) |
 
 `Negate` inverts the result. **Unknown `ConditionType` ⇒ fail-closed (run abort), never treat-as-true** (reverses the
 current live defect).
 
-**Shared comparator (`IValuePredicate` — `Application/Pipeline/IValuePredicate.cs`).** The operator set above is defined
+**Shared comparator (`IValuePredicate` — design intent, unbuilt; `comparison` is the as-built condition).** The operator set above is defined
 **once** and reused by **two surfaces**: this pipeline-gating `var_compare` condition (author-driven branching) **and** the
 render-time `{{if.<path>.<op>:…}}` template predicate (§6.3.2). One operator table, one evaluator — no second comparator.
 Semantics: `gt`/`lt`/`gte`/`lte` are **numeric** (both sides parsed as numbers; if either side is non-numeric ⇒ false);
 `contains`/`equals`/`startswith`/`endswith` are **ordinal** string ops; `iequals` is case-insensitive; `matches` is a regex
 test via the **shared `IRegexMatcher`** (§6.4 — NonBacktracking, time-bounded, same ReDoS policy as `MatchMode=Regex`).
 
-### 6.3 Template variables (`VariableResolver` — `Application/Pipeline/VariableResolver.cs`, replace)
+### 6.3 Template variables (design intent — as-built is `ITemplateResolver` + `TemplateHelperRegistry`)
+
+> **As-built note (checked 2026-09-30).** The shipped grammar is **single-brace**: `{namespace.key}`, resolved by the singleton
+> `TemplateResolver : ITemplateResolver` (`Infrastructure/Platform/Templating/TemplateResolver.cs`); the validator is
+> `ITemplateHelperValidator`, and the catalogue of valid helpers is `TemplateHelperRegistry`
+> (`Application/Abstractions/Templating/`). The pattern is a flat `\{([^{}]+)\}` walk plus dedicated patterns for `{list.pick.<name>}`,
+> `{custom.<a>.<b>}` and `{transform.<fn>:<text>}`; there is no `VariableResolver` class and no balanced-brace recursion. In this
+> section every `{{ … }}` is the **design** spelling of a `{ … }` token, and a helper that is not in `TemplateHelperRegistry` is unbuilt.
+> Unbuilt in the tree: the `{{if.*}}` conditional helper and its value predicates, the recursion / 4 KB output / cycle bounds, taint
+> tracking, and the `{{user.level}}` numeric variable (dropped — users see rung names, never numbers; use `{user.role}`). Unknown
+> tokens render empty.
+
 
 Supports namespaced + parameterized tokens `{{namespace.key}}` and
 `{{namespace.key:arg1:arg2}}` (one `:` splits key from the arg list; further `:` split args; the **pronoun `verb:` pair**
@@ -817,11 +891,11 @@ because the boolpath catalog contains no name ending in a known operator.
 | Boolpath | True when | Backed by |
 |---|---|---|
 | `stream.live` | stream is live | `Streams.EndedAt IS NULL` (seed live flag) |
-| `user.ismod` | level ≥ `Moderator` | derived from `{{user.level}}` (seed resolved level) |
+| `user.ismod` | rung ≥ `Moderator` | derived from the resolved role rung (seed) |
 | `user.issub` | active subscription | `TwitchSubscribers.EndedAt IS NULL` (seed sub row) |
 | `user.isvip` | `Vip` standing | `ChannelCommunityStandings.Standing` (seed resolved standing) |
 | `user.isfollower` | following the channel | `TwitchFollowers` row exists (Helix/cached) |
-| `user.isbroadcaster` | level = `Broadcaster` (40) | derived from `{{user.level}}` (seed resolved level) |
+| `user.isbroadcaster` | rung = `Broadcaster` | derived from the resolved role rung (seed) |
 
 These same boolpaths are equally valid under a user-bearing namespace the dispatcher resolves (e.g. `if.target.issub`)
 wherever that namespace's state is seeded.
@@ -864,8 +938,7 @@ malformed-but-persisted condition fails closed to the `<else>` branch.
 | `{{user.mention}}` | `@displayname` | `Users.DisplayName` (prefixed) | — |
 | `{{user.link}}` | `https://www.twitch.tv/{login}` | `Users.Username` | — |
 | `{{user.color}}` | chat name color (`#RRGGBB`) | `Users.Color` | — |
-| `{{user.role}}` | effective role name, friendly-cased: `Viewer · Subscriber · VIP · Artist · Moderator · Super Mod · Editor · Broadcaster`. The `Everyone(0)` ladder floor (absence of an elevated role) renders **`Viewer`**, never the literal `Everyone` sentinel — `Everyone` stays a gating-only value (the §6.2 `user_role` condition floor). | `IRoleResolver.ResolveEffectiveLevelAsync` → `roles-permissions.md` ladder, mapped to a display label | seed resolved level |
-| `{{user.level}}` | numeric level (0/2/4/6/10/20/30/40) | same resolver `LevelValue` | seed resolved level |
+| `{{user.role}}` | effective role name, friendly-cased: `Viewer · Subscriber · VIP · Artist · Moderator · Lead Moderator · Editor · Broadcaster`. The `Everyone` ladder floor (absence of an elevated role) renders **`Viewer`**, never the literal `Everyone` sentinel — `Everyone` stays a gating-only value (the §6.2 `user_role` condition floor). | `IRoleResolver.ResolveEffectiveLevelAsync` → `roles-permissions.md` ladder, mapped to a display label | seed resolved level |
 | `{{user.subtier}}` | `1`/`2`/`3` (mapped from `1000/2000/3000`) | `TwitchSubscribers.Tier` | seed sub row |
 | `{{user.submonths}}` | cumulative sub months | `TwitchSubscribers.CumulativeMonths` | seed sub row |
 | `{{user.substreak}}` | current sub streak months | `TwitchSubscribers.StreakMonths` | seed sub row |
@@ -1091,7 +1164,14 @@ are **not** in the catalog above, and that is final for this subsystem:
 
 Unknown token ⇒ empty string (render-time, non-fatal — only **execution** of unknown action/condition is fail-closed).
 
-### 6.4 `IRegexMatcher` (NET-NEW — `Application/Pipeline/IRegexMatcher.cs`)
+### 6.4 `IRegexMatcher` (design intent — unbuilt)
+
+> **As-built note (checked 2026-09-30).** No `IRegexMatcher` or `RegexMatcher` exists. `ChannelRegistry` compiles a command's or chat trigger's
+> `MatchPattern` itself (`RegexOptions.IgnoreCase` unless case-sensitive, a **100 ms match timeout**), caches the `Regex` on the registry
+> candidate (`CompiledRegex`), and `ChatMessageHandler` calls `CompiledRegex.IsMatch`, treating a `RegexMatchTimeoutException` as no match.
+> It is a backtracking engine with a timeout, not `NonBacktracking`, and the pattern is not validated at save (§3.6). The policy below
+> — one shared matcher, linear-time engine, save-time rejection of unsupported constructs, a 200-char cap — is the design for when it is
+> built. There is no `matches` operator to share with, since `{{if.*}}` and `var_compare` are unbuilt.
 
 The single, shared regex surface for this subsystem: it backs both the `MatchMode=Regex` command trigger (§3.2.1) **and**
 the `matches` operator on the §6.3.2 `{{if.*}}` value predicate and the §6.2 `var_compare` condition. **No Wasmtime/Jint
@@ -1134,53 +1214,49 @@ path by the dispatcher (`MatchMode=Regex`), by the `{{if.*}}` `matches` operator
 
 ## 7. DI registration
 
-In `NomNomzBot.Application/DependencyInjection.cs` (`AddApplication`) and the Infrastructure profile registrar. Lifetimes
-match existing convention (registries singleton, engine/services scoped, actions/conditions transient).
+As-built, in `NomNomzBot.Infrastructure/DependencyInjection.cs` (`AddInfrastructure`). Most services register by the `I<X>Service`
+convention scan; the rest are explicit lines. There are no registries and no compiler.
 
 ```csharp
-// Registries (singleton, startup-populated)
-services.AddSingleton<ICommandActionRegistry, CommandActionRegistry>();
-services.AddSingleton<IConditionEvaluatorRegistry, ConditionEvaluatorRegistry>();
-services.AddSingleton<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
+// Explicit singletons
+services.AddSingleton<ICooldownManager, CooldownManager>();          // in-memory (§3.11)
+services.AddSingleton<ITemplateResolver, TemplateResolver>();
+services.AddSingleton<ITemplateHelperValidator, TemplateHelperValidator>();
+services.AddSingleton<IChannelBuiltinReplyOverrides, Commands.Builtins.ChannelBuiltinReplyOverridesReader>();
 
-// Engine + compiler + validator
+// Explicit scoped
 services.AddScoped<IPipelineEngine, PipelineEngine>();
-services.AddSingleton<IPipelineCompiler, PipelineCompiler>();       // cache keyed (BroadcasterId,PipelineId,version)
+services.AddScoped<IEventResponseExecutor, EventResponseExecutor>();
 services.AddScoped<ICommandConfigValidator, CommandConfigValidator>();
+services.AddScoped<IPipelineStepReferenceScanner, PipelineStepReferenceScanner>();
+services.AddScoped<IBuiltinCommandCatalog, BuiltinCommandCatalog>();
+services.AddScoped<IBuiltinCommand, Commands.Builtins.UptimeBuiltin>();   // one line per built-in: lurk, followage, stats, …
 
-// Application services
-services.AddScoped<ICommandService, CommandService>();
-services.AddScoped<ICommandDispatcher, CommandDispatcher>();
-services.AddScoped<IPipelineService, PipelineService>();
-services.AddScoped<ITimerService, TimerService>();
-services.AddScoped<IEventResponseService, EventResponseService>();
-services.AddScoped<IBuiltinCommandService, BuiltinCommandService>();
-services.AddSingleton<ITemplateEngine, TemplateEngine>();           // VariableResolver-backed
-services.AddSingleton<IRegexMatcher, RegexMatcher>();               // NonBacktracking, compile-and-cache (§6.4)
+// By convention (I<X>Service → <X>Service, scoped)
+//   ICommandService, IPipelineService, ITimerManagementService, IEventResponseService, IBuiltinCommandService,
+//   IBuiltinReplyService, IScheduledPipelineService, IPipelineTestRunService, IChatTriggerService, ICommandPresetService, …
 
-// Cooldown manager — profile adapter (see below)
-// Actions (transient) — register every ICommandAction:
-services.AddTransient<ICommandAction, SendMessageAction>();
-//   …send_reply, set_variable, set_counter, adjust_counter, wait, random_response, stop, timeout, ban,
-//     delete_message, shoutout, song_request/skip/current/queue/volume, run_code, http_request
-// Conditions (transient):
-services.AddTransient<IConditionEvaluator, UserRoleCondition>();
-//   …random, var_compare, cooldown
-// Built-ins (transient):
-services.AddTransient<IBuiltinCommand, FollowageBuiltin>();         // …uptime, shoutout, stats (per-viewer-data.md), etc.
+// Assembly scans — every implementation of the interface, no per-class line
+services.AddImplementationsOf<ICommandAction>(infrastructure, ServiceLifetime.Transient);
+services.AddImplementationsOf<ICommandCondition>(infrastructure, ServiceLifetime.Transient);
+services.AddImplementationsOf<IEventResponsePresenter>(infrastructure, ServiceLifetime.Scoped);
 
-// Timer scheduler
-services.AddHostedService<TimerSchedulerService>();                 // PeriodicTimer; guarded by IRunOnceGuard
+// Background workers (auto-registered by the hosted-worker scan)
+//   TimerService (30 s tick), ScheduledPipelineExpiryService (5 s tick), WaitForEventTimeoutSweepWorker
 ```
 
-**Deployment-profile adapter variants** (selected by `App__DeploymentMode` per stack §profile axis):
+`ICommandActionRegistry`, `IConditionEvaluatorRegistry`, `IPipelineCompiler`, `ICommandDispatcher`, `ITemplateEngine`,
+`IRegexMatcher`, `ITimerService` and `TimerSchedulerService` are **not registered because they do not exist** (the timer scheduler
+is `TimerService`).
 
-| Abstraction | lite (self-host) | full/SaaS |
+**Deployment-profile adapters** (selected by the deployment profile):
+
+| Abstraction | as-built | design intent, unbuilt |
 |---|---|---|
-| `ICooldownManager` | `InMemoryCooldownManager` + `CommandCooldownStates` write-through (single node) | `RedisCooldownManager` + `CommandCooldownStates` (multi-node correct) |
-| `IPipelineCompiler` cache | `HybridCache` L1-only | `HybridCache` L1 + Redis L2 (invalidate fan-out) |
-| `run_code` executor (`IScriptExecutor`, **owned by sandbox subsystem**) | Jint | Wasmtime x86_64-Cranelift |
-| Timer run-once (`IRunOnceGuard`) | no-op | `pg_try_advisory_lock` / `DistributedLock.Postgres` |
+| `ICooldownManager` | one in-memory `CooldownManager` in every profile | Redis-backed variant + `CommandCooldownStates` write-through for multi-node |
+| `IPipelineCompiler` cache | does not exist | `HybridCache` L1 / L1 + Redis L2 |
+| `run_code` executor (`IScriptExecutor`, **owned by sandbox subsystem**) | Jint (self-host); the Wasmtime SaaS adapter is a separate profile binding | — |
+| Run-once guard (`IRunOnceGuard`) | `NoOpRunOnceGuard` (single node) / `PostgresRunOnceGuard` (Postgres profile) — `TimerService` and the sweepers use it | — |
 
 ---
 
@@ -1205,7 +1281,7 @@ The three cross-cutting decisions this subsystem locks:
 
 1. **`run_code` boundary.** `IScriptExecutor` and the sandbox (`Wasmtime`/`Jint`) are owned by the sandbox-execution subsystem; this spec defines only the `run_code` action surface and the `CodeScript`/`CodeScriptVersion` reads. Capability-broker enforcement (`ICommandConfigValidator` forbidding tenant/credential/url config) is shared and specified here. This is a **dependency on the sandbox-execution subsystem**, not a deferral — the action surface and broker invariant are fully specified above.
 2. **JSON library is Newtonsoft.Json.** The binding convention mandates Newtonsoft.Json, so every `[VC:JSON]` converter uses it, overriding the stack doc's serialization preference for System.Text.Json. The live code's `System.Text.Json` pipeline JSON is migrated to Newtonsoft as part of this rebuild (§8).
-3. **Built-in catalog identity is code-defined.** `BuiltinKey` strings (`followage`, `uptime`, `shoutout`, …) are defined by `IBuiltinCommand` implementations, never seeded DB rows. Catalog membership is the concrete set of `IBuiltinCommand` classes registered in DI (§7), authored alongside the implementation — it is not a schema decision and carries no migration.
+3. **Built-in catalog identity is code-defined.** `BuiltinKey` strings (`followage`, `uptime`, `shoutout`, …) are defined by `IBuiltinCommand` implementations, never seeded DB rows. Catalog membership is the concrete set of `IBuiltinCommand` classes registered in DI (§7, one `AddScoped` line each), authored alongside the implementation — it is not a schema decision and carries no migration.
 
 ---
 
@@ -1215,20 +1291,20 @@ A generic **deferred-execution** primitive: "run pipeline P **once**, T seconds 
 
 **Entity `ScheduledPipelineTask` (H — pipelines, tenant-scoped, no soft-delete).** Columns: `Id`, `BroadcasterId`, `PipelineId` (Guid, the target resolved at schedule time for determinism), `PipelineName string(200)?` (bundle-portable fallback for display; `PipelineId` stays authoritative), `DueAt DateTimeOffset`, `VariablesJson text` (the initial variables, string→string), `TriggeredByUserId string(100)` / `TriggeredByDisplayName string(255)` (carried through so the deferred run keeps its actor), `Status string(20)` (`pending`\|`fired`\|`cancelled`\|`expired`), `DedupeKey string(200)?`, `CreatedAt`, `FiredAt DateTimeOffset?`. Indexes: `(Status, DueAt)` for the sweep; a **partial unique** index on `(BroadcasterId, DedupeKey) WHERE Status = 'pending'` so re-scheduling with a key replaces the one live run and terminal rows may reuse the key. **Lifecycle is a status machine, not a delete** — terminal rows are kept so the sweep's status filter is the natural idempotency guard (a fired row can never fire twice) and a short audit trail survives.
 
-**Service `IScheduledPipelineService`** (Application `Commands.Services`, Infrastructure `Commands`, convention-registered scoped): `ScheduleAsync(broadcasterId, pipelineId, delaySeconds, variables, triggeredBy…, dedupeKey?)` and the name-first `ScheduleByNameAsync(…, pipelineName, …)` (case-insensitive, enabled pipelines only; `NOT_FOUND` when unknown) — both clamp the delay to **[1s, 24h]** and, with a dedupe key, **update the live pending row in place** rather than stacking. `CancelAsync` / `CancelByDedupeKeyAsync` mark `cancelled`; `ListPendingAsync` lists soonest-due first. `FireDueAsync` (the sweeper entry point) marks each due pending task terminal **before** dispatch (crash-safe: a fired row can't re-fire), then dispatches through `IPipelineEngine.ExecuteAsync` with the saved `PipelineId` + variables + actor; a task overdue beyond the **10-minute stale-grace window** is `expired` instead of run (a long-late revert is wrong to fire).
+**Service `IScheduledPipelineService`** (Application `Commands.Services`, Infrastructure `Commands`, convention-registered scoped): `ScheduleAsync(broadcasterId, pipelineId, delaySeconds, variables, triggeredBy…, dedupeKey?)` and the name-first `ScheduleByNameAsync(…, pipelineName, …)` (case-insensitive, enabled pipelines only; `NOT_FOUND` when unknown) — both clamp the delay to **[1s, 24h]** and, with a dedupe key, **update the live pending row in place** rather than stacking. `CancelAsync` / `CancelByDedupeKeyAsync` mark `cancelled`; `ListPendingAsync` lists soonest-due first. `FireDueAsync` (the sweeper entry point) marks each due pending task terminal **before** dispatch (crash-safe: a fired row can't re-fire), then dispatches through the pipeline engine with the saved `PipelineId` + variables + actor; a task overdue beyond the **10-minute stale-grace window** is `expired` instead of run (a long-late revert is wrong to fire).
 
 **Sweeper `ScheduledPipelineExpiryService`** (Infrastructure `Commands.Jobs`, `BackgroundService`, auto-registered by the hosted-worker scan): a **5-second** clock-driven tick calling `FireDueAsync` on a fresh DI scope (cross-tenant, mirroring `RedemptionTimerExpiryService`). The first tick after boot **is** the startup sweep — tasks that came due during downtime fire now (or expire if stale).
 
 **Surfaces.** Pipeline action **`schedule_pipeline`** (`ICommandAction`, category `flow`): params `pipeline` (name → tenant id; typed failure if unknown), `delay_seconds` (required, clamped), optional template-resolved `dedupe_key`; it captures the current context variables so the deferred run keeps its context. Script SDK capability **`schedule.pipeline`** (low tier, side-effecting, `custom_code` feature-gated): `nnz.api.schedule.pipeline(pipelineName, delaySeconds, variables?, dedupeKey?) → boolean`, routed through the host bridge to `ScheduleByNameAsync` for the caller's tenant — this is what a Voice-Swap script calls to schedule its own revert.
 
-**REST management** (`PipelinesController` — EXTEND, same route base as §5; Gate-1 entry + Gate-2 floor per row):
+**REST management.** There are **no** `pipelines/scheduled` routes on `PipelinesController`. The only HTTP surface for scheduled tasks is the platform-admin job queue on `AdminController` (`api/v{version:apiVersion}/admin`, policy `IamPermissionKeys.IamManage`):
 
-| Method | Route (suffix under `…/pipelines`) | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
-|--------|------------------------------------|-------------|--------------|-----------------------------------|
-| GET | `/scheduled` | — (`?page=1&pageSize=25`) | `PaginatedResponse<ScheduledPipelineDto>` | management / Moderator · `pipelines:read` |
-| DELETE | `/scheduled/{scheduledId:guid}` | — | `StatusResponseDto<bool>` | management / Editor · `pipelines:write` |
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `admin/jobs` | every `ScheduledPipelineTask` row across every tenant, newest first, paged (the real queue the sweeper works, never a fabricated one) |
+| POST | `admin/jobs/{taskId:guid}/retry` | retries one failed (expired) job: schedules a brand-new due-now row for the same pipeline (the failed row is never mutated); refused when the job succeeded, is still queued, was cancelled, or its pipeline is gone; audited with the acting operator; rate-limited as security-sensitive |
 
-`GET /scheduled` lists the tenant's **pending** tasks soonest-due first (`ListPendingAsync`); `DELETE` calls `CancelAsync` (marks `cancelled`; `NOT_FOUND` when the id is unknown or already terminal). `ScheduledPipelineDto(Guid Id, Guid PipelineId, string PipelineName, DateTime DueAt, string? DedupeKey, string Status, Guid? TriggeredByUserId, DateTime CreatedAt)`.
+Channel-scoped scheduling is reached through the `schedule_pipeline` action and the `schedule.pipeline` script capability above, and cancellation by dedupe key through `IScheduledPipelineService.CancelByDedupeKeyAsync`; the design's channel-level `GET`/`DELETE …/pipelines/scheduled` routes were not built. The DTO the service returns is `ScheduledPipelineTaskDto` (`Application/Commands/Dtos/ScheduledPipelineTaskDtos.cs`).
 
 ---
 
@@ -1236,8 +1312,8 @@ A generic **deferred-execution** primitive: "run pipeline P **once**, T seconds 
 
 Owner directive (2026-09-29): the streamer edits **every** reply of **every** built-in from the dashboard, with the
 same control as the system overlay editor — see the default, edit, preview, reset to default. No built-in reply
-stays hardcoded. This section **supersedes** the single `CustomResponseTemplate` / `responseTemplate` field of
-§3.9–§4.5 (one override per built-in, applied to one reply only).
+stays hardcoded. This section **supersedes** the single `CustomResponseTemplate` / `responseTemplate` field of the original
+design (one override per built-in, applied to one reply only).
 
 **Slot model.** A *reply slot* is one reply case of one built-in, keyed `(builtinKey, slot)` — e.g. `(sr, added)`,
 `(sr, duplicate)`, `(sr, providerunavailable)`. Every sentence a built-in (or the chat handler on its behalf) can
@@ -1261,8 +1337,9 @@ The composer looks the channel override up itself (`IChannelBuiltinReplyOverride
 registry cache). Built-ins no longer thread an override through `BuiltinCommandContext`, so no slot can be
 forgotten and no override leaks into a second slot (the old `!lurk` bug).
 
-**Storage.** `ChannelBuiltinCommand.OverridesJson` becomes
-`{ "responses": { "<slot>": "<template>" }, "speakWithTts": true }` on the row for `builtinKey` (group keys
+**Storage.** `ChannelBuiltinCommand.OverridesJson` is
+`{ "responses": { "<slot>": "<template>" }, "speakWithTts": true, "cooldownSeconds": 30, "minPermissionLevel": 2 }` on the row for `builtinKey`
+(one codec, `BuiltinOverridesJson`; the blob keeps the permission floor as the ladder's numeric value, and `BuiltinCommandDto` converts it to a rung name at the edge; a field is absent when it inherits the default) (group keys
 `system`/`botstatus` get a row too; such rows are ignored by the enable/disable list, which walks the code catalogue).
 The legacy `{ "responseTemplate": "..." }` is still read: it applies to the built-in's **legacy slots** (the slot
 the old field fed — `uptime/live`, `song/playing`, `queue/list`, `sr/added`, `commands/list`, `lurk/lurking` +
@@ -1291,7 +1368,7 @@ and `BuiltinCommandDto.responseOverride` is removed):
 | DELETE | `/{builtinKey}/replies/{slot}` | — | `StatusResponseDto<BuiltinReplyDto>` (the reset row) | `commands:write` |
 
 ```csharp
-sealed record BuiltinReplyGroupDto(string BuiltinKey, bool IsCommand, IReadOnlyList<BuiltinReplyDto> Replies);
+sealed record BuiltinReplyGroupDto(string BuiltinKey, IReadOnlyList<string> CommandKeys, IReadOnlyList<BuiltinReplyDto> Replies);
 sealed record BuiltinReplyDto(string BuiltinKey, string Slot, LocalizedText Label, LocalizedText Description,
     string EffectiveTemplate, string Source /* channel|platform|tone */, string DefaultTemplate,
     IReadOnlyList<string> ToneVariations, IReadOnlyList<BuiltinReplyVariableDto> Variables,

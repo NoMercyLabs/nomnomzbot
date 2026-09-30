@@ -271,18 +271,7 @@
   },
   {
    "id": "track-boundary",
-   "paths": [
-    "**/app/**",
-    "**/server/**",
-    "**/handoff/**"
-   ],
-   "brief": [
-    "\\bapp/\\b",
-    "\\bserver/\\b",
-    "handoff",
-    "track boundary"
-   ],
-   "text": "Team & Track Ownership (backend Stoney_Eagle / frontend aaoa-dev) is SUSPENDED during the remediation campaign (D7) — Claude works both tracks, no handoff files. When the campaign ends the pre-campaign rule resumes: commits never cross app/server, never rewrite the other track's history, aaoa-dev never edits server/security code without an explicit yes/no boundary-override question, and the committed openapi/v1.json snapshot is the only bridge.",
+   "text": "SUSPENDED (PRODUCT-ALIGNMENT D7) — Team & Track Ownership (backend Stoney_Eagle / frontend aaoa-dev) is SUSPENDED during the remediation campaign (D7) — Claude works both tracks, no handoff files. When the campaign ends the pre-campaign rule resumes: commits never cross app/server, never rewrite the other track's history, aaoa-dev never edits server/security code without an explicit yes/no boundary-override question, and the committed openapi/v1.json snapshot is the only bridge.",
    "source": "CLAUDE.md: Team & Track Ownership",
    "covers": [
     "Track split + handoff inboxes",
@@ -330,7 +319,7 @@
     ""
    ],
    "text": "Pick the model for the work: Haiku for checks, Sonnet for mechanical/pattern work, Opus only for complex work (root cause, concurrency, security) with a tight brief. Set model on the call.",
-   "source": "CLAUDE.md: Agents; memory use-cheap-models-for-research.md",
+   "source": "memory use-cheap-models-for-research.md",
    "covers": [
     "use-cheap-models-for-research.md"
    ]
@@ -339,7 +328,7 @@
  "output": [
   {
    "id": "codex-out-arc-takes-over",
-   "match": "hit your usage limit|usage limit.{0,80}try again",
+   "match": "type\\W{1,6}error\\W.{0,300}hit your usage limit|You.ve hit your usage limit\\..{0,200}try again at",
    "text": "Codex is out of credits. Arc takes over now on the same branch/issue with its own Sonnet agents (max 3 at a time). Never park deferrable work waiting for a Codex reset.",
    "source": "memory feedback-codex-out-arc-takes-over.md",
    "covers": [
@@ -462,7 +451,7 @@
   },
   {
    "id": "git-conventions",
-   "text": "Conventional commit messages preferred. Main branch is `master` (never `main`). `origin` = NoMercyLabs/nomnomzbot canonical, `fork` = personal. Feature branches `feat/description` or `fix/description`. All code in this monorepo (server/, app/); backend and frontend commits never mix `server/` and `app/` files. Tests pass before every commit; every push is followed by `gh run watch`.",
+   "text": "Conventional commit messages preferred. Main branch is `master` (never `main`). `origin` = NoMercyLabs/nomnomzbot canonical, `fork` = personal. Feature branches `feat/description` or `fix/description`. All code in this monorepo (server/, app/); backend and frontend commits never mix `server/` and `app/` files (suspended under D7); while suspended, keep a contract and its consumer in one commit. Tests pass before every commit; every push is followed by `gh run watch`.",
    "source": "CLAUDE.md: Git Conventions",
    "covers": [
     "Conventional commit messages preferred",
@@ -472,6 +461,70 @@
     "All code lives in this monorepo",
     "commits never mix `server/` and `app/`",
     "Tests pass before every commit"
+   ]
+  },
+  {
+   "id": "parallelism-cap-three-agents",
+   "text": "Run at most 3 agents at once, any model. More trips the session rate limit and kills them all mid-work. Queue the rest.",
+   "source": "memory parallelism-cap-three-agents.md",
+   "covers": [
+    "parallelism-cap-three-agents.md"
+   ]
+  },
+  {
+   "id": "push-validated-batches",
+   "text": "Push validated work in regular, properly sized batches: not every commit, not never. A batch boundary is when the in-flight feature lands. CI is watched in the background.",
+   "source": "memory feedback-batch-commits-push-at-milestones.md",
+   "covers": [
+    "feedback-batch-commits-push-at-milestones.md"
+   ]
+  },
+  {
+   "id": "never-work-outside-project-root",
+   "text": "Worktrees, scratch checkouts and temp files stay inside the project root (worktrees under .claude/worktrees/, scratch under .scratch/), never as sibling directories. No exception for a live agent.",
+   "source": "memory feedback-never-work-outside-project-root.md",
+   "covers": [
+    "feedback-never-work-outside-project-root.md"
+   ]
+  },
+  {
+   "id": "translations-never-in-code",
+   "text": "Backend user-facing strings carry a resource KEY only. The en and nl values live in strings.xml (values/ and values-nl/), never inline in C#.",
+   "source": "memory translations-never-in-code.md",
+   "covers": [
+    "translations-never-in-code.md"
+   ]
+  },
+  {
+   "id": "never-gui-automate-owner-machine",
+   "text": "Never send keystrokes or mouse input (SendKeys, AutoHotkey, UI Automation, xdotool) to the owner's machine. Live UI checks use test hooks, Compose UI tests, Playwright or a window the agent opened itself.",
+   "source": "memory never-gui-automate-owner-machine.md",
+   "covers": [
+    "never-gui-automate-owner-machine.md"
+   ]
+  },
+  {
+   "id": "never-git-stash-on-shared-tree",
+   "text": "Never run git stash, checkout --, clean or reset on a shared tree with live agents. It sweeps everyone's uncommitted work. Recovery: git checkout stash@{0} -- <file>; never drop the stash.",
+   "source": "memory never-git-stash-on-shared-tree.md",
+   "covers": [
+    "never-git-stash-on-shared-tree.md"
+   ]
+  },
+  {
+   "id": "never-commit-a-consumer-without-its-contract",
+   "text": "A commit must compile on its own. Never commit code that reads a contract change you left unstaged: commit the contract with its consumer, or commit neither.",
+   "source": "memory never-commit-a-consumer-without-its-contract.md",
+   "covers": [
+    "never-commit-a-consumer-without-its-contract.md"
+   ]
+  },
+  {
+   "id": "never-forward-host-secrets-to-containers",
+   "text": "Never forward host secrets or credentials into a container, sandbox or dev environment. The user logs in inside the box. If a host secret is truly needed, ask first and explain the exposure.",
+   "source": "memory never-forward-host-secrets-to-containers.md",
+   "covers": [
+    "never-forward-host-secrets-to-containers.md"
    ]
   }
  ]

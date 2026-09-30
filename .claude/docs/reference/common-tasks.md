@@ -27,23 +27,24 @@
 
 ### Adding a New Twitch EventSub Subscription
 
-Per the `twitch-eventsub.md` spec: add the topic to the subscription catalogue and write a
-translator beside the existing ones in `NomNomzBot.Infrastructure/Platform/Eventing/Translators/`
-(17 files covering 74 topics) —
+Per the `twitch-eventsub.md` spec: drop a translator class (auto-discovered via
+`AddImplementationsOf<IEventSubEventTranslator>`) beside the existing ones in
+`NomNomzBot.Infrastructure/Platform/Eventing/Translators/` — one translator class per topic in the
+Translators folder — and add the topic's condition/version/token-owner to `EventSubConditionBuilder`.
 `TwitchEventSubHostedService` re-registers the full set on every (re)connect, and the translator
 turns the wire payload into a domain event on the bus.
 
 ### Adding a New Integration (OAuth pattern)
 
-1. Add `{Provider}Controller` in Api with `OAuth`, `Callback`, `Disconnect` actions
-2. Add `I{Provider}Service` interface in Application
-3. Implement `{Provider}Service` in Infrastructure
-4. Add `{Provider}:ClientId/ClientSecret` to `appsettings.json` and `.env.example`
-5. Surface the integration in the dashboard's Integrations screen (`feature/integrations`); gate the feature in the frontend on the integration's connection state (placement per `frontend-ia.md`).
+1. Add the provider constant (`AuthEnums.IntegrationProvider`) and an `OAuthProviderRegistry` entry
+2. Add the `{Provider}:ClientId/ClientSecret` config keys to `appsettings.json`, `.env.example` and `docker-compose.yml`
+3. Add the Integrations screen row (`feature/integrations`); gate the feature in the frontend on the integration's connection state (placement per `frontend-ia.md`).
+
+Connect, disconnect and callback are served by the generic `IntegrationOAuthController` — no per-provider controller.
 
 ### Adding a New Pipeline Action
 
 1. Create the action implementing `ICommandAction` in `NomNomzBot.Infrastructure/Platform/Pipeline/CoreActions/` (core) or `NomNomzBot.Infrastructure/<Module>/PipelineActions/` (side-effecting)
-2. Set `Type` property to a unique snake_case string — registration is automatic via the `ICommandAction` assembly scan (`AddImplementationsOf<ICommandAction>`); no DI edit
+2. Set the `ActionType` property (not `Type`) to a unique snake_case string — registration is automatic via the `ICommandAction` assembly scan (`AddImplementationsOf<ICommandAction>`); no DI edit
 3. Add the contract/DTO to `NomNomzBot.Application/Abstractions/Pipeline/`
 4. Surface the action in the dashboard's pipeline builder block palette (`feature/pipelines`).

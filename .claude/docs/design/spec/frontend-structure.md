@@ -9,6 +9,11 @@ here." This is the rulebook every contributor and scaffold follows, the sibling 
 `backend-structure.md`; the design layer by `frontend-design-system.md`; the query engine by
 `frontend-data-layer.md`.
 
+**Status:** Koin (§4), the taxonomy linter (§7), the `core/query/` query layer and OpenAPI codegen
+(§5, F6) are not built. They belong to the frontend-architecture owner question in
+`SHORTCOMINGS-EXECUTION-PLAN.md`. What ships instead: explicit constructor injection in
+`core/di/AppGraph.kt` and hand-written `…Api` facades in `core/network/`.
+
 **Conventions:** `commonMain`-first with full `wasmJs` parity; explicit types; one public type per
 file; **package == folder path**; AGPL header on every `.kt`; `ApiResult<T>` over exceptions/null;
 async via coroutines (never block). Package root is `bot.nomnomz.dashboard`.
@@ -70,9 +75,14 @@ app/composeApp/src/
 └─ wasmJsMain/…                   # actuals: JS engine, sessionStorage token, no-op discovery, redirect OAuth
 ```
 
-Features (mirroring the backend modules + `frontend.md` screens): `setup` · `dashboard` · `commands`
-· `pipeline` · `community` · `moderation` · `rewards` · `timers` · `widgets` · `integrations` ·
-`settings`.
+Features (one folder each under `feature/`): `admin` · `alerts` · `analytics` · `assets` ·
+`attention` · `automation` · `bundles` · `chat` · `chatpolls` · `chattriggers` · `codescripts` ·
+`commands` · `community` · `connect` · `customevents` · `discord` · `economy` · `emoji` ·
+`eventresponses` · `features` · `federation` · `games` · `giveaways` · `home` · `integrations` ·
+`language` · `liveops` · `mediashare` · `moderation` · `music` · `mydata` · `obs` · `participant` ·
+`picklists` · `pipelines` · `platformdefaults` · `platformtemplates` · `quotes` · `rewards` ·
+`roles` · `settings` · `setup` · `shell` · `songrequests` · `sound` · `splash` · `supporters` ·
+`timers` · `tts` · `voicetriggers` · `vts` · `webhooks` · `widgets`.
 
 ---
 
@@ -162,6 +172,9 @@ generated-Helix-client rule: external contracts are generated, not transcribed).
 
 ## 6. Scaffolds (F8)
 
+**Not built.** None of these templates exist yet; today every file is placed by hand per §2. The
+table is the design.
+
 A template per artifact type, each emitting files in their canonical homes with header + base + wiring
 stub:
 
@@ -189,14 +202,9 @@ A detekt ruleset (+ CI gate), the frontend `taxonomy-linter`, fails the build on
 
 ---
 
-## 8. Current state & first slice
+## 8. Current state
 
-The `app/` KMP module is greenfield. The first vertical slice (per `frontend.md` and the
-vertical-slice rule): scaffold `:composeApp` (`jvm()` + `wasmJs`; source sets `jvmMain`/`wasmJsMain`), `core/di` + `coreModule`,
-one `SystemApi.health()` facade over the generated stub, a `core/connection` profile from the served origin (web) or a **hardcoded
-`http://localhost:5080` default, editable in the Connect screen field** (desktop), and a Connect screen that shows live `/health` from a running
-backend — proving module layout, both targets, DI, the generated REST path, and runtime config in one
-commit. The QueryClient engine and navigation land in the next slices, on the proven spine.
+`SystemApi` exists in `core/network` with `status()`/`wizard()`/setup calls.
 
 ---
 

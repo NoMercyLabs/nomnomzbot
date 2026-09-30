@@ -2,13 +2,15 @@
 
 **Subsystem area:** bans, timeouts, automod settings, moderation action log, network-nuke batch + reversal, shared bans, viewer reports.
 
-**Status:** directly-implementable. Owner codes from this. All signatures fully typed. Namespace is `NomNomzBot.*` in every `.cs` file; folders/products are `NomNomzBot.*`.
+**Status:** the locked-schema **target** spec; the subsystem is **partly built** and the code departs from it in several places (below). Namespace is `NomNomzBot.*` in every `.cs` file; folders/products are `NomNomzBot.*`.
+
+> **Implementation status (2026-09-30).** The moderation module is live in `server/src/NomNomzBot.{Domain,Application,Infrastructure}/Moderation/` (module-first — every path in this spec is under those folders, not the layer-first `Entities/Moderation`, `Services/Moderation`, `DTOs/Moderation` folders the original text used). Built and serving: ban/timeout/unban/warn/clear-chat, moderator roster, Twitch-relayed shield mode / blocked terms / unban requests / suspicious users, the automod queue, chat filters, the escalation ladder, viewer reports, user notes and history, network nuke, shared bans (both legs), the J.4/J.5 projections, spam defence and trust-and-safety review. Differences that matter are called out in place with **Built today** / **As built** notes. Whether to rewrite this spec to the as-built shape, or to migrate the code to the target shape, is an **open owner decision** — until then the sections below stay the target and the notes record the truth. Tracker ids used below: **S-VIEWER-RESTRICTION-D1**, **S-CHATFILTER-HOLD**, **S-MOD-PIPELINE-ACTIONS**.
 
 **Grounding:**
-- Locked schema — Domain J (Moderation), tables J.1–J.11; cross-cut O.8 `ModerationAuditLog`. `docs/design/2026-06-16-database-schema.md`.
-- Design — `docs/design/2026-06-16-moderation.md` (unified queue, network-nuke split-by-safety, shared-chat ban propagation, evidence-packet-not-mass-report).
-- Stack — `docs/design/2026-06-16-stack-and-dependencies.md` (EF Core 10, hand-rolled Helix, `Microsoft.Extensions.Http.Resilience`, profile adapters).
-- Decisions — `docs/design/2026-06-16-decisions-resolved.md` (binding here: federation is feature-gated; the profile-adapter posture is the design).
+- Locked schema — Domain J (Moderation), tables J.1–J.11; cross-cut O.8 `ModerationAuditLog`. `.claude/docs/design/2026-06-16-database-schema.md`.
+- Design — `.claude/docs/design/2026-06-16-moderation.md` (unified queue, network-nuke split-by-safety, shared-chat ban propagation, evidence-packet-not-mass-report).
+- Stack — `.claude/docs/design/2026-06-16-stack-and-dependencies.md` (EF Core 10, hand-rolled Helix, `Microsoft.Extensions.Http.Resilience`, profile adapters).
+- Decisions — `.claude/docs/design/2026-06-16-decisions-resolved.md` (binding here: federation is feature-gated; the profile-adapter posture is the design).
 
 ### Binding conventions applied here
 - .NET 10 / C# 14 / EF Core 10; file-scoped namespaces; `Nullable` enabled; async all the way (no `.Result`/`.Wait`).
@@ -27,7 +29,7 @@
 
 ## 1. Entities (locked-schema, this subsystem owns)
 
-All defined in `docs/design/2026-06-16-database-schema.md` Domain J (+ O.8). Listed here by name + the key fields a coder needs; **do not redefine columns** — the schema is authoritative. EF entity classes live in `NomNomzBot.Domain/Entities/Moderation/`; configs in `NomNomzBot.Infrastructure/Persistence/Configurations/Moderation/`.
+All defined in `.claude/docs/design/2026-06-16-database-schema.md` Domain J (+ O.8). Listed here by name + the key fields a coder needs; **do not redefine columns** — the schema is authoritative. EF entity classes live in `NomNomzBot.Domain/Moderation/Entities/` (namespace `NomNomzBot.Domain.Moderation.Entities`); configs in `NomNomzBot.Infrastructure/Moderation/Persistence/`.
 
 | # | Entity | PK | Kind | Key fields (from schema) |
 |---|--------|----|------|--------------------------|
@@ -50,6 +52,8 @@ All defined in `docs/design/2026-06-16-database-schema.md` Domain J (+ O.8). Lis
 | J.12 | `ChannelViewerRestriction` (renamed from `ChannelModerationStanding`) | `Id guid` | mutable | `BroadcasterId guid`; `UserId guid` FK→`Users.Id` (the one human — every linked `UserIdentity` on every platform connection of the channel inherits it); `Restriction {muted\|shadowbanned\|blacklisted}` — an **absent row means normal** (there is no stored "none"); `Reason string(500)?`; `CreatedByUserId guid?` (acting operator). **Unique** `(BroadcasterId, UserId)`; **Index** `(BroadcasterId, Restriction)`. |
 | O.8 | `ModerationAuditLog` | `Id bigint` | `[APPEND-ONLY]` | `BroadcasterId guid?`; `ModerationActionId bigint?`; `ActorUserId guid?`; `ActorIamPrincipalId guid?` (staff cross-tenant); `EventType {action_taken\|action_reverted\|queue_resolved\|cross_tenant_access}`; `Justification string(500)?`; `MetadataJson text?` **[VC:JSON]**. |
 
+> **Built today:** `ChannelModerationStanding` (`NomNomzBot.Domain/Moderation/Entities/ChannelModerationStanding.cs`) — one row per **platform identity**, unique on `(BroadcasterId, Provider, UserId)` where `UserId` is that platform's **raw user-id string** (max 64), with `Standing` (`muted`|`shadowbanned`|`blacklisted`), `Reason`, `CreatedByUserId`, `CreatedAt`/`UpdatedAt`; written by `IModerationService.SetModerationStandingAsync` / `ClearModerationStandingAsync` (string channel id, `operatorUserId`, `targetUserId`, `provider`), surfaced as `ModerationStandingDto` / `SetModerationStandingRequest`, routes `POST|DELETE /channels/{channelId}/moderation/users/{userId}/standing`, action key `moderation:suspicioususer:write` (LeadModerator). The one-row-per-human `ChannelViewerRestriction` keyed on `Users.Id` described in this spec (the **D1 target**) is **not built**; migrating the code to it is tracked as **S-VIEWER-RESTRICTION-D1**.
+
 > **J.12 axis note.** `ChannelViewerRestriction` (renamed from `ChannelModerationStanding` — "standing" is reserved for the positive `CommunityStanding` ladder; this is the **negative, bot-side restriction** axis) is deliberately distinct from `ChannelCommunityStanding` (positive, badge-sourced, overwritten by chat tags) and from platform-native ban/timeout (which stay API-enforced and are **not** mirrored here). It keys on **`Users.Id`** — one human (`PRODUCT-ALIGNMENT.md` D1): the restriction applies to every `UserIdentity` the human has linked, on every platform connection of the channel; the enforcement seams (§9.3) resolve the inbound platform identity to `Users.Id` via `IUserIdentityService.ResolveUserAsync` and look the restriction up by that key. Rows carry `CreatedAt`/`UpdatedAt`; clearing a restriction **deletes the row** (no soft-delete — absence is the "normal" state). In the schema doc it sits beside its per-user Domain-J siblings (J.3–J.5). Platform-native moderation (`IModerationService` ban/timeout/unban/delete/warn) is likewise keyed on `Users.Id` and **fans out to every linked identity on every platform connection of the channel** — one ban = banned everywhere on that channel, one `ModerationAction` row per platform leg (`TargetProvider`, `TargetProviderUserId`).
 
 **Cross-subsystem references (owned elsewhere — referenced, not redefined):** `Channels` (A.2, tenant root), `Users` (A.1), `ChatMessages` (Content domain), `ChannelMemberships` (B.1, management ladder — gate source), `ActionDefinitions` (B.3, floor/permit catalog), `ChannelFederationOptIns` (D.3, cross-instance shared-ban leg), `FederationPeers` (D.1).
@@ -58,14 +62,39 @@ All defined in `docs/design/2026-06-16-database-schema.md` Domain J (+ O.8). Lis
 
 ## 2. Domain events
 
-Namespace `NomNomzBot.Domain.Events`. **New events are `sealed record` deriving the canonical `DomainEventBase`** (`platform-conventions.md` §2.0 — provides `Guid EventId` (UUIDv7), `Guid BroadcasterId`, `DateTimeOffset OccurredAt`, and implements `IDomainEvent`). Events **inherit** `EventId` / `BroadcasterId` / `OccurredAt` from the base and **must NOT redeclare them** — they add only their own payload fields, and the publishing service sets the inherited `BroadcasterId` to the owning channel (never `Guid.Empty` — every moderation event is tenant-scoped). The base is required because both `IEventHandler<in TEvent>` and `IEventBus.PublishAsync<TEvent>`/`PublishFireAndForget<TEvent>` are constrained `where TEvent : class, IDomainEvent`, so the §3 services and §7 handlers can only carry events that implement it. (The record `DomainEvent` — used by `IHasDomainEvents` aggregate collections — does **not** implement `IDomainEvent` and is a different type; do not derive it here.) The records below are the canonical surrogate-`Guid` persistence/audit events; the SignalR dashboard fan-out subscribes to these same records (no legacy `UserBannedEvent`/`UserTimedOutEvent`/`UserUnbannedEvent` parallel set).
+Namespace `NomNomzBot.Domain.Moderation.Events`. **Events are `sealed class`es deriving the canonical `DomainEventBase`** (as built: `required … { get; init; }` properties constructed with object initializers — the positional-`record` listing below is a compact way to state each event's fields, not the source shape) (`platform-conventions.md` §2.0 — provides `Guid EventId` (UUIDv7), `Guid BroadcasterId`, `DateTimeOffset OccurredAt`, and implements `IDomainEvent`). Events **inherit** `EventId` / `BroadcasterId` / `OccurredAt` from the base and **must NOT redeclare them** — they add only their own payload fields, and the publishing service sets the inherited `BroadcasterId` to the owning channel (never `Guid.Empty` — every moderation event is tenant-scoped). The base is required because both `IEventHandler<in TEvent>` and `IEventBus.PublishAsync<TEvent>`/`PublishFireAndForget<TEvent>` are constrained `where TEvent : class, IDomainEvent`, so the §3 services and §7 handlers can only carry events that implement it. (The record `DomainEvent` — used by `IHasDomainEvents` aggregate collections — does **not** implement `IDomainEvent` and is a different type; do not derive it here.) The records below are the canonical surrogate-`Guid` persistence/audit events; the SignalR dashboard fan-out subscribes to these same records (no legacy `UserBannedEvent`/`UserTimedOutEvent`/`UserUnbannedEvent` parallel set).
 
 > Tenant key on every new event is the **inherited** `Guid BroadcasterId` (matches widened `ITenantScoped`) — set by the publisher, never redeclared in the record header. An event that references a *different* channel (shared-ban / network-nuke origin) carries that explicitly as `OriginBroadcasterId`, distinct from the inherited tenant key. Twitch ids ride alongside as `string` where a handler needs them for Helix.
 
-```csharp
-namespace NomNomzBot.Domain.Events;
+**As built — the real event set** (`NomNomzBot.Domain/Moderation/Events/*.cs` plus `Chat/Events/ChatModerationEvents.cs`). Every one is a `sealed class` deriving `DomainEventBase` (`UserBannedEvent` / `UserTimedOutEvent` also implement `IProviderScopedEvent`); the moderator/target ids on the Twitch-relayed events are **strings** (platform ids), not `Guid`s.
 
-using NomNomzBot.Domain.Enums;
+| Event | Fields (beyond the inherited `EventId` / `BroadcasterId` / `OccurredAt`) |
+|---|---|
+| `ModerationActionTakenEvent` | `string ChannelId`, `string ModeratorId`, `string TargetUserId`, `string ActionType`, `string? Reason` |
+| `UserBannedEvent` | `string Provider`, `TargetUserId`, `TargetDisplayName`, `ModeratorUserId`, `ModeratorDisplayName?`, `Reason?` |
+| `UserTimedOutEvent` | as `UserBannedEvent` plus `int DurationSeconds` |
+| `UserUnbannedEvent` | `TargetUserId`, `TargetDisplayName?`, `ModeratorUserId`, `ModeratorDisplayName?` |
+| `ChatUserMessagesClearedEvent` | `TargetUserId`, `TargetUserDisplayName`, `TargetUserLogin` |
+| `NetworkNukeExecutedEvent` | `Guid BatchId`, `Guid OriginBroadcasterId`, `Guid InitiatedByUserId`, `string TargetTwitchUserId`, `int ChannelCount` |
+| `SharedChatBanIssuedEvent` | `string SharedChatSessionId`, `Guid OriginChannelId`, `string TargetTwitchUserId`, `string? TargetDisplayName`, `string? Reason` |
+| `UserHeatThresholdCrossedEvent` | `Guid SubjectUserId`, `string SubjectTwitchUserId`, `decimal HeatScore`, `int Threshold` |
+| `MessageAutoModdedEvent` | `MessageId`, `UserId`, `Reason` |
+| `AutoModMessageHeldEvent` / `AutoModMessageUpdatedEvent` | EventSub-relayed held-message facts (message, user, category/level, or moderator + status) |
+| `AutoModSettingsUpdatedEvent` / `AutoModTermsUpdatedEvent` | EventSub-relayed automod level / blocked-term changes |
+| `ShieldModeBeganEvent` / `ShieldModeEndedEvent` | moderator id + name, `StartedAt` / `EndedAt` |
+| `WarningSentEvent` / `WarningAcknowledgedEvent` | user, moderator, `Reason?`, `ChatRulesCited` |
+| `UnbanRequestCreatedEvent` / `UnbanRequestResolvedEvent` | request id, user, text; resolved adds moderator + `Status` + `ResolutionText` |
+| `SuspiciousUserMessageEvent` / `SuspiciousUserUpdatedEvent` | user, `LowTrustStatus`, message or moderator |
+| `ModeratorAddedEvent` / `ModeratorRemovedEvent` / `VipAddedEvent` / `VipRemovedEvent` | `UserId`, `UserDisplayName`, `UserLogin` |
+
+**Not built** from the catalogue below: `ModerationActionAppliedEvent`, `ModerationActionRevertedEvent`, `ModerationQueueItemEnqueuedEvent`, `ModerationQueueItemResolvedEvent`, `NetworkNukeRevertedEvent`, `ViewerReportFiledEvent`, `ChatSettingsUpdatedEvent`, `ShieldModeUpdatedEvent` (built as the Began/Ended pair), `ChatAnnouncementSentEvent`, `ChannelVipChangedEvent` (built as Added/Removed), `ChannelModeratorRemovedEvent` (built as `ModeratorRemovedEvent`), `UserBlockListChangedEvent`, `SuspiciousUserTreatmentUpdatedEvent` (built as `SuspiciousUserUpdatedEvent`). The action facts the projection and dashboard consume are the Twitch-relayed events above; the `moderation_action` provenance is a `Record` row, not a J.2 table.
+
+The catalogue that follows is the **design target**.
+
+```csharp
+namespace NomNomzBot.Domain.Moderation.Events;
+
+using NomNomzBot.Domain.Moderation.Enums;
 
 /// <summary>A mod action was applied (local, shared-chat, nuke fan-out, or federation). One per ModerationAction row.</summary>
 public sealed record ModerationActionAppliedEvent(
@@ -128,7 +157,7 @@ public sealed record NetworkNukeRevertedEvent(
 ) : DomainEventBase;
 
 /// <summary>
-/// Opt-in shareable event: a SuperMod ban on the origin channel during an active Shared Chat session.
+/// Opt-in shareable event: a LeadModerator ban on the origin channel during an active Shared Chat session.
 /// Delivered cross-instance via the federation bus; partner accepts iff it opted in + trusts the origin.
 /// </summary>
 public sealed record SharedChatBanIssuedEvent(
@@ -224,10 +253,10 @@ public sealed record SuspiciousUserTreatmentUpdatedEvent(
 ) : DomainEventBase;
 ```
 
-**New enums** (namespace `NomNomzBot.Domain.Enums`, each `[VC:enum]` ↔ schema text). The existing `ModerationActionType { Timeout, Ban, Delete, Warn }` is **extended** (do not create a second enum) to the full schema set:
+**New enums** (namespace `NomNomzBot.Domain.Moderation.Enums`, each `[VC:enum]` ↔ schema text). **As built** only five enums exist there — `ModerationActionType { Timeout, Ban, Delete, Warn }` (**not yet extended** to the full set below), `ModerationQueueSource`, `ModerationQueueStatus`, `ChatFilterType`, and `ChatFilterAction { Delete, Timeout, Hold, Flag, Escalate }` — and the rest are plain string columns on their entities (report status, nuke status, unban-request status, suspicious-user treatment). The `ModerationActionType` extension (do not create a second enum) to the full schema set is the target:
 
 ```csharp
-namespace NomNomzBot.Domain.Enums;
+namespace NomNomzBot.Domain.Moderation.Enums;
 
 public enum ModerationActionType { Ban, Unban, Timeout, Untimeout, DeleteMessage, Warn, Nuke }
 public enum ModerationActorKind { Human, Bot, AutoMod }
@@ -246,6 +275,8 @@ public enum SuspiciousUserTreatment { NoTreatment, ActiveMonitoring, Restricted 
 
 > **Migration note for `ModerationActionType`:** the old members `{Timeout, Ban, Delete, Warn}` map to `{Timeout, Ban, DeleteMessage, Warn}`. The `[VC:enum]` converter serializes to the schema's snake/text tokens (`delete_message`, etc.), not the C# member name — supply an explicit name map in the converter.
 
+> **Not yet enforced — S-CHATFILTER-HOLD.** `ChatFilterExecutionHandler` treats `Hold` (and `Flag`) as a logged no-op today: it only writes a debug line and neither degrades to `Delete` + a review-queue entry nor holds anything. Everything below is the intended behaviour.
+>
 > **`ChatFilterAction.Hold` — reachable only where a hold actually exists.** We are not the chat
 > host: Twitch, YouTube, Kick and X publish a message the instant it is sent, so a filter we
 > evaluate cannot stop one appearing (`spam-defense.md` SD12). `Hold` is therefore valid only for
@@ -261,17 +292,17 @@ public enum SuspiciousUserTreatment { NoTreatment, ActiveMonitoring, Restricted 
 
 ## 3. Service interfaces
 
-All in `NomNomzBot.Application.Services.Moderation` (new folder) except the **extended** `IModerationService` which stays at its current path `NomNomzBot.Application.Services/IModerationService.cs`. Each interface = one responsibility. Implementations in `NomNomzBot.Infrastructure/Services/Moderation/`. All take `Guid broadcasterId` (widened) and `CancellationToken` last.
+**As built, every moderation service interface lives in `NomNomzBot.Application/Moderation/Services/`** (namespace `NomNomzBot.Application.Moderation.Services`) — including `IModerationService` — with implementations in `NomNomzBot.Infrastructure/Moderation/`. (The design text put the new interfaces in `NomNomzBot.Application.Services.Moderation` and left `IModerationService` at `NomNomzBot.Application.Services`.) Sibling interfaces that exist beyond the ones specified below: `IChatFilterService`, `IModerationHistoryService`, `INetworkBlockService`, `IOperatorNetworkBanService`, `IOperatorMessageDeleter`, `ISpamDefenseService`, `ITrustSafetyReviewService`. `IAutoModConfigService`, `IUserContextService`, `IChatControlService` and `IModerationDirectoryService` do **not** exist: their duties are folded into `IModerationService` (still `string`-keyed, see the reconciliation note above) and the controllers. Each interface = one responsibility. All take `Guid broadcasterId` (widened) and `CancellationToken` last.
 
 ### 3.1 `IModerationService` — direct mod actions (EXTEND existing)
 
 Replaces the `string`-keyed signatures with `Guid`; keeps method names. Each writes a `ModerationAction` (J.2) row, calls Helix via `ITwitchModerationApi`, fires `ModerationActionAppliedEvent`/`ModerationActionRevertedEvent`, and appends `ModerationAuditLog` (O.8). `actorUserId` is the authenticated principal (no longer implicit). The two bot-side standing methods are the deliberate exception: they never call Helix and write no `ModerationAction` row — their audit is a SYSTEM `UserNote` (J.3), and each write is one `IUnitOfWork` op (standing row + note, all-or-nothing).
 
 ```csharp
-namespace NomNomzBot.Application.Services;
+namespace NomNomzBot.Application.Moderation.Services;
 
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Moderation;
+using NomNomzBot.Application.Moderation.Dtos;
 
 public interface IModerationService
 {
@@ -304,13 +335,15 @@ public interface IModerationService
 }
 ```
 
+> **Built today:** `ChannelModerationStanding` (`NomNomzBot.Domain/Moderation/Entities/ChannelModerationStanding.cs`) — one row per **platform identity**, unique on `(BroadcasterId, Provider, UserId)` where `UserId` is that platform's **raw user-id string** (max 64), with `Standing` (`muted`|`shadowbanned`|`blacklisted`), `Reason`, `CreatedByUserId`, `CreatedAt`/`UpdatedAt`; written by `IModerationService.SetModerationStandingAsync` / `ClearModerationStandingAsync` (string channel id, `operatorUserId`, `targetUserId`, `provider`), surfaced as `ModerationStandingDto` / `SetModerationStandingRequest`, routes `POST|DELETE /channels/{channelId}/moderation/users/{userId}/standing`, action key `moderation:suspicioususer:write` (LeadModerator). The one-row-per-human `ChannelViewerRestriction` keyed on `Users.Id` described in this spec (the **D1 target**) is **not built**; migrating the code to it is tracked as **S-VIEWER-RESTRICTION-D1**.
+
 ### 3.2 `IAutoModConfigService` — automod settings (J.7) + filters (J.6)
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Moderation;
+using NomNomzBot.Application.Moderation.Dtos;
 
 public interface IAutoModConfigService
 {
@@ -337,7 +370,7 @@ public interface IAutoModConfigService
 ### 3.3 `IModerationQueueService` — unified action queue (J.1)
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 public interface IModerationQueueService
 {
@@ -357,14 +390,14 @@ public interface IModerationQueueService
 
 ### 3.4 `INetworkNukeService` — cross-channel mass ban + reversal (J.2a)
 
-SuperMod+ only — Gate-2 `moderation:nuke` / `moderation:sharedban:write` at the controller, AND re-checked in-service via `IRoleResolver.ResolveEffectiveLevelAsync ≥ SuperMod(20)`. Legit ban API only — **no mass-reporting** (design §"Network nuke").
+LeadModerator+ only — Gate-2 `moderation:nuke` / `moderation:sharedban:write` at the controller, AND re-checked in-service via `IRoleResolver.ResolveEffectiveLevelAsync ≥ LeadModerator(20)`. Legit ban API only — **no mass-reporting** (design §"Network nuke").
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 public interface INetworkNukeService
 {
-    /// Bans target across every channel the actor holds ban rights on (SuperMod+). Creates ONE NetworkNukeBatch (J.2a), fans out one ModerationAction(nuke, origin=network_nuke, NetworkNukeBatchId set) per channel, sets ChannelCount, fires NetworkNukeExecutedEvent + audit per leg. Partial leg failures → batch Status=partial. Single-confirmation enforced by RequireConfirmation flag in request.
+    /// Bans target across every channel the actor holds ban rights on (LeadModerator+). Creates ONE NetworkNukeBatch (J.2a), fans out one ModerationAction(nuke, origin=network_nuke, NetworkNukeBatchId set) per channel, sets ChannelCount, fires NetworkNukeExecutedEvent + audit per leg. Partial leg failures → batch Status=partial. Single-confirmation enforced by RequireConfirmation flag in request.
     Task<Result<NetworkNukeBatchDto>> NukeAsync(Guid originBroadcasterId, Guid actorUserId, NetworkNukeRequest request, CancellationToken ct = default);
 
     /// Reverses an entire batch as one unit: unbans on every actioned channel, inserts ModerationAction(unban) per leg linking RevertedByActionId, sets each nuke action IsReverted, sets batch Status=reverted/partial + RevertedBy/At; fires NetworkNukeRevertedEvent + audit. Fails NOT_FOUND/FORBIDDEN if actor lacks rights on the origin.
@@ -381,26 +414,31 @@ public interface INetworkNukeService
 ### 3.5 `ISharedBanService` — shared-chat ban propagation + trust list (J.9/J.9a)
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 public interface ISharedBanService
 {
     /// Reads SharedBanSettings (J.9) + trusted-channel list (J.9a) for the channel; returns defaults (accept=false, share=false) if none. Read-only.
     Task<Result<SharedBanSettingsDto>> GetSettingsAsync(Guid broadcasterId, CancellationToken ct = default);
 
-    /// Upserts SharedBanSettings (J.9). Default-deny; SuperMod/Broadcaster gated. Returns persisted settings.
+    /// Upserts SharedBanSettings (J.9). Default-deny; LeadModerator/Broadcaster gated. Returns persisted settings.
     Task<Result<SharedBanSettingsDto>> SaveSettingsAsync(Guid broadcasterId, Guid actorUserId, SaveSharedBanSettingsRequest request, CancellationToken ct = default);
 
     /// Adds a SharedBanTrustedChannel (J.9a). Unique (BroadcasterId, TrustedChannelId); idempotent on conflict. Returns the row dto.
     Task<Result<SharedBanTrustedChannelDto>> AddTrustedChannelAsync(Guid broadcasterId, Guid actorUserId, Guid trustedChannelId, CancellationToken ct = default);
 
-    /// Removes a SharedBanTrustedChannel (J.9a). Returns NOT_FOUND if absent.
+    /// Removes a SharedBanTrustedChannel (J.9a). Returns NOT_FOUND if absent. (As built it also takes the acting user: RemoveTrustedChannelAsync(Guid broadcasterId, Guid actorUserId, Guid trustedChannelId, ct).)
     Task<Result> RemoveTrustedChannelAsync(Guid broadcasterId, Guid trustedChannelId, CancellationToken ct = default);
 
-    /// Applies an inbound SharedChatBanIssuedEvent to THIS partner channel iff AcceptSharedChatBans + origin is trusted (J.9a) AND an active shared-chat session is verified (SharedChatSessionId on the inbound event). Writes ModerationAction(ban, origin=federation, OriginChannelId set) — origin=federation marks the cross-instance federated apply path, distinct from origin=shared_chat (a Twitch-native same-instance shared-chat session ban); bans via Helix. Returns Applied/Skipped(reason). Called by the federation inbound handler — the predicate is enforced here, not by the caller.
+    /// LOCAL shared-chat leg — Origin = shared_chat. Applies an inbound SharedChatBanIssuedEvent to THIS partner channel iff AcceptSharedChatBans + origin is trusted (J.9a) AND the partner is verified to be in the SAME active shared-chat session (SharedChatSessionId on the inbound event). Bans via the partner's own tenant token and writes the provenance record with origin=shared_chat + OriginChannelId. Returns Applied/Skipped(reason) — a failed predicate is a truthful Skipped, never an error. The predicate is enforced here, not by the caller.
     Task<Result<SharedBanApplicationResult>> ApplyInboundSharedBanAsync(Guid partnerBroadcasterId, SharedChatBanIssuedEvent inbound, CancellationToken ct = default);
+
+    /// CROSS-INSTANCE federation leg — Origin = federation (a different trust plane, federation-oidc.md §6). Applies an inbound federated ban to targetBroadcasterId. The precondition — a trusted FederationPeers entry, a valid signed envelope, and the channel's ChannelFederationOptIns opt-in — is already enforced upstream by the federation inbound gateway, so this path requires NO active shared-chat session and consults NO local trust list. Bans on the channel's OWN tenant token and records provenance with origin=federation (explicitly distinct from shared_chat). A Twitch ban failure is a truthful Skipped(reason). Idempotency per (EventId, target) is the federation handler's responsibility.
+    Task<Result<SharedBanApplicationResult>> ApplyInboundFederatedBanAsync(Guid targetBroadcasterId, SharedChatBanIssuedEvent inbound, CancellationToken ct = default);
 }
 ```
+
+> **One origin per method.** `ApplyInboundSharedBanAsync` records `Origin=shared_chat`; `ApplyInboundFederatedBanAsync` records `Origin=federation`. Neither method writes the other's origin. As built the event is the `sealed class` in §2's real-event table (session id, `OriginChannelId`, target Twitch id, optional display name and reason).
 
 > **Inbound model (decided 2026-07-17):** two legs. (a) **Same-channel cross-platform fan-out is always on
 > and in-process** — a ban/timeout on the one channel executes on every platform connection of that channel
@@ -427,7 +465,7 @@ public interface ISharedBanService
 ### 3.6 `IViewerReportService` — viewer reports + evidence (J.8/J.8a)
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 public interface IViewerReportService
 {
@@ -448,7 +486,7 @@ public interface IViewerReportService
 ### 3.7 `IUserContextService` — per-user mod panel (notes J.3, history J.4, trust J.5)
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 public interface IUserContextService
 {
@@ -471,7 +509,7 @@ public interface IUserContextService
 Maintains the two append-only-derived projections. Called by event handlers (`ModerationActionAppliedEvent` etc.), not controllers.
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 public interface IModerationProjectionService
 {
@@ -486,19 +524,19 @@ public interface IModerationProjectionService
 }
 ```
 
-> **Trust reuse (design "reuse TrustScoreCalculator").** `RecomputeTrustAsync` builds a `NomNomzBot.Infrastructure.Services.Trust.TrustContext` (existing) from `UserModerationHistory` (TimeoutCount/BanCount) + Helix/community data and calls the existing static `TrustScoreCalculator.Calculate`. **Do not fork** the algorithm. `HeatScore` is the inverse/complementary signal (recent-violation pressure); store both `decimal(8,4)` per J.5.
+> **Trust reuse (design "reuse TrustScoreCalculator").** `RecomputeTrustAsync` builds a `NomNomzBot.Domain.Trust.TrustContext` (existing) from `UserModerationHistory` (TimeoutCount/BanCount) + Helix/community data and calls the existing static `TrustScoreCalculator.Calculate`. **Do not fork** the algorithm. `HeatScore` is the inverse/complementary signal (recent-violation pressure); store both `decimal(8,4)` per J.5.
 >
-> **HeatScore accrual (decided).** Heat is a 0–100 signal with exponential decay, half-life **24 h**. On every recompute: `HeatScore = clamp(HeatScore × 0.5^(Δt / 24h) + delta, 0, 100)` with `Δt` = time since `LastHeatEventAt`. Per-violation deltas: filter/blocked-term hit **+5**; AutoMod-held message denied (confirmed violation) **+5**; validated viewer report **+10**; timeout **+15**; ban **+40**; the `apply_heat` pipeline action supplies its explicit `delta`. There is no negative accrual (unban/report-dismissed add nothing) — decay is the only cool-down. `UserHeatThresholdCrossedEvent` fires only on an **upward** crossing of `AutoModConfig.HeatTimeoutThreshold`.
+> **HeatScore accrual (decided; the numbers are `TrustPolicy` defaults).** Heat is a 0–100 signal with exponential decay. The half-life and every per-violation delta below are the **shipped defaults of the per-channel `TrustPolicy` row** (`NomNomzBot.Domain/Trust/Entities/TrustPolicy.cs`: `HeatHalfLifeHours = 24`, `HeatDeltaBan = 40`, `HeatDeltaTimeout = 15`, `HeatDeltaReportValidated = 10`, `HeatDeltaAutoModDenied = 5`, `HeatDeltaFilterHit = 5`), tunable per channel through `GET|PUT /channels/{channelId}/trust/policy` (`trust:policy:read|manage`); a channel that never edits the policy gets these values. As built `IModerationProjectionService.ApplyActionAsync` (below) applies them. On every recompute: `HeatScore = clamp(HeatScore × 0.5^(Δt / 24h) + delta, 0, 100)` with `Δt` = time since `LastHeatEventAt`. Per-violation deltas: filter/blocked-term hit **+5**; AutoMod-held message denied (confirmed violation) **+5**; validated viewer report **+10**; timeout **+15**; ban **+40**; the `apply_heat` pipeline action supplies its explicit `delta`. There is no negative accrual (unban/report-dismissed add nothing) — decay is the only cool-down. `UserHeatThresholdCrossedEvent` fires only on an **upward** crossing of `AutoModConfig.HeatTimeoutThreshold`.
 
 ### 3.9 `IChatControlService` — chat & channel controls (Group B)
 
 Twitch-native chat/channel knobs that are **Helix-relayed, not row-owned** here: chat settings, Shield Mode, announcements, and the bot's own chat color all mutate Twitch state via `ITwitchHelixClient` (Helix sub-clients). The single persisted bit is `AutoModConfigs.ShieldModeActive` (J.7, new column — Twitch is the system of record for the live toggle; the flag is a denormalized cache for dashboard reads without a Helix round-trip). Each write fires the matching §2 event + appends `ModerationAuditLog` (O.8, `EventType=action_taken`); none writes a `ModerationAction` row (these aren't per-target actions).
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Moderation;
+using NomNomzBot.Application.Moderation.Dtos;
 
 public interface IChatControlService
 {
@@ -529,10 +567,10 @@ public interface IChatControlService
 The Twitch-native directory/treatment mutations that complete the moderation write surface. Each relays through the §3.3 `ITwitchModerationApi` Helix legs (VIP/moderator via `AddVipAsync`/`RemoveVipAsync`/`RemoveModeratorAsync`; unban-requests/blocks/suspicious-users via their Helix endpoints). VIP/moderator/block/suspicious changes fire the matching §2 event + audit (O.8); none writes a `ModerationAction` row (those are target-message/ban actions, not directory edits). Unban-request *resolve* additionally writes a `ModerationAction(unban, origin=local)` when the resolution approves and lifts the standing ban.
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Moderation;
+using NomNomzBot.Application.Moderation.Dtos;
 
 public interface IModerationDirectoryService
 {
@@ -569,11 +607,11 @@ public interface IModerationDirectoryService
 The **explicit discrete** escalation path: a per-channel ladder maps a subject's running offense count to a `warn`/`timeout`/`ban` action over a decaying window (J.10 `ModerationEscalationPolicy` config, J.11 `ModerationEscalationState` per-subject tally). Invoked from the chat-filter path when a `ChatFilter` fires with `Action=Escalate` (§3.2 enforcement / the automod engine): the service resolves+records the offense and returns the action, which the caller applies via §3.1 `IModerationService` — the resulting `ModerationActionAppliedEvent` carries `OffenseCount` in its metadata.
 
 ```csharp
-namespace NomNomzBot.Application.Services.Moderation;
+namespace NomNomzBot.Application.Moderation.Services;
 
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Moderation;
-using NomNomzBot.Domain.Enums;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Domain.Moderation.Enums;
 
 public interface IModerationEscalationService
 {
@@ -601,14 +639,14 @@ public sealed record UpsertEscalationPolicyRequest(bool IsEnabled, IReadOnlyList
 
 ## 4. DTOs / contracts
 
-Namespace `NomNomzBot.Application.DTOs.Moderation` (extend the existing `ModerationDtos.cs`; split large groups into sibling files — `ModerationQueueDtos.cs`, `NetworkNukeDtos.cs`, `SharedBanDtos.cs`, `ViewerReportDtos.cs`, `UserContextDtos.cs` — one concern per file). All `sealed record`. Inbound request records validated by the in-box `.NET 10 AddValidation()` source generator.
+Namespace `NomNomzBot.Application.Moderation.Dtos` (`NomNomzBot.Application/Moderation/Dtos/`; as built the files are `ModerationDtos.cs`, `ChatFilterDtos.cs`, `EscalationDtos.cs`, `ModerationHistoryDtos.cs`, `ModerationQueueDtos.cs`, `NetworkBanDtos.cs`, `NetworkBlockDtos.cs`, `NetworkNukeDtos.cs`, `SharedBanDtos.cs`, `SpamDefenseDtos.cs`, `TrustSafetyReviewDtos.cs`, `ViewerReportDtos.cs` — one concern per file; there is no `UserContextDtos.cs`, the user-context records sit in `ModerationDtos.cs`). All `sealed record`. Inbound request records validated by the in-box `.NET 10 AddValidation()` source generator.
 
 **Kept/retyped from existing `ModerationDtos.cs`:** `ModerationActionResult(bool Success, string? Message)` (kept). `ModerationActionLog` retyped — `ModeratorId`/`TargetUserId` become `Guid`, adds `Origin`, `IsReverted`. `BannedUserDto` kept. The old `AutomodConfigDto`/`AutomodLinkFilterDto`/`AutomodCapsFilterDto`/`AutomodBannedPhrasesDto`/`AutomodEmoteSpamDto` and `ModerationRuleListItem`/`ModerationRuleDetail`/`CreateModerationRuleRequest`/`UpdateModerationRuleRequest`/`ModLogEntryDto` are **superseded** by the J.6/J.7-shaped records below; remove after migrating callers.
 
 ```csharp
-namespace NomNomzBot.Application.DTOs.Moderation;
+namespace NomNomzBot.Application.Moderation.Dtos;
 
-using NomNomzBot.Domain.Enums;
+using NomNomzBot.Domain.Moderation.Enums;
 
 // ── Direct actions ─────────────────────────────────────────────────────────
 public sealed record ModerationActionResult(bool Success, string? Message, long? ActionId = null);
@@ -624,8 +662,16 @@ public sealed record ModerationActionQuery(
 
 public sealed record BannedUserDto(string TwitchUserId, string Username, string? Reason, string BannedBy, DateTime BannedAt);
 
-// Bot-side moderation standing (J.12) — UserId is the platform user id, Standing ∈ muted|shadowbanned|blacklisted.
+// Bot-side moderation standing (J.12) — BUILT TODAY: one per platform identity. UserId is the platform user id, Standing ∈ muted|shadowbanned|blacklisted.
 public sealed record ModerationStandingDto(string UserId, string Provider, string Standing, string? Reason, DateTime UpdatedAt);
+
+// Bot-side viewer restriction (J.12, D1 TARGET — NOT BUILT, tracked S-VIEWER-RESTRICTION-D1): one per HUMAN. UserId is Users.Id and the
+// restriction applies to every UserIdentity the human has linked, on every platform connection of the channel. Restriction ∈
+// muted|shadowbanned|blacklisted; an absent row means normal (there is no stored "none"). Returned by SetViewerRestrictionAsync (§3.1).
+public sealed record ViewerRestrictionDto(Guid UserId, string Restriction, string? Reason, Guid? CreatedByUserId, DateTime UpdatedAt);
+
+// Body of POST /users/{userId}/restriction (§5) — the D1 target of SetModerationStandingRequest below. userId comes from the route.
+public sealed record SetViewerRestrictionRequest(string Restriction, string? Reason);   // Restriction ∈ muted|shadowbanned|blacklisted
 
 // ── AutoMod config (J.7) ───────────────────────────────────────────────────
 public sealed record AutoModConfigDto(
@@ -771,7 +817,7 @@ public sealed record FileViewerReportRequest
 public sealed record UserContextDto(
     Guid SubjectUserId, string? Username, UserModerationHistoryDto History,
     UserTrustScoreDto? Trust, IReadOnlyList<UserNoteDto> Notes, IReadOnlyList<ModerationActionLog> RecentActions,
-    IReadOnlyList<ModerationStandingDto> Standings);   // bot-side standings (J.12), one per platform identity; empty = normal
+    IReadOnlyList<ModerationStandingDto> Standings);   // bot-side standings (J.12), one per platform identity; empty = normal — D1 target: `ViewerRestrictionDto? Restriction` (S-VIEWER-RESTRICTION-D1)
 
 public sealed record UserModerationHistoryDto(
     int TimeoutCount, int BanCount, int WarningCount, int MessagesDeletedCount,
@@ -838,75 +884,95 @@ public sealed record UpdateSuspiciousUserRequest
 
 ## 5. Controller endpoints
 
-Single `ModerationController` (extend existing) at `[Route("api/v{version:apiVersion}/channels/{channelId:guid}/moderation")]`, `[ApiVersion("1.0")]`, `[Authorize]`. `channelId` is now `Guid` (was `string`). Responses wrapped in `StatusResponseDto<T>` / `PaginatedResponse<T>` via the existing `BaseController` helpers (`ResultResponse`, `GetPaginatedResponse`). Large groups MAY be split into `NetworkNukeController` / `SharedBanController` / `ViewerReportController` under the same route prefix — listed inline below for completeness.
+**As built (regenerated 2026-09-30 from the controllers and `server/openapi/v1.json`).** The routes live on two controllers under the prefix `api/v{version}/channels/{channelId}/moderation`: `ModerationController` (`[Route("api/v{version:apiVersion}/channels/{channelId}/moderation")]`, `channelId` bound as a `string` and parsed, not a `:guid` constraint) and `ChatFiltersController` (`…/moderation/chat-filters`). Both are `[Authorize]`-gated with a per-action `[RequireAction("…")]`. Responses are wrapped in `StatusResponseDto<T>` / `PaginatedResponse<T>`. Related routes that live on **other** controllers: `GET|PUT|PATCH /channels/{channelId}/chat/settings`, `POST /channels/{channelId}/chat/announce`, `POST|DELETE /channels/{channelId}/community/{userId}/vip`, `GET /channels/moderated`, `POST /channels/moderated/{twitchBroadcasterId}/enter`, `GET|PUT /channels/{channelId}/trust/policy`.
 
 **Role gate (`roles-permissions.md` §0 + §3.3).** Two gates guard every row:
 
 - **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's).
 - **Gate-2** = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the action-key column before the service call (403 FORBIDDEN when below). It resolves the caller's effective level via `IRoleResolver` (the MAX of community standing, `ManagementRole` membership, and active `!permit` grants) and compares it to the action's effective required level (`ActionDefinitions.DefaultLevel`, clamped to `FloorLevel`, channel-overridable via `ChannelActionOverrides`).
 
-The keys are seeded global `ActionDefinitions` (schema B.3) with `Plane=Management`; a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. The management ladder is the canonical `ManagementRole` enum — **`Moderator(10) < SuperMod(20) < Editor(30) < Broadcaster(40)`** — always PascalCase, never `super_mod`/`moderator` snake-case; `FloorLevel` is held at the seeded level for the Critical-tier actions (nuke / shared-ban). Dangerous capabilities (nuke, shared-ban, moderator removal) have a second dimension beside the ladder: the broadcaster grants them to a **named user** via `!permit`/`ChannelActionOverride` per-user grant, never by raising a whole role tier. There is **no** bespoke `[RequireManagementRole]` attribute and **no** `[Authorize(Roles="admin")]` target — moderation consumes the roles/permissions subsystem's gate, it does not reimplement one. Staff cross-tenant access (Plane C) is carried separately on `ModerationAuditLog.ActorIamPrincipalId` and authorized via `IPlatformIamService.AuthorizePlatformAsync` (`tenant:access`), never via the management ladder.
+The keys are seeded global `ActionDefinitions` (schema B.3) with `Plane=Management`; a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`. The management ladder is the canonical `ManagementRole` enum — **`Moderator(10) < LeadModerator(20) < Editor(30) < Broadcaster(40)`** — always PascalCase, never `super_mod`/`moderator` snake-case; `FloorLevel` is held at the seeded level for the Critical-tier actions (nuke / shared-ban). Dangerous capabilities (nuke, shared-ban, moderator removal) have a second dimension beside the ladder: the broadcaster grants them to a **named user** via `!permit`/`ChannelActionOverride` per-user grant, never by raising a whole role tier. There is **no** bespoke `[RequireManagementRole]` attribute and **no** `[Authorize(Roles="admin")]` target — moderation consumes the roles/permissions subsystem's gate, it does not reimplement one. Staff cross-tenant access (Plane C) is carried separately on `ModerationAuditLog.ActorIamPrincipalId` and authorized via `IPlatformIamService.AuthorizePlatformAsync` (`tenant:access`), never via the management ladder.
 
 | Method | Route (suffix under `…/moderation`) | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |--------|-------------------------------------|-------------|--------------|-----------------------------------|
-| POST | `/actions/timeout` | `TimeoutUserRequest` | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:timeout` |
-| POST | `/actions/ban` | `BanUserRequest` | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:ban` |
-| DELETE | `/bans/{targetTwitchUserId}` | — | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:unban` |
-| POST | `/actions/delete-message` | `DeleteMessageRequest` | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:delete_message` |
-| POST | `/actions/warn` | `WarnUserRequest` | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:warn` |
-| GET | `/actions` | `ModerationActionQuery` (query) | `PaginatedResponse<ModerationActionLog>` | management / Moderator · `moderation:action:read` |
-| GET | `/bans` | — | `StatusResponseDto<IReadOnlyList<BannedUserDto>>` | management / Moderator · `moderation:action:read` |
-| GET | `/automod` | — | `StatusResponseDto<AutoModConfigDto>` | management / Moderator · `moderation:automod:read` |
-| PUT | `/automod` | `SaveAutoModConfigRequest` | `StatusResponseDto<AutoModConfigDto>` | management / Editor · `moderation:automod:write` |
+| GET | `/actions` | `PaginationParams` (query) | `PaginatedResponse<ModerationActionResult>` | management / Moderator · `moderation:action:read` |
+| POST | `/actions` | `PerformModerationActionRequest` | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:ban` |
+| POST | `/actions/ban` | `BanUserRequest` | `StatusResponseDto<NetworkBanResultDto>` | management / Moderator · `moderation:ban` |
+| POST | `/actions/unban` | `UnbanUserRequest` | `StatusResponseDto<NetworkBanResultDto>` | management / Moderator · `moderation:unban` |
+| GET | `/automod` | — | `StatusResponseDto<AutomodConfigDto>` | management / Moderator · `moderation:automod:read` |
+| POST | `/automod` | `AutomodConfigDto` | `StatusResponseDto<AutomodConfigDto>` | management / LeadModerator · `moderation:automod:write` |
+| GET | `/automod/queue` | `status` (query) | `StatusResponseDto<List<ModerationQueueItemDto>>` | management / Moderator · `moderation:queue:read` |
+| POST | `/automod/queue/{queueItemId}/resolve` | `ResolveModerationQueueItemRequest` | `StatusResponseDto<ModerationQueueItemDto>` | management / Moderator · `moderation:queue:resolve` |
+| GET | `/automod/twitch` | — | `StatusResponseDto<TwitchAutoModSettingsDto>` | management / Moderator · `moderation:automod:twitch:read` |
+| PUT | `/automod/twitch` | `UpdateTwitchAutoModSettingsRequest` | `StatusResponseDto<TwitchAutoModSettingsDto>` | management / Broadcaster · `moderation:automod:twitch:manage` |
+| GET | `/bans` | — | `StatusResponseDto<List<BannedUserDto>>` | management / Moderator · `moderation:read` |
+| DELETE | `/bans/{userId}` | — | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:unban` |
+| GET | `/blocked-terms` | — | `StatusResponseDto<List<string>>` | management / Moderator · `moderation:filter:read` |
+| POST | `/blocked-terms` | `AddTermRequest` | `StatusResponseDto<List<string>>` | management / LeadModerator · `moderation:blocklist:write` |
+| DELETE | `/blocked-terms/{term}` | — | `StatusResponseDto<List<string>>` | management / LeadModerator · `moderation:blocklist:write` |
+| GET | `/chat-filters` | `PaginationParams` (query) | `PaginatedResponse<ChatFilterDto>` | management / Moderator · `moderation:filter:read` |
+| POST | `/chat-filters` | `CreateChatFilterRequest` | `StatusResponseDto<ChatFilterDto>` (201) | management / LeadModerator · `moderation:filter:write` |
+| POST | `/chat-filters/test` | `TestChatFilterRequest` | `StatusResponseDto<ChatFilterTestResult>` | management / Moderator · `moderation:filter:read` |
+| DELETE | `/chat-filters/{filterId}` | — | 204 | management / LeadModerator · `moderation:filter:write` |
+| GET | `/chat-filters/{filterId}` | — | `StatusResponseDto<ChatFilterDto>` | management / Moderator · `moderation:filter:read` |
+| PUT | `/chat-filters/{filterId}` | `UpdateChatFilterRequest` | `StatusResponseDto<ChatFilterDto>` | management / LeadModerator · `moderation:filter:write` |
+| POST | `/chat/clear` | — | 204 | management / Moderator · `moderation:delete_message` |
 | GET | `/escalation` | — | `StatusResponseDto<ModerationEscalationPolicyDto>` | management / Moderator · `moderation:escalation:read` |
-| PUT | `/escalation` | `UpsertEscalationPolicyRequest` | `StatusResponseDto<ModerationEscalationPolicyDto>` | management / SuperMod · `moderation:escalation:write` |
-| POST | `/escalation/users/{userId:guid}/reset` | — | 204 | management / SuperMod · `moderation:escalation:write` |
-| GET | `/filters` | `PaginationParams` (query) | `PaginatedResponse<ChatFilterDto>` | management / Moderator · `moderation:filter:read` |
-| POST | `/filters` | `CreateChatFilterRequest` | `StatusResponseDto<ChatFilterDto>` (201) | management / Editor · `moderation:filter:write` |
-| PUT | `/filters/{filterId:long}` | `UpdateChatFilterRequest` | `StatusResponseDto<ChatFilterDto>` | management / Editor · `moderation:filter:write` |
-| DELETE | `/filters/{filterId:long}` | — | 204 | management / Editor · `moderation:filter:write` |
-| GET | `/queue` | `ModerationQueueQuery` (query) | `PaginatedResponse<ModerationQueueItemDto>` | management / Moderator · `moderation:queue:read` |
-| POST | `/queue/{queueItemId:long}/resolve` | `ResolveQueueItemRequest` | `StatusResponseDto<ModerationQueueItemDto>` | management / Moderator · `moderation:queue:resolve` |
-| GET | `/reports` | `ViewerReportQuery` (query) | `PaginatedResponse<ViewerReportDto>` | management / Moderator · `moderation:report:read` |
-| GET | `/reports/{reportId:long}` | — | `StatusResponseDto<ViewerReportDetailDto>` | management / Moderator · `moderation:report:read` |
-| POST | `/reports` | `FileViewerReportRequest` | `StatusResponseDto<long>` (201) | management / Moderator · `moderation:report:file` ¹ |
-| PATCH | `/reports/{reportId:long}/status` | `SetReportStatusRequest` | `StatusResponseDto<ViewerReportDto>` | management / Moderator · `moderation:report:triage` |
-| GET | `/users/{subjectUserId:guid}` | — | `StatusResponseDto<UserContextDto>` | management / Moderator · `moderation:usercontext:read` |
-| POST | `/users/{subjectUserId:guid}/notes` | `AddUserNoteRequest` | `StatusResponseDto<UserNoteDto>` (201) | management / Moderator · `moderation:note:write` |
-| PATCH | `/notes/{noteId:long}/pin` | `SetNotePinnedRequest` | `StatusResponseDto<UserNoteDto>` | management / Moderator · `moderation:note:write` |
-| DELETE | `/notes/{noteId:long}` | — | 204 | management / Moderator · `moderation:note:write` |
-| POST | `/users/{userId}/restriction` | `SetViewerRestrictionRequest` | `StatusResponseDto<ViewerRestrictionDto>` | management / SuperMod · `moderation:suspicioususer:write` ⁴ |
-| DELETE | `/users/{userId}/restriction` | — | 204 | management / SuperMod · `moderation:suspicioususer:write` ⁴ |
-| GET | `/shared-bans` | — | `StatusResponseDto<SharedBanSettingsDto>` | management / SuperMod · `moderation:sharedban:read` |
-| PUT | `/shared-bans` | `SaveSharedBanSettingsRequest` | `StatusResponseDto<SharedBanSettingsDto>` | management / SuperMod · `moderation:sharedban:write` |
-| POST | `/shared-bans/trusted` | `AddTrustedChannelRequest` | `StatusResponseDto<SharedBanTrustedChannelDto>` (201) | management / SuperMod · `moderation:sharedban:write` |
-| DELETE | `/shared-bans/trusted/{trustedChannelId:guid}` | — | 204 | management / SuperMod · `moderation:sharedban:write` |
-| POST | `/nuke` | `NetworkNukeRequest` | `StatusResponseDto<NetworkNukeBatchDto>` | management / SuperMod · `moderation:nuke` ² |
-| POST | `/nuke/{batchId:guid}/revert` | — | `StatusResponseDto<NetworkNukeBatchDto>` | management / SuperMod · `moderation:nuke` ² |
-| GET | `/nuke` | `PaginationParams` (query) | `PaginatedResponse<NetworkNukeBatchDto>` | management / Moderator · `moderation:nuke:read` |
-| POST | `/users/{targetUserId:guid}/evidence-packet` | `EvidencePacketRequest` | `StatusResponseDto<EvidencePacketDto>` | management / Moderator · `moderation:evidence:build` |
-| GET | `/chat/settings` | — | `StatusResponseDto<ChatSettingsDto>` | management / Moderator · `moderation:chat:settings:read` |
-| PATCH | `/chat/settings` | `UpdateChatSettingsRequest` | `StatusResponseDto<ChatSettingsDto>` | management / Moderator · `moderation:chat:settings:write` |
-| GET | `/shield-mode` | — | `StatusResponseDto<ShieldModeStatusDto>` | management / Moderator · `moderation:shieldmode:read` |
-| PUT | `/shield-mode` | `SetShieldModeRequest` | `StatusResponseDto<ShieldModeStatusDto>` | management / SuperMod · `moderation:shieldmode:write` |
-| POST | `/chat/announcements` | `SendAnnouncementRequest` | 204 | management / Moderator · `moderation:announce` |
-| PUT | `/chat/color` | `SetChatColorRequest` | `StatusResponseDto<string>` | management / Editor · `moderation:chatcolor:write` |
-| POST | `/vips/{targetTwitchUserId}` | — | 204 | management / Broadcaster · `moderation:vip:write` |
-| DELETE | `/vips/{targetTwitchUserId}` | — | 204 | management / Broadcaster · `moderation:vip:write` |
-| DELETE | `/moderators/{targetTwitchUserId}` | — | 204 | management / Broadcaster · `moderation:moderator:write` ³ |
-| GET | `/unban-requests` | `UnbanRequestQuery` (query) | `PaginatedResponse<UnbanRequestDto>` | management / Moderator · `moderation:unbanrequest:read` |
-| PATCH | `/unban-requests` | `ResolveUnbanRequestRequest` | `StatusResponseDto<UnbanRequestDto>` | management / SuperMod · `moderation:unbanrequest:resolve` |
-| PUT | `/blocks/{targetTwitchUserId}` | — | 204 | management / SuperMod · `moderation:blocklist:write` |
-| DELETE | `/blocks/{targetTwitchUserId}` | — | 204 | management / SuperMod · `moderation:blocklist:write` |
-| PUT | `/suspicious-users` | `UpdateSuspiciousUserRequest` | 204 | management / SuperMod · `moderation:suspicioususer:write` |
+| PUT | `/escalation` | `UpsertEscalationPolicyRequest` | `StatusResponseDto<ModerationEscalationPolicyDto>` | management / LeadModerator · `moderation:escalation:write` |
+| POST | `/escalation/users/{userId}/reset` | — | 204 | management / LeadModerator · `moderation:escalation:write` |
+| GET | `/history` | `PaginationParams` (query) | `PaginatedResponse<ModerationHistoryEntryDto>` | management / ⚠ no seed row · `moderation:history:read` |
+| GET | `/history/{userId}` | `PaginationParams` (query) | `PaginatedResponse<ModerationHistoryEntryDto>` | management / ⚠ no seed row · `moderation:history:read` |
+| POST | `/history/{userId}/notes` | `AddModerationNoteRequest` | `StatusResponseDto<ModerationHistoryEntryDto>` | management / ⚠ no seed row · `moderation:history:write` |
+| GET | `/log` | `PaginationParams` (query) | `PaginatedResponse<ModLogEntryDto>` | management / Moderator · `moderation:action:read` |
+| GET | `/moderators` | — | `StatusResponseDto<List<ModeratorDto>>` | management / Moderator · `moderation:read` |
+| POST | `/moderators` | `ModeratorRequest` | 204 | management / Broadcaster · `moderation:moderator:write` |
+| DELETE | `/moderators/{userId}` | — | 204 | management / Broadcaster · `moderation:moderator:write` |
+| DELETE | `/notes/{noteId}` | — | 204 | management / Moderator · `moderation:note:write` |
+| PUT | `/notes/{noteId}` | `UpdateUserNoteRequest` | `StatusResponseDto<UserNoteDto>` | management / Moderator · `moderation:note:write` |
+| GET | `/nuke` | `PaginationParams` (query) | `PaginatedResponse<NetworkNukeBatchDto>` | management / LeadModerator · `moderation:nuke:read` |
+| POST | `/nuke` | `NetworkNukeRequest` | `StatusResponseDto<NetworkNukeBatchDto>` | management / LeadModerator · `moderation:nuke` |
+| POST | `/nuke/{batchId}/revert` | — | `StatusResponseDto<NetworkNukeBatchDto>` | management / LeadModerator · `moderation:nuke` |
+| GET | `/reports` | `status` (query) | `StatusResponseDto<List<ViewerReportDto>>` | management / Moderator · `moderation:report:read` |
+| POST | `/reports` | `FileViewerReportRequest` | `StatusResponseDto<ViewerReportDto>` | community / Everyone · `moderation:report:file` |
+| PATCH | `/reports/{reportId}` | `ResolveViewerReportRequest` | `StatusResponseDto<ViewerReportDto>` | management / LeadModerator · `moderation:report:triage` |
+| GET | `/rules` | `PaginationParams` (query) | `PaginatedResponse<ModerationRuleDetail>` | management / Moderator · `moderation:filter:read` |
+| POST | `/rules` | `CreateModerationRuleRequest` | `StatusResponseDto<ModerationRuleDetail>` (201) | management / LeadModerator · `moderation:filter:write` |
+| DELETE | `/rules/{ruleId}` | — | 204 | management / LeadModerator · `moderation:filter:write` |
+| PUT | `/rules/{ruleId}` | `UpdateModerationRuleRequest` | `StatusResponseDto<ModerationRuleDetail>` | management / LeadModerator · `moderation:filter:write` |
+| GET | `/shared-bans` | — | `StatusResponseDto<SharedBanSettingsDto>` | management / LeadModerator · `moderation:sharedban:read` |
+| PUT | `/shared-bans` | `SaveSharedBanSettingsRequest` | `StatusResponseDto<SharedBanSettingsDto>` | management / LeadModerator · `moderation:sharedban:write` |
+| POST | `/shared-bans/trusted` | `AddTrustedChannelRequest` | `StatusResponseDto<SharedBanTrustedChannelDto>` (201) | management / LeadModerator · `moderation:sharedban:write` |
+| DELETE | `/shared-bans/trusted/{trustedChannelId}` | — | 204 | management / LeadModerator · `moderation:sharedban:write` |
+| GET | `/shield` | — | `StatusResponseDto<Object>` | management / Moderator · `moderation:shieldmode:read` |
+| PATCH | `/shield` | `SetShieldRequest` | `StatusResponseDto<Object>` | management / LeadModerator · `moderation:shieldmode:write` |
+| POST | `/shoutout` | `ShoutoutRequest` | 204 | management / Moderator · `moderation:shoutout` |
+| GET | `/shoutout-overrides` | — | `StatusResponseDto<List<ShoutoutOverrideDto>>` | management / Moderator · `moderation:read` |
+| PUT | `/shoutout-overrides` | `UpsertShoutoutOverrideRequest` | 204 | management / Moderator · `moderation:shoutout` |
+| DELETE | `/shoutout-overrides/{targetTwitchUserId}` | `kind` (query) | 204 | management / Moderator · `moderation:shoutout` |
+| GET | `/shoutout-template` | — | `StatusResponseDto<ShoutoutTemplateDto>` | management / Moderator · `moderation:read` |
+| PUT | `/shoutout-template` | `ShoutoutTemplateDto` | 204 | management / Moderator · `moderation:shoutout` |
+| GET | `/stats` | — | `StatusResponseDto<Object>` | management / Moderator · `moderation:read` |
+| POST | `/suspicious` | `SetSuspiciousStatusRequest` | `StatusResponseDto<SuspiciousStatusDto>` | management / LeadModerator · `moderation:suspicioususer:write` |
+| DELETE | `/suspicious/{userId}` | — | `StatusResponseDto<SuspiciousStatusDto>` | management / LeadModerator · `moderation:suspicioususer:write` |
+| GET | `/unban-requests` | `status` (query) | `StatusResponseDto<List<UnbanRequestDto>>` | management / Moderator · `moderation:unbanrequest:read` |
+| POST | `/unban-requests/{unbanRequestId}/resolve` | `ResolveUnbanRequestRequest` | `StatusResponseDto<UnbanRequestDto>` | management / LeadModerator · `moderation:unbanrequest:resolve` |
+| GET | `/users/{userId}/context` | — | `StatusResponseDto<UserModerationContextDto>` | management / Moderator · `moderation:usercontext:read` |
+| GET | `/users/{userId}/notes` | — | `StatusResponseDto<List<UserNoteDto>>` | management / Moderator · `moderation:usercontext:read` |
+| POST | `/users/{userId}/notes` | `CreateUserNoteRequest` | `StatusResponseDto<UserNoteDto>` | management / Moderator · `moderation:note:write` |
+| DELETE | `/users/{userId}/standing` | `provider` (query) | 204 | management / LeadModerator · `moderation:suspicioususer:write` |
+| POST | `/users/{userId}/standing` | `SetModerationStandingRequest` | `StatusResponseDto<ModerationStandingDto>` | management / LeadModerator · `moderation:suspicioususer:write` |
+| POST | `/warn` | `WarnUserRequest` | `StatusResponseDto<ModerationActionResult>` | management / Moderator · `moderation:warn` |
 
-¹ Viewer-report *filing* is also reachable from a public/viewer surface; the dashboard endpoint here is mod-facing. A separate public submit path (if any) lives in the Community/public subsystem, not here.
-² Network-nuke + shared-ban writes are **SuperMod tier** (design: "Risky → super-mod tier only"). Beyond Gate-2, the service re-verifies the floor in-process via `IRoleResolver.ResolveEffectiveLevelAsync ≥ SuperMod(20)` — never trust the gate alone (defense in depth; existing cross-tenant IDOR is a tracked live defect).
-³ VIP grant/removal (`moderation:vip:write`) and moderator removal (`moderation:moderator:write`) mutate the channel's Twitch role directory and floor at **Broadcaster(40)** — these are management-ladder changes the owner delegates per-user, never raised on a role tier. `moderation:moderator:write` is **Critical / not permit-grantable** (mirrors `roles:manage`); `moderation:vip:write` is reversible and **Low / permit-grantable**. Shield Mode *write* floors at **SuperMod(20)** (emergency lockdown, beside `moderation:automod:write`); its *read* and chat-settings/announce stay at **Moderator(10)**; bot chat-color is config-tier **Editor(30)**.
+Notes on the table:
 
-⁴ `{userId}` on the restriction rows is the surrogate `Users.Id` guid (`ChannelViewerRestriction.UserId`) like every other per-user row — a restriction targets the one human across all their linked platform identities. Both rows reuse the existing `moderation:suspicioususer:write` action key verbatim: same per-user-treatment surface, same **SuperMod** floor, no new `ActionDefinitions` seed.
+- The floor column is the seeded `ActionDefinitions` default for the key (`ActionDefinitionSeeder`; `LeadModerator` = 20, the renamed LeadModerator tier). `moderation:nuke`, `moderation:sharedban:write` and `moderation:moderator:write` are **Critical** and **not permit-grantable**; `moderation:report:file` is a **community-plane** key (Everyone), so any viewer may file — the mod-facing dashboard uses the same route.
+- **⚠ no seed row:** `moderation:history:read` and `moderation:history:write` are named by the three `/history…` routes but no `ActionDefinitions` seed row defines them; Gate-2 fails closed on a missing row, so those routes deny every caller until a row is seeded. (`moderation:read`, used by several read routes, is seeded at Moderator.)
+- `POST /nuke` and `POST /nuke/{batchId}/revert` are re-checked in-service: `NetworkNukeService` resolves the actor's effective level with `IRoleResolver.ResolveEffectiveLevelAsync` and requires LeadModerator(20) or above — never trust the gate alone.
+- **Built today (bot-side restriction):** the two `…/users/{userId}/standing` rows are the per-platform-identity `ChannelModerationStanding` (`POST` body `SetModerationStandingRequest(Provider, Standing, Reason)`; `DELETE` takes `?provider=`), where `{userId}` is the platform's raw user-id string. The design's `POST|DELETE /users/{userId}/restriction` — `{userId}` = the surrogate `Users.Id`, body `SetViewerRestrictionRequest`, response `ViewerRestrictionDto`, reusing `moderation:suspicioususer:write` — is the **D1 target** and is **not built**: **S-VIEWER-RESTRICTION-D1**.
+- **Target routes with no as-built counterpart:** `/actions/timeout` (built inside the generic `POST /actions`, whose body `PerformModerationActionRequest.Action` is `timeout`, `ban` or `unban`), `/actions/delete-message` (single-message delete is `DELETE /channels/{channelId}/chat/messages/{messageId}` on the chat controller via `IOperatorMessageDeleter`; `POST /chat/clear` clears the whole room), `/actions/warn` (built as `POST /warn`), `/queue` (built as `/automod/queue`), `/users/{targetUserId}/evidence-packet`, `PATCH /reports/{id}/status` (built as `PATCH /reports/{reportId}`), `PUT /chat/color`, `/vips/{id}` (built under `/community/{userId}/vip`), `PUT|DELETE /blocks/{id}`, `PUT /suspicious-users` (built as `POST|DELETE /suspicious`), `/notes/{id}/pin` (built as `PUT /notes/{noteId}`), and the nuke/shared-ban DTO shapes above.
+- Routes that exist but the design never listed: chat-filter `GET /{filterId}` and `POST /test`, `automod/twitch` (Twitch-native automod level), `moderators` roster, `chat/clear`, `history`, `stats`, and the `shoutout*` family.
 
-**Thin request records added for controller binding** (namespace `NomNomzBot.Application.DTOs.Moderation`):
+**Thin request records added for controller binding** (namespace `NomNomzBot.Application.Moderation.Dtos`; design shapes — as built, several are named differently, see the route table):
 
 ```csharp
 // TimeoutUserRequest + BanUserRequest are the canonical records in Contracts.Twitch (twitch-helix.md §4.1); the
@@ -915,7 +981,7 @@ public sealed record DeleteMessageRequest(string MessageId, Guid TargetUserId);
 public sealed record WarnUserRequest(Guid TargetUserId, string Reason);
 public sealed record SetReportStatusRequest(ViewerReportStatus Status);
 public sealed record SetNotePinnedRequest(bool Pinned);
-public sealed record SetModerationStandingRequest(string Provider, string Standing, string? Reason);   // standing ∈ muted|shadowbanned|blacklisted
+public sealed record SetModerationStandingRequest(string Provider, string Standing, string? Reason);   // BUILT TODAY (per platform identity); standing ∈ muted|shadowbanned|blacklisted. D1 target: SetViewerRestrictionRequest (§4)
 public sealed record AddTrustedChannelRequest(Guid TrustedChannelId);
 public sealed record SetShieldModeRequest(bool IsActive);
 public sealed record SetChatColorRequest(string Color);   // bot's own chat color: blue/green/orange/… or hex (Prime/Turbo)
@@ -927,24 +993,24 @@ public sealed record SetChatColorRequest(string Color);   // bot's own chat colo
 
 ## 6. Pipeline actions
 
-Moderation pipeline actions already exist (`BanAction` Type `"ban"`, `TimeoutAction` Type `"timeout"`). They implement the **single canonical `ICommandAction`** defined in `commands-pipelines.md` §3.13 (`Application/Pipeline`): `string Type` (+ `Category`/`Description`); `Task<ActionResult> ExecuteAsync(ActionContext context, CancellationToken ct)`, reading params from `context.Parameters`. (The pre-consolidation Infrastructure shape — `ActionType`/`ExecuteAsync(PipelineExecutionContext, ActionDefinition)` — is collapsed away per commands-pipelines §0; `BanAction`/`TimeoutAction` re-target the canonical contract.) They currently call `IChatProvider` directly; the spec's persistence/audit happens because those provider calls should route through `IModerationService` so a `ModerationAction` row + events are written. New actions in `NomNomzBot.Infrastructure/Pipeline/Actions/`:
+**As built, three moderation pipeline actions exist** — `BanAction` (`"ban"`), `TimeoutAction` (`"timeout"`) and `DeleteMessageAction` (`"delete_message"`) — in `NomNomzBot.Infrastructure/Moderation/PipelineActions/`. They implement the **live `ICommandAction`** (`NomNomzBot.Application/Abstractions/Pipeline/ICommandAction.cs`): `string ActionType`; `LocalizedText Category` and `LocalizedText Description` (localization **keys**, e.g. `pipeline.category.moderation`); `IReadOnlyList<PipelineActionFieldDescriptor> Fields` (the typed step form: `TwitchUser`, `Number`, `Text`, `ResourceId`, with `Required` / `Templated` flags); `bool ResolvesOwnTemplates`; and `Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)`, reading params through `action.GetString("…")` / `action.GetInt("…", default)` and falling back to `ctx.Variables` (`target.id` → `user.id`). (The single-contract wording the earlier text attributed to `commands-pipelines.md` §3.13 — `Type` / `ExecuteAsync(ActionContext, CancellationToken)` / `context.Parameters` — is not the code.) **They call `IChatProvider` directly** (`BanUserAsync`, `TimeoutUserAsync`, `DeleteMessageAsync`), so no `ModerationAction` row, event or audit is written from a pipeline step; re-pointing them at `IModerationService` is part of the work below. **The missing actions — `warn`, `add_chat_filter_hit`, `apply_heat` — are tracked as S-MOD-PIPELINE-ACTIONS**, together with that re-point. Actions are discovered by the `ICommandAction` assembly scan; there is no manual registration.
 
 | Type string | Config keys (`context.Parameters`) | Behavior |
 |-------------|----------------------------------------|----------|
-| `ban` *(exists)* | `user_id`, `reason` | Resolve target → `IModerationService.BanAsync`. Writes J.2, fires events. (Re-point from raw `IChatProvider`.) |
-| `timeout` *(exists)* | `user_id`, `duration` (default 60), `reason` | Resolve target → `IModerationService.TimeoutAsync`. |
-| `delete_message` *(new)* | `message_id`, `user_id` | `IModerationService.DeleteMessageAsync`. |
-| `warn` *(new)* | `user_id`, `reason` | `IModerationService.WarnAsync`. |
-| `add_chat_filter_hit` *(new)* | `filter_id` | Increments `ChatFilter.MatchCount` (J.6) + may `EnqueueAsync` a `bot_flag` queue item. Used by the automod engine's pipeline path. |
-| `apply_heat` *(new)* | `user_id`, `delta` | Triggers `IModerationProjectionService.RecomputeTrustAsync` after a heat-bearing event; may fire `UserHeatThresholdCrossedEvent`. |
+| `ban` *(exists; calls `IChatProvider` directly)* | `user_id`, `reason` | Resolve target → `IModerationService.BanAsync`. Writes J.2, fires events. (Re-point from raw `IChatProvider` — S-MOD-PIPELINE-ACTIONS.) |
+| `timeout` *(exists; calls `IChatProvider` directly)* | `user_id`, `duration` (default 60), `reason` | Resolve target → `IModerationService.TimeoutAsync`. (Re-point — S-MOD-PIPELINE-ACTIONS.) |
+| `delete_message` *(exists; `message_id` only, calls `IChatProvider` directly)* | `message_id`, `user_id` | `IModerationService.DeleteMessageAsync`. (Re-point — S-MOD-PIPELINE-ACTIONS.) |
+| `warn` *(not built — S-MOD-PIPELINE-ACTIONS)* | `user_id`, `reason` | `IModerationService.WarnAsync`. |
+| `add_chat_filter_hit` *(not built — S-MOD-PIPELINE-ACTIONS)* | `filter_id` | Increments `ChatFilter.MatchCount` (J.6) + may `EnqueueAsync` a `bot_flag` queue item. Used by the automod engine's pipeline path. |
+| `apply_heat` *(not built — S-MOD-PIPELINE-ACTIONS)* | `user_id`, `delta` | Triggers `IModerationProjectionService.RecomputeTrustAsync` after a heat-bearing event; may fire `UserHeatThresholdCrossedEvent`. |
 
-Each new action: `Type` = the snake_case string above; resolve `user_id`/`message_id` from `context.Parameters` then `context.Variables` (`target.id` → `user.id`) exactly like the re-targeted `BanAction`; return `ActionResult.Success/Failure`. Register in `InfrastructureServiceExtensions`/`DependencyInjection` action list (where `BanAction`/`TimeoutAction` are registered).
+Each new action: `ActionType` = the snake_case string above; resolve `user_id`/`message_id` from the step's parameters then `ctx.Variables` (`target.id` → `user.id`) exactly like `BanAction`; return `ActionResult.Success/Failure`. No registration line is needed — the `ICommandAction` scan picks the class up.
 
 ---
 
 ## 7. DI registration
 
-In `NomNomzBot.Infrastructure/DependencyInjection.cs` (where `IModerationService`→`ModerationService` and `AutoModerationEngine` already register, lines ~189/203). All **Scoped** (per-request, DbContext-bound) except the stateless calculator. Profile-adapter variants are selected by `DeploymentProfile`/`App__DeploymentMode` exactly as the cache/bus/executor adapters.
+In `NomNomzBot.Infrastructure/DependencyInjection.cs`. **As built, the moderation services are bound by the `*Service` naming-convention scan (`AddServicesByConvention`), event handlers by the `IEventHandler<>` scan, and pipeline actions by the `ICommandAction` scan** — the explicit lines below are the design listing, not code to add. All **Scoped** (per-request, DbContext-bound) except the stateless calculator. Profile-adapter variants are selected by `DeploymentProfile`/`App__DeploymentMode` exactly as the cache/bus/executor adapters.
 
 ```csharp
 // Core moderation services — Scoped (DbContext / IUnitOfWork lifetime)
@@ -960,12 +1026,9 @@ services.AddScoped<IChatControlService, ChatControlService>();               // 
 services.AddScoped<IModerationDirectoryService, ModerationDirectoryService>(); // Group C — VIP/mod/unban-request/block/suspicious
 services.AddScoped<IModerationEscalationService, ModerationEscalationService>(); // auto-mod escalation ladder (J.10/J.11)
 
-// AutoMod engine (exists) + new pipeline actions — registered alongside BanAction/TimeoutAction
-services.AddScoped<AutoModerationEngine>();                                   // existing
-services.AddScoped<ICommandAction, DeleteMessageAction>();
-services.AddScoped<ICommandAction, WarnAction>();
-services.AddScoped<ICommandAction, ChatFilterHitAction>();
-services.AddScoped<ICommandAction, ApplyHeatAction>();
+// Pipeline actions (ban / timeout / delete_message, and any added under S-MOD-PIPELINE-ACTIONS) are picked up by the
+// ICommandAction assembly scan — no manual registration lines. The automod path is AutoModerationHandler, an IEventHandler
+// discovered by the same kind of scan.
 
 // Event handlers maintaining projections (Scoped, resolved per publish)
 services.AddScoped<IEventHandler<ModerationActionAppliedEvent>, ModerationProjectionHandler>();
@@ -996,7 +1059,7 @@ This subsystem uses **only second-party + already-present** packages — **zero 
 - **Background processing** — in-box `BackgroundService` + `PeriodicTimer` for the held-message TTL sweep; `IRunOnceGuard` (no-op lite / `pg_try_advisory_lock` SaaS) for multi-node.
 - **In-box `System.Security.Cryptography`** — only indirectly, via the token vault behind `ITwitchHelixClient`; this subsystem holds no `[PII-shred]` columns of its own (Twitch ids are `[PII-hash]`, content is `[PII-scrub]` — row-level scrub, not crypto-shred).
 - **Validation** — in-box **.NET 10 `AddValidation()`** source generator on request records; async/uniqueness rules in the service layer returning `Result<T>`.
-- **Existing `TrustScoreCalculator`** (1st-party, `NomNomzBot.Infrastructure.Services.Trust`) — reused by `IModerationProjectionService.RecomputeTrustAsync`; **not** re-implemented.
+- **Existing `TrustScoreCalculator`** (1st-party, `NomNomzBot.Domain.Trust`) — reused by `IModerationProjectionService.RecomputeTrustAsync`; **not** re-implemented.
 - **Testing** — xunit.v3 3.2.2, NSubstitute 5.3.0, AwesomeAssertions 9.4.0; SQLite in-memory for service tests; Testcontainers Postgres only for the RLS-isolation subset (cross-tenant IDOR on `/moderation/*`).
 
 ---
@@ -1007,13 +1070,15 @@ This subsystem uses **only second-party + already-present** packages — **zero 
 
 2. **"Active Shared Chat session" verification source.** `ISharedBanService.ApplyInboundSharedBanAsync` reads active-session state from an EventSub-owned shared-chat session projection; moderation only consumes it. Twitch exposes shared-chat session state via EventSub `channel.shared_chat.begin`/`channel.shared_chat.update`/`channel.shared_chat.end`; the EventSub/Twitch subsystem persists current session membership as a one-row-per-active-session projection (`SharedChatSessions`) that this subsystem queries at apply time. That projection is **not** part of Domain J — it is owned by the EventSub/Twitch subsystem, and moderation's only coupling to it is the read at `ApplyInboundSharedBanAsync`. This is a **dependency** on the EventSub subsystem owning and populating that projection.
 
-3. **Bot-side restriction tiers (muted / shadowbanned / blacklisted).** `ChannelViewerRestriction` (J.12, renamed from `ChannelModerationStanding`) is the graduated bot-side ignore axis; an absent row means normal, and the broadcaster can never be assigned a restriction. **Semantics:** `muted` — the bot ignores the user's interactions (commands, chat triggers, session-first-message welcome, poll votes, giveaway keyword entries, chat currency/engagement earning; chat song requests are covered because they are commands) while their chat still displays, persists, and folds into analytics. `shadowbanned` — everything `muted` does, PLUS the user's lines are excluded from bot-driven public overlay surfaces (the overlay event filter never pushes them). `blacklisted` — the user's chat events are DROPPED at the publisher seams (Twitch EventSub translation, the YouTube live-chat poll publisher, the Kick webhook ingest) before the bus fan-out: no persistence, no dashboard display, no feature sees them. **Enforcement placement:** blacklist at the 3 publishers; mute/shadowban as a guard at the top of the 4 feature subscribers (`ChatMessageHandler`, `ChatEarningHandler`, `EngagementChatActivityHandler`, `GiveawayKeywordListener`) reading a per-channel in-memory restriction map on `ChannelContext` (keyed by `Users.Id`, loaded by `ChannelRegistry`, invalidated on restriction writes; the publishers resolve the inbound platform identity to `Users.Id` via `IUserIdentityService.ResolveUserAsync` before the lookup) — never a per-message DB read; shadowban's overlay exclusion lives in the overlay event filter. **Separation from platform-native:** platform-native ban/timeout remain the only platform-visible punishments; bot-side restriction never calls a platform API. A restriction is per human (D1): a mute applies to the same human's Twitch, Kick, YouTube and X identities on every platform connection of the channel. Every restriction write's audit is a SYSTEM `UserNote` (J.3) riding the existing notes surface — no new domain event.
+3. **Bot-side restriction tiers (muted / shadowbanned / blacklisted).** `ChannelViewerRestriction` (J.12, renamed from `ChannelModerationStanding`) is the graduated bot-side ignore axis; an absent row means normal, and the broadcaster can never be assigned a restriction. **Semantics:** `muted` — the bot ignores the user's interactions (commands, chat triggers, session-first-message welcome, poll votes, giveaway keyword entries, chat currency/engagement earning; chat song requests are covered because they are commands) while their chat still displays, persists, and folds into analytics. `shadowbanned` — everything `muted` does, PLUS the user's lines are excluded from bot-driven public overlay surfaces (the overlay event filter never pushes them). `blacklisted` — the user's chat events are DROPPED at the publisher seams (Twitch EventSub translation, the YouTube live-chat poll publisher, the Kick webhook ingest) before the bus fan-out: no persistence, no dashboard display, no feature sees them. **Enforcement placement:** blacklist at the 3 publishers; mute/shadowban as a guard at the top of the 4 feature subscribers (`ChatMessageHandler`, `ChatEarningHandler`, `EngagementChatActivityHandler`, `GiveawayKeywordListener`) reading a per-channel in-memory restriction map on `ChannelContext` (keyed by `Users.Id`, loaded by `ChannelRegistry`, invalidated on restriction writes; the publishers resolve the inbound platform identity to `Users.Id` via `IUserIdentityService.ResolveUserAsync` before the lookup) — never a per-message DB read; shadowban's overlay exclusion lives in the overlay event filter. **Separation from platform-native:** platform-native ban/timeout remain the only platform-visible punishments; bot-side restriction never calls a platform API. A restriction is per human (D1): a mute applies to the same human's Twitch, Kick, YouTube and X identities on every platform connection of the channel. Every restriction write's audit is a SYSTEM `UserNote` (J.3) riding the existing notes surface — no new domain event. **Built today:** the code enforces the same three tiers per **platform identity** through `ChannelModerationStanding` (`(BroadcasterId, Provider, raw platform UserId)`), set with `POST /moderation/users/{userId}/standing`; the per-human `ChannelViewerRestriction` keyed on `Users.Id` that this decision specifies is the D1 target — **S-VIEWER-RESTRICTION-D1**.
 
 ---
 
-## 10. Multi-channel moderator (persona 2 — execution plan Tier 6.6)
+## 10. Multi-channel moderator (persona 2 — execution plan S075 / S074)
 
-The moderator-of-many persona: one human moderating several channels on this instance, each channel possibly spanning several platforms. This section is the spec for that slice.
+The moderator-of-many persona: one human moderating several channels on this instance, each channel possibly spanning several platforms. This section is the spec for that slice. It is tracked in `SHORTCOMINGS-EXECUTION-PLAN.md` as **S075** (cross-channel awareness: `GET /me/moderation/queue`, attributed notifications, "my channels" home) and **S074** (never act on the wrong channel), with per-platform discovery in **S073**.
+
+> **Built vs not built (2026-09-30).** *Built (Twitch only):* `GET /channels/moderated` reads the caller's moderated channels from Helix (`ITwitchModeratorsApi.GetModeratedChannelsAsync`), `POST /channels/moderated/{twitchBroadcasterId}/enter` switches into one, and `ChannelsController` lazily grants a Moderator membership on onboarded channels the caller moderates. *Not built:* `IModerationDirectoryService.DiscoverModeratedChannelsAsync` and the per-platform (Kick/YouTube/X) discovery (S073), `POST /me/moderation/channels/refresh`, `GET /me/moderation/queue` and `ModeratedChannelQueueDto` (S075), the attributed `DashboardHub` notifications and their aggregate-count invalidation (S075). `ModeratedChannelQueueDto` is therefore not yet in `ApiContractTest` / `server/openapi/v1.json`.
 
 - **Moderated-channel discovery, per platform.** `IModerationDirectoryService.DiscoverModeratedChannelsAsync(Guid userId, CancellationToken ct)` walks every linked `UserIdentity` of the caller and asks that platform's API for the channels the identity moderates (Twitch: Helix `GET /moderation/channels`; Kick/YouTube/X: their equivalent), intersects with local `Channels` (via `PlatformConnection(Provider, ExternalChannelId)`), and upserts `ChannelMembership(ManagementRole=Moderator)` for each hit (the platform's role list is the default source per opt-in/default-deny; the broadcaster may still raise/lower locally). Runs on login and on `POST /me/moderation/channels/refresh`.
 - **Cross-channel queue (aggregate).** `GET /me/moderation/queue` → `StatusResponseDto<IReadOnlyList<ModeratedChannelQueueDto>>` with one row per moderated channel: `BroadcasterId`, `ChannelName`, `Platforms` (connected provider keys), `HeldMessages int`, `UnbanRequests int`, `OpenReports int`, `ShieldModeActive bool`, `OldestPendingAt DateTime?`. Platform-JWT self-scoped (no tenant — the caller's own memberships; each count is computed under that channel's tenant scope, Gate-2 `moderation:queue:read` evaluated per channel, channels the caller fails are omitted, never 403 the aggregate). Drill-in uses the existing per-channel §5 routes with the `{channelId}` target (channel-switch tenant targeting).

@@ -1,11 +1,11 @@
 # Community & Dashboard — Interface Specification
 
-Implementable spec for **two read-only aggregation surfaces**: the **community/viewer** surface
+Implementable spec for **two aggregation surfaces**: the **community/viewer** surface
 (`CommunityController` — chatters/followers/subscribers/VIPs/moderators from real Twitch data, viewer detail
 folding analytics + standing + role + recent activity) and the **dashboard home** surface
 (`DashboardController` — live-stream summary, today's stats, recent activity feed, top viewers/earners, active
-health signals). Both **own no schema and no domain events** — they compose existing read models, live provider reads, and
-the journal. Code from this directly.
+health signals). Both **own no schema, no domain events and no persisted writes** — they compose existing read models, live provider reads, and
+the journal. The one action they carry, the dashboard's **activity replay** (§3.5), is presentation-only: it re-plays a past event's chat, TTS and overlay output and persists nothing. Code from this directly.
 
 Source of truth: the read models these controllers aggregate are owned by their respective specs —
 `twitch-helix.md` (live Helix chatters/followers/subs/VIPs/moderators reads), `analytics.md` (Domain **M**
@@ -47,13 +47,13 @@ ad-hoc Helix/DbContext calls the legacy shells made).
 
 ## 1. Entities
 
-**None new — both services own zero schema.** They are read-only aggregators; everything they return is folded
+**None new — both services own zero schema.** They persist nothing; everything they return is folded
 from tables and read models owned by other specs, or read live from Helix. No table, column, PK, projection, or
 soft-delete filter is introduced here. The complete set of read dependencies (never mutated by this subsystem):
 
 | Read dependency | Owner spec | What this subsystem reads from it |
 |---|---|---|
-| Live chatters / followers / subscribers / VIPs / moderators — **provider-fanned** (Twitch Helix + Kick + YouTube), merged under one viewer identity (`UserIdentity`) | `twitch-helix.md` §3.2–3.4 + the Kick/YouTube providers (`platform-identity.md`) | The community lists — Twitch leg: `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`, `Subscriptions.GetBroadcasterSubscriptionsAsync`, `Moderators.GetVipsAsync`, `Moderators.GetModeratorsAsync`; Kick/YouTube legs via their provider clients (real platform data only; **no seed/fake list, ever**) |
+| Live chatters / followers / subscribers / VIPs / moderators — **target: provider-fanned** (Twitch Helix + Kick + YouTube), merged under one viewer identity (`UserIdentity`). **Twitch leg only today; Kick/YouTube fan-out tracked as S-COMMUNITY-MULTIPLATFORM.** | `twitch-helix.md` §3.2–3.4 + the Kick/YouTube providers (`platform-identity.md`) | The community lists — Twitch leg (built): `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`, `Subscriptions.GetBroadcasterSubscriptionsAsync`, `Moderators.GetVipsAsync`, `Moderators.GetModeratorsAsync`; Kick/YouTube legs via their provider clients (not built yet; real platform data only; **no seed/fake list, ever**) |
 | Live channel/stream state | `twitch-helix.md` §3.2 | `GetChannelInformationAsync` / `GetStreamAsync` for the dashboard live-summary widget |
 | **M.1 `ViewerProfiles`** (per-viewer aggregate) | `analytics.md` §3.2 | `IViewerAnalyticsService.GetProfileAsync` — the viewer detail's lifetime totals, first/last seen, follower/sub flags |
 | **M.7 `ViewerEngagementDaily`** | `analytics.md` §3.2 | viewer-detail engagement series (optional drill-down range) |
@@ -84,7 +84,7 @@ serves the REST read snapshot the dashboard loads on open and the hub keeps fres
 Interfaces in `NomNomzBot.Application/Contracts/Community/` and `NomNomzBot.Application/Contracts/Dashboard/`;
 implementations in `NomNomzBot.Infrastructure/Services/Community/` and `.../Services/Dashboard/`. Every fallible
 op returns `Result`/`Result<T>`. Neither service calls Helix or EF directly for anything another spec owns — they
-**compose** the typed read services in §1. No method writes.
+**compose** the typed read services in §1. No method persists anything; the replay action (§3.5) is presentation-only.
 
 ### 3.1 `ICommunityService` — viewer/community surface
 
@@ -156,8 +156,8 @@ adaptation; no Helix call is re-implemented here (all go through `ITwitchHelixCl
 
 ### 3.4 Degradation & enrichment rules (binding behavior)
 
-- **No fake data — hard rule.** Every community list comes from live provider reads — fanned across the channel's
-  platform connections (Twitch Helix + Kick + YouTube) and merged under one viewer identity. A provider failure
+- **No fake data — hard rule.** Every community list comes from live provider reads — target: fanned across the channel's
+  platform connections (Twitch Helix + Kick + YouTube) and merged under one viewer identity. **Twitch leg only today; Kick/YouTube fan-out tracked as S-COMMUNITY-MULTIPLATFORM.** A provider failure
   surfaces as a `Result.Failure(ErrorCode)` (or, for the dashboard snapshot's best-effort legs, a `Degraded` note +
   null section) — **never** a fabricated viewer/subscriber/follower list. `missing_scope` is propagated, not masked.
 - **Enrichment is a left-join, never a gate.** A Helix chatter/follower with no local `ViewerProfile`/standing
@@ -170,6 +170,31 @@ adaptation; no Helix call is re-implemented here (all go through `ITwitchHelixCl
   `ActivityItemDto` (type token, actor display snapshot, occurred-at, a short summary) — the raw `PayloadJson`
   and any `[PII-hash]`/encrypted payload fields are **never** surfaced through these read endpoints; only the
   already-display-safe snapshot fields the journal carries are mapped.
+
+### 3.5 Activity replay — `IActivityReplayService` (presentation-only)
+
+`NomNomzBot.Application/Dashboard/Services/IActivityReplayService.cs`; implementation `NomNomzBot.Infrastructure/Dashboard/Replay/ActivityReplayService.cs`, bound by the `I<X>Service` convention. It lets a moderator re-run a past activity-feed event the way viewers experienced it (e.g. to re-test an alert, or to replay one a stream missed).
+
+```csharp
+namespace NomNomzBot.Application.Dashboard.Services;
+
+public interface IActivityReplayService
+{
+    // NOT_FOUND when the event can neither be rebuilt from the event journal nor has a captured overlay alert.
+    Task<Result<ActivityReplayResult>> ReplayAsync(Guid broadcasterId, string channelEventId, CancellationToken ct = default);
+}
+
+public sealed record ActivityReplayResult(int EventsReplayed, int ChatMessagesSent, int TtsQueued, int OverlaysShown, int WidgetsNotified);
+```
+
+Design (binding):
+
+- **Source.** An activity row's id **is** the domain event's `EventId`, which the journal keeps as `EventJournal.EventId`. `JournaledDomainEventReader` rebuilds the event from its journal row.
+- **It re-runs the full event response — chat + TTS + overlay.** The rebuilt event goes to the event type's alert handler through `IEventResponsePresenter.ReplayAsync`. That is the handler's own presentation half: the same variables, the same response key and the same `IEventResponseExecutor` the live event used. So the bot's chat reply, the queued TTS and the overlay response all run again. After that, `IRenderedAlertReplayer` re-sends the captured overlay alert payloads to the subscribed widgets. When the replayed response queued its own TTS, the captured utterance is skipped, so the line is spoken once.
+- **Gift-bomb chains.** A `GiftSubscriptionEvent` replays as its whole chain: the gifter's line, then each named recipient's line in announcement order (`GiftBombChainResolver` finds the recipients). The steps run one after another, in the original order. `EventsReplayed` is 1, or 1 + the recipients.
+- **It never runs currency, loyalty or reward services.** By construction it never publishes the event on the bus, never calls a handler's `HandleAsync` (which would log the activity row and run the handler's other work, e.g. the watch-streak upsert), and never reaches any currency, loyalty-point, reward-fulfilment, counter, stats or hype-train service. It writes no activity row and no journal row. The only side effects are the presentation outputs a viewer saw: real bot chat lines, queued TTS and overlay pushes.
+- **Truthful counts.** Every count in `ActivityReplayResult` is real work done. `0` is a valid outcome (the response is disabled, or every subscribed widget was removed since the alert fired); it is never dressed up as a full success.
+- **Gate.** `dashboard:replay` at the Moderator floor (`ActionDefinitionSeeder`), plus the `WriteExpensive` rate-limit policy, because a replay sends real chat and TTS.
 
 ---
 
@@ -271,6 +296,15 @@ public sealed record DashboardHealthSignalDto(
 public sealed record DashboardSectionNote(
     string Section,                  // "live_stream" | "today" | "top_earners" | ...
     string Reason);                  // e.g. "missing_scope", "rate_limited", "feature_disabled"
+
+// The outcome of POST /activity/{eventId}/replay (§3.5) — what the replay actually re-performed. Declared on
+// DashboardController and mapped from the service's ActivityReplayResult (same five fields).
+public sealed record ReplayActivityResultDto(
+    int EventsReplayed,              // 1, or 1 + each named recipient of a gift bomb
+    int ChatMessagesSent,            // chat lines the bot sent through its normal send path
+    int TtsQueued,                   // TTS utterances the replayed responses queued
+    int OverlaysShown,               // overlay-type event responses pushed to the overlay
+    int WidgetsNotified);            // widget pushes of the captured alert payloads
 ```
 
 > `DashboardHealthSignalDto` composes signals the platform already produces (Twitch connection status from
@@ -285,8 +319,8 @@ Two controllers under `NomNomzBot.Api/Controllers/V1/`, `[ApiVersion("1.0")]`, i
 `[Authorize]`, route through `ResultResponse`/`GetPaginatedResponse`. Channel `{channelId}` resolves to
 `Guid broadcasterId` via tenant middleware + `IChannelAccessService` (Gate-1; caller must control the channel).
 
-**Role gate** (schema B.3 `ActionDefinitions`). Both surfaces are **management**-plane, read-only dashboard
-data. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** =
+**Role gate** (schema B.3 `ActionDefinitions`). Both surfaces are **management**-plane dashboard data: every route
+is a read except the presentation-only activity replay. **Gate-1** = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; entry ≠ permission, floors are Gate-2's). **Gate-2** =
 `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route
 floor before the service call (403 `FORBIDDEN` below floor). Keys are seeded global `ActionDefinitions` (added to
 `roles-permissions.md` §7.1 — see §7 deltas below); a broadcaster may raise a floor via `ChannelActionOverride`
@@ -311,6 +345,9 @@ grant)`.
 | GET | `/` | — | `StatusResponseDto<DashboardSnapshotDto>` | management / Moderator · `dashboard:read` |
 | GET | `/summary` | — | `StatusResponseDto<DashboardSummaryDto>` | management / Moderator · `dashboard:read` |
 | GET | `/activity` | `PageRequestDto` | `PaginatedResponse<ActivityItemDto>` | management / Moderator · `dashboard:read` |
+| POST | `/activity/{eventId}/replay` | — | `StatusResponseDto<ReplayActivityResultDto>` | management / Moderator · `dashboard:replay` (write-expensive rate tier) |
+
+`POST /activity/{eventId}/replay` re-runs one past activity event's full response (chat + TTS + overlay), including a gift bomb's whole chain, and never runs currency, loyalty or reward services (§3.5). `eventId` is the activity row's id (the journal `EventId`). It fails with `NOT_FOUND` when there is neither a stored event nor a captured alert to replay. As built, `DashboardController` is routed `api/v{version}/dashboard/{channelId}/…`, so the replay route is `POST api/v{version}/dashboard/{channelId}/activity/{eventId}/replay`.
 
 A Helix-sourced read that hits a missing scope returns `403`/`409`/`429` problem-details by error code
 (`missing_scope`→403, `no_token`→409, `rate_limited`→429, `not_found`→404) for the dedicated community list
@@ -321,7 +358,7 @@ endpoints; the **dashboard** snapshot/summary endpoints instead degrade per sect
 
 ## 6. Pipeline actions
 
-**None.** Both subsystems are read-only HTTP aggregation surfaces — they expose no pipeline action and no
+**None.** Both subsystems are HTTP aggregation surfaces (read-only apart from the presentation-only replay, §3.5) — they expose no pipeline action and no
 template variable. (Community/standing data consumed inside pipelines is read via the owner services'
 template-variable helpers, not added here.)
 
@@ -337,6 +374,7 @@ read-only; they compose other scoped read services). No projection registration 
 // Community & Dashboard — read-only aggregation services (scoped: compose owned read services)
 services.AddScoped<ICommunityService, CommunityService>();
 services.AddScoped<IDashboardService, DashboardService>();
+// IActivityReplayService (§3.5) is bound by the I<X>Service convention scan — no explicit line.
 ```
 
 Both implementations constructor-inject the **already-registered** owner interfaces — `ITwitchHelixClient`
@@ -352,7 +390,7 @@ Both implementations constructor-inject the **already-registered** owner interfa
 - **`ITwitchHelixClient`** (`twitch-helix.md`) — `ChatAssets.GetChattersAsync`, `Channels.GetChannelFollowersAsync`/
   `GetChannelInformationAsync`, `Moderators.GetVipsAsync`/`GetModeratorsAsync`, `Streams.GetStreamAsync`,
   `Subscriptions.GetBroadcasterSubscriptionsAsync`/`GetSubscriberCountAsync` — the Twitch leg of the provider fan-out;
-  the Kick and YouTube provider clients (`platform-identity.md`) are the other legs, merged under one viewer identity.
+  the Kick and YouTube provider clients (`platform-identity.md`) are the target's other legs, merged under one viewer identity (Twitch leg only today; Kick/YouTube fan-out tracked as S-COMMUNITY-MULTIPLATFORM.).
   Live platform reads only (no seed data). Scope and rate-limit failures propagate as `Result.Failure(ErrorCode)`.
 - **`IViewerAnalyticsService` / `IChannelAnalyticsService`** (`analytics.md`) — `ViewerProfileDto` (M.1) for
   viewer detail; `ChannelAnalyticsSummaryDto` (M.8) and `TopViewerDto` for the dashboard today/top-viewer blocks.
@@ -374,12 +412,12 @@ interfaces.
 
 ## 9. Decisions (resolved)
 
-1. **Both controllers are pure read-only aggregators that own nothing** — no schema, no domain events, no
-   pipeline actions, no DI adapter pairs. They give the existing `CommunityController`/`DashboardController`
+1. **Both controllers are aggregators that own nothing persistent** — no schema, no persisted writes, no domain events, no
+   pipeline actions, no DI adapter pairs. (The one action, activity replay, is presentation-only: §3.5.) They give the existing `CommunityController`/`DashboardController`
    shells a typed service layer (`ICommunityService`/`IDashboardService`) over read models owned by their proper
    specs, replacing the legacy ad-hoc Helix/`DbContext` calls.
-2. **Community lists are live provider truth, enriched by left-join — never seeded.** The list endpoints fan out
-   across the channel's platform connections (Twitch Helix + Kick + YouTube), merge the real
+2. **Community lists are live provider truth, enriched by left-join — never seeded.** **Twitch leg only today; Kick/YouTube fan-out tracked as S-COMMUNITY-MULTIPLATFORM.** The list endpoints fan out
+   across the channel's platform connections (target: Twitch Helix + Kick + YouTube), merge the real
    chatter/follower/subscriber/VIP/moderator data under one viewer identity, and decorate it with local
    standing/role where it exists; a provider scope/rate failure surfaces as an error code, never a fabricated list (the hard "no fake
    community data" rule). This also closes the legacy "subscriber count always 0" silent-empty behavior by
@@ -396,6 +434,11 @@ interfaces.
    endpoints.
 6. **Active health signals are derived, not stored** — `DashboardHealthSignalDto` composes existing connection-health and
    projection-checkpoint signals on the fly; no health-signal table is introduced.
-7. **Two action keys, both `management` / Moderator(10) / Low / grantable** — `community:read` and
-   `dashboard:read`, seeded in `roles-permissions.md` §7.1 (§7 deltas). Read-only dashboard data sits at the
-   Moderator floor like every other read key in the management plane.
+7. **Three action keys, all `management` / Moderator(10)** — `community:read` and `dashboard:read` (Low,
+   grantable), seeded in `roles-permissions.md` §7.1 (§7 deltas), and `dashboard:replay` for the presentation-only
+   activity replay (§3.5), seeded by `ActionDefinitionSeeder`. Read-only dashboard data sits at the Moderator
+   floor like every other read key in the management plane; replay sits at the same floor because it has no
+   currency, loyalty or reward side effect.
+8. **Activity replay re-runs the full event response and nothing else.** It replays chat + TTS + overlay through
+   the alert handler's presentation half, including a gift bomb's whole chain, and never runs currency, loyalty or
+   reward services, never publishes the event, and never writes an activity or journal row.

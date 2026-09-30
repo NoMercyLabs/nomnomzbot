@@ -25,35 +25,7 @@ Live ground truth pulled from the box (192.168.2.60, 2026-09-24):
 
 ## Part A — owner-reported items
 
-### A1 · Impersonation ("act as") keeps the admin's own channel — VERIFIED
-
-Current state: `beginImpersonation` (app/core/connection/SessionStore.kt:127-136) swaps only the token
-and the flag. `activeChannelId` stays the admin's; every REST call sends it as `X-Channel-Id`
-(app/core/di/AppGraph.kt:301) and `TenantResolutionMiddleware.cs:83` obeys it (Gate 1 only checks the
-channel is active). `ShellScreen.kt:553-554` keys every page on `activeChannelId`, so nothing remounts.
-`reconnectAll` (AppGraph.kt:910-913) rejoins the admin's channel on the hub. If the target does NOT
-moderate the admin's channel, the mismatch trips the switching guard and the splash shows forever with
-no Exit (banner renders after the early return, ShellScreen.kt:520).
-
-Ending is broken too: `exitImpersonation` (app/feature/admin/state/AdminController.kt:1911-1912) calls
-`api.endImpersonation` BEFORE restoring the admin token, so the DELETE carries the target's token,
-`PlatformAdminController.cs:192` returns 403, the result is ignored: the grant is never revoked,
-`ImpersonationEndedEvent` never fires, the owner never gets the "operator stopped" notice.
-
-What must change (one slice, **V-A1**):
-1. Begin/end reset the selected channel and bump a session generation; pages key on generation, not
-   only channel; `setDefaultChannel` gets a forced-reset path used only on identity swap
-   (ChannelSwitcherController.kt:63-65, SessionStore.kt:99-101).
-2. `reResolveIdentity` order: reset channel → reload roster → resolve role (AdminController.kt:1919-27).
-3. Restore the admin token first, then revoke the grant; surface a failed revoke.
-4. 401/expiry while acting → run the full exit path, never the admin refresh (SessionStore.kt:116, 218-228).
-5. `clearActiveSession`/`disconnect` clear the act-as flag and stash (SessionStore.kt:242-261); logout
-   ends act-as first (ConnectController.kt:334-337).
-6. Suppress the Twitch reauth dialog while acting (App.kt:234, ShellScreen.kt:538); don't persist
-   routes while acting (ShellScreen.kt:350); skip `EnsureModeratorMembershipsAsync` under impersonation
-   (ChannelsController.cs:101).
-7. Expose the owner security notices (`ImpersonationBroadcastHandlers.cs:55,106` write them; no
-   endpoint/client reads them) as an inbox entry.
+### V-A1 · Impersonation ("act as") keeps the admin's own channel
 
 Owner rule 2026-09-26 (widens this slice): while acting, the ONLY trace of the admin is the Exit button.
 Everything else is the target's, no exceptions: channel list and selection, role and gating, navigation (no
@@ -63,7 +35,10 @@ Done-when: act as a user who does NOT moderate the admin's channel → their cha
 and role render; Exit revokes the grant (server row + `ImpersonationEndedEvent`), admin lands back on
 Admin with their own channel; a UI test asserts `X-Channel-Id` changes on begin and end.
 
-### A2 · Supporting another streamer's channel (moderator-of-many)
+Owed: a UI test asserting `X-Channel-Id` changes on begin and end (`ActAsCoordinatorTest` asserts the
+store's `activeChannelId` only; no test reads the header).
+
+### V-A2 · Supporting another streamer's channel (moderator-of-many)
 
 **A2.1 VERIFIED — un-onboarded moderator-mode tenants never activate.** `ChannelService.cs:593` creates
 the tenant with `IsOnboarded=false` when a moderator enters it; the owner's later login
@@ -78,12 +53,11 @@ Lane-reported, same slice family (**V-A2**):
   re-resolve (ShellScreen.kt:380) is dead; mod grants/demotes stay stale until reload.
 - `channel.moderator.remove` only logs (RoleBroadcastHandlers.cs:170-220); no grant on `.add`; a
   de-modded user keeps Moderator up to 10 min or forever if the channel token is dead.
-- `DashboardHub.JoinChannel` (DashboardHub.cs:128) runs Gate 1 only — any signed-in user joins any
-  channel's moderation event class. Client sends the join without invocationId so a denial is silent
+- The client sends `JoinChannel` without an invocationId, so a denial is silent
   (DashboardHubClient.kt:431-432).
 - Roster (`ChannelService.cs:201-228`) is built from ownership + legacy ChannelModerators + Twitch,
-  never `ChannelMemberships`; role label hardcoded broadcaster/moderator; returns `OverlayToken` to
-  every non-owner; goes through the tenant filter (:203) so the roster differs by active channel.
+  never `ChannelMemberships`; role label hardcoded broadcaster/moderator; goes through the tenant
+  filter (:203) so the roster differs by active channel.
 - `EnterModeratedChannel` (ChannelsController.cs:284-291) overwrites Editor/LeadModerator with
   Moderator; entering is gated by `dashboard:read` on the *current* channel (:225); failures collapse
   to null in `ChannelSwitcherController.kt:105`.
@@ -96,16 +70,9 @@ Lane-reported, same slice family (**V-A2**):
   moderated channels are read (:88,184,246); Helix failure → empty list, no reason.
 - `EnsureModeratedTenantAsync` (ChannelService.cs:576-581) returns soft-deleted/suspended tenants.
 
-### A3 · Viewer usability
-
-**A3.1 VERIFIED — P0 security: any viewer can drain any wallet.** `CurrencyController.cs:230-243`
-binds `ActorUserId` to the caller but `TransferAsync` (CurrencyAccountService.cs:206-240) debits
-`command.FromViewerUserId` from the body and never compares the two; `economy:transfer:write` is
-seeded for Everyone (ActionDefinitionSeeder.cs:518). Fix: server sets sender = caller.
+### V-A3 · Viewer usability
 
 Lane-reported (**V-A3**), security first:
-- Leaderboard opt-in/out takes any `viewerUserId` (EconomyLeaderboardsController.cs:109-133).
-- Game history open to Everyone, `playerUserId` only a filter (GamesController.cs:91-112).
 - Dashboard + public song request skip the min-trust gate and requester id
   (MusicController.cs:171-196, PublicSongRequestController.cs:93-97, MusicService.cs:517-524); the
   public page keys per-user limits on the typed name.
@@ -127,7 +94,7 @@ Lane-reported (**V-A3**), security first:
   page is still unbuilt.
 - Participant nav ignores which features the channel enabled (ParticipantNav.kt:84-85).
 
-### A4 · Twitch scopes are asked for too late — VERIFIED
+### V-A4 · Twitch scopes are asked for too late — VERIFIED
 
 Owner: "it constantly fires off an error about not having a permission on Twitch and requiring me to
 reauth … it needs to require it when being enabled so it's there when needed."
@@ -137,8 +104,8 @@ FeatureService.cs:176-224) flips `IsEnabled` and stores `RequiredScopes` as meta
 compares them to the granted set. The scope is first discovered when a Helix call fails:
 `TwitchHelixTransport.cs:389-391` publishes `TwitchHelixReauthRequiredEvent` on EVERY 401 (Twitch
 answers 401 for a missing scope), and `MissingScopeRecordingHandler` only records when a scope name
-was parsed (which B7.1 shows never happens). So the dashboard shows a "reconnect Twitch" prompt at
-use time, on every use, with no scope named, and re-connecting with the same scope set fixes nothing.
+was parsed. So the dashboard shows a "reconnect Twitch" prompt at use time, on every use, with no
+scope named, and re-connecting with the same scope set fixes nothing.
 `FeaturesScreen.kt:205-226` shows "Re-grant" even when nothing is missing and runs the global
 reconnect (B1).
 
@@ -159,7 +126,7 @@ Done-when: enable a feature whose scope is missing → the toggle stays off and 
 with the missing scope; grant → toggle on; no Helix call ever raises a "reconnect" for a scope; a
 test proves `ToggleFeatureAsync` refuses without the scope and accepts with it.
 
-### A5 · Links the bot hands out that lead nowhere
+### V-A5 · Links the bot hands out that lead nowhere
 
 Owner: "links listed for a streamer channel and song request page do not answer, there are
 probably more."
@@ -178,7 +145,7 @@ What must change (**V-A5**): build the public `/sr/@login` page (A3 already list
 test that walks every URL the app or a chat reply constructs and asserts a non-fallback route serves
 it (the SPA fallback must not answer for `/sr/*` or any documented public path).
 
-### A6 · No hoops: every form creates its related things in place — standing rule
+### V-A6 · No hoops: every form creates its related things in place — standing rule
 
 Owner: "forms, modals and all user input need to be accessible and user friendly … never open
 something to find out you need to exit and navigate away to add something related first."
@@ -205,12 +172,6 @@ can be created without leaving, and the form's own draft survives the detour.
 ## Part B — by area (new findings only)
 
 ### B1 · Shell, navigation, settings, onboarding
-- **VERIFIED** Settings page: outer Column does not scroll and the stream-info Box takes `weight(1f)`
-  (SettingsScreen.kt:314-379); the nine cards below (Appearance … Billing, Journal) are cut off in any
-  normal window → Bot account, Permissions, Billing unreachable.
-- Web setup wizard: `finish()` (SetupController.kt:256-273) → `onReadyToSignIn` navigates away on
-  wasm, so `completeSetup()`/`applyBasics()` never run: basics lost, `system.setup_complete` never set,
-  and the credential endpoints (SystemController.cs:312,351,447) stay writable without login.
 - Browser Back logs the operator out on the first shell entry (App.kt:182-186, RouteStore.wasmJs.kt:71-72).
 - Coerced routes push history → Back loops, no "no access" notice (ShellScreen.kt:349-350).
 - Setup nav group toggle needs two clicks, never auto-expands, not persisted (ShellScreen.kt:840-844).
@@ -232,9 +193,6 @@ can be created without leaving, and the form's own draft survives the detour.
   (PipelinesApi.kt:376-399), `GetInt`/`GetBool` return the default for a string
   (ActionDefinition.cs:35-57). Affects shoutout tts/cooldown, raid window, stop_sound all, VTS tint,
   OBS duration — and re-saving an existing pipeline.
-- **VERIFIED** Cross-channel pipeline execution: `PipelineId` never checked to belong to the channel
-  (CommandService.cs:284-285, ChatTriggerService.cs:92,130); registry loads steps by id with no
-  broadcaster filter (ChannelRegistry.cs:560-568).
 - Editor throws away backend kind/Options/Required (PipelineCatalogue.kt:788-804); 36 actions fall to
   a blank key/value editor; no Number field kind (PipelinesScreen.kt:2552-2694); `var_compare` hint vs
   engine `comparison` (PipelineCatalogue.kt:729); `ResourceId` has no resource type so OBS/VTS/game/
@@ -278,8 +236,6 @@ can be created without leaving, and the form's own draft survives the detour.
   game free text. Hardcoded English in GameBuiltins/QuoteBuiltin/EconomyController/ScheduleController.
 
 ### B4 · Moderation, chat, community, analytics, home
-- **VERIFIED** Unban-approve can never succeed: client body has no `confirm`
-  (ModerationApi.kt:1175) and the server refuses approve without it (ModerationService.cs:1248).
 - **VERIFIED** Bot AutoMod link/caps filters never fire: dashboard saves `link_filter`/`caps_filter`
   with `whitelist`/`maxEmotes` (ModerationService.cs:690-827); enforcer reads `links`/`caps` with
   `allowed_domains`/`max_emotes` (AutoModerationHandler.cs:102-286).
@@ -295,10 +251,9 @@ can be created without leaving, and the form's own draft survives the detour.
   (ChatController.cs:448-451); history rows lack reply parent and paints; zero-width emotes not
   overlaid, wide emotes squashed (ChatMessageFragments.kt:56-63); emote catalogue ignores sender.
 - Home feed: server returns 20 of 40 then client drops engagement/supporter/hype/poll/prediction/
-  unban/raid.out/sub.end (HomeController.kt:66-78); gift recipients shown as "X subscribed" and
-  double-counted (SubscriptionTranslators.cs:22-40, ChannelAnalyticsDailyProjection.cs:120-125);
-  Replay success with 0 widgets; failed follower/sub count shows 0 (DashboardController.cs:112,125);
-  raid search only past chatters.
+  unban/raid.out/sub.end (HomeController.kt:66-78); a gift bomb is double-counted in analytics
+  (ChannelAnalyticsDailyProjection.cs:120-125); failed follower/sub count shows 0
+  (DashboardController.cs:112,125); raid search only past chatters.
 - Analytics: fixed 30d UTC, no range/metric picker (AnalyticsController.kt:83-384).
 - AutoMod levels free-text digits (TrustAutomationSection.kt:771-852); spam controls with missing copy
   silently dropped, min/max never shown (SpamDefenseSection.kt:97-191); mod-log rows raw
@@ -308,16 +263,8 @@ can be created without leaving, and the form's own draft survives the detour.
   (ChatScreen.kt:1407-1411). Never called: community/stats, moderation/bans GET/DELETE.
 
 ### B5 · Music, TTS, sound, media share, VTS, OBS
-- **VERIFIED** Spotify 429 storm (qtkitte): 429 is retryable with `Retry-After: 0` → zero delay ×2
-  retries (ResiliencePolicies.cs:466-492) PLUS a manual retry re-entering the pipeline
-  (SpotifyMusicProvider.cs:1696-1711) = up to 6 requests per poll; the breaker ignores 429
-  (:500-513); a 429 on `/me/player` returns null = "nothing playing" so the poller clears backoff,
-  publishes IsPlaying=false, and drops to the 5s quiet cadence (SpotifyMusicProvider.cs:250-254,
-  MusicStatePollingService.cs:227-280). Box shows `ConsecutiveFailureCount=0` after two days. Fix: one
-  retry owner, floor on Retry-After, typed rate-limited outcome through `RecordFailure`, per-channel
-  cooling clock, count 429 in the breaker, skip handover while cooling.
-- Player commands, manage calls and token refresh never set `SpotifyRequestTags` → all share the
-  `Guid.Empty` partition (SpotifyMusicProvider.cs:1798-1811, 1930-1937, 1562).
+- The Spotify token refresh POST never sets `SpotifyRequestTags` → it shares the `Guid.Empty`
+  partition (SpotifyMusicProvider.cs:1616).
 - `ChannelSpotifyCredentialsService.SetAsync` swaps client id without invalidating a connection minted
   under another app (Integrations/ChannelSpotifyCredentialsService.cs:48-87).
 - anda_six wrong-track/wrong-requester: no clean swap path found; matches the S-SR-STALE signature;
@@ -335,8 +282,7 @@ can be created without leaving, and the form's own draft survives the detour.
   return 200 with no presence check (TtsConfigController.cs:100-191).
 - Media share: non-numeric → 0 (MediaShareScreen.kt:495-498); cost charged before save, no refund;
   queue count not atomic (MediaShareService.cs:119-182).
-- VTS model/expression are Text (VtsActions.cs:131,193); OBS `AckCommand` completes any command from
-  any bridge (OBSRelayHub.cs:127-133).
+- VTS model/expression are Text (VtsActions.cs:131,193).
 
 ### B6 · Widgets, overlays, alerts, bundles, assets
 - **VERIFIED** Alerts fire twice: the SDK's `Event` case feeds the generic overlay stream (payload a
@@ -356,8 +302,7 @@ can be created without leaving, and the form's own draft survives the detour.
 - `voice_trigger` offered but not in default subscriptions; no alert card for hype_train/shoutout/vip/
   mod; one template for all events, hardcoded English; `event_response` type has no consumer.
 - Host page compares widgetId as raw Guid so ULID shows "not live" (OverlayHostController.cs:73-75);
-  CSP blocks Google Fonts and self-hosted fonts (:144,150); vanilla page has no CSP; per-widget token
-  resolves to the whole channel (WidgetService.cs:1556-1573).
+  CSP blocks Google Fonts and self-hosted fonts (:144,150); vanilla page has no CSP.
 - Schema raw text: resetCadence, provider, rewards JSON, countdown ISO, custom_data source, colours JSON
   (WidgetSettingsSchemaProvider.cs:115-230). Editor has no dirty check (editor.js:1204,1259).
 - Bundles: export takes max VersionNumber not ActiveVersionId, drops FilesJson
@@ -369,16 +314,9 @@ can be created without leaving, and the form's own draft survives the detour.
   no base row for existing channels; backfill + write on every login, not only on create.
 
 ### B7 · Runtime stability
-- **VERIFIED** 403 EventSub storm root cause: `SafeReadBodyAsync` (TwitchHelixTransport.cs:404-419)
-  reduces the body to the plain `message`, but `ExtractMissingScope`
-  (TwitchEventSubHostedService.cs:1311-1326) parses it as JSON → always null → the pre-create gate
-  (:691-708) never blocks, `TwitchHelixReauthRequiredEvent` never publishes, and the tests at
-  `TwitchEventSubReconnectTests.cs:409` feed JSON the transport never produces. Every welcome
-  re-POSTs the whole failed slice (:307-312, :1171-1203); a session with zero live subs is closed by
-  Twitch (4003) → reconnect ≈32s → repeat forever. Also: "subscription missing proper authorization"
-  is never terminal; re-registration runs inline in the receive loop (:285-333); every token refresh
-  fires 74 POSTs inline (EventSubResubscribeOnTokenRefreshedHandler.cs:57); every non-2xx logs
-  Warning (TwitchHelixTransport.cs:394).
+- EventSub 403-storm follow-ups (root cause fixed): every token refresh re-subscribes the whole topic set
+  inline (EventSubResubscribeOnTokenRefreshedHandler.cs:57); every non-2xx Helix response logs Warning
+  (TwitchHelixTransport.cs:393).
 - **VERIFIED** Blue/green tug-of-war: `BotLifecycleService` and `SubscribeAsync → EnsureSessionAsync`
   are not gated on leadership; the losing colour's welcome runs `CleanupOwnerStaleSubsAsync`
   (:1123-1150) which deletes any row whose `SessionId != mine` — the leader's live subscriptions.
@@ -430,23 +368,19 @@ can be created without leaving, and the form's own draft survives the detour.
 
 Rule: severity first, then what unblocks the most, generic infrastructure before per-screen fixes.
 Owner priority stays streamer → moderator-of-many → viewer, but P0 security and "silently never
-worked" beat everything. Each line is one slice; delete it from the tracker when its Done-when is proven.
+worked" beat everything. Each line is one slice; delete it from Part C when its Done-when is proven.
 
 **Tier 0 — security and data-integrity (this week)**
-1. V-A3.1 wallet transfer sender = caller; leaderboard opt-in/out self-only; game history self-only.
-2. V-B2.2 pipeline ownership: reject foreign `PipelineId` on save; filter steps by broadcaster.
-3. V-A2.4 `DashboardHub.JoinChannel` Gate-2 per event class; tracked invocation on the client.
-4. V-B6.10 per-widget token scoped to the widget; roster stops returning `OverlayToken`.
-5. V-B1.2 web setup finalises (persist intent across the redirect) so credential endpoints lock.
-6. V-B5.13 OBS `AckCommand` scoped to the bridge's channel.
+- V-A3 song-request min-trust gate: the dashboard and public request paths pass no
+  `requesterRoleLevel`, so `MusicService.cs:517-524` skips the gate and the requester id
+  (MusicController.cs:171-196, PublicSongRequestController.cs:93-97); the public page keys per-user
+  limits on the typed name.
+- Note: the legacy channel-wide overlay token is still accepted as a fallback in
+  `WidgetService.ResolveOverlayTokenScopeAsync` (WidgetService.cs:1601-1635).
 
 **Tier 1 — the live bot misbehaves (runtime, before any more UI)**
-7. V-B7.1 403 EventSub storm: parse the plain message; terminal per channel+topic with a grant
-   fingerprint; skip until it changes; one action-required item; fix the test fake.
 8. V-B7.2 leadership gates on BotLifecycle/Subscribe/EnsureSession; drop lease on per-process restores;
    lease MusicStatePolling + YouTube poll + StreamStatus + token sweeps.
-9. V-B5.1 Spotify 429: single retry owner, Retry-After floor, typed rate-limited outcome, per-channel
-   cooling, breaker counts 429, tag every request. (Unblocks qtkitte today.)
 10. V-B7.4 Polly `SeverityProvider` + Serilog override; Helix non-2xx at Debug.
 11. V-B7.5 needs_reauth truth: clear only on an authenticated success; only invalid_grant counts;
     YouTube short-circuit; `DECRYPT_FAILED` → distinct status + inbox item.
@@ -455,101 +389,50 @@ worked" beat everything. Each line is one slice; delete it from the tracker when
     written on every login + backfill.
 
 **Tier 1b — admin plane + authoring (owner priority 2026-09-26)**
-Owner bump 2026-09-26: the ADMIN DASHBOARD goes first. Order of dispatch from now on: in-flight work
-(A0, A1, A3) → V-A1 impersonation (widened, below) → A4 → A6 → A5 → A7 → an admin-console usability walk (every admin tab used live, defects
-fixed) → then the remaining Tier 1 runtime items (8, 10, 11, 11b, 12) → A2 → A8.
+Owner bump 2026-09-26: the ADMIN DASHBOARD goes first. Order of dispatch from now on (T1b-A0…T1b-A8
+are the Tier 1b items below, V-A1…V-A6 the Part A slices): in-flight work (T1b-A0, T1b-A1, T1b-A3) →
+V-A1 impersonation (widened, below) → T1b-A6 → T1b-A5 → T1b-A7 → an admin-console usability walk
+(every admin tab used live, defects fixed) → then the remaining Tier 1 runtime items (8, 10, 11, 11b,
+12) → T1b-A2 → T1b-A8.
 Source: `usability-inventory-2026-09-26-admin-and-authoring.md` (both passes). Runs right after Tier 1.
-A0. Actionable errors everywhere (owner rule 2026-09-26): one action-required inbox fed by EVERY
-    subsystem through a generic producer contract (today only dead tokens, held chat, unmanaged rewards
-    feed ActionRequiredInboxService). Add producers: refused EventSub topics / missing scopes, Spotify and
-    other integrations needing reauth, bot not modded, widget compile failures, webhook delivery failures,
-    song requests lost at the provider, setup-finish pending failures, DECRYPT_FAILED connections. Live push
-    over the dashboard hub. Shell frame shows the inbox on every page (outside the page view); every item
-    deep-links to where it is fixed; Home shows all items grouped by severity at the top of the main view.
-    Titles/messages are resource keys, never backend English. Done-when: every actionable failure the bot
-    detects appears in the frame within seconds, and following it lands on the fix.
-    Status 2026-09-26: done in 92587835, 2b121ae7, 66b3e76b (producer contract, derived on read; producers:
-    grant gaps, widget build failures, webhook failures, lost song requests, undecryptable tokens; live push;
-    shell surface + Home). Open: bot-not-moderator needs real tracking (ChannelModerators is onboarding-only
-    and never removes; add a truthful signal, e.g. the moderator EventSub/role reconcile); rendered-client
-    visual check of the shell surface and Home.
-A1. Desktop editor parity: the desktop code/widget editor is a plain Swing text area
-    (ProjectEditor.jvm.kt:42-50); give it the same Monaco editor as web (embedded browser view), with the
-    same types, diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
+A0. Actionable errors everywhere (owner rule 2026-09-26; the producer contract, its producers, the live
+    push and the shell + Home surfaces shipped). Owed: bot-not-moderator needs real tracking (ChannelModerators is
+    onboarding-only and never removes; add a truthful signal, e.g. the moderator EventSub/role reconcile);
+    rendered-client visual check of the shell surface and Home.
+A1. Desktop editor parity: the same Monaco editor as web (embedded browser view), with the same types,
+    diagnostics, preview and fire tools. Done-when: one editor, identical on both clients. (Opus)
     Owner decision 2026-09-26: NO embedded Chromium (CEF/KCEF). Use each OS's native web view (WebView2 on
     Windows, WKWebView on macOS, WebKitGTK on Linux), as other desktop products do. An external editor is
     rejected: too slow for a rapid-fire broadcaster edit tool.
-    Status 2026-09-26: Windows done (a64e74a4, ca.weblite:webview MIT + JNA, Swing editor deleted). Open:
-    (a) high-DPI sizing bug in the library at 150% scaling (upstream fix, needs owner OK to file a PR);
+    Status 2026-09-26: Windows done (ca.weblite:webview MIT + JNA, Swing editor deleted). Open:
     (b) Linux runs the library's offscreen mode (no context menu, no <select>, no IME) — not acceptable,
     needs the heavyweight/native path or a WebKitGTK embedding, plus a WebKitGTK presence check;
     (c) macOS not run (ATS for http LAN origins, jawt in jpackage); (d) live check against a signed-in bot
-    (diagnostics, preview, fire bar, save→reopen); (e) stale "Swing dialog" comments in
-    AdminContentCodeScriptAuthoring.kt:62 and AdminContentWidgetAuthoring.kt:139.
+    (diagnostics, preview, fire bar, save→reopen).
 A2. SDK guidance in the editor: wire `GET /sdk/event-catalog` (SdkController.cs, zero callers) into a
     docs panel — browse events and API, real sample payloads, "insert handler", hover docs, snippets.
     Done-when: a new user finds and uses an event without leaving the editor.
-A3. Generic platform content: open `PlatformContentKinds` (PlatformContentDefinition.cs:61-69) to timers,
-    quotes/picklists, reward presets, sound clips and event responses, on the one existing
-    author → publish → install flow. Done-when: the admin can author and publish each kind. (Opus: schema)
-    Status 2026-09-26: event response, timer, reward, pick list done (generic IPlatformTemplateInstaller +
-    catalog + provenance via IPlatformSourced). Quotes stay per-channel (pick lists cover the seeding need).
-    Sound clip: decided option A — a platform-owned asset store (admin upload, asset id in the payload,
-    install streams through SoundClipService.UploadAsync so format/size/quota/duration checks run, asset
-    lifetime tied to referencing definitions). Also owed: refresh server/openapi/v1.json via the script once
-    an API runs (hand-edited twice today).
-A4. Platform defaults editable at runtime: event-response defaults, builtin replies, action/permission
-    floors (`ActionDefinition` is already a table), TTS voices — admin API + admin UI + blast radius,
-    tenants keep their overrides. Done-when: no platform default needs a code change and a redeploy.
-    Status 2026-09-27: DONE. All four families are runtime-editable under admin/platform-defaults with the
-    same preview → counted blast radius → confirmed save → audit → read-back flow and a segment each on the
-    admin "Platform defaults" tab: action/permission floors, event responses, builtin replies (handover +
-    cbacef9), TTS voice (3d632a7 backend, 149caa8 candidates, f28a406 dashboard; a null channel voice now
-    means "follow the platform default", data migrations in both providers move the old shipped voice).
-A5. Template updates reach tenants: platform content is copied at install and never updated
-    (PlatformContentDefinition.cs:17-20). Show "update available" per installed copy; the admin can push
-    with a blast-radius preview; a tenant's edits are never overwritten silently.
-    Status 2026-09-27: DONE for the platform side. Publishing a timer, event-response, reward or pick-list
-    version now reaches the installed copies through the same preview → counted blast radius → publish flow
-    the other kinds use: update-in-place rewrites untouched copies and leaves a channel's edited copy alone,
-    force overwrites all, and a copy the installer refuses is recorded on the job and shown (6c4157d server).
-    Gallery widget installs now stamp the hash the publish compares against, so they count as untouched
-    instead of edited (0a25a2a). The definition detail reports installed / behind / edited counts from the
-    same copy listing (9581266 server, app commit after it). The channel side now exists for every kind:
-    `GET channels/{id}/platform-templates/updates?kind=` lists this channel's copies behind the current
-    version (edited or not), and `POST …/{definitionId}/copies/{rowId}/update` takes the new version into
-    one copy through the kind's own save path, gated by its write key (PlatformTemplateUpdateService).
-    Owed: the dashboard half — an "update available" badge + Update action (with "replaces your edits"
-    when edited) on the timers and pick-lists pages. Blocked only on regenerating server/openapi/v1.json
-    through scripts/refresh-openapi.ps1 (port 5080 was held by a running API; ApiRouteContractTest needs
-    the routes in the snapshot before the Kotlin client may call them).
-A6. Admin truth pass: feature-flag override read-back + confirm (AdminScreen.kt:1533-1554); trace
-    save → runtime reader for billing, spam defense and trust-safety (owed by the audit).
-    Status 2026-09-27: DONE. Flag overrides are listed per flag from the server's read-back (channel
-    name, reason, Clear each) and setting one asks first (cb0f64b server, d7a6829 app). The trace found
-    and fixed three lies: a network block was only read on the capability fallback, so a blocked mod or
-    any everyone-floor action passed Gate-2 (ActionAuthorizationService now denies it first); the first
-    platform spam-defense save was tenant-stamped onto the admin's own channel (saved outside the ambient
-    tenant now; the channel page shows the defaults it tracks); a removed tier limit was re-inserted by
-    the seeder beside its soft-deleted row on the next boot and re-adding it collided (restore in place
-    now). Owed, ranked: `PrioritySupport` on a tier is display-only; a network block bans only the
-    tenants found at apply, later channels and chat ingest never check it; spam-defense fields nothing
+A3. Generic platform content: owed — the sound clip kind. Decided option A: a platform-owned asset store
+    (admin upload, asset id in the payload, install streams through SoundClipService.UploadAsync so
+    format/size/quota/duration checks run, asset lifetime tied to referencing definitions). Also owed:
+    refresh server/openapi/v1.json via the script once an API runs (hand-edited twice today).
+A5. Template updates reach tenants: owed — the dashboard half: an "update available" badge + Update action
+    (with "replaces your edits" when edited) on the timers and pick-lists pages, over
+    `GET channels/{id}/platform-templates/updates?kind=` and `POST …/{definitionId}/copies/{rowId}/update`.
+    Blocked only on regenerating server/openapi/v1.json through scripts/refresh-openapi.ps1
+    (ApiRouteContractTest needs the routes in the snapshot before the Kotlin client may call them).
+A6. Admin truth pass: owed, ranked: `PrioritySupport` on a tier is display-only; a network block bans only
+    the tenants found at apply, later channels and chat ingest never check it; spam-defense fields nothing
     reads (Lockdown*, FollowSpike/JoinBurst, SemiTrustedWatchHours*, NonLatinScriptGate,
-    NetworkSubscribe/Contribute) and the 7-day `EnforcementEligibleAt` window is never enforced; flag
-    gating lags tier edits by the 60s flag cache; confirming a spam detection has no runtime effect.
-A7. GDPR admin console: list and monitor export/erasure requests (GdprController.cs) platform-wide.
-    Status 2026-09-27: DONE. The compliance plane's list (`GET /compliance/erasure`, audit:read) narrows by
-    status and request type and a summary endpoint counts the ledger by status (3e1eed6); the admin plane
-    gained a Safety tab "Data requests" that shows the counts, both filters, every request's kind, state,
-    requester, scope and rows, and a failed request's recorded failure reason on its row (f06908d). Owed:
-    acting on a request from that tab (re-running a failed erasure) still goes through the subject's own
-    page — for the admin walk. (The Audit tab's "All" chip clears the filter: `loadAudit` takes the
-    outcome explicitly, AdminControllerFilterTest.)
+    NetworkSubscribe/Contribute) and the 7-day `EnforcementEligibleAt` window is never enforced; flag gating
+    lags tier edits by the 60s flag cache; confirming a spam detection has no runtime effect.
+A7. GDPR admin console: owed — acting on a request from the Safety tab's "Data requests" list (re-running a
+    failed erasure) still goes through the subject's own page — for the admin walk.
 A8. Publish the SDK types as a versioned npm package built by CI from `SdkTypeEmitter` output.
 Owed: announcements-to-tenants surface (not found), OBS/VTS admin presets, automation/IPC keys tab.
 
 **Tier 2 — features that silently never worked (fix or remove the control)**
-13. V-B4.2 AutoMod rule key contract (one shared set + round-trip test). 14. V-B4.1 unban-approve `confirm`.
+13. V-B4.2 AutoMod rule key contract (one shared set + round-trip test).
 15. V-B3.1 catalog purchase runs the item pipeline (refund on failure). 16. V-B3.2 watch-time earning
 sweep. 17. V-B3.3 chat-earning role scale. 18. V-B2.1 typed pipeline params from backend descriptors
 (+ accept numeric strings). 19. V-B6.2 push `WidgetSettingsChanged`; V-B6.1 stop the double alert.
@@ -560,7 +443,6 @@ Connect still calls the shared start (switch it once v1.json is regenerated).
 the head; address queue entries by code, not position.
 
 **Tier 3 — the owner's three flows end to end**
-24. V-A1 impersonation (all 7 points, one slice with a UI test).
 25. V-A2 moderator-of-many: roster from memberships + real role; onboarded flag in DTO; moderator
 add/remove → membership + `PermissionChangedEvent`; typed 403 bodies; roster cached; enter not
 tenant-gated; failures shown.
@@ -569,7 +451,7 @@ tiles; self ledger/purchases; 18+ consent UI; transfer picker; `/sr` public page
 localised with position/cooldown-left; built-in points command; nav by enabled features.
 
 **Tier 4 — form infrastructure (rides Phase 3), then per-screen**
-27. Settings scroll (V-B1.1) — trivial, do with 24. 27b. V-A5 dead links: `/sr` page + link-walk
+27b. V-A5 dead links: `/sr` page + link-walk
 test + SPA fallback excluded for public paths. 28. Resource-typed `ResourceId` + option providers
 (OBS/VTS/games/roles/discord) and Number/Enum kinds, **with the V-A6 "create inline" affordance on
 the picker primitive** → unlocks B2, B5, B6 raw-text items and the whole A6 list.

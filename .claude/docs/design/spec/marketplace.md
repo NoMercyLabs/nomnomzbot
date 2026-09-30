@@ -12,7 +12,7 @@
 
 | # | Decision |
 |---|---|
-| D1 | **Portable artifact = a ZIP with a standard schema per type.** A bundle ZIP = `/manifest.json` (`BundleManifest`: schemaVersion, metadata, author, license, `items[]`, `dependencies[]`) + per-type entries (`/pipelines/*.json`, `/commands/*.json`, `/widgets/<key>/*`, `/sounds/*` + meta, `/custom-data-sources/*.json`). Each exportable type has a **versioned export contract** (`PipelineExport`, `CommandExport`, `WidgetExport`, `SoundExport`, `CustomDataSourceExport`); validation = deserialize into the typed contract + validate (no JSON-Schema engine dep). A bundle may hold **many** items + their dependency graph (a "pack"). |
+| D1 | **Portable artifact = a ZIP with a standard schema per type.** A bundle ZIP = `/manifest.json` (`BundleManifest`: schemaVersion, metadata, author, license, `items[]`, `dependencies[]`) + per-type entries (`/pipelines/*.json`, `/commands/*.json`, `/widgets/<key>/*`, `/sounds/*` + meta, `/assets/*` (media asset metadata + payload), `/custom-data-sources/*.json`). Each exportable type has a **versioned export contract** (`PipelineExport`, `CommandExport`, `WidgetExport`, `SoundExport`, `AssetExport`, `CustomDataSourceExport`, plus the parity types in §8); validation = deserialize into the typed contract + validate (no JSON-Schema engine dep). A bundle may hold **many** items + their dependency graph (a "pack"). |
 | D2 | **Secrets/PII stripped on export.** Exports carry **definitions/config + assets only** — never tokens, AEAD secrets, API keys, per-viewer data, or overlay/automation tokens. Secret-requiring fields (e.g. a `CustomDataSource` auth) export **empty**; the importer fills them. Enforced in the export mappers (allowlist of exportable fields), not by scrubbing afterward. |
 | D3 | **Local import/export needs zero infra.** `Export` produces a ZIP download; `Import` validates + installs a ZIP upload. Both work fully offline (share ZIPs over Discord/gist/anywhere). The marketplace is **optional** on top. |
 | D4 | **Imported code is sandboxed + disabled-until-enabled.** Any `run_code` action in an imported pipeline lands in the `code-execution-sandbox.md` runtime AND **disabled**, requiring an explicit owner enable before it can run. Imported pipelines with destructive actions (ban/timeout/etc.) are bound by the **importer's own runtime roles** (no privilege is imported). Import surfaces a **capability summary** (what the bundle's pipelines can do) before install. |
@@ -72,6 +72,8 @@ public interface IBundleImportService
 
     Task<Result<IReadOnlyList<InstalledBundleDto>>> ListInstalledAsync(Guid broadcasterId, CancellationToken ct = default);
     Task<Result> UninstallAsync(Guid broadcasterId, Guid installedBundleId, Guid actorUserId, CancellationToken ct = default);
+    // Real, counted uninstall preview (S-CONSEQ): what the uninstall removes, per kind, by name (see §8 addendum).
+    Task<Result<BlastRadiusDto>> GetUninstallBlastRadiusAsync(Guid broadcasterId, Guid installedBundleId, CancellationToken ct = default);
 }
 
 // Client of the separate, NoMercy-hosted marketplace service (browse/install/publish).
@@ -85,7 +87,7 @@ public interface IMarketplaceClient
 }
 
 public sealed record ExportRequest(IReadOnlyList<ExportItemRef> Items, BundleMetadata Metadata);
-public sealed record ExportItemRef(string Type, Guid Id);   // Type: pipeline|command|widget|sound|custom_data_source
+public sealed record ExportItemRef(string Type, Guid Id);   // Type: pipeline|command|widget|sound|asset|custom_data_source (+ the §8 parity types)
 public sealed record BundleInspection(BundleManifest Manifest, IReadOnlyList<string> Capabilities, IReadOnlyList<string> Issues);
 public enum ImportConflictPolicy { Rename, Overwrite, Skip }
 public sealed record InstalledBundleDto(Guid Id, string Name, string Source, string? MarketplaceItemId, string Version, DateTime InstalledAt);
@@ -105,18 +107,24 @@ The NoMercy-hosted marketplace service exposes (the bot is a client; full servic
 
 ## 5. REST surface
 
-Controller `BundlesController`, `[Route("api/v{version:apiVersion}/bundles")]`, and `MarketplaceController`, `[Route("api/v{version:apiVersion}/marketplace")]`. `[Authorize]`; Gate-2 keys.
+Controller `BundlesController`, `[Route("api/v{version:apiVersion}/channels/{channelId}/bundles")]`, and `MarketplaceController`, `[Route("api/v{version:apiVersion}/channels/{channelId}/marketplace")]` (AS-BUILT: channel-routed like every management controller — the explicit-target tenant convention). `[Authorize]`; Gate-2 keys. Paths below are relative to `/api/v1/channels/{channelId}`.
 
 | Verb | Path | Request | Response | Gate |
 |---|---|---|---|---|
 | POST | `/bundles/export` | `ExportRequest` | ZIP (`application/zip`) | management / Editor · `bundles:export` |
-| POST | `/bundles/inspect` | multipart ZIP | `StatusResponseDto<BundleInspection>` | management / Editor · `bundles:import` |
-| POST | `/bundles/import` | multipart ZIP + `policy` | `StatusResponseDto<InstalledBundleDto>` | management / Editor · `bundles:import` |
+| POST | `/bundles/inspect` | multipart ZIP (`file`) | `StatusResponseDto<BundleInspection>` | management / Editor · `bundles:import` |
+| POST | `/bundles/import` | multipart ZIP (`file`) + `?policy=` (default `Rename`) | `StatusResponseDto<InstalledBundleDto>` | management / Editor · `bundles:import` |
 | GET | `/bundles/installed` | — | `StatusResponseDto<IReadOnlyList<InstalledBundleDto>>` | management / Moderator · `bundles:read` |
+| GET | `/bundles/installed/{id}/blast-radius` | — | `StatusResponseDto<BlastRadiusDto>` | management / Moderator · `bundles:read` |
 | DELETE | `/bundles/installed/{id}` | — | `StatusResponseDto<bool>` | management / Editor · `bundles:import` |
-| GET | `/marketplace/items` | query | `PaginatedResponse<MarketplaceItemDto>` | management / Moderator · `bundles:read` |
-| POST | `/marketplace/items/{id}/install` | `{ policy }` | `StatusResponseDto<InstalledBundleDto>` | management / Editor · `bundles:import` |
-| POST | `/marketplace/publish` | multipart ZIP + `PublishMetadata` | `StatusResponseDto<PublishSubmissionDto>` | management / Broadcaster · `bundles:publish` |
+| GET | `/marketplace/items` | `PageRequestDto` + `type`, `tags` | `PaginatedResponse<MarketplaceItemDto>` | management / Moderator · `bundles:read` |
+| GET | `/marketplace/items/{itemId}` | — | `StatusResponseDto<MarketplaceItemDto>` | management / Moderator · `bundles:read` |
+| POST | `/marketplace/items/{itemId}/install` | `{ policy }` | `StatusResponseDto<InstalledBundleDto>` | management / Editor · `bundles:import` |
+| POST | `/marketplace/publish` | multipart ZIP + `MarketplacePublishForm` | `StatusResponseDto<PublishSubmissionDto>` | management / Broadcaster · `bundles:publish` |
+| GET | `/marketplace/submissions/{submissionId}` | — | `StatusResponseDto<PublishSubmissionDto>` | management / Broadcaster · `bundles:publish` |
+| GET | `/marketplace/publisher-token` | — | `StatusResponseDto<MarketplacePublisherStatusDto>` (`HasToken`; the token is never readable) | management / Broadcaster · `bundles:publish` |
+| PUT | `/marketplace/publisher-token` | `{ token }` | `StatusResponse` (no payload) | management / Broadcaster · `bundles:publish` |
+| DELETE | `/marketplace/publisher-token` | — | `StatusResponse` (no payload; idempotent) | management / Broadcaster · `bundles:publish` |
 
 Seed in `roles-permissions.md`: **`bundles:read`** (Moderator 10, `Low`), **`bundles:export`** + **`bundles:import`** (Editor 30, `Low` — imported code is sandboxed+disabled, destructive actions bound by the importer's runtime roles, D4), **`bundles:publish`** (Broadcaster 40, `Low`).
 
@@ -224,3 +232,30 @@ its JSON as `files` + `manifest`). Mechanics:
 - **Uninstall/rollback cover all six** through the owning module services; pipeline-bound types
   delete before pipelines. Runtime counters (`Timer.LastFiredAt`/`NextMessageIndex`) and per-viewer
   data never export (D2).
+
+### §8 addendum — asset type, first-party bundles, uninstall blast radius (2026-09-30)
+
+- **`asset` bundle item type** (`BundleFormat.AssetType`, `AssetExport`). A channel media asset
+  (image/audio the overlays use) travels as `assets/<slug>.json` (metadata: `Name`, `DisplayName`,
+  `MimeType`, `PayloadPath`) plus the binary payload as a sibling entry `assets/<slug><ext>`
+  (`BundleConventions.AssetPayloadPath`). Export reads the bytes through `IChannelAssetStore`; import
+  re-uploads through `IChannelAssetService.UploadAsync`, so content sniffing and both size caps run
+  again on the importing instance (same rule as sounds). Conflict policy on the asset `Name`:
+  `Skip` leaves the existing asset, `Overwrite` replaces it in place (the asset module's upload
+  replaces by name), `Rename` takes a free slug (`-bundle-N`). The capability summary adds "adds media
+  assets (images/audio for overlays)". Uninstall and rollback cover assets like every other type.
+- **First-party bundles.** A first-party bundle is a portable bundle ZIP that ships in code
+  (`Infrastructure/Marketplace/FirstPartyBundles/`) instead of being exported from a channel. It
+  assembles the same ZIP shape by hand (manifest + per-type JSON entries) through `BundleConventions`,
+  so `IBundleImportService.InspectAsync`/`ImportAsync` accept it with zero special casing. The first
+  one is **`LuckyFeatherBundle`** (a channel-points chest-steal game built from `run_code` scripts,
+  two pipelines and a Vue widget; scripts land disabled per D4); `BuildZipAsync()` returns the ZIP
+  stream. Today it has no route or catalogue entry — it is built and installed through the import path
+  in its tests; surfacing first-party bundles in the browse UI is not built.
+- **`GET /bundles/installed/{id}/blast-radius`** — `IBundleImportService.GetUninstallBlastRadiusAsync`.
+  The install ledger (`InstalledBundle.InstalledEntityIdsJson`) records every entity id the import
+  created, and uninstall deletes exactly those, so the preview is an exhaustive per-kind count with
+  the names of what goes (`BlastRadiusDto`). Gate `bundles:read`; fails when the installed bundle is
+  not in this tenant. The uninstall route (`DELETE /bundles/installed/{id}`) is
+  `[DestructiveAction(HasCountedBlastRadius = true)]`: the dashboard MUST call the blast-radius route
+  and render it before the confirm can proceed (S-CONSEQ).

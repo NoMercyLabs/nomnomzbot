@@ -20,7 +20,7 @@ ChatMessageReceivedEvent
        seed ChatDecorationContext from evt.Fragments (Twitch-native: text/emote/cheermote/mention; emotes Provider=Twitch)
        then run the ordered IChatDecorationAdapter chain, each gated by AppliesTo (the streamer's rules):
          10 ExplodeText · 20 ThirdPartyEmote (7TV→BTTV→FFZ word match) · 30 TwitchEmoteUrl · 40 Badge ·
-         50 Cheermote · 60 MentionColor · 70 LinkPreview (gated) · 80 ImplodeText
+         50 Cheermote · 60 MentionColor · 70 LinkPreview (gated) · 80 ImplodeText · 90 HtmlFragment (gated)
   → DecoratedChatMessage (enriched fragments + badges)
   → ChatMessageBroadcastHandler maps it to DashboardChatMessageDto → SignalR
 ```
@@ -36,7 +36,7 @@ call on the chat hot path (that is the refresh worker's job, §3.6).
 | Concern | Where it lives | Schema ref |
 |---|---|---|
 | Chat messages | **Not persisted by this subsystem.** Decoration runs on the wire, never into the DB. | `G.1 ChatMessages` (untouched) |
-| Per-channel toggles | `ChannelFeature` rows — `FeatureKey` ∈ `use_bttv`, `use_ffz`, `use_7tv`, `use_link_preview` (`string(50)`, fits) | `P.x ChannelFeature` (existing; data only) |
+| Per-channel toggles | `ChannelFeature` rows — `FeatureKey` ∈ `use_bttv`, `use_ffz`, `use_7tv`, `use_link_preview`, `use_chat_html` (`string(50)`, fits) | `P.x ChannelFeature` (existing; data only) |
 | Resolved emote / badge / cheermote sets | `ICacheService` (L1 self-host, L1+L2 SaaS) — **not the DB** | — (cache keys in §7) |
 | Enriched fragment tree | Value object `ChatMessageFragment` (extended, §4) + wire DTO `ChatFragmentDto` (extended, §4) — serialized into the SignalR DTO, never a column | — |
 
@@ -79,7 +79,16 @@ throwing adapter is skipped, the message still emits). The seeded adapters (`Inf
 `IChatDecorationAdapter`): `ExplodeTextAdapter` (10) → `ThirdPartyEmoteAdapter` (20, fans out to the
 `IThirdPartyEmoteProvider` registry §3.2, gated per provider by `use_bttv`/`use_ffz`/`use_7tv`) → `TwitchEmoteUrlAdapter`
 (30) → `BadgeAdapter` (40) → `CheermoteAdapter` (50) → `MentionColorAdapter` (60) → `LinkPreviewAdapter` (70, gated by
-`use_link_preview` + standing) → `ImplodeTextAdapter` (80). The interfaces in §3.3–§3.5 are the adapters' internal helpers.
+`use_link_preview` + standing) → `ImplodeTextAdapter` (80) → `HtmlFragmentAdapter` (90, gated by `use_chat_html` +
+sender standing). The interfaces in §3.3–§3.5 are the adapters' internal helpers.
+
+`HtmlFragmentAdapter` (`Infrastructure/Chat/Adapters/`) renders a Subscriber-and-above sender's inline HTML as a sanitised
+`html` fragment. It is opt-in per channel (`use_chat_html`, default **off**) and gated on `SenderHasPreviewStanding` (sub, VIP,
+moderator or broadcaster). It runs after `ImplodeTextAdapter`, so text runs are coalesced and emotes resolved: first it
+looks for a tag that spans several fragments (e.g. `<marquee>` around emotes) and stitches that run into one HTML string
+(text raw, each emote an `<img>`); otherwise it converts each standalone `text` fragment that is HTML on its own. Every
+built string passes through `ChatHtmlSanitizer` (allow-listed tags, https-guarded urls) before it becomes the fragment
+text — nothing unsanitised is ever emitted.
 
 ### 3.2 `IThirdPartyEmoteProvider` — NEW (`Application/Chat/Services/`)
 
@@ -143,19 +152,62 @@ public interface ILinkPreviewService
   cutting the staleness window to seconds for the dominant provider. It plugs in as another refresh source behind the existing
   interfaces — not v1-blocking (§9·13).
 
-### 3.7 `IFeatureService` — EXTEND (`Application/Platform/Services/`)
+### 3.7 `IFeatureService` — as built (`Application/Platform/Services/`)
 
-Add a single-flag runtime accessor so the decorator can gate cheaply (today the service only lists/toggles):
+The single-flag accessor exists as built. Its name and channel-id type differ from the first draft:
 
 ```csharp
-Task<bool> IsEnabledAsync(Guid broadcasterId, string featureKey, CancellationToken ct = default);   // NEW
+Task<bool> IsFeatureEnabledAsync(string channelId, string featureKey, CancellationToken cancellationToken = default);
 ```
 
-Impl resolves the `ChannelFeature` row (`Unique (BroadcasterId, FeatureKey)`); absent ⇒ `false` (fail-closed/off).
+`channelId` is the channel Guid as a string; an unparseable id returns `false`. The impl reads the `ChannelFeature` row
+(`Unique (BroadcasterId, FeatureKey)`) and returns `IsEnabled`; an absent row ⇒ `false` (fail-closed/off). It reports the
+stored row only, with no per-key default.
+
+The decorator does **not** call it per flag. `ChatMessageDecorator` resolves **all** decoration keys once per message from
+`GetFeaturesAsync(broadcasterId)` into `ChatDecorationContext.EnabledFeatures`, and each adapter gates on
+`EnabledFeatures.Contains(key)`. Defaults apply when a channel has no explicit toggle: `use_7tv`, `use_bttv` and `use_ffz`
+default **ON**; `use_link_preview` and `use_chat_html` default **OFF**. The resolved set is cached per channel for 60 s
+(`ChatDecorationRulesCacheKeys.Channel`), so a toggle takes effect within that window and the hot path never queries the
+feature store per message.
+
+### 3.8 Sender paint (7TV)
+
+A chatter's 7TV name-theme paint rides beside the fragment tree on the same broadcast path. It is not a decoration adapter and
+not part of `DecoratedChatMessage`: `ChatMessageBroadcastHandler` resolves it per Twitch message and puts it on the wire DTO.
+
+```csharp
+// Application/Chat/Services/
+public interface ISevenTvUserPaintResolver
+{
+    // The flattened paint the chatter wears; null when none, unknown to 7TV, or the lookup failed. Never throws.
+    Task<ChatPaint?> ResolveAsync(string twitchUserId, CancellationToken cancellationToken = default);
+}
+
+public interface ISevenTvPaintCatalogue
+{
+    // The paint for a 7TV paint id (ULID); null when unknown or the catalogue could not load. Never throws.
+    Task<ChatPaint?> GetAsync(string paintId, CancellationToken cancellationToken = default);
+}
+```
+
+- `SevenTvUserPaintResolver` (`Infrastructure/Chat/Providers/`) reads the chatter's paint id from the 7TV v3 user endpoint
+  `GET https://7tv.io/v3/users/twitch/{twitchUserId}` (`user.style.paint_id`) — the same endpoint the emote provider already
+  calls, so the id costs no extra request. It caches hits **and** misses per chatter in `IMemoryCache` for 5 min, then asks the
+  catalogue for the paint definition.
+- `SevenTvPaintCatalogue` loads the **whole** paint catalogue in one request from the **v4 GraphQL** endpoint
+  `POST https://7tv.io/v4/gql` (the v3 `cosmetics` route is gone) and answers from memory for 6 h. On a failed refresh it
+  keeps the last catalogue, even stale or empty, and backs off for a full lifetime. `SevenTvPaintMapper` flattens a paint's
+  layers and shadows.
+- The result is `ChatPaint` (`Domain/Chat/ValueObjects/`): `Id`, `Name`, `BackgroundImage` (a CSS gradient or `url(...)`),
+  `Color` (flat or image fallback), `TextShadow`, `IsImageOnly`. The wire mirror is `ChatPaintDto` on
+  `DashboardChatMessageDto.Paint` — **absent** (null), never an empty object, when the chatter wears no paint.
+- Twitch only: paints are a 7TV cosmetic tied to the chatter's Twitch id, so the handler resolves them only on the Twitch
+  branch. A paint failure never costs the chatter their message.
 
 ## 4. DTOs / contracts (the discriminated-union fragment model)
 
-The fragment is a union by `Type`: `text | emote | cheermote | mention | link`. **Third-party emotes are not a separate
+The fragment is a union by `Type`: `text | emote | cheermote | mention | link | gif | html`. **Third-party emotes are not a separate
 type — they become real emotes.** Twitch and BTTV/FFZ/7TV emotes share ONE `emote` fragment carrying a nested `ChatEmote`;
 a `Provider` field names the source and the decorator fills `Urls`/`Animated`/`ZeroWidth` for all of them, so the client
 renders any emote identically (KISS — this is how the legacy bot's decorator already works). Changes are additive on the
@@ -163,7 +215,8 @@ existing value object + wire DTO.
 
 ```csharp
 // Domain/Chat/ValueObjects/ChatMessageFragment.cs — EXTEND (sealed, init-only)
-//   Type ∈ "text" | "emote" | "cheermote" | "mention" | "link"
+//   Type ∈ "text" | "emote" | "cheermote" | "mention" | "link" | "gif" | "html"
+//   (the shipped record is `sealed record ChatMessageFragment`, copied with `with { }` — never a field-by-field clone)
 public sealed class ChatMessageFragment
 {
     public required string Type { get; init; }
@@ -188,6 +241,13 @@ public sealed class ChatMessageFragment
     // link (NEW)
     public string? LinkUrl { get; init; }
     public LinkPreview? LinkPreview { get; init; }
+
+    // gif — Twitch's native chat GIF fragment (GIPHY-backed): the EventSub payload already carries a fetchable url,
+    // so there is no resolve step. The fragment's Text is the caption.
+    public string? GifId { get; init; }
+    public string? GifUrl { get; init; }
+
+    // html — no extra fields: Type = "html" and Text holds the ChatHtmlSanitizer-sanitised markup (HtmlFragmentAdapter, 90).
 }
 
 public enum EmoteProvider { Twitch, Bttv, Ffz, SevenTv }
@@ -218,13 +278,13 @@ public sealed record DecoratedChatMessage(
 
 Wire DTO (`Api/Hubs/Dtos/ChatDtos.cs`): there stays ONE emote DTO — `ChatEmoteDto` gains `Provider`, `Urls`, `Animated`,
 `ZeroWidth` (Twitch and third-party emotes are the same DTO); `ChatFragmentDto` gains `CheermoteImage`, `MentionColorHex`,
-`LinkUrl`, `LinkPreview`; `ChatBadgeDto` gains `Urls`. Names stay camelCase to match the frontend `ChatMessagePayload`.
+`LinkUrl`, `LinkPreview`, `GifId`/`GifUrl`; `ChatBadgeDto` gains `Urls`; `DashboardChatMessageDto` gains the optional `Paint` (`ChatPaintDto`, §3.8). Names stay camelCase to match the frontend `ChatMessagePayload`.
 
 ## 5. Controller endpoints
 
-**No new controller or REST surface.** The four per-channel toggles flow through the **existing** `FeaturesController`
+**No new controller or REST surface.** The five per-channel toggles flow through the **existing** `FeaturesController`
 (`POST channels/{channelId}/features/{featureKey}/toggle`, gated `feature:write`; `GET …/features`, `feature:read`) using the
-keys `use_bttv` / `use_ffz` / `use_7tv` / `use_link_preview`. Decoration itself is a broadcast-path transform, not a request.
+keys `use_bttv` / `use_ffz` / `use_7tv` / `use_link_preview` / `use_chat_html`. Decoration itself is a broadcast-path transform, not a request.
 
 ## 6. Pipeline actions
 
@@ -236,7 +296,7 @@ None. Decoration is not a pipeline action — it runs in the chat broadcast path
 // All auto-discovered (no manual lines) per backend-structure §D5:
 //   IChatMessageDecorator, IThirdPartyEmoteProviderRegistry, IChatBadgeResolver, ICheermoteResolver,
 //   ILinkPreviewService  → I{X}Service convention scan
-//   the 8 *Adapter classes → AddImplementationsOf<IChatDecorationAdapter> (orchestrator runs them ordered by Order)
+//   the 9 *Adapter classes → AddImplementationsOf<IChatDecorationAdapter> (orchestrator runs them ordered by Order)
 //   BttvEmoteProvider/FfzEmoteProvider/SevenTvEmoteProvider → AddImplementationsOf<IThirdPartyEmoteProvider>
 //   ChatDecorationRefreshService → AddHostedWorkers
 // Named HttpClient "chat-emote-providers" (BTTV/FFZ/7TV/Twitch-Helix-badges) with the resilience pipeline

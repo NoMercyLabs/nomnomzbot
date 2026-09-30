@@ -2,7 +2,7 @@
 
 **Subsystem:** cross-cutting platform conventions. API response envelopes + versioning + RFC 9457 problem details; the rate-limiting adapter; health checks; the four SignalR hubs (Dashboard / Overlay / OBSRelay / Admin) + their auth; the deployment-profile detector + adapter registry (`ICacheService` / `IEventBus` / DB provider / `IScriptExecutor` / token-vault / EventSub transport); and `TenantResolutionMiddleware` + RLS / app-filter tenant isolation.
 
-**Status:** implementable. Code from this directly.
+**Status:** implementable. Code from this directly. Sections 2, 3.2-3.10, 5 and 7 carry an **as-built** note or column where the code differs from the original design (RFC 9457 problem details, MessagePack and the SignalR Redis backplane, `AddDeploymentAdapters`, the RLS interceptor, `IAppSettingsService`, the SaaS adapters and the platform profile/settings routes are not built).
 
 **Binding conventions:** C# namespace `NomNomzBot.*`. .NET 10 / C# 14 / EF Core 10. File-scoped namespaces, `Nullable` enabled, async all the way (never `.Result`/`.Wait()`). `Result<T>` over exceptions/null. Repository + `IUnitOfWork` (no raw `DbContext` in controllers). DI via typed interfaces, no MediatR, no Roslyn. Responses are `StatusResponseDto<T>` / `PaginatedResponse<T>`. Controllers `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/...")]`. **Newtonsoft.Json for app JSON value-converters** ([VC:JSON] columns); `System.Text.Json` stays the wire serializer for controllers/SignalR. Surrogate PKs = `Guid` via `Guid.CreateVersion7()`; Twitch ids are indexed attribute columns; tenant key `BroadcasterId` is `Guid`. Soft-delete (`IsDeleted`/`DeletedAt`) global filter.
 
@@ -57,27 +57,31 @@ All defined in the LOCKED schema `2026-06-16-database-schema.md`; **referenced, 
 Defined here because it is cross-cutting: **every** domain event across **every** subsystem inherits this base. This is the single authoritative definition every event-defining spec references; no other spec redefines it.
 
 ```csharp
-namespace NomNomzBot.Domain.Events;
+namespace NomNomzBot.Domain.Platform;   // Domain/Platform/DomainEventBase.cs
 
-public abstract record DomainEventBase
+public abstract class DomainEventBase : IDomainEvent
 {
     public Guid EventId { get; init; } = Guid.CreateVersion7();
-    public Guid BroadcasterId { get; init; }                 // Guid, NOT string? — the locked UUIDv7 tenant key
-    public DateTimeOffset OccurredAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset OccurredAt { get; init; } = TimeProvider.System.GetUtcNow();   // the one tolerated default clock read (§3.11)
+    public Guid BroadcasterId { get; init; }                 // Guid, NOT string? — the locked UUIDv7 tenant key; Guid.Empty = platform-level
 }
 ```
+
+`DomainEventBase` is an **abstract class**, not a record. Concrete events are **sealed classes** (`public sealed class XEvent : DomainEventBase`) with `required`/`init` payload members.
 
 - **`BroadcasterId` is `Guid`** — consistent with the locked UUIDv7 surrogate-key decision and the `ITenantScoped.BroadcasterId` `string`→`Guid` widen (schema §1.1). It is **not** `string?`.
 - **ALL domain events inherit `DomainEventBase`** and **must NOT redeclare `BroadcasterId`** (nor `EventId` / `OccurredAt`). Subsystem events add only their own payload fields. Platform-level events (no tenant) leave `BroadcasterId` at its default `Guid.Empty`.
 
-New platform events live in `NomNomzBot.Domain/Events/Platform/` and derive from `DomainEventBase`.
+New platform events live in `NomNomzBot.Domain/Platform/Events/` (namespace `NomNomzBot.Domain.Platform.Events`) and derive from `DomainEventBase`.
+
+**As-built status:** `DeploymentProfileResolvedEvent` is built as specified below. `FeatureFlagChangedEvent` is built with only `FlagKey` (`BroadcasterId` carries the tenant; `Guid.Empty` = a global change). `AppSettingChangedEvent` and `TenantAccessEvaluatedEvent` are **not built** (no `IAppSettingsService` exists; the tenant-access decision is not raised as a domain event).
 
 ```csharp
-namespace NomNomzBot.Domain.Events.Platform;
+namespace NomNomzBot.Domain.Platform.Events;
 
 // Raised once at boot after the profile is detected/loaded and the adapter registry is built.
 // Inherits DomainEventBase (EventId / BroadcasterId / OccurredAt); BroadcasterId left default (platform-level).
-public sealed record DeploymentProfileResolvedEvent : DomainEventBase
+public sealed class DeploymentProfileResolvedEvent : DomainEventBase
 {
     public required Guid InstanceId { get; init; }
     public required string Mode { get; init; }               // saas | self_host_lite | self_host_full
@@ -94,7 +98,7 @@ public sealed record DeploymentProfileResolvedEvent : DomainEventBase
 // Raised when a feature flag's effective state changes for a tenant (override set/cleared/expired)
 // or globally (rollout %, global toggle). Consumers invalidate cached evaluations.
 // Inherits DomainEventBase; BroadcasterId default (Guid.Empty) = global definition change, set = tenant override.
-public sealed record FeatureFlagChangedEvent : DomainEventBase
+public sealed class FeatureFlagChangedEvent : DomainEventBase
 {
     public required string FlagKey { get; init; }
     public required bool IsEnabledGlobally { get; init; }
@@ -104,7 +108,7 @@ public sealed record FeatureFlagChangedEvent : DomainEventBase
 
 // Raised when a global or per-tenant AppSetting is written. Consumers reload cached config.
 // Inherits DomainEventBase; BroadcasterId default (Guid.Empty) = global setting.
-public sealed record AppSettingChangedEvent : DomainEventBase
+public sealed class AppSettingChangedEvent : DomainEventBase
 {
     public required string Category { get; init; }
     public required string Key { get; init; }
@@ -115,7 +119,7 @@ public sealed record AppSettingChangedEvent : DomainEventBase
 // Raised when a privileged / cross-tenant tenant resolution is allowed or denied
 // (drives the O.9 IamAuditLog append). Outcome mirrors IamAuditLog.Outcome.
 // Inherits DomainEventBase; BroadcasterId carries the target tenant.
-public sealed record TenantAccessEvaluatedEvent : DomainEventBase
+public sealed class TenantAccessEvaluatedEvent : DomainEventBase
 {
     public required Guid ActorUserId { get; init; }
     public required string Outcome { get; init; }            // allowed | denied
@@ -127,9 +131,9 @@ public sealed record TenantAccessEvaluatedEvent : DomainEventBase
 
 ## 3. Service interfaces
 
-All in `NomNomzBot.Application/Common/Interfaces/` unless noted. Implementations in `NomNomzBot.Infrastructure/Services/Platform/` unless an existing folder is named. Async, `Result<T>` where the call can fail in a domain sense (pure lookups return the value directly).
+Paths are module-first, not one flat folder: each interface heading names its own file. Profile-adapter contracts (`IDeploymentProfileService`, `IRateLimiterPartitionStore`, `IRunOnceGuard`) sit in `NomNomzBot.Application/Common/Interfaces/`; their implementations sit in `NomNomzBot.Infrastructure/Platform/Deployment/`. Feature-flag code sits in `Application/Abstractions/Platform/` and `Infrastructure/Platform/`. Async, `Result<T>` where the call can fail in a domain sense (pure lookups return the value directly).
 
-### 3.1 `ICurrentTenantService` — **EXTEND existing** (`Application/Common/Interfaces/ICurrentTenantService.cs`)
+### 3.1 `ICurrentTenantService` — **EXTEND existing** (`Application/Abstractions/Auth/ICurrentTenantService.cs`)
 
 `BroadcasterId` widens `string?` → `Guid?`. `SetTenant` takes a `Guid`.
 
@@ -144,22 +148,24 @@ public interface ICurrentTenantService
 ```
 - `SetTenant` / `Clear` — mutate per-request scope state only; the EF named query filter + RLS interceptor read `BroadcasterId` on the next query. No I/O.
 
-### 3.2 `IChannelAccessService` — **EXTEND existing** (`Application/Common/Interfaces/IChannelAccessService.cs`)
+### 3.2 `IChannelAccessService` — **EXTEND existing** (`Application/Identity/Services/IChannelAccessService.cs`; impl `Infrastructure/Identity/ChannelAccessService.cs`)
 
-Widen ids to `Guid`; add the owner-channel resolver the middleware needs to fix the IDOR.
+Ids stay `string` (the JWT `sub` and the tenant key in string form; both are parsed as `Guid` inside the impl). The owner-channel resolver the middleware needs to fix the IDOR is added.
 
 ```csharp
 public interface IChannelAccessService
 {
-    // True iff userId may act under channelId (owns it, actively moderates it, or is a platform IAM principal with tenant:access).
-    Task<bool> CanResolveTenantAsync(Guid userId, Guid channelId, CancellationToken ct = default);
+    // Gate 1 (pure entry): true iff userId parses as a Guid AND channelId names an existing, Active,
+    // non-soft-deleted channel. It does NOT check ownership or moderator membership — Gate 2 does that.
+    Task<bool> CanResolveTenantAsync(string userId, string channelId, CancellationToken cancellationToken = default);
 
-    // The caller's own tenant: Channels.Id where OwnerUserId == userId and not soft-deleted. None if the user owns no channel.
-    Task<Result<Guid>> ResolveOwnChannelAsync(Guid userId, CancellationToken ct = default);
+    // The caller's own tenant: Channels.Id where OwnerUserId == userId and not soft-deleted.
+    // Guid.Empty when the user owns no channel (or userId is not a Guid).
+    Task<Guid> ResolveOwnChannelAsync(string userId, CancellationToken cancellationToken = default);
 }
 ```
-- `CanResolveTenantAsync` — read-only authorization check across `ChannelMemberships` (B.1) / `Channels.OwnerUserId` (A.2) / `IamRoleAssignments` (C.5); a privileged/cross-tenant `true` emits `TenantAccessEvaluatedEvent` and an `IamAuditLog` (O.9) row.
-- `ResolveOwnChannelAsync` — read-only; `Failure("CHANNEL_NOT_FOUND")` when the user owns no channel (drives the middleware's no-tenant path for fresh accounts).
+- `CanResolveTenantAsync` — read-only. Entry ≠ permission: it refuses only an unknown, soft-deleted, or non-`Active` (suspended / banned) tenant, so a suspended tenant's whole channel-scoped API goes dark. Every per-action floor is Gate 2 (`IActionAuthorizationService`, §5). It writes no `IamAuditLog` row and raises no event.
+- `ResolveOwnChannelAsync` — read-only; returns `Guid.Empty` (not a `Result` failure) when the user owns no channel. That drives the middleware's no-tenant path for fresh accounts.
 
 ### 3.3 `IDeploymentProfileService` — **NEW** (`Application/Common/Interfaces/`)
 
@@ -197,32 +203,41 @@ Enums (Domain, `NomNomzBot.Domain/Enums/Deployment/`, all `[VC:enum]` when persi
 
 > **`DefaultGuidanceLevel` is set by a first-run "Simple vs Advanced" wizard choice — never a silent default.** The first-run setup wizard explicitly asks the operator to pick a guidance level: **Simple** → `Novice`, **Advanced** → `Expert`. This is a deliberate prompt, not an inferred value; the persisted `DeploymentProfile.DefaultGuidanceLevel` is the answer. If the wizard is bypassed/non-interactive, it **falls back to `Novice` (Simple)** — the safe novice default. This deployment value is only the **seed default** for new users; the live per-user value is `UserPreferences.GuidanceLevel` (schema R.2), adjustable anytime.
 
-> **`EventSubTransportMode` selects PROFILE behavior, not the wire transport.** This deployment-profile enum picks the per-instance EventSub delivery strategy: `self_host_lite` = `WebSocket`, `saas` = `ConduitWebhook`. It is intentionally distinct from `twitch-eventsub`'s 3-member wire enum `EventSubTransportKind {WebSocket, Conduit, Webhook}`, which describes the actual per-subscription transport on the Twitch API. The two-member profile mode and the three-member wire kind do not collide and are not unified — the profile mode maps to a wire-transport choice (`ConduitWebhook` ⇒ a `Conduit` + `Webhook` wire pair), it is not the same type.
+> **`EventSubTransportMode` selects PROFILE behavior, not the wire transport.** This deployment-profile enum records the per-instance EventSub delivery strategy: `self_host_*` = `WebSocket`, `saas` = `ConduitWebhook`. **As-built:** the registered transport is `WebSocketEventSubTransport` on **every** profile, SaaS included. Conduit mode is **opt-in** — set `EventSub:Conduits:Enabled=true` to register `IEventSubConduitShardCoordinator` (the blue/green handover owner); it is off by default after the first conduit deploy (2026-09-29) left the bot deaf. With it off, the per-owner WebSocket sessions carry everything. A webhook transport (`EventSubWebhookController`) is **not built**. The profile enum value is therefore advisory; it does not switch the transport. It is intentionally distinct from `twitch-eventsub`'s 3-member wire enum `EventSubTransportKind {WebSocket, Conduit, Webhook}`, which describes the actual per-subscription transport on the Twitch API. The two-member profile mode and the three-member wire kind do not collide and are not unified — the profile mode maps to a wire-transport choice (`ConduitWebhook` ⇒ a `Conduit` + `Webhook` wire pair), it is not the same type.
 
-### 3.4 `IFeatureFlagService` — **NEW**
+### 3.4 `IFeatureFlagService` — **BUILT, split read / admin** (`Application/Abstractions/Platform/`)
 
-Evaluates `FeatureFlag` (P.13) + `FeatureFlagOverride` against the current tenant/tier/deployment.
+Evaluates `FeatureFlag` (P.13) + `FeatureFlagOverride` against the current tenant/tier/deployment. The read side (`IFeatureFlagService`, impl `Infrastructure/Platform/FeatureFlagService.cs`) is separate from the admin write side (`IFeatureFlagAdminService`, impl `Infrastructure/Platform/FeatureFlagAdminService.cs`).
 
 ```csharp
 public interface IFeatureFlagService
 {
     // Effective on/off for the current tenant. Order: tenant override (unexpired) > global toggle &&
-    // rollout-% hash(BroadcasterId,Key) > tier floor (MinTierId) > deployment-mode gate > consent gate.
+    // rollout-% hash(BroadcasterId,Key) > tier floor (MinTierId) > deployment-mode gate.
     Task<bool> IsEnabledAsync(string flagKey, CancellationToken ct = default);
 
     // Same, for an explicit tenant (background services that have no ambient ICurrentTenantService).
     Task<bool> IsEnabledForAsync(string flagKey, Guid broadcasterId, CancellationToken ct = default);
 
-    Task<IReadOnlyList<FeatureFlagStateDto>> GetAllForCurrentTenantAsync(CancellationToken ct = default);
+    // Full outcome for gating UIs: Exists / Enabled / Reason / RequiredTier (tells "no flag" from "flag off").
+    Task<FeatureFlagEvaluation> EvaluateAsync(string flagKey, Guid broadcasterId, CancellationToken ct = default);
+}
 
-    // Sets/clears a per-tenant override (upsert on (FeatureFlagId, BroadcasterId)); emits FeatureFlagChangedEvent.
-    Task<Result> SetOverrideAsync(SetFeatureFlagOverrideRequest request, CancellationToken ct = default);
+public interface IFeatureFlagAdminService   // Plane C write surface, driven by FeatureFlagAdminController (§5)
+{
+    Task<Result<IReadOnlyList<FeatureFlagDto>>> ListAsync(CancellationToken ct = default);
+    Task<Result<FeatureFlagDto>> SetFlagAsync(SetFeatureFlagRequest request, Guid? actorUserId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<FeatureFlagOverrideDto>>> ListOverridesAsync(CancellationToken ct = default);
+    Task<Result<FeatureFlagOverrideDto>> SetOverrideAsync(string flagKey, Guid broadcasterId, SetFeatureFlagOverrideRequest request, Guid? actorUserId, CancellationToken ct = default);
+    Task<Result> RemoveOverrideAsync(string flagKey, Guid broadcasterId, Guid? actorUserId, CancellationToken ct = default);
+    Task<Result<FeatureFlagBlastRadiusDto>> PreviewGlobalToggleAsync(string flagKey, CancellationToken ct = default);
 }
 ```
-- `IsEnabledAsync` / `IsEnabledForAsync` — read-only evaluation; result cached via `ICacheService` (key `ff:{key}:{broadcasterId}`) and invalidated by `FeatureFlagChangedEvent`. No write.
-- `SetOverrideAsync` — upserts a `FeatureFlagOverride` row, soft-respecting `ExpiresAt`; emits `FeatureFlagChangedEvent` (invalidates cache). `Failure("NOT_FOUND")` if `flagKey` unknown.
+- `IsEnabledAsync` / `IsEnabledForAsync` / `EvaluateAsync` — read-only evaluation; the boolean result is cached via `ICacheService` (key `ff:{key}:{broadcasterId}`, 60 s TTL) and invalidated by `FeatureFlagChangedEvent`. No write. The per-subject consent gate is not evaluated (ambiguous for a channel flag).
+- `SetOverrideAsync` — upserts a `FeatureFlagOverride` row for an existing channel, respecting `ExpiresAt`; emits the audit event + `FeatureFlagChangedEvent` (invalidates the cache). An unknown flag or channel is refused, never silently stored.
+- `PreviewGlobalToggleAsync` — counts the active channels with no unexpired override that would feel a global flip (consequences visible before commit).
 
-### 3.5 `IAppSettingsService` — **NEW** (supersedes ad-hoc `Configuration` access in `SystemController`)
+### 3.5 `IAppSettingsService` — **NEW, not built** (supersedes ad-hoc `Configuration` access in `SystemController`)
 
 Typed read/write over `AppSetting` (P.11), global and per-tenant, with secret handling routed to the token vault.
 
@@ -260,17 +275,18 @@ public interface IRateLimiterPartitionStore
 
 public readonly record struct RateLimitLease(bool IsAcquired, int Remaining, TimeSpan RetryAfter);
 ```
-- `AcquireAsync` — Redis adapter (SaaS): atomic `INCR`+`EXPIRE` (or a fixed-window Lua script) so the 120/min + 10/min limits hold cluster-wide. In-memory adapter (lite): wraps the in-box partitioned counter; per-instance is correct for single node.
+- `AcquireAsync` — Redis adapter (`RedisRateLimiterPartitionStore`): atomic `INCR`+`EXPIRE` (or a fixed-window Lua script) so a limit holds cluster-wide. In-memory adapter (`InMemoryRateLimiterPartitionStore`): a per-instance fixed-window counter; correct for a single node.
+- **As-built:** the store backs service-level throttles (Automation API command + pairing, marketplace). The ASP.NET `RateLimiter` tiers (§7 host wiring) sit directly on the in-box partitioned limiters and do **not** read this store, so on a multi-node deploy those tiers are per-instance.
 
 ### 3.8 `IRunOnceGuard` — **NEW**, profile adapter
 
-Gate hosted-service work that must fire once across a multi-node SaaS cluster. No-op on lite.
+Gate hosted-service work that must fire once across a multi-node SaaS cluster. No-op on SQLite. **As-built, the guard is selected by the database provider, not the deployment mode** — any Postgres-backed profile can run two overlapping instances (the blue/green deploy topology), so all of them get the advisory-lock guard.
 
 ```csharp
 public interface IRunOnceGuard
 {
     // Tries to acquire a named lease (e.g. "timers:tick", "token-refresh"). Releases on dispose.
-    // Lite: always granted. SaaS: pg_try_advisory_lock / DistributedLock.Postgres.
+    // SQLite: always granted (NoOpRunOnceGuard). Postgres (self_host_full AND saas): pg advisory lock (PostgresRunOnceGuard).
     Task<IAsyncDisposable?> TryAcquireAsync(string resourceName, TimeSpan ttl, CancellationToken ct = default);
 }
 ```
@@ -292,11 +308,14 @@ public interface IScriptExecutor
 }
 ```
 - Selected by `DeploymentProfileSnapshot.CodeExecutor`: SaaS = `WasmtimeScriptExecutor` (x86_64-Cranelift only); lite = `JintScriptExecutor`. Behavior/threat-model and the `ScriptCompilation`/`ScriptExecutionRequest`/`ScriptCapabilityGrant`/`ScriptExecutionOutcomeResult` types live in `custom-code.md`.
+- **As-built status:** `JintScriptExecutor` is registered on **every** profile (Scoped, in `Infrastructure/CustomCode/Jint/`). `WasmtimeScriptExecutor` is **not built**; `CodeExecutor = Wasmtime` on the SaaS snapshot does not switch the adapter yet.
 - **Two distinct enums, intentionally:** `CodeExecutorKind` (this subsystem's deployment-profile enum, P.12 — `{Wasmtime, Jint}`) selects *which adapter to register*; `ScriptRuntimeKind` (custom-code's runtime-identity enum) is what the registered adapter *reports about itself* via `Runtime`. They are not unified; the profile field maps to the executor choice, the interface property reports it.
 
 ### 3.10 `ICacheService` / `IEventBus` — **EXTEND existing** (profile adapters)
 
-`ICacheService` (`Application/Common/Interfaces/ICacheService.cs`) and `IEventBus` (`Domain/Interfaces/IEventBus.cs`) keep their **current signatures** (no surface change). What changes is the **DI-selected implementation** per §7: in-memory vs Redis (`ICacheService` re-based on `Microsoft.Extensions.Caching.Hybrid`), in-process `EventBus` vs `RedisEventBus`. No interface edit required; listed so the registry wiring is complete.
+`ICacheService` and `IEventBus` keep their **current signatures** (no surface change). What changes is the **DI-selected implementation** per §7: in-memory vs Redis (`ICacheService` re-based on `Microsoft.Extensions.Caching.Hybrid`), in-process `EventBus` vs `RedisEventBus`. No interface edit required; listed so the registry wiring is complete.
+
+**As-built status:** `ICacheService` is `DistributedCacheService` (Redis `IDistributedCache`) when the cache provider is Redis **and** a connection string is set, else `MemoryCacheService`; it is **not** re-based on `HybridCache`, so there is no L1+L2 tier. `IEventBus` is the in-process `EventBus` wrapped in `JournalingEventBusDecorator` on **every** profile; `RedisEventBus` is **not built**. Paths: `Application/Abstractions/Caching/ICacheService.cs`, `Domain/Platform/Interfaces/IEventBus.cs`.
 
 ### 3.11 Time is read through `TimeProvider` (the single clock)
 
@@ -310,7 +329,7 @@ There is **one** clock for the whole backend: the in-box .NET 10 `System.TimePro
 
 ## 4. DTOs / contracts
 
-In `NomNomzBot.Application/Contracts/Platform/` (new folder). Records, `Nullable` enabled. `StatusResponseDto<T>` / `PaginatedResponse<T>` (existing, `Application/DTOs/`) remain the envelopes — **not redefined here**.
+Records, `Nullable` enabled. As-built, the feature-flag DTOs (`FeatureFlagDto`, `SetFeatureFlagRequest`, `SetFeatureFlagOverrideRequest`, `FeatureFlagOverrideDto`, `FeatureFlagBlastRadiusDto`) live in `NomNomzBot.Application/Abstractions/Platform/FeatureFlagDtos.cs`; the `FeatureFlagStateDto` / `AppSetting*` / `HealthReportDto` shapes below are **not built** as named types (`/health` writes an anonymous JSON object of the same shape). `StatusResponseDto<T>` / `PaginatedResponse<T>` (existing, `Application/DTOs/`) remain the envelopes — **not redefined here**.
 
 ```csharp
 // --- Deployment profile ---
@@ -342,22 +361,26 @@ public sealed record HealthEntryDto(string Name, string Status, string? Descript
 
 ## 5. Controller endpoints
 
-New `PlatformController` in `NomNomzBot.Api/Controllers/V1/`, extends `BaseController`, `[ApiVersion("1.0")]` `[Route("api/v{version:apiVersion}/platform")]`. Health/profile-read endpoints stay minimal-API maps in `Program` (existing pattern) — listed for completeness.
+There is **no `PlatformController`**. Platform-wide feature flags are `FeatureFlagAdminController` (`NomNomzBot.Api/Controllers/V1/`, extends `BaseController`, `[ApiVersion("1.0")]`, `[PlatformPlane]`, `[Authorize(Policy = "featureflag:write")]`, route prefix `api/v{version:apiVersion}/admin/feature-flags`). The `GET /platform/profile` route and the `/platform/settings` GET/PUT routes once listed here are **not built** (no `IAppSettingsService`; the resolved profile is read through the setup/system surface). Health endpoints are minimal-API maps in `Program.cs`. Per-channel feature toggles are a different surface: `FeaturesController` (`/channels/{channelId}/features`, Gate-2 `feature:read` / `feature:write`).
 
-**Role gate.** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist; **entry ≠ permission**, all floors live in Gate 2, so every tenant-scoped action MUST carry a Gate-2 key or a documented exemption). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the Gate-2 action-key column before the service call (403 `FORBIDDEN` when below). Plane-C rows = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, …)` (platform IAM, `IamRoleAssignments`/`IamPermissions`, C.x; no community/management role); the ASP.NET `[Authorize(Policy="<key>")]` policy-name **is** the permission key verbatim. The keys are seeded global `ActionDefinition`s (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`.
+**Wire id format.** Owned ids (channels, users, resources) are stored as UUIDv7 `Guid`s and travel on the wire as 26-char Crockford-base32 **ULID strings**. The single codec is `OwnedIdCodec` (`NomNomzBot.Domain/Platform/OwnedIdCodec.cs`; `Encode(Guid)` / `TryDecode(string)`, which accepts a ULID or a raw Guid). JSON bodies use `UlidGuidJsonConverter` on REST and on the SignalR JSON protocol. Route templates are `{channelId}` **strings** (decoded by the tenant middleware and controllers), and `{x:guid}` route constraints are swapped for `UlidOrGuidRouteConstraint` so a ULID in a `{id:guid}` segment still matches. A free-form resource-reference field (for example a pipeline step's `code_script_id`) is normalised to a canonical Guid at the save boundary. A field that reads such an id with a bare `Guid.TryParse` fails silently on a ULID — always go through `OwnedIdCodec`.
+
+**Role gate.** Gate 1 = `[Authorize]` + tenant resolution (pure entry — any authenticated caller, channel must exist and be Active; **entry ≠ permission**, all floors live in Gate 2, so every tenant-scoped action MUST carry a Gate-2 key or a documented exemption). Gate 2 = `IActionAuthorizationService.AuthorizeActionAsync(userId, broadcasterId, actionKey)` enforces the per-route floor named in the Gate-2 action-key column before the service call (403 `FORBIDDEN` when below). Plane-C rows = `IPlatformIamService.AuthorizePlatformAsync(principalId, permissionKey, …)` (platform IAM, `IamRoleAssignments`/`IamPermissions`, C.x; no community/management role); the ASP.NET `[Authorize(Policy="<key>")]` policy-name **is** the permission key verbatim. The keys are seeded global `ActionDefinition`s (schema B.3); a broadcaster may raise a floor via `ChannelActionOverride` but not below the seeded `FloorLevel`.
 
 | Route | Verb | Request DTO | Response DTO | Plane / floor · Gate-2 action key |
 |---|---|---|---|---|
-| `/api/v1/platform/profile` | GET | — | `StatusResponseDto<DeploymentProfileDto>` | platform · `tenant:read` (operators; self-host owner allowed) |
-| `/api/v1/platform/feature-flags` | GET | — | `StatusResponseDto<IReadOnlyList<FeatureFlagStateDto>>` | management / Broadcaster · `platform:feature-flags:read` |
-| `/api/v1/platform/feature-flags/override` | PUT | `SetFeatureFlagOverrideRequest` | `StatusResponseDto<object>` | platform · `featureflag:write` |
-| `/api/v1/platform/settings` | GET | `?category=&key=` (query) | `StatusResponseDto<AppSettingDto>` | management / Broadcaster · `platform:settings:read` (Plane C `audit:read` for global) |
-| `/api/v1/platform/settings` | PUT | `SetAppSettingRequest` | `StatusResponseDto<object>` | management / Broadcaster · `platform:settings:write` (Plane C `iam:manage` for global) |
-| `/health` | GET | — | `HealthReportDto` (JSON) | — (anonymous, existing `Program` map) |
+| `/api/v1/admin/feature-flags` | GET | — | `StatusResponseDto<IReadOnlyList<FeatureFlagDto>>` | platform · `featureflag:write` (read tier) |
+| `/api/v1/admin/feature-flags` | PUT | `SetFeatureFlagRequest` | `StatusResponseDto<FeatureFlagDto>` | platform · `featureflag:write` (security-sensitive tier) |
+| `/api/v1/admin/feature-flags/overrides` | GET | — | `StatusResponseDto<IReadOnlyList<FeatureFlagOverrideDto>>` | platform · `featureflag:write` (read tier) |
+| `/api/v1/admin/feature-flags/{flagKey}/overrides/{broadcasterId}` | PUT | `SetFeatureFlagOverrideRequest` | `StatusResponseDto<FeatureFlagOverrideDto>` | platform · `featureflag:write` (security-sensitive tier) |
+| `/api/v1/admin/feature-flags/{flagKey}/overrides/{broadcasterId}` | DELETE | — | `StatusResponseDto<object>` | platform · `featureflag:write` (security-sensitive tier) |
+| `/api/v1/admin/feature-flags/{flagKey}/blast-radius` | GET | — | `StatusResponseDto<FeatureFlagBlastRadiusDto>` | platform · `featureflag:write` (read tier) |
+| `/health` | GET | — | health report JSON (`status`, `checks[]`, `totalDurationMs`) | — (anonymous, existing `Program` map) |
 | `/health/live` | GET | — | `{ status }` | — (anonymous, liveness, no deps) |
-| `/health/ready` | GET | — | `HealthReportDto` (ready-tagged) | — (anonymous, readiness gate) |
+| `/health/ready` | GET | — | health report JSON (ready-tagged) | — (anonymous, readiness gate; fails as soon as graceful shutdown starts) |
+| `/health/version` | GET | — | `{ version }` (informational assembly version, semver/git when stamped) | — (anonymous; lets an operator verify which build is deployed) |
 
-All error paths flow through `BaseController.ResultResponse(...)` → the existing `ErrorCode` → HTTP map (`FORBIDDEN`→403, `NOT_FOUND`→404, `VALIDATION_FAILED`→400, `RATE_LIMITED`→429, …). Rate limiting: `PlatformController` inherits `[EnableRateLimiting("api")]` from `BaseController`.
+All error paths flow through `BaseController.ResultResponse(...)` → the existing `ErrorCode` → HTTP map (`FORBIDDEN`→403, `NOT_FOUND`→404, `VALIDATION_FAILED`→400, `RATE_LIMITED`→429, …). **Rate limiting is tiered by task type (PRODUCT-ALIGNMENT D11), never one bucket.** `BaseController` defaults to `write-cheap`; `RateLimitReadTierConvention` moves GET/HEAD actions to `read`; a controller that declares its own `[EnableRateLimiting]` (admin, anonymous, auth) keeps its choice. The tier names are the `RateLimitPolicyNames` constants (see §7 host wiring).
 
 ---
 
@@ -369,47 +392,47 @@ None. This subsystem owns no `ICommandAction` / `ICommandCondition`. (Pipeline a
 
 ## 7. DI registration
 
-Profile-independent registrations augment the existing `AddInfrastructure(...)` (`Infrastructure/DependencyInjection.cs`); profile-dependent ones move behind a new `AddDeploymentAdapters(IServiceCollection, DeploymentProfileSnapshot)` called from `Program` **after** `IDeploymentProfileService.DetectAndPersistAsync` resolves the profile.
+Profile-independent registrations augment the existing `AddInfrastructure(...)` (`Infrastructure/DependencyInjection.cs`); profile-dependent ones were specced to move behind a new `AddDeploymentAdapters(IServiceCollection, DeploymentProfileSnapshot)` called from `Program` **after** `IDeploymentProfileService.DetectAndPersistAsync` resolves the profile. **As-built, `AddDeploymentAdapters` does not exist**: the same branching (`DbProviderKind`, `CacheProviderKind`) is inline in `AddInfrastructure(...)` (`NomNomzBot.Infrastructure/DependencyInjection.cs`).
 
 **Profile-independent (always):**
 
 | Interface | Implementation | Lifetime | Notes |
 |---|---|---|---|
-| `ICurrentTenantService` | `CurrentTenantService` | Scoped | EXISTING; `BroadcasterId` widened to `Guid?` |
-| `IChannelAccessService` | `ChannelAccessService` | Scoped | EXISTING; widened to `Guid`, owner-channel resolver added |
+| `ICurrentTenantService` | `CurrentTenantService` | Scoped | BUILT; `BroadcasterId` widened to `Guid?` |
+| `IChannelAccessService` | `ChannelAccessService` | Scoped | BUILT; `string` ids, Active-channel entry check, owner-channel resolver added (§3.2) |
 | `IDeploymentProfileService` | `DeploymentProfileService` | Singleton | detector + `Current` accessor |
-| `IFeatureFlagService` | `FeatureFlagService` | Scoped | reads tenant from `ICurrentTenantService` |
-| `IAppSettingsService` | `AppSettingsService` | Scoped | secret read/write via token-vault adapter |
+| `IFeatureFlagService` | `FeatureFlagService` | Scoped | BUILT; reads tenant from `ICurrentTenantService`; write side is `IFeatureFlagAdminService` |
+| `IAppSettingsService` | `AppSettingsService` | Scoped | NOT BUILT; secret read/write via token-vault adapter |
 | `ITenantSequenceAllocator` | `TenantSequenceAllocator` | Scoped | owned by event-store §3.7; shares the request `IUnitOfWork` transaction (registered once, consumed by event-store + economy) |
 | `TenantStampInterceptor` | (self) | Scoped | EXISTING; `Guid` widen |
-| `TenantRlsConnectionInterceptor` | (self) | Scoped | NEW; Postgres-only `SET/RESET app.tenant_id` (registered only when `RlsEnabled`) |
-| `TenantResolutionMiddleware` | (self) | per-request | EXISTING; IDOR fix |
+| `TenantRlsConnectionInterceptor` | (self) | Scoped | NOT BUILT; Postgres-only `SET/RESET app.tenant_id` (registered only when `RlsEnabled`). Postgres isolation today is the app-level named query filter. |
+| `TenantResolutionMiddleware` | (self) | per-request | BUILT; IDOR fix; `NomNomzBot.Api/Middleware/` |
 
 **Profile-dependent adapters (selected by `DeploymentProfileSnapshot`):**
 
-| Interface | `saas` impl | `self_host_*` impl | Lifetime | Switch field |
-|---|---|---|---|---|
-| `AppDbContext` provider | `UseNpgsql` (+ RLS interceptor) | `UseSqlite` | Scoped (DbContext) | `DbProvider` |
-| `ICacheService` | `HybridCacheService` (L1+Redis L2) | `HybridCacheService` (L1 only) | Singleton | `CacheProvider` |
-| `IEventBus` | `RedisEventBus` | `EventBus` (in-process) | Singleton | `CacheProvider` |
-| `IScriptExecutor` | `WasmtimeScriptExecutor` | `JintScriptExecutor` | Singleton | `CodeExecutor` |
-| token-vault | `kms_envelope` (Azure Key Vault) | `local_aes` (file keystore) | Singleton | `TokenVault` |
-| EventSub transport | conduit+webhook | `ClientWebSocket` | Singleton/Hosted | `EventSubTransport` |
-| `IRateLimiterPartitionStore` | `RedisRateLimiterPartitionStore` | `InMemoryRateLimiterPartitionStore` | Singleton | `CacheProvider` |
-| `IRunOnceGuard` | `PostgresRunOnceGuard` | `NoOpRunOnceGuard` | Singleton | `Mode` |
+| Interface | `saas` impl | `self_host_*` impl | Lifetime | Switch field | As-built status |
+|---|---|---|---|---|---|
+| `AppDbContext` provider | `UseNpgsql` (+ RLS interceptor) | `UseSqlite` | Scoped (DbContext) | `DbProvider` | BUILT for Npgsql and SQLite (two migration assemblies); the RLS interceptor is NOT BUILT |
+| `ICacheService` | `HybridCacheService` (L1+Redis L2) | `HybridCacheService` (L1 only) | Singleton | `CacheProvider` | PARTIAL: `DistributedCacheService` (Redis) / `MemoryCacheService`; no `HybridCache` |
+| `IEventBus` | `RedisEventBus` | `EventBus` (in-process) | Singleton | `CacheProvider` | PARTIAL: in-process `EventBus` + `JournalingEventBusDecorator` on every profile; `RedisEventBus` NOT BUILT |
+| `IScriptExecutor` | `WasmtimeScriptExecutor` | `JintScriptExecutor` | Singleton | `CodeExecutor` | PARTIAL: `JintScriptExecutor` (Scoped) on every profile; Wasmtime NOT BUILT |
+| token-vault | `kms_envelope` (Azure Key Vault) | `local_aes` (file keystore) | Singleton | `TokenVault` | PARTIAL: `IKeyVault` → `OsSecureStoreKeyVault` (`local_aes`) on every profile; KMS envelope NOT BUILT |
+| EventSub transport | conduit+webhook | `ClientWebSocket` | Singleton/Hosted | `EventSubTransport` | PARTIAL: `WebSocketEventSubTransport` on every profile; conduit mode opt-in via `EventSub:Conduits:Enabled`; webhook NOT BUILT |
+| `IRateLimiterPartitionStore` | `RedisRateLimiterPartitionStore` | `InMemoryRateLimiterPartitionStore` | Singleton | `CacheProvider` | BUILT; consumed by Automation API + marketplace, not by the ASP.NET tiers |
+| `IRunOnceGuard` | `PostgresRunOnceGuard` | `NoOpRunOnceGuard` | Singleton | `Mode` | BUILT, but switched by `DbProvider` (Postgres → advisory lock, SQLite → no-op) |
 
-> `IScriptExecutor` is **Singleton** (not Scoped): the executor pools/pre-instantiates its runtime engines
+> `IScriptExecutor` is specced **Singleton** (not Scoped; as-built it is registered Scoped): the executor pools/pre-instantiates its runtime engines
 > (one hardened Wasmtime `Engine`/`Config` + module cache; the Jint `JintEngineFactory`) and reuses them across
 > calls — per-execution state lives in the fresh Wasmtime `Store` / grant, not the executor. Owner spec:
 > `custom-code.md` §7 / `code-execution-sandbox.md` §11.1.
 
-**Host wiring (`Program.cs`, replacing today's hard-wired blocks):**
-- Replace `GlobalExceptionMiddleware` with `AddProblemDetails()` + an `IExceptionHandler` + `UseExceptionHandler()` → RFC 9457 (still serialized as `StatusResponseDto`-compatible problem JSON; keep `traceId`).
-- `AddApiVersioning(...).AddMvc().AddApiExplorer(o => o.GroupNameFormat = "'v'VVV")` (missing `AddApiExplorer` is added).
-- `AddRateLimiter` policies `api` (120/min) + `auth` (10/min) read counters via `IRateLimiterPartitionStore`.
-- Health: drop `AddNpgSql` hard dependency → register `AddCheck` keyed by `DbProvider` (Npgsql probe for Postgres, `AddDbContextCheck<AppDbContext>` for SQLite) + the Redis check only when `CacheProvider == Redis`. Tags `db`/`cache`/`ready` preserved.
-- SignalR: `AddSignalR().AddMessagePackProtocol()`; `AddStackExchangeRedis()` backplane **only** when `CacheProvider == Redis`.
-- Middleware order unchanged: ExceptionHandler → RequestLogging → CORS → RateLimiter → Authentication → Authorization → `TenantResolutionMiddleware` → endpoints.
+**Host wiring (`Program.cs`) — as-built status:**
+- **Exception handling — NOT BUILT as specced.** RFC 9457 `AddProblemDetails()` + `IExceptionHandler` + `UseExceptionHandler()` is not wired. `GlobalExceptionMiddleware` (`Api/Middleware/`) stays; failures return the `{ status, message }` `StatusResponseDto` envelope with a `traceId`. Problem-details JSON is not emitted.
+- `AddApiVersioning(...).AddMvc()` is built; `.AddApiExplorer(...)` is **not** (OpenAPI is `AddOpenApi` + Scalar, exposed in Development or when `Api:ExposeDocs=true`).
+- **Rate limiting — D11 tiers.** `AddRateLimiter(options => options.AddNomNomzRateLimitPolicies())` registers one named policy per tier, named by `RateLimitPolicyNames`: `read`, `write-cheap`, `write-expensive`, `auth`, `device-poll`, `anonymous`, `admin` — plus `security-sensitive` (`SecuritySensitiveRateLimitPolicy`). Each tier's permit limit, window and partition key live in its own `*RateLimitPolicy` class under `Api/RateLimiting/`; this spec does not restate the numbers. Partitioning: `read` / `write-cheap` per user (IP fallback), `write-expensive` per channel, `auth` / `device-poll` / `anonymous` per IP, `admin` per principal. Every 429 carries `Retry-After`. The tiers use the in-box partitioned limiter, not `IRateLimiterPartitionStore` (§3.7).
+- Health: `AddNpgSql` only when the resolved DB provider is Postgres, else `AddDbContextCheck<AppDbContext>` (SQLite); the Redis check only on the Redis profile (a healthy "in-memory" stub when no connection string is set). Tags `db`/`cache`/`ready` preserved. Also registered: `pending-migrations` (`ready`), `eventsub` (informational, not a serving prerequisite), an EventSub handover-readiness check, and a `shutdown` check (`ready`) that fails `/health/ready` the moment graceful shutdown starts while `/health/live` stays healthy (blue/green drain).
+- **SignalR — MessagePack and backplane NOT BUILT.** `AddSignalR(...)` uses the **JSON** protocol with `UlidGuidJsonConverter`; there is no `AddMessagePackProtocol()` and no `AddStackExchangeRedis()` backplane, so hub fan-out is per instance. Hubs are mapped with `AllowStatefulReconnects = true`.
+- **Middleware order (as-built, `Program.cs`):** `UseForwardedHeaders` → `GlobalExceptionMiddleware` → `RequestLoggingMiddleware` → baseline security-header lambda → `SecurityHeadersMiddleware` → OpenAPI/Scalar (Development or `Api:ExposeDocs`) → `UseHttpsRedirection` (non-Production only) → `UseResponseCompression` → `UseStaticFiles` (dashboard bundle) → `UseCors` → `UseRateLimiter` → `UseAuthentication` → **`TenantResolutionMiddleware`** → `UseAuthorization` → `MapControllers` → hubs → `UseWebSockets` + automation stream → health maps → SPA fallback. Tenant resolution sits **between** authentication and authorization on purpose: it needs the authenticated principal, and the Gate-2 `[RequireAction]` policies read the resolved tenant. Placing it after `UseAuthorization` made every channel-scoped action check tenant-less (an unconditional 403).
 
 **SignalR hub registration + auth (existing maps in `Program`, behavior locked here):**
 
@@ -449,7 +472,7 @@ public interface IRealtimeEnvelope
 - **Microsoft.AspNetCore.*** (in-box .NET 10): controllers, CORS, **RateLimiting**, **HealthChecks**, **ProblemDetails**, host. 2nd-party.
 - **Asp.Versioning.Mvc + .Mvc.ApiExplorer** 10.0.0 — versioning + per-version OpenAPI groups.
 - **Microsoft.AspNetCore.OpenApi** 10.0.9 + **Scalar.AspNetCore** 2.14.14 (dev UI) — API docs.
-- **Microsoft.AspNetCore.SignalR** + **.Protocols.MessagePack** 10.0.9; **.StackExchangeRedis** 10.0.9 (SaaS backplane only).
+- **Microsoft.AspNetCore.SignalR** (JSON protocol as-built). **.Protocols.MessagePack** and **.StackExchangeRedis** (SaaS backplane) are specced but **not built** — not referenced.
 - **Microsoft.Extensions.Caching.Hybrid** 10.7.0 (`ICacheService` L1/L1+L2) + **Microsoft.Extensions.Caching.StackExchangeRedis** 10.0.8 (SaaS L2).
 - **StackExchange.Redis** 2.13.17 (pinned) — `RedisEventBus`, `RedisRateLimiterPartitionStore`, SignalR backplane, run-once.
 - **Microsoft.EntityFrameworkCore** 10.0.9 — **named query filters** (tenant + soft-delete); **Npgsql.EntityFrameworkCore.PostgreSQL** 10.0.2 (Postgres + RLS) / **Microsoft.EntityFrameworkCore.Sqlite** 10.0.9 (lite); **SQLitePCLRaw.bundle_e_sqlite3 ≥ 3.0.3**.
@@ -468,17 +491,19 @@ This subsystem fixes five live defects, all specified above: the IDOR in `Tenant
 
 The ten cross-cutting design decisions are settled as follows:
 
-- **Rate limiting is a profile adapter.** The host policies sit on the in-box partitioned limiter and read their counters through `IRateLimiterPartitionStore` (§3.7) — Redis-backed and cluster-wide on SaaS, in-memory per-instance on lite.
-- **`IRunOnceGuard` (§3.8) is the cluster-singleton primitive.** It is a hard prerequisite for any multi-instance SaaS deployment and a no-op on lite (the lease is always granted).
+- **Rate limiting is tiered by task type (D11).** The host policies are the `RateLimitPolicyNames` tiers on the in-box partitioned limiter (§7). `IRateLimiterPartitionStore` (§3.7) is a profile adapter — Redis-backed and cluster-wide on the Redis profile, in-memory per-instance on lite — used by service-level throttles, not by those tiers.
+- **`IRunOnceGuard` (§3.8) is the cluster-singleton primitive.** It is a hard prerequisite for any multi-instance deployment. It is a no-op on SQLite (the lease is always granted) and the advisory-lock guard on every Postgres-backed profile.
 - **Lite logging is console-only.** OpenTelemetry (`ILogger` + `[LoggerMessage]` + OTLP) is the logging stack; lite emits to console, SaaS exports OTLP. No Serilog.
 - **DataProtection uses the EF Core key ring on `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` ≥ 10.0.7**, persisting keys to the database so all instances share one ring.
 - **Tenant isolation is RLS + named query filter on Postgres, app-filter-only on SQLite.** `RlsEnabled` (P.12) is true only for the Postgres profile; the `TenantRlsConnectionInterceptor` is registered solely then.
 - **Secrets route through the token-vault adapter** selected by `TokenVaultKind`: KMS envelope (Azure Key Vault) on SaaS, local AES file keystore on lite. Plaintext never lands in `AppSetting.Value`.
-- **EventSub transport is profile-selected:** conduit+webhook on SaaS, `ClientWebSocket` on lite (§7).
-- **The SignalR backplane and Redis health check are conditional on `CacheProvider == Redis`** — present on SaaS, absent on lite.
+- **EventSub transport is `ClientWebSocket` on every profile.** Conduit mode is opt-in (`EventSub:Conduits:Enabled`, off by default); a webhook transport is not built (§3.3, §7).
+- **The Redis health check is conditional on `CacheProvider == Redis`** — present on the Redis profile, absent on lite. The SignalR backplane is specced the same way but **not built**.
 - **The script executor is profile-selected and Singleton:** Wasmtime on SaaS, Jint on lite (§3.9, §7).
 - **The deployment profile is auto-detected once at boot** by `IDeploymentProfileService.DetectAndPersistAsync`, honoring an explicit `App__DeploymentMode` override, and is immutable for the process lifetime (§3.3).
 - **Host capabilities are probed at setup and drive first-run sizing.** On first run `DetectAndPersistAsync` probes CPU cores + available memory and sizes the worker pools / concurrency / resource limits (`Scaling:*`, `scaling-qos.md` §9) to fit the host — especially for self-host on arbitrary hardware — always yielding to an explicit operator override (§3.3).
 - **Setup guidance level is a first-run "Simple vs Advanced" wizard choice, never a silent default.** Simple → `Novice`, Advanced → `Expert`; the answer is persisted as `DeploymentProfile.DefaultGuidanceLevel` (the per-user seed default), falling back to `Novice` (Simple) only when the wizard is bypassed (§3.3).
+
+- **SQLite Guid comparison is case-insensitive by collation — raw SQL must say `COLLATE BINARY` to opt out.** `Microsoft.Data.Sqlite` binds and stores a `Guid` as UPPERCASE hyphenated text, and SQLite text comparison is case-sensitive, so a row holding a non-canonical Guid was invisible to every query that compared it. It bit three times: an `UPDATE ... WHERE Id` matching 0 rows (`DbUpdateConcurrencyException`), `DefaultCommandsSeeder` crashing self-host boot with `FOREIGN KEY constraint failed`, and — the real blast radius — the global tenant query filter silently dropping such a row from every tenant-scoped query. The fix is `NOCASE` collation on every Guid column, applied only when `Database.IsSqlite()` (`ProviderCompatibilityExtensions`, SQLite migration `AddGuidNocaseCollationSqlite`); Postgres uses native `uuid` and is untouched. It folds letter case only, so tenant isolation is not weakened. **The trap:** any raw SQL that depends on case-sensitive Guid comparison must now write `COLLATE BINARY` explicitly — the seeder's own `Id <> upper(Id)` self-heal check silently stopped matching until it was given that override.
 
 **Dependency, not a caveat:** the HS256→RS256/ES256 signing migration is a prerequisite for federation across instances. This subsystem's hub/middleware auth works on either signing scheme and does not block on that migration — federation does.

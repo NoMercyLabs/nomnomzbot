@@ -1,7 +1,7 @@
 # Interface Spec Set — Index & Consistency Gate
 
 Consistency review of all subsystem interface specs in `docs/design/spec/` against each other and the
-LOCKED schema `docs/design/2026-06-16-database-schema.md` (Domains A–R). Every spec binds to the same
+LOCKED schema `.claude/docs/design/2026-06-16-database-schema.md` (Domains A–R). Every spec binds to the same
 conventions (namespace `NomNomzBot.*`, .NET 10 / EF Core 10, `Guid BroadcasterId`, `Result<T>`,
 `StatusResponseDto<T>`/`PaginatedResponse<T>`, Newtonsoft app-JSON, deployment-profile DI adapters).
 
@@ -14,72 +14,77 @@ conventions (namespace `NomNomzBot.*`, .NET 10 / EF Core 10, `Guid BroadcasterId
 
 ## Table of contents
 
-`#Iface` = service/adapter interfaces defined or extended. `#Endpoints` = HTTP routes (rows in the §5 tables;
-SignalR hub methods and pipeline actions excluded). `#PipeActions` = `ICommandAction`/condition blocks.
+`#Iface` = service/adapter interfaces defined or extended. `#PipeActions` = `ICommandAction`/condition blocks.
 
-| Subsystem | Doc | Owns (schema domains) | #Iface | #Endpoints | #PipeActions |
-|---|---|---|---|---|---|
-| Platform conventions | `platform-conventions.md` | P.11–P.13, Q.3, O.9 (cross-cutting) | 8 | 8 | 0 |
-| Identity & Auth | `identity-auth.md` | A.1–A.5, E.1–E.4, Q.1 (co-own) | 9 | 15 | 0 |
-| Roles & Permissions | `roles-permissions.md` | B.1–B.5, C.1–C.5, O.9 | 7 | 14 | 2 |
-| Twitch Helix | `twitch-helix.md` | (projection over A.2/F.x/E.1) | 6 | 1 | 0 |
-| Twitch EventSub | `twitch-eventsub.md` | F.4, F.7–F.9, O.1, O.1a, O.4, Q.3 | 6 | 5 | 0 |
-| Rewards | `rewards.md` | F.5, F.6 | 3 | 11 | 2 (`fulfill_redemption`, `refund_redemption`) |
-| Analytics | `analytics.md` | M.1–M.4, M.7, M.8 (6 projections) | 3 | 9 | 0 |
-| Commands & Pipelines | `commands-pipelines.md` | G.2, G.2a, G.3, H.1–H.7, I.1, I.2, M.5 | 13 | 24 | ~18 actions + 4 conditions |
-| Pipeline Control Flow | pipeline-control-flow.md | H.2 PipelineStep (cols: ParentStepId/BlockKind/BlockConfigJson) | 0 (extends IPipelineEngine) | 0 | 3 (run_pipeline, break, continue) + block-kinds |
-| Quotes | quotes.md | G.5 Quote | 1 | 6 | 1 |
-| Giveaways | giveaways.md | G.6–G.10 (Giveaway/Entry/Winner/CodePool/Code) | 2 | 16 | 3 |
-| Engagement Triggers | engagement.md | G.11 EngagementConfig, G.12 ViewerEngagementState | 1 | 2 | 0 (3 triggers) |
-| Custom Events & Data Sources | custom-events.md | G.13 CustomDataSource | 3 | 7 | 0 (custom.<name> trigger) |
-| Per-Viewer Data Store | per-viewer-data.md | G.14 ViewerDatum | 1 | 3 | 2 (set_viewer_data, adjust_viewer_data) |
-| Custom Code (T3) | `custom-code.md` | H.5, H.6, H.7 | 5 | 8 | 1 (`run_code`) |
-| Chat-message decoration (third-party emotes + enrichment) | `chat-decoration.md` | — (enriches the chat fragment tree; no schema delta) | — | 0 | 0 |
-| Moderation | `moderation.md` | J.1–J.11, O.8 | 9 | 34 | 6 (2 exist + 4 new) |
-| Spam &amp; Bot Defense | `spam-defense.md` | extends J.* (6 new entities + `UserTrustScore` delta) | 6 | — | — |
-| Economy | `economy.md` | K.1–K.11, L.1–L.3 | 8 | 49 | 5 |
-| Live Games | `live-games.md` | K.9a GameSession (+ K.9 GamePlay delta; consumes K.7/K.2/K.3) | 2 (+3 IGameService deltas) | 5 | 2 |
-| Music & Song Requests | `music-sr.md` | L.4–L.9, E.5, E.6 | 9 | 31 | 8 |
-| Media Share | media-share.md | L.10 MediaShareConfig, L.11 MediaShareRequest | 1 | 8 | 1 (+!media builtin) |
-| TTS | `tts.md` | P.1–P.5 (+ P.1a new) | 7 | 11 | 1 (`play_tts`) |
-| Widgets & Overlays | `widgets-overlays.md` | P.6–P.9 | 4 | 16 | 1 (`widget_event`) |
-| OBS Control | obs-control.md | P.14 ObsConnection | 4 | 13 | 20 (+`obs_event` trigger) |
-| VTube Studio Control | vtube-studio.md | P.19 VtsConnection | 3 | 6 | 6 (+vts_event trigger) |
-| Sound System | sound-system.md | P.18 SoundClip | 2 | 6 | 2 (play_sound, stop_sound) |
-| Stream Admin + IPC | `stream-admin.md` | F.10, F.11, A.5, C.x, P.12, P.13 | 6 | 30 | 1 (`set_stream_metadata`) |
-| Discord | `discord.md` | P.10 (5 tables) | 5 | 19 | 1 |
-| Supporter Events | supporter-events.md | P.15 SupporterConnection, P.16 SupporterEvent | 3 | 4 | 0 (supporter.* triggers) |
-| External Automation API | automation-api.md | P.17 AutomationApiToken | 7 | 5 | 0 (+ token-scoped data plane: REST + WS stream) |
-| Stream Deck Integration | stream-deck.md | (none — reuses P.17) | 1 | 2 | 0 (generic device pairing) |
-| GDPR & Crypto | `gdpr-crypto.md` | O.5–O.7, O.10, Q.1, Q.2, O.1a | 8 | 13 | 0 |
-| Monetization & Billing | `monetization-billing.md` | N.1–N.7 | 4 | 22 | 1 (`require_tier`) |
-| Event Store | `event-store.md` | O.1–O.4, O.1a, Q.3 | 11 | 11 | 0 |
-| Federation & OIDC | `federation-oidc.md` | D.1–D.3 | 5 | 13 | 0 |
-| Scaling, Fairness & QoS | `scaling-qos.md` | O (`CommandLogEntry` addition; cross-cutting) | 5 | 0 | 0 |
-| Webhooks (in/out) | `webhooks.md` | H.8–H.10 (reuses O.1/O.4, H.7) | 8 | 16 | 1 (`send_webhook`) |
-| Import/Export & Marketplace | marketplace.md | H.11 InstalledBundle | 3 | 8 | 0 |
-| Code-execution sandbox | `code-execution-sandbox.md` | (security deep-dive over H.5–H.7; no new tables) | 0 (references custom-code) | 0 | 0 (`run_code` owned by custom-code) |
-| Backend structure (rulebook) | `backend-structure.md` | — (structural: file placement, artifact taxonomy, auto-discovery; no schema) | 0 | 0 | 0 |
-| Rollout & Updates (rulebook) | `rollout-updates.md` | — (process: rolling deploys, expand-contract migrations, feature-flag staged rollout, drop-a-class extensibility; no schema) | 0 | 0 | 0 |
-| Frontend (KMP dashboard) | `frontend.md` | — (client layer: KMP+Compose desktop+wasmJs; **consumes** v1 REST + SignalR; owns no schema) | ~9 (client/connection interfaces + hub clients) | 0 (consumes) | 0 |
-| Onboarding & Setup | `onboarding-setup.md` | — (setup state machine; `DeploymentProfile.SetupCompletedAt` delta) | 1 | 6 | 0 |
-| Integration OAuth (Spotify/YouTube) | `integrations-oauth.md` | — (connect flow; no schema — tokens via identity-auth) | 2 | 4 | 0 |
-| Community & Dashboard | `community-dashboard.md` | — (read-only aggregation; owns no schema) | 2 | ~9 | 0 |
-| Pronoun Provider | `pronouns.md` | A.1 `Users.AltPronounId` (col) | 3 | 3 | 0 |
-| Broadcaster Live-Ops | `broadcaster-liveops.md` | F.12 `ActivePolls`, F.13 `ActivePredictions` | 2 (+ the granular Helix category sub-clients, twitch-helix §3.4a) | ~16 | 5 |
-| Deployment & Distribution (rulebook) | `deployment-distribution.md` | — (ops: packaging/run, SaaS phasing, wasm hosting, mDNS; no schema) | 0 | 0 | 0 |
-| Dashboard Chat Client | `chat-client.md` | — (renders/sends; no schema) | 4 (+2 extended) | 6 | 0 |
-| Developer Platform (typed events, API SDK, multi-file editor, library) | `dev-platform.md` | — (unifying layer over custom-code / sandbox / widgets / automation; no schema) | 3 | ~6 | 0 |
-| Platform Identity (multi-platform connections) | `platform-identity.md` | A.x `UserIdentity`, `PlatformConnection` (D1: one channel, many platform connections) | ~6 | ~10 | 0 |
-| Widget SDK | `widget-sdk.md` | — (client SDK contract for widgets; no schema) | 2 | 0 | 0 |
-| Stream Deck Plugin | `streamdeck-plugin.md` | (none — reuses P.17 via `stream-deck.md`) | 0 | 0 | 0 |
-| Music Automation Controls | `music-automation-controls.md` | — (automation-API music ops; reuses L.4–L.9) | 1 | ~8 | 0 |
-| Frontend IA (navigation, shell, role gating) | `frontend-ia.md` | — (client IA; consumes §5 tables) | 0 | 0 | 0 |
-| Frontend Structure (module layout) | `frontend-structure.md` | — (client layout rulebook) | 0 | 0 | 0 |
-| Frontend Data Layer (query/cache) | `frontend-data-layer.md` | — (client data layer) | ~4 (client) | 0 | 0 |
-| Frontend Design System (shadcn port) | `frontend-design-system.md` | — (tokens/components/patterns) | 0 | 0 | 0 |
-| Design-system Component Catalogue | `frontend-design-system.catalogue.md` | — (closed manifest; linter input) | 0 | 0 | 0 |
-| Figma Design-System Rules (reference note) | `figma-design-system-rules.md` | — (non-canonical reference; Figma is not a source of truth) | 0 | 0 | 0 |
+Per-subsystem endpoint counts are not kept here: the subsystems have shipped, so the live route list is `server/openapi/v1.json` and each spec's §5 table.
+
+**Status/meta docs** (not subsystem specs): `_GAP-AUDIT.md` (authoritative readiness gate; wins over `_READINESS.md`), `_READINESS.md`, `_BUILD-ORDER.md`, `data/spam-seed-corpus.md`.
+
+| Subsystem | Doc | Owns (schema domains) | #Iface | #PipeActions |
+|---|---|---|---|---|
+| Platform conventions | `platform-conventions.md` | P.11–P.13, Q.3, O.9 (cross-cutting) | 8 | 0 |
+| Identity & Auth | `identity-auth.md` | A.1–A.5, E.1–E.4, Q.1 (co-own) | 9 | 0 |
+| Roles & Permissions | `roles-permissions.md` | B.1–B.5, C.1–C.5, O.9 | 7 | 2 |
+| Twitch Helix | `twitch-helix.md` | (projection over A.2/F.x/E.1) | 6 | 0 |
+| Twitch EventSub | `twitch-eventsub.md` | F.4, F.7–F.9, O.1, O.1a, O.4, Q.3 | 6 | 0 |
+| Rewards | `rewards.md` | F.5, F.6 | 3 | 2 (`fulfill_redemption`, `refund_redemption`) |
+| Analytics | `analytics.md` | M.1–M.4, M.7, M.8 (6 projections) | 3 | 0 |
+| Commands & Pipelines | `commands-pipelines.md` | G.2, G.2a, G.3, H.1–H.7, I.1, I.2, M.5 | 13 | ~18 actions + 4 conditions |
+| Pipeline Control Flow | pipeline-control-flow.md | H.2 PipelineStep (cols: ParentStepId/BlockKind/BlockConfigJson) | 0 (extends IPipelineEngine) | 3 (run_pipeline, break, continue) + block-kinds |
+| Pipeline Tree Model & Editor | `pipeline-tree-and-editor.md` | H.2/H.3 deltas (`PipelineTrigger`, condition tree, `PipelineRunState`); extends pipeline-control-flow | — | `wait_for_event`, `return_value` + block-kinds |
+| Quotes | quotes.md | G.5 Quote | 1 | 1 |
+| Giveaways | giveaways.md | G.6–G.10 (Giveaway/Entry/Winner/CodePool/Code) | 2 | 3 |
+| Engagement Triggers | engagement.md | G.11 EngagementConfig, G.12 ViewerEngagementState | 1 | 0 (3 triggers) |
+| Custom Events & Data Sources | custom-events.md | G.13 CustomDataSource | 3 | 0 (custom.<name> trigger) |
+| Per-Viewer Data Store | per-viewer-data.md | G.14 ViewerDatum | 1 | 2 (set_viewer_data, adjust_viewer_data) |
+| Custom Code (T3) | `custom-code.md` | H.5, H.6, H.7 | 5 | 1 (`run_code`) |
+| Chat-message decoration (third-party emotes + enrichment) | `chat-decoration.md` | — (enriches the chat fragment tree; no schema delta) | — | 0 |
+| Moderation | `moderation.md` | J.1–J.11, O.8 | 9 | 6 (2 exist + 4 new) |
+| Spam &amp; Bot Defense | `spam-defense.md` | extends J.* (6 new entities + `UserTrustScore` delta) | 6 | — |
+| Economy | `economy.md` | K.1–K.11, L.1–L.3 | 8 | 5 |
+| Live Games | `live-games.md` | K.9a GameSession (+ K.9 GamePlay delta; consumes K.7/K.2/K.3) | 2 (+3 IGameService deltas) | 2 |
+| Music & Song Requests | `music-sr.md` | L.4–L.9, E.5, E.6 | 9 | 8 |
+| Media Share | media-share.md | L.10 MediaShareConfig, L.11 MediaShareRequest | 1 | 1 (+!media builtin) |
+| TTS | `tts.md` | P.1–P.5 (+ P.1a new) | 7 | 1 (`play_tts`) |
+| Widgets & Overlays | `widgets-overlays.md` | P.6–P.9 | 4 | 1 (`widget_event`) |
+| OBS Control | obs-control.md | P.14 ObsConnection | 4 | 20 (+`obs_event` trigger) |
+| VTube Studio Control | vtube-studio.md | P.19 VtsConnection | 3 | 6 (+vts_event trigger) |
+| Sound System | sound-system.md | P.18 SoundClip | 2 | 2 (play_sound, stop_sound) |
+| Stream Admin + IPC | `stream-admin.md` | F.10, F.11, A.5, C.x, P.12, P.13 | 6 | 1 (`set_stream_metadata`) |
+| Platform Admin (content authoring & propagation) | `platform-admin.md` | — (Plane-C admin surface over the seeded platform content; `saas` restricted option) | — | 0 |
+| Discord | `discord.md` | P.10 (5 tables) | 5 | 1 |
+| Supporter Events | supporter-events.md | P.15 SupporterConnection, P.16 SupporterEvent | 3 | 0 (supporter.* triggers) |
+| External Automation API | automation-api.md | P.17 AutomationApiToken | 7 | 0 (+ token-scoped data plane: REST + WS stream) |
+| Stream Deck Integration | stream-deck.md | (none — reuses P.17) | 1 | 0 (generic device pairing) |
+| GDPR & Crypto | `gdpr-crypto.md` | O.5–O.7, O.10, Q.1, Q.2, O.1a | 8 | 0 |
+| Monetization & Billing | `monetization-billing.md` | N.1–N.7 | 4 | 1 (`require_tier`) |
+| Event Store | `event-store.md` | O.1–O.4, O.1a, Q.3 | 11 | 0 |
+| Federation & OIDC | `federation-oidc.md` | D.1–D.3 | 5 | 0 |
+| Scaling, Fairness & QoS | `scaling-qos.md` | O (`CommandLogEntry` addition; cross-cutting) | 5 | 0 |
+| Webhooks (in/out) | `webhooks.md` | H.8–H.10 (reuses O.1/O.4, H.7) | 8 | 1 (`send_webhook`) |
+| Import/Export & Marketplace | marketplace.md | H.11 InstalledBundle | 3 | 0 |
+| Code-execution sandbox | `code-execution-sandbox.md` | (security deep-dive over H.5–H.7; no new tables) | 0 (references custom-code) | 0 (`run_code` owned by custom-code) |
+| Backend structure (rulebook) | `backend-structure.md` | — (structural: file placement, artifact taxonomy, auto-discovery; no schema) | 0 | 0 |
+| Rollout & Updates (rulebook) | `rollout-updates.md` | — (process: rolling deploys, expand-contract migrations, feature-flag staged rollout, drop-a-class extensibility; no schema) | 0 | 0 |
+| Frontend (KMP dashboard) | `frontend.md` | — (client layer: KMP+Compose desktop+wasmJs; **consumes** v1 REST + SignalR; owns no schema) | ~9 (client/connection interfaces + hub clients) | 0 |
+| Onboarding & Setup | `onboarding-setup.md` | — (setup state machine; `DeploymentProfile.SetupCompletedAt` delta) | 1 | 0 |
+| Integration OAuth (Spotify/YouTube) | `integrations-oauth.md` | — (connect flow; no schema — tokens via identity-auth) | 2 | 0 |
+| Community & Dashboard | `community-dashboard.md` | — (read-only aggregation; owns no schema) | 2 | 0 |
+| Pronoun Provider | `pronouns.md` | A.1 `Users.AltPronounId` (col) | 3 | 0 |
+| Broadcaster Live-Ops | `broadcaster-liveops.md` | F.12 `ActivePolls`, F.13 `ActivePredictions` | 2 (+ the granular Helix category sub-clients, twitch-helix §3.4a) | 5 |
+| Deployment & Distribution (rulebook) | `deployment-distribution.md` | — (ops: packaging/run, SaaS phasing, wasm hosting, mDNS; no schema) | 0 | 0 |
+| Dashboard Chat Client | `chat-client.md` | — (renders/sends; no schema) | 4 (+2 extended) | 0 |
+| Developer Platform (typed events, API SDK, multi-file editor, library) | `dev-platform.md` | — (unifying layer over custom-code / sandbox / widgets / automation; no schema) | 3 | 0 |
+| Platform Identity (multi-platform connections) | `platform-identity.md` | A.x `UserIdentity`, `PlatformConnection` (D1: one channel, many platform connections) | ~6 | 0 |
+| Widget SDK | `widget-sdk.md` | — (client SDK contract for widgets; no schema) | 2 | 0 |
+| Stream Deck Plugin | `streamdeck-plugin.md` | (none — reuses P.17 via `stream-deck.md`) | 0 | 0 |
+| Music Automation Controls | `music-automation-controls.md` | — (automation-API music ops; reuses L.4–L.9) | 1 | 0 |
+| Frontend IA (navigation, shell, role gating) | `frontend-ia.md` | — (client IA; consumes §5 tables) | 0 | 0 |
+| Frontend Structure (module layout) | `frontend-structure.md` | — (client layout rulebook) | 0 | 0 |
+| Frontend Data Layer (query/cache) | `frontend-data-layer.md` | — (client data layer) | ~4 (client) | 0 |
+| Frontend Design System (shadcn port) | `frontend-design-system.md` | — (tokens/components/patterns) | 0 | 0 |
+| Design-system Component Catalogue | `frontend-design-system.catalogue.md` | — (closed manifest; linter input) | 0 | 0 |
+| Figma Design-System Rules (reference note) | `figma-design-system-rules.md` | — (non-canonical reference; Figma is not a source of truth) | 0 | 0 |
 
 **Conventions (glossary, binding — `../PRODUCT-ALIGNMENT.md`):** **channel** = the tenant (`BroadcasterId`), one channel spanning many **platform connections** (Twitch/Kick/YouTube/X); **broadcaster** = the human owner role; **event response** = "when X do Y" config, an **alert** is only the on-air notification it produces; **widget** = the artifact, **overlay** = the OBS page rendering widgets, **system surface** = a channel-owned non-gallery page; spell **Gate-1 / Gate-2 / Plane-C** exactly so; the bot **types** in chat and **speaks** via TTS.
 
@@ -240,20 +245,18 @@ divergences were fixed inline (see "Fixed inline").
 
 10. **Clean.** Shared types referenced across specs all resolve to a definition: `Result<T>`/`PagedList<T>`/
     `PaginationParams`/`StatusResponseDto<T>`/`PaginatedResponse<T>` (existing app primitives); `ICommandAction`/
-    `ActionContext`/`ActionResult`/`ITemplateEngine` (commands-pipelines, consumed by moderation/economy/music/tts/
+    `PipelineExecutionContext`/`ActionDefinition`/`ActionResult`/`ITemplateEngine` (commands-pipelines, consumed by moderation/economy/music/tts/
     discord/billing/stream-admin/custom-code/widgets actions); `IChatProvider`/`ITwitchHelixClient`/`IEventBus`/
     `ICacheService`/`IUnitOfWork`/`ICurrentTenantService`/`IChannelAccessService`/`IRunOnceGuard` (platform/identity
     primitives); `IScriptExecutor` (custom-code, consumed by commands-pipelines `run_code`); `EventJournal`/
     `EventSubjectKeys`/`TenantSequences`/`CryptoKey`/`ConsentRecords` (consumed by economy/eventsub/federation/gdpr).
-    **`ICommandAction` contract caveat — [RESOLVED → owner `commands-pipelines.md` §3.13].** The contract existed in
-    two forms in the live code (Application-side `Type/Category/Description/ExecuteAsync(ActionContext)` vs
-    Infrastructure-side `ActionType/ExecuteAsync(PipelineExecutionContext, ActionDefinition)`); commands-pipelines §0
-    collapses to ONE canonical contract (`Type`/`Category`/`Description`/`Task<ActionResult> ExecuteAsync(ActionContext,
-    CancellationToken)`). The four specs that targeted the divergent Infrastructure shape — **moderation §6, economy §6,
-    custom-code §6, stream-admin §6** — have been retargeted to the canonical contract (params from
-    `context.Parameters`, tenant from `context.BroadcasterId` as a `Guid`, no `PipelineExecutionContext`/`ActionDefinition`).
-    The others (widgets/tts/roles-permissions/billing/discord) already matched and now carry an explicit
-    "owned by commands-pipelines §3.13" reference. One action interface survives.
+    **`ICommandAction` contract — [RESOLVED → owner `commands-pipelines.md` §3.13].** There is ONE contract, in
+    `NomNomzBot.Application/Abstractions/Pipeline/ICommandAction.cs`: `string ActionType`, `LocalizedText Category`,
+    `LocalizedText Description`, `IReadOnlyList<PipelineActionFieldDescriptor> Fields` (default empty),
+    `bool ResolvesOwnTemplates` (default `false`) and `Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx,
+    ActionDefinition action)`. There is no `ActionContext` type. Every action-bearing spec (moderation, economy,
+    custom-code, stream-admin, widgets, tts, roles-permissions, billing, discord) targets this contract and carries an
+    "owned by commands-pipelines §3.13" reference.
 
 ### H. Fixed inline (trivial — already applied to the offending specs)
 
@@ -282,7 +285,7 @@ divergences were fixed inline (see "Fixed inline").
 | A3 | `IScriptExecutor`: platform-conventions reference shape ≠ custom-code authoritative shape (`Kind`/`Runtime`, return type) | Medium | **RESOLVED** — owner **`custom-code.md`** (`Runtime`/`CompileAsync`/`ExecuteAsync(request, grant, ct)→Result<ScriptExecutionOutcomeResult>`); platform-conventions §3.9 cites it (two enums kept intentionally) |
 | B4 | `TtsApprovalQueueEntry` not in locked schema | Medium | **RESOLVED** — owner **`tts.md`**; added to LOCKED schema as **P.1a** (tenant-scoped, soft-delete); tts.md references the real table |
 | B5 | `Channels.SongRequestPageToken` not in locked schema | Medium | **RESOLVED** — owner **`music-sr.md`**; `Channels.SongRequestPageToken string(64) Null Unique` added to LOCKED schema (A.2); fallback table dropped |
-| G10 | Two live `ICommandAction` contracts; action-bearing specs split across both | Medium | **RESOLVED** — owner **`commands-pipelines.md`** §3.13 (canonical Infrastructure-collapsed `ICommandAction`: `Type`/`Category`/`Description`/`ExecuteAsync(ActionContext, ct)`); every action-bearing spec now references it (economy/stream-admin/moderation/custom-code retargeted off the divergent shape) |
+| G10 | Two live `ICommandAction` contracts; action-bearing specs split across both | Medium | **RESOLVED** — owner **`commands-pipelines.md`** §3.13 (one `ICommandAction`: `ActionType`/`Category`/`Description`/`Fields`/`ResolvesOwnTemplates`/`ExecuteAsync(PipelineExecutionContext, ActionDefinition)`); every action-bearing spec references it |
 | — | `FeatureFlagChangedEvent` name collision | Low | **Fixed inline** |
 | — | `ITenantSequenceService`/`ITenantSequenceAllocator` name drift | Low | **Fixed inline** |
 | — | `IChannelAccessService` truncated surface | Low | **Fixed inline** |

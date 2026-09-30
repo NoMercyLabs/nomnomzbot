@@ -38,9 +38,9 @@ Domain L. UUIDv7 PK, `BaseEntity` timestamps, soft-delete filter, `BroadcasterId
 Inherit `DomainEventBase` (platform-conventions §2.0). Published via `IEventBus`.
 
 ```csharp
-namespace NomNomzBot.Domain.Events;
+namespace NomNomzBot.Domain.MediaShare.Events;
 
-public sealed record MediaShareSubmittedEvent : DomainEventBase
+public sealed class MediaShareSubmittedEvent : DomainEventBase
 {
     public required Guid RequestId { get; init; }
     public required Guid RequesterUserId { get; init; }
@@ -48,7 +48,7 @@ public sealed record MediaShareSubmittedEvent : DomainEventBase
     public required bool AutoApproved { get; init; }
 }
 
-public sealed record MediaSharePlaybackChangedEvent : DomainEventBase   // → overlay
+public sealed class MediaSharePlaybackChangedEvent : DomainEventBase   // → dashboard (MediaSharePlaybackBroadcastHandler pushes `media_share_playback_changed` {requestId, status})
 {
     public required Guid RequestId { get; init; }
     public required string Status { get; init; }   // approved | playing | played | skipped
@@ -59,7 +59,7 @@ public sealed record MediaSharePlaybackChangedEvent : DomainEventBase   // → o
 
 ## 3. Service interface
 
-Namespace `NomNomzBot.Application.MediaShare`. Returns `Task<Result<T>>` / `Task<Result>`. Impl in `NomNomzBot.Infrastructure/MediaShare/`.
+Namespace `NomNomzBot.Application.MediaShare.Services` (DTOs in `NomNomzBot.Application.MediaShare.Dtos`). Returns `Task<Result<T>>`. Impl in `NomNomzBot.Infrastructure/MediaShare/`.
 
 ```csharp
 public interface IMediaShareService
@@ -70,26 +70,31 @@ public interface IMediaShareService
     Task<Result<MediaShareRequestDto>> SubmitAsync(Guid broadcasterId, Guid requesterUserId, SubmitMediaRequest request, CancellationToken ct = default);
 
     Task<Result<MediaShareRequestDto>> ApproveAsync(Guid broadcasterId, Guid requestId, Guid moderatorUserId, CancellationToken ct = default);  // → approved + appends to play order
-    Task<Result> RejectAsync(Guid broadcasterId, Guid requestId, Guid moderatorUserId, CancellationToken ct = default);                          // → rejected (refunds EntryCost if charged)
-    Task<Result> SkipAsync(Guid broadcasterId, Guid requestId, CancellationToken ct = default);                                                  // playing/approved → skipped
-    Task<Result> ReorderAsync(Guid broadcasterId, Guid requestId, int newPosition, CancellationToken ct = default);
+    Task<Result<MediaShareRequestDto>> RejectAsync(Guid broadcasterId, Guid requestId, Guid moderatorUserId, CancellationToken ct = default);   // → rejected (refunds EntryCost if charged); returns the updated request
+    Task<Result<MediaShareRequestDto>> SkipAsync(Guid broadcasterId, Guid requestId, CancellationToken ct = default);                           // playing/approved → skipped (refunds EntryCost if charged); returns the updated request
+    Task<Result<MediaShareRequestDto>> ReorderAsync(Guid broadcasterId, Guid requestId, int newPosition, CancellationToken ct = default);      // approved item → 1-based play position; returns the moved request
 
     Task<Result<PagedList<MediaShareRequestDto>>> GetQueueAsync(Guid broadcasterId, MediaShareFilter filter, PaginationParams pagination, CancellationToken ct = default);
     Task<Result<MediaShareRequestDto?>> GetNextAsync(Guid broadcasterId, CancellationToken ct = default);          // overlay pulls the next approved item → playing
-    Task<Result> MarkPlayedAsync(Guid broadcasterId, Guid requestId, CancellationToken ct = default);             // overlay reports completion → played, advances
+    Task<Result<MediaShareRequestDto>> MarkPlayedAsync(Guid broadcasterId, Guid requestId, CancellationToken ct = default);   // overlay reports completion → played, advances; returns the updated request
 
     Task<Result<MediaShareConfigDto>> GetConfigAsync(Guid broadcasterId, CancellationToken ct = default);
     Task<Result<MediaShareConfigDto>> UpdateConfigAsync(Guid broadcasterId, UpdateMediaShareConfigRequest request, CancellationToken ct = default);
 }
 
 public sealed record SubmitMediaRequest(string Url);
-public sealed record MediaShareRequestDto(Guid Id, Guid RequesterUserId, string SourceType, string SourceUrl, string MediaRef, string? Title, int DurationSeconds, string? ThumbnailUrl, string Status, int? QueuePosition, DateTime RequestedAt);
+public sealed record ReorderMediaRequest(int Position);
+public sealed record MediaShareRequestDto(Guid Id, Guid RequesterUserId, string RequesterDisplayName, string? RequesterAvatarUrl, string SourceType, string SourceUrl, string MediaRef, string? Title, int DurationSeconds, string? ThumbnailUrl, string Status, int? QueuePosition, DateTime RequestedAt);
 public sealed record MediaShareFilter(string? Status);
 public sealed record MediaShareConfigDto(bool IsEnabled, bool RequireApproval, bool AllowTwitchClips, bool AllowYouTube, int MaxDurationSeconds, long? EntryCost, int MaxQueueLength, int PerUserCooldownSeconds);
 public sealed record UpdateMediaShareConfigRequest(bool IsEnabled, bool RequireApproval, bool AllowTwitchClips, bool AllowYouTube, int MaxDurationSeconds, long? EntryCost, int MaxQueueLength, int PerUserCooldownSeconds);
 ```
 
-**Economy delta (owner `economy.md`):** `EntryType` gains `spend_media` (entry cost) and `refund_media` (rejected/skipped refund).
+`RequesterDisplayName` / `RequesterAvatarUrl` are joined live from `Users` at read time (never stored on the request row), so the mod queue always shows the current Twitch name and avatar.
+
+URL parsing + metadata sit behind `IMediaSourceResolver.ResolveAsync(url, allowTwitchClips, allowYouTube, ct)` → `Result<ResolvedMedia(SourceType, MediaRef, Title, DurationSeconds, ThumbnailUrl)>` (`MediaSourceResolver`, registered explicitly in `AddInfrastructure`; it is not an `I<X>Service`).
+
+**Economy delta (owner `economy.md`):** `EntryType` gains `SpendMedia` (`spend_media`, entry cost) and `RefundMedia` (`refund_media`, rejected/skipped refund).
 
 ---
 
@@ -97,7 +102,7 @@ public sealed record UpdateMediaShareConfigRequest(bool IsEnabled, bool RequireA
 
 - **Built-in `!media`** (`IBuiltinCommand`, `BuiltinKey="media"`): `!media <url>` → `SubmitAsync` for the caller; replies with queued/needs-approval status. Default min-permission `Everyone` (per-channel overridable); honors eligibility + cooldown.
 - **Pipeline action `submit_media`** (`ICommandAction`): config `url` (template) → `SubmitAsync` for the triggering viewer — so a channel-point redemption can require a clip URL and submit it.
-- **Overlay:** a first-party **`media_share`** widget (added to the widgets OOTB catalogue) plays the current approved clip (Twitch clip embed / YouTube iframe) and shows the upcoming queue; driven by `IWidgetNotifier.SendWidgetEventAsync` (`EventType="media.play|next|done"`); reports completion back to `MarkPlayedAsync` via the OverlayHub.
+- **Overlay:** the first-party **`media_share`** widget is **NOT BUILT** (tracked as S104 in `SHORTCOMINGS-EXECUTION-PLAN.md`); there is no `media_share` entry in the widget catalogue and no `media.play|next|done` widget events. The backend half is complete: the queue is consumed through `GET /media-share/next` (pulls the next approved item, flips it to `playing`) and `POST /media-share/{id}/played` (reports completion, advances the queue), and `MediaSharePlaybackChangedEvent` reaches the dashboard as the `media_share_playback_changed` push. The widget, when built, plays the current approved clip (Twitch clip embed / YouTube iframe), shows the upcoming queue, and drives itself from those two endpoints.
 
 ---
 
@@ -110,19 +115,20 @@ Controller `MediaShareController`, `[Route("api/v{version:apiVersion}/media-shar
 | GET | `/queue` | `MediaShareFilter`+`PageRequestDto` | `PaginatedResponse<MediaShareRequestDto>` | management / Moderator · `media:read` |
 | GET | `/next` | — | `StatusResponseDto<MediaShareRequestDto>` | management / Moderator · `media:read` |
 | POST | `/{id}/approve` | — | `StatusResponseDto<MediaShareRequestDto>` | management / Moderator · `media:moderate` |
-| POST | `/{id}/reject` | — | `StatusResponseDto` | management / Moderator · `media:moderate` |
-| POST | `/{id}/skip` | — | `StatusResponseDto` | management / Moderator · `media:moderate` |
-| POST | `/{id}/reorder` | `ReorderRequest(Position)` | `StatusResponseDto` | management / Moderator · `media:moderate` |
+| POST | `/{id}/reject` | — | `StatusResponseDto<MediaShareRequestDto>` | management / Moderator · `media:moderate` |
+| POST | `/{id}/skip` | — | `StatusResponseDto<MediaShareRequestDto>` | management / Moderator · `media:moderate` |
+| POST | `/{id}/reorder` | `ReorderMediaRequest(Position)` (1-based) | `StatusResponseDto<MediaShareRequestDto>` | management / Moderator · `media:moderate` |
+| POST | `/{id}/played` | — | `StatusResponseDto<MediaShareRequestDto>` (the overlay reports completion → `played`, the queue advances) | management / Moderator · `media:moderate` |
 | GET | `/config` | — | `StatusResponseDto<MediaShareConfigDto>` | management / Moderator · `media:read` |
-| PUT | `/config` | `UpdateMediaShareConfigRequest` | `StatusResponseDto<MediaShareConfigDto>` | management / Editor · `media:write` |
+| PUT | `/config` | `UpdateMediaShareConfigRequest` | `StatusResponseDto<MediaShareConfigDto>` | management / Moderator · `media:write` |
 
-Seed `media:read` (Moderator), `media:moderate` (Moderator), `media:write` (Editor) in `roles-permissions.md`.
+`{id}` is a `Guid` route constraint; the tenant comes from `ICurrentTenantService`. `GET /next` returns the item already `playing` if there is one (it never advances past it), else flips the next approved item (lowest `QueuePosition`, then oldest) to `playing`; an empty queue returns success with null data. Seeded in `ActionDefinitionSeeder`: `media:read`, `media:moderate` **and `media:write`** all default to Moderator (S-MOD-PERMS — the config is reversible bot-internal tooling); a channel may raise any of them per its own floors.
 
 ---
 
 ## 6. DI & testing
 
-`NomNomzBot.Infrastructure/MediaShare/DependencyInjection.cs` (`AddMediaShare()`): `IMediaShareService` → `MediaShareService` (Scoped); repositories (Scoped); the `!media` built-in + `submit_media` action (registered with their catalogs). Metadata via the existing `ITwitchClipsApi` + YouTube Data provider; no new external client.
+Registered in `NomNomzBot.Infrastructure/DependencyInjection.cs` (there is no `MediaShare/DependencyInjection.cs` and no `AddMediaShare()`): `IMediaShareService` → `MediaShareService` (Scoped, bound by the `I<X>Service` convention scan); `IMediaSourceResolver` → `MediaSourceResolver` (Scoped, explicit); `MediaBuiltin` (`IBuiltinCommand`, Scoped, explicit) and `SubmitMediaAction` (`ICommandAction`, auto-discovered). No repositories: the service uses `IApplicationDbContext`. Metadata via the existing `ITwitchClipsApi` + YouTube Data provider; no new external client.
 
 **Tests (prove behavior):** a valid Twitch-clip URL resolves `SourceType=twitch_clip` + real `DurationSeconds`/`Title` and enqueues `pending` (or `approved` when `RequireApproval` off); an **over-cap** clip is rejected (`DURATION_EXCEEDED`); a **non-allowlisted** URL is rejected (`SOURCE_NOT_ALLOWED`); `EntryCost` is debited on submit and **refunded** on reject/skip (`refund_media`); per-user cooldown + `MaxQueueLength` enforced; `GetNextAsync` returns approved items in FIFO/`QueuePosition` order and flips the item to `playing`, `MarkPlayedAsync` advances; eligibility gate rejects an ineligible viewer.
 
