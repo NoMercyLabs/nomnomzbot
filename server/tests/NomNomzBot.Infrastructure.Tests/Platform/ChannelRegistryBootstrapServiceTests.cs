@@ -21,13 +21,11 @@ using NomNomzBot.Infrastructure.Tests.Identity;
 namespace NomNomzBot.Infrastructure.Tests.Platform;
 
 /// <summary>
-/// Proves the multi-instance fix for the channel-registry bootstrap pass: two API instances starting
-/// against one database (a zero-downtime deploy overlap) must not both run the bootstrap query — a
-/// duplicate pass wastes DB load and log noise for no benefit since each instance's registry is populated
-/// independently either way. Gated by <see cref="IRunOnceGuard"/>; a non-holder must be a clean no-op that
-/// leaves ITS OWN registry untouched.
+/// The channel-registry bootstrap fills THIS process's in-memory registry, so every instance runs it — a
+/// blue/green overlap included. It once sat behind the cluster lease, and the colour that lost the startup
+/// race kept an empty registry: no commands, timers or triggers until each channel loaded lazily.
 /// </summary>
-public sealed class ChannelRegistryBootstrapRunOnceTests
+public sealed class ChannelRegistryBootstrapServiceTests
 {
     private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-0000000f4001");
 
@@ -57,7 +55,7 @@ public sealed class ChannelRegistryBootstrapRunOnceTests
     private static string DatabaseName => Guid.NewGuid().ToString();
 
     [Fact]
-    public async Task An_instance_that_loses_the_startup_race_leaves_its_own_registry_empty()
+    public async Task Both_colours_of_a_deploy_overlap_fill_their_own_registry()
     {
         string databaseName = DatabaseName;
         AuthDbContext seedDb = AuthTestBuilder.NewContext(databaseName);
@@ -73,41 +71,31 @@ public sealed class ChannelRegistryBootstrapRunOnceTests
         );
         await seedDb.SaveChangesAsync();
 
+        // One lease store for both colours, with the old bootstrap lease name held — the exact moment the
+        // leased version left the second colour empty.
         ConcurrentDictionary<string, byte> sharedLeaseStore = new();
-
-        // Instance A is already bootstrapping at startup — its lease sits on the shared store before
-        // instance B's StartAsync ever runs.
-        IAsyncDisposable? preHeldLease = await new SharedFakeRunOnceGuard(
+        await using IAsyncDisposable? otherColourBooting = await new SharedFakeRunOnceGuard(
             sharedLeaseStore
-        ).TryAcquireAsync(
-            ChannelRegistryBootstrapService.LeaseResourceName,
-            TimeSpan.FromMinutes(5),
-            CancellationToken.None
-        );
-        preHeldLease.Should().NotBeNull();
+        ).TryAcquireAsync("channel-registry-bootstrap", TimeSpan.FromMinutes(5));
 
-        (ChannelRegistryBootstrapService serviceB, IChannelRegistry registryB) = BuildInstance(
+        (ChannelRegistryBootstrapService blue, IChannelRegistry blueRegistry) = BuildInstance(
+            AuthTestBuilder.NewContext(databaseName),
+            new SharedFakeRunOnceGuard(sharedLeaseStore)
+        );
+        (ChannelRegistryBootstrapService green, IChannelRegistry greenRegistry) = BuildInstance(
             AuthTestBuilder.NewContext(databaseName),
             new SharedFakeRunOnceGuard(sharedLeaseStore)
         );
 
-        await serviceB.StartAsync(CancellationToken.None);
-
-        // Instance B lost the race: a clean no-op — its OWN registry never got the bootstrap pass.
-        registryB.Count.Should().Be(0);
-
-        await preHeldLease.DisposeAsync();
-
-        (ChannelRegistryBootstrapService serviceA, IChannelRegistry registryA) = BuildInstance(
-            AuthTestBuilder.NewContext(databaseName),
-            new SharedFakeRunOnceGuard(sharedLeaseStore)
+        await Task.WhenAll(
+            blue.StartAsync(CancellationToken.None),
+            green.StartAsync(CancellationToken.None)
         );
 
-        await serviceA.StartAsync(CancellationToken.None);
-
-        // Instance A won the (now-free) lease: exactly one bootstrap pass took effect, and it landed here.
-        registryA.Count.Should().Be(1);
-        registryA.Get(ChannelId).Should().NotBeNull();
+        blueRegistry.Count.Should().Be(1);
+        blueRegistry.Get(ChannelId)!.ChannelName.Should().Be("testchannel");
+        greenRegistry.Count.Should().Be(1);
+        greenRegistry.Get(ChannelId)!.ChannelName.Should().Be("testchannel");
     }
 
     /// <summary>
@@ -137,10 +125,9 @@ public sealed class ChannelRegistryBootstrapRunOnceTests
         );
         await seedDb.SaveChangesAsync();
 
-        ConcurrentDictionary<string, byte> sharedLeaseStore = new();
         (ChannelRegistryBootstrapService service, IChannelRegistry registry) = BuildInstance(
             AuthTestBuilder.NewContext(databaseName),
-            new SharedFakeRunOnceGuard(sharedLeaseStore)
+            new SharedFakeRunOnceGuard()
         );
 
         await service.StartAsync(CancellationToken.None);
