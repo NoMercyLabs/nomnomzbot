@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.Moderator
+import bot.nomnomz.dashboard.core.network.ChannelBanOutcome
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
@@ -238,6 +239,60 @@ class ModerationControllerTest {
 
         controller.removeBlockedTerm("badword")
         assertEquals(listOf("badword"), moderationApi.removedTerms) // the term is sent to the api
+    }
+
+    @Test
+    fun blocking_a_term_everywhere_keeps_each_channels_outcome_after_the_reload() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.termSweepResult =
+            ApiResult.Ok(
+                NetworkBanResult(
+                    attempted = 2,
+                    succeeded = 1,
+                    channels =
+                        listOf(
+                            ChannelBanOutcome("stoney", succeeded = true),
+                            ChannelBanOutcome("bravo", succeeded = false, error = "Missing scope."),
+                        ),
+                )
+            )
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+                FakeCommunityApi(),
+            )
+        controller.load()
+
+        controller.addBlockedTermEverywhere("twitchstar*")
+
+        assertEquals(listOf("twitchstar*" to true), moderationApi.termSweeps)
+        val sweep: TermSweep = assertNotNull(controller.termSweep.value)
+        assertEquals("twitchstar*", sweep.term)
+        assertTrue(sweep.added)
+        assertEquals(1, sweep.result.succeeded)
+        assertEquals("Missing scope.", sweep.result.channels.single { !it.succeeded }.error)
+
+        controller.dismissTermSweep()
+        assertNull(controller.termSweep.value)
+    }
+
+    @Test
+    fun a_failed_term_sweep_leaves_no_outcome_card() = runTest {
+        val moderationApi = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        moderationApi.termSweepResult = ApiResult.Failure(ApiError(400, "VALIDATION_FAILED", "Too short."))
+        val controller =
+            ModerationController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                moderationApi,
+                FakeCommunityApi(),
+            )
+        controller.load()
+
+        controller.removeBlockedTermEverywhere("x")
+
+        assertEquals(listOf("x" to false), moderationApi.termSweeps)
+        assertNull(controller.termSweep.value)
     }
 
     @Test
@@ -1377,6 +1432,23 @@ internal class FakeModerationApi(
     override suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit> {
         removedTerms.add(term)
         return ApiResult.Ok(Unit)
+    }
+
+    // Every cross-channel sweep, as (term, added); the result is what the backend would answer.
+    val termSweeps: MutableList<Pair<String, Boolean>> = mutableListOf()
+    var termSweepResult: ApiResult<NetworkBanResult> = ApiResult.Ok(NetworkBanResult())
+
+    override suspend fun addBlockedTermEverywhere(channelId: String, term: String): ApiResult<NetworkBanResult> {
+        termSweeps.add(term to true)
+        return termSweepResult
+    }
+
+    override suspend fun removeBlockedTermEverywhere(
+        channelId: String,
+        term: String,
+    ): ApiResult<NetworkBanResult> {
+        termSweeps.add(term to false)
+        return termSweepResult
     }
 
     override suspend fun automod(channelId: String): ApiResult<AutomodConfig> = automodResult

@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.Checkbox
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -44,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -123,6 +126,7 @@ import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
 import bot.nomnomz.dashboard.feature.moderation.state.deriveAutomationLines
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
+import bot.nomnomz.dashboard.feature.moderation.state.TermSweep
 import bot.nomnomz.dashboard.feature.moderation.state.UserContextState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -219,6 +223,7 @@ import nomnomzbot.composeapp.generated.resources.moderation_notes_title
 import nomnomzbot.composeapp.generated.resources.moderation_notes_unpin
 import nomnomzbot.composeapp.generated.resources.moderation_shield_unavailable
 import nomnomzbot.composeapp.generated.resources.moderation_terms_add
+import nomnomzbot.composeapp.generated.resources.moderation_terms_everywhere
 import nomnomzbot.composeapp.generated.resources.moderation_terms_add_label
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
@@ -520,7 +525,18 @@ fun ModerationScreen(
 ) {
     val state: ModerationState by controller.state.collectAsStateWithLifecycle()
     val userContext: UserContextState? by controller.userContext.collectAsStateWithLifecycle()
+    val termSweep: TermSweep? by controller.termSweep.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    // The cross-channel blocked-term flow: the term awaiting a confirm, and the channels that sweep would reach.
+    var pendingBlockEverywhere: String? by remember { mutableStateOf(null) }
+    var pendingRemoveTerm: String? by remember { mutableStateOf(null) }
+    var sweepReach: SweepReach? by remember { mutableStateOf(null) }
+    val loadSweepReach: () -> Unit = {
+        sweepReach = SweepReach.Loading
+        scope.launch {
+            sweepReach = controller.moderatedChannelLogins()?.let { SweepReach.Known(it) } ?: SweepReach.Unknown
+        }
+    }
     val spacing = LocalSpacing.current
 
     // One decision for the whole page: Moderation gates its write affordance at its single Moderator manage
@@ -656,8 +672,17 @@ fun ModerationScreen(
                     onAddModerator = { id -> scope.launch { controller.addModerator(id) } },
                     onRemoveModerator = { id -> scope.launch { controller.removeModerator(id) } },
                     onClearChat = { scope.launch { controller.clearChat() } },
-                    onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
-                    onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
+                    onAddTerm = { term, everywhere ->
+                        if (everywhere) {
+                            pendingBlockEverywhere = term
+                            loadSweepReach()
+                        } else {
+                            scope.launch { controller.addBlockedTerm(term) }
+                        }
+                    },
+                    onRemoveTerm = { term -> pendingRemoveTerm = term },
+                    termSweep = termSweep,
+                    onDismissTermSweep = { controller.dismissTermSweep() },
                     onToggleFilter = { f -> scope.launch { controller.toggleAutomodFilter(f) } },
                     onSaveCapsThreshold = { v -> scope.launch { controller.setCapsThreshold(v) } },
                     onSaveEmoteMaxEmotes = { v -> scope.launch { controller.setEmoteMaxEmotes(v) } },
@@ -716,6 +741,34 @@ fun ModerationScreen(
             },
             onDeleteNote = { userId, noteId -> scope.launch { controller.deleteNote(userId, noteId) } },
             onDismiss = { controller.closeUserContext() },
+        )
+    }
+
+    pendingBlockEverywhere?.let { term ->
+        BlockEverywhereDialog(
+            term = term,
+            reach = sweepReach ?: SweepReach.Loading,
+            onConfirm = {
+                pendingBlockEverywhere = null
+                scope.launch { controller.addBlockedTermEverywhere(term) }
+            },
+            onDismiss = { pendingBlockEverywhere = null },
+        )
+    }
+    pendingRemoveTerm?.let { term ->
+        RemoveTermDialog(
+            term = term,
+            reach = sweepReach,
+            onPickEverywhere = { if (sweepReach == null) loadSweepReach() },
+            onRemoveHere = {
+                pendingRemoveTerm = null
+                scope.launch { controller.removeBlockedTerm(term) }
+            },
+            onRemoveEverywhere = {
+                pendingRemoveTerm = null
+                scope.launch { controller.removeBlockedTermEverywhere(term) }
+            },
+            onDismiss = { pendingRemoveTerm = null },
         )
     }
 }
@@ -800,8 +853,10 @@ internal fun BansList(
     onAddModerator: (targetTwitchUserId: String) -> Unit,
     onRemoveModerator: (userId: String) -> Unit,
     onClearChat: () -> Unit,
-    onAddTerm: (String) -> Unit,
+    onAddTerm: (term: String, everywhere: Boolean) -> Unit,
     onRemoveTerm: (String) -> Unit,
+    termSweep: TermSweep?,
+    onDismissTermSweep: () -> Unit,
     onToggleFilter: (AutomodFilter) -> Unit,
     onSaveCapsThreshold: (Int) -> Unit,
     onSaveEmoteMaxEmotes: (Int) -> Unit,
@@ -1124,6 +1179,11 @@ internal fun BansList(
         } else {
             rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-add") {
                 AddTermRow(manage = manage, onAdd = onAddTerm)
+            }
+            termSweep?.let { sweep ->
+                rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-sweep") {
+                    TermSweepCard(sweep = sweep, onDismiss = onDismissTermSweep)
+                }
             }
             if (blockedTerms.isNotEmpty()) {
                 rulesSectionItem(section, RulesGroup.ContentFilters, selectedRulesGroup, "terms-card") {
@@ -3119,12 +3179,15 @@ private fun ShoutoutTemplateEditor(
 }
 
 @Composable
-private fun AddTermRow(manage: ManageDecision, onAdd: (String) -> Unit) {
+private fun AddTermRow(manage: ManageDecision, onAdd: (term: String, everywhere: Boolean) -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
     var term: String by remember { mutableStateOf("") }
+    var everywhere: Boolean by remember { mutableStateOf(false) }
 
     ManageGate(decision = manage) { enabled ->
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -3142,7 +3205,7 @@ private fun AddTermRow(manage: ManageDecision, onAdd: (String) -> Unit) {
                 onClick = {
                     val trimmed: String = term.trim()
                     if (trimmed.isNotEmpty()) {
-                        onAdd(trimmed)
+                        onAdd(trimmed, everywhere)
                         term = ""
                     }
                 },
@@ -3154,6 +3217,26 @@ private fun AddTermRow(manage: ManageDecision, onAdd: (String) -> Unit) {
                     maxLines = 1,
                 )
             }
+        }
+        // The wider reach is a neutral toggle, not a second button, so "Add" stays the row's one primary action.
+        // The whole row is the toggle, so the label is clickable and read out with the box.
+        Row(
+            modifier = Modifier.toggleable(
+                value = everywhere,
+                enabled = enabled,
+                role = Role.Checkbox,
+                onValueChange = { everywhere = it },
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Checkbox(checked = everywhere, onCheckedChange = null, enabled = enabled)
+            Text(
+                text = stringResource(Res.string.moderation_terms_everywhere),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        }
         }
     }
 }

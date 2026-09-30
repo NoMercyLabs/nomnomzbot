@@ -1209,6 +1209,8 @@ private class FakeModerationApi : ModerationApi {
     override suspend fun setShieldMode(channelId: String, enabled: Boolean) = error("stub")
     override suspend fun blockedTerms(channelId: String) = error("stub")
     override suspend fun removeBlockedTerm(channelId: String, term: String) = error("stub")
+    override suspend fun addBlockedTermEverywhere(channelId: String, term: String) = error("stub")
+    override suspend fun removeBlockedTermEverywhere(channelId: String, term: String) = error("stub")
     override suspend fun saveAutomod(
         channelId: String,
         config: bot.nomnomz.dashboard.core.network.AutomodConfig,

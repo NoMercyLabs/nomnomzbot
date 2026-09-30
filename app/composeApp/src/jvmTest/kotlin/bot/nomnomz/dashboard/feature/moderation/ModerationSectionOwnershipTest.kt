@@ -76,6 +76,7 @@ class ModerationSectionOwnershipTest {
                     "terms-header",
                     "terms-unavailable",
                     "terms-add",
+                    "terms-sweep",
                     "terms-card",
                     "automod-header",
                     "automod-card",
@@ -136,6 +137,7 @@ class ModerationSectionOwnershipTest {
                     "terms-header",
                     "terms-unavailable",
                     "terms-add",
+                    "terms-sweep",
                     "terms-card",
                     "automod-header",
                     "automod-card",
@@ -237,7 +239,9 @@ class ModerationSectionOwnershipTest {
         // rather than adding new ones. The Rules page then grew by 3 (owner request 2026-09-12, this slice):
         // "rules-group-tabs" (the new job-group switch itself) plus "heat-header"/"heat-card" (heat auto-timeout
         // split out of the AutoMod card into its own Enforcement-group card — no control lost, just relocated).
+        // Filtering then grew by 1 (owner request 2026-09-30): "terms-sweep", the per-channel outcome of a
+        // blocked term added to or removed from every channel the operator moderates.
         val owned: Int = expectedOwners.values.sumOf { it.size }
-        assertEquals(54, owned, "a moderation section was dropped or added without a decision")
+        assertEquals(55, owned, "a moderation section was dropped or added without a decision")
     }
 }

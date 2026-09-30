@@ -38,6 +38,14 @@ import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.feature.moderation.state.AutomationLine
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextReplacement
+import bot.nomnomz.dashboard.feature.moderation.state.TermSweep
+import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.network.ChannelBanOutcome
+import kotlin.test.assertEquals
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasClickAction
 import kotlin.test.Test
 
 /**
@@ -72,7 +80,10 @@ class ModerationRulesGroupingRenderTest {
     private val groupTabLabels = listOf("Filtering", "Enforcement", "Network", "General")
 
     @Composable
-    private fun RulesPage() {
+    private fun RulesPage(
+        onAddTerm: (term: String, everywhere: Boolean) -> Unit = { _, _ -> },
+        termSweep: TermSweep? = null,
+    ) {
         BansList(
             section = ModerationSection.Rules,
             bans = emptyList<BannedUser>(),
@@ -147,8 +158,10 @@ class ModerationRulesGroupingRenderTest {
             onAddModerator = {},
             onRemoveModerator = {},
             onClearChat = {},
-            onAddTerm = {},
+            onAddTerm = onAddTerm,
             onRemoveTerm = {},
+            termSweep = termSweep,
+            onDismissTermSweep = {},
             onToggleFilter = {},
             onSaveCapsThreshold = {},
             onSaveEmoteMaxEmotes = {},
@@ -165,6 +178,52 @@ class ModerationRulesGroupingRenderTest {
             onSendAnnouncement = { _, _ -> },
             onSaveShoutoutTemplate = {},
         )
+    }
+
+    @Test
+    fun ticking_every_channel_i_moderate_sends_the_term_with_the_wider_reach() {
+        runComposeUiTest {
+            val added: MutableList<Pair<String, Boolean>> = mutableListOf()
+            setContent { EnglishContent { RulesPage(onAddTerm = { term, everywhere -> added += term to everywhere }) } }
+            waitForIdle()
+
+            onAllNodes(hasSetTextAction())[0].performTextReplacement("twitchstar*")
+            onNodeWithText("Every channel I moderate").performClick()
+            onAllNodes(hasText("Add") and hasClickAction() and !hasSetTextAction())[0].performClick()
+            onAllNodes(hasSetTextAction())[0].performTextReplacement("plain")
+            onNodeWithText("Every channel I moderate").performClick()
+            onAllNodes(hasText("Add") and hasClickAction() and !hasSetTextAction())[0].performClick()
+
+            assertEquals(listOf("twitchstar*" to true, "plain" to false), added)
+        }
+    }
+
+    @Test
+    fun a_term_sweep_names_how_many_channels_took_it_and_why_each_failure_failed() {
+        runComposeUiTest {
+            val sweep =
+                TermSweep(
+                    term = "twitchstar*",
+                    added = true,
+                    result =
+                        NetworkBanResult(
+                            attempted = 3,
+                            succeeded = 2,
+                            channels =
+                                listOf(
+                                    ChannelBanOutcome("stoney", succeeded = true),
+                                    ChannelBanOutcome("alpha", succeeded = true),
+                                    ChannelBanOutcome("bravo", succeeded = false, error = "Missing scope."),
+                                ),
+                        ),
+                )
+            setContent { EnglishContent { RulesPage(termSweep = sweep) } }
+            waitForIdle()
+
+            onNodeWithText("Blocked “twitchstar*” in 2 of 3 channels.").assertExists()
+            onNodeWithText("bravo: Missing scope.").assertExists()
+            onNodeWithText("alpha", substring = true).assertDoesNotExist()
+        }
     }
 
     @Test

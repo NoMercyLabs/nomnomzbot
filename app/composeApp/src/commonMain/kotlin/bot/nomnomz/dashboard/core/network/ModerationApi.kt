@@ -64,6 +64,12 @@ interface ModerationApi {
     /** Remove [term] from the channel's blocked-terms list. */
     suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit>
 
+    /** Block [term] in the operator's own channel and every channel they moderate; one outcome per channel. */
+    suspend fun addBlockedTermEverywhere(channelId: String, term: String): ApiResult<NetworkBanResult>
+
+    /** Remove [term] from the operator's own channel and every channel they moderate; one outcome per channel. */
+    suspend fun removeBlockedTermEverywhere(channelId: String, term: String): ApiResult<NetworkBanResult>
+
     /** The channel's AutoMod filter configuration (link / caps / banned-phrases / emote-spam). */
     suspend fun automod(channelId: String): ApiResult<AutomodConfig>
 
@@ -431,6 +437,14 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     override suspend fun removeBlockedTerm(channelId: String, term: String): ApiResult<Unit> =
         client.deleteUnit(
             "api/v1/channels/$channelId/moderation/blocked-terms/${term.encodeURLPathPart()}"
+        )
+
+    override suspend fun addBlockedTermEverywhere(channelId: String, term: String): ApiResult<NetworkBanResult> =
+        client.postEnvelope("api/v1/channels/$channelId/moderation/blocked-terms/all-moderated", AddTermBody(term))
+
+    override suspend fun removeBlockedTermEverywhere(channelId: String, term: String): ApiResult<NetworkBanResult> =
+        client.deleteEnvelope(
+            "api/v1/channels/$channelId/moderation/blocked-terms/all-moderated/${term.encodeURLPathPart()}"
         )
 
     // AutoMod is a single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the config.

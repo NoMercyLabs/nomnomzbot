@@ -40,6 +40,7 @@ import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.NetworkNukeBatch
 import bot.nomnomz.dashboard.core.network.NetworkNukeBody
@@ -107,6 +108,12 @@ class ModerationController(
 
     /** The open per-user moderation panel (null when closed). */
     val userContext: StateFlow<UserContextState?> = _userContext.asStateFlow()
+
+    // Kept apart from [state] so the reload after a sweep does not wipe its per-channel outcome.
+    private val _termSweep: MutableStateFlow<TermSweep?> = MutableStateFlow(null)
+
+    /** The last cross-channel blocked-term sweep (null when none, or dismissed). */
+    val termSweep: StateFlow<TermSweep?> = _termSweep.asStateFlow()
 
     // The channel the loaded bans belong to, kept so [unban] targets the same channel without re-resolving.
     private var channelId: String? = null
@@ -848,6 +855,43 @@ class ModerationController(
     }
 
     /**
+     * The logins of the other channels the signed-in user moderates — what a cross-channel term sweep touches
+     * besides their own channel, shown before it runs. Null when Twitch could not list them.
+     */
+    suspend fun moderatedChannelLogins(): List<String>? =
+        when (val result: ApiResult<List<ModeratedChannel>> = channelsApi.moderatedChannels()) {
+            is ApiResult.Ok -> result.value.map { it.displayName.ifBlank { it.login } }
+            is ApiResult.Failure -> null
+        }
+
+    /** Block [term] in the user's own channel and every channel they moderate, then reload; keeps the outcome. */
+    suspend fun addBlockedTermEverywhere(term: String) {
+        val channel: String = channelId ?: return
+        afterSweep(term, added = true, moderationApi.addBlockedTermEverywhere(channel, term))
+    }
+
+    /** Remove [term] from the user's own channel and every channel they moderate, then reload; keeps the outcome. */
+    suspend fun removeBlockedTermEverywhere(term: String) {
+        val channel: String = channelId ?: return
+        afterSweep(term, added = false, moderationApi.removeBlockedTermEverywhere(channel, term))
+    }
+
+    /** Hide the last sweep's outcome card. */
+    fun dismissTermSweep() {
+        _termSweep.value = null
+    }
+
+    private suspend fun afterSweep(term: String, added: Boolean, result: ApiResult<NetworkBanResult>) {
+        when (result) {
+            is ApiResult.Ok -> {
+                _termSweep.value = TermSweep(term = term, added = added, result = result.value)
+                load()
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
      * Set (or clear, with a blank [template]) this channel's own shoutout announcement template — the text
      * OTHER streamers' `!so` speaks/posts when THEY shout this channel out, then reload so it shows saved.
      */
@@ -1298,6 +1342,9 @@ class ModerationController(
         }
     }
 }
+
+/** One cross-channel blocked-term sweep: the [term], whether it was [added] or removed, and each channel's outcome. */
+data class TermSweep(val term: String, val added: Boolean, val result: NetworkBanResult)
 
 /** The Moderation page render state. */
 sealed interface ModerationState {
