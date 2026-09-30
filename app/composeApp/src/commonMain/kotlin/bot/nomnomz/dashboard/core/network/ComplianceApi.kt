@@ -14,7 +14,8 @@ import kotlinx.serialization.Serializable
 
 // The operator compliance plane's monitor surface (GET /api/v1/compliance/erasure*, gdpr-crypto.md §5.2):
 // every subject's GDPR requests, platform-wide, gated server-side on `audit:read`. Subject-initiated
-// requests stay on GdprApi; the operator-initiated export lives there too.
+// requests stay on GdprApi; the operator-initiated export lives there too. Re-running a failed erasure
+// (POST .../erasure/{id}/retry) is gated on `compliance:erasure`, like the operator erasure itself.
 
 /** Every subject's requests counted by status (backend `ErasureRequestSummaryDto`), from the real ledger. */
 @Serializable
@@ -50,6 +51,12 @@ interface ComplianceApi {
     ): ApiResult<PaginatedEnvelope<ErasureRequest>>
 
     suspend fun summary(): ApiResult<ErasureRequestSummary>
+
+    /** The counted blast radius of erasing [subjectUserId] — read before an operator confirms a re-run. */
+    suspend fun previewErasure(subjectUserId: String): ApiResult<ErasurePreview>
+
+    /** Re-runs a FAILED erasure request in place; the server refuses (409) any other state. */
+    suspend fun retryErasure(erasureRequestId: String): ApiResult<ErasureRequest>
 }
 
 class RestComplianceApi(private val client: ApiClient) : ComplianceApi {
@@ -71,4 +78,10 @@ class RestComplianceApi(private val client: ApiClient) : ComplianceApi {
 
     override suspend fun summary(): ApiResult<ErasureRequestSummary> =
         client.getEnvelope("api/v1/compliance/erasure/summary")
+
+    override suspend fun previewErasure(subjectUserId: String): ApiResult<ErasurePreview> =
+        client.getEnvelope("api/v1/compliance/erasure/preview?subjectUserId=${subjectUserId.encodeQuery()}")
+
+    override suspend fun retryErasure(erasureRequestId: String): ApiResult<ErasureRequest> =
+        client.postEnvelope("api/v1/compliance/erasure/$erasureRequestId/retry")
 }

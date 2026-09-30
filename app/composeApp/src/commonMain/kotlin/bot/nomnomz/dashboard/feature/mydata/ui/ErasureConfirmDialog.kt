@@ -92,7 +92,7 @@ private fun blastRadiusMessage(state: ErasurePreviewLoadState): String =
         is ErasurePreviewLoadState.Loading -> stringResource(Res.string.mydata_erase_blast_radius_checking)
         is ErasurePreviewLoadState.Failed -> stringResource(Res.string.mydata_erase_blast_radius_check_failed)
         is ErasurePreviewLoadState.Loaded -> {
-            val lines: List<String> = state.preview.categories.map { categoryLine(it) }
+            val lines: List<String> = state.preview.categories.map { erasureCategoryLine(it) }
             if (lines.isEmpty()) {
                 stringResource(Res.string.mydata_erase_blast_radius_none)
             } else {
@@ -105,8 +105,9 @@ private fun blastRadiusMessage(state: ErasurePreviewLoadState): String =
 // The backend ships a category KEY and a count, never a sentence — the language lives here. An unrecognised
 // key renders as an explicit "N rows of another kind" line rather than being dropped: silently omitting a
 // counted category would understate the blast radius, which is the exact failure this dialog exists to stop.
+// Shared with the operator re-run confirm (admin data requests), which words only the second-person lines itself.
 @Composable
-private fun categoryLine(category: ErasurePreviewCategory): String {
+internal fun erasureCategoryLine(category: ErasurePreviewCategory): String {
     val count: Int = category.rowCount
     return when (category.categoryKey) {
         "gdpr_erasure_category_profile" -> stringResource(Res.string.gdpr_erasure_category_profile)
