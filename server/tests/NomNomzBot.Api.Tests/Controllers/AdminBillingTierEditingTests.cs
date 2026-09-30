@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -43,7 +44,11 @@ public sealed class AdminBillingTierEditingTests
         out IBillingTierAdminService tierAdmin
     )
     {
-        tierAdmin = new BillingTierAdminService(db, TimeProvider.System);
+        tierAdmin = new BillingTierAdminService(
+            db,
+            TimeProvider.System,
+            Substitute.For<IFeatureFlagCacheService>()
+        );
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(Actor.ToString());
 

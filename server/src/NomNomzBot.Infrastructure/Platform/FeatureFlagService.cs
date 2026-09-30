@@ -11,7 +11,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
-using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
@@ -25,20 +24,18 @@ namespace NomNomzBot.Infrastructure.Platform;
 /// wins; else the global toggle, gated by a deterministic rollout-% bucket and the deployment-mode gate. The
 /// rollout bucket uses a process-independent FNV-1a hash of <c>BroadcasterId:Key</c> — never <c>GetHashCode</c> —
 /// so a channel's in/out decision is stable across instances and monotonic as the percentage climbs. Results are
-/// cached (<c>ff:{key}:{broadcasterId}</c>) with a short TTL.
-/// (Deferred — documented: the consent gate (per-subject, ambiguous for a channel flag), and live cache
-/// invalidation on FeatureFlagChangedEvent for global changes; the TTL bounds staleness meanwhile.)
+/// cached through <see cref="IFeatureFlagCacheService"/> with a short TTL; a tier edit drops every cached
+/// verdict at once. (Deferred — documented: the consent gate (per-subject, ambiguous for a channel flag), and
+/// live cache invalidation on FeatureFlagChangedEvent for global changes; the TTL bounds staleness meanwhile.)
 /// </summary>
 public sealed class FeatureFlagService(
     IApplicationDbContext db,
     ICurrentTenantService tenant,
-    ICacheService cache,
+    IFeatureFlagCacheService cache,
     IBillingTierService billingTiers,
     TimeProvider clock
 ) : IFeatureFlagService
 {
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
-
     public Task<bool> IsEnabledAsync(string flagKey, CancellationToken ct = default) =>
         tenant.BroadcasterId is { } broadcasterId
             ? IsEnabledForAsync(flagKey, broadcasterId, ct)
@@ -50,13 +47,12 @@ public sealed class FeatureFlagService(
         CancellationToken ct = default
     )
     {
-        string cacheKey = $"ff:{flagKey}:{broadcasterId}";
-        bool? cached = await cache.GetAsync<bool?>(cacheKey, ct);
-        if (cached is { } hit)
+        FeatureFlagCacheRead cached = await cache.GetAsync(flagKey, broadcasterId, ct);
+        if (cached.Enabled is { } hit)
             return hit;
 
         FeatureFlagEvaluation eval = await EvaluateAsync(flagKey, broadcasterId, ct);
-        await cache.SetAsync(cacheKey, eval.Enabled, CacheTtl, ct);
+        await cache.SetAsync(flagKey, broadcasterId, eval.Enabled, cached.Generation, ct);
         return eval.Enabled;
     }
 
