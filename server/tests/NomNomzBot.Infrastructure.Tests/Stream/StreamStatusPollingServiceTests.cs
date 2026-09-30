@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
@@ -21,6 +22,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Stream.Jobs;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stream;
@@ -385,6 +387,85 @@ public sealed class StreamStatusPollingServiceTests
 
         await act.Should().NotThrowAsync("a timeout on one channel must not abort the poll tick");
         await streams.Received(1).GetStreamAsync(healthyChannel, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Only_the_lease_holding_colour_polls_helix_and_the_successor_takes_over_after_the_handover()
+    {
+        TwoColourDeployment deployment = await TwoColourDeployment.StartAsync();
+        (StreamStatusPollingService blue, ITwitchStreamsApi blueStreams) = BuildColour(
+            deployment.Blue
+        );
+        (StreamStatusPollingService green, ITwitchStreamsApi greenStreams) = BuildColour(
+            deployment.Green
+        );
+
+        await blue.PollAllAsync(CancellationToken.None);
+        await green.PollAllAsync(CancellationToken.None);
+
+        await blueStreams.Received(1).GetStreamAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await greenStreams
+            .DidNotReceive()
+            .GetStreamAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+
+        await deployment.HandOverAsync();
+        await blue.PollAllAsync(CancellationToken.None);
+        await green.PollAllAsync(CancellationToken.None);
+
+        // The outgoing colour stopped polling with its lease; the successor polls now.
+        await blueStreams.Received(1).GetStreamAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await greenStreams
+            .Received(1)
+            .GetStreamAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+
+        await deployment.StopAsync();
+    }
+
+    private static (StreamStatusPollingService Service, ITwitchStreamsApi Streams) BuildColour(
+        IActiveInstanceGate instanceGate
+    )
+    {
+        ChannelContext ctx = Ctx(isLive: false);
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = ctx.BroadcasterId,
+                OwnerUserId = Guid.NewGuid(),
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-colour",
+                TwitchChannelId = "tw-colour",
+                Name = "streamer",
+                NameNormalized = "streamer",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.SaveChanges();
+
+        IChannelRegistry channels = Substitute.For<IChannelRegistry>();
+        channels.GetAll().Returns(new List<ChannelContext> { ctx });
+        IPlatformBotReadinessGate readiness = Substitute.For<IPlatformBotReadinessGate>();
+        readiness.IsPlatformBotConfiguredAsync(Arg.Any<CancellationToken>()).Returns(true);
+        ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
+        streams.GetStreamAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Offline());
+
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(db)
+            .AddSingleton(readiness)
+            .AddSingleton(streams)
+            .AddSingleton(Substitute.For<IEventBus>())
+            .AddSingleton(instanceGate)
+            .BuildServiceProvider();
+
+        StreamStatusPollingService service = new(
+            channels,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            TimeProvider.System,
+            NullLogger<StreamStatusPollingService>.Instance
+        );
+        return (service, streams);
     }
 
     /// <summary>

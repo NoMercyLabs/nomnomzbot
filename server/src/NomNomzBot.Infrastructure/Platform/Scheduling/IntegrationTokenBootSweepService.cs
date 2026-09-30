@@ -14,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Identity.Enums;
@@ -33,8 +34,11 @@ namespace NomNomzBot.Infrastructure.Platform.Scheduling;
 /// X (<c>twitter</c>) is intentionally NOT swept — platform-identity.md §10 makes it login-only: its OAuth
 /// tokens are vaulted at sign-in but no integration surface reads or refreshes them, so there is nothing to
 /// proactively refresh yet. Once X gains an active token-consuming surface it gets a sweep pass here too.
+///
+/// Blue/green: the refresh gate is per process, so the sweep runs only on the ACTIVE instance. A standby
+/// sweeps the moment it takes over, never while the outgoing colour is still refreshing the same tokens.
 /// </summary>
-public sealed class IntegrationTokenBootSweepService : IHostedService
+public sealed class IntegrationTokenBootSweepService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<IntegrationTokenBootSweepService> _logger;
@@ -48,16 +52,18 @@ public sealed class IntegrationTokenBootSweepService : IHostedService
         _logger = logger;
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using IServiceScope scope = _serviceProvider.CreateScope();
 
-        await SweepTwitchAsync(scope.ServiceProvider, cancellationToken);
-        await SweepKickAsync(scope.ServiceProvider, cancellationToken);
-        await SweepYouTubeAsync(scope.ServiceProvider, cancellationToken);
-    }
+        IActiveInstanceGate? instanceGate = scope.ServiceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is not null)
+            await instanceGate.WaitUntilActiveAsync(stoppingToken);
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        await SweepTwitchAsync(scope.ServiceProvider, stoppingToken);
+        await SweepKickAsync(scope.ServiceProvider, stoppingToken);
+        await SweepYouTubeAsync(scope.ServiceProvider, stoppingToken);
+    }
 
     private async Task SweepTwitchAsync(IServiceProvider services, CancellationToken ct)
     {

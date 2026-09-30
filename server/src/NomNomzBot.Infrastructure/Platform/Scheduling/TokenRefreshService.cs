@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform.Scheduling;
 
@@ -38,15 +39,29 @@ public class TokenRefreshService : BackgroundService
         {
             try
             {
-                using IServiceScope scope = _serviceProvider.CreateScope();
-                ITwitchAuthService authService =
-                    scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
-                await authService.RefreshExpiringTokensAsync(stoppingToken);
+                await RefreshOnceAsync(stoppingToken);
             }
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Error refreshing OAuth tokens.");
             }
         }
+    }
+
+    /// <summary>
+    /// One sweep. Blue/green overlap: only the ACTIVE instance refreshes — the refresh gate is per process,
+    /// so two colours would otherwise redeem the same refresh tokens at the same time.
+    /// Internal so tests can drive a deterministic tick.
+    /// </summary>
+    internal async Task RefreshOnceAsync(CancellationToken ct)
+    {
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        IActiveInstanceGate? instanceGate = scope.ServiceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is { IsActiveInstance: false })
+            return;
+
+        ITwitchAuthService authService =
+            scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
+        await authService.RefreshExpiringTokensAsync(ct);
     }
 }

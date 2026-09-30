@@ -8,15 +8,18 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Platform.Scheduling;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Scheduling;
@@ -93,7 +96,7 @@ public sealed class IntegrationTokenBootSweepServiceTests
             NullLogger<IntegrationTokenBootSweepService>.Instance
         );
 
-        await sut.StartAsync(CancellationToken.None);
+        await RunSweepAsync(sut);
 
         await twitchAuth.Received(1).RefreshExpiringTokensAsync(Arg.Any<CancellationToken>());
         await kick.Received(1).GetAsync(KickBroadcaster, Arg.Any<CancellationToken>());
@@ -146,8 +149,58 @@ public sealed class IntegrationTokenBootSweepServiceTests
         );
 
         // Twitch throwing must not stop Kick's sweep from running.
-        await sut.StartAsync(CancellationToken.None);
+        await RunSweepAsync(sut);
 
         await kick.Received(1).GetAsync(KickBroadcaster, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_standby_colour_sweeps_only_once_it_takes_over_from_the_live_colour()
+    {
+        TwoColourDeployment deployment = await TwoColourDeployment.StartAsync();
+        ITwitchAuthService blueAuth = Substitute.For<ITwitchAuthService>();
+        IntegrationTokenBootSweepService blue = BuildColour(blueAuth, deployment.Blue);
+        ITwitchAuthService greenAuth = Substitute.For<ITwitchAuthService>();
+        IntegrationTokenBootSweepService green = BuildColour(greenAuth, deployment.Green);
+
+        await RunSweepAsync(blue);
+        await green.StartAsync(CancellationToken.None);
+        Task greenSweep = green.ExecuteTask!;
+
+        await blueAuth.Received(1).RefreshExpiringTokensAsync(Arg.Any<CancellationToken>());
+        greenSweep.IsCompleted.Should().BeFalse("a standby waits for the takeover");
+        await greenAuth.DidNotReceive().RefreshExpiringTokensAsync(Arg.Any<CancellationToken>());
+
+        await deployment.HandOverAsync();
+        await greenSweep.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await greenAuth.Received(1).RefreshExpiringTokensAsync(Arg.Any<CancellationToken>());
+        await blueAuth.Received(1).RefreshExpiringTokensAsync(Arg.Any<CancellationToken>());
+
+        await deployment.StopAsync();
+    }
+
+    private static IntegrationTokenBootSweepService BuildColour(
+        ITwitchAuthService twitchAuth,
+        IActiveInstanceGate instanceGate
+    )
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(AuthTestBuilder.NewContext());
+        services.AddSingleton(twitchAuth);
+        services.AddSingleton(Substitute.For<IKickAccessTokenProvider>());
+        services.AddSingleton(Substitute.For<IYouTubeAccessTokenProvider>());
+        services.AddSingleton(instanceGate);
+        return new(
+            services.BuildServiceProvider(),
+            NullLogger<IntegrationTokenBootSweepService>.Instance
+        );
+    }
+
+    // The sweep runs in ExecuteAsync; StartAsync only launches it.
+    private static async Task RunSweepAsync(IntegrationTokenBootSweepService sut)
+    {
+        await sut.StartAsync(CancellationToken.None);
+        await sut.ExecuteTask!.WaitAsync(TimeSpan.FromSeconds(10));
     }
 }

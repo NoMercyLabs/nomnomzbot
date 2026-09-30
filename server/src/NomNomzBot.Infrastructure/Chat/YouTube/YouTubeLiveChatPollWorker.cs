@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Identity.Services;
@@ -132,6 +133,13 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
     internal async Task TickAsync(CancellationToken ct)
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
+
+        // Blue/green overlap: only the ACTIVE instance reads YouTube chat. Two colours polling the same
+        // chat publish every message twice (double command answers) and spend the Data API quota twice.
+        IActiveInstanceGate? instanceGate = scope.ServiceProvider.GetService<IActiveInstanceGate>();
+        if (instanceGate is { IsActiveInstance: false })
+            return;
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
