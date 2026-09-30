@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -633,6 +634,26 @@ public sealed class OnboardingSeedHandlerTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task EventSub_handler_on_a_standby_instance_leaves_subscribing_to_the_takeover()
+    {
+        ITwitchEventSubService eventSub = Substitute.For<ITwitchEventSubService>();
+        IActiveInstanceGate standby = Substitute.For<IActiveInstanceGate>();
+        standby.IsActiveInstance.Returns(false);
+        ListLogger<EventSubSubscribeOnOnboardingHandler> log = new();
+
+        await new EventSubSubscribeOnOnboardingHandler(eventSub, log, standby).HandleAsync(Event());
+
+        await eventSub
+            .DidNotReceive()
+            .EnsureSubscribedAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+        log.Entries.Should().BeEmpty("a standby start must not log a refusal per channel");
     }
 
     [Fact]

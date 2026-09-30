@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Events;
@@ -31,12 +32,18 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing.EventHandlers;
 /// </summary>
 public sealed class EventSubSubscribeOnOnboardingHandler(
     ITwitchEventSubService eventSub,
-    ILogger<EventSubSubscribeOnOnboardingHandler> logger
+    ILogger<EventSubSubscribeOnOnboardingHandler> logger,
+    IActiveInstanceGate? instanceGate = null
 ) : IEventHandler<ChannelOnboardedEvent>
 {
     public async Task HandleAsync(ChannelOnboardedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
+            return;
+
+        // A standby's subscribe is always refused, and BotLifecycleService subscribes every channel the moment
+        // this instance takes over — so a blue/green start would only log one refusal per channel.
+        if (instanceGate is { IsActiveInstance: false })
             return;
 
         try
