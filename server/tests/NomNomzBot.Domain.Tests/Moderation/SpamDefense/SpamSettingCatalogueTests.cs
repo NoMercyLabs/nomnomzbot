@@ -105,6 +105,48 @@ public class SpamSettingCatalogueTests
     }
 
     [Fact]
+    public void EverySettingNoRuntimeReadsYet_IsMarkedNotActive_WithTheSliceThatWiresIt()
+    {
+        // A knob the engine never reads must not look like a live control. Each of these is stored and
+        // shown, and nothing in the running engine consults it; the marker names the slice that ends that.
+        Dictionary<string, string> expected = new()
+        {
+            [nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere)] = "S-SPAM-TRUST-WIRE",
+            [nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance)] = "S-SPAM-TRUST-WIRE",
+            [nameof(SpamDefenseSettings.NonLatinScriptGate)] = "S-SPAM-TRUST-WIRE",
+            [nameof(SpamDefenseSettings.FollowSpikeFactor)] = "S-SPAM-FOLLOWBOT-WIRE",
+            [nameof(SpamDefenseSettings.JoinBurstFactor)] = "S-SPAM-LOCKDOWN-WIRE",
+            [nameof(SpamDefenseSettings.LockdownMinutes)] = "S-SPAM-LOCKDOWN-WIRE",
+            [nameof(SpamDefenseSettings.LockdownAutoExtend)] = "S-SPAM-LOCKDOWN-WIRE",
+            [nameof(SpamDefenseSettings.LockdownMaxMinutes)] = "S-SPAM-LOCKDOWN-WIRE",
+            [nameof(SpamDefenseSettings.NetworkSubscribe)] = "S-SPAM-NETWORK",
+            [nameof(SpamDefenseSettings.NetworkContribute)] = "S-SPAM-NETWORK",
+        };
+
+        Dictionary<string, string> marked = SpamSettingCatalogue
+            .All.Where(d => d.PendingSlice is not null)
+            .ToDictionary(d => d.Key, d => d.PendingSlice!);
+
+        marked.Should().Equal(expected);
+    }
+
+    [Fact]
+    public void ANotActiveSetting_SaysWhy_AndALiveOneCarriesNoReason()
+    {
+        SpamSettingDescriptor lockdown = SpamSettingCatalogue.For(
+            nameof(SpamDefenseSettings.LockdownMinutes)
+        )!;
+        SpamSettingDescriptor dryRun = SpamSettingCatalogue.For(
+            nameof(SpamDefenseSettings.DryRun)
+        )!;
+
+        lockdown.IsActive.Should().BeFalse();
+        lockdown.InactiveReasonKey.Should().Be("spam_setting_lockdown_minutes_inactive");
+        dryRun.IsActive.Should().BeTrue();
+        dryRun.InactiveReasonKey.Should().BeNull();
+    }
+
+    [Fact]
     public void EveryNumericSetting_HasARange()
     {
         // Ranges are enforced server-side (§6.1). A numeric knob with no bounds is one 0 away from
@@ -116,7 +158,7 @@ public class SpamSettingCatalogueTests
 
             SpamSettingDescriptor? descriptor = SpamSettingCatalogue.For(property.Name);
             descriptor.Should().NotBeNull(property.Name);
-            descriptor!.Minimum.Should().NotBeNull($"{property.Name} needs a lower bound");
+            descriptor.Minimum.Should().NotBeNull($"{property.Name} needs a lower bound");
             descriptor.Maximum.Should().NotBeNull($"{property.Name} needs an upper bound");
             descriptor.Maximum.Should().BeGreaterThan(descriptor.Minimum!.Value, property.Name);
         }

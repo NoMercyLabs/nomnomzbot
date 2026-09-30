@@ -186,7 +186,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
                     d.CostKey,
                     d.Minimum,
                     d.Maximum,
-                    d.IsToggle
+                    d.IsToggle,
+                    d.PendingSlice,
+                    d.InactiveReasonKey
                 ))
                 .ToList(),
             SpamSettingCatalogue

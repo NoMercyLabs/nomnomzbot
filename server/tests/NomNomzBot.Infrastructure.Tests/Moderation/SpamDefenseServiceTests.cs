@@ -462,6 +462,25 @@ public class SpamDefenseServiceTests : IDisposable
         policy.EnforcementEligibleAt.Should().Be(Now.UtcDateTime.AddDays(5));
     }
 
+    [Fact]
+    public async Task ThePolicyPage_MarksASettingNothingReadsYet_AsNotActive_WithItsReasonAndSlice()
+    {
+        using AppDbContext db = NewDbContext();
+        SpamDefensePolicyDto policy = await NewService(db).GetPolicyAsync(Channel);
+
+        SpamSettingDescriptorDto lockdown = policy.Catalogue.Single(d =>
+            d.Key == nameof(SpamDefenseSettings.LockdownMinutes)
+        );
+        SpamSettingDescriptorDto dryRun = policy.Catalogue.Single(d =>
+            d.Key == nameof(SpamDefenseSettings.DryRun)
+        );
+
+        lockdown.PendingSlice.Should().Be("S-SPAM-LOCKDOWN-WIRE");
+        lockdown.InactiveReasonKey.Should().Be("spam_setting_lockdown_minutes_inactive");
+        dryRun.PendingSlice.Should().BeNull();
+        dryRun.InactiveReasonKey.Should().BeNull();
+    }
+
     private void SetChannelCreatedAt(DateTime createdAt)
     {
         using AppDbContext db = NewDbContext();

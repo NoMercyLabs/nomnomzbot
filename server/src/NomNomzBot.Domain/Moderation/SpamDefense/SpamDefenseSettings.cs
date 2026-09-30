@@ -125,13 +125,24 @@ public sealed record SpamDefenseSettings
 /// <param name="Group">The section it belongs to in the editor.</param>
 /// <param name="Minimum">Lowest accepted value, or null for a toggle.</param>
 /// <param name="Maximum">Highest accepted value, or null for a toggle.</param>
+/// <param name="PendingSlice">
+/// The work item that wires this setting into the engine, or null when the engine already reads it. A
+/// setting with a pending slice is stored and shown, and the dashboard marks it "not yet active".
+/// </param>
 public sealed record SpamSettingDescriptor(
     string Key,
     string Group,
     double? Minimum = null,
-    double? Maximum = null
+    double? Maximum = null,
+    string? PendingSlice = null
 )
 {
+    /// <summary>True when the running engine reads this setting.</summary>
+    public bool IsActive => PendingSlice is null;
+
+    /// <summary>Resource key for why the setting has no effect yet, or null when it is live.</summary>
+    public string? InactiveReasonKey => IsActive ? null : $"spam_setting_{SnakeKey}_inactive";
+
     /// <summary>Resource key for the human-readable name.</summary>
     public string LabelKey => $"spam_setting_{SnakeKey}_label";
 
@@ -190,6 +201,15 @@ public static class SpamSettingCatalogue
         public const string Network = "network";
     }
 
+    /// <summary>The work items that wire a stored-but-unread setting into the engine.</summary>
+    public static class PendingSlices
+    {
+        public const string TrustWire = "S-SPAM-TRUST-WIRE";
+        public const string FollowBotWire = "S-SPAM-FOLLOWBOT-WIRE";
+        public const string LockdownWire = "S-SPAM-LOCKDOWN-WIRE";
+        public const string Network = "S-SPAM-NETWORK";
+    }
+
     /// <summary>
     /// The decisions that have no switch. A toggle that turns off "never punish a regular" is a toggle
     /// somebody eventually flips at 3am during a raid, and then it is a person's account.
@@ -206,11 +226,27 @@ public static class SpamSettingCatalogue
         new(nameof(SpamDefenseSettings.IsEnabled), Groups.Master),
         new(nameof(SpamDefenseSettings.DryRun), Groups.Master),
         new(nameof(SpamDefenseSettings.TrustThresholds), Groups.Trust),
-        new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere), Groups.Trust, 1, 200),
-        new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance), Groups.Trust, 1, 500),
+        new(
+            nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere),
+            Groups.Trust,
+            1,
+            200,
+            PendingSlices.TrustWire
+        ),
+        new(
+            nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance),
+            Groups.Trust,
+            1,
+            500,
+            PendingSlices.TrustWire
+        ),
         new(nameof(SpamDefenseSettings.NearDuplicateSimilarity), Groups.Content, 0, 1),
         new(nameof(SpamDefenseSettings.MinimumSkeletonLength), Groups.Content, 2, 50),
-        new(nameof(SpamDefenseSettings.NonLatinScriptGate), Groups.Content),
+        new(
+            nameof(SpamDefenseSettings.NonLatinScriptGate),
+            Groups.Content,
+            PendingSlice: PendingSlices.TrustWire
+        ),
         new(nameof(SpamDefenseSettings.QualifyNoStandingShare), Groups.Campaign, 0.5, 1),
         new(nameof(SpamDefenseSettings.DequalifyNoStandingShare), Groups.Campaign, 0.3, 0.95),
         new(nameof(SpamDefenseSettings.MinimumCohortSize), Groups.Campaign, 2, 100),
@@ -218,13 +254,49 @@ public static class SpamSettingCatalogue
         new(nameof(SpamDefenseSettings.MaxWindowSeconds), Groups.Campaign, 60, 7200),
         new(nameof(SpamDefenseSettings.ActionDelaySeconds), Groups.Campaign, 0, 120),
         new(nameof(SpamDefenseSettings.AutoReverseOnDequalify), Groups.Campaign),
-        new(nameof(SpamDefenseSettings.FollowSpikeFactor), Groups.Bursts, 1.5, 50),
-        new(nameof(SpamDefenseSettings.JoinBurstFactor), Groups.Bursts, 1.5, 50),
-        new(nameof(SpamDefenseSettings.LockdownMinutes), Groups.Lockdown, 1, 240),
-        new(nameof(SpamDefenseSettings.LockdownAutoExtend), Groups.Lockdown),
-        new(nameof(SpamDefenseSettings.LockdownMaxMinutes), Groups.Lockdown, 5, 480),
-        new(nameof(SpamDefenseSettings.NetworkSubscribe), Groups.Network),
-        new(nameof(SpamDefenseSettings.NetworkContribute), Groups.Network),
+        new(
+            nameof(SpamDefenseSettings.FollowSpikeFactor),
+            Groups.Bursts,
+            1.5,
+            50,
+            PendingSlices.FollowBotWire
+        ),
+        new(
+            nameof(SpamDefenseSettings.JoinBurstFactor),
+            Groups.Bursts,
+            1.5,
+            50,
+            PendingSlices.LockdownWire
+        ),
+        new(
+            nameof(SpamDefenseSettings.LockdownMinutes),
+            Groups.Lockdown,
+            1,
+            240,
+            PendingSlices.LockdownWire
+        ),
+        new(
+            nameof(SpamDefenseSettings.LockdownAutoExtend),
+            Groups.Lockdown,
+            PendingSlice: PendingSlices.LockdownWire
+        ),
+        new(
+            nameof(SpamDefenseSettings.LockdownMaxMinutes),
+            Groups.Lockdown,
+            5,
+            480,
+            PendingSlices.LockdownWire
+        ),
+        new(
+            nameof(SpamDefenseSettings.NetworkSubscribe),
+            Groups.Network,
+            PendingSlice: PendingSlices.Network
+        ),
+        new(
+            nameof(SpamDefenseSettings.NetworkContribute),
+            Groups.Network,
+            PendingSlice: PendingSlices.Network
+        ),
         new(nameof(SpamDefenseSettings.RequiredCorroborations), Groups.Network, 1, 20),
     ];
 
