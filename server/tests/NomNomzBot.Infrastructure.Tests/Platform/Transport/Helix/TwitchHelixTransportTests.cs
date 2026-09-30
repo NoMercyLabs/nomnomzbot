@@ -11,6 +11,7 @@
 using System.Net;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Common.Interfaces;
@@ -19,6 +20,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
+using NomNomzBot.Infrastructure.Tests.Seeding;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 
@@ -42,7 +44,11 @@ public class TwitchHelixTransportTests
         RecordingHelixHandler Wire,
         FakeTwitchTokenResolver Resolver,
         CapturingEventBus Bus
-    ) Build(IEnumerable<Func<HttpResponseMessage>> responses, string? dbClientId = null)
+    ) Build(
+        IEnumerable<Func<HttpResponseMessage>> responses,
+        string? dbClientId = null,
+        ILogger<TwitchHelixTransport>? logger = null
+    )
     {
         RecordingHelixHandler wire = new(responses);
         // The auth-handler config fallback is "config-client-id"; when the credentials provider supplies a
@@ -69,7 +75,7 @@ public class TwitchHelixTransportTests
             new StubCredentialsProvider(dbClientId),
             bus,
             sanctions,
-            NullLogger<TwitchHelixTransport>.Instance
+            logger ?? NullLogger<TwitchHelixTransport>.Instance
         );
         return (transport, wire, resolver, bus);
     }
@@ -513,6 +519,32 @@ public class TwitchHelixTransportTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be(TwitchErrorCodes.NotFound);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, LogLevel.Debug)]
+    [InlineData(HttpStatusCode.NotFound, LogLevel.Debug)]
+    [InlineData(HttpStatusCode.Conflict, LogLevel.Debug)]
+    [InlineData(HttpStatusCode.TooManyRequests, LogLevel.Debug)]
+    [InlineData(HttpStatusCode.InternalServerError, LogLevel.Warning)]
+    [InlineData(HttpStatusCode.BadGateway, LogLevel.Warning)]
+    [InlineData(HttpStatusCode.Forbidden, LogLevel.Warning)]
+    public async Task SendAsync_NonSuccess_LogsExpectedClientResponsesAtDebugAndTheRestAtWarning(
+        HttpStatusCode status,
+        LogLevel expected
+    )
+    {
+        ListLogger<TwitchHelixTransport> logger = new();
+        (TwitchHelixTransport transport, _, _, _) = Build([() => new(status)], logger: logger);
+
+        Result result = await transport.SendAsync(
+            new(HttpMethod.Delete, "channels/vips", TwitchHelixAuth.User, Tenant)
+        );
+
+        result.IsFailure.Should().BeTrue("the failure still reaches the caller as a typed error");
+        (LogLevel Level, string Message) entry = logger.Entries.Should().ContainSingle().Subject;
+        entry.Level.Should().Be(expected);
+        entry.Message.Should().Contain($"{(int)status}").And.Contain("channels/vips");
     }
 
     [Fact]

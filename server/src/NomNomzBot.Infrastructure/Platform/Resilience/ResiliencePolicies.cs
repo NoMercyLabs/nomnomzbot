@@ -87,6 +87,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddTwitchResilienceHandler(this IHttpClientBuilder builder)
     {
+        builder.Services.AddResilienceTelemetrySeverity();
         builder.AddResilienceHandler(
             "twitch-resilience",
             (pipeline, context) =>
@@ -156,6 +157,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddChatEmoteResilienceHandler(this IHttpClientBuilder builder)
     {
+        builder.Services.AddResilienceTelemetrySeverity();
         builder.AddResilienceHandler(
             "chat-emote-resilience",
             pipeline =>
@@ -205,6 +207,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddAlejoResilienceHandler(this IHttpClientBuilder builder)
     {
+        builder.Services.AddResilienceTelemetrySeverity();
         builder.AddResilienceHandler(
             "alejo-resilience",
             pipeline =>
@@ -254,6 +257,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddDiscordResilienceHandler(this IHttpClientBuilder builder)
     {
+        builder.Services.AddResilienceTelemetrySeverity();
         builder.AddResilienceHandler(
             "discord-resilience",
             pipeline =>
@@ -334,6 +338,7 @@ public static class ResiliencePolicies
     /// </summary>
     public static IHttpClientBuilder AddKickResilienceHandler(this IHttpClientBuilder builder)
     {
+        builder.Services.AddResilienceTelemetrySeverity();
         builder.AddResilienceHandler(
             "kick-resilience",
             pipeline =>
@@ -411,6 +416,7 @@ public static class ResiliencePolicies
                 }
             );
 
+        builder.Services.AddResilienceTelemetrySeverity();
         builder.AddResilienceHandler(
             "spotify-resilience",
             pipeline =>

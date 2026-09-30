@@ -390,7 +390,8 @@ public sealed class TwitchHelixTransport(
         if (response.StatusCode == HttpStatusCode.Unauthorized)
             await PublishReauthAsync(request, "unauthorized", null, ct);
 
-        logger.LogWarning(
+        logger.Log(
+            LogLevelFor(response.StatusCode),
             "Helix {Method} {Path} failed: {Status} ({Code}) {Detail}",
             request.Method,
             request.Path,
@@ -401,6 +402,19 @@ public sealed class TwitchHelixTransport(
 
         return Result.Failure($"Twitch request failed ({(int)response.StatusCode}).", code, detail);
     }
+
+    /// <summary>Expected client responses (validation, not found, conflict, rate limited) are normal Helix
+    /// traffic and the caller already surfaces them as typed errors, so they log at Debug. 5xx, 401 after the
+    /// refresh-once retry, 403 (missing scope) and anything unexpected stay at Warning.</summary>
+    private static LogLevel LogLevelFor(HttpStatusCode status) =>
+        status
+            is HttpStatusCode.BadRequest
+                or HttpStatusCode.NotFound
+                or HttpStatusCode.Conflict
+                or HttpStatusCode.UnprocessableEntity
+                or HttpStatusCode.TooManyRequests
+            ? LogLevel.Debug
+            : LogLevel.Warning;
 
     private static async Task<string?> SafeReadBodyAsync(
         HttpResponseMessage response,
