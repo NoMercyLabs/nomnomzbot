@@ -31,6 +31,9 @@ namespace NomNomzBot.Infrastructure.Moderation;
 /// </summary>
 public sealed class SpamDefenseService : ISpamDefenseService
 {
+    /// <summary>The dry-run observation window a channel serves before it may act (spam-defense.md §6.2).</summary>
+    private const int ObservationDays = 7;
+
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _time;
     private readonly IModerationService _moderation;
@@ -108,6 +111,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 errorCode: "VALIDATION_FAILED"
             );
 
+        bool wasEnabled = (await GetSettingsAsync(broadcasterId, ct)).IsEnabled;
         SpamDefensePolicy? policy = await LoadPolicyAsync(broadcasterId, track: true, ct);
         if (policy is null)
         {
@@ -117,10 +121,14 @@ public sealed class SpamDefenseService : ISpamDefenseService
 
         policy.ApplySettings(settings);
 
-        // The seven-day observation clock starts the first time the stack is switched on, so the
-        // dashboard can answer "how long have I been watching?" rather than guessing.
+        // The seven-day observation clock starts the first time the stack is switched on (§6.2). A channel
+        // that tracked the enabled defaults has been observing since it was onboarded, so its first save
+        // does not restart the clock; a channel that had the stack off starts it now.
         if (settings.IsEnabled && policy.EnforcementEligibleAt is null)
-            policy.EnforcementEligibleAt = _time.GetUtcNow().UtcDateTime.AddDays(7);
+            policy.EnforcementEligibleAt =
+                (wasEnabled ? await ChannelCreatedAtAsync(broadcasterId, ct) : null)?.AddDays(
+                    ObservationDays
+                ) ?? _time.GetUtcNow().UtcDateTime.AddDays(ObservationDays);
 
         await SaveOutsideTheTenantWhenPlatformScopedAsync(broadcasterId, ct);
         return Result.Success(policy.ToSettings());
@@ -187,7 +195,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
                     SpamSettingCatalogue.GuaranteeKey(decision)
                 ))
                 .ToList(),
-            stored?.EnforcementEligibleAt,
+            await EnforcementEligibleAtAsync(broadcasterId, ct),
             // Whether this channel has chosen its own values or is still tracking the shipped
             // defaults. The dashboard shows the difference so nobody mistakes a default for a decision.
             stored is not null
@@ -386,7 +394,11 @@ public sealed class SpamDefenseService : ISpamDefenseService
         );
 
         SpamTrustTier tier = await ResolveTierAsync(request, settings, ct);
-        SpamDecision decision = SpamEnforcement.Decide(content.Confidence, tier, settings.DryRun);
+        // Enforcement switched on inside the observation window still only observes: the window is the
+        // safety story (§6.2), so turning dry run off early cannot skip it.
+        bool observing =
+            settings.DryRun || await IsInObservationWindowAsync(request.BroadcasterId, ct);
+        SpamDecision decision = SpamEnforcement.Decide(content.Confidence, tier, observing);
 
         // Nothing fired and nothing to say: do not write a row per ordinary message. The detection log
         // is for verdicts a human might review, not a copy of chat.
@@ -546,6 +558,37 @@ public sealed class SpamDefenseService : ISpamDefenseService
             }
         );
     }
+
+    /// <summary>
+    /// When this channel may first act: its stamped clock, else seven days after it was onboarded (a channel
+    /// that never saved settings tracks the enabled defaults, so it has been observing since then).
+    /// </summary>
+    private async Task<DateTime?> EnforcementEligibleAtAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        DateTime? stamped = await _db
+            .SpamDefensePolicies.IgnoreQueryFilters()
+            .Where(p => p.BroadcasterId == broadcasterId && p.DeletedAt == null)
+            .Select(p => p.EnforcementEligibleAt)
+            .FirstOrDefaultAsync(ct);
+        return stamped
+            ?? (await ChannelCreatedAtAsync(broadcasterId, ct))?.AddDays(ObservationDays);
+    }
+
+    private async Task<bool> IsInObservationWindowAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        DateTime? eligibleAt = await EnforcementEligibleAtAsync(broadcasterId, ct);
+        return eligibleAt is not null && _time.GetUtcNow().UtcDateTime < eligibleAt.Value;
+    }
+
+    private Task<DateTime?> ChannelCreatedAtAsync(Guid broadcasterId, CancellationToken ct) =>
+        _db
+            .Channels.IgnoreQueryFilters()
+            .Where(c => c.Id == broadcasterId)
+            .Select(c => (DateTime?)c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
 
     private async Task<SpamDefensePolicy?> LoadPolicyAsync(
         Guid broadcasterId,

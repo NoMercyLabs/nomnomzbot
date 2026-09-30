@@ -387,16 +387,86 @@ public class SpamDefenseServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task EnablingTheStack_StartsTheSevenDayObservationClock()
+    public async Task EnablingTheStackAfterItWasOff_StartsTheSevenDayObservationClockNow()
     {
         // §6.2 — so the dashboard can answer "how long have I been watching?" rather than guessing.
         using AppDbContext db = NewDbContext();
-        await NewService(db).UpdateSettingsAsync(Channel, new SpamDefenseSettings());
+        SpamDefenseService service = NewService(db);
+        await service.UpdateSettingsAsync(Channel, new SpamDefenseSettings { IsEnabled = false });
+        await service.UpdateSettingsAsync(Channel, new SpamDefenseSettings());
 
         using AppDbContext read = NewDbContext();
         SpamDefensePolicy policy = await read.SpamDefensePolicies.SingleAsync();
 
         policy.EnforcementEligibleAt.Should().Be(Now.UtcDateTime.AddDays(7));
+    }
+
+    [Fact]
+    public async Task AChannelTrackingTheDefaults_KeepsTheClockItStartedAtOnboarding_OnItsFirstSave()
+    {
+        SetChannelCreatedAt(Now.UtcDateTime.AddDays(-2));
+
+        using AppDbContext db = NewDbContext();
+        await NewService(db).UpdateSettingsAsync(Channel, new SpamDefenseSettings());
+
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDefensePolicies.SingleAsync())
+            .EnforcementEligibleAt.Should()
+            .Be(Now.UtcDateTime.AddDays(5));
+    }
+
+    [Fact]
+    public async Task TurningDryRunOffInsideTheSevenDayWindow_StillOnlyObserves()
+    {
+        SetChannelCreatedAt(Now.UtcDateTime.AddDays(-2));
+        using (AppDbContext setup = NewDbContext())
+            await NewService(setup)
+                .UpdateSettingsAsync(Channel, new SpamDefenseSettings { DryRun = false });
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db)
+            .EvaluateAsync(Message("f​r​ee f​ollows"));
+
+        result!.Decision.IsDryRun.Should().BeTrue();
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.Decision.WouldHaveBeen.Should().Be(SpamOutcome.DeleteAndEscalate);
+        using AppDbContext read = NewDbContext();
+        (await read.SpamDetections.SingleAsync()).WasDryRun.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OnceTheSevenDayWindowHasPassed_TheSameChannelActs()
+    {
+        SetChannelCreatedAt(Now.UtcDateTime.AddDays(-2));
+        using (AppDbContext setup = NewDbContext())
+            await NewService(setup)
+                .UpdateSettingsAsync(Channel, new SpamDefenseSettings { DryRun = false });
+        _time.Advance(TimeSpan.FromDays(6));
+
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db)
+            .EvaluateAsync(Message("f​r​ee f​ollows"));
+
+        result!.Decision.IsDryRun.Should().BeFalse();
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+    }
+
+    [Fact]
+    public async Task ThePolicyPage_ShowsTheWindowOfAChannelThatNeverSaved()
+    {
+        SetChannelCreatedAt(Now.UtcDateTime.AddDays(-2));
+
+        using AppDbContext db = NewDbContext();
+        SpamDefensePolicyDto policy = await NewService(db).GetPolicyAsync(Channel);
+
+        policy.EnforcementEligibleAt.Should().Be(Now.UtcDateTime.AddDays(5));
+    }
+
+    private void SetChannelCreatedAt(DateTime createdAt)
+    {
+        using AppDbContext db = NewDbContext();
+        db.Channels.Where(c => c.Id == Channel)
+            .ExecuteUpdate(s => s.SetProperty(c => c.CreatedAt, createdAt));
     }
 
     // ---- Campaigns and follow-bot blocks ---------------------------------------------------------
