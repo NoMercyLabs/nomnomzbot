@@ -53,6 +53,11 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         typeof(RefreshToken),
         typeof(AuthSession),
         typeof(NomNomzBot.Domain.Analytics.Entities.ViewerProfile),
+        typeof(NomNomzBot.Domain.Economy.Entities.CurrencyAccount),
+        typeof(NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry),
+        typeof(NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut),
+        typeof(NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent),
+        typeof(NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot),
     ];
 
     public GdprTestDbContext(DbContextOptions<GdprTestDbContext> options)
@@ -79,6 +84,16 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<NomNomzBot.Domain.Analytics.Entities.ViewerProfile> ViewerProfiles =>
         Set<NomNomzBot.Domain.Analytics.Entities.ViewerProfile>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyAccount>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
+        Set<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut> LeaderboardOptOuts =>
+        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
+        Set<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent>();
+    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
+        Set<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -113,6 +128,11 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         b.Entity<RefreshToken>().HasKey(e => e.Id);
         b.Entity<AuthSession>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Analytics.Entities.ViewerProfile>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Economy.Entities.CurrencyAccount>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot>().HasKey(e => e.Id);
     }
 
     // ── Unmapped IApplicationDbContext surface — never reached by these tests ──
@@ -335,10 +355,6 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.EarningRule> EarningRules =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyAccount> CurrencyAccounts =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry> CurrencyLedgerEntries =>
-        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogItem> CatalogItems =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CatalogPurchase> CatalogPurchases =>
@@ -349,8 +365,6 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent> ViewerAgeConsents =>
-        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJar> SavingsJars =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.SavingsJarMembership> SavingsJarMemberships =>
@@ -358,10 +372,6 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Economy.Entities.JarContribution> JarContributions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardConfig> LeaderboardConfigs =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut> LeaderboardOptOuts =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot> LeaderboardSnapshots =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.BillingTier> BillingTiers =>
         throw new NotSupportedException();
@@ -416,11 +426,11 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
 }
 
@@ -443,7 +453,7 @@ internal sealed class GdprTestUnitOfWork : IUnitOfWork
         Func<CancellationToken, Task> operation,
         CancellationToken ct = default
     ) =>
-        ExecuteInTransactionAsync<bool>(
+        ExecuteInTransactionAsync(
             async token =>
             {
                 await operation(token);
@@ -547,5 +557,5 @@ internal sealed class NoopScopeGrantService : IScopeGrantService
         Guid connectionId,
         IReadOnlyList<string> actualScopes,
         CancellationToken cancellationToken = default
-    ) => Task.FromResult(Result.Success<IReadOnlyList<string>>(actualScopes));
+    ) => Task.FromResult(Result.Success(actualScopes));
 }

@@ -131,6 +131,12 @@ public sealed class ErasureService : IErasureService
     private const string ConsentsCategoryKey = "gdpr_erasure_category_consents";
     private const string KeysCategoryKey = "gdpr_erasure_category_keys";
 
+    // Redaction values for [PII-hash]/[PII-scrub] columns that survive erasure as row data (economy.md §9
+    // decision 2) rather than being hard-deleted or crypto-shredded — the row's non-PII content (balance,
+    // ledger amount, historical rank) stays meaningful, only the identifying value is destroyed.
+    private const string ErasedTwitchUserIdPlaceholder = "erased";
+    private const string ErasedDisplayNamePlaceholder = "Deleted User";
+
     public async Task<Result<ErasurePreviewDto>> PreviewErasureAsync(
         PreviewErasureRequest request,
         CancellationToken cancellationToken = default
@@ -382,6 +388,72 @@ public sealed class ErasureService : IErasureService
             .ToListAsync(cancellationToken);
         _db.ViewerData.RemoveRange(viewerData);
         CountStep(tablesAffected, ref rowsAffected, "ViewerData", viewerData.Count);
+
+        // 4a. Scrub (never hard-delete): the economy.md [PII-hash]/[PII-scrub] rows §9 decision 2 says are
+        //     "protected as row data" rather than crypto-shredded. CurrencyLedgerEntry/LeaderboardSnapshot
+        //     are APPEND-ONLY (ledger integrity, historical ranks) and CurrencyAccount/LeaderboardOptOut/
+        //     ViewerAgeConsent are live rows other subsystems still read by ViewerUserId — only the
+        //     denormalized Twitch id (and the leaderboard snapshot's display name) is redacted in place,
+        //     cross-channel, soft-deleted rows included. ViewerProfile's own doc comment already promised
+        //     this ("GDPR erasure scrubs the PII snapshots here") but nothing here ever did it.
+        List<Domain.Economy.Entities.CurrencyAccount> currencyAccounts = await _db
+            .CurrencyAccounts.IgnoreQueryFilters()
+            .Where(a => a.ViewerUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Economy.Entities.CurrencyAccount account in currencyAccounts)
+            account.ViewerTwitchUserId = ErasedTwitchUserIdPlaceholder;
+        CountStep(tablesAffected, ref rowsAffected, "CurrencyAccounts", currencyAccounts.Count);
+
+        List<Domain.Economy.Entities.CurrencyLedgerEntry> ledgerEntries = await _db
+            .CurrencyLedgerEntries.IgnoreQueryFilters()
+            .Where(e => e.ViewerUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Economy.Entities.CurrencyLedgerEntry entry in ledgerEntries)
+            entry.ViewerTwitchUserId = ErasedTwitchUserIdPlaceholder;
+        CountStep(tablesAffected, ref rowsAffected, "CurrencyLedgerEntries", ledgerEntries.Count);
+
+        List<Domain.Economy.Entities.LeaderboardOptOut> leaderboardOptOuts = await _db
+            .LeaderboardOptOuts.IgnoreQueryFilters()
+            .Where(o => o.ViewerUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Economy.Entities.LeaderboardOptOut optOut in leaderboardOptOuts)
+            optOut.ViewerTwitchUserId = ErasedTwitchUserIdPlaceholder;
+        CountStep(tablesAffected, ref rowsAffected, "LeaderboardOptOuts", leaderboardOptOuts.Count);
+
+        List<Domain.Economy.Entities.ViewerAgeConsent> ageConsents = await _db
+            .ViewerAgeConsents.IgnoreQueryFilters()
+            .Where(c => c.ViewerUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Economy.Entities.ViewerAgeConsent consent in ageConsents)
+            consent.ViewerTwitchUserId = ErasedTwitchUserIdPlaceholder;
+        CountStep(tablesAffected, ref rowsAffected, "ViewerAgeConsents", ageConsents.Count);
+
+        List<Domain.Economy.Entities.LeaderboardSnapshot> leaderboardSnapshots = await _db
+            .LeaderboardSnapshots.Where(s => s.SubjectUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Economy.Entities.LeaderboardSnapshot snapshot in leaderboardSnapshots)
+        {
+            snapshot.SubjectTwitchUserId = ErasedTwitchUserIdPlaceholder;
+            snapshot.DisplayNameSnapshot = ErasedDisplayNamePlaceholder;
+        }
+        CountStep(
+            tablesAffected,
+            ref rowsAffected,
+            "LeaderboardSnapshots",
+            leaderboardSnapshots.Count
+        );
+
+        List<Domain.Analytics.Entities.ViewerProfile> viewerProfiles = await _db
+            .ViewerProfiles.IgnoreQueryFilters()
+            .Where(p => p.ViewerUserId == user.Id)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Analytics.Entities.ViewerProfile profile in viewerProfiles)
+        {
+            profile.ViewerTwitchUserId = ErasedTwitchUserIdPlaceholder;
+            profile.UsernameSnapshot = null;
+            profile.DisplayNameSnapshot = null;
+        }
+        CountStep(tablesAffected, ref rowsAffected, "ViewerProfiles", viewerProfiles.Count);
 
         // 5. Hard delete: legacy service tokens (Service.UserId stores the external Twitch user id).
         List<Service> services = await _db

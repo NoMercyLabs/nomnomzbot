@@ -452,6 +452,154 @@ public sealed class ErasureServiceTests
         audit.RowsAffected.Should().BeGreaterThanOrEqualTo(2);
     }
 
+    /// <summary>
+    /// economy.md L.3/K.2/K.3/L.2/K.8 mark these fields `[PII-hash]`/`[PII-scrub]`, and
+    /// <c>ViewerProfile</c>'s own doc comment says "GDPR erasure scrubs the PII snapshots here" — but the
+    /// pipeline never touched any of them until this slice. The rows themselves survive (append-only
+    /// ledger integrity, the wallet/opt-out/consent-cache rows, the frozen leaderboard rank) — only the
+    /// denormalized Twitch id (and the leaderboard snapshot's display name) is scrubbed in place.
+    /// </summary>
+    [Fact]
+    public async Task Erasure_ScrubsPiiHashFieldsOnEconomyAndAnalyticsRows_AcrossChannels_AndLeavesOthers()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+
+        h.Db.CurrencyAccounts.Add(
+            new NomNomzBot.Domain.Economy.Entities.CurrencyAccount
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = SubjectUser,
+                ViewerTwitchUserId = "tw-subject",
+            }
+        );
+        h.Db.CurrencyAccounts.Add(
+            new NomNomzBot.Domain.Economy.Entities.CurrencyAccount
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = OtherUser,
+                ViewerTwitchUserId = "tw-other",
+            }
+        );
+        h.Db.CurrencyLedgerEntries.Add(
+            new NomNomzBot.Domain.Economy.Entities.CurrencyLedgerEntry
+            {
+                BroadcasterId = OtherChannel,
+                TenantPosition = 1,
+                AccountId = Guid.CreateVersion7(),
+                ViewerUserId = SubjectUser,
+                ViewerTwitchUserId = "tw-subject",
+                Amount = 10,
+                BalanceAfter = 10,
+                EntryType = Domain.Economy.Enums.CurrencyEntryType.AdminAdjust,
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
+        h.Db.LeaderboardOptOuts.Add(
+            new NomNomzBot.Domain.Economy.Entities.LeaderboardOptOut
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = SubjectUser,
+                ViewerTwitchUserId = "tw-subject",
+                OptedOutAt = DateTime.UtcNow,
+            }
+        );
+        h.Db.ViewerAgeConsents.Add(
+            new NomNomzBot.Domain.Economy.Entities.ViewerAgeConsent
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = SubjectUser,
+                ViewerTwitchUserId = "tw-subject",
+                ConsentRecordId = Guid.CreateVersion7(),
+                Granted = true,
+                ConfirmedAt = DateTime.UtcNow,
+                ConfirmationMethod = "chat",
+            }
+        );
+        h.Db.LeaderboardSnapshots.Add(
+            new NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot
+            {
+                LeaderboardConfigId = Guid.CreateVersion7(),
+                BroadcasterId = SubjectChannel,
+                PeriodKey = "2026-09",
+                Rank = 1,
+                SubjectUserId = SubjectUser,
+                SubjectTwitchUserId = "tw-subject",
+                DisplayNameSnapshot = "Subject",
+                Value = 100,
+                CapturedAt = DateTime.UtcNow,
+            }
+        );
+        h.Db.ViewerProfiles.Add(
+            new NomNomzBot.Domain.Analytics.Entities.ViewerProfile
+            {
+                BroadcasterId = OtherChannel,
+                ViewerUserId = SubjectUser,
+                ViewerTwitchUserId = "tw-subject",
+                UsernameSnapshot = "subject",
+                DisplayNameSnapshot = "Subject",
+                DeletedAt = DateTime.UtcNow,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasureRequestDto> result = await h.Sut.RequestErasureAsync(
+            SelfErasure(SubjectUser)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+
+        NomNomzBot.Domain.Economy.Entities.CurrencyAccount subjectAccount = await h
+            .Db.CurrencyAccounts.IgnoreQueryFilters()
+            .SingleAsync(a => a.ViewerUserId == SubjectUser);
+        subjectAccount.ViewerTwitchUserId.Should().NotBe("tw-subject");
+        NomNomzBot.Domain.Economy.Entities.CurrencyAccount otherAccount = await h
+            .Db.CurrencyAccounts.IgnoreQueryFilters()
+            .SingleAsync(a => a.ViewerUserId == OtherUser);
+        otherAccount
+            .ViewerTwitchUserId.Should()
+            .Be("tw-other", "erasure must never touch another subject");
+
+        (await h.Db.CurrencyLedgerEntries.IgnoreQueryFilters().SingleAsync())
+            .ViewerTwitchUserId.Should()
+            .NotBe(
+                "tw-subject",
+                "the ledger entry survives (append-only) but its PII-hash field is scrubbed"
+            );
+
+        (await h.Db.LeaderboardOptOuts.IgnoreQueryFilters().SingleAsync())
+            .ViewerTwitchUserId.Should()
+            .NotBe("tw-subject");
+        (await h.Db.ViewerAgeConsents.IgnoreQueryFilters().SingleAsync())
+            .ViewerTwitchUserId.Should()
+            .NotBe("tw-subject");
+
+        NomNomzBot.Domain.Economy.Entities.LeaderboardSnapshot snapshot =
+            await h.Db.LeaderboardSnapshots.SingleAsync();
+        snapshot.SubjectTwitchUserId.Should().NotBe("tw-subject");
+        snapshot
+            .DisplayNameSnapshot.Should()
+            .NotBe("Subject", "L.3 also marks the display name [PII-scrub]");
+        snapshot.Rank.Should().Be(1, "the historical rank itself is not PII and must survive");
+
+        (await h.Db.ViewerProfiles.IgnoreQueryFilters().SingleAsync())
+            .ViewerTwitchUserId.Should()
+            .NotBe("tw-subject", "already-soft-deleted profiles are scrubbed too, like ViewerData");
+
+        ComplianceAuditLog audit = await h.Db.ComplianceAuditLogs.SingleAsync();
+        audit
+            .TablesAffected.Should()
+            .Contain([
+                "CurrencyAccounts",
+                "CurrencyLedgerEntries",
+                "LeaderboardOptOuts",
+                "ViewerAgeConsents",
+                "LeaderboardSnapshots",
+                "ViewerProfiles",
+            ]);
+    }
+
     [Fact]
     public async Task Erasure_WithNoVaultConnections_StillSucceeds()
     {
