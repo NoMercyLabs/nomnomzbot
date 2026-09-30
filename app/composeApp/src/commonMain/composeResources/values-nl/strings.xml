@@ -3663,6 +3663,7 @@
     <string name="admin_tier_field_public">Publiek (getoond op de prijzenpagina)</string>
     <string name="admin_tier_field_bot_name">Staat een aangepaste botnaam toe</string>
     <string name="admin_tier_field_priority_support">Prioriteitsondersteuning</string>
+    <string name="admin_tier_field_priority_support_note">Een belofte die je zelf nakomt. De bot heeft geen ondersteuningswachtrij, dus deze schakelaar zet op zichzelf niemand voorop. Hij wordt opgeslagen bij het niveau en getoond in de lijst met niveaus.</string>
     <string name="admin_tier_limits_heading">Limieten</string>
     <string name="admin_tier_blast_radius_loading">Bezig met controleren hoeveel tenants op deze tier zitten…</string>
     <string name="admin_tier_blast_radius_none">Er zit momenteel geen tenant op deze tier — de wijziging geldt voor wie er als volgende op aansluit.</string>
@@ -5740,6 +5741,18 @@
     <string name="spam_group_bursts">Plotselinge activiteit</string>
     <string name="spam_group_lockdown">Raid-lockdown</string>
     <string name="spam_group_network">Gedeelde spamlijst</string>
+    <string name="spam_inactive_badge">Nog niet actief</string>
+    <string name="spam_inactive_arrives_with">Dit gaat werken met werkitem %1$s. Je waarde is opgeslagen en wordt vanaf dan gebruikt.</string>
+    <string name="spam_setting_semi_trusted_watch_hours_here_inactive">De bot telt nog geen kijkuren, dus niemand verdient vandaag op deze manier bescherming.</string>
+    <string name="spam_setting_semi_trusted_watch_hours_instance_inactive">De bot telt nog geen kijkuren, dus niemand verdient vandaag op deze manier bescherming.</string>
+    <string name="spam_setting_non_latin_script_gate_inactive">De bot controleert nog niet wat elk vertrouwensniveau mag plaatsen, dus deze schakelaar verandert vandaag niets.</string>
+    <string name="spam_setting_follow_spike_factor_inactive">Volgers worden nog niet gemeten tegen je normale snelheid, dus vandaag wordt geen piek opgemerkt.</string>
+    <string name="spam_setting_join_burst_factor_inactive">Aankomsten in de chat worden nog niet gemeten tegen je normale snelheid, dus vandaag wordt geen piek opgemerkt.</string>
+    <string name="spam_setting_lockdown_minutes_inactive">Nog niets scherpt de ruimte aan tijdens een raid, dus er is geen lockdown om te timen.</string>
+    <string name="spam_setting_lockdown_auto_extend_inactive">Nog niets scherpt de ruimte aan tijdens een raid, dus er is geen lockdown om te verlengen.</string>
+    <string name="spam_setting_lockdown_max_minutes_inactive">Nog niets scherpt de ruimte aan tijdens een raid, dus er is geen lockdown om te begrenzen.</string>
+    <string name="spam_setting_network_subscribe_inactive">De dienst voor de gedeelde spamlijst bestaat nog niet, dus er is niets om op te halen.</string>
+    <string name="spam_setting_network_contribute_inactive">De dienst voor de gedeelde spamlijst bestaat nog niet, dus er wordt niets verstuurd.</string>
     <!-- Spambeveiliging: het oordeellogboek en de beoordelingslijst. -->
     <string name="spam_detections_title">Spamdetecties</string>
     <string name="spam_detections_empty">Nog niets gedetecteerd. Elk oordeel dat de bot velt verschijnt hier, met de reden erbij.</string>

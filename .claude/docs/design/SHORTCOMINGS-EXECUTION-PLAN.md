@@ -278,6 +278,14 @@ Spam defence (`spec/spam-defense.md`) is built for L0–L5, the signature store 
   restore works.
 - [ ] **S-SPAM-LOCKDOWN-WIRE** raid/burst trigger → LockdownWindow → platform chat controls →
   restore on expiry. Done-when: a test hate-raid tightens and later restores the platform rules.
+  Also wires JoinBurstFactor (it triggers the lockdown).
+- [ ] **S-SPAM-TRUST-WIRE** the live tier resolution (`SpamDefenseService`) gathers watch time and
+  calls `AccountRisk.Assess` with the channel's SemiTrustedWatchHoursHere/Instance (today it uses
+  hard-coded constants and no caller passes watch time), and the engine checks capability floors via
+  `TrustTierLadder.Allows`, with NonLatinScriptGate moving the NonLatinScript floor (today nothing
+  calls `Allows`). Done-when: a lurker past the watch-hour setting is Semi-Trusted, and with the gate
+  on a newcomer's Cyrillic message is held while a Regular's is not. The spam form marks these three
+  settings "not yet active" until then (`SpamSettingCatalogue.PendingSlices`).
 - [ ] **S-SPAM-SEED-CORPUS** idempotent seeder that loads `spec/data/spam-seed-corpus.md` as
   SpamSignature rows with Source=Curated. Done-when: a fresh install matches a corpus skeleton.
 

@@ -14,7 +14,8 @@ namespace NomNomzBot.Application.Moderation.Dtos;
 
 /// <summary>
 /// One knob as the editor needs it: what it is, where it belongs, and what it is bounded to.
-/// The words come from the dashboard's string resources, keyed by these.
+/// The words come from the dashboard's string resources, keyed by these. A setting the engine does
+/// not read yet carries the slice that wires it and the key for why it has no effect.
 /// </summary>
 public sealed record SpamSettingDescriptorDto(
     string Key,
@@ -24,7 +25,9 @@ public sealed record SpamSettingDescriptorDto(
     string CostKey,
     double? Minimum,
     double? Maximum,
-    bool IsToggle
+    bool IsToggle,
+    string? PendingSlice,
+    string? InactiveReasonKey
 );
 
 /// <summary>

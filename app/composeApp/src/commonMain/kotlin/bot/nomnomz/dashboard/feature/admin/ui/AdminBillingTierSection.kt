@@ -65,6 +65,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tier_field_currency
 import nomnomzbot.composeapp.generated.resources.admin_tier_field_display_name
 import nomnomzbot.composeapp.generated.resources.admin_tier_field_price_cents
 import nomnomzbot.composeapp.generated.resources.admin_tier_field_priority_support
+import nomnomzbot.composeapp.generated.resources.admin_tier_field_priority_support_note
 import nomnomzbot.composeapp.generated.resources.admin_tier_field_public
 import nomnomzbot.composeapp.generated.resources.admin_tier_field_sort_order
 import nomnomzbot.composeapp.generated.resources.admin_tier_internal_badge
@@ -265,7 +266,11 @@ private fun TierEditDialog(
 
         SwitchRow(stringResource(Res.string.admin_tier_field_public), isPublic) { isPublic = it }
         SwitchRow(stringResource(Res.string.admin_tier_field_bot_name), allowsCustomBotName) { allowsCustomBotName = it }
-        SwitchRow(stringResource(Res.string.admin_tier_field_priority_support), prioritySupport) { prioritySupport = it }
+        SwitchRow(
+            label = stringResource(Res.string.admin_tier_field_priority_support),
+            checked = prioritySupport,
+            note = stringResource(Res.string.admin_tier_field_priority_support_note),
+        ) { prioritySupport = it }
 
         if (limitValues.isNotEmpty()) {
             Spacer(modifier = Modifier.height(spacing.s2))
@@ -317,7 +322,12 @@ private fun TierEditDialog(
 }
 
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    note: String? = null,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -330,6 +340,7 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
         Text(text = label, style = typography.sm, color = tokens.cardForeground)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
+    note?.let { Text(text = it, style = typography.xs, color = tokens.mutedForeground) }
     Spacer(modifier = Modifier.height(spacing.s1))
 }
 

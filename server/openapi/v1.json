@@ -115166,7 +115166,9 @@
           "costKey",
           "minimum",
           "maximum",
-          "isToggle"
+          "isToggle",
+          "pendingSlice",
+          "inactiveReasonKey"
         ],
         "type": "object",
         "properties": {
@@ -115205,9 +115207,21 @@
           },
           "isToggle": {
             "type": "boolean"
+          },
+          "pendingSlice": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inactiveReasonKey": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One knob as the editor needs it: what it is, where it belongs, and what it is bounded to.\nThe words come from the dashboard's string resources, keyed by these."
+        "description": "One knob as the editor needs it: what it is, where it belongs, and what it is bounded to.\nThe words come from the dashboard's string resources, keyed by these. A setting the engine does\nnot read yet carries the slice that wires it and the key for why it has no effect."
       },
       "SpamTrustTier": {
         "type": "integer",

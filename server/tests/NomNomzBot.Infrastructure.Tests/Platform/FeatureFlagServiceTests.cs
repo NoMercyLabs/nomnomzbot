@@ -11,7 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
-using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Platform.Entities;
@@ -35,8 +35,10 @@ public sealed class FeatureFlagServiceTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
-        ICacheService cache = Substitute.For<ICacheService>();
-        cache.GetAsync<bool?>(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((bool?)null); // always a cache miss so evaluation runs
+        IFeatureFlagCacheService cache = Substitute.For<IFeatureFlagCacheService>();
+        cache
+            .GetAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new FeatureFlagCacheRead(null, string.Empty)); // always a cache miss so evaluation runs
         IBillingTierService tiers = Substitute.For<IBillingTierService>();
         tiers
             .IsTierAtLeastAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())

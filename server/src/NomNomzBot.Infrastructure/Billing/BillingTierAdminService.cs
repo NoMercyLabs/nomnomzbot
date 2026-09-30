@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -25,10 +26,14 @@ namespace NomNomzBot.Infrastructure.Billing;
 /// has tenants on it follows the same counted-blast-radius shape as platform content publish
 /// (<c>PlatformContentService.PublishAsync</c>): preview the live count, then apply with that count echoed
 /// back; a save whose confirmed count no longer matches a freshly recomputed one fails closed rather than
-/// silently applying against stale information.
+/// silently applying against stale information. Every committed save drops the cached flag verdicts, because
+/// flag tier floors compare tier ranks: a stale verdict would gate a feature on the old tier order.
 /// </summary>
-public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvider clock)
-    : IBillingTierAdminService
+public sealed class BillingTierAdminService(
+    IApplicationDbContext db,
+    TimeProvider clock,
+    IFeatureFlagCacheService flagCache
+) : IBillingTierAdminService
 {
     public async Task<Result<IReadOnlyList<TierDto>>> ListAllTiersAsync(
         CancellationToken ct = default
@@ -136,6 +141,7 @@ public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvid
         );
 
         await db.SaveChangesAsync(ct);
+        await flagCache.InvalidateAllAsync(ct);
 
         return Result.Success(
             ToDto(tier, new Dictionary<Guid, List<TierLimit>> { [tier.Id] = limits })
@@ -235,6 +241,7 @@ public sealed class BillingTierAdminService(IApplicationDbContext db, TimeProvid
         );
 
         await db.SaveChangesAsync(ct);
+        await flagCache.InvalidateAllAsync(ct);
 
         List<TierLimit> finalLimits = await db
             .TierLimits.Where(l => l.TierId == tierId && l.DeletedAt == null)
