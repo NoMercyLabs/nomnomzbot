@@ -11,6 +11,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Notifications.Services;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Notifications.Sources;
 
@@ -35,6 +36,7 @@ internal static class ActionRequiredInboxHarness
             new OutboundWebhookFailureSource(db),
             new LostSongRequestSource(db, clock),
             new SecurityNoticeSource(db),
+            new BotNotModeratorSource(db, new ChannelTwitchBotResolver(db)),
         ];
 
     public static ActionRequiredInboxService Create(

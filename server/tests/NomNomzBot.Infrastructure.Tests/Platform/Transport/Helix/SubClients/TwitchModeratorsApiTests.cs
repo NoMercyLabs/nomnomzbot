@@ -99,6 +99,56 @@ public class TwitchModeratorsApiTests
     }
 
     [Fact]
+    public async Task GetModeratorsByUserId_SendsOneUserIdFilterPerUser_OnTheModeratorsEndpoint()
+    {
+        CapturingHelixTransport transport = new()
+        {
+            PageResult = new TwitchPage<TwitchModerator>([new("1", "botlogin", "Bot")], null, 0),
+        };
+        TwitchModeratorsApi api = Build(transport, TwitchScopes.ModerationRead);
+
+        Result<TwitchPage<TwitchModerator>> result = await api.GetModeratorsByUserIdAsync(
+            Tenant,
+            ["1", "2"]
+        );
+
+        result.Value.Items.Should().ContainSingle().Which.UserId.Should().Be("1");
+        transport.LastRequest!.Method.Should().Be(HttpMethod.Get);
+        transport.LastRequest.Path.Should().Be("moderation/moderators");
+        transport.LastRequest.Auth.Should().Be(TwitchHelixAuth.User);
+        transport
+            .LastRequest.Query.Should()
+            .BeEquivalentTo(
+                new List<KeyValuePair<string, string>>
+                {
+                    new("broadcaster_id", TwitchId),
+                    new("user_id", "1"),
+                    new("user_id", "2"),
+                }
+            );
+    }
+
+    [Fact]
+    public async Task GetModeratorsByUserId_RejectsAnEmptyOrOversizedFilter_WithoutCallingTransport()
+    {
+        CapturingHelixTransport transport = new();
+        TwitchModeratorsApi api = Build(transport, TwitchScopes.ModerationRead);
+
+        Result<TwitchPage<TwitchModerator>> empty = await api.GetModeratorsByUserIdAsync(
+            Tenant,
+            []
+        );
+        Result<TwitchPage<TwitchModerator>> oversized = await api.GetModeratorsByUserIdAsync(
+            Tenant,
+            [.. Enumerable.Range(1, 101).Select(i => i.ToString())]
+        );
+
+        empty.ErrorCode.Should().Be("VALIDATION_FAILED");
+        oversized.ErrorCode.Should().Be("VALIDATION_FAILED");
+        transport.CallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task AddModerator_MissingScope_ShortCircuits_WithoutCallingTransport()
     {
         CapturingHelixTransport transport = new();

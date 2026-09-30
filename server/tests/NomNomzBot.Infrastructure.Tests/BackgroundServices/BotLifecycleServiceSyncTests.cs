@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.BackgroundServices;
@@ -153,6 +154,7 @@ public sealed class BotLifecycleServiceSyncTests
         services.AddScoped<IApplicationDbContext>(_ => SeedTestDbContext.New(database));
         services.AddSingleton(eventSub);
         services.AddSingleton(streams);
+        services.AddSingleton(Substitute.For<IBotModeratorStatusService>());
 
         return new BotLifecycleService(
             services.BuildServiceProvider(),

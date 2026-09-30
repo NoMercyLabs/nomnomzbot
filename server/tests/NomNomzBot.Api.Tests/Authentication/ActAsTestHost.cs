@@ -322,6 +322,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton(Substitute.For<ITwitchEventSubService>());
         services.AddSingleton(Substitute.For<IChatProvider>());
         services.AddSingleton(Substitute.For<IBuiltinResponseComposer>());
+        services.AddSingleton(Substitute.For<IBotModeratorStatusService>());
         services.AddSingleton(Substitute.For<IChannelDeletePreviewService>());
         services.AddSingleton(Substitute.For<IDatabaseMigrator>());
         services.AddSingleton(Substitute.For<IUserIdentityService>());

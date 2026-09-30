@@ -29,6 +29,16 @@ public interface ITwitchModeratorsApi
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Get Moderators filtered by <c>user_id</c> — which of up to 100 Twitch users hold the moderator role in the
+    /// channel. A user absent from the result is not a moderator. Requires <c>moderation:read</c>.
+    /// </summary>
+    Task<Result<TwitchPage<TwitchModerator>>> GetModeratorsByUserIdAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> twitchUserIds,
+        CancellationToken ct = default
+    );
+
     /// <summary>Add Channel Moderator — grants the target user moderator privileges. Requires <c>channel:manage:moderators</c>.</summary>
     Task<Result> AddModeratorAsync(
         Guid broadcasterId,

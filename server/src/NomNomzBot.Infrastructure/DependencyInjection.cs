@@ -1042,6 +1042,13 @@ public static class DependencyInjection
             Identity.PlatformOwnerPrincipalMinter
         >();
 
+        // Which dedicated Twitch bot speaks in a channel — read by the bot-moderator status and its inbox item.
+        // Not an I<X>Service — registered explicitly.
+        services.AddScoped<
+            Application.Identity.Services.IChannelTwitchBotResolver,
+            Identity.ChannelTwitchBotResolver
+        >();
+
         // Base health-check service — AdminService reports the REAL registered probes. The Api host's
         // AddHealthChecks() call layers the per-profile checks (postgres/redis/lite) onto this same service.
         services.AddHealthChecks();

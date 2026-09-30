@@ -50,5 +50,7 @@
     <string name="attention_song_lost_title_many">%1$d verzoeknummers zijn verloren gegaan</string>
     <string name="attention_song_lost_message">“%1$s” voor %2$s verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>
     <string name="attention_song_lost_unnamed_message">Een verzoek verdween uit de wachtrij van de speler voordat het speelde. Eventuele kosten zijn terugbetaald.</string>
+    <string name="attention_bot_not_moderator_title">%1$s is geen moderator in je kanaal</string>
+    <string name="attention_bot_not_moderator_message">Typ /mod %1$s in je Twitch-chat. Twitch beperkt wat een bot zonder moderatorrol kan doen.</string>
     <string name="attention_unknown_title">Er vraagt iets je aandacht</string>
 </resources>

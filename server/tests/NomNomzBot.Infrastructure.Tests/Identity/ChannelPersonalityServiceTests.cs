@@ -65,7 +65,8 @@ public sealed class ChannelPersonalityServiceTests
                 registry,
                 Substitute.For<ITwitchEventSubService>(),
                 Substitute.For<IChatProvider>(),
-                Substitute.For<IBuiltinResponseComposer>()
+                Substitute.For<IBuiltinResponseComposer>(),
+                Substitute.For<Application.Identity.Services.IBotModeratorStatusService>()
             ),
             registry,
             bus
@@ -148,7 +149,7 @@ public sealed class ChannelPersonalityServiceTests
         saved!
             .Personality.Should()
             .Be(PersonalityTone.Informative, "an invalid tone must not overwrite");
-        await registry.DidNotReceiveWithAnyArgs().InvalidateSettingsAsync(default, default);
+        await registry.DidNotReceiveWithAnyArgs().InvalidateSettingsAsync(default);
     }
 
     [Fact]

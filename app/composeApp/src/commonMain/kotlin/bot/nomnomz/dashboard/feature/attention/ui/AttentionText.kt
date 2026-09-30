@@ -14,6 +14,8 @@ import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.feature.integrations.ui.providerDisplayName
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.attention_bot_not_moderator_message
+import nomnomzbot.composeapp.generated.resources.attention_bot_not_moderator_title
 import nomnomzbot.composeapp.generated.resources.attention_eventsub_unauthorized_message
 import nomnomzbot.composeapp.generated.resources.attention_eventsub_unauthorized_title
 import nomnomzbot.composeapp.generated.resources.attention_held_category_unknown
@@ -118,6 +120,8 @@ fun attentionTitleOf(item: ActionRequiredItem): AttentionText {
             } else {
                 AttentionText(Res.string.attention_song_lost_title_one)
             }
+        "attention_bot_not_moderator_title" ->
+            AttentionText(Res.string.attention_bot_not_moderator_title, listOf(literal(item.param("botName"))))
         else -> AttentionText(Res.string.attention_unknown_title)
     }
 }
@@ -189,6 +193,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
                 listOf(literal(item.param("trackName")), literal(item.param("requestedBy"))),
             )
         "attention_song_lost_unnamed_message" -> AttentionText(Res.string.attention_song_lost_unnamed_message)
+        "attention_bot_not_moderator_message" ->
+            AttentionText(Res.string.attention_bot_not_moderator_message, listOf(literal(item.param("botName"))))
         else -> null
     }
 
