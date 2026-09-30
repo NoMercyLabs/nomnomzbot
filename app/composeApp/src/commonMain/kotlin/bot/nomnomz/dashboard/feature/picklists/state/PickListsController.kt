@@ -25,6 +25,8 @@ import bot.nomnomz.dashboard.core.network.PickListPreview
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PlatformTemplate
 import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdatesApi
+import bot.nomnomz.dashboard.feature.platformtemplates.state.TemplateUpdatesController
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import kotlinx.coroutines.flow.SharedFlow
@@ -50,7 +52,26 @@ class PickListsController(
     private val channelsApi: ChannelsApi,
     private val platformTemplatesApi: PlatformTemplatesApi,
     private val feedback: Feedback = NoOpFeedback,
+    // "Update available" for lists installed from a template. Null hides the badge and the action.
+    templateUpdatesApi: PlatformTemplateUpdatesApi? = null,
 ) {
+    /** The template-update badges and Update action for this page's rows; null when not wired. */
+    val templateUpdates: TemplateUpdatesController? =
+        templateUpdatesApi?.let { api ->
+            TemplateUpdatesController(
+                kind = PlatformTemplateKinds.PickList,
+                api = api,
+                channelId = {
+                    when (val channel: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+                        is ApiResult.Failure -> channel
+                        is ApiResult.Ok -> ApiResult.Ok(channel.value.id)
+                    }
+                },
+                feedback = feedback,
+                onUpdated = { load() },
+            )
+        }
+
     private val _state: MutableStateFlow<PickListsState> = MutableStateFlow(PickListsState.Loading)
 
     /** The page render state: loading / ready (with the lists) / empty / error. */
@@ -80,10 +101,12 @@ class PickListsController(
 
         when (val result: ApiResult<List<PickList>> = pickListsApi.list()) {
             is ApiResult.Failure -> _state.value = PickListsState.Error(result.error.message)
-            is ApiResult.Ok ->
+            is ApiResult.Ok -> {
                 _state.value =
                     if (result.value.isEmpty()) PickListsState.Empty
                     else PickListsState.Ready(result.value)
+                templateUpdates?.refresh()
+            }
         }
     }
 

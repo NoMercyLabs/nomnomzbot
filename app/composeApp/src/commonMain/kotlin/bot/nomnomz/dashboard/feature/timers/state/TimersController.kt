@@ -35,6 +35,8 @@ import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.PlatformTemplate
 import bot.nomnomz.dashboard.core.network.PlatformTemplateKinds
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdatesApi
+import bot.nomnomz.dashboard.feature.platformtemplates.state.TemplateUpdatesController
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TestRunResult
@@ -76,7 +78,21 @@ class TimersController(
         { ApiResult.Ok(emptyList()) },
     // "Restore default" for a timer installed from a template. Null hides the action.
     private val restoreDefaultsApi: RestoreDefaultsApi? = null,
+    // "Update available" for timers installed from a template. Null hides the badge and the action.
+    templateUpdatesApi: PlatformTemplateUpdatesApi? = null,
 ) {
+    /** The template-update badges and Update action for this page's rows; null when not wired. */
+    val templateUpdates: TemplateUpdatesController? =
+        templateUpdatesApi?.let { api ->
+            TemplateUpdatesController(
+                kind = PlatformTemplateKinds.Timer,
+                api = api,
+                channelId = { withChannel { channelId -> ApiResult.Ok(channelId) } },
+                feedback = feedback,
+                onUpdated = { load() },
+            )
+        }
+
     /** Whether "Restore default" is wired for this deployment. */
     val canRestoreDefaults: Boolean get() = restoreDefaultsApi != null
 
@@ -180,10 +196,12 @@ class TimersController(
 
         when (val result: ApiResult<List<TimerSummary>> = timersApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = TimersState.Error(result.error.message)
-            is ApiResult.Ok ->
+            is ApiResult.Ok -> {
                 _state.value =
                     if (result.value.isEmpty()) TimersState.Empty
                     else TimersState.Ready(result.value)
+                templateUpdates?.refresh()
+            }
         }
     }
 

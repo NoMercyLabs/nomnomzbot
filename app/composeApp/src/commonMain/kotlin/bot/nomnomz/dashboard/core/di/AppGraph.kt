@@ -141,6 +141,8 @@ import bot.nomnomz.dashboard.core.network.PlatformTemplatesApi
 import bot.nomnomz.dashboard.core.network.RestRestoreDefaultsApi
 import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
 import bot.nomnomz.dashboard.core.network.PlatformTemplatesApiImpl
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdatesApi
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdatesApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.PlatformIamApiImpl
 import bot.nomnomz.dashboard.core.network.PronounsApi
@@ -440,6 +442,7 @@ class AppGraph {
     val platformDefaultsApi: PlatformDefaultsApi = RestPlatformDefaultsApi(apiClient)
     val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
     val platformTemplatesApi: PlatformTemplatesApi = PlatformTemplatesApiImpl(apiClient)
+    val platformTemplateUpdatesApi: PlatformTemplateUpdatesApi = PlatformTemplateUpdatesApiImpl(apiClient)
     val restoreDefaultsApi: RestoreDefaultsApi = RestRestoreDefaultsApi(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
     val obsApi: ObsApi = RestObsApi(apiClient)
@@ -635,6 +638,7 @@ class AppGraph {
             feedback = feedbackController,
             resourceLimits = billingApi::resourceLimits,
             restoreDefaultsApi = restoreDefaultsApi,
+            templateUpdatesApi = platformTemplateUpdatesApi,
         )
 
     val moderationController: ModerationController =
@@ -794,6 +798,7 @@ class AppGraph {
             channelsApi = channelsApi,
             platformTemplatesApi = platformTemplatesApi,
             feedback = feedbackController,
+            templateUpdatesApi = platformTemplateUpdatesApi,
         )
 
     val giveawaysController: GiveawaysController =

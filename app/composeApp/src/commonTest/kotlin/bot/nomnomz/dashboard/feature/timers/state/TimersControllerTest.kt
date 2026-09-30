@@ -34,6 +34,10 @@ import bot.nomnomz.dashboard.core.network.PlatformDefaultPreview
 import bot.nomnomz.dashboard.core.network.RestoreDefaultResource
 import bot.nomnomz.dashboard.core.network.RestoreDefaultsApi
 import bot.nomnomz.dashboard.feature.platformdefaults.state.RestoreDefaultController
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdate
+import bot.nomnomz.dashboard.core.network.PlatformTemplateUpdatesApi
+import bot.nomnomz.dashboard.feature.platformtemplates.state.FakePlatformTemplateUpdatesApi
+import bot.nomnomz.dashboard.feature.platformtemplates.state.TemplateUpdatesController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -59,6 +63,42 @@ import nomnomzbot.composeapp.generated.resources.platform_templates_installed
 // of this, so testing it proves the page shows real rows (no fabricated timers), mutates them, and degrades
 // cleanly.
 class TimersControllerTest {
+
+    @Test
+    fun template_updates_flag_timer_rows_and_an_update_reloads_the_timers_without_the_badge() = runTest {
+        val updatesApi =
+            FakePlatformTemplateUpdatesApi(
+                listOf(
+                    PlatformTemplateUpdate(
+                        rowId = "t1",
+                        definitionId = "def-hydrate",
+                        kind = "timer",
+                        displayName = "Hydrate",
+                        installedVersion = 1,
+                        currentVersion = 2,
+                        editedSinceInstall = false,
+                    ),
+                ),
+            )
+        val timersApi = FakeTimersApi(listOf(TimerSummary(id = "t1", name = "Hydrate"), TimerSummary(id = "t2", name = "Socials")))
+        val controller: TimersController =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = timersApi,
+                templateUpdatesApi = updatesApi,
+            )
+        controller.load()
+        val templateUpdates: TemplateUpdatesController = assertNotNull(controller.templateUpdates)
+        assertEquals(setOf("t1"), templateUpdates.updates.value.keys)
+        assertEquals(listOf("ch1" to "timer"), updatesApi.listed)
+        val listsBefore: Int = timersApi.listCalls
+
+        templateUpdates.request("t1")
+
+        assertEquals(listOf(Triple("ch1", "def-hydrate", "t1")), updatesApi.applied)
+        assertEquals(listsBefore + 1, timersApi.listCalls)
+        assertTrue(templateUpdates.updates.value.isEmpty())
+    }
 
     @Test
     fun templates_lists_the_timer_kind_for_the_active_channel() = runTest {
@@ -519,6 +559,7 @@ private fun timersController(
     resourceLimits: suspend (String) -> ApiResult<List<bot.nomnomz.dashboard.core.network.ResourceUsage>> =
         { ApiResult.Ok(emptyList()) },
     platformTemplatesApi: PlatformTemplatesApi = FakePlatformTemplatesApi(),
+    templateUpdatesApi: PlatformTemplateUpdatesApi? = null,
 ): TimersController =
     TimersController(
         channelsApi,
@@ -528,6 +569,7 @@ private fun timersController(
         platformTemplatesApi,
         feedback,
         resourceLimits,
+        templateUpdatesApi = templateUpdatesApi,
     )
 
 private class FakePlatformTemplatesApi(

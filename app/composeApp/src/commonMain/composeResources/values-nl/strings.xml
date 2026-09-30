@@ -3982,6 +3982,15 @@
     <string name="platform_templates_no_pipeline">Geen pipeline</string>
     <string name="platform_templates_cancel">Annuleren</string>
     <string name="platform_templates_installed">Sjabloon geïnstalleerd</string>
+    <string name="template_update_badge">Update beschikbaar</string>
+    <string name="template_update_action">Bijwerken</string>
+    <string name="template_update_action_label">%1$s bijwerken naar de nieuwste sjabloonversie</string>
+    <string name="template_update_title">%1$s bijwerken?</string>
+    <string name="template_update_replaces_edits">Je hebt dit aangepast nadat je het installeerde. De update naar sjabloonversie %1$d vervangt jouw aanpassingen door het sjabloon. Je kunt dit niet ongedaan maken.</string>
+    <string name="template_update_confirm">Mijn aanpassingen vervangen</string>
+    <string name="template_update_cancel">Annuleren</string>
+    <string name="template_update_done">%1$s komt nu overeen met het nieuwste sjabloon</string>
+    <string name="template_update_failed">Kan %1$s niet bijwerken: %2$s</string>
     <string name="event_responses_template_replaces">Vervangt de huidige reactie op %1$s in dit kanaal.</string>
     <string name="admin_content_kind_label">Soort inhoud</string>
     <string name="admin_content_list_title">Inhoudsdefinities</string>
