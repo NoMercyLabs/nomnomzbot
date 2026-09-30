@@ -122,6 +122,23 @@ public class ComplianceController : BaseController
     }
 
     /// <summary>
+    /// Re-run a FAILED erasure from the admin console's data-requests list — the same request row through
+    /// the same pipeline as <see cref="RequestErasure"/>, audited as an operator attempt. A completed,
+    /// in-progress or non-erasure request is refused with 409 and nothing is erased. The counted blast
+    /// radius is <see cref="PreviewErasure"/> for the request's subject.
+    /// </summary>
+    [HttpPost("erasure/{erasureRequestId:guid}/retry")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<ErasureRequestDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RetryErasure(Guid erasureRequestId, CancellationToken ct)
+    {
+        Result<ErasureRequestDto> result = await _erasure.RetryErasureAsync(erasureRequestId, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
     /// Page all subjects' GDPR requests (compliance audit view), newest first. <paramref name="status"/>
     /// and <paramref name="requestType"/> narrow the page (an unknown value is 400, not an empty page).
     /// </summary>

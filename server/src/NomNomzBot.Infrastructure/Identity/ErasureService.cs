@@ -257,12 +257,114 @@ public sealed class ErasureService : IErasureService
             cancellationToken
         );
 
+        return await RunErasureAsync(
+            user,
+            erasureRequest,
+            subjectIdHash,
+            request.RequestedBy,
+            cancellationToken
+        );
+    }
+
+    public async Task<Result<ErasureRequestDto>> RetryErasureAsync(
+        Guid erasureRequestId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ErasureRequest? existing = await _db
+            .ErasureRequests.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == erasureRequestId, cancellationToken);
+        if (existing is null)
+            return Result.Failure<ErasureRequestDto>("The request was not found.", "NOT_FOUND");
+        Result retryable = RetryRefusal(existing.RequestType, existing.Status);
+        if (retryable.IsFailure)
+            return retryable.ToTyped<ErasureRequestDto>();
+
+        User? user = await _db.Users.FirstOrDefaultAsync(
+            u => u.Id == existing.SubjectUserId,
+            cancellationToken
+        );
+        if (user is null)
+            return Result.Failure<ErasureRequestDto>("The subject was not found.", "NOT_FOUND");
+
+        // Claim the row in one conditional UPDATE: only one caller can move it off "failed", so two
+        // operators pressing re-run at the same moment never run the destructive pipeline twice.
+        int claimed = await _db
+            .ErasureRequests.Where(r => r.Id == erasureRequestId && r.Status == "failed")
+            .ExecuteUpdateAsync(
+                setters =>
+                    setters
+                        .SetProperty(r => r.Status, "running")
+                        .SetProperty(r => r.FailureReason, (string?)null)
+                        .SetProperty(r => r.CompletedAt, (DateTime?)null),
+                cancellationToken
+            );
+        if (claimed == 0)
+            return Result.Failure<ErasureRequestDto>(
+                "This erasure is already being re-run.",
+                "ERASURE_IN_PROGRESS"
+            );
+
+        // The UPDATE bypassed the change tracker; a row this context already tracks would come back with the
+        // pre-claim values, so mirror the claim onto the tracked instance.
+        ErasureRequest erasureRequest = await _db.ErasureRequests.FirstAsync(
+            r => r.Id == erasureRequestId,
+            cancellationToken
+        );
+        erasureRequest.Status = "running";
+        erasureRequest.FailureReason = null;
+        erasureRequest.CompletedAt = null;
+        return await RunErasureAsync(
+            user,
+            erasureRequest,
+            erasureRequest.SubjectIdHash,
+            attemptedBy: "platform_iam",
+            cancellationToken
+        );
+    }
+
+    /// <summary>Only a failed erasure may be re-run; every other state is refused with its own code.</summary>
+    private static Result RetryRefusal(string requestType, string status) =>
+        (requestType, status) switch
+        {
+            ("erasure", "failed") => Result.Success(),
+            ("erasure", "completed") => Result.Failure(
+                "This erasure already completed; there is nothing left to re-run.",
+                "ERASURE_ALREADY_COMPLETED"
+            ),
+            ("erasure", "pending" or "running") => Result.Failure(
+                "This erasure is still in progress.",
+                "ERASURE_IN_PROGRESS"
+            ),
+            _ => Result.Failure("Only a failed erasure can be re-run.", "ERASURE_NOT_RETRYABLE"),
+        };
+
+    /// <summary>
+    /// Runs the pipeline for a request row already marked <c>running</c>, then publishes the completion or
+    /// stamps the failure. <paramref name="attemptedBy"/> is who ran THIS attempt, recorded on its audit row
+    /// (a subject's own request re-run by an operator is audited as <c>platform_iam</c>).
+    /// </summary>
+    private async Task<Result<ErasureRequestDto>> RunErasureAsync(
+        User user,
+        ErasureRequest erasureRequest,
+        string subjectIdHash,
+        string attemptedBy,
+        CancellationToken cancellationToken
+    )
+    {
         try
         {
             // Retriable unit — a bare Begin/Commit is rejected by Npgsql's retrying execution strategy.
             // The completion event and the log line fire only after it commits.
             Result<ErasurePipelineOutcome> pipeline = await _unitOfWork.ExecuteInTransactionAsync(
-                token => ExecuteErasurePipelineAsync(user, erasureRequest, subjectIdHash, token),
+                token =>
+                    ExecuteErasurePipelineAsync(
+                        user,
+                        erasureRequest,
+                        subjectIdHash,
+                        attemptedBy,
+                        token
+                    ),
                 cancellationToken,
                 shouldCommit: outcome => outcome.IsSuccess
             );
@@ -272,8 +374,8 @@ public sealed class ErasureService : IErasureService
                     erasureRequest.Id,
                     user.Id,
                     subjectIdHash,
-                    request.BroadcasterId,
-                    request.RequestedBy,
+                    erasureRequest.BroadcasterId,
+                    attemptedBy,
                     requestTypeForAudit: "erasure",
                     pipeline.ErrorMessage ?? "The erasure pipeline failed.",
                     cancellationToken
@@ -284,7 +386,7 @@ public sealed class ErasureService : IErasureService
             await _eventBus.PublishAsync(
                 new SubjectErasureCompletedEvent
                 {
-                    BroadcasterId = request.BroadcasterId ?? Guid.Empty,
+                    BroadcasterId = erasureRequest.BroadcasterId ?? Guid.Empty,
                     ErasureRequestId = erasureRequest.Id,
                     SubjectUserId = user.Id,
                     SubjectIdHash = subjectIdHash,
@@ -319,8 +421,8 @@ public sealed class ErasureService : IErasureService
                 erasureRequest.Id,
                 user.Id,
                 subjectIdHash,
-                request.BroadcasterId,
-                request.RequestedBy,
+                erasureRequest.BroadcasterId,
+                attemptedBy,
                 requestTypeForAudit: "erasure",
                 exception.Message,
                 cancellationToken
@@ -337,6 +439,7 @@ public sealed class ErasureService : IErasureService
         User user,
         ErasureRequest erasureRequest,
         string subjectIdHash,
+        string attemptedBy,
         CancellationToken cancellationToken
     )
     {
@@ -562,7 +665,7 @@ public sealed class ErasureService : IErasureService
                 erasureRequest.Id,
                 subjectIdHash,
                 erasureRequest.BroadcasterId,
-                erasureRequest.RequestedBy,
+                attemptedBy,
                 tablesAffected,
                 rowsAffected,
                 keysShredded,

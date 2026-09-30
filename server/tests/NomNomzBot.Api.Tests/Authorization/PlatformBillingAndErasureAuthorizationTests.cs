@@ -12,6 +12,7 @@ using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Domain.Enums.Deployment;
@@ -153,6 +154,54 @@ public sealed class PlatformBillingAndErasureAuthorizationTests
         context
             .HasSucceeded.Should()
             .BeFalse("a support-visit grant must not permit destructive subject erasure");
+    }
+
+    /// <summary>
+    /// The data-requests list is read under <c>audit:read</c>; re-running a failed erasure from that list is
+    /// gated on <c>compliance:erasure</c>. An operator who can SEE the failed row must not be able to erase.
+    /// </summary>
+    [Fact]
+    public async Task Principal_holding_only_audit_read_is_denied_the_erasure_rerun()
+    {
+        (PlatformIamAuthorizationHandler handler, ApiTestDbContext db) = BuildSaas();
+        await SeedPrincipalWithPermissionsAsync(db, IamPermissionKeys.AuditRead);
+        string rerunPolicy = typeof(ComplianceController)
+            .GetMethod(nameof(ComplianceController.RetryErasure))!
+            .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: false)
+            .Cast<AuthorizeAttribute>()
+            .Single()
+            .Policy!;
+        AuthorizationHandlerContext context = Context(rerunPolicy);
+
+        await handler.HandleAsync(context);
+
+        rerunPolicy.Should().Be(IamPermissionKeys.ComplianceErasure);
+        context
+            .HasSucceeded.Should()
+            .BeFalse("reading the request ledger must not permit re-running an erasure");
+    }
+
+    /// <summary>A signed-in user without the platform-principal marker never reaches the IAM check.</summary>
+    [Fact]
+    public async Task A_caller_without_the_platform_marker_is_denied_the_erasure_rerun()
+    {
+        (PlatformIamAuthorizationHandler handler, ApiTestDbContext db) = BuildSaas();
+        await SeedPrincipalWithPermissionsAsync(db, IamPermissionKeys.ComplianceErasure);
+        ClaimsPrincipal viewer = new(
+            new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, OperatorUser.ToString())],
+                "TestAuth"
+            )
+        );
+        AuthorizationHandlerContext context = new(
+            [new PlatformIamRequirement(IamPermissionKeys.ComplianceErasure)],
+            viewer,
+            resource: null
+        );
+
+        await handler.HandleAsync(context);
+
+        context.HasSucceeded.Should().BeFalse("only a platform principal may re-run an erasure");
     }
 
     [Fact]
