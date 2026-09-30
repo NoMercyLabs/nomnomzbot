@@ -24,7 +24,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 /// rules, self-assign notify roles + member opt-in, and the dispatch log. Tenant <c>channelId</c> is resolved
 /// and authorized by <c>TenantResolutionMiddleware</c> (Gate 1); the per-route floor is the
 /// <c>[RequireAction]</c> Gate-2 key (<c>discord:*:read</c> = Moderator, <c>discord:*:write</c> /
-/// <c>discord:optin:write</c> = SuperMod). The OAuth bot-install <c>/connect</c> + callback live in
+/// <c>discord:optin:write</c> = LeadModerator). The OAuth bot-install <c>/connect</c> + callback live in
 /// <see cref="DiscordOAuthController"/>, not here.
 /// </summary>
 [ApiVersion("1.0")]

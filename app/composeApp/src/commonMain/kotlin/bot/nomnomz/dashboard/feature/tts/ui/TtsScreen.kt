@@ -325,7 +325,7 @@ internal val TTS_PROVIDERS: List<Pair<String, StringResource>> =
         "elevenlabs" to Res.string.tts_provider_elevenlabs,
     )
 
-// The TTS page's tabs (owner-punch-list-2026-09-08.md §2): the page used to stack eight unrelated
+// The TTS page's tabs (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the page used to stack eight unrelated
 // sections in one long scroll (overlay test, global settings, voice browser, BYOK keys, ad-hoc test,
 // per-viewer voice, pronunciation dictionary, live queue). Grouped here by JOB, matching AdminScreen's
 // [TabsList]/[TabsTrigger] pattern — one shared screen file that swaps sections rather than a separate
@@ -560,7 +560,7 @@ private fun ReadyContent(
     }
 }
 
-// General (owner-punch-list-2026-09-08.md §2): the enable toggle, provider selection, default voice, and
+// General (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the enable toggle, provider selection, default voice, and
 // permissions/limits, plus the Save action that commits every field on the page (including the voice
 // picked from the Voices tab and the default-voice text field here) — kept together so the page's one
 // primary write action sits with the fields it visibly governs.
@@ -656,7 +656,7 @@ internal fun GeneralTab(
     }
 }
 
-// Voices (owner-punch-list-2026-09-08.md §2): the searchable voice catalogue and the BYOK provider keys
+// Voices (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the searchable voice catalogue and the BYOK provider keys
 // together — browsing what a channel COULD speak with and supplying the credentials that unlock the paid
 // providers are the same job of picking what this channel actually speaks with.
 @Composable
@@ -697,7 +697,7 @@ internal fun VoicesTab(
     }
 }
 
-// Per-viewer (owner-punch-list-2026-09-08.md §2): assign or clear one viewer's TTS voice override. Stays
+// Per-viewer (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): assign or clear one viewer's TTS voice override. Stays
 // on the TTS page for now — a later, separate effort may move this onto a per-person Community profile
 // page once that page exists; it doesn't yet, so this isn't blocked on it.
 @Composable
@@ -731,7 +731,7 @@ internal fun PerViewerTab(
     }
 }
 
-// Pronunciation (owner-punch-list-2026-09-08.md §2): the phrase → spoken-replacement dictionary, on its
+// Pronunciation (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the phrase → spoken-replacement dictionary, on its
 // own tab since it is a self-contained editor unrelated to the settings form or the voice catalogue.
 @Composable
 internal fun PronunciationTab(
@@ -760,7 +760,7 @@ internal fun PronunciationTab(
     }
 }
 
-// Queue & test (owner-punch-list-2026-09-08.md §2): the live playback queue controls, the overlay test
+// Queue & test (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the live playback queue controls, the overlay test
 // dispatch, the ad-hoc voice test, and the moderator approval queue — everything about what is playing,
 // about to play, or waiting on a mod right now, grouped so an operator watching the stream has one place
 // to look instead of scrolling past the settings form and the voice catalogue to find it.

@@ -28,8 +28,7 @@ import nomnomzbot.composeapp.generated.resources.twemoji_color
 import org.jetbrains.compose.resources.Font
 
 // The fixed type scale (frontend-design-system.md §1.3). Feature code reads
-// `Typography.*` — no inline `TextStyle`. Font defaults to the platform sans here; the
-// bundled Inter `FontFamily` token wires in with the resources/font slice.
+// `Typography.*` — no inline `TextStyle`.
 @Immutable
 data class Typography(
     val xs: TextStyle = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Normal),

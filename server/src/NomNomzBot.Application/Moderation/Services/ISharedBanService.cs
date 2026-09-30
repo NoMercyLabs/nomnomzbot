@@ -57,7 +57,8 @@ public interface ISharedBanService
     /// opted in (<c>AcceptSharedChatBans</c>), trusts the origin (J.9a), and is verified to be in the
     /// SAME active shared-chat session — the predicate is enforced HERE, never by the caller. On apply:
     /// bans via the partner's own tenant token and records a <c>ModerationAction(ban,
-    /// origin=federation, OriginChannelId)</c> row. A failed predicate is a truthful
+    /// origin=shared_chat, OriginChannelId)</c> row (<see cref="ApplyInboundFederatedBanAsync"/> records
+    /// <c>federation</c> instead). A failed predicate is a truthful
     /// <c>Skipped(reason)</c>, never an error.
     /// </summary>
     Task<Result<SharedBanApplicationResult>> ApplyInboundSharedBanAsync(

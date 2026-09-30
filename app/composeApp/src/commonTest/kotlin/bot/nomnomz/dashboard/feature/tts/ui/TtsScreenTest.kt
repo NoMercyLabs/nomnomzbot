@@ -63,7 +63,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 
-// S-TTS-TABS (owner-punch-list-2026-09-08.md §2): the TTS page used to stack eight unrelated sections
+// S-TTS-TABS (SHORTCOMINGS-EXECUTION-PLAN.md (owner punch list 2026-09-10) §2): the TTS page used to stack eight unrelated sections
 // (overlay test, global settings, voice browser, BYOK keys, ad-hoc test, per-viewer voice, pronunciation
 // dictionary, live queue) in one long scroll. It is now split into five tabs (General / Voices /
 // Per-viewer / Pronunciation / Queue & test). These prove: each tab renders its own real section content

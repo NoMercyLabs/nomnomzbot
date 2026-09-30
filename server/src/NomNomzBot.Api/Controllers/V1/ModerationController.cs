@@ -845,7 +845,7 @@ public class ModerationController : BaseController
         return ResultResponse(await _escalation.GetPolicyAsync(broadcaster, ct));
     }
 
-    /// <summary>Saves the escalation ladder (whole ladder replaced; steps strictly ascending). SuperMod tier.</summary>
+    /// <summary>Saves the escalation ladder (whole ladder replaced; steps strictly ascending). LeadModerator tier.</summary>
     [RequireAction("moderation:escalation:write")]
     [HttpPut("escalation")]
     [ProducesResponseType<StatusResponseDto<ModerationEscalationPolicyDto>>(
@@ -881,8 +881,8 @@ public class ModerationController : BaseController
     }
 
     /// <summary>
-    /// The SuperMod platform nuke (moderation.md §3.4): bans the target across every tenant channel the
-    /// actor holds SuperMod+ on. Requires explicit confirmation in the request body.
+    /// The LeadModerator platform nuke (moderation.md §3.4): bans the target across every tenant channel the
+    /// actor holds LeadModerator+ on. Requires explicit confirmation in the request body.
     /// </summary>
     [RequireAction("moderation:nuke")]
     [HttpPost("nuke")]
@@ -949,7 +949,7 @@ public class ModerationController : BaseController
         return ResultResponse(await _sharedBans.GetSettingsAsync(broadcaster, ct));
     }
 
-    /// <summary>Saves the shared-ban policy (both opt-in switches explicit). SuperMod tier.</summary>
+    /// <summary>Saves the shared-ban policy (both opt-in switches explicit). LeadModerator tier.</summary>
     [RequireAction("moderation:sharedban:write")]
     [HttpPut("shared-bans")]
     [ProducesResponseType<StatusResponseDto<SharedBanSettingsDto>>(StatusCodes.Status200OK)]
@@ -968,7 +968,7 @@ public class ModerationController : BaseController
         );
     }
 
-    /// <summary>Adds a partner channel to the inbound-ban trust list (idempotent). SuperMod tier.</summary>
+    /// <summary>Adds a partner channel to the inbound-ban trust list (idempotent). LeadModerator tier.</summary>
     [RequireAction("moderation:sharedban:write")]
     [HttpPost("shared-bans/trusted")]
     [ProducesResponseType<StatusResponseDto<SharedBanTrustedChannelDto>>(
@@ -998,7 +998,7 @@ public class ModerationController : BaseController
         );
     }
 
-    /// <summary>Removes a partner channel from the trust list. SuperMod tier.</summary>
+    /// <summary>Removes a partner channel from the trust list. LeadModerator tier.</summary>
     [RequireAction("moderation:sharedban:write")]
     [NotDestructive(
         "Deletes one shared-ban trust row; no entity carries a trust-row FK and trust can be re-established."

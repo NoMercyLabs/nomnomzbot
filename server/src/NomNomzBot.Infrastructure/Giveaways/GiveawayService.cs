@@ -455,7 +455,8 @@ public sealed class GiveawayService : IGiveawayService
 
         // Retriable unit (Npgsql's retrying strategy rejects a bare Begin/Commit). A retry re-draws from
         // the pool — different winners, but only after a rolled-back attempt that nobody observed: the
-        // GiveawayDrawnEvent and the chat announcement happen after this returns, never inside.
+        // GiveawayDrawnEvent is published after this returns, never inside. The chat announcement is
+        // not sent here; it is owned by S065-remaining.
         List<GiveawayWinner> winners = await _unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {

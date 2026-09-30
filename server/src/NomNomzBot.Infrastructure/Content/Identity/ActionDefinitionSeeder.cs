@@ -222,7 +222,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:shieldmode:read", Mod);
         M("moderation:shieldmode:write", LeadModerator);
         M("chat:announce", Mod);
-        // Dashboard chat page (frontend-ia.md §Chat): chat-history read + send-a-message-as-the-bot (REST and
+        // Dashboard chat page (frontend-ia.md §Chat): chat-history read + read chat and send as the operator (or bot) (REST and
         // DashboardHub). chat:read DEFAULTS to Moderator but is broadcaster-lowerable to Vip (reading chat is
         // non-destructive); chat:send stays Moderator — sending as the bot is not something a VIP should do.
         MFloor("chat:read", Mod, Vip);

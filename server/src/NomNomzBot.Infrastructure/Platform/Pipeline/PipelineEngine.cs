@@ -69,8 +69,8 @@ public sealed class PipelineEngine : IPipelineEngine
     private readonly ILogger<PipelineEngine> _logger;
     private readonly TimeProvider _timeProvider;
 
-    /// <summary>Weighted random_branch case pick (pipeline-control-flow.md D5). Defaults to the shared
-    /// CSPRNG; overridable only by tests, so a weighted-distribution test can seed deterministically
+    /// <summary>Weighted random_branch case pick (pipeline-control-flow.md D5). Defaults to
+    /// Random.Shared (injectable for tests); overridable only by tests, so a weighted-distribution test can seed deterministically
     /// (the repo forbids nondeterminism in tests).</summary>
     private readonly Func<double> _randomSource;
 

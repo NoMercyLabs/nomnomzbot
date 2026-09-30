@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 //  THE BRAND-COLOR EXCEPTION (deliberate, documented, single-homed).
 //
 //  The design system (frontend-design-system.md §8) is tokens-only — components never
-//  touch a raw hex / Color(0x…); the detekt linter bans them everywhere. Provider brand
+//  touch a raw hex / Color(0x…); DesignSystemStyleGuardTest (jvmTest) guards raw literals. Provider brand
 //  identity is the ONE sanctioned exception: Twitch purple, Spotify green, Discord
 //  blurple, and YouTube red are the providers' OWN trademarks, not values we may derive
 //  from the neutral token palette or the user's dynamic accent. Recolouring them would

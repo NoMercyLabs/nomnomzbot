@@ -12,8 +12,8 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Economy.Events;
 
-// Economy currency events (economy.md §2). All inherit DomainEventBase (string EventId, DateTimeOffset
-// Timestamp, Guid BroadcasterId — inherited, never re-declared). EntryType/SourceType/Source travel as their
+// Economy currency events (economy.md §2). All inherit DomainEventBase (Guid EventId, DateTimeOffset
+// OccurredAt, Guid BroadcasterId — inherited, never re-declared). EntryType/SourceType/Source travel as their
 // string forms. The economy never invents the EventJournal row; the ledger entry references it where one exists.
 
 /// <summary>A positive ledger entry committed (earn / jar payout / admin credit) — <c>economy.balance.credited</c>.</summary>

@@ -22,8 +22,8 @@ namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
 /// Webhook configuration — management plane (webhooks.md §5.1). Sensitive egress + secrets, so reads are
-/// Moderator-floored and writes Editor-floored. The acting user is bound from the caller. (Outbound endpoint
-/// management is deferred with the H.7 egress-allowlist dependency; this controller serves the inbound surface.)
+/// Moderator-floored and writes Editor-floored. The acting user is bound from the caller. (Outbound endpoints
+/// require an enabled HttpEgressAllowlist row; see S-EGRESS-ALLOWLIST-CRUD.)
 /// </summary>
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/channels/{channelId:guid}/webhooks")]

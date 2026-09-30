@@ -49,7 +49,7 @@ public class FeatureService : IFeatureService
     {
         ["custom_code"] = (
             "Custom Code",
-            "Author Lua scripts to use as pipeline actions for advanced automation.",
+            "Author JavaScript scripts to use as pipeline actions for advanced automation.",
             [],
             false
         ),
