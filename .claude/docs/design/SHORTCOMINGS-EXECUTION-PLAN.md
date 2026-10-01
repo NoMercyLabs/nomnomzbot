@@ -24,14 +24,6 @@ Slice IDs are stable; the order is the queue.
 
 - **S-STREAMDECK-OBS-ICONS** Stream Deck OBS plugin icon art — Done-when: every OBS action ships its
   own key icon in the obs manifest
-- **S-SR-QUEUE-SMART** (owner 2026-10-01: "make the queue command smarter") `!queue @f0xb17` and
-  `!queue @Stoney_Eagle` both answered with the same top-5 list; `QueueBuiltin` ignores its argument and
-  never names a requester, and its tone line "yours is in there somewhere" is said whether or not the
-  caller has a request queued. Done-when: `!queue` names who asked for each listed track; `!queue @user`
-  (and a plain `!queue` from someone with requests) answers with that user's own requests, their
-  positions and a rough wait; someone with no request is told so instead of the "yours is in there"
-  line.
-
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (parked)
