@@ -32,6 +32,8 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.Json
 
 // The one shared HttpClient (frontend-structure.md F7 — exactly one client). It is base-URL- and
@@ -181,7 +183,7 @@ class ApiClient(
                 return networkFailure(cause)
             }
         if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
-            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            val refreshed: Boolean = refreshAfterUnauthorized()
             if (refreshed) {
                 response = try { send("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
             }
@@ -189,15 +191,8 @@ class ApiClient(
         if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
         return try {
             ApiResult.Ok(response.body<T>())
-        } catch (cause: Exception) {
-            if (cause is CancellationException) throw cause
-            ApiResult.Failure(
-                ApiError(
-                    status = response.status.value,
-                    code = "DESERIALIZATION",
-                    message = cause.message ?: "Unreadable response body.",
-                )
-            )
+        } catch (cause: Throwable) {
+            bodyFailure(response.status.value, cause)
         }
     }
 
@@ -315,7 +310,7 @@ class ApiClient(
                 return networkFailure(cause)
             }
         if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
-            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            val refreshed: Boolean = refreshAfterUnauthorized()
             if (refreshed) {
                 response = try { httpClient.get("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
             }
@@ -482,7 +477,7 @@ class ApiClient(
 
         // 401 → one silent refresh + retry. Guard on the refresh path itself to prevent loops.
         if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
-            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            val refreshed: Boolean = refreshAfterUnauthorized()
             if (refreshed) {
                 response = try { send("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
             }
@@ -503,15 +498,8 @@ class ApiClient(
             } else {
                 ApiResult.Ok(value)
             }
-        } catch (cause: Exception) {
-            if (cause is CancellationException) throw cause
-            ApiResult.Failure(
-                ApiError(
-                    status = response.status.value,
-                    code = "DESERIALIZATION",
-                    message = cause.message ?: "Unreadable response body.",
-                )
-            )
+        } catch (cause: Throwable) {
+            bodyFailure(response.status.value, cause)
         }
     }
 
@@ -525,7 +513,7 @@ class ApiClient(
                 return networkFailure(cause)
             }
         if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
-            val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
+            val refreshed: Boolean = refreshAfterUnauthorized()
             if (refreshed) {
                 response = try { send("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
             }
@@ -546,8 +534,9 @@ class ApiClient(
      * propagating, or a caller whose scope was cancelled mid-request (a tab leaving composition) would store
      * a fabricated "was cancelled" network error and an empty result in its state.
      */
-    internal fun <T> networkFailure(cause: Throwable): ApiResult<T> {
+    internal suspend fun <T> networkFailure(cause: Throwable): ApiResult<T> {
         if (cause is CancellationException) throw cause
+        currentCoroutineContext().ensureActive()
         return ApiResult.Failure(
             ApiError(
                 status = 0,
@@ -556,6 +545,31 @@ class ApiClient(
             )
         )
     }
+
+    /**
+     * Maps a body that could not be read or decoded to an [ApiResult.Failure]. Catches [Throwable], not
+     * [Exception]: on Kotlin/Wasm a browser fetch that dies mid-body throws `JsException`, which is not an
+     * [Exception]. Let through, it crashed the calling Compose effect, and with it the recomposer, which left
+     * the dashboard frozen on its spinner. A scope cancelled mid-read keeps cancelling instead.
+     */
+    @PublishedApi
+    internal suspend fun <T> bodyFailure(status: Int, cause: Throwable): ApiResult<T> {
+        if (cause is CancellationException) throw cause
+        currentCoroutineContext().ensureActive()
+        return ApiResult.Failure(
+            ApiError(status = status, code = "DESERIALIZATION", message = cause.message ?: "Unreadable response body.")
+        )
+    }
+
+    /** One silent token refresh after a 401. A refresh that fails in any way (a `JsException` included) is "not refreshed". */
+    @PublishedApi
+    internal suspend fun refreshAfterUnauthorized(): Boolean =
+        try {
+            tokenRefresher?.invoke() ?: false
+        } catch (cause: Throwable) {
+            if (cause is CancellationException) throw cause
+            false
+        }
 
     @PublishedApi
     internal suspend fun parseError(response: HttpResponse): ApiError {

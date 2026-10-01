@@ -25,6 +25,7 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Web (wasmJs) entry point. Single-origin (frontend.md §6): the served origin IS the backend, so the
@@ -68,10 +69,21 @@ fun main() {
         // Tear down the HTML boot overlay once Compose has rendered a frame. Placed AFTER App so that if App
         // throws during composition (e.g. a string-resource bundle that 502'd mid-load), this effect never
         // commits — the overlay stays up and offers a reload instead of leaving a frozen page (see index.html).
-        LaunchedEffect(Unit) { markAppReady() }
+        // The first beat tears the overlay down; the beats after it keep the boot watchdog quiet. An uncaught
+        // exception in any effect kills the recomposer and cancels this loop with it, so the watchdog sees the
+        // beats stop and offers a reload instead of a dashboard frozen on its last frame.
+        LaunchedEffect(Unit) {
+            while (true) {
+                reportAppAlive()
+                delay(HEARTBEAT_INTERVAL_MS)
+            }
+        }
     }
 }
 
-// Signals the index.html boot/recovery overlay that the app is alive and rendering, so it tears down. Guarded
-// on the JS side in case the overlay was already removed.
-private fun markAppReady(): Unit = js("{ if (window.__nnzAppReady) window.__nnzAppReady(); }")
+// Must stay well below the watchdog's stale threshold in nnz-boot.js.
+private const val HEARTBEAT_INTERVAL_MS: Long = 1_000
+
+// Tells the nnz-boot.js overlay the app is alive and rendering. Guarded on the JS side in case the overlay
+// script did not load.
+private fun reportAppAlive(): Unit = js("{ if (window.__nnzAppAlive) window.__nnzAppAlive(); }")

@@ -45,9 +45,12 @@
             touch-action: none;
         }
 
+    </style>
+    <!-- Its own block: nnz-boot.js copies it into the app's shadow root when the overlay has to come back. -->
+    <style id="nnz-boot-style">
         /*
           Boot + recovery overlay. Shown immediately (before the wasm module loads) so the operator never sees a
-          blank page, and torn down the moment Compose renders its first frame (window.__nnzAppReady). If the app
+          blank page, and torn down the moment Compose renders its first frame (window.__nnzAppAlive). If the app
           never becomes ready (wasm or its resource bundle unreachable — e.g. the API is mid-restart / 502) or an
           uncaught crash occurs, it offers a Reload instead of freezing. This is the "never a frozen page" guard.
         */
@@ -144,7 +147,7 @@
     -->
     <script src="nnz-locale.js"></script>
     <!--
-      Boot + recovery guard. Defined BEFORE composeApp.js so window.__nnzAppReady exists when the app first
+      Boot + recovery guard. Defined BEFORE composeApp.js so window.__nnzAppAlive exists when the app first
       renders, and so uncaught crashes during load are caught. The page must never sit frozen: either the app
       renders (overlay hidden), or the operator is offered a reload.
     -->
