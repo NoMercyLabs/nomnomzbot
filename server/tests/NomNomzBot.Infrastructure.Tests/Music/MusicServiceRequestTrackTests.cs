@@ -185,6 +185,57 @@ public sealed class MusicServiceRequestTrackTests
     }
 
     [Fact]
+    public async Task A_link_to_a_track_that_cannot_play_in_the_streamers_country_is_refused_before_queueing()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        handler.RespondWhen(
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith($"/tracks/{TrackId}", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            TrackJson.Replace(
+                "\"duration_ms\":213573",
+                "\"duration_ms\":213573,\"is_playable\":false"
+            )
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            $"https://open.spotify.com/track/{TrackId}",
+            "viewer1"
+        );
+
+        result.ErrorCode.Should().Be("TRACK_UNAVAILABLE");
+        result.ErrorMessage.Should().Contain("can't play in the streamer's country");
+        (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
+        handler
+            .RequestUrls.Should()
+            .NotContain(
+                url => url.Contains("/me/player/queue", StringComparison.Ordinal),
+                "Spotify would take it and then skip it"
+            );
+    }
+
+    [Fact]
+    public async Task A_search_only_looks_in_the_streamers_country()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            EmptySearchJson
+        );
+
+        await sut.RequestTrackAsync(ChannelId.ToString(), "song q please", "viewer1");
+
+        handler
+            .RequestUrls.Should()
+            .ContainSingle(url =>
+                url.Contains("/search", StringComparison.Ordinal)
+                && url.Contains("market=from_token", StringComparison.Ordinal)
+            );
+    }
+
+    [Fact]
     public async Task A_missing_scope_failure_is_never_worded_as_nothing_matched_and_names_the_real_cause()
     {
         // The channel's Spotify connection is never seeded (FakeIntegrationTokenVault has no entry for

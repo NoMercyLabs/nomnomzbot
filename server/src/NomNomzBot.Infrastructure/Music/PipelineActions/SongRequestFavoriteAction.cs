@@ -62,6 +62,7 @@ public sealed class SongRequestFavoriteAction : ICommandAction
         "TRACK_BLOCKED",
         "DUPLICATE_TRACK",
         "UNSUPPORTED_CONTENT_TYPE",
+        "TRACK_UNAVAILABLE",
         "NOT_FOUND",
     ];
 

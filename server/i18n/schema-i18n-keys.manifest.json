@@ -260,6 +260,8 @@
     "builtin.reply.sr.noprovidermoderator.label",
     "builtin.reply.sr.notfound.description",
     "builtin.reply.sr.notfound.label",
+    "builtin.reply.sr.notplayable.description",
+    "builtin.reply.sr.notplayable.label",
     "builtin.reply.sr.peruserlimit.description",
     "builtin.reply.sr.peruserlimit.label",
     "builtin.reply.sr.premiumrequired.description",

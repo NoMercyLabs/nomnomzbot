@@ -237,6 +237,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.NotPlayable,
+            variables: [],
+            informative:
+            [
+                "That track can't play in the streamer's country. Try a different version of the song.",
+            ],
+            friendly:
+            [
+                "That one is not available in the streamer's country. Maybe another version of it is!",
+            ],
+            sassy: ["That track is region-locked here. Find a version that actually plays."],
+            hype: ["THAT TRACK IS BLOCKED IN THIS COUNTRY. TRY ANOTHER VERSION!"],
+            chill: ["that track can't play here. try another version."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.Unreachable,
             variables: ["query"],
             informative:

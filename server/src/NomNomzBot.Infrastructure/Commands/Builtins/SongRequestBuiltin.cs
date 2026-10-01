@@ -247,6 +247,14 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 null,
                 ct
             ),
+            // Spotify would accept it into its queue and then skip it without a word.
+            "TRACK_UNAVAILABLE" => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NotPlayable,
+                "That track can't play in the streamer's country. Try a different version of the song.",
+                null,
+                ct
+            ),
             _ => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.Unreachable,

@@ -633,6 +633,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                     + "show, or artist page. Paste a single track link, or just search by name instead.",
                 "UNSUPPORTED_CONTENT_TYPE"
             ),
+            MusicProviderFailureReason.NotPlayableInRegion => Result.Failure<T>(
+                "That track can't play in the streamer's country. Try a different version of the song.",
+                "TRACK_UNAVAILABLE"
+            ),
             _ => Result.Failure<T>(
                 "The music provider is temporarily unavailable.",
                 "PROVIDER_UNAVAILABLE"

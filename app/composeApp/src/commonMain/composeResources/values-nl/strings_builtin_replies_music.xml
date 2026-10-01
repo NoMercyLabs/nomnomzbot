@@ -76,6 +76,8 @@
     <string name="builtin_reply_sr_providerunavailable_description">De muziekdienst heeft een storing.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Alleen nummerlinks</string>
     <string name="builtin_reply_sr_unsupportedcontent_description">Een kijker plakte een afspeellijst-, album-, show- of artiestlink.</string>
+    <string name="builtin_reply_sr_notplayable_label">Hier niet afspeelbaar</string>
+    <string name="builtin_reply_sr_notplayable_description">Het nummer kan niet spelen in het land van de streamer.</string>
     <string name="builtin_reply_sr_unreachable_label">Muziekdienstfout</string>
     <string name="builtin_reply_sr_unreachable_description">De muziekdienst was om een andere reden niet bereikbaar.</string>
     <string name="builtin_reply_sr_noproviderbroadcaster_label">Geen muziek verbonden (streamer)</string>

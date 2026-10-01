@@ -34,6 +34,10 @@ public enum MusicProviderFailureReason
     /// never "not found" (the content genuinely exists) and never a provider outage — it needs its own
     /// honest wording telling the requester to paste a track link instead.</summary>
     UnsupportedContentType,
+
+    /// <summary>The track exists, but the provider will not play it in the streamer's country. The provider
+    /// still accepts it into its own queue and then skips it silently, so it must be refused up front.</summary>
+    NotPlayableInRegion,
 }
 
 /// <summary>

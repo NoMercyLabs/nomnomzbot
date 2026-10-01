@@ -75,6 +75,7 @@ public sealed class SpotifyMusicProvider
     private const int LibraryUrisPerRequest = 40; // /me/library hard cap per live reference
     private const int ContainsIdsPerRequest = 50; // GET /me/tracks/contains hard cap per live reference
     private const int SavedTracksPerPage = 50; // GET /me/tracks limit hard cap per live reference
+    private const string StreamerMarket = "from_token"; // the country of the account whose token is sent
 
     /// <summary>Floor applied to a missing/zero/unparseable <c>Retry-After</c> when recording a cooldown —
     /// mirrors <c>ResiliencePolicies.MinRetryAfterDelay</c> (a rate limit must never be treated as "clear
@@ -352,10 +353,11 @@ public sealed class SpotifyMusicProvider
         if (token is null)
             return ([], MusicProviderFailureReason.NotConnected);
 
-        // Feb 2026: max 10 results per type
+        // Feb 2026: max 10 results per type. The streamer's own market keeps out every track their
+        // player would silently skip (live 2026-10-01).
         int limit = Math.Min(maxResults, 10);
         string url =
-            $"{SpotifyApiBase}/search?q={Uri.EscapeDataString(query)}&type=track&limit={limit}";
+            $"{SpotifyApiBase}/search?q={Uri.EscapeDataString(query)}&type=track&limit={limit}&market={StreamerMarket}";
 
         HttpResponseMessage? response = await SendAsync(
             HttpMethod.Get,
@@ -430,9 +432,12 @@ public sealed class SpotifyMusicProvider
         if (token is null)
             return (null, MusicProviderFailureReason.NotConnected);
 
+        // Read in the streamer's own market: Spotify then relinks the id to the copy that plays there and
+        // says whether any copy does. Without it a region-locked track is accepted into Spotify's queue,
+        // skipped without a word, and the request is lost (live 2026-10-01).
         HttpResponseMessage? response = await SendAsync(
             HttpMethod.Get,
-            $"{SpotifyApiBase}/tracks/{Uri.EscapeDataString(trackId)}",
+            $"{SpotifyApiBase}/tracks/{Uri.EscapeDataString(trackId)}?market={StreamerMarket}",
             token,
             broadcasterId,
             cancellationToken
@@ -471,6 +476,8 @@ public sealed class SpotifyMusicProvider
             "tracks/{id}",
             cancellationToken
         );
+        if (track?.IsPlayable == false)
+            return (null, MusicProviderFailureReason.NotPlayableInRegion);
         return (track is null ? null : MapToTrackInfo(track), MusicProviderFailureReason.None);
     }
 
@@ -2270,6 +2277,10 @@ public sealed class SpotifyMusicProvider
 
         [JsonPropertyName("explicit")]
         public bool Explicit { get; set; }
+
+        // Only sent when the request names a market; null means Spotify did not say.
+        [JsonPropertyName("is_playable")]
+        public bool? IsPlayable { get; set; }
 
         [JsonPropertyName("artists")]
         public List<SpotifyArtist> Artists { get; set; } = [];

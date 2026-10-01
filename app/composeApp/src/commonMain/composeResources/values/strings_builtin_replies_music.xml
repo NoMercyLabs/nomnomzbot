@@ -76,6 +76,8 @@
     <string name="builtin_reply_sr_providerunavailable_description">The music service has an outage.</string>
     <string name="builtin_reply_sr_unsupportedcontent_label">Track links only</string>
     <string name="builtin_reply_sr_unsupportedcontent_description">A viewer pasted a playlist, album, show or artist link.</string>
+    <string name="builtin_reply_sr_notplayable_label">Not playable here</string>
+    <string name="builtin_reply_sr_notplayable_description">The track cannot play in the streamer's country.</string>
     <string name="builtin_reply_sr_unreachable_label">Music service error</string>
     <string name="builtin_reply_sr_unreachable_description">The music service could not be reached for another reason.</string>
     <string name="builtin_reply_sr_noproviderbroadcaster_label">No music connected (streamer)</string>

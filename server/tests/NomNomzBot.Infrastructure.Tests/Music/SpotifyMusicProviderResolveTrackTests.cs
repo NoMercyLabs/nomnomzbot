@@ -93,6 +93,67 @@ public sealed class SpotifyMusicProviderResolveTrackTests
         track.ProgressMs.Should().Be(0);
     }
 
+    /// <summary>
+    /// Live 2026-10-01: two requests that cannot play in the streamer's country were accepted, Spotify skipped
+    /// them without a word, and the bot dropped them as lost. Asking in the streamer's own market makes Spotify
+    /// say so up front.
+    /// </summary>
+    [Fact]
+    public async Task A_track_that_cannot_play_in_the_streamers_country_fails_as_not_playable_in_region()
+    {
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
+        handler.RespondWhen(
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith($"/tracks/{TrackId}", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            TrackJson.Replace(
+                "\"explicit\":true",
+                "\"explicit\":true,\"is_playable\":false,\"restrictions\":{\"reason\":\"market\"}"
+            )
+        );
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            $"https://open.spotify.com/track/{TrackId}"
+        );
+
+        track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.NotPlayableInRegion);
+        handler
+            .RequestUrls.Should()
+            .ContainSingle(url =>
+                url.Contains($"/tracks/{TrackId}?market=from_token", StringComparison.Ordinal)
+            );
+    }
+
+    [Fact]
+    public async Task A_relinked_track_resolves_to_the_copy_that_plays_in_the_streamers_country()
+    {
+        const string PlayableCopy = "spotify:track:6kLCHFM39wkFjOuyPGLGeQ";
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
+        handler.RespondWhen(
+            r =>
+                r.RequestUri!.AbsolutePath.EndsWith($"/tracks/{TrackId}", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            TrackJson
+                .Replace($"\"uri\":\"spotify:track:{TrackId}\"", $"\"uri\":\"{PlayableCopy}\"")
+                .Replace(
+                    "\"explicit\":true",
+                    $"\"explicit\":true,\"is_playable\":true,\"linked_from\":{{\"uri\":\"spotify:track:{TrackId}\"}}"
+                )
+        );
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            $"spotify:track:{TrackId}"
+        );
+
+        failure.Should().Be(MusicProviderFailureReason.None);
+        track!
+            .TrackUri.Should()
+            .Be(PlayableCopy, "Spotify plays, and so reports, the relinked copy");
+    }
+
     [Fact]
     public async Task Unknown_track_id_resolves_to_null()
     {

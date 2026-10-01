@@ -126,6 +126,24 @@ public sealed class SongRequestBuiltinTests
     }
 
     [Fact]
+    public async Task A_track_that_cannot_play_here_says_so_instead_of_blaming_the_music_service()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "That track can't play in the streamer's country.",
+                "TRACK_UNAVAILABLE"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(
+            Context("https://open.spotify.com/track/4uUk0ii4JENtSSo75BtTHh", roleLevel: 0)
+        );
+
+        result.Value.Should().Contain("can't play in the streamer's country");
+        result.Value.Should().NotContain("Couldn't reach");
+    }
+
+    [Fact]
     public async Task A_duplicate_request_carries_the_reason_naming_who_already_has_it()
     {
         // The refusal is only useful if the viewer learns the track is already coming and who asked for
