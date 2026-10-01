@@ -469,6 +469,18 @@ public class WidgetService : IWidgetService
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
+        // An open overlay read its settings once, at page load; without this push it keeps acting on the
+        // old ones until someone reloads the browser source (live 2026-10-01).
+        if (request.Settings is not null)
+            await _eventBus.PublishAsync(
+                new WidgetSettingsChangedEvent
+                {
+                    BroadcasterId = broadcasterGuid,
+                    WidgetId = widget.Id,
+                    Settings = widget.Settings,
+                },
+                cancellationToken
+            );
 
         return Result.Success(await ToDetailAsync(widget, cancellationToken));
     }

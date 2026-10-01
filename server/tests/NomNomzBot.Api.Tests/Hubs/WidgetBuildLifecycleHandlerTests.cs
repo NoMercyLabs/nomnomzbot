@@ -94,4 +94,37 @@ public sealed class WidgetBuildLifecycleHandlerTests
             .DidNotReceive()
             .ReloadWidgetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Saved_settings_reach_the_open_overlay_without_a_reload()
+    {
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        WidgetBuildLifecycleHandler handler = new(notifier);
+        Guid broadcaster = Guid.CreateVersion7();
+        Guid widget = Guid.CreateVersion7();
+        Dictionary<string, object> settings = new() { ["rewardId"] = "reward-1", ["volume"] = 40L };
+
+        await handler.HandleAsync(
+            new WidgetSettingsChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                WidgetId = widget,
+                Settings = settings,
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .SendSettingsChangedAsync(
+                broadcaster.ToString(),
+                widget.ToString(),
+                Arg.Is<WidgetSettingsDto>(d =>
+                    d.WidgetId == widget.ToString() && ReferenceEquals(d.Settings, settings)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await notifier
+            .DidNotReceive()
+            .ReloadWidgetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
 }

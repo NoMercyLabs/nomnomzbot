@@ -34,6 +34,7 @@ public sealed class WidgetBuildFailedEvent : DomainEventBase
 public sealed class WidgetSettingsChangedEvent : DomainEventBase
 {
     public required Guid WidgetId { get; init; }
+    public required IReadOnlyDictionary<string, object> Settings { get; init; }
 }
 
 /// <summary>A gallery item's review status changed (platform plane; <c>BroadcasterId</c> is the global sentinel).</summary>
