@@ -345,6 +345,7 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 "  invoke(actionType: string, params?: Record<string, any>, variables?: Record<string, string | number>): Promise<NnzActionResult>;"
             );
+        ts.Should().Contain("  claim(key: string): Promise<boolean>;");
         ts.Should().Contain("  readonly settings: Record<string, any>;");
         ts.Should().Contain("declare const WIDGET_ID: string;");
         ts.Should().Contain("declare const WIDGET_TOKEN: string;");

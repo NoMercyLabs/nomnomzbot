@@ -11,6 +11,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Interfaces;
@@ -18,6 +19,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
 
@@ -281,5 +283,93 @@ public sealed class WidgetActionServiceTests : IDisposable
 
         result.Value.Succeeded.Should().BeFalse();
         result.Value.Error.Should().Contain("only run inside a pipeline");
+    }
+
+    private static WidgetActionService ClaimService(
+        WidgetTestDbContext db,
+        FakeTimeProvider clock
+    ) =>
+        new(
+            db,
+            [],
+            Substitute.For<IActionAuthorizationService>(),
+            new InMemoryRateLimiterPartitionStore(clock),
+            NullLogger<WidgetActionService>.Instance
+        );
+
+    [Fact]
+    public async Task Only_the_first_copy_of_a_widget_wins_a_claim_until_the_window_ends()
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        Guid otherWidgetId = await SeedAsync(Broadcaster);
+        FakeTimeProvider clock = new();
+        await using WidgetTestDbContext db = _database.NewContext();
+        WidgetActionService service = ClaimService(db, clock);
+
+        Result<bool> first = await service.ClaimAsync(Broadcaster, widgetId, "redemption:r-1");
+        Result<bool> second = await service.ClaimAsync(Broadcaster, widgetId, "redemption:r-1");
+        Result<bool> otherKey = await service.ClaimAsync(Broadcaster, widgetId, "redemption:r-2");
+        Result<bool> otherWidget = await service.ClaimAsync(
+            Broadcaster,
+            otherWidgetId,
+            "redemption:r-1"
+        );
+        clock.Advance(TimeSpan.FromMinutes(11));
+        Result<bool> afterWindow = await service.ClaimAsync(
+            Broadcaster,
+            widgetId,
+            "redemption:r-1"
+        );
+
+        first.Value.Should().BeTrue();
+        second.Value.Should().BeFalse();
+        otherKey.Value.Should().BeTrue();
+        otherWidget.Value.Should().BeTrue();
+        afterWindow.Value.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_claim_for_another_channels_widget_is_not_found_and_takes_no_permit()
+    {
+        Guid foreignWidgetId = await SeedAsync(OtherBroadcaster);
+        await using WidgetTestDbContext db = _database.NewContext();
+
+        Result<bool> result = await Service(db)
+            .ClaimAsync(Broadcaster, foreignWidgetId, "redemption:r-1");
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        await _rateLimiter
+            .DidNotReceive()
+            .AcquireAsync(
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<TimeSpan>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task An_empty_claim_key_is_refused(string key)
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        await using WidgetTestDbContext db = _database.NewContext();
+
+        Result<bool> result = await Service(db).ClaimAsync(Broadcaster, widgetId, key);
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task An_over_long_claim_key_is_refused()
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        await using WidgetTestDbContext db = _database.NewContext();
+
+        Result<bool> result = await Service(db)
+            .ClaimAsync(Broadcaster, widgetId, new string('k', 201));
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
     }
 }

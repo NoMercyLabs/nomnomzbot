@@ -39,6 +39,11 @@ public sealed class WidgetActionService(
     // One action never runs longer than the longest single step a pipeline allows (wait caps at 30 s).
     private static readonly TimeSpan RunTimeout = TimeSpan.FromSeconds(45);
 
+    internal const int MaxClaimKeyLength = 200;
+
+    // Every copy of an overlay receives an event within moments of the others; ten minutes outlasts any retry.
+    private static readonly TimeSpan ClaimWindow = TimeSpan.FromMinutes(10);
+
     public async Task<Result<WidgetActionOutcome>> InvokeAsync(
         WidgetActionRequest request,
         CancellationToken cancellationToken = default
@@ -98,6 +103,35 @@ public sealed class WidgetActionService(
         return Result.Success(
             await RunAsync(action, request, ownerUserId.Value, widget.Name, cancellationToken)
         );
+    }
+
+    public async Task<Result<bool>> ClaimAsync(
+        Guid broadcasterId,
+        Guid widgetId,
+        string key,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(key) || key.Length > MaxClaimKeyLength)
+            return Result.Failure<bool>(
+                $"A claim key is 1 to {MaxClaimKeyLength} characters.",
+                "VALIDATION_FAILED"
+            );
+
+        bool inChannel = await db
+            .Widgets.AsNoTracking()
+            .AnyAsync(w => w.Id == widgetId && w.BroadcasterId == broadcasterId, cancellationToken);
+        if (!inChannel)
+            return Errors.NotFound<bool>("Widget", widgetId.ToString());
+
+        // A one-permit window: the first copy takes the only permit, every later copy is refused it.
+        RateLimitLease lease = await rateLimiter.AcquireAsync(
+            $"widget-claim:{widgetId}:{key}",
+            1,
+            ClaimWindow,
+            cancellationToken
+        );
+        return Result.Success(lease.IsAcquired);
     }
 
     private async Task<WidgetActionOutcome> RunAsync(

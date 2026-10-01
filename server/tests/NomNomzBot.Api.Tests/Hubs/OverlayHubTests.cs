@@ -538,4 +538,79 @@ public sealed class OverlayHubTests
         response.Error.Should().Be("This widget is turned off.");
         response.ErrorCode.Should().Be("FORBIDDEN");
     }
+
+    [Fact]
+    public async Task A_widget_scoped_connection_claims_a_key_for_its_own_widget()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Guid widgetId = Guid.NewGuid();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, widgetId))
+        );
+        await f.Hub.OnConnectedAsync();
+        IWidgetActionService actions = Substitute.For<IWidgetActionService>();
+        actions
+            .ClaimAsync(Broadcaster, widgetId, "redemption:r-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(true), Result.Success(false));
+
+        bool first = await f.Hub.ClaimOnce(widgetId.ToString(), "redemption:r-1", actions);
+        bool second = await f.Hub.ClaimOnce(widgetId.ToString(), "redemption:r-1", actions);
+
+        first.Should().BeTrue();
+        second.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_widget_scoped_connection_cannot_claim_for_a_different_widget()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, Guid.NewGuid()))
+        );
+        await f.Hub.OnConnectedAsync();
+        IWidgetActionService actions = Substitute.For<IWidgetActionService>();
+
+        Func<Task> claim = () =>
+            f.Hub.ClaimOnce(Guid.NewGuid().ToString(), "redemption:r-1", actions);
+
+        await claim.Should().ThrowAsync<HubException>().WithMessage("*different widget*");
+        await actions
+            .DidNotReceive()
+            .ClaimAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_refused_claim_rejects_with_the_service_reason()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Guid widgetId = Guid.NewGuid();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, widgetId))
+        );
+        await f.Hub.OnConnectedAsync();
+        IWidgetActionService actions = Substitute.For<IWidgetActionService>();
+        actions
+            .ClaimAsync(Broadcaster, widgetId, "", Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<bool>("A claim key is 1 to 200 characters.", "VALIDATION_FAILED")
+            );
+
+        Func<Task> claim = () => f.Hub.ClaimOnce(widgetId.ToString(), "", actions);
+
+        await claim.Should().ThrowAsync<HubException>().WithMessage("A claim key is 1 to 200*");
+    }
 }

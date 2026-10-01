@@ -117,6 +117,41 @@ public sealed class OverlaySdkActionInvokeTests
     }
 
     [Fact]
+    public void Claim_sends_a_ClaimOnce_frame_and_resolves_with_the_hub_answer()
+    {
+        Engine engine = BootedSdk();
+        engine.Execute(
+            """
+            var claimed = null;
+            NomNomz.actions.claim('redemption:r-1').then(function (won) { claimed = won; });
+            var sent = JSON.parse(ws.sent[ws.sent.length - 1].slice(0, -1));
+            ws.onmessage({ data: JSON.stringify({ type: 3, invocationId: sent.invocationId, result: false }) + RS });
+            """
+        );
+
+        engine.Evaluate("sent.target").AsString().Should().Be("ClaimOnce");
+        engine.Evaluate("sent.arguments[0]").AsString().Should().Be("widget-1");
+        engine.Evaluate("sent.arguments[1]").AsString().Should().Be("redemption:r-1");
+        engine.Evaluate("claimed").AsBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public void A_hub_error_rejects_the_claim_with_its_message()
+    {
+        Engine engine = BootedSdk();
+        engine.Execute(
+            """
+            var failure = null;
+            NomNomz.actions.claim('').catch(function (e) { failure = e.message; });
+            var sent = JSON.parse(ws.sent[ws.sent.length - 1].slice(0, -1));
+            ws.onmessage({ data: JSON.stringify({ type: 3, invocationId: sent.invocationId, error: 'A claim key is 1 to 200 characters.' }) + RS });
+            """
+        );
+
+        engine.Evaluate("failure").AsString().Should().Be("A claim key is 1 to 200 characters.");
+    }
+
+    [Fact]
     public void A_dropped_socket_rejects_the_call_in_flight()
     {
         Engine engine = BootedSdk();

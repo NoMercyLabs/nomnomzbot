@@ -185,6 +185,13 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  invoke(actionType: string, params?: Record<string, any>, variables?: Record<string, string | number>): Promise<NnzActionResult>;"
         );
+        sb.AppendLine(
+            "  /** True only for the first open copy of this widget to claim the key (e.g. a redemption id), for ten"
+        );
+        sb.AppendLine(
+            "   *  minutes. Claim an event before acting on it, so two OBS sources never both act. */"
+        );
+        sb.AppendLine("  claim(key: string): Promise<boolean>;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzActionResult {");

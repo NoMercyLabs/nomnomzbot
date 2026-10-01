@@ -37,7 +37,8 @@ public sealed class OverlaySdkController : ControllerBase
            group, and delivers the subscription-matched WidgetEvent feed + live WidgetSettingsChanged to the widget.
            API: on / off / onAny / onSettings / settings / reportError (unchanged from the postMessage era), plus
            actions.invoke(actionType, params?, variables?) -> Promise<{ success, output, error, errorCode, variables }>,
-           which runs one pipeline action as the channel owner. It rejects only when the socket is not connected. */
+           which runs one pipeline action as the channel owner. It rejects only when the socket is not connected.
+           actions.claim(key) -> Promise<boolean> is true only for the first open copy of the widget to claim key. */
         (function () {
           "use strict";
           var RS = String.fromCharCode(30); // SignalR JSON hub-protocol record separator (0x1e)
@@ -392,6 +393,15 @@ public sealed class OverlaySdkController : ControllerBase
           // call; a refused or failed action resolves with success=false and the reason, so only a missing
           // connection rejects.
           function invokeAction(actionType, params, variables) {
+            return callHub("InvokeAction", [widgetId, String(actionType), params || null, textValues(variables)]);
+          }
+
+          // Resolves true for the first open copy of this widget to claim the key, false for every other copy.
+          function claim(key) {
+            return callHub("ClaimOnce", [widgetId, String(key)]);
+          }
+
+          function callHub(target, args) {
             return new Promise(function (resolve, reject) {
               if (!widgetId || !ws || ws.readyState !== WebSocket.OPEN) {
                 reject(new Error("The overlay is not connected to the bot."));
@@ -399,10 +409,7 @@ public sealed class OverlaySdkController : ControllerBase
               }
               var id = "action-" + (++nextActionId);
               pendingActions[id] = { resolve: resolve, reject: reject };
-              ws.send(JSON.stringify({
-                type: 1, invocationId: id, target: "InvokeAction",
-                arguments: [widgetId, String(actionType), params || null, textValues(variables)],
-              }) + RS);
+              ws.send(JSON.stringify({ type: 1, invocationId: id, target: target, arguments: args }) + RS);
             });
           }
 
@@ -443,7 +450,7 @@ public sealed class OverlaySdkController : ControllerBase
             onAny: onAny,
             onSettings: onSettings,
             reportError: report,
-            actions: { invoke: invokeAction },
+            actions: { invoke: invokeAction, claim: claim },
             get settings() { return currentSettings; },
           };
           window.NomNomz = api;

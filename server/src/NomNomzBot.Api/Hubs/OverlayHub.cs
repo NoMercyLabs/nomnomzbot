@@ -170,6 +170,32 @@ public class OverlayHub : Hub<IOverlayClient>
             : Refused(outcome.ErrorMessage ?? "Action refused", outcome.ErrorCode);
     }
 
+    /// <summary>
+    /// The SDK's <c>actions.claim</c>: true only for the first open copy of the widget to claim
+    /// <paramref name="key"/>, so a widget open in two OBS sources acts on an event once.
+    /// </summary>
+    public async Task<bool> ClaimOnce(
+        string widgetId,
+        string key,
+        [FromServices] IWidgetActionService actions
+    )
+    {
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
+            throw new HubException("Not authenticated");
+        if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            throw new HubException(WrongWidgetError);
+
+        Result<bool> claimed = await actions.ClaimAsync(
+            broadcasterId,
+            parsedWidgetId,
+            key,
+            Context.ConnectionAborted
+        );
+        return claimed.IsSuccess
+            ? claimed.Value
+            : throw new HubException(claimed.ErrorMessage ?? "Claim refused");
+    }
+
     public async Task LeaveWidget(string widgetId)
     {
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)

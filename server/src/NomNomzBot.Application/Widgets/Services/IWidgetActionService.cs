@@ -29,4 +29,17 @@ public interface IWidgetActionService
         WidgetActionRequest request,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// True for the first claim of <paramref name="key"/> by this widget within ten minutes, false for every later
+    /// one. One overlay can be open twice (two OBS sources, a browser tab); a widget claims each event before it
+    /// acts on it, so only one copy acts. Fails with <c>NOT_FOUND</c> for a widget outside the channel and
+    /// <c>VALIDATION_FAILED</c> for an empty or over-long key.
+    /// </summary>
+    Task<Result<bool>> ClaimAsync(
+        Guid broadcasterId,
+        Guid widgetId,
+        string key,
+        CancellationToken cancellationToken = default
+    );
 }
