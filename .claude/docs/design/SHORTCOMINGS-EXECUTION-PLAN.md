@@ -24,6 +24,12 @@ Slice IDs are stable; the order is the queue.
 
 - **S-STREAMDECK-OBS-ICONS** Stream Deck OBS plugin icon art — Done-when: every OBS action ships its
   own key icon in the obs manifest
+- **S-SR-ROLE-LIMIT** (owner idea 2026-10-01: "per role song queue limit", filed for later) The song
+  queue has one cap for everyone: `MusicConfig.MaxRequestsPerUser` (default 5), enforced as
+  `PER_USER_LIMIT`. Done-when: the streamer sets a separate cap per role (viewer, follower, subscriber,
+  VIP, moderator, broadcaster) on the music settings page; a requester gets the highest cap of the roles
+  they hold; the refusal reply names their cap; a role without its own value falls back to the channel
+  cap.
 ---
 
 ## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (parked)
