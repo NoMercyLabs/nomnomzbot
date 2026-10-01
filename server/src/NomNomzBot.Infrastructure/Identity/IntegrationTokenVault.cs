@@ -11,6 +11,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -435,6 +436,8 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         if (marked == 0)
             return;
 
+        SyncTrackedCopy(connection.Id, now);
+
         _logger.LogWarning(
             "Integration {ConnectionId} ({Provider}) holds a token that cannot be decrypted; marked decrypt_failed",
             connection.Id,
@@ -450,6 +453,28 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             },
             cancellationToken
         );
+    }
+
+    /// <summary>
+    /// Brings a copy of the row the caller's context already tracks in line with the set-based update, so a
+    /// later tracked write in the same unit of work (a fresh grant setting it back to connected) is seen as a
+    /// change and saved, instead of being compared against the stale pre-update value and skipped.
+    /// </summary>
+    private void SyncTrackedCopy(Guid connectionId, DateTime markedAt)
+    {
+        IntegrationConnection? tracked = _db.IntegrationConnections.Local.FirstOrDefault(c =>
+            c.Id == connectionId
+        );
+        if (tracked is null)
+            return;
+
+        EntityEntry entry = _db.Entry(tracked);
+        entry.Property(nameof(IntegrationConnection.Status)).OriginalValue = AuthEnums
+            .IntegrationStatus
+            .DecryptFailed;
+        entry.Property(nameof(IntegrationConnection.LastErrorAt)).OriginalValue = markedAt;
+        tracked.Status = AuthEnums.IntegrationStatus.DecryptFailed;
+        tracked.LastErrorAt = markedAt;
     }
 
     private async Task UpsertTokenAsync(
