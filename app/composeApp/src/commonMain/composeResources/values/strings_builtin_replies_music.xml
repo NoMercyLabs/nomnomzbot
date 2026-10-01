@@ -18,6 +18,10 @@
     <string name="builtin_reply_queue_list_description">Someone asks what is in the song queue.</string>
     <string name="builtin_reply_queue_empty_label">Queue empty</string>
     <string name="builtin_reply_queue_empty_description">Someone asks for the queue, but it is empty.</string>
+    <string name="builtin_reply_queue_mine_label">Own requests</string>
+    <string name="builtin_reply_queue_mine_description">Someone asks where their songs are, or where another viewer’s are.</string>
+    <string name="builtin_reply_queue_none_label">No request</string>
+    <string name="builtin_reply_queue_none_description">Someone asks for a viewer who has no song in the queue.</string>
     <string name="builtin_reply_sr_added_label">Song added</string>
     <string name="builtin_reply_sr_added_description">A song request was added to the queue.</string>
     <string name="builtin_reply_sr_notfound_label">Song not found</string>
@@ -50,6 +54,8 @@
     <string name="builtin_reply_var_queue_count">How many songs are queued</string>
     <string name="builtin_reply_var_queue_next">The next song</string>
     <string name="builtin_reply_var_queue_more">A note when more songs wait</string>
+    <string name="builtin_reply_var_queue_mine">Where the viewer’s songs are, with the wait</string>
+    <string name="builtin_reply_var_queue_mine_count">How many songs the viewer has queued</string>
     <string name="builtin_reply_sr_usage_label">How to use</string>
     <string name="builtin_reply_sr_usage_description">A viewer types the song command with no song.</string>
     <string name="builtin_reply_sr_requestsoff_label">Requests turned off</string>

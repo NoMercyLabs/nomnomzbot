@@ -18,6 +18,10 @@
     <string name="builtin_reply_queue_list_description">Iemand vraagt wat er in de wachtrij staat.</string>
     <string name="builtin_reply_queue_empty_label">Wachtrij leeg</string>
     <string name="builtin_reply_queue_empty_description">Iemand vraagt de wachtrij, maar die is leeg.</string>
+    <string name="builtin_reply_queue_mine_label">Eigen verzoeken</string>
+    <string name="builtin_reply_queue_mine_description">Iemand vraagt waar de eigen nummers staan, of die van een andere kijker.</string>
+    <string name="builtin_reply_queue_none_label">Geen verzoek</string>
+    <string name="builtin_reply_queue_none_description">Iemand vraagt naar een kijker zonder nummer in de wachtrij.</string>
     <string name="builtin_reply_sr_added_label">Nummer toegevoegd</string>
     <string name="builtin_reply_sr_added_description">Een verzoeknummer is aan de wachtrij toegevoegd.</string>
     <string name="builtin_reply_sr_notfound_label">Nummer niet gevonden</string>
@@ -50,6 +54,8 @@
     <string name="builtin_reply_var_queue_count">Hoeveel nummers in de wachtrij staan</string>
     <string name="builtin_reply_var_queue_next">Het volgende nummer</string>
     <string name="builtin_reply_var_queue_more">Een melding als er meer nummers wachten</string>
+    <string name="builtin_reply_var_queue_mine">Waar de nummers van de kijker staan, met de wachttijd</string>
+    <string name="builtin_reply_var_queue_mine_count">Hoeveel nummers de kijker in de wachtrij heeft</string>
     <string name="builtin_reply_sr_usage_label">Zo gebruik je het</string>
     <string name="builtin_reply_sr_usage_description">Een kijker typt het songcommando zonder nummer.</string>
     <string name="builtin_reply_sr_requestsoff_label">Verzoeken staan uit</string>

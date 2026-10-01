@@ -304,7 +304,7 @@ public static partial class ToneTemplateCatalog
             ],
             sassy:
             [
-                "{queue.count} songs deep: {queue.list}. Yes, yours is in there somewhere. Patience.",
+                "{queue.count} songs deep: {queue.list}. Want your own spot? !queue @you.",
                 "OFFICIAL QUEUE REPORT: {queue.count} tracks. {queue.list}. Complaints go to /dev/null.",
                 "Up next, whether you like it or not: {queue.list}",
                 "The queue, since you asked instead of scrolling: {queue.list}",
@@ -355,6 +355,82 @@ public static partial class ToneTemplateCatalog
                 "EMPTY QUEUE ALERT. !sr TO THE RESCUE.",
             ],
             chill: ["queue's empty.", "nothing queued. !sr maybe.", "empty rn."]
+        );
+
+        // ── !queue / mine ({user} {queue.mine} {queue.mine.count}) ─────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Queue.Key,
+            BuiltinResponseSlots.Queue.Mine,
+            variables: ["user", "queue.mine", "queue.mine.count"],
+            informative:
+            [
+                "{user}'s requests: {queue.mine}",
+                "{user} has {queue.mine.count} queued: {queue.mine}",
+                "Queued for {user}: {queue.mine}",
+            ],
+            friendly:
+            [
+                "Here's where {user}'s songs are: {queue.mine}",
+                "{user}, you're in! {queue.mine}",
+                "Good news, {user}: {queue.mine}",
+            ],
+            sassy:
+            [
+                "{user}, your songs, since you asked so nicely: {queue.mine}",
+                "Yes {user}, it's still there. {queue.mine}",
+                "{user}'s claim on the speakers: {queue.mine}. Patience.",
+            ],
+            hype:
+            [
+                "{user} IS IN THE QUEUE: {queue.mine}",
+                "{user}'S BANGERS ARE LOADED: {queue.mine}",
+                "GET READY FOR {user}: {queue.mine}",
+            ],
+            chill:
+            [
+                "{user}: {queue.mine}",
+                "yours, {user}: {queue.mine}",
+                "{user}'s up: {queue.mine}",
+            ]
+        );
+
+        // ── !queue / none ({user}) ─────────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Queue.Key,
+            BuiltinResponseSlots.Queue.None,
+            variables: ["user"],
+            informative:
+            [
+                "{user} has no songs in the queue.",
+                "No requests from {user} in the queue.",
+                "Nothing queued for {user}.",
+            ],
+            friendly:
+            [
+                "{user} hasn't got anything queued yet. !sr is open!",
+                "No songs from {user} right now. Add one with !sr!",
+                "{user}'s spot is free. Go for it with !sr!",
+            ],
+            sassy:
+            [
+                "{user} has exactly zero songs queued. Bold strategy.",
+                "Nothing from {user} in there. Can't skip what you never requested.",
+                "{user}? Not in the queue. Check again after an !sr.",
+            ],
+            hype:
+            [
+                "{user} HAS NOTHING QUEUED. FIX THAT WITH !sr.",
+                "NO SONGS FROM {user} YET. !sr AND GET IN THERE.",
+                "{user} IS MISSING FROM THE QUEUE. !sr NOW.",
+            ],
+            chill:
+            [
+                "nothing from {user}.",
+                "{user} has no songs queued.",
+                "no requests from {user} rn.",
+            ]
         );
 
         // ── !sr / added ({user} {track.name} {track.artist} {track.link}) ──────

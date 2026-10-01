@@ -35,6 +35,15 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>Queue is empty.</summary>
         public const string Empty = "empty";
+
+        /// <summary>
+        /// The subject (the named viewer, or the caller) has requests queued; <c>{user}</c>/<c>{queue.mine}</c>/
+        /// <c>{queue.mine.count}</c> are set. <c>{queue.mine}</c> gives each request's position and rough wait.
+        /// </summary>
+        public const string Mine = "mine";
+
+        /// <summary>The named viewer has no request in the queue; <c>{user}</c> is set.</summary>
+        public const string None = "none";
     }
 
     /// <summary><c>!sr</c> — request a song.</summary>

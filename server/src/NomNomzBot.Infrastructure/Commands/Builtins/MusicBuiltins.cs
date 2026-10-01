@@ -208,10 +208,16 @@ public sealed class SkipBuiltin(
         );
 }
 
-/// <summary>!queue — shows the current song queue (first 5 tracks) in the channel's tone.</summary>
+/// <summary>
+/// !queue [@user] — the song queue in the channel's tone. <c>!queue @user</c> answers with that viewer's
+/// own requests (queue position and a rough wait for each); a plain <c>!queue</c> does the same for a caller
+/// who has requests queued, and otherwise lists the first five tracks with who asked for each.
+/// </summary>
 public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer composer)
     : IBuiltinCommand
 {
+    private const int PreviewSize = 5;
+
     public string BuiltinKey => BuiltinResponseSlots.Queue.Key;
     public int DefaultCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0;
@@ -222,49 +228,147 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
     )
     {
         MusicQueue queue = await music.GetQueueAsync(context.BroadcasterId.ToString(), ct);
-        if (queue.Queue.Count == 0)
-        {
-            string empty = await composer.ComposeAsync(
-                new()
-                {
-                    BroadcasterId = context.BroadcasterId,
-                    Personality = context.Personality,
-                    BuiltinKey = BuiltinKey,
-                    Slot = BuiltinResponseSlots.Queue.Empty,
-                    NeutralFallback = "The queue is empty.",
-                },
-                ct
+        string? target = TargetName(context.Args);
+
+        if (queue.Queue.Count == 0 && target is null)
+            return Result.Success(
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinKey,
+                    BuiltinResponseSlots.Queue.Empty,
+                    "The queue is empty.",
+                    ct: ct
+                )
             );
-            return Result.Success(empty);
-        }
 
-        IEnumerable<string> preview = queue
-            .Queue.Take(5)
-            .Select((t, i) => $"{i + 1}. {t.TrackName} by {t.Artist}");
-        string more = queue.Queue.Count > 5 ? $"+{queue.Queue.Count - 5} more" : string.Empty;
+        List<int> positions = RequestPositions(queue.Queue, target, context);
+        if (positions.Count > 0)
+            return Result.Success(await OwnRequestsAsync(context, queue, positions, ct));
+
+        if (target is not null)
+            return Result.Success(
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinKey,
+                    BuiltinResponseSlots.Queue.None,
+                    "{user} has no songs in the queue.",
+                    new Dictionary<string, string> { ["user"] = target },
+                    ct
+                )
+            );
+
+        return Result.Success(await ListAsync(context, queue.Queue, ct));
+    }
+
+    private Task<string> ListAsync(
+        BuiltinCommandContext context,
+        IReadOnlyList<MusicQueueItem> items,
+        CancellationToken ct
+    )
+    {
+        IEnumerable<string> preview = items
+            .Take(PreviewSize)
+            .Select((item, i) => $"{i + 1}. {Describe(item)}{RequesterSuffix(item)}");
+        string more =
+            items.Count > PreviewSize ? $"+{items.Count - PreviewSize} more" : string.Empty;
         string list = string.Join(" | ", preview) + (more.Length > 0 ? $" ({more})" : string.Empty);
-        MusicQueueItem first = queue.Queue[0];
 
-        string message = await composer.ComposeAsync(
-            new()
+        return composer.ComposeAsync(
+            context,
+            BuiltinKey,
+            BuiltinResponseSlots.Queue.List,
+            "Queue: {queue.list}",
+            new Dictionary<string, string>
             {
-                BroadcasterId = context.BroadcasterId,
-                Personality = context.Personality,
-                BuiltinKey = BuiltinKey,
-                Slot = BuiltinResponseSlots.Queue.List,
-                NeutralFallback = "Queue: {queue.list}",
-                Variables = new Dictionary<string, string>
-                {
-                    ["queue.count"] = queue.Queue.Count.ToString(),
-                    ["queue.list"] = list,
-                    ["queue.next"] = $"{first.TrackName} by {first.Artist}",
-                    ["queue.more"] = more,
-                },
+                ["queue.count"] = items.Count.ToString(),
+                ["queue.list"] = list,
+                ["queue.next"] = Describe(items[0]),
+                ["queue.more"] = more,
             },
             ct
         );
-        return Result.Success(message);
     }
+
+    private Task<string> OwnRequestsAsync(
+        BuiltinCommandContext context,
+        MusicQueue queue,
+        List<int> positions,
+        CancellationToken ct
+    )
+    {
+        IEnumerable<string> mine = positions.Select(position =>
+            $"#{position + 1} {Describe(queue.Queue[position])} ({FormatWait(WaitBefore(queue, position))})"
+        );
+
+        return composer.ComposeAsync(
+            context,
+            BuiltinKey,
+            BuiltinResponseSlots.Queue.Mine,
+            "{user}: {queue.mine}",
+            new Dictionary<string, string>
+            {
+                ["user"] =
+                    queue.Queue[positions[0]].RequestedBy ?? context.TriggeringUserDisplayName,
+                ["queue.mine"] = string.Join(" | ", mine),
+                ["queue.mine.count"] = positions.Count.ToString(),
+            },
+            ct
+        );
+    }
+
+    // "!queue @f0xb17 extra words" → "f0xb17"; no argument → null (the caller asks about themselves).
+    private static string? TargetName(string args)
+    {
+        string first = args.Trim().Split(' ', 2)[0].TrimStart('@');
+        return first.Length == 0 ? null : first;
+    }
+
+    // Queue indexes of the subject's requests. The subject is the named viewer, or the caller; requests are
+    // matched on the requester's name, the same ownership rule !skip N and !wrongsong use.
+    private static List<int> RequestPositions(
+        IReadOnlyList<MusicQueueItem> items,
+        string? target,
+        BuiltinCommandContext context
+    )
+    {
+        List<int> positions = [];
+        for (int i = 0; i < items.Count; i++)
+        {
+            bool matches = target is null
+                ? IsNamed(items[i], context.TriggeringUserDisplayName)
+                    || IsNamed(items[i], context.TriggeringUserLogin)
+                : IsNamed(items[i], target);
+            if (matches)
+                positions.Add(i);
+        }
+        return positions;
+    }
+
+    private static bool IsNamed(MusicQueueItem item, string name) =>
+        name.Length > 0
+        && string.Equals(item.RequestedBy, name, StringComparison.OrdinalIgnoreCase);
+
+    // What still has to play before the track at [position] starts: the rest of the current track plus
+    // every queued track ahead of it.
+    private static TimeSpan WaitBefore(MusicQueue queue, int position)
+    {
+        NowPlaying? current = queue.CurrentTrack;
+        int remainingMs = current is { IsPlaying: true }
+            ? Math.Max(0, current.DurationMs - current.ProgressMs)
+            : 0;
+        long aheadMs = queue.Queue.Take(position).Sum(item => (long)item.DurationMs);
+        return TimeSpan.FromMilliseconds(remainingMs + aheadMs);
+    }
+
+    private static string FormatWait(TimeSpan wait) =>
+        wait < TimeSpan.FromMinutes(1)
+            ? "up next"
+            : $"in ~{(int)Math.Ceiling(wait.TotalMinutes)} min";
+
+    private static string Describe(MusicQueueItem item) => $"{item.TrackName} by {item.Artist}";
+
+    private static string RequesterSuffix(MusicQueueItem item) =>
+        string.IsNullOrWhiteSpace(item.RequestedBy) ? string.Empty : $" ({item.RequestedBy})";
 }
 
 /// <summary>

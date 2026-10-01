@@ -536,7 +536,11 @@ public static partial class ToneTemplateCatalog
         samples["track.link"] = "https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8";
         samples["requested.by"] = "StreamFan42";
         samples["query"] = "never gonna give you up";
-        samples["queue.list"] = "1. Take On Me — a-ha, 2. Africa — Toto";
+        samples["queue.list"] =
+            "1. Take On Me by a-ha (StreamFan42) | 2. Africa by Toto (NightOwl)";
+        samples["queue.mine"] =
+            "#2 Africa by Toto (in ~4 min) | #5 Hold the Line by Toto (in ~15 min)";
+        samples["queue.mine.count"] = "2";
         samples["queue.count"] = "2";
         samples["queue.next"] = "Take On Me — a-ha";
         samples["queue.more"] = "";
