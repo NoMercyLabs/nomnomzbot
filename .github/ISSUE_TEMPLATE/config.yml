@@ -1,0 +1,17 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/NoMercyLabs/nomnomzbot/security/advisories/new
+    about: Report it privately. Never in a public issue.
+  - name: Contributing guide
+    url: https://github.com/NoMercyLabs/nomnomzbot/blob/master/CONTRIBUTING.md
+    about: How to file a good issue, and what a pull request needs.

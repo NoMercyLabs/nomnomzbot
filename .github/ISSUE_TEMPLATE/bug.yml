@@ -1,0 +1,126 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+name: Bug report
+description: Something does not work as it should.
+title: "[Bug]: "
+labels: ["type/bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One problem per issue. Security problems go to a [private advisory](https://github.com/NoMercyLabs/nomnomzbot/security/advisories/new), not here.
+        Remove tokens, keys and passwords from anything you paste.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where is the problem?
+      options:
+        - Commands
+        - Event responses
+        - Timers
+        - Pipelines and the code editor
+        - Moderation and spam defense
+        - Channel points, polls and predictions
+        - Economy and games
+        - Text-to-speech
+        - Music and song requests
+        - Widgets and overlays
+        - Integrations (Spotify, Discord, YouTube)
+        - Platform connections (Twitch, Kick, YouTube, X)
+        - Setup and sign-in
+        - Dashboard (navigation, layout, settings)
+        - Admin console
+        - Self-hosting and deployment
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Twitch
+        - Kick
+        - YouTube
+        - X
+        - Not platform specific
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where you saw it
+      options:
+        - Chat
+        - Dashboard (web)
+        - Dashboard (desktop)
+        - Overlay or widget
+        - API
+        - Server logs
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps, as a numbered list. Include what you typed, who typed it (streamer, moderator, viewer) and which page you were on.
+      placeholder: |
+        1. As a viewer, type `!sr never gonna give you up` in chat
+        2. Open Music in the dashboard
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: What happened instead? Add the exact error text or a screenshot.
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: Open `GET /health/version` on your server and paste the version.
+      placeholder: 0.1.0+1a2b3c4d
+    validations:
+      required: true
+  - type: input
+    id: channel
+    attributes:
+      label: Channel
+      description: The channel it happened in, or "none".
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Server log lines around the time it happened. Remove secrets first.
+      render: text
+  - type: textarea
+    id: machine
+    attributes:
+      label: Machine-readable summary
+      description: Fill in the values. Bots use the same block (see CONTRIBUTING.md).
+      render: yaml
+      value: |
+        kind: bug
+        area:
+        platform:
+        surface:
+        build:
+        channel:

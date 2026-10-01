@@ -326,14 +326,9 @@ The build treats warnings as errors, and the code is formatted with CSharpier
 
 ## Contributing
 
-Contributions are welcome. A few conventions keep the tree healthy:
-
-- Work in small, validated vertical slices; keep the working tree clean.
-- Match the surrounding style; explicit types (no `var`), file-scoped namespaces, `Result<T>` over
-  exceptions, async all the way.
-- Before committing, run `dotnet csharpier format .` and ensure `dotnet build` + `dotnet test` are green
-  (warnings are errors). Conventional commit messages (`feat:`, `fix:`, `chore:`) are preferred.
-- The default branch is `master`.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to file a good issue (bug,
+feature or platform API gap, for people and for bots), the checks a pull request must pass, and the rules
+for code. The default branch is `master`.
 
 ## Security
 

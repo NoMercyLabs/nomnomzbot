@@ -1,0 +1,90 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+name: Platform API gap
+description: The bot does not support a method or event of an API it integrates.
+title: "[API gap]: "
+labels: ["type/feature", "area/server", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The bot aims to cover every method and event of every API it integrates. Beta and restricted features are included too.
+        Link the official documentation, so we work from the current version.
+  - type: dropdown
+    id: api
+    attributes:
+      label: API
+      options:
+        - Twitch Helix
+        - Twitch EventSub
+        - Kick
+        - YouTube
+        - X
+        - Spotify
+        - Discord
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is missing
+      options:
+        - A method (endpoint)
+        - An event (subscription)
+        - A field the bot ignores
+        - A scope the bot does not request
+    validations:
+      required: true
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: The exact name from the documentation.
+      placeholder: "channel.shoutout.receive (version 1)"
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Documentation link
+      placeholder: https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/#channelshoutoutreceive
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: Status at the provider
+      options:
+        - Stable
+        - Beta or preview
+        - Restricted (needs approval or a partner status)
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: What it would let a streamer do
+      description: One or two real uses.
+    validations:
+      required: true
+  - type: textarea
+    id: machine
+    attributes:
+      label: Machine-readable summary
+      description: Fill in the values. Bots use the same block (see CONTRIBUTING.md).
+      render: yaml
+      value: |
+        kind: api-gap
+        api:
+        missing:
+        name:
+        docs:
+        status:

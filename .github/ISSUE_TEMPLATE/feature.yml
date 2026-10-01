@@ -1,0 +1,93 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+name: Feature request
+description: You want the bot to do something new.
+title: "[Feature]: "
+labels: ["type/feature", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem you want solved first, then your idea. A clear problem helps us find the best solution.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Commands
+        - Event responses
+        - Timers
+        - Pipelines and the code editor
+        - Moderation and spam defense
+        - Channel points, polls and predictions
+        - Economy and games
+        - Text-to-speech
+        - Music and song requests
+        - Widgets and overlays
+        - Integrations (Spotify, Discord, YouTube)
+        - Platform connections (Twitch, Kick, YouTube, X)
+        - Setup and sign-in
+        - Dashboard (navigation, layout, settings)
+        - Admin console
+        - Self-hosting and deployment
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: role
+    attributes:
+      label: Who needs it
+      options:
+        - Streamer
+        - Moderator
+        - Viewer
+        - Self-hoster or admin
+        - Developer (API, SDK, scripts)
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today, and why does it matter?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should the bot do? Describe it from the user's side.
+    validations:
+      required: true
+  - type: textarea
+    id: done-when
+    attributes:
+      label: Done when
+      description: How do we know it works? List what a user can do when it is finished.
+      placeholder: |
+        - A streamer can ...
+        - A viewer sees ...
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you use now, or how other bots solve it.
+  - type: textarea
+    id: machine
+    attributes:
+      label: Machine-readable summary
+      description: Fill in the values. Bots use the same block (see CONTRIBUTING.md).
+      render: yaml
+      value: |
+        kind: feature
+        area:
+        role:

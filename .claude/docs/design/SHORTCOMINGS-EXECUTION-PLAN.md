@@ -683,13 +683,9 @@ than each consumer needing their own clone-and-customize pass.
   Fossabot = unauthenticated public-commands endpoint (unverified); Moobot and Streamer.bot = export
   file only; Streamlabs Cloudbot and Wizebot = no public read API found. An `Import` module with a
   StreamElements export DTO already exists (`Application/Import`, `ProviderImportService`) — extend it.
-- **S-CONTRIB-GUIDE** Contribution and issue guides for humans and bots (owner 2026-09-30). Root
-  `CONTRIBUTING.md` (the July `server/CONTRIBUTING.md` is out of date and GitHub does not show it),
-  GitHub issue forms (bug, feature, platform-API gap) whose fields carry what a fix needs: area,
-  exact reproduction, expected vs actual, channel/platform, logs, and a machine-readable block so a
-  bot can file and triage the same way, plus a PR template that mirrors the slice gate. Done-when: an
-  issue filed through each form by a human and by a bot carries enough for an agent to reproduce the
-  defect without asking a question.
+- **S-CONTRIB-GUIDE** Owed only the proof: file one issue through each form (bug, feature, platform
+  API gap) as a person and one as a bot (`gh issue create` with the form headings and the yaml block), then
+  close them. Done-when: an agent reproduces each defect from the issue alone, without asking a question.
 
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
