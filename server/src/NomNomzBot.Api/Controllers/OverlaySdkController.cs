@@ -20,21 +20,24 @@ namespace NomNomzBot.Api.Controllers;
 /// connection to the overlay hub: it reads the server-injected config (<c>window.WIDGET_SETTINGS</c>), joins its
 /// widget group, and dispatches the channel's subscription-matched events + live settings changes to the widget.
 /// The public surface is unchanged from the postMessage era (<c>on</c>/<c>off</c>/<c>onAny</c>/<c>onSettings</c>/
-/// <c>settings</c>/<c>reportError</c>) so widget code ports without edits — only the transport changed. Served
-/// anonymously; the token that gates the hub rides in on the page URL, never in this script.
+/// <c>settings</c>/<c>reportError</c>) so widget code ports without edits — only the transport changed. On top of
+/// it, <c>actions.invoke</c> runs a pipeline action as the channel owner (widget-sdk.md §8). Served anonymously;
+/// the token that gates the hub rides in on the page URL, never in this script.
 /// </summary>
 [ApiController]
 [Route("overlay")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
-[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
+[EnableRateLimiting(RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class OverlaySdkController : ControllerBase
 {
     private const string Sdk = """
         /* NomNomzBot Overlay SDK — window.NomNomz. The widget is a standalone SPA; this SDK opens the widget's own
            SignalR connection to /hubs/overlay, reads the server-injected window.WIDGET_SETTINGS, joins its widget
            group, and delivers the subscription-matched WidgetEvent feed + live WidgetSettingsChanged to the widget.
-           API: on / off / onAny / onSettings / settings / reportError (unchanged from the postMessage era). */
+           API: on / off / onAny / onSettings / settings / reportError (unchanged from the postMessage era), plus
+           actions.invoke(actionType, params?, variables?) -> Promise<{ success, output, error, errorCode, variables }>,
+           which runs one pipeline action as the channel owner. It rejects only when the socket is not connected. */
         (function () {
           "use strict";
           var RS = String.fromCharCode(30); // SignalR JSON hub-protocol record separator (0x1e)
@@ -52,6 +55,8 @@ public sealed class OverlaySdkController : ControllerBase
 
           var ws = null;
           var backoffMs = 1000;
+          var pendingActions = {}; // invocationId -> { resolve, reject }
+          var nextActionId = 0;
 
           function run(fn, a, b) { try { fn(a, b); } catch (e) { report((e && e.message) || e); } }
 
@@ -162,6 +167,7 @@ public sealed class OverlaySdkController : ControllerBase
                 }
 
                 if (msg.type === 1) dispatch(msg.target, msg.arguments || []);
+                else if (msg.type === 3 && pendingActions[msg.invocationId]) settleAction(msg);
                 else if (msg.type === 3 && msg.invocationId === "join" && msg.result) {
                   // JoinWidgetResponse.initialState IS the saved Widget.Settings bag — deliver it on
                   // EVERY join, first connect or reconnect alike, so a widget resumes real, current
@@ -172,7 +178,7 @@ public sealed class OverlaySdkController : ControllerBase
               });
             };
 
-            ws.onclose = function () { setTimeout(connect, backoffMs); backoffMs = Math.min(backoffMs * 2, 30000); };
+            ws.onclose = function () { failPendingActions(); setTimeout(connect, backoffMs); backoffMs = Math.min(backoffMs * 2, 30000); };
             ws.onerror = function () { try { ws.close(); } catch (_) {} };
           }
 
@@ -382,6 +388,46 @@ public sealed class OverlaySdkController : ControllerBase
             }
           }
 
+          // ── Actions: run one pipeline action as the channel owner (widget-sdk.md §8). The hub answers every
+          // call; a refused or failed action resolves with success=false and the reason, so only a missing
+          // connection rejects.
+          function invokeAction(actionType, params, variables) {
+            return new Promise(function (resolve, reject) {
+              if (!widgetId || !ws || ws.readyState !== WebSocket.OPEN) {
+                reject(new Error("The overlay is not connected to the bot."));
+                return;
+              }
+              var id = "action-" + (++nextActionId);
+              pendingActions[id] = { resolve: resolve, reject: reject };
+              ws.send(JSON.stringify({
+                type: 1, invocationId: id, target: "InvokeAction",
+                arguments: [widgetId, String(actionType), params || null, textValues(variables)],
+              }) + RS);
+            });
+          }
+
+          // The hub takes variables as text, the same as a pipeline's.
+          function textValues(variables) {
+            if (!variables) return null;
+            var out = {};
+            Object.keys(variables).forEach(function (k) { if (variables[k] != null) out[k] = String(variables[k]); });
+            return out;
+          }
+
+          function settleAction(msg) {
+            var call = pendingActions[msg.invocationId];
+            delete pendingActions[msg.invocationId];
+            if (msg.error) call.reject(new Error(msg.error));
+            else call.resolve(msg.result);
+          }
+
+          function failPendingActions() {
+            Object.keys(pendingActions).forEach(function (id) {
+              pendingActions[id].reject(new Error("The overlay lost its connection to the bot."));
+              delete pendingActions[id];
+            });
+          }
+
           // Keep-alive: the hub evicts silent clients (~30s); ping well under it.
           setInterval(function () {
             if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 6 }) + RS);
@@ -397,6 +443,7 @@ public sealed class OverlaySdkController : ControllerBase
             onAny: onAny,
             onSettings: onSettings,
             reportError: report,
+            actions: { invoke: invokeAction },
             get settings() { return currentSettings; },
           };
           window.NomNomz = api;

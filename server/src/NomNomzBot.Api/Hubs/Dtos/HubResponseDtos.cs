@@ -214,6 +214,19 @@ public record ActionResponse(bool Success, string? Error);
 
 public record JoinWidgetResponse(bool Success, string? Error, object? InitialState);
 
+/// <summary>
+/// The answer to a widget's <c>InvokeAction</c>. <paramref name="ErrorCode"/> is set when the bot refused to run
+/// the action (NOT_FOUND, FORBIDDEN, RATE_LIMITED); a run that started and failed only carries
+/// <paramref name="Error"/>. <paramref name="Variables"/> holds the action's outputs, e.g. <c>tts.audioUrl</c>.
+/// </summary>
+public record WidgetActionResponse(
+    bool Success,
+    string? Output,
+    string? Error,
+    string? ErrorCode,
+    IReadOnlyDictionary<string, string> Variables
+);
+
 // ─── Sound overlay ────────────────────────────────────────────────────────────
 
 /// <summary>Payload the overlay receives to start playback of a clip on its audio bus.</summary>

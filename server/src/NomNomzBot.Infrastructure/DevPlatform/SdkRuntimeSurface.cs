@@ -169,6 +169,36 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("  reportError(message: string): void;");
         sb.AppendLine("  readonly settings: Record<string, any>;");
+        sb.AppendLine("  readonly actions: NnzOverlayActions;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** Pipeline actions the widget runs as the channel owner, within the owner's own permissions. */"
+        );
+        sb.AppendLine("interface NnzOverlayActions {");
+        sb.AppendLine(
+            "  /** Runs one action (e.g. 'tts_synthesize', 'song_pause') with a pipeline step's parameters. Resolves with"
+        );
+        sb.AppendLine(
+            "   *  the outcome, also when the bot refuses or the action fails; rejects only when the overlay is offline. */"
+        );
+        sb.AppendLine(
+            "  invoke(actionType: string, params?: Record<string, any>, variables?: Record<string, string | number>): Promise<NnzActionResult>;"
+        );
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzActionResult {");
+        sb.AppendLine("  success: boolean;");
+        sb.AppendLine("  output: string | null;");
+        sb.AppendLine("  error: string | null;");
+        sb.AppendLine(
+            "  /** Set when the bot refused to run it: NOT_FOUND, FORBIDDEN or RATE_LIMITED. */"
+        );
+        sb.AppendLine("  errorCode: string | null;");
+        sb.AppendLine(
+            "  /** The action's context after the run, e.g. tts.audioUrl and tts.durationMs. */"
+        );
+        sb.AppendLine("  variables: Record<string, string>;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("declare const NomNomz: NnzOverlaySdk;");

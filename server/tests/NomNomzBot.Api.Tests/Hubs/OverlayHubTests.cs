@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -415,5 +417,125 @@ public sealed class OverlayHubTests
 
         joinA.Success.Should().BeTrue();
         joinB.Success.Should().BeTrue();
+    }
+
+    // ── widget-sdk.md §8: actions run only for the widget the ticket names ───────────────────────
+
+    private static IWidgetActionService ActionsReturning(WidgetActionOutcome outcome)
+    {
+        IWidgetActionService actions = Substitute.For<IWidgetActionService>();
+        actions
+            .InvokeAsync(Arg.Any<WidgetActionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(outcome));
+        return actions;
+    }
+
+    [Fact]
+    public async Task A_widget_scoped_connection_runs_an_action_for_its_own_widget_and_returns_the_outputs()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Guid widgetId = Guid.NewGuid();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, widgetId))
+        );
+        await f.Hub.OnConnectedAsync();
+        IWidgetActionService actions = ActionsReturning(
+            new(true, "paused", null, new Dictionary<string, string> { ["tts.durationMs"] = "900" })
+        );
+        Dictionary<string, JsonElement> parameters = new()
+        {
+            ["text"] = JsonSerializer.SerializeToElement("hello"),
+        };
+        Dictionary<string, string> variables = new() { ["redemption.id"] = "r-1" };
+
+        WidgetActionResponse response = await f.Hub.InvokeAction(
+            widgetId.ToString(),
+            "song_pause",
+            parameters,
+            variables,
+            actions
+        );
+
+        response.Success.Should().BeTrue();
+        response.Output.Should().Be("paused");
+        response.ErrorCode.Should().BeNull();
+        response.Variables["tts.durationMs"].Should().Be("900");
+        await actions
+            .Received(1)
+            .InvokeAsync(
+                Arg.Is<WidgetActionRequest>(r =>
+                    r.BroadcasterId == Broadcaster
+                    && r.WidgetId == widgetId
+                    && r.ActionType == "song_pause"
+                    && r.Parameters == parameters
+                    && r.Variables == variables
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_widget_scoped_connection_cannot_run_an_action_for_a_different_widget()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, Guid.NewGuid()))
+        );
+        await f.Hub.OnConnectedAsync();
+        IWidgetActionService actions = ActionsReturning(
+            new(true, null, null, new Dictionary<string, string>())
+        );
+
+        WidgetActionResponse response = await f.Hub.InvokeAction(
+            Guid.NewGuid().ToString(),
+            "send_message",
+            null,
+            null,
+            actions
+        );
+
+        response.Success.Should().BeFalse();
+        response.ErrorCode.Should().Be("FORBIDDEN");
+        await actions
+            .DidNotReceive()
+            .InvokeAsync(Arg.Any<WidgetActionRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_refused_action_carries_the_service_reason_and_code_back_to_the_widget()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        Guid widgetId = Guid.NewGuid();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(new OverlayTokenScope(Broadcaster, widgetId))
+        );
+        await f.Hub.OnConnectedAsync();
+        IWidgetActionService actions = Substitute.For<IWidgetActionService>();
+        actions
+            .InvokeAsync(Arg.Any<WidgetActionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<WidgetActionOutcome>("This widget is turned off.", "FORBIDDEN")
+            );
+
+        WidgetActionResponse response = await f.Hub.InvokeAction(
+            widgetId.ToString(),
+            "song_pause",
+            null,
+            null,
+            actions
+        );
+
+        response.Success.Should().BeFalse();
+        response.Error.Should().Be("This widget is turned off.");
+        response.ErrorCode.Should().Be("FORBIDDEN");
     }
 }

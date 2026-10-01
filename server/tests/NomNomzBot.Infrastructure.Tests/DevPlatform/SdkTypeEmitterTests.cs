@@ -340,6 +340,11 @@ public sealed class SdkTypeEmitterTests
                 "  onSettings(handler: (settings: Record<string, any>) => void): NnzOverlaySdk;"
             );
         ts.Should().Contain("  reportError(message: string): void;");
+        ts.Should().Contain("  readonly actions: NnzOverlayActions;");
+        ts.Should()
+            .Contain(
+                "  invoke(actionType: string, params?: Record<string, any>, variables?: Record<string, string | number>): Promise<NnzActionResult>;"
+            );
         ts.Should().Contain("  readonly settings: Record<string, any>;");
         ts.Should().Contain("declare const WIDGET_ID: string;");
         ts.Should().Contain("declare const WIDGET_TOKEN: string;");

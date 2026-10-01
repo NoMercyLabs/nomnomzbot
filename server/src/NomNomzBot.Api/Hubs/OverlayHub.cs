@@ -8,12 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -27,6 +30,7 @@ public class OverlayHub : Hub<IOverlayClient>
     // that never subscribed to it renders no music state, so its connection has nothing to gain from a fast
     // poll cadence.
     private const string NowPlayingEventKey = "now_playing";
+    private const string WrongWidgetError = "This overlay token is scoped to a different widget";
 
     private readonly IApplicationDbContext _db;
     private readonly IWidgetService _widgetService;
@@ -98,14 +102,8 @@ public class OverlayHub : Hub<IOverlayClient>
         // A widget-scoped connection (audit S-OVERLAY-1) may only ever join its OWN widget — never another
         // one on the same channel, even though the broadcaster id matches. Channel-wide connections (the
         // WidgetId scope item is null) keep joining any widget id, as before.
-        if (
-            Context.Items["WidgetId"] is Guid scopedWidgetId
-            && (
-                !Guid.TryParse(widgetId, out Guid requestedWidgetId)
-                || requestedWidgetId != scopedWidgetId
-            )
-        )
-            return new(false, "This overlay token is scoped to a different widget", null);
+        if (!MayActFor(widgetId))
+            return new(false, WrongWidgetError, null);
 
         string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
@@ -140,6 +138,38 @@ public class OverlayHub : Hub<IOverlayClient>
         return new(true, null, widget?.Settings);
     }
 
+    /// <summary>
+    /// Runs one pipeline action for a widget, as the channel owner (widget-sdk.md §8): the SDK's
+    /// <c>actions.invoke</c> -> here. Only the widget the token names may act, and only within the owner's IAM.
+    /// </summary>
+    public async Task<WidgetActionResponse> InvokeAction(
+        string widgetId,
+        string actionType,
+        Dictionary<string, JsonElement>? parameters,
+        Dictionary<string, string>? variables,
+        [FromServices] IWidgetActionService actions
+    )
+    {
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
+            return Refused("Not authenticated", "AUTH_REQUIRED");
+        if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            return Refused(WrongWidgetError, "FORBIDDEN");
+
+        Result<WidgetActionOutcome> outcome = await actions.InvokeAsync(
+            new(broadcasterId, parsedWidgetId, actionType, parameters, variables),
+            Context.ConnectionAborted
+        );
+        return outcome.IsSuccess
+            ? new(
+                outcome.Value.Succeeded,
+                outcome.Value.Output,
+                outcome.Value.Error,
+                null,
+                outcome.Value.Variables
+            )
+            : Refused(outcome.ErrorMessage ?? "Action refused", outcome.ErrorCode);
+    }
+
     public async Task LeaveWidget(string widgetId)
     {
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
@@ -168,4 +198,15 @@ public class OverlayHub : Hub<IOverlayClient>
         string trimmed = error.Length > 2000 ? error[..2000] : error;
         await _widgetService.RecordRuntimeErrorAsync(broadcasterId.ToString(), widgetId, trimmed);
     }
+
+    /// <summary>False when the connection's ticket names one widget and <paramref name="widgetId"/> is another.</summary>
+    private bool MayActFor(string widgetId) =>
+        Context.Items["WidgetId"] is not Guid scopedWidgetId
+        || (
+            Guid.TryParse(widgetId, out Guid requestedWidgetId)
+            && requestedWidgetId == scopedWidgetId
+        );
+
+    private static WidgetActionResponse Refused(string error, string? code) =>
+        new(false, null, error, code, new Dictionary<string, string>());
 }

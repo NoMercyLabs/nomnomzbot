@@ -205,7 +205,10 @@ try
             // hub DTOs carry ids as strings, so this is a no-op guard — but it keeps any future Guid-typed hub field
             // consistent with the REST contract instead of silently diverging.
             options.PayloadSerializerOptions.Converters.Add(new UlidGuidJsonConverter())
-        );
+        )
+        // A widget runs its actions over this one socket (widget-sdk.md §8). One at a time, a widget that
+        // synthesizes several speech lines would wait for each before the next even starts.
+        .AddHubOptions<OverlayHub>(options => options.MaximumParallelInvocationsPerClient = 4);
 
     // Overlay hub connection security (S035 item 3, U·B5/B7): the long-lived overlay token exchanges for a
     // short-lived, single-use ticket, and connection attempts are throttled per source. Singleton — the
