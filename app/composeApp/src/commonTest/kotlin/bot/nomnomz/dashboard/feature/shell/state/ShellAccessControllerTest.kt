@@ -28,6 +28,9 @@ import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 
 // Proves the shell's role resolver — the seam that REPLACES the App.kt `role = Broadcaster` hardcode. It resolves
@@ -210,6 +213,30 @@ class ShellAccessControllerTest {
     }
 
     @Test
+    fun a_repeat_blip_keeps_re_probing_with_backoff_until_a_real_answer_lands() = runTest {
+        // A blue/green deploy can keep the backend away for more than one probe. The second blip sets the same
+        // Retrying value, so the retry must loop on its own — re-probing once left the shell on its splash forever.
+        val roles = FakeRolesApi(access = ApiResult.Failure(ApiError(502, "ERR", "swapping")))
+        val controller = ShellAccessController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), roles)
+        controller.load()
+
+        val retry: Job = launch { controller.retryWhileTransient(firstDelayMs = 2_000L, maxDelayMs = 30_000L) }
+        advanceTimeBy(2_001L)
+        assertEquals(ShellAccess.Retrying, controller.state.value)
+        assertEquals(2, roles.effectiveMeCalls.size)
+
+        roles.access = ApiResult.Ok(resolvedAccess(role = WireRole.Broadcaster, level = 40))
+        advanceTimeBy(3_000L)
+        assertEquals(2, roles.effectiveMeCalls.size, "the second wait is doubled to 4 s")
+
+        advanceTimeBy(1_001L)
+        assertEquals(3, roles.effectiveMeCalls.size)
+        assertEquals(ManagementRole.Broadcaster, (controller.state.value as ShellAccess.Resolved).role)
+        retry.join()
+        assertTrue(retry.isCompleted)
+    }
+
+    @Test
     fun a_network_level_effective_me_failure_reports_retrying_not_a_fail_closed_viewer() = runTest {
         // status == 0 means no response reached the client at all (offline/DNS/refused) — the same "blip, not an
         // answer" case as a 5xx.
@@ -313,7 +340,7 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-private class FakeRolesApi(private val access: ApiResult<ResolvedAccess>) : RolesApi {
+private class FakeRolesApi(var access: ApiResult<ResolvedAccess>) : RolesApi {
     val effectiveMeCalls: MutableList<String> = mutableListOf()
 
     override suspend fun effectiveMe(channelId: String): ApiResult<ResolvedAccess> {

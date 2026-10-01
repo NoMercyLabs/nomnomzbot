@@ -676,11 +676,35 @@ class ConnectController(
      * a failed restore is a silent fall-through to sign-in, not a visible error on the Connect screen.
      */
     suspend fun restoreSession(): Boolean {
-        _restoreUnreachable.value = false
+        // [restoreUnreachable] only changes once the attempt has an answer. Cleared up front, a retry from the
+        // Unreachable screen flipped the gate to sign-in mid-attempt and cancelled the very effect running it.
+        val restored: Boolean = restoreRememberedSession()
+        if (restored) _restoreUnreachable.value = false
+        return restored
+    }
+
+    /**
+     * Re-tries [restoreSession] while the remembered session stays unreachable, waiting [firstDelayMs] and
+     * doubling up to [maxDelayMs], so a returning operator is let back in the moment the backend answers.
+     */
+    suspend fun retryRestoreWhileUnreachable(
+        firstDelayMs: Long = RESTORE_RETRY_FIRST_DELAY_MS,
+        maxDelayMs: Long = RESTORE_RETRY_MAX_DELAY_MS,
+    ) {
+        var wait: Long = firstDelayMs
+        while (_restoreUnreachable.value) {
+            delay(wait)
+            restoreSession()
+            wait = (wait * 2).coerceAtMost(maxDelayMs)
+        }
+    }
+
+    private suspend fun restoreRememberedSession(): Boolean {
         val remembered: RestorableSession? = sessionStore.loadPersisted()
         // Web's backend is always the serving origin, so it restores from the HttpOnly cookie even with no
         // persisted profile (e.g. localStorage was cleared); native relies on the saved profile.
-        val profile: ConnectionProfile = remembered?.profile ?: servedOriginProfile() ?: return false
+        val profile: ConnectionProfile =
+            remembered?.profile ?: servedOriginProfile() ?: return false.also { _restoreUnreachable.value = false }
         val stored: SessionTokens? = remembered?.tokens
         // A profile was actually REMEMBERED (as opposed to just the web build's served-origin fallback with no
         // prior session at all) — only then does an unreachable backend mean "you have a session, we just can't
@@ -731,9 +755,8 @@ class ConnectController(
         // rejection (401/403 — the session really is dead): a remembered session exists, it just could not be
         // confirmed. Surface that distinctly so the gate never shows the same "you are not signed in" screen a
         // brand-new visitor sees for what might just be the bot still booting or a dropped LAN link.
-        if (hadRememberedSession && refreshed is ApiResult.Failure && isTransientFailure(refreshed.error)) {
-            _restoreUnreachable.value = true
-        }
+        _restoreUnreachable.value =
+            hadRememberedSession && refreshed is ApiResult.Failure && isTransientFailure(refreshed.error)
 
         // Couldn't restore (expired/absent token or an unreachable backend) — drop only the in-memory session
         // but KEEP the remembered backend + cookie, so a transient failure never forces a re-login. The gate
@@ -928,3 +951,8 @@ private fun randomProfileId(): String {
     val chars = "0123456789abcdef"
     return buildString { repeat(32) { append(chars.random()) } }
 }
+
+// An unreachable backend (a container restarting, a LAN link coming back) more often needs real time than a
+// tight poll; the cap still lets the operator back in within half a minute of its return.
+private const val RESTORE_RETRY_FIRST_DELAY_MS: Long = 4_000L
+private const val RESTORE_RETRY_MAX_DELAY_MS: Long = 30_000L

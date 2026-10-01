@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ResolvedAccess
 import bot.nomnomz.dashboard.core.network.RolesApi
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ParticipantStanding
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -112,7 +113,27 @@ class ShellAccessController(
                     )
             }
     }
+
+    /**
+     * Re-probes while the state stays [ShellAccess.Retrying], waiting [firstDelayMs] and doubling up to
+     * [maxDelayMs]. It loops rather than re-probing once: a repeat blip sets the same Retrying value, which a
+     * StateFlow does not emit again, so a one-shot retry keyed on the state left the shell on its splash forever
+     * when a deploy kept the backend away for more than one probe.
+     */
+    suspend fun retryWhileTransient(firstDelayMs: Long = RETRY_FIRST_DELAY_MS, maxDelayMs: Long = RETRY_MAX_DELAY_MS) {
+        var wait: Long = firstDelayMs
+        while (_state.value is ShellAccess.Retrying) {
+            delay(wait)
+            load()
+            wait = (wait * 2).coerceAtMost(maxDelayMs)
+        }
+    }
 }
+
+// Short enough that a momentary blip self-heals quickly; the cap keeps a backend that is really down from being
+// hammered while still picking it up within half a minute of its return.
+private const val RETRY_FIRST_DELAY_MS: Long = 2_000L
+private const val RETRY_MAX_DELAY_MS: Long = 30_000L
 
 /**
  * A network/backend blip (no response at all, or the backend's own 5xx) versus a definitive answer

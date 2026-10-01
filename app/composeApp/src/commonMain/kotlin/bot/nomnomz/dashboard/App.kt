@@ -58,15 +58,6 @@ import kotlin.time.Duration
 
 private const val SPLASH_HOLD_MS: Long = 1_200L
 
-// How long to wait before re-probing effectiveMe after a transient failure (S050). Short enough that a
-// momentary blip self-heals quickly, long enough not to hammer a backend that is actually down.
-private const val RETRY_EFFECTIVE_ME_DELAY_MS: Long = 2_000L
-
-// How long to wait between automatic restore-session retries while the backend is unreachable (S050). Longer
-// than the effectiveMe retry — an unreachable BACKEND (not just one flaky endpoint) more often needs real time
-// (a container restarting, a LAN link coming back) rather than benefiting from a tight poll.
-private const val RESTORE_UNREACHABLE_RETRY_DELAY_MS: Long = 4_000L
-
 // Root composable: theme + connection gate (frontend.md §5). The gate resolves the active
 // Destination from a one-shot boot splash and the session phase:
 //   Splash (booting) -> Connect (no session) -> Shell (session established).
@@ -149,13 +140,9 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
         val restoreUnreachable: Boolean by graph.connectController.restoreUnreachable.collectAsStateWithLifecycle()
 
         // S050 — keep retrying the restore automatically while the backend is unreachable, so a returning
-        // operator's session comes back the instant the network/bot recovers with no action required. Re-arms
-        // on every flip back to true (a later blip after a successful — but still-unconfirmed — retry cycle).
+        // operator's session comes back the instant the network/bot recovers with no action required.
         LaunchedEffect(restoreUnreachable) {
-            if (restoreUnreachable) {
-                delay(RESTORE_UNREACHABLE_RETRY_DELAY_MS)
-                graph.connectController.restoreSession()
-            }
+            if (restoreUnreachable) graph.connectController.retryRestoreWhileUnreachable()
         }
 
         val destination: Destination = when {
@@ -253,14 +240,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                     LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
                                     // S050 — a TRANSIENT effectiveMe failure (network blip / momentary 5xx) must self-heal,
                                     // not strand the caller on the retry splash forever nor silently downgrade them to a
-                                    // fail-closed viewer. Re-probe shortly after landing on [ShellAccess.Retrying]; this
-                                    // effect re-arms every time the state flips back to Retrying (a later blip), and stops
-                                    // re-firing once a real answer (Loading's first Resolved, or a repeat blip) lands.
+                                    // fail-closed viewer. On landing on [ShellAccess.Retrying] the controller re-probes
+                                    // with backoff until a real answer lands; a later blip re-arms this effect.
                                     LaunchedEffect(access) {
-                                        if (access is ShellAccess.Retrying) {
-                                            delay(RETRY_EFFECTIVE_ME_DELAY_MS)
-                                            graph.shellAccessController.load()
-                                        }
+                                        if (access is ShellAccess.Retrying) graph.shellAccessController.retryWhileTransient()
                                     }
                                     // Proactive dead-token recovery (never-logout-for-scope-or-schema-changes): probe Twitch
                                     // health once the operator resolves so a dead/expired token raises the reconnect prompt

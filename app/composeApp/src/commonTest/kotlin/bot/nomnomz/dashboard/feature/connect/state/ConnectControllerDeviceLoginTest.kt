@@ -813,6 +813,41 @@ class ConnectControllerDeviceLoginTest {
     }
 
     @Test
+    fun the_unreachable_retry_keeps_the_flag_set_and_keeps_trying_until_the_backend_answers() = runTest {
+        // A deploy can keep the backend away for several retries. The flag must stay set while each retry runs
+        // (cleared up front, it flipped the gate to sign-in and cancelled the effect running the retry), and the
+        // loop must keep going until a real answer lets the operator back in.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        vault.write("p1", SessionTokens(accessToken = "stale-acc", refreshToken = "good-ref"))
+        profiles.write(rememberedProfile)
+        val authApi =
+            FakeAuthApi(
+                meResults =
+                    listOf(
+                        ApiResult.Failure(ApiError(401, "EXPIRED", "token expired")),
+                        ApiResult.Failure(ApiError(401, "EXPIRED", "token expired")),
+                        ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle")),
+                    ),
+                refreshResults = listOf(ApiResult.Failure(ApiError(502, "DOWN", "swapping"))),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+        controller.restoreSession()
+        assertEquals(true, controller.restoreUnreachable.value)
+        val flagSeen: MutableList<Boolean> = mutableListOf()
+        val watcher: Job = launch { controller.restoreUnreachable.collect { flagSeen += it } }
+
+        controller.retryRestoreWhileUnreachable(firstDelayMs = 10L, maxDelayMs = 40L)
+
+        assertEquals(false, controller.restoreUnreachable.value)
+        assertEquals(SessionPhase.Connected, sessionOf(controller).phase.value)
+        runCurrent()
+        assertEquals(listOf(true, false), flagSeen, "the flag only drops once the backend has answered")
+        watcher.cancel()
+    }
+
+    @Test
     fun restore_session_clears_unreachable_once_the_backend_answers_again() = runTest {
         // The flag must self-heal: a LATER restoreSession() call that actually succeeds must not leave a stale
         // "unreachable" reading behind. First call: every refresh attempt is transient (0/no route) and the
