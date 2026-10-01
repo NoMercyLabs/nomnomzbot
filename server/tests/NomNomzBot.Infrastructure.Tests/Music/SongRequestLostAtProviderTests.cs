@@ -224,6 +224,50 @@ public sealed class SongRequestLostAtProviderTests
         h.Store.GetInFlight(h.Channel)!.TrackName.Should().Be("family ties");
     }
 
+    // Live 2026-10-01: a long playlist kept Spotify's look-ahead at 20 items, so a request deleted there could
+    // never be proven gone and the queue sat still for over an hour.
+    [Fact]
+    public async Task A_request_seen_in_a_full_look_ahead_and_then_gone_from_it_is_dropped()
+    {
+        Harness h = Build();
+        h.ProviderQueue = [Track("spotify:track:family"), .. Playlist(19)];
+        await HandOverThenTickPastGraceAsync(h);
+        h.Store.GetInFlight(h.Channel)!.TrackName.Should().Be("family ties");
+
+        h.ProviderQueue = Playlist(20);
+        h.Clock.Advance(PastGrace);
+        await h.Sut.HandOverNextAsync(h.Channel);
+
+        h.Pushed.Should().Equal("spotify:track:family", "spotify:track:rebirth");
+        h.Store.GetInFlight(h.Channel)!.TrackName.Should().Be("The First Rebirth");
+        h.Events.Published.OfType<SongRequestLostAtProviderEvent>()
+            .Should()
+            .ContainSingle()
+            .Which.TrackUri.Should()
+            .Be("spotify:track:family");
+    }
+
+    [Fact]
+    public async Task A_sighting_of_one_request_proves_nothing_about_the_next()
+    {
+        Harness h = Build();
+        h.ProviderQueue = [Track("spotify:track:family"), .. Playlist(19)];
+        await HandOverThenTickPastGraceAsync(h);
+        h.ProviderQueue = Playlist(20);
+        h.Clock.Advance(PastGrace);
+        await h.Sut.HandOverNextAsync(h.Channel);
+        h.Store.GetInFlight(h.Channel)!.TrackName.Should().Be("The First Rebirth");
+
+        h.Clock.Advance(PastGrace);
+        await h.Sut.HandOverNextAsync(h.Channel);
+
+        h.Store.GetInFlight(h.Channel)!.TrackName.Should().Be("The First Rebirth");
+        h.Events.Published.OfType<SongRequestLostAtProviderEvent>().Should().ContainSingle();
+    }
+
+    private static IReadOnlyList<TrackInfo> Playlist(int count) =>
+        [.. Enumerable.Range(0, count).Select(i => Track($"spotify:track:playlist{i}"))];
+
     [Fact]
     public async Task A_request_that_is_playing_right_now_is_kept()
     {

@@ -76,6 +76,15 @@ public interface ISongRequestQueueStore
     /// </summary>
     bool IsInFlightCheckDue(string broadcasterId);
 
+    /// <summary>Records that the provider's queue listed the in-flight request since it was handed over.</summary>
+    void MarkInFlightSeen(string broadcasterId);
+
+    /// <summary>
+    /// Whether the provider's queue has listed the in-flight request since it was handed over. A new hand-over
+    /// and a restart both start unseen, so a sighting never vouches for another request.
+    /// </summary>
+    bool WasInFlightSeen(string broadcasterId);
+
     /// <summary>
     /// Serialises every hand-over to the provider for one channel. The in-flight check and the in-flight
     /// write sit on either side of an awaited provider call, and several callers race for them: admission,
@@ -121,6 +130,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         string,
         (SongRequestEntry Entry, DateTimeOffset NextCheckAt)
     > _inFlightChecks = new();
+    private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlightSeen = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _handoverLocks = new();
     private readonly TimeProvider _timeProvider;
 
@@ -144,6 +154,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         {
             _inFlight.TryRemove(broadcasterId, out _);
             _inFlightChecks.TryRemove(broadcasterId, out _);
+            _inFlightSeen.TryRemove(broadcasterId, out _);
         }
         else
         {
@@ -170,6 +181,17 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
         ScheduleNextCheck(broadcasterId, inFlight);
         return scheduled;
     }
+
+    public void MarkInFlightSeen(string broadcasterId)
+    {
+        SongRequestEntry? inFlight = GetInFlight(broadcasterId);
+        if (inFlight is not null)
+            _inFlightSeen[broadcasterId] = inFlight;
+    }
+
+    public bool WasInFlightSeen(string broadcasterId) =>
+        _inFlightSeen.TryGetValue(broadcasterId, out SongRequestEntry? seen)
+        && ReferenceEquals(seen, GetInFlight(broadcasterId));
 
     private void ScheduleNextCheck(string broadcasterId, SongRequestEntry entry) =>
         _inFlightChecks[broadcasterId] = (entry, _timeProvider.GetUtcNow() + InFlightCheckInterval);

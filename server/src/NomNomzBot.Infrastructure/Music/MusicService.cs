@@ -1908,8 +1908,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// The in-flight request only ever leaves by being seen to play (SongRequestQueueReconciler). One the
     /// streamer deletes from the Spotify app's queue never plays, so without this the whole queue waited on
     /// it forever with nothing on screen saying why — live 2026-09-24. Dropped only on proof: the provider
-    /// answered, returned a list short enough to be complete, the request is not in it, and it is not the
-    /// track playing now. Any doubt keeps the request, because a false drop costs a viewer their song.
+    /// answered, the request is not in its list, it is not the track playing now, and either the list is
+    /// short enough to be complete or it listed the request at an earlier check. Any doubt keeps the request, because a false drop costs a viewer their song.
     /// </summary>
     private async Task<bool> ReleaseIfLostAtProviderAsync(
         Guid tenantId,
@@ -1930,10 +1930,16 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             tenantId,
             cancellationToken
         );
+        if (providerQueue is null)
+            return false;
+        if (providerQueue.Any(t => IsSameTrack(t.TrackUri, inFlight.TrackUri)))
+        {
+            _queueStore.MarkInFlightSeen(broadcasterId);
+            return false;
+        }
         if (
-            providerQueue is null
-            || providerQueue.Count >= ProviderQueueLookAhead
-            || providerQueue.Any(t => IsSameTrack(t.TrackUri, inFlight.TrackUri))
+            providerQueue.Count >= ProviderQueueLookAhead
+            && !_queueStore.WasInFlightSeen(broadcasterId)
         )
             return false;
 
@@ -1965,8 +1971,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return true;
     }
 
-    // Spotify's GET /me/player/queue returns a bounded look-ahead, not the whole queue. A list that long
-    // may have cut the in-flight request off the end, so its absence from it proves nothing.
+    // Spotify's GET /me/player/queue returns a bounded look-ahead, not the whole queue, and a long playlist
+    // keeps it full. A full list may have cut a request that was never listed off the end, so its absence
+    // proves nothing. A request listed once can only move up: Spotify lists and plays the tracks queued by
+    // hand before the playlist, and adds new ones behind them. So its absence after a sighting is proof.
     private const int ProviderQueueLookAhead = 20;
 
     private static bool IsSameTrack(string? a, string? b) =>
