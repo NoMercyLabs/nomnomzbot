@@ -24,6 +24,13 @@ Slice IDs are stable; the order is the queue.
 
 - **S-STREAMDECK-OBS-ICONS** Stream Deck OBS plugin icon art — Done-when: every OBS action ships its
   own key icon in the obs manifest
+- **S-MOD-BAN-UNSEEN** (owner todo 2026-10-01, not now) The Moderation page's "Moderate viewer" dialog
+  only finds viewers the bot has already seen (`searchViewers`). For a Twitch login that never chatted
+  (`twrtlebeach`) it shows "No matching viewers" plus "Enter a Twitch user ID", so the streamer cannot
+  pre-ban a known troll. Done-when: when no known viewer matches, the dialog looks up the typed login on
+  the platform (Twitch Helix Get Users by login), shows that account (name, avatar, created date) as a
+  pickable result, and ban / timeout applies to its platform id; a login that does not exist on Twitch
+  says so.
 - **S-SR-ROLE-LIMIT** (owner idea 2026-10-01: "per role song queue limit", filed for later) The song
   queue has one cap for everyone: `MusicConfig.MaxRequestsPerUser` (default 5), enforced as
   `PER_USER_LIMIT`. Done-when: the streamer sets a separate cap per role (viewer, follower, subscriber,
