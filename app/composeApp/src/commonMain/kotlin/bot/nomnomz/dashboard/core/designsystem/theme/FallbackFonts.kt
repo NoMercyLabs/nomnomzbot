@@ -11,6 +11,8 @@
 package bot.nomnomz.dashboard.core.designsystem.theme
 
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.noto_emoji
 import nomnomzbot.composeapp.generated.resources.noto_sans
@@ -52,3 +54,20 @@ internal fun fallbackFontFaces(colorEmoji: Boolean): List<FontResource> =
 // never walks its list per glyph, so the faces cannot simply be listed beside Inter.
 @Composable
 internal expect fun PreloadFallbackFonts(colorEmoji: Boolean)
+
+private val FALLBACK_FONT_RETRY_DELAYS_MS: List<Long> = listOf(2_000, 5_000)
+
+// Reads one fallback face, retrying a transfer that dies part-way (the CJK faces are 10 and 17 MB). Returns
+// null when every attempt failed: a missing fallback costs that script's glyphs, never the dashboard. Catches
+// Throwable because a failed browser fetch on Kotlin/Wasm is a JsException, which is not an Exception.
+internal suspend fun readFallbackFont(read: suspend () -> ByteArray): ByteArray? {
+    for (attempt: Int in 0..FALLBACK_FONT_RETRY_DELAYS_MS.size) {
+        try {
+            return read()
+        } catch (cause: Throwable) {
+            if (cause is CancellationException) throw cause
+        }
+        FALLBACK_FONT_RETRY_DELAYS_MS.getOrNull(attempt)?.let { backoff: Long -> delay(backoff) }
+    }
+    return null
+}
