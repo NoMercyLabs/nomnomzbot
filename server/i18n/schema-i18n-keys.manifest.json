@@ -743,6 +743,8 @@
     "pipeline.timeout.reason.help",
     "pipeline.timeout.user_id.help",
     "pipeline.tts_synthesize.description",
+    "pipeline.tts_synthesize.pitch.help",
+    "pipeline.tts_synthesize.rate.help",
     "pipeline.tts_synthesize.text.help",
     "pipeline.tts_synthesize.voice.help",
     "pipeline.unpermit.description",

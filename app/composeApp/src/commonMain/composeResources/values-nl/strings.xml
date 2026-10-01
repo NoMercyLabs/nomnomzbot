@@ -5289,6 +5289,8 @@
     <string name="pipeline_submit_media_url_help">De media-URL die ter beoordeling wordt ingediend. Ondersteunt sjabloonvariabelen (bijv. {{args.1}}).</string>
     <string name="pipeline_tts_synthesize_text_help">De tekst die wordt omgezet in spraak, zonder deze meteen af te spelen. Ondersteunt sjabloonvariabelen (bijv. {{user.name}}). Maakt {{tts.audioUrl}} / {{tts.durationMs}} beschikbaar voor latere stappen.</string>
     <string name="pipeline_tts_synthesize_voice_help">De TTS-stem die wordt gebruikt. Leeg laten om de standaardstem van het kanaal te gebruiken.</string>
+    <string name="pipeline_tts_synthesize_rate_help">Spreeksnelheid als percentage, van -50 (langzamer) tot 50 (sneller). Leeg laten voor de normale snelheid.</string>
+    <string name="pipeline_tts_synthesize_pitch_help">Toonhoogte als percentage, van -50 (lager) tot 50 (hoger). Leeg laten voor de normale toonhoogte.</string>
     <string name="pipeline_unpermit_role_or_capability_help">De rol of bevoegdheid die van het doel wordt ingetrokken. Leeg laten om elke toestemming van het doel in te trekken.</string>
     <string name="pipeline_unpermit_target_variable_help">De variabele met de kijker van wie de toestemming wordt ingetrokken. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_vts_color_tint_a_help">Het alfakanaal (dekking) van de tint, 0-255. Leeg laten voor volledig dekkend.</string>

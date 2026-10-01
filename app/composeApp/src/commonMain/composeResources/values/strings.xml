@@ -5305,6 +5305,8 @@
     <string name="pipeline_submit_media_url_help">The media URL submitted for review. Supports template variables (e.g. {{args.1}}).</string>
     <string name="pipeline_tts_synthesize_text_help">The text to synthesize into speech, without playing it yet. Supports template variables (e.g. {{user.name}}). Exposes {{tts.audioUrl}} / {{tts.durationMs}} to later steps.</string>
     <string name="pipeline_tts_synthesize_voice_help">The TTS voice to use. Leave blank to use the channel's default voice.</string>
+    <string name="pipeline_tts_synthesize_rate_help">Speaking speed as a percentage, from -50 (slower) to 50 (faster). Leave blank for normal speed.</string>
+    <string name="pipeline_tts_synthesize_pitch_help">Voice pitch as a percentage, from -50 (lower) to 50 (higher). Leave blank for the normal pitch.</string>
     <string name="pipeline_unpermit_role_or_capability_help">The role or capability being revoked from the target. Leave blank to revoke every permit the target holds.</string>
     <string name="pipeline_unpermit_target_variable_help">The variable holding the viewer to revoke the permit from. Blank targets the user who triggered this pipeline.</string>
     <string name="pipeline_vts_color_tint_a_help">The tint's alpha (opacity) channel, 0-255. Leave blank for fully opaque.</string>

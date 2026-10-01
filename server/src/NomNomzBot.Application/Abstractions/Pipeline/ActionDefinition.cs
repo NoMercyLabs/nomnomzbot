@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -39,6 +40,24 @@ public sealed class ActionDefinition
         if (!Parameters.TryGetValue(key, out JsonElement elem))
             return defaultValue;
         return elem.ValueKind == JsonValueKind.Number ? elem.GetInt32() : defaultValue;
+    }
+
+    /// <summary>Gets a number parameter by key, or null when it is absent or not a number (a numeric string counts).</summary>
+    public double? GetDouble(string key)
+    {
+        if (Parameters is null || !Parameters.TryGetValue(key, out JsonElement elem))
+            return null;
+        return elem.ValueKind switch
+        {
+            JsonValueKind.Number => elem.GetDouble(),
+            JsonValueKind.String
+                when double.TryParse(
+                    elem.GetString(),
+                    CultureInfo.InvariantCulture,
+                    out double parsed
+                ) => parsed,
+            _ => null,
+        };
     }
 
     /// <summary>Gets a bool parameter value by key.</summary>

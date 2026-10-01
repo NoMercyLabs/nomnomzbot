@@ -93,24 +93,6 @@ public abstract class ObsActionBase : ICommandAction
         };
     }
 
-    protected static double? GetDouble(ActionDefinition action, string key)
-    {
-        if (action.Parameters is null || !action.Parameters.TryGetValue(key, out JsonElement elem))
-            return null;
-        return elem.ValueKind switch
-        {
-            JsonValueKind.Number => elem.GetDouble(),
-            JsonValueKind.String => double.TryParse(
-                elem.GetString(),
-                System.Globalization.CultureInfo.InvariantCulture,
-                out double parsed
-            )
-                ? parsed
-                : null,
-            _ => null,
-        };
-    }
-
     protected static Application.Obs.Dtos.ObsToggle ParseToggle(string verb) =>
         verb switch
         {

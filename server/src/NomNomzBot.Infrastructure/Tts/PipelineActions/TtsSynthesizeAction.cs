@@ -58,6 +58,16 @@ public sealed class TtsSynthesizeAction : ICommandAction
                 Templated: true,
                 Description: new("pipeline.tts_synthesize.voice.help")
             ),
+            new(
+                "rate",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.tts_synthesize.rate.help")
+            ),
+            new(
+                "pitch",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.tts_synthesize.pitch.help")
+            ),
         ];
 
     public TtsSynthesizeAction(
@@ -136,7 +146,13 @@ public sealed class TtsSynthesizeAction : ICommandAction
                 );
         }
 
-        TtsResult synth = await _tts.SynthesizeAsync(text, voiceId, ct: ctx.CancellationToken);
+        TtsResult synth = await _tts.SynthesizeAsync(
+            text,
+            voiceId,
+            action.GetDouble("rate"),
+            action.GetDouble("pitch"),
+            ctx.CancellationToken
+        );
         if (synth.AudioData.Length == 0)
             return ActionResult.Failure("tts_synthesize: the TTS provider returned no audio.");
 

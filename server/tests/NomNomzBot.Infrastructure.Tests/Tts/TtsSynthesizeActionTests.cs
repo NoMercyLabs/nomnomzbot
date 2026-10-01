@@ -174,6 +174,62 @@ public sealed class TtsSynthesizeActionTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_RateAndPitch_ReachTheProviderAsNumbers()
+    {
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("Your PC ran into a problem.");
+
+        MockVoiceExists(config, "en-US-Guy");
+        tts.SynthesizeAsync(
+                "Your PC ran into a problem.",
+                "en-US-Guy",
+                -40,
+                -10,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new TtsResult([1, 2], 2600, "en-US-Guy", "azure"));
+        store
+            .PutAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<System.IO.Stream>(),
+                "audio/mpeg",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success("clips/tts-rate.mp3"));
+        store
+            .GetPlaybackUrlAsync("clips/tts-rate.mp3", Arg.Any<CancellationToken>())
+            .Returns(Result.Success("https://bot.local/sounds/tts-rate.mp3"));
+
+        PipelineExecutionContext ctx = Context();
+        // A widget passes numbers; a pipeline step's text box passes the same value as a string.
+        ActionResult result = await action.ExecuteAsync(
+            ctx,
+            Action(
+                ("text", "Your PC ran into a problem."),
+                ("voice", "en-US-Guy"),
+                ("rate", -40),
+                ("pitch", "-10")
+            )
+        );
+
+        result.Succeeded.Should().BeTrue();
+        ctx.Variables["tts.durationMs"].Should().Be("2600");
+        await tts.Received(1)
+            .SynthesizeAsync(
+                "Your PC ran into a problem.",
+                "en-US-Guy",
+                -40,
+                -10,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task ExecuteAsync_NoVoiceParam_FallsBackToChannelDefaultVoice()
     {
         (

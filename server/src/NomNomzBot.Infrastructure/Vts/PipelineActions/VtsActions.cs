@@ -91,24 +91,6 @@ public abstract class VtsActionBase : ICommandAction
         };
     }
 
-    protected static double? GetDouble(ActionDefinition action, string key)
-    {
-        if (action.Parameters is null || !action.Parameters.TryGetValue(key, out JsonElement elem))
-            return null;
-        return elem.ValueKind switch
-        {
-            JsonValueKind.Number => elem.GetDouble(),
-            JsonValueKind.String => double.TryParse(
-                elem.GetString(),
-                System.Globalization.CultureInfo.InvariantCulture,
-                out double parsed
-            )
-                ? parsed
-                : null,
-            _ => null,
-        };
-    }
-
     protected static ActionResult Map(PipelineExecutionContext ctx, Result result, string success)
     {
         if (result.IsSuccess)
@@ -268,11 +250,11 @@ public sealed class VtsMoveModelAction(IVtsControlService vts) : VtsActionBase(v
     )
     {
         VtsMove move = new(
-            GetDouble(action, "x"),
-            GetDouble(action, "y"),
-            GetDouble(action, "rotation"),
-            GetDouble(action, "size"),
-            GetDouble(action, "time_seconds") ?? 0.3,
+            action.GetDouble("x"),
+            action.GetDouble("y"),
+            action.GetDouble("rotation"),
+            action.GetDouble("size"),
+            action.GetDouble("time_seconds") ?? 0.3,
             GetBool(action, "relative")
         );
         if (move is { X: null, Y: null, Rotation: null, Size: null })

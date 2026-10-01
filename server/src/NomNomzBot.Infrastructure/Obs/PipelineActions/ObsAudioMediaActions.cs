@@ -98,8 +98,8 @@ public sealed class ObsInputVolumeAction(IObsControlService obs) : ObsActionBase
     {
         if (!TryRequire(ctx, action, "input", out string input, out ActionResult failure))
             return failure;
-        double? volumeDb = GetDouble(action, "volume_db");
-        double? volumeMul = GetDouble(action, "volume_mul");
+        double? volumeDb = action.GetDouble("volume_db");
+        double? volumeMul = action.GetDouble("volume_mul");
         return Map(
             ctx,
             await Obs.SetInputVolumeAsync(
