@@ -973,6 +973,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null || !HasCapability(provider, MusicProviderCapabilities.NowPlaying))
             return null;
 
+        if (
+            !isBackgroundPoll
+            && _nowPlayingCache.TryGet(tenantId, ReaderCacheFreshness) is { } fresh
+        )
+            return ToNowPlaying(
+                TrackAsOfNow(fresh, fresh.Track.IsPlaying),
+                RequesterOfPlayingTrack(_queueStore, broadcasterId, fresh.Track.TrackUri)
+            );
+
         TrackInfo? track = await provider.GetCurrentTrackAsync(
             tenantId,
             cancellationToken,
@@ -1660,6 +1669,53 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// falls back to a real fetch instead of publishing on data that's actually gone stale.</summary>
     private static readonly TimeSpan NowPlayingCacheFreshness = TimeSpan.FromSeconds(3);
 
+    // A reader (Stream Deck key, overlay, dashboard, chat command) takes the poller's answer while it is at most
+    // this old, the owner's "no more than 1 second of drift from Spotify". Without it every reader sent its own
+    // Spotify call on top of the poller's, and a channel's Spotify app was blocked for hours (live 2026-10-01/02).
+    private static readonly TimeSpan ReaderCacheFreshness = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The snapshot's track as it stands now: progress moved on by the time since it was observed, but only if
+    /// the track was ALREADY playing then (a paused track's position does not advance on its own), and never
+    /// past the end of the track.
+    /// </summary>
+    private static TrackInfo TrackAsOfNow(NowPlayingSnapshot snapshot, bool isPlaying)
+    {
+        TrackInfo cached = snapshot.Track;
+        int progressMs = cached.IsPlaying
+            ? cached.ProgressMs
+                + (int)(DateTimeOffset.UtcNow - snapshot.ObservedAt).TotalMilliseconds
+            : cached.ProgressMs;
+        return new TrackInfo
+        {
+            TrackName = cached.TrackName,
+            Artist = cached.Artist,
+            Album = cached.Album,
+            TrackUri = cached.TrackUri,
+            AlbumArtUrl = cached.AlbumArtUrl,
+            DurationMs = cached.DurationMs,
+            Provider = cached.Provider,
+            ProviderTrackId = cached.ProviderTrackId,
+            ArtistId = cached.ArtistId,
+            IsExplicit = cached.IsExplicit,
+            IsAgeRestricted = cached.IsAgeRestricted,
+            IsEmbeddable = cached.IsEmbeddable,
+            IsPlaying = isPlaying,
+            ProgressMs =
+                cached.DurationMs > 0 ? Math.Min(progressMs, cached.DurationMs) : progressMs,
+            VolumePercent = cached.VolumePercent,
+            ShuffleEnabled = cached.ShuffleEnabled,
+            RepeatMode = cached.RepeatMode,
+            CanSetShuffle = cached.CanSetShuffle,
+            CanSetRepeat = cached.CanSetRepeat,
+            CanSkipNext = cached.CanSkipNext,
+            CanSkipPrevious = cached.CanSkipPrevious,
+            CanSeek = cached.CanSeek,
+            CanPause = cached.CanPause,
+            CanResume = cached.CanResume,
+        };
+    }
+
     /// <summary>
     /// Publishes <see cref="PlaybackStateChangedEvent"/> right after a successful mutation (play/pause/skip/
     /// play-context) so the dashboard + overlay + Stream Deck update instantly instead of waiting for the next
@@ -1693,47 +1749,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         if (cached is { } snapshot)
         {
-            // The track didn't change; only IsPlaying did. Progress freezes where it was (pausing) or
-            // resumes from where it was (playing) — either way it's the cached value, extrapolated
-            // forward only if the track was ALREADY playing as of that snapshot (a paused track's
-            // position doesn't advance on its own between the snapshot and now).
-            int extrapolatedProgressMs = snapshot.Track.IsPlaying
-                ? snapshot.Track.ProgressMs
-                    + (int)(DateTimeOffset.UtcNow - snapshot.ObservedAt).TotalMilliseconds
-                : snapshot.Track.ProgressMs;
-            track = new TrackInfo
-            {
-                TrackName = snapshot.Track.TrackName,
-                Artist = snapshot.Track.Artist,
-                Album = snapshot.Track.Album,
-                TrackUri = snapshot.Track.TrackUri,
-                AlbumArtUrl = snapshot.Track.AlbumArtUrl,
-                DurationMs = snapshot.Track.DurationMs,
-                Provider = snapshot.Track.Provider,
-                ProviderTrackId = snapshot.Track.ProviderTrackId,
-                ArtistId = snapshot.Track.ArtistId,
-                IsExplicit = snapshot.Track.IsExplicit,
-                IsAgeRestricted = snapshot.Track.IsAgeRestricted,
-                IsEmbeddable = snapshot.Track.IsEmbeddable,
-                // Reachable only when assumeIsPlaying is not null — `cached` is computed FROM that same
-                // condition above — but the compiler can't correlate two separate variables' nullability,
-                // hence GetValueOrDefault() rather than a provably-safe-but-unverifiable `.Value`.
-                IsPlaying = assumeIsPlaying.GetValueOrDefault(),
-                ProgressMs =
-                    snapshot.Track.DurationMs > 0
-                        ? Math.Min(extrapolatedProgressMs, snapshot.Track.DurationMs)
-                        : extrapolatedProgressMs,
-                VolumePercent = snapshot.Track.VolumePercent,
-                ShuffleEnabled = snapshot.Track.ShuffleEnabled,
-                RepeatMode = snapshot.Track.RepeatMode,
-                CanSetShuffle = snapshot.Track.CanSetShuffle,
-                CanSetRepeat = snapshot.Track.CanSetRepeat,
-                CanSkipNext = snapshot.Track.CanSkipNext,
-                CanSkipPrevious = snapshot.Track.CanSkipPrevious,
-                CanSeek = snapshot.Track.CanSeek,
-                CanPause = snapshot.Track.CanPause,
-                CanResume = snapshot.Track.CanResume,
-            };
+            // The track didn't change; only IsPlaying did. Reachable only when assumeIsPlaying is not null —
+            // `cached` is computed FROM that same condition above — hence GetValueOrDefault().
+            track = TrackAsOfNow(snapshot, assumeIsPlaying.GetValueOrDefault());
             observedAt = DateTimeOffset.UtcNow;
         }
         else
