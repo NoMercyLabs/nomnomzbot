@@ -254,14 +254,18 @@ public sealed class ScriptHostBridge(
         CancellationToken ct
     )
     {
-        // The optional userId arg names a viewer of THIS channel; default to the trigger user (host-validated).
+        // The optional arg names a viewer of THIS channel by internal Guid, Twitch id, or login; default to the
+        // trigger user (host-validated). A chat trigger carries the Twitch id, so a Guid-only read was always 0.
         string subject =
             args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId;
-        if (!Guid.TryParse(subject, out Guid viewerUserId))
+        Guid? viewerUserId = Guid.TryParse(subject, out Guid userGuid)
+            ? userGuid
+            : ResolveViewerUser(subject, ct)?.Id;
+        if (viewerUserId is not { } viewerId)
             return "0";
 
         Result<long> balance = currencyService
-            .GetBalanceAsync(broadcasterId, viewerUserId, ct)
+            .GetBalanceAsync(broadcasterId, viewerId, ct)
             .GetAwaiter()
             .GetResult();
         return balance.IsSuccess ? balance.Value.ToString() : "0";

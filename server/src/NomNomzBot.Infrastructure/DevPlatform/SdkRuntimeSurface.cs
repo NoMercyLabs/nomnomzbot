@@ -46,6 +46,16 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  username: string;");
         sb.AppendLine("  displayName: string;");
         sb.AppendLine("  avatarUrl: string | null;");
+        sb.AppendLine("  /** The 7TV paint this viewer wears; absent when they wear none. */");
+        sb.AppendLine("  paint?: NnzApiPaint;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("/** A 7TV name paint, ready to apply as CSS. */");
+        sb.AppendLine("interface NnzApiPaint {");
+        sb.AppendLine("  backgroundImage: string | null;");
+        sb.AppendLine("  color: string | null;");
+        sb.AppendLine("  textShadow: string | null;");
+        sb.AppendLine("  isImageOnly: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiTrack {");
@@ -63,6 +73,10 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("interface NnzApiTtsResult {");
         sb.AppendLine("  voiceId: string;");
         sb.AppendLine("  characterCount: number;");
+        sb.AppendLine(
+            "  /** How long the line takes to play, in ms. 0 when it was not measured (browser voice, test run). */"
+        );
+        sb.AppendLine("  durationMs: number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** A channel-point reward as nnz.api.reward.get returns it. */");
@@ -297,8 +311,9 @@ internal static class SdkRuntimeSurface
         sb.AppendLine();
         sb.AppendLine("interface NnzRandom {");
         sb.AppendLine("  int(min: number, max: number): number;");
-        sb.AppendLine("  pick<T>(items: T[]): T;");
-        sb.AppendLine("  shuffle<T>(items: T[]): T[];");
+        sb.AppendLine("  /** A random item, or undefined when the list is empty. */");
+        sb.AppendLine("  pick<T>(items: readonly T[]): T | undefined;");
+        sb.AppendLine("  shuffle<T>(items: readonly T[]): T[];");
         sb.AppendLine("  uuid(): string;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -344,7 +359,12 @@ internal static class SdkRuntimeSurface
             "/** Speak text on the overlay; read/assign a viewer's per-channel voice (setVoice with no voiceId clears to the channel default). */"
         );
         sb.AppendLine("interface NnzApiTtsNamespace {");
-        sb.AppendLine("  speak(text: string, voiceId?: string): NnzApiTtsResult | null;");
+        sb.AppendLine(
+            "  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. Null when TTS refused the line. */"
+        );
+        sb.AppendLine(
+            "  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;"
+        );
         sb.AppendLine("  getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;");
         sb.AppendLine("  setVoice(userIdOrLogin: string, voiceId?: string): boolean;");
         sb.AppendLine("}");
@@ -374,7 +394,7 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine(
-            "/** Schedule a saved pipeline to run once after a delay in seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
+            "/** Schedule a saved pipeline to run once after a delay in seconds, rounded up to whole seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
         );
         sb.AppendLine("interface NnzApiScheduleNamespace {");
         sb.AppendLine(

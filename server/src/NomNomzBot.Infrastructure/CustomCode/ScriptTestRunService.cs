@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.TestRun;
@@ -33,7 +34,8 @@ public sealed class ScriptTestRunService(
     ICurrentTenantService tenant,
     IScriptExecutor executor,
     IScriptCapabilityBroker broker,
-    IScriptHostBridgeFactory bridgeFactory
+    IScriptHostBridgeFactory bridgeFactory,
+    ITtsDispatchService ttsDispatch
 ) : IScriptTestRunService
 {
     public async Task<Result<TestRunResultDto>> RunAsync(
@@ -100,11 +102,17 @@ public sealed class ScriptTestRunService(
         );
 
         CaptureSink sink = new();
-        IScriptHostBridge realBridge = bridgeFactory.Create(
-            broadcasterId,
-            broadcasterId.ToString()
+        string triggeringUserId = broadcasterId.ToString();
+        IScriptHostBridge realBridge = bridgeFactory.Create(broadcasterId, triggeringUserId);
+        CaptureScriptHostBridge captureBridge = new(
+            realBridge,
+            sink,
+            (voiceIdOverride, ct) =>
+                ttsDispatch
+                    .ResolveVoiceAsync(broadcasterId, triggeringUserId, voiceIdOverride, ct)
+                    .GetAwaiter()
+                    .GetResult()
         );
-        CaptureScriptHostBridge captureBridge = new(realBridge, sink);
 
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             execRequest,

@@ -37,6 +37,19 @@ public interface ITtsDispatchService
     );
 
     /// <summary>
+    /// The voice <see cref="RequestSpeakAsync"/> would speak with, synthesizing nothing: the override when it names a
+    /// catalogue voice, else the viewer's assigned voice, the channel default, then the first available voice. Null
+    /// when a live request would be refused for its voice (unknown override, or no voice at all). A script test run
+    /// uses it so the preview returns what a live run returns.
+    /// </summary>
+    Task<string?> ResolveVoiceAsync(
+        Guid broadcasterId,
+        string requestedByTwitchUserId,
+        string? voiceIdOverride,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// A moderator approves a pending queue entry: synthesizes the (censored) text, plays it on the overlay, appends
     /// the usage-ledger row, marks the entry <c>approved</c>, and emits <c>TtsUtteranceReviewedEvent</c> (approved) +
     /// <c>TtsUtteranceDispatchedEvent</c>. <c>NOT_FOUND</c> when there is no pending entry with that id; a synthesis

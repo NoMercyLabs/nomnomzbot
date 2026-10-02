@@ -158,16 +158,15 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 },
                 tts: {
                     // ratePercent/pitchPercent are optional per-call SSML prosody overrides (e.g. an "evil
-                    // wizard" voice for one line) -- never persisted against the channel's TTS config.
-                    // arguments.length (not an undefined check) drives which shape is sent, so a 1- or 2-arg
-                    // call from an existing script still omits the trailing params entirely rather than
-                    // passing the literal string "undefined".
+                    // wizard" voice for one line) -- never persisted against the channel's TTS config. An
+                    // undefined or null param is "no override" (''), never the literal "undefined"; trailing
+                    // ones are dropped so a 1-arg call still sends one arg.
                     speak: function (text, voiceId, ratePercent, pitchPercent) {
-                        var n = arguments.length;
-                        var r = n <= 1 ? bot.call('tts.speak', String(text))
-                            : n === 2 ? bot.call('tts.speak', String(text), String(voiceId))
-                            : n === 3 ? bot.call('tts.speak', String(text), String(voiceId), String(ratePercent))
-                            : bot.call('tts.speak', String(text), String(voiceId), String(ratePercent), String(pitchPercent));
+                        var args = ['tts.speak', String(text)];
+                        var rest = [voiceId, ratePercent, pitchPercent];
+                        while (rest.length && (rest[rest.length - 1] === undefined || rest[rest.length - 1] === null)) rest.pop();
+                        for (var i = 0; i < rest.length; i++) args.push(rest[i] === undefined || rest[i] === null ? '' : String(rest[i]));
+                        var r = bot.call.apply(bot, args);
                         return r ? JSON.parse(r) : null;
                     },
                     getVoice: function (userIdOrLogin) { var r = bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
@@ -177,7 +176,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
                 },
                 widget: {
-                    emit: function (widget, eventType, data) { var r = data === undefined ? bot.call('widget.emit', String(widget), String(eventType)) : bot.call('widget.emit', String(widget), String(eventType), JSON.stringify(data)); return r === 'ok'; }
+                    emit: function (widget, eventType, data) { var r = data === undefined || data === null ? bot.call('widget.emit', String(widget), String(eventType)) : bot.call('widget.emit', String(widget), String(eventType), JSON.stringify(data)); return r === 'ok'; }
                 },
                 reward: {
                     get: function (idOrTitle) { var r = bot.call('reward.get', String(idOrTitle)); return r ? JSON.parse(r) : null; },
@@ -185,10 +184,12 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 },
                 schedule: {
                     pipeline: function (pipelineName, delaySeconds, variables, dedupeKey) {
+                        // The host schedules whole seconds; rounding up never fires a pipeline early.
+                        var d = String(Math.ceil(Number(delaySeconds)));
                         var v = variables === undefined || variables === null ? '{}' : JSON.stringify(variables);
                         return (dedupeKey === undefined
-                            ? bot.call('schedule.pipeline', String(pipelineName), String(delaySeconds), v)
-                            : bot.call('schedule.pipeline', String(pipelineName), String(delaySeconds), v, String(dedupeKey))) === 'ok';
+                            ? bot.call('schedule.pipeline', String(pipelineName), d, v)
+                            : bot.call('schedule.pipeline', String(pipelineName), d, v, String(dedupeKey))) === 'ok';
                     }
                 }
             }

@@ -271,6 +271,40 @@ public sealed class NnzSdkBootstrapTests
         bridge.Calls[0].Args.Should().Equal("Alert Box", "confetti", "{\"count\":5}");
     }
 
+    // `emit(w, e, null)` means "no data", the same as leaving it out. JSON.stringify(null) is "null", which
+    // the host refuses as a malformed payload, so the event never reached the overlay.
+    [Fact]
+    public async Task Api_widget_emit_with_null_data_sends_no_data_argument()
+    {
+        RecordingBridge bridge = new((key, _) => key == "widget.emit" ? "ok" : null);
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "bot.setVar('ok', String(nnz.api.widget.emit('Alert Box', 'clear', null)));",
+            Grant("widget.emit"),
+            bridge
+        );
+
+        r.VariablesOut["ok"].Should().Be("true");
+        bridge.Calls[0].Args.Should().Equal("Alert Box", "clear");
+    }
+
+    // A fractional delay (1.5 s) must still schedule. The host takes whole seconds, so it rounds up and never
+    // fires early.
+    [Fact]
+    public async Task Api_schedule_pipeline_rounds_a_fractional_delay_up_to_whole_seconds()
+    {
+        RecordingBridge bridge = new((key, _) => key == "schedule.pipeline" ? "ok" : null);
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "bot.setVar('ok', String(nnz.api.schedule.pipeline('Revert voice', 1.5)));",
+            Grant("schedule.pipeline"),
+            bridge
+        );
+
+        r.VariablesOut["ok"].Should().Be("true");
+        bridge.Calls[0].Args.Should().Equal("Revert voice", "2", "{}");
+    }
+
     [Fact]
     public async Task Api_tts_speak_parses_the_hosts_outcome_json()
     {
@@ -342,6 +376,26 @@ public sealed class NnzSdkBootstrapTests
         );
         twoArgResult.Outcome.Should().Be(ScriptExecutionOutcome.Success);
         twoArgBridge.Calls[0].Args.Should().Equal("hello", "en-US-Aria");
+    }
+
+    // A pitch-only line keeps the viewer's own voice: an undefined voice or rate is "no override" (empty),
+    // never the literal "undefined", which the host would try to use as a voice id.
+    [Fact]
+    public async Task Api_tts_speak_sends_an_undefined_middle_arg_as_no_override()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "tts.speak" ? "{\"voiceId\":\"en-US-Aria\",\"characterCount\":5}" : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "nnz.api.tts.speak('hello', undefined, undefined, -15);",
+            Grant("tts.speak"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        bridge.Calls[0].Args.Should().Equal("hello", "", "", "-15");
     }
 
     [Fact]

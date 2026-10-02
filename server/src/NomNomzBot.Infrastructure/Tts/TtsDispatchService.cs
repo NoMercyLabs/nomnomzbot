@@ -175,7 +175,13 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 );
         }
 
-        string? voiceId = await ResolveVoiceAsync(request, config, ct);
+        string? voiceId = await ResolveVoiceAsync(
+            request.BroadcasterId,
+            request.RequestedByTwitchUserId,
+            request.VoiceIdOverride,
+            config,
+            ct
+        );
         if (string.IsNullOrWhiteSpace(voiceId))
             return await RejectRequestAsync(
                 request,
@@ -770,21 +776,47 @@ public sealed class TtsDispatchService : ITtsDispatchService
             _ => 1,
         };
 
+    public async Task<string?> ResolveVoiceAsync(
+        Guid broadcasterId,
+        string requestedByTwitchUserId,
+        string? voiceIdOverride,
+        CancellationToken ct = default
+    )
+    {
+        Result<TtsConfigDto> configResult = await _config.GetConfigAsync(broadcasterId, ct);
+        if (configResult.IsFailure)
+            return null;
+
+        string? voiceId = await ResolveVoiceAsync(
+            broadcasterId,
+            requestedByTwitchUserId,
+            voiceIdOverride,
+            configResult.Value,
+            ct
+        );
+        if (string.IsNullOrWhiteSpace(voiceId))
+            return null;
+        if (!string.IsNullOrWhiteSpace(voiceIdOverride) && !await VoiceExistsAsync(voiceId, ct))
+            return null;
+        return voiceId;
+    }
+
     private async Task<string?> ResolveVoiceAsync(
-        TtsSpeakRequest request,
+        Guid broadcasterId,
+        string requestedByTwitchUserId,
+        string? voiceIdOverride,
         TtsConfigDto config,
         CancellationToken ct
     )
     {
-        if (!string.IsNullOrWhiteSpace(request.VoiceIdOverride))
-            return request.VoiceIdOverride;
+        if (!string.IsNullOrWhiteSpace(voiceIdOverride))
+            return voiceIdOverride;
 
-        if (!string.IsNullOrWhiteSpace(request.RequestedByTwitchUserId))
+        if (!string.IsNullOrWhiteSpace(requestedByTwitchUserId))
         {
             string? userVoice = await _db
                 .UserTtsVoices.Where(v =>
-                    v.BroadcasterId == request.BroadcasterId
-                    && v.UserId == request.RequestedByTwitchUserId
+                    v.BroadcasterId == broadcasterId && v.UserId == requestedByTwitchUserId
                 )
                 .Select(v => v.VoiceId)
                 .FirstOrDefaultAsync(ct);

@@ -231,4 +231,137 @@ public sealed partial class SdkScriptSurfaceDriftTests
                 "the script sandbox is invoked by the run_code pipeline action with args + variables; it has no event bus"
             );
     }
+
+    /// <summary>Every function anywhere under <c>nnz</c>, as <c>path=parameterCount</c>, read from the bootstrap.</summary>
+    private static List<string> RuntimeNnzFunctions()
+    {
+        Engine engine = SandboxEngine();
+        engine.Execute(JintScriptExecutor.Bootstrap);
+        return Names(
+            engine,
+            """
+            (function walk(o, p, out) {
+              Object.keys(o).forEach(function (k) {
+                var v = o[k];
+                if (typeof v === 'function') out.push(p + k + '=' + v.length);
+                else if (v && typeof v === 'object') walk(v, p + k + '.', out);
+              });
+              return out;
+            })(nnz, '', [])
+            """
+        );
+    }
+
+    /// <summary>The same list read from the d.ts: <c>declare const nnz</c>, following each <c>Nnz*</c> member type.</summary>
+    private static List<string> DeclaredNnzFunctions(string dts)
+    {
+        Dictionary<string, List<string>> blocks = TypeBlocks(dts);
+        List<string> functions = [];
+        Walk("nnz", string.Empty);
+        return functions;
+
+        void Walk(string block, string prefix)
+        {
+            foreach (string line in blocks[block])
+            {
+                Match property = PropertyMember().Match(line);
+                if (property.Success && blocks.ContainsKey(property.Groups[2].Value))
+                {
+                    Walk(property.Groups[2].Value, prefix + property.Groups[1].Value + ".");
+                    continue;
+                }
+
+                Match method = MethodMember().Match(line);
+                if (method.Success)
+                    functions.Add(
+                        $"{prefix}{method.Groups[1].Value}={ParameterCount(line, method.Length - 1)}"
+                    );
+            }
+        }
+    }
+
+    /// <summary>Each <c>interface X {</c> and <c>declare const x: {</c> block, with its top-level member lines.</summary>
+    private static Dictionary<string, List<string>> TypeBlocks(string dts)
+    {
+        Dictionary<string, List<string>> blocks = new(StringComparer.Ordinal);
+        string? open = null;
+        int depth = 0;
+
+        foreach (string line in dts.Split('\n').Select(l => l.TrimEnd('\r')))
+        {
+            if (open is null)
+            {
+                Match start = BlockStart().Match(line);
+                if (!start.Success)
+                    start = InterfaceStart().Match(line);
+                if (!start.Success)
+                    continue;
+                open = start.Groups[1].Value;
+                blocks[open] = [];
+                depth = 1;
+                continue;
+            }
+
+            if (depth == 1)
+                blocks[open].Add(line);
+            depth += line.Count(c => c == '{') - line.Count(c => c == '}');
+            if (depth <= 0)
+                open = null;
+        }
+        return blocks;
+    }
+
+    // The parameters a JS function.length counts: every top-level one before a rest parameter.
+    private static int ParameterCount(string line, int openParen)
+    {
+        int count = 0;
+        int depth = 0;
+        bool inParameter = false;
+        for (int i = openParen + 1; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c is '(' or '[' or '{' or '<')
+                depth++;
+            else if (c is ']' or '}' || (c == '>' && line[i - 1] != '='))
+                depth--;
+            else if (c == ')' && depth-- == 0)
+                break;
+            else if (depth == 0 && c == ',')
+                inParameter = false;
+            else if (depth == 0 && !inParameter && !char.IsWhiteSpace(c))
+            {
+                if (line.AsSpan(i).StartsWith("..."))
+                    break;
+                inParameter = true;
+                count++;
+            }
+        }
+        return count;
+    }
+
+    [GeneratedRegex(@"^interface ([A-Za-z_$][A-Za-z0-9_$]*)\s*\{\s*$")]
+    private static partial Regex InterfaceStart();
+
+    [GeneratedRegex(@"^  (?:readonly\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\??:\s*(Nnz[A-Za-z0-9_]*);$")]
+    private static partial Regex PropertyMember();
+
+    [GeneratedRegex(@"^  ([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:<[^(]*>)?\s*\(")]
+    private static partial Regex MethodMember();
+
+    // A wrapper that takes four arguments but is typed with two hides the other two from the editor; one typed
+    // with more than the runtime reads leads a script into an argument that is silently dropped.
+    [Fact]
+    public void Every_nnz_function_is_typed_with_the_parameters_the_runtime_reads()
+    {
+        List<string> runtime = RuntimeNnzFunctions();
+        List<string> declared = DeclaredNnzFunctions(ScriptDts());
+
+        runtime.Should().Contain("api.tts.speak=4", "the walk must reach the nested api wrappers");
+        declared
+            .Should()
+            .BeEquivalentTo(
+                runtime,
+                "each nnz function's d.ts signature must take the parameters the bootstrap reads"
+            );
+    }
 }

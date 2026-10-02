@@ -160,6 +160,29 @@ public sealed class ScriptHostBridgeTests
             .Be("500");
     }
 
+    // A chat trigger hands the bridge the viewer's Twitch id, and scripts name targets by @login. Both must
+    // reach the ledger as the viewer's internal id, or every chat-triggered balance read is 0.
+    [Theory]
+    [InlineData("bamo")]
+    [InlineData("@bamo")]
+    [InlineData("555001")]
+    public async Task Economy_read_resolves_a_login_or_twitch_id_to_the_viewers_balance(
+        string subject
+    )
+    {
+        Guid bamo = Guid.Parse("0192a000-0000-7000-8000-00000000e0b1");
+        AuthDbContext db = await SeedViewerAsync(bamo, "bamo", "555001");
+        ICurrencyAccountService currency = Substitute.For<ICurrencyAccountService>();
+        currency
+            .GetBalanceAsync(Channel, bamo, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(1250L));
+
+        Build(currency: currency, db: db)
+            .Resolve("economy.read")("economy.read", [subject], CancellationToken.None)
+            .Should()
+            .Be("1250");
+    }
+
     [Fact]
     public void Music_queue_enqueues_the_request_for_the_channel()
     {

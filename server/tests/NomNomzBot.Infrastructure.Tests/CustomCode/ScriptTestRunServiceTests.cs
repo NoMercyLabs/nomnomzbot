@@ -12,6 +12,7 @@ using FluentAssertions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
@@ -32,9 +33,11 @@ public sealed class ScriptTestRunServiceTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000f001");
 
     private static (ScriptTestRunService Sut, AuthDbContext Db, ScriptStorageService Storage) Build(
-        bool flagsEnabled = true
+        bool flagsEnabled = true,
+        ITtsDispatchService? tts = null
     )
     {
+        tts ??= Substitute.For<ITtsDispatchService>();
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(Channel);
@@ -56,7 +59,7 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
             Substitute.For<IHttpClientFactory>(),
             storage,
-            Substitute.For<NomNomzBot.Application.Contracts.Tts.ITtsDispatchService>(),
+            tts,
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>(),
             Substitute.For<NomNomzBot.Application.Rewards.Services.IRewardService>(),
@@ -67,7 +70,7 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>()
         );
 
-        return (new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory), db, storage);
+        return (new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory, tts), db, storage);
     }
 
     private static async Task<Guid> SeedAsync(
@@ -183,5 +186,60 @@ public sealed class ScriptTestRunServiceTests
         result.Success.Should().BeFalse();
         result.Error.Should().NotBeNullOrEmpty();
         result.CapturedEffects.Should().BeEmpty();
+    }
+
+    // A test run speaks nothing, but the script must get the same result shape a live run gets: the voice the
+    // channel would really use, the length, and a duration (0, nothing was synthesized). A null voice made
+    // `t.voiceId.length` throw only in the preview.
+    [Fact]
+    public async Task A_captured_tts_speak_returns_the_voice_a_live_run_would_use()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.ResolveVoiceAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Is<string?>(v => v == null),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("en-GB-Sonia");
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build(tts: tts);
+        const string js = """
+            var t = nnz.api.tts.speak('hello world');
+            nnz.api.chat.send(t.voiceId + '|' + t.characterCount + '|' + t.durationMs);
+            """;
+        Guid id = await SeedAsync(db, js, ["tts.speak", "chat.send"]);
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.Success.Should().BeTrue();
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("en-GB-Sonia|11|0");
+        result.CapturedEffects.Select(e => e.Name).Should().Contain("tts.speak");
+        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
+    }
+
+    // A live run refuses a voice the catalogue does not know, and the script sees null. The preview must too.
+    [Fact]
+    public async Task A_captured_tts_speak_with_an_unknown_voice_returns_null_like_a_live_run()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.ResolveVoiceAsync(
+                Channel,
+                Arg.Any<string>(),
+                "no-such-voice",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns((string?)null);
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build(tts: tts);
+        const string js = """
+            var t = nnz.api.tts.speak('hello', 'no-such-voice');
+            nnz.api.chat.send(t === null ? 'refused' : 'spoke');
+            """;
+        Guid id = await SeedAsync(db, js, ["tts.speak", "chat.send"]);
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("refused");
     }
 }

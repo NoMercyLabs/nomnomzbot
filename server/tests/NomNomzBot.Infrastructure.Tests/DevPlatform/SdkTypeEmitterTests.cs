@@ -283,7 +283,8 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiTtsNamespace {
-                  speak(text: string, voiceId?: string): NnzApiTtsResult | null;
+                  /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. Null when TTS refused the line. */
+                  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;
                   getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;
                   setVoice(userIdOrLogin: string, voiceId?: string): boolean;
                 }

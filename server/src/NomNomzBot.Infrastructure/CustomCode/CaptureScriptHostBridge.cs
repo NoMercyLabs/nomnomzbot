@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Newtonsoft.Json;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Infrastructure.TestRun;
 
@@ -22,8 +23,11 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// — nothing is ever dispatched to chat, TTS, an overlay, the store, or Twitch. Fail-closed by construction: any key
 /// NOT in the captured set falls through to the inner bridge unchanged (the grant already gated access).
 /// </summary>
-public sealed class CaptureScriptHostBridge(IScriptHostBridge inner, CaptureSink sink)
-    : IScriptHostBridge
+public sealed class CaptureScriptHostBridge(
+    IScriptHostBridge inner,
+    CaptureSink sink,
+    Func<string?, CancellationToken, string?> resolveVoice
+) : IScriptHostBridge
 {
     // The side-effecting write capabilities and the benign primitive each returns to the guest so the script's own
     // control flow proceeds as if the write had succeeded. null = the real dispatch also returns null (e.g. chat.send)
@@ -50,26 +54,35 @@ public sealed class CaptureScriptHostBridge(IScriptHostBridge inner, CaptureSink
         if (!CapturedReturns.TryGetValue(capabilityKey, out string? cannedReturn))
             return inner.Resolve(capabilityKey); // read capability — run for real
 
-        return (key, args, _) =>
+        return (key, args, ct) =>
         {
             sink.Record(key, args);
             if (key is "chat.send" or "chat.reply")
                 sink.AddChatOutput(args.Count > 0 ? args[0] : string.Empty);
-            // tts.speak's guest wrapper JSON.parses a { voiceId, characterCount } object; hand it a benign one
-            // that also echoes back any rate/pitch override the script passed, so a test-run preview shows the
-            // prosody it would have applied — same shape ScriptHostBridge.Speak's real dispatch would report.
+            // tts.speak returns the shape a live dispatch returns: the voice the channel would really use (null
+            // when a live run would refuse it), the length, and durationMs 0 because nothing was synthesized.
             if (key == "tts.speak")
-            {
-                int characterCount = args.Count > 0 ? args[0].Length : 0;
-                string? voiceId = args.Count > 1 ? args[1] : null;
-                string? ratePercent = args.Count > 2 ? args[2] : null;
-                string? pitchPercent = args.Count > 3 ? args[3] : null;
-                string voiceIdJson = voiceId is null ? "null" : $"\"{voiceId}\"";
-                string ratePercentJson = ratePercent is null ? "null" : ratePercent;
-                string pitchPercentJson = pitchPercent is null ? "null" : pitchPercent;
-                return $"{{\"voiceId\":{voiceIdJson},\"characterCount\":{characterCount},\"ratePercent\":{ratePercentJson},\"pitchPercent\":{pitchPercentJson}}}";
-            }
+                return CapturedSpeak(args, ct);
             return cannedReturn;
         };
+    }
+
+    private string? CapturedSpeak(IReadOnlyList<string> args, CancellationToken ct)
+    {
+        string text = args.Count > 0 ? args[0] : string.Empty;
+        string? voiceIdOverride =
+            args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1] : null;
+        string? voiceId = resolveVoice(voiceIdOverride, ct);
+        if (voiceId is null)
+            return null;
+
+        return JsonConvert.SerializeObject(
+            new
+            {
+                voiceId,
+                characterCount = text.Length,
+                durationMs = 0,
+            }
+        );
     }
 }
