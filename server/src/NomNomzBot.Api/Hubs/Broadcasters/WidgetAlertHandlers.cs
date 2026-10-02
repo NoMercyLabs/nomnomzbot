@@ -10,6 +10,7 @@
 
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -200,21 +201,19 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
             notifier,
             @event.BroadcasterId,
             "now_playing",
-            new
-            {
-                isPlaying = @event.IsPlaying,
-                track = @event.TrackName,
-                artist = @event.Artist,
-                artUrl = @event.AlbumArtUrl,
-                provider = @event.Provider,
-                trackUri = @event.TrackUri,
-                durationMs = @event.DurationMs,
-                progressMs = @event.ProgressMs,
-                observedAt = @event.ObservedAt,
-                // Who asked for this track via !sr, or null (never "") when the streamer started it
-                // themselves — the overlay renders no requester row at all for a null (S-MUSIC-5b).
-                requestedBy = @event.RequestedBy,
-            },
+            new NowPlayingWidgetPayload(
+                @event.IsPlaying,
+                @event.TrackName,
+                @event.Artist,
+                @event.AlbumArtUrl,
+                @event.Provider,
+                @event.TrackUri,
+                @event.DurationMs,
+                @event.ProgressMs,
+                @event.ObservedAt,
+                // Null (never "") when the streamer started the track: the overlay then shows no requester row.
+                @event.RequestedBy
+            ),
             // Never routes to the alert queue — this is a standing snapshot, not an on-air alert.
             excludeWidgetId: null,
             // Standing music-state snapshot, not a ChannelEvent-backed feed item.
@@ -240,13 +239,12 @@ public sealed class WidgetTrackSavedHandler(IApplicationDbContext db, IWidgetNot
             notifier,
             @event.BroadcasterId,
             "track_saved_changed",
-            new
-            {
-                trackUri = @event.TrackUri,
-                track = @event.TrackName,
-                artist = @event.Artist,
-                isSaved = @event.IsSaved,
-            },
+            new TrackSavedWidgetPayload(
+                @event.TrackUri,
+                @event.TrackName,
+                @event.Artist,
+                @event.IsSaved
+            ),
             // Never routes to the alert queue — a widget-animation trigger, not an on-air alert.
             excludeWidgetId: null,
             // Transient music-widget animation trigger, not a ChannelEvent-backed feed item.

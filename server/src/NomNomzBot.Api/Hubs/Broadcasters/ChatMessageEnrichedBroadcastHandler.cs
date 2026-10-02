@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -47,17 +48,16 @@ public sealed class ChatMessageEnrichedBroadcastHandler(
             widgets,
             @event.BroadcasterId,
             "ChatMessageEnriched",
-            new
-            {
-                messageId = @event.MessageId,
-                linkUrl = @event.LinkUrl,
-                title = @event.Title,
-                description = @event.Description,
-                imageUrl = @event.ImageUrl,
-                provider = @event.Provider,
-                userDisplayName = @event.UserDisplayName,
-                userLogin = @event.UserLogin,
-            },
+            new ChatMessageEnrichedWidgetPayload(
+                @event.MessageId,
+                @event.LinkUrl,
+                @event.Title,
+                @event.Description,
+                @event.ImageUrl,
+                @event.Provider,
+                @event.UserDisplayName,
+                @event.UserLogin
+            ),
             excludeWidgetId: null,
             channelEventId: null,
             cancellationToken

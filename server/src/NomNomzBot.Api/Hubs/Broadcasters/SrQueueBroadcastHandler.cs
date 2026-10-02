@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -34,7 +35,7 @@ public sealed class SrQueueBroadcastHandler(
         CancellationToken cancellationToken = default
     )
     {
-        object payload = new { items = @event.Items };
+        SrQueueWidgetPayload payload = new(@event.Items);
 
         await WidgetAlertDispatch.RouteAsync(
             db,

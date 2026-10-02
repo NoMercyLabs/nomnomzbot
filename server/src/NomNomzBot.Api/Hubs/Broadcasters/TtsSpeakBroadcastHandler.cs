@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -49,14 +50,13 @@ public sealed class TtsSpeakBroadcastHandler(
             notifier,
             @event.BroadcasterId,
             WidgetEventType,
-            new
-            {
-                text = @event.Text,
-                voice = @event.VoiceId,
-                user = @event.RequestedByTwitchUserId,
-                durationMs = @event.DurationMs,
-                audioUrl = @event.AudioUrl,
-            },
+            new TtsSpeakWidgetPayload(
+                @event.Text,
+                @event.VoiceId,
+                @event.RequestedByTwitchUserId,
+                @event.DurationMs,
+                @event.AudioUrl
+            ),
             // Non-null only when this utterance was fired by a pipeline action chain triggered by a PAID
             // channel event (e.g. a reward redemption whose actions include play_tts) — PlayTtsAction threads
             // the triggering ChannelEvent id down through TtsSpeakRequest.ChannelEventId. A standalone chat

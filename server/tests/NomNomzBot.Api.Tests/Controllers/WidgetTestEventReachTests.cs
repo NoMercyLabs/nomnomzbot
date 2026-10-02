@@ -36,7 +36,12 @@ public sealed class WidgetTestEventReachTests
         IOverlayPresenceRegistry presence
     )
     {
-        WidgetTestEventController controller = new(db, Substitute.For<IWidgetNotifier>(), presence);
+        WidgetTestEventController controller = new(
+            db,
+            Substitute.For<IWidgetNotifier>(),
+            presence,
+            TimeProvider.System
+        );
         IActionResult result = await controller.Fire(
             Broadcaster.ToString(),
             new WidgetTestEventRequest("tts_speak", null),
@@ -79,7 +84,8 @@ public sealed class WidgetTestEventReachTests
         WidgetTestEventController controller = new(
             db,
             notifier,
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            TimeProvider.System
         );
 
         await controller.Fire(

@@ -129,7 +129,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(data);
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("text").GetString() == "hello chat"
             && json.GetProperty("voice").GetString() == "en-US-AvaNeural"
             && json.GetProperty("user").GetString() == "u1"

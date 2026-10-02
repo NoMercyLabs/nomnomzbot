@@ -10,8 +10,10 @@
 
 using System.Text.Json;
 using FluentAssertions;
-using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Api.Hubs.Broadcasters;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
+using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -38,7 +40,7 @@ public sealed class WidgetTestSamplesCompletenessTests
     };
 
     private static string Shape(string eventType) =>
-        JsonSerializer.Serialize(WidgetTestSamples.For(eventType), Json);
+        JsonSerializer.Serialize(WidgetTestSamples.For(eventType, DateTimeOffset.UnixEpoch), Json);
 
     [Fact]
     public void Every_event_type_declared_by_a_first_party_widget_has_a_real_sample()
@@ -64,13 +66,76 @@ public sealed class WidgetTestSamplesCompletenessTests
             );
     }
 
+    /// <summary>
+    /// Every event type a live handler sends to widgets, with the payload type that handler sends (read from
+    /// <c>Hubs/Broadcasters/*</c> and <c>Infrastructure/Widgets/EventHandlers/*</c>). A sample built from that
+    /// same type carries every live field by construction; a hand-shaped sample drifted (the follow sample had
+    /// only <c>user</c>, the live follow also carries login, avatar, pronouns and standing).
+    /// </summary>
+    public static TheoryData<string, Type> LivePayloadTypes =>
+        new()
+        {
+            { "follow", typeof(FollowAlertDto) },
+            { "subscription", typeof(SubscriptionAlertDto) },
+            { "resub", typeof(ResubAlertDto) },
+            { "gift", typeof(GiftSubAlertDto) },
+            { "cheer", typeof(CheerAlertDto) },
+            { "raid", typeof(RaidAlertDto) },
+            { "ban", typeof(ModActionDto) },
+            { "timeout", typeof(ModActionDto) },
+            { "unban", typeof(ModActionDto) },
+            { "ChatMessage", typeof(DashboardChatMessageDto) },
+            { "ChatCleared", typeof(ChatClearedDto) },
+            { "MessageDeleted", typeof(MessageDeletedDto) },
+            { "UserMessagesCleared", typeof(UserMessagesClearedDto) },
+            { "ChatMessageEnriched", typeof(ChatMessageEnrichedWidgetPayload) },
+            { "hype_train_begin", typeof(HypeTrainBeganAlertDto) },
+            { "hype_train_progress", typeof(HypeTrainProgressAlertDto) },
+            { "hype_train_end", typeof(HypeTrainEndedAlertDto) },
+            { "poll_begin", typeof(PollBeganAlertDto) },
+            { "poll_progress", typeof(PollProgressAlertDto) },
+            { "poll_end", typeof(PollEndedAlertDto) },
+            { "prediction_begin", typeof(PredictionBeganAlertDto) },
+            { "prediction_progress", typeof(PredictionProgressAlertDto) },
+            { "prediction_lock", typeof(PredictionLockedAlertDto) },
+            { "prediction_end", typeof(PredictionEndedAlertDto) },
+            { "reward_redeemed", typeof(RewardRedeemedDto) },
+            { "moderator_added", typeof(RoleChangedAlertDto) },
+            { "moderator_removed", typeof(RoleChangedAlertDto) },
+            { "vip_added", typeof(RoleChangedAlertDto) },
+            { "vip_removed", typeof(RoleChangedAlertDto) },
+            { "shoutout_sent", typeof(ShoutoutSentAlertDto) },
+            { "shoutout_received", typeof(ShoutoutReceivedAlertDto) },
+            { "sr_queue", typeof(SrQueueWidgetPayload) },
+            { "now_playing", typeof(NowPlayingWidgetPayload) },
+            { "track_saved_changed", typeof(TrackSavedWidgetPayload) },
+            { "tts_speak", typeof(TtsSpeakWidgetPayload) },
+            { "goal", typeof(GoalWidgetEventPayload) },
+            { "supporter.tip", typeof(SupporterAlertPayload) },
+            { "supporter.membership", typeof(SupporterAlertPayload) },
+            { "supporter.merch", typeof(SupporterAlertPayload) },
+            { "supporter.charity", typeof(SupporterAlertPayload) },
+            { "voice_trigger", typeof(VoiceTriggerWidgetEventPayload) },
+            { "custom.heartrate", typeof(CustomDataWidgetPayload) },
+        };
+
+    [Theory]
+    [MemberData(nameof(LivePayloadTypes))]
+    public void The_sample_is_built_from_the_type_the_live_event_sends(
+        string eventType,
+        Type liveType
+    )
+    {
+        WidgetTestSamples.For(eventType, DateTimeOffset.UnixEpoch).Should().BeOfType(liveType);
+    }
+
     [Fact]
     public void ChatMessageEnriched_sample_carries_a_title_so_chat_box_onEnriched_does_not_drop_it()
     {
         // chat_box.vue: `function onEnriched(e) { if (!e.title) return }` — named explicitly because it is
         // the exact defect reported (song-request card button rendered nothing).
         JsonElement payload = JsonSerializer.SerializeToElement(
-            WidgetTestSamples.For("ChatMessageEnriched"),
+            WidgetTestSamples.For("ChatMessageEnriched", DateTimeOffset.UnixEpoch),
             Json
         );
 

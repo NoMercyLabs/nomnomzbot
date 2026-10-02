@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.CustomEvents.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -34,7 +35,7 @@ public sealed class CustomDataBroadcastHandler(IApplicationDbContext db, IWidget
             notifier,
             @event.BroadcasterId,
             $"custom.{@event.SourceName}",
-            new { fields = @event.Fields },
+            new CustomDataWidgetPayload(@event.Fields),
             // External data-source ingest — not a ChannelEvent-backed feed item.
             excludeWidgetId: null,
             channelEventId: null,

@@ -87,7 +87,7 @@ public sealed class CustomDataBroadcastHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(data);
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("fields").GetProperty("bpm").GetString() == "72";
     }
 }
