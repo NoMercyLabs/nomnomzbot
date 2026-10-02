@@ -53,6 +53,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.io.captureWindowSupported
 import bot.nomnomz.dashboard.core.io.openCaptureWindow
@@ -83,6 +85,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.widgets.state.CatalogueRowAction
 import bot.nomnomz.dashboard.feature.widgets.state.catalogueRowAction
 import bot.nomnomz.dashboard.feature.widgets.state.isSystem
+import bot.nomnomz.dashboard.feature.widgets.state.testEvents
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetEditorMessages
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsState
@@ -340,7 +343,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                         if (widget.catalogueRowAction() == CatalogueRowAction.Reset) pendingReset = widget
                         else scope.launch { controller.updateFromGallery(widget.id) }
                     },
-                    onTest = { widget -> controller.testWidget(widget) },
+                    onTest = { widget, event -> controller.testWidget(widget, event) },
                     onRotateToken = { widget -> pendingRotateWidgetToken = widget },
                 )
         }
@@ -595,7 +598,7 @@ private fun ReadyContent(
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
     onCatalogueAction: (WidgetSummary) -> Unit,
-    onTest: suspend (WidgetSummary) -> ApiResult<String>,
+    onTest: suspend (WidgetSummary, String) -> ApiResult<String>,
     onRotateToken: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -623,7 +626,7 @@ private fun ReadyContent(
 }
 
 @Composable
-private fun WidgetList(
+internal fun WidgetList(
     widgets: List<WidgetSummary>,
     manage: ManageDecision,
     onToggle: (WidgetSummary, Boolean) -> Unit,
@@ -634,7 +637,7 @@ private fun WidgetList(
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
     onCatalogueAction: (WidgetSummary) -> Unit,
-    onTest: suspend (WidgetSummary) -> ApiResult<String>,
+    onTest: suspend (WidgetSummary, String) -> ApiResult<String>,
     onRotateToken: (WidgetSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -660,7 +663,7 @@ private fun WidgetList(
                     onVersions = { onVersions(widget) },
                     onSettings = { onSettings(widget) },
                     onCatalogueAction = { onCatalogueAction(widget) },
-                    onTest = { onTest(widget) },
+                    onTest = { event -> onTest(widget, event) },
                     onRotateToken = { onRotateToken(widget) },
                 )
             }
@@ -685,7 +688,7 @@ private fun WidgetRow(
     onVersions: () -> Unit,
     onSettings: () -> Unit,
     onCatalogueAction: () -> Unit,
-    onTest: suspend () -> ApiResult<String>,
+    onTest: suspend (String) -> ApiResult<String>,
     onRotateToken: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -746,7 +749,8 @@ private fun WidgetRow(
         // AdminScreen's flag-override row: at Compact the info column takes its own full-width line and the
         // controls wrap in a FlowRow beneath it instead of squeezing beside it; at Medium/Expanded they stay
         // beside the info column as before.
-        val runTest: () -> Unit = { rowScope.launch { testResult = onTest() } }
+        val runTest: (String) -> Unit = { event -> rowScope.launch { testResult = onTest(event) } }
+        val testEvents: List<String> = widget.testEvents()
         if (windowSize.isCompact) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -773,6 +777,7 @@ private fun WidgetRow(
                         editCodeLabel = editCodeLabel,
                         onEditCode = onEditCode,
                         testLabel = testLabel,
+                        testEvents = testEvents,
                         onTest = runTest,
                         catalogueAction = catalogueAction,
                         catalogueActionLabel = catalogueActionLabel,
@@ -815,6 +820,7 @@ private fun WidgetRow(
                     editCodeLabel = editCodeLabel,
                     onEditCode = onEditCode,
                     testLabel = testLabel,
+                    testEvents = testEvents,
                     onTest = runTest,
                     catalogueAction = catalogueAction,
                     catalogueActionLabel = catalogueActionLabel,
@@ -1010,7 +1016,8 @@ private fun WidgetRowActions(
     editCodeLabel: String,
     onEditCode: () -> Unit,
     testLabel: String,
-    onTest: () -> Unit,
+    testEvents: List<String>,
+    onTest: (String) -> Unit,
     catalogueAction: CatalogueRowAction,
     catalogueActionLabel: String,
     onCatalogueAction: () -> Unit,
@@ -1061,18 +1068,33 @@ private fun WidgetRowActions(
         }
     }
     // Fires a representative sample event through the real dispatch (backend widget:write test-event
-    // route) so the operator can prove the overlay reacts without waiting for a real follow/sub/cheer.
+    // route) so the operator can prove the overlay reacts without waiting for a real follow/sub/cheer. A widget
+    // that listens to several events asks which one, so every event it handles can be tried.
     ManageGate(decision = manage) { enabled ->
-        TextButton(
-            onClick = onTest,
-            enabled = enabled,
-            modifier = Modifier.semantics { contentDescription = testLabel },
-        ) {
-            Text(
-                text = stringResource(Res.string.widgets_test_action_short),
-                color = if (enabled) tokens.primary else tokens.mutedForeground,
-                maxLines = 1,
-            )
+        var picking: Boolean by remember { mutableStateOf(false) }
+        Box {
+            TextButton(
+                onClick = { if (testEvents.size == 1) onTest(testEvents.single()) else picking = true },
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = testLabel },
+            ) {
+                Text(
+                    text = stringResource(Res.string.widgets_test_action_short),
+                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+            DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
+                testEvents.forEach { event ->
+                    DropdownMenuItem(
+                        text = { Text(text = event, maxLines = 1) },
+                        onClick = {
+                            picking = false
+                            onTest(event)
+                        },
+                    )
+                }
+            }
         }
     }
     // Update: only once the catalogue source has actually moved on and the widget is unedited (never a proactive

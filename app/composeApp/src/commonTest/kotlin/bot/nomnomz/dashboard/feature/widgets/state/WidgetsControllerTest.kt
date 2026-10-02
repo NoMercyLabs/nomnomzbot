@@ -622,26 +622,33 @@ class WidgetsControllerTest {
     }
 
     @Test
-    fun test_widget_fires_the_widgets_first_declared_subscription_and_returns_the_reach_description() = runTest {
+    fun test_widget_fires_the_event_the_operator_picked_and_returns_the_reach_description() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
                 ApiResult.Ok(
                     listOf(WidgetSummary(id = "w-1", name = "Alerts", eventSubscriptions = listOf("follow", "cheer")))
                 )
             )
-        widgetsApi.testEventResult = ApiResult.Ok("fired follow to 1 widget(s), 1 with a browser source open")
+        widgetsApi.testEventResult = ApiResult.Ok("fired cheer to 1 widget(s), 1 with a browser source open")
         val controller =
             widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
         controller.load()
         val widget: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
 
-        val result: ApiResult<String> = controller.testWidget(widget)
+        val result: ApiResult<String> = controller.testWidget(widget, "cheer")
 
-        // The FIRST declared subscription is what actually fires — not an arbitrary/last one — and the raw
-        // backend reach description passes through untouched (never collapsed to a bare success flag).
-        assertEquals(listOf("follow"), widgetsApi.testedEventTypes)
+        // The picked event fires, not the first declared one, and the raw backend reach description passes
+        // through untouched (never collapsed to a bare success flag).
+        assertEquals(listOf("cheer"), widgetsApi.testedEventTypes)
         assertTrue(result is ApiResult.Ok)
-        assertEquals("fired follow to 1 widget(s), 1 with a browser source open", (result as ApiResult.Ok).value)
+        assertEquals("fired cheer to 1 widget(s), 1 with a browser source open", (result as ApiResult.Ok).value)
+    }
+
+    @Test
+    fun every_declared_subscription_is_a_test_event_in_declared_order() {
+        val widget = WidgetSummary(id = "w-1", name = "Alerts", eventSubscriptions = listOf("follow", "cheer", "raid"))
+
+        assertEquals(listOf("follow", "cheer", "raid"), widget.testEvents())
     }
 
     @Test
@@ -653,7 +660,7 @@ class WidgetsControllerTest {
         controller.load()
         val widget: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
 
-        controller.testWidget(widget)
+        controller.testWidget(widget, widget.testEvents().single())
 
         assertEquals(listOf("test"), widgetsApi.testedEventTypes)
     }

@@ -269,14 +269,12 @@ class WidgetsController(
     }
 
     /**
-     * Fire a representative sample event at [widget] — the row's "Test" action. Uses the first of the widget's
-     * declared [WidgetSummary.eventSubscriptions] (a widget with none declared gets the backend's generic
-     * fallback sample). Returns the raw reach description so the screen can surface it as a transient banner
-     * without disturbing the rendered list — a read-like action, not a mutation, so it never reloads.
+     * Fire a representative sample of [eventType] at [widget] — the row's "Test" action, one of
+     * [WidgetSummary.testEvents]. Returns the raw reach description so the screen can surface it as a transient
+     * banner without disturbing the rendered list — a read-like action, not a mutation, so it never reloads.
      */
-    suspend fun testWidget(widget: WidgetSummary): ApiResult<String> {
+    suspend fun testWidget(widget: WidgetSummary, eventType: String): ApiResult<String> {
         val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
-        val eventType: String = widget.eventSubscriptions.firstOrNull() ?: "test"
         return widgetsApi.testEvent(channel, eventType)
     }
 
@@ -506,3 +504,9 @@ sealed interface WidgetsState {
 
     data class Error(val detail: String) : WidgetsState
 }
+
+/** The backend's generic sample, fired at a widget that declares no events of its own. */
+private const val GenericTestEvent: String = "test"
+
+/** The events the row's "Test" can fire: every event the widget listens to, in declared order. */
+fun WidgetSummary.testEvents(): List<String> = eventSubscriptions.ifEmpty { listOf(GenericTestEvent) }
