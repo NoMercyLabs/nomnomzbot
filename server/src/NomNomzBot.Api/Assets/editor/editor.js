@@ -369,7 +369,9 @@ function loadMonaco() {
     });
 }
 
-function configureLanguageServices(monaco, sdkTypes) {
+// Strict, so the editor catches what the sandbox or the browser would only throw on stream. A script runs in a
+// sandbox with no DOM, so its context gets no DOM types; a widget is a web page and gets them.
+function configureLanguageServices(monaco, sdkTypes, context) {
     const ts = monaco.languages.typescript;
     if (!ts) return;
 
@@ -377,11 +379,21 @@ function configureLanguageServices(monaco, sdkTypes) {
         target: ts.ScriptTarget.ESNext,
         module: ts.ModuleKind.ESNext,
         moduleResolution: ts.ModuleResolutionKind.NodeJs,
+        jsx: ts.JsxEmit.Preserve,
         allowJs: true,
+        checkJs: true,
         allowNonTsExtensions: true,
         noEmit: true,
         skipLibCheck: true,
-        lib: ['esnext', 'dom'],
+        strict: true,
+        noImplicitReturns: true,
+        noFallthroughCasesInSwitch: true,
+        noUncheckedIndexedAccess: true,
+        // The server builds with esbuild, one file at a time: flag what a per-file transpile cannot do.
+        isolatedModules: true,
+        esModuleInterop: true,
+        resolveJsonModule: true,
+        lib: context === 'script' ? ['esnext'] : ['esnext', 'dom'],
     };
 
     // A file is highlighted as javascript or typescript purely by extension; the SDK must behave the same
@@ -1149,7 +1161,11 @@ async function open(payload) {
 
     const monaco = await loadMonaco();
     state.monaco = monaco;
-    configureLanguageServices(monaco, payload.sdkTypes ?? '');
+    configureLanguageServices(
+        monaco,
+        payload.sdkTypes ?? '',
+        payload.language === 'script' ? 'script' : 'widget',
+    );
 
     // Register every file up front, not lazily: the language service only sees files it has a model for, so
     // a helper the author has not clicked into would otherwise be invisible to cross-file resolution.
