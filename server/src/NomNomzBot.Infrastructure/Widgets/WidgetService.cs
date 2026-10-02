@@ -795,6 +795,10 @@ public class WidgetService : IWidgetService
             version.BuildLog = build.Value.BuildLog;
             version.CompiledAt = now;
             widget.ActiveVersionId = version.Id;
+            widget.EventSubscriptions = WidgetEventSubscriptions.Including(
+                widget.EventSubscriptions,
+                build.Value.CompiledBundle
+            );
             await _db.SaveChangesAsync(cancellationToken);
 
             await _eventBus.PublishAsync(
@@ -932,6 +936,10 @@ public class WidgetService : IWidgetService
         // Keep the widget's declared framework in lock-step with the saved manifest so the two never drift.
         widget.Framework = manifest.Framework;
         widget.ActiveVersionId = version.Id;
+        widget.EventSubscriptions = WidgetEventSubscriptions.Including(
+            widget.EventSubscriptions,
+            build.Value.CompiledBundle
+        );
         await _db.SaveChangesAsync(cancellationToken);
 
         await _eventBus.PublishAsync(

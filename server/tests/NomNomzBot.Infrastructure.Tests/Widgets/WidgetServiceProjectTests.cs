@@ -379,4 +379,79 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         got.IsFailure.Should().BeTrue();
         got.ErrorCode.Should().Be("NOT_FOUND");
     }
+
+    [Fact]
+    public async Task SaveProject_SubscribesTheWidgetToEveryEventItsCodeListensTo()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid widget = await SeedWidgetAsync(database, channel, "vanilla");
+        Dictionary<string, string> files = new()
+        {
+            ["index.html"] = """
+                <div id="alert"></div>
+                <script>
+                  NomNomz.on('follow', (data) => { alert.textContent = data.user; });
+                  NomNomz.on("raid", (data) => { alert.textContent = data.user; });
+                </script>
+                """,
+        };
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, Substitute.For<IEventBus>());
+            Result<WidgetVersionDetail> saved = await service.SaveProjectAsync(
+                channel.ToString(),
+                widget.ToString(),
+                Project("vanilla", "index.html", files)
+            );
+            saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget stored = await db.Widgets.SingleAsync(w => w.Id == widget);
+            stored.EventSubscriptions.Should().BeEquivalentTo(["follow", "raid"]);
+        }
+    }
+
+    [Fact]
+    public async Task SaveProject_KeepsASubscriptionTheCodeDoesNotNameItself()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid widget = await SeedWidgetAsync(database, channel, "vanilla");
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget seeded = await db.Widgets.SingleAsync(w => w.Id == widget);
+            // The runtime plays tts_speak audio for the widget without any NomNomz.on call.
+            seeded.EventSubscriptions = ["tts_speak"];
+            await db.SaveChangesAsync();
+        }
+
+        Dictionary<string, string> files = new()
+        {
+            ["index.html"] = "<script>NomNomz.on('follow', () => {});</script>",
+        };
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetService service = NewService(db, Substitute.For<IEventBus>());
+            (
+                await service.SaveProjectAsync(
+                    channel.ToString(),
+                    widget.ToString(),
+                    Project("vanilla", "index.html", files)
+                )
+            )
+                .IsSuccess.Should()
+                .BeTrue();
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Widget stored = await db.Widgets.SingleAsync(w => w.Id == widget);
+            stored.EventSubscriptions.Should().BeEquivalentTo(["tts_speak", "follow"]);
+        }
+    }
 }
