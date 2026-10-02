@@ -724,9 +724,9 @@ object PipelineCatalogue {
                 labelKey = "random",
                 fields = listOf(BlockField("percent", "percent", required = true, kind = FieldKind.Number)),
             ),
-            // var_compare: gate the step on a pipeline variable versus an expected value (e.g. {{count}} >= 5).
+            // comparison (ComparisonCondition): gate on two template values, e.g. {user} eq f0xb17 or {count} gte 5.
             BlockType(
-                type = "var_compare",
+                type = "comparison",
                 role = BlockRole.Condition,
                 labelKey = "var_compare",
                 fields =

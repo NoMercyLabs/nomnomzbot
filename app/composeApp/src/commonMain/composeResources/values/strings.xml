@@ -3001,13 +3001,13 @@
     <string name="pipelines_block_stop_sound">Stop sound</string>
     <string name="pipelines_block_start_live_game">Start live game</string>
     <string name="pipelines_block_cancel_live_game">Cancel live game</string>
-    <string name="pipelines_block_var_compare">Compare variable</string>
+    <string name="pipelines_block_var_compare">Compare values</string>
     <string name="pipelines_field_endpoint">Outbound endpoint</string>
     <string name="pipelines_field_event_type">Event type (optional)</string>
     <string name="pipelines_field_list">Pick-list</string>
     <string name="pipelines_field_pick_variable">Store pick in variable (optional)</string>
-    <string name="pipelines_field_compare_left">Left value (e.g. {{count}})</string>
-    <string name="pipelines_field_compare_operator">Operator (eq, ne, gt, lt, gte, lte)</string>
+    <string name="pipelines_field_compare_left">Left value (e.g. {user})</string>
+    <string name="pipelines_field_compare_operator">Operator (eq, ne, gt, lt, gte, lte, contains, starts_with, ends_with)</string>
     <string name="pipelines_field_compare_right">Right value</string>
     <string name="pipelines_field_scene">Scene</string>
     <string name="pipelines_field_source">Source</string>
