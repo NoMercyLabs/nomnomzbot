@@ -57,7 +57,10 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
             ctx.TriggeredByUserId,
             ctx.TriggeredByDisplayName,
             args,
-            new Dictionary<string, string>(ctx.Variables)
+            new Dictionary<string, string>(ctx.Variables),
+            string.IsNullOrEmpty(ctx.MessageId)
+                ? null
+                : new ScriptReplyTarget(ctx.MessageId, ctx.TriggeredByDisplayName)
         );
 
         Result<ScriptRunResult> result = await runner.RunAsync(

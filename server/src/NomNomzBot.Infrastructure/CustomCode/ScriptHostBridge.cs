@@ -40,7 +40,9 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// import to host code. Bound to exactly one <c>BroadcasterId</c> (host-side; never readable by the guest); each
 /// resolved delegate is primitive-in / primitive-out and tenant-scoped to that channel. <c>chat.send</c>/
 /// <c>chat.reply</c> dispatch to the channel's Helix chat provider (bot token host-side, never in the guest; the
-/// provider resolves the tenant Guid → Twitch id internally); <c>economy.read</c> reads this channel's ledger;
+/// provider resolves the tenant Guid → Twitch id internally); <c>chat.reply</c> threads under the chat message
+/// that started the run, falls back to an @mention when the platform refuses the thread, and is a plain line
+/// when no chat message started the run; <c>economy.read</c> reads this channel's ledger;
 /// <c>music.queue</c> enqueues a request and <c>music.nowPlaying</c> reads the current track; <c>user.get</c>
 /// returns a viewer's public profile (never their email/PII); <c>http.fetch</c> does a capped GET through the
 /// SSRF-hardened egress client; <c>storage.*</c> is the channel's bounded script KV store; <c>tts.speak</c> routes
@@ -55,6 +57,7 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 public sealed class ScriptHostBridge(
     Guid broadcasterId,
     string triggeringUserId,
+    ScriptReplyTarget? replyTo,
     IChatProvider chatProvider,
     ICurrencyAccountService currencyService,
     IMusicService musicService,
@@ -88,7 +91,8 @@ public sealed class ScriptHostBridge(
     public HostImportDelegate Resolve(string capabilityKey) =>
         capabilityKey switch
         {
-            "chat.send" or "chat.reply" => SendChat,
+            "chat.send" => SendChat,
+            "chat.reply" => ReplyChat,
             "economy.read" => ReadBalance,
             "music.queue" => QueueMusic,
             "music.nowPlaying" => ReadNowPlaying,
@@ -278,6 +282,33 @@ public sealed class ScriptHostBridge(
 
         // The guest holds only the Guid; the Helix provider resolves the Twitch channel id + bot token host-side.
         chatProvider.SendMessageAsync(broadcasterId, args[0], ct).GetAwaiter().GetResult();
+        return null;
+    }
+
+    private string? ReplyChat(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        if (replyTo is null)
+            return SendChat(capabilityKey, args, ct);
+        if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
+            return null;
+
+        bool threaded = chatProvider
+            .SendReplyAsync(broadcasterId, replyTo.MessageId, args[0], ct)
+            .GetAwaiter()
+            .GetResult();
+        if (threaded)
+            return null;
+
+        ReplyOrMentionPlan mention = ReplyOrMentionComposer.Compose(
+            null,
+            replyTo.DisplayName,
+            args[0]
+        );
+        chatProvider.SendMessageAsync(broadcasterId, mention.Message, ct).GetAwaiter().GetResult();
         return null;
     }
 

@@ -332,7 +332,14 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiChatNamespace {");
+        sb.AppendLine("  /** Says a line in chat as the bot. */");
         sb.AppendLine("  send(text: string): void;");
+        sb.AppendLine(
+            "  /** Answers the chat message that started this script, as a threaded reply. If the platform"
+        );
+        sb.AppendLine(
+            "   *  refuses the thread, it mentions the viewer instead. With no chat message, it says a normal line. */"
+        );
         sb.AppendLine("  reply(text: string): void;");
         sb.AppendLine("}");
         sb.AppendLine();

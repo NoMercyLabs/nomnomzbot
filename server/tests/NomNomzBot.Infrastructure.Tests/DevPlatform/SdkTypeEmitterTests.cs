@@ -231,7 +231,10 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiChatNamespace {
+                  /** Says a line in chat as the bot. */
                   send(text: string): void;
+                  /** Answers the chat message that started this script, as a threaded reply. If the platform
+                   *  refuses the thread, it mentions the viewer instead. With no chat message, it says a normal line. */
                   reply(text: string): void;
                 }
                 """

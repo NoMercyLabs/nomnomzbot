@@ -119,7 +119,8 @@ public sealed class ScriptRunner(
 
         IScriptHostBridge bridge = bridgeFactory.Create(
             script.BroadcasterId,
-            invocation.TriggeredByUserId
+            invocation.TriggeredByUserId,
+            invocation.ReplyTo
         );
         Result<ScriptExecutionOutcomeResult> executed = await executor.ExecuteAsync(
             request,

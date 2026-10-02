@@ -60,7 +60,8 @@ public sealed class ScriptHostBridgeTests
         ITtsConfigService? ttsConfig = null,
         IScheduledPipelineService? scheduler = null,
         IApplicationDbContext? db = null,
-        ISevenTvUserPaintResolver? paintResolver = null
+        ISevenTvUserPaintResolver? paintResolver = null,
+        ScriptReplyTarget? replyTo = null
     ) =>
         BuildFor(
             Channel,
@@ -77,7 +78,8 @@ public sealed class ScriptHostBridgeTests
             ttsConfig,
             scheduler,
             db,
-            paintResolver
+            paintResolver,
+            replyTo
         );
 
     // Same wiring, but bound to an arbitrary tenant — the tenant-isolation tests need a channel-B bridge.
@@ -96,11 +98,13 @@ public sealed class ScriptHostBridgeTests
         ITtsConfigService? ttsConfig = null,
         IScheduledPipelineService? scheduler = null,
         IApplicationDbContext? db = null,
-        ISevenTvUserPaintResolver? paintResolver = null
+        ISevenTvUserPaintResolver? paintResolver = null,
+        ScriptReplyTarget? replyTo = null
     ) =>
         new(
             channel,
             Viewer.ToString(),
+            replyTo,
             chat ?? Substitute.For<IChatProvider>(),
             currency ?? Substitute.For<ICurrencyAccountService>(),
             music ?? Substitute.For<IMusicService>(),
@@ -143,6 +147,60 @@ public sealed class ScriptHostBridgeTests
         result.Should().BeNull();
         await chat.Received()
             .SendMessageAsync(Channel, "hello world", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Chat_reply_threads_under_the_chat_message_that_started_the_run()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(Channel, "msg-1", "thanks!", Arg.Any<CancellationToken>())
+            .Returns(true);
+        ScriptHostBridge bridge = Build(chat, replyTo: new ScriptReplyTarget("msg-1", "Bamo"));
+
+        bridge.Resolve("chat.reply")("chat.reply", ["thanks!"], CancellationToken.None);
+
+        await chat.Received(1)
+            .SendReplyAsync(Channel, "msg-1", "thanks!", Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task A_rejected_reply_still_reaches_the_viewer_with_a_mention()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendReplyAsync(Channel, "msg-1", "thanks!", Arg.Any<CancellationToken>())
+            .Returns(false);
+        ScriptHostBridge bridge = Build(chat, replyTo: new ScriptReplyTarget("msg-1", "Bamo"));
+
+        bridge.Resolve("chat.reply")("chat.reply", ["thanks!"], CancellationToken.None);
+
+        await chat.Received(1)
+            .SendMessageAsync(Channel, "@Bamo thanks!", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Chat_reply_without_a_chat_message_sends_a_normal_line()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        ScriptHostBridge bridge = Build(chat);
+
+        bridge.Resolve("chat.reply")("chat.reply", ["timer says hi"], CancellationToken.None);
+
+        await chat.Received(1)
+            .SendMessageAsync(Channel, "timer says hi", Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Chat_send_never_threads_even_when_a_chat_message_started_the_run()
+    {
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        ScriptHostBridge bridge = Build(chat, replyTo: new ScriptReplyTarget("msg-1", "Bamo"));
+
+        bridge.Resolve("chat.send")("chat.send", ["hello all"], CancellationToken.None);
+
+        await chat.Received(1).SendMessageAsync(Channel, "hello all", Arg.Any<CancellationToken>());
+        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!);
     }
 
     [Fact]

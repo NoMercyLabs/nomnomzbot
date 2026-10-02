@@ -103,7 +103,11 @@ public sealed class ScriptTestRunService(
 
         CaptureSink sink = new();
         string triggeringUserId = broadcasterId.ToString();
-        IScriptHostBridge realBridge = bridgeFactory.Create(broadcasterId, triggeringUserId);
+        IScriptHostBridge realBridge = bridgeFactory.Create(
+            broadcasterId,
+            triggeringUserId,
+            replyTo: null
+        );
         CaptureScriptHostBridge captureBridge = new(
             realBridge,
             sink,

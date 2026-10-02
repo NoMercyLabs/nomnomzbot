@@ -31,7 +31,10 @@ public sealed class ScriptRunnerTests
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000a001");
     private static readonly DateTimeOffset Now = new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
-    private static (ScriptRunner Sut, AuthDbContext Db) Build()
+    private static (ScriptRunner Sut, AuthDbContext Db) Build(
+        NomNomzBot.Domain.Chat.Interfaces.IChatProvider? chat = null,
+        params string[] granted
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         IScriptCapabilityBroker broker = Substitute.For<IScriptCapabilityBroker>();
@@ -41,7 +44,21 @@ public sealed class ScriptRunnerTests
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(ci => Result.Success(new ScriptCapabilityGrant(Channel, [])));
+            .Returns(ci =>
+                Result.Success(
+                    new ScriptCapabilityGrant(
+                        Channel,
+                        [
+                            .. granted.Select(key => new ScriptCapabilityDescriptor(
+                                key,
+                                "tos",
+                                "ff",
+                                true
+                            )),
+                        ]
+                    )
+                )
+            );
         IScriptExecutionMeter meter = Substitute.For<IScriptExecutionMeter>();
         meter
             .CheckSandboxBudgetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -55,7 +72,7 @@ public sealed class ScriptRunnerTests
             )
             .Returns(Result.Success());
         ScriptHostBridgeFactory bridgeFactory = new(
-            Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
+            chat ?? Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
             Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
             Substitute.For<IHttpClientFactory>(),
@@ -140,6 +157,35 @@ public sealed class ScriptRunnerTests
         r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
         r.Output.Should().Be("hello");
         db.CodeScripts.Single().LastRanAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task A_reply_from_the_script_threads_under_the_message_that_started_it()
+    {
+        NomNomzBot.Domain.Chat.Interfaces.IChatProvider chat =
+            Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
+        chat.SendReplyAsync(Channel, "m-9", "thanks!", Arg.Any<CancellationToken>()).Returns(true);
+        (ScriptRunner sut, AuthDbContext db) = Build(chat, "chat.reply");
+        Guid id = await SeedAsync(
+            db,
+            enabled: true,
+            withValidVersion: true,
+            js: "nnz.api.chat.reply('thanks!');"
+        );
+
+        ScriptRunResult r = (
+            await sut.RunAsync(
+                id,
+                Invocation() with
+                {
+                    ReplyTo = new ScriptReplyTarget("m-9", "Bamo"),
+                }
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success, r.ErrorMessage);
+        await chat.Received(1)
+            .SendReplyAsync(Channel, "m-9", "thanks!", Arg.Any<CancellationToken>());
     }
 
     [Fact]

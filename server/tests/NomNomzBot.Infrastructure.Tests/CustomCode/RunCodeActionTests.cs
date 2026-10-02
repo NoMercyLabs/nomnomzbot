@@ -136,6 +136,66 @@ public sealed class RunCodeActionTests
     /// (CodeScripts.LastRanAt stayed null) — the "!hug" command silently did nothing every time.
     /// </summary>
     [Fact]
+    public async Task A_chat_triggered_run_carries_the_message_to_reply_to()
+    {
+        IScriptRunner runner = RunnerReturning(
+            new(
+                ScriptExecutionOutcome.Success,
+                new Dictionary<string, string>(),
+                null,
+                StopPipeline: false,
+                ErrorMessage: null,
+                DenialReason: null
+            )
+        );
+        RunCodeAction sut = new(runner);
+
+        await sut.ExecuteAsync(Context(), Action(ScriptId));
+
+        await runner
+            .Received(1)
+            .RunAsync(
+                ScriptId,
+                Arg.Is<ScriptInvocation>(i => i.ReplyTo == new ScriptReplyTarget("m1", "User")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_run_without_a_chat_message_has_nothing_to_reply_to()
+    {
+        IScriptRunner runner = RunnerReturning(
+            new(
+                ScriptExecutionOutcome.Success,
+                new Dictionary<string, string>(),
+                null,
+                StopPipeline: false,
+                ErrorMessage: null,
+                DenialReason: null
+            )
+        );
+        RunCodeAction sut = new(runner);
+        PipelineExecutionContext timer = new()
+        {
+            BroadcasterId = Channel,
+            TriggeredByUserId = "u1",
+            TriggeredByDisplayName = "User",
+            MessageId = string.Empty,
+            RawMessage = string.Empty,
+        };
+
+        await sut.ExecuteAsync(timer, Action(ScriptId));
+
+        await runner
+            .Received(1)
+            .RunAsync(
+                ScriptId,
+                Arg.Is<ScriptInvocation>(i => i.ReplyTo == null),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_ulid_form_code_script_id_still_resolves_and_runs()
     {
         IScriptRunner runner = RunnerReturning(

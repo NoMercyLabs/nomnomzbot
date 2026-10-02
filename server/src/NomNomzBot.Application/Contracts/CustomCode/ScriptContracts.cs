@@ -101,14 +101,21 @@ public sealed record ScriptCompilation(
     IReadOnlyList<string> DeclaredCapabilities
 );
 
-/// <summary>The pipeline-step inputs to one script run (custom-code.md §4) — value snapshot, no PII.</summary>
+/// <summary>
+/// The pipeline-step inputs to one script run (custom-code.md §4) — value snapshot, no PII. [ReplyTo] is set
+/// only when a chat message started the run, so <c>chat.reply</c> can thread under it.
+/// </summary>
 public sealed record ScriptInvocation(
     string ExecutionId,
     string TriggeredByUserId,
     string TriggeredByDisplayName,
     IReadOnlyList<string> Args,
-    IReadOnlyDictionary<string, string> Variables
+    IReadOnlyDictionary<string, string> Variables,
+    ScriptReplyTarget? ReplyTo = null
 );
+
+/// <summary>The chat message a script's <c>chat.reply</c> answers, and who wrote it (for the @mention fallback).</summary>
+public sealed record ScriptReplyTarget(string MessageId, string DisplayName);
 
 /// <summary>What <see cref="IScriptRunner"/> returns to the run_code action (custom-code.md §4).</summary>
 public sealed record ScriptRunResult(

@@ -259,8 +259,11 @@ public sealed class ScriptImportResolutionTests
 
     private sealed class StubHostBridgeFactory : IScriptHostBridgeFactory
     {
-        public IScriptHostBridge Create(Guid broadcasterId, string triggeringUserId) =>
-            new StubBridge();
+        public IScriptHostBridge Create(
+            Guid broadcasterId,
+            string triggeringUserId,
+            ScriptReplyTarget? replyTo
+        ) => new StubBridge();
     }
 
     private sealed class StubBridge : IScriptHostBridge

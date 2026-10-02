@@ -66,5 +66,9 @@ public interface IScriptTestRunService
 /// </summary>
 public interface IScriptHostBridgeFactory
 {
-    IScriptHostBridge Create(Guid broadcasterId, string triggeringUserId);
+    IScriptHostBridge Create(
+        Guid broadcasterId,
+        string triggeringUserId,
+        ScriptReplyTarget? replyTo
+    );
 }

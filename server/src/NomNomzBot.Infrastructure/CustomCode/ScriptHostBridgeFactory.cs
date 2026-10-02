@@ -45,10 +45,15 @@ public sealed class ScriptHostBridgeFactory(
     ISevenTvUserPaintResolver paintResolver
 ) : IScriptHostBridgeFactory
 {
-    public IScriptHostBridge Create(Guid broadcasterId, string triggeringUserId) =>
+    public IScriptHostBridge Create(
+        Guid broadcasterId,
+        string triggeringUserId,
+        ScriptReplyTarget? replyTo
+    ) =>
         new ScriptHostBridge(
             broadcasterId,
             triggeringUserId,
+            replyTo,
             chatProvider,
             currencyService,
             musicService,
