@@ -908,7 +908,14 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 .FirstOrDefaultAsync(u => u.Username == targetName.ToLowerInvariant(), ct);
 
             if (target is null)
+            {
+                // Never seen HERE is not the same as does not exist. Without asking the platform, a real
+                // account that simply had not spoken in this channel resolved to nothing — identical to a
+                // login someone invented — so every {target.*} placeholder rendered empty for a first-time
+                // viewer, and no command could tell "shout out the newcomer" from "that name is made up".
+                await ResolveUnseenTargetAsync(scope, vars, targetName, ct);
                 return;
+            }
 
             vars.TryAdd("target.known", "true");
 
@@ -934,6 +941,38 @@ public sealed partial class TemplateResolver : ITemplateResolver
         {
             _logger.LogDebug(ex, "Failed to resolve target {TargetName}", targetName);
         }
+    }
+
+    /// <summary>
+    /// Asks the platform for a target that has no local row, and fills <c>{target.id}</c>/<c>{target.name}</c>
+    /// from the Helix Get Users answer. Nothing is persisted: naming somebody in one chat line must not
+    /// manufacture a viewer record for them. <c>{target.known}</c> stays "false" (it means a stored user).
+    /// A login nobody owns, a failed lookup or a missing client fall back to the typed text with an empty id,
+    /// so the braces never reach chat.
+    /// </summary>
+    private static async Task ResolveUnseenTargetAsync(
+        IServiceScope scope,
+        Dictionary<string, string> vars,
+        string targetName,
+        CancellationToken ct
+    )
+    {
+        ITwitchUsersApi? users = scope.ServiceProvider.GetService<ITwitchUsersApi>();
+        Result<IReadOnlyList<TwitchUser>>? lookup = users is null
+            ? null
+            : await users.GetUsersByLoginsAsync([targetName.ToLowerInvariant()], ct);
+
+        if (lookup is null || lookup.IsFailure || lookup.Value.Count == 0)
+        {
+            vars.TryAdd("target.id", string.Empty);
+            vars.TryAdd("target.name", targetName);
+            return;
+        }
+
+        TwitchUser found = lookup.Value[0];
+        vars.TryAdd("target.id", found.Id);
+        vars.TryAdd("target.name", found.DisplayName);
+        vars.TryAdd("target.displayname", found.DisplayName);
     }
 
     /// <summary>
