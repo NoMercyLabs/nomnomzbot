@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -158,7 +159,7 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
-            new SpotifyRateLimitCooldowns(),
+            new SpotifyRateLimitCooldowns(new NullActionRequiredChangeNotifier()),
             new SingleClientFactory(wire),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

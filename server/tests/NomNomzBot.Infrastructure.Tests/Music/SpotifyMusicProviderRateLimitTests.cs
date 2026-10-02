@@ -16,6 +16,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -158,7 +159,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
     public async Task A_cooldown_recorded_in_one_scope_keeps_the_next_scope_from_calling_Spotify()
     {
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
-        SpotifyRateLimitCooldowns cooldowns = new();
+        SpotifyRateLimitCooldowns cooldowns = new(new NullActionRequiredChangeNotifier());
         (SpotifyMusicProvider first, RecordingHttpHandler firstHandler, _) = Build(
             clock,
             cooldowns
@@ -188,7 +189,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
     public async Task Once_the_shared_cooldown_passes_the_next_scope_calls_Spotify_again()
     {
         FakeTimeProvider clock = new(DateTimeOffset.UtcNow);
-        SpotifyRateLimitCooldowns cooldowns = new();
+        SpotifyRateLimitCooldowns cooldowns = new(new NullActionRequiredChangeNotifier());
         (SpotifyMusicProvider first, RecordingHttpHandler firstHandler, _) = Build(
             clock,
             cooldowns
@@ -261,7 +262,7 @@ public sealed class SpotifyMusicProviderRateLimitTests
             vault,
             store,
             new LastActiveSpotifyDeviceTracker(),
-            cooldowns ?? new SpotifyRateLimitCooldowns(),
+            cooldowns ?? new SpotifyRateLimitCooldowns(new NullActionRequiredChangeNotifier()),
             new SingleHandlerClientFactory(handler),
             timeProvider ?? TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

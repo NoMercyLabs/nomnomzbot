@@ -154,8 +154,9 @@ public sealed class SpotifyMusicProvider
             retryAfter = TimeSpan.FromSeconds(Math.Max(seconds, (int)MinCooldown.TotalSeconds));
         }
 
-        DateTimeOffset until = _timeProvider.GetUtcNow() + retryAfter;
-        _cooldowns.CoolUntil(broadcasterId, until);
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+        DateTimeOffset until = now + retryAfter;
+        _cooldowns.CoolUntil(broadcasterId, now, until);
         _logger.LogWarning(
             "Spotify rate limited broadcaster {BroadcasterId}, cooling until {Until:O}",
             broadcasterId,

@@ -12,7 +12,10 @@ package bot.nomnomz.dashboard.feature.attention.ui
 
 import androidx.compose.runtime.Composable
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
+import bot.nomnomz.dashboard.core.time.ClockTime
 import bot.nomnomz.dashboard.feature.integrations.ui.providerDisplayName
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.attention_bot_not_moderator_message
 import nomnomzbot.composeapp.generated.resources.attention_bot_not_moderator_title
@@ -43,6 +46,8 @@ import nomnomzbot.composeapp.generated.resources.attention_security_impersonatio
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_title_many
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_title_one
 import nomnomzbot.composeapp.generated.resources.attention_song_lost_unnamed_message
+import nomnomzbot.composeapp.generated.resources.attention_spotify_blocked_message
+import nomnomzbot.composeapp.generated.resources.attention_spotify_blocked_title
 import nomnomzbot.composeapp.generated.resources.attention_unknown_title
 import nomnomzbot.composeapp.generated.resources.attention_unmanaged_rewards_message
 import nomnomzbot.composeapp.generated.resources.attention_unmanaged_rewards_pending_message
@@ -74,7 +79,7 @@ sealed interface AttentionArg {
 data class AttentionText(val resource: StringResource, val args: List<AttentionArg> = emptyList())
 
 /** The title for [item]. An unknown key still renders an honest generic title, never an empty row. */
-fun attentionTitleOf(item: ActionRequiredItem): AttentionText {
+fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()): AttentionText {
     val many: Boolean = item.count > 1
     val count: AttentionArg = literal(item.count.toString())
     return when (item.titleKey) {
@@ -123,6 +128,11 @@ fun attentionTitleOf(item: ActionRequiredItem): AttentionText {
             }
         "attention_bot_not_moderator_title" ->
             AttentionText(Res.string.attention_bot_not_moderator_title, listOf(literal(item.param("botName"))))
+        "attention_spotify_blocked_title" ->
+            AttentionText(
+                Res.string.attention_spotify_blocked_title,
+                listOf(literal(ClockTime.of(item.param("until"), now).orEmpty())),
+            )
         else -> AttentionText(Res.string.attention_unknown_title)
     }
 }
@@ -198,6 +208,7 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
         "attention_song_lost_unnamed_message" -> AttentionText(Res.string.attention_song_lost_unnamed_message)
         "attention_bot_not_moderator_message" ->
             AttentionText(Res.string.attention_bot_not_moderator_message, listOf(literal(item.param("botName"))))
+        "attention_spotify_blocked_message" -> AttentionText(Res.string.attention_spotify_blocked_message)
         else -> null
     }
 

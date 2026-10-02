@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -365,7 +366,7 @@ public sealed class MusicServicePlaybackPublishTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             new LastActiveSpotifyDeviceTracker(),
-            new SpotifyRateLimitCooldowns(),
+            new SpotifyRateLimitCooldowns(new NullActionRequiredChangeNotifier()),
             new SingleClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,

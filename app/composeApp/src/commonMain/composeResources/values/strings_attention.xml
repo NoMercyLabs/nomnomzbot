@@ -53,5 +53,7 @@
     <string name="attention_song_lost_unnamed_message">A request left the player queue before it played. Any cost was refunded.</string>
     <string name="attention_bot_not_moderator_title">%1$s is not a moderator in your channel</string>
     <string name="attention_bot_not_moderator_message">Type /mod %1$s in your Twitch chat. Twitch limits what a bot without the moderator role can do.</string>
+    <string name="attention_spotify_blocked_title">Spotify paused your music until %1$s</string>
+    <string name="attention_spotify_blocked_message">Spotify blocked your Spotify app after too many requests. Song requests and now playing wait until then. To continue now, make a new app in the Spotify Developer Dashboard and enter its Client ID and Client Secret on the Integrations page.</string>
     <string name="attention_unknown_title">Something needs your attention</string>
 </resources>

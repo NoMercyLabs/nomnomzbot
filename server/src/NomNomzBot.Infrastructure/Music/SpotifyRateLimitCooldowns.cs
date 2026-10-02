@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Application.Notifications.Services;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -19,25 +20,59 @@ namespace NomNomzBot.Infrastructure.Music;
 /// </summary>
 public interface ISpotifyRateLimitCooldowns
 {
-    void CoolUntil(Guid broadcasterId, DateTimeOffset until);
+    void CoolUntil(Guid broadcasterId, DateTimeOffset now, DateTimeOffset until);
 
     bool TryGetCoolingUntil(Guid broadcasterId, DateTimeOffset now, out DateTimeOffset until);
+
+    bool TryGetCooldown(Guid broadcasterId, DateTimeOffset now, out SpotifyCooldown cooldown);
 }
 
-public sealed class SpotifyRateLimitCooldowns : ISpotifyRateLimitCooldowns
+/// <summary>One channel's cooldown: when Spotify refused it, and when it allows the next call.</summary>
+public sealed record SpotifyCooldown(DateTimeOffset Since, DateTimeOffset Until)
 {
-    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _coolingUntil = new();
+    public TimeSpan Length => Until - Since;
+}
 
-    public void CoolUntil(Guid broadcasterId, DateTimeOffset until) =>
-        _coolingUntil[broadcasterId] = until;
+/// <remarks>
+/// A cooldown starting or ending changes the channel's action-required inbox
+/// (<see cref="Notifications.Sources.SpotifyAppBlockedSource"/>), so both tell its dashboards.
+/// </remarks>
+public sealed class SpotifyRateLimitCooldowns(IActionRequiredChangeNotifier inbox)
+    : ISpotifyRateLimitCooldowns
+{
+    private readonly ConcurrentDictionary<Guid, SpotifyCooldown> _cooldowns = new();
+
+    public void CoolUntil(Guid broadcasterId, DateTimeOffset now, DateTimeOffset until)
+    {
+        _cooldowns[broadcasterId] = new(now, until);
+        inbox.NotifyChanged(broadcasterId);
+    }
 
     public bool TryGetCoolingUntil(Guid broadcasterId, DateTimeOffset now, out DateTimeOffset until)
     {
-        if (_coolingUntil.TryGetValue(broadcasterId, out until) && until > now)
-            return true;
+        bool cooling = TryGetCooldown(broadcasterId, now, out SpotifyCooldown cooldown);
+        until = cooling ? cooldown.Until : default;
+        return cooling;
+    }
 
-        _coolingUntil.TryRemove(broadcasterId, out _);
-        until = default;
+    public bool TryGetCooldown(Guid broadcasterId, DateTimeOffset now, out SpotifyCooldown cooldown)
+    {
+        if (!_cooldowns.TryGetValue(broadcasterId, out SpotifyCooldown? found))
+        {
+            cooldown = null!;
+            return false;
+        }
+
+        if (found.Until > now)
+        {
+            cooldown = found;
+            return true;
+        }
+
+        // Removes only the expired value, so a cooldown recorded in between is kept.
+        if (_cooldowns.TryRemove(new KeyValuePair<Guid, SpotifyCooldown>(broadcasterId, found)))
+            inbox.NotifyChanged(broadcasterId);
+        cooldown = null!;
         return false;
     }
 }

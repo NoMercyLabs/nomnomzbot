@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -176,7 +177,7 @@ public sealed class SpotifyMusicProviderDeviceRecoveryTests
             vault,
             new InMemoryIntegrationCapabilityStore(),
             tracker,
-            new SpotifyRateLimitCooldowns(),
+            new SpotifyRateLimitCooldowns(new NullActionRequiredChangeNotifier()),
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
