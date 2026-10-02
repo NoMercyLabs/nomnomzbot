@@ -78,6 +78,68 @@ public sealed class JintScriptExecutorTests
     }
 
     [Fact]
+    public async Task Console_lines_are_kept_in_order_with_their_level()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(
+                Request(
+                    "console.log('hi', 2, { a: 1 }, [1, 'x'], null); console.info('note');"
+                        + " console.warn('careful'); console.error('bad');"
+                ),
+                Grant(),
+                NoBridge
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.LogLines.Should()
+            .Equal("hi 2 {\"a\":1} [1,\"x\"] null", "note", "warn: careful", "error: bad");
+    }
+
+    [Fact]
+    public async Task Console_lines_written_before_a_throw_survive_the_failure()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(
+                Request("console.log('before'); throw new Error('boom');"),
+                Grant(),
+                NoBridge
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Faulted);
+        r.LogLines.Should().Equal("before");
+    }
+
+    [Fact]
+    public async Task A_console_flood_is_capped_and_says_how_much_was_dropped()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(
+                Request("for (var i = 0; i < 250; i++) { console.log('line ' + i); }"),
+                Grant(),
+                NoBridge
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.LogLines.Should().HaveCount(JintScriptExecutor.MaxLogLines + 1);
+        r.LogLines[0].Should().Be("line 0");
+        r.LogLines[JintScriptExecutor.MaxLogLines - 1]
+            .Should()
+            .Be($"line {JintScriptExecutor.MaxLogLines - 1}");
+        r.LogLines[^1]
+            .Should()
+            .Be($"{250 - JintScriptExecutor.MaxLogLines} more console line(s) not shown.");
+    }
+
+    [Fact]
     public async Task Eval_is_blocked()
     {
         JintScriptExecutor sut = new();

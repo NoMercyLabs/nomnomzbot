@@ -14,6 +14,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -145,6 +146,12 @@ object EditorBridgeProtocol {
                 put("hostCallCount", result.hostCallCount)
                 put("error", result.error)
                 put("chatOutput", JsonArray(result.chatOutput.map { line -> JsonPrimitive(line) }))
+                put(
+                    "variablesSet",
+                    result.variablesSet?.let { set -> JsonObject(set.mapValues { (_, value) -> JsonPrimitive(value) }) }
+                        ?: JsonNull,
+                )
+                put("console", result.console?.let { lines -> JsonArray(lines.map { line -> JsonPrimitive(line) }) } ?: JsonNull)
                 put(
                     "effects",
                     JsonArray(

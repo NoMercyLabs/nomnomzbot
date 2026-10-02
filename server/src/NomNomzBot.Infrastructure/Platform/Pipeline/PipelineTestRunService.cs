@@ -82,7 +82,7 @@ public sealed class PipelineTestRunService(
             .. actions.Select(a =>
                 PassthroughActionTypes.Contains(a.ActionType)
                     ? a
-                    : (ICommandAction)new CapturingCommandAction(a, sink, resolver)
+                    : new CapturingCommandAction(a, sink, resolver)
             ),
         ];
 
@@ -150,7 +150,9 @@ public sealed class PipelineTestRunService(
                 sink.Effects.Count,
                 sink.Effects,
                 sink.ChatOutput,
-                log
+                log,
+                VariablesSet: null,
+                Console: null
             )
         );
     }

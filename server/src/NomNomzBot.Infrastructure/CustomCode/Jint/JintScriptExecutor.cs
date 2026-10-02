@@ -47,7 +47,24 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
     // internal (not private): SdkScriptSurfaceDriftTests executes THIS string in a real hardened engine and
     // enumerates the globals it creates, so the generated nnz.d.ts can never again declare a member the sandbox
     // does not have (or miss one it does). InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired.
+    /// <summary>How many <c>console.*</c> lines one run keeps; the rest are counted, not stored.</summary>
+    internal const int MaxLogLines = 200;
+
     internal const string Bootstrap = """
+        var console = (function () {
+            function text(value) {
+                if (typeof value === 'string') { return value; }
+                if (value === undefined) { return 'undefined'; }
+                try { var json = JSON.stringify(value); return json === undefined ? String(value) : json; }
+                catch (e) { return String(value); }
+            }
+            function line(level) {
+                return function () {
+                    __log(level, Array.prototype.slice.call(arguments).map(text).join(' '));
+                };
+            }
+            return { log: line(''), info: line(''), warn: line('warn'), error: line('error') };
+        })();
         var bot = {
             args: JSON.parse(__argsJson),
             getVar: function (k) { return __getVar(String(k)); },
@@ -286,6 +303,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
     {
         Dictionary<string, string> vars = new(request.Inputs.Variables, StringComparer.Ordinal);
         StringBuilder output = new();
+        List<string> logLines = [];
+        int droppedLogLines = 0;
         HashSet<string> grantedKeys = new(grant.Granted.Select(g => g.Key), StringComparer.Ordinal);
         int hostCalls = 0;
         Stopwatch stopwatch = Stopwatch.StartNew();
@@ -310,6 +329,18 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             engine.SetValue(
                 "__setVar",
                 (Action<string, string?>)((k, v) => vars[k] = v ?? string.Empty)
+            );
+            engine.SetValue(
+                "__log",
+                (Action<string, string>)(
+                    (level, text) =>
+                    {
+                        if (logLines.Count >= MaxLogLines)
+                            droppedLogLines++;
+                        else
+                            logLines.Add(level.Length == 0 ? text : $"{level}: {text}");
+                    }
+                )
             );
             engine.SetValue(
                 "__send",
@@ -393,6 +424,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             error = "Script execution faulted.";
         }
         stopwatch.Stop();
+        if (droppedLogLines > 0)
+            logLines.Add($"{droppedLogLines} more console line(s) not shown.");
 
         return Task.FromResult(
             Result.Success(
@@ -403,7 +436,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     vars,
                     output.Length == 0 ? null : output.ToString(),
                     StopPipeline: false,
-                    error
+                    error,
+                    logLines
                 )
             )
         );

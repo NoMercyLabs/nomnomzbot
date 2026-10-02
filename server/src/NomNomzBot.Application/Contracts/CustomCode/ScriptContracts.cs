@@ -83,7 +83,10 @@ public sealed record ScriptCapabilityDescriptor(
     bool SideEffecting
 );
 
-/// <summary>The executor's value-typed result + accounting (custom-code.md §4).</summary>
+/// <summary>
+/// The executor's value-typed result + accounting (custom-code.md §4). [LogLines] are the script's own
+/// <c>console.*</c> lines in order, capped, kept even when the run fails.
+/// </summary>
 public sealed record ScriptExecutionOutcomeResult(
     ScriptExecutionOutcome Outcome,
     long ElapsedMs,
@@ -91,7 +94,8 @@ public sealed record ScriptExecutionOutcomeResult(
     IReadOnlyDictionary<string, string> VariablesOut,
     string? ChatOutput,
     bool StopPipeline,
-    string? ErrorMessage
+    string? ErrorMessage,
+    IReadOnlyList<string> LogLines
 );
 
 /// <summary>The result of compiling+validating a script at save time (custom-code.md §4).</summary>

@@ -330,6 +330,8 @@ class CodeScriptsController(
                             error = result.error,
                             chatOutput = result.chatOutput,
                             effects = result.capturedEffects.map { effect -> EditorTestRunEffect(effect.name, effect.argsPreview) },
+                            variablesSet = result.variablesSet,
+                            console = result.console,
                         ),
                     )
                 else -> EditorOutcome.Failed("No result.")

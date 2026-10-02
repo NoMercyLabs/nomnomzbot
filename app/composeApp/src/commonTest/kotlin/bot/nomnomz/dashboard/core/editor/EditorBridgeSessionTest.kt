@@ -146,6 +146,32 @@ class EditorBridgeSessionTest {
     }
 
     @Test
+    fun testRunPostsTheVariablesTheScriptSetAndItsConsoleLines() = runTest {
+        val testRun =
+            EditorTestRun { _, _ ->
+                EditorOutcome.Ok(
+                    EditorTestRunResult(
+                        success = true,
+                        durationMs = 3,
+                        hostCallCount = 0,
+                        error = null,
+                        chatOutput = emptyList(),
+                        effects = emptyList(),
+                        variablesSet = mapOf("mood" to "happy"),
+                        console = listOf("mood is happy"),
+                    )
+                )
+            }
+        val harness = Harness(testRun = testRun)
+
+        harness.session.handle(EditorBridgeProtocol.decode("""{"type":"nnz:editor:testRun","variables":{},"args":[]}""")!!)
+
+        val reply: JsonObject = parse(harness.posted.single())
+        assertEquals("happy", reply["variablesSet"]!!.jsonObject["mood"]!!.jsonPrimitive.content)
+        assertEquals(listOf("mood is happy"), reply["console"]!!.jsonArray.map { line -> line.jsonPrimitive.content })
+    }
+
+    @Test
     fun testRunPassesVariablesAndArgsAndPostsCapturedEffects() = runTest {
         val received: MutableList<Pair<Map<String, String>, List<String>>> = mutableListOf()
         val testRun =

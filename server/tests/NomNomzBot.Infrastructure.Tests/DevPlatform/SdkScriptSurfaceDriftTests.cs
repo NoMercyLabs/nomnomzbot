@@ -136,7 +136,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
         ];
 
         // Sanity: the diff really did isolate the SDK, not the whole global object.
-        runtime.Should().Equal("bot", "nnz");
+        runtime.Should().Equal("bot", "console", "nnz");
 
         List<string> undeclared = [.. runtime.Except(declared, StringComparer.Ordinal)];
         List<string> phantom = [.. declared.Except(runtime, StringComparer.Ordinal)];

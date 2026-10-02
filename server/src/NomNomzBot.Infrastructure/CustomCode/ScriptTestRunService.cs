@@ -84,7 +84,9 @@ public sealed class ScriptTestRunService(
                     HostCallCount: 0,
                     CapturedEffects: [],
                     ChatOutput: [],
-                    Log: [$"Capability denied: {grant.ErrorMessage}"]
+                    Log: [$"Capability denied: {grant.ErrorMessage}"],
+                    VariablesSet: new Dictionary<string, string>(),
+                    Console: []
                 )
             );
 
@@ -148,8 +150,19 @@ public sealed class ScriptTestRunService(
                 outcome.HostCallCount,
                 sink.Effects,
                 chatOutput,
-                log
+                log,
+                ChangedVariables(request.Variables, outcome.VariablesOut),
+                outcome.LogLines
             )
         );
     }
+
+    // Only what the script set to a new value — an input it left alone is not something it did.
+    private static Dictionary<string, string> ChangedVariables(
+        IReadOnlyDictionary<string, string> before,
+        IReadOnlyDictionary<string, string> after
+    ) =>
+        after
+            .Where(pair => !before.TryGetValue(pair.Key, out string? old) || old != pair.Value)
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
 }

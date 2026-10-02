@@ -128185,7 +128185,9 @@
           "hostCallCount",
           "capturedEffects",
           "chatOutput",
-          "log"
+          "log",
+          "variablesSet",
+          "console"
         ],
         "type": "object",
         "properties": {
@@ -128228,6 +128230,24 @@
           },
           "log": {
             "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variablesSet": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "console": {
+            "type": [
+              "null",
+              "array"
+            ],
             "items": {
               "type": "string"
             }

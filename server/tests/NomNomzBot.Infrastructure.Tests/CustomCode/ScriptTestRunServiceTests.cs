@@ -146,6 +146,32 @@ public sealed class ScriptTestRunServiceTests
     }
 
     [Fact]
+    public async Task A_test_run_shows_the_variables_the_script_changed_and_what_it_logged()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        const string js = """
+            bot.setVar('mood', 'happy');
+            bot.setVar('count', '3');
+            bot.setVar('keep', 'same');
+            console.log('mood is', bot.getVar('mood'));
+            """;
+        Guid id = await SeedAsync(db, js, []);
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string> { ["mood"] = "calm", ["keep"] = "same" },
+            []
+        );
+
+        await sut.RunAsync(id, request); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, request)).Value;
+
+        result.Success.Should().BeTrue(result.Error);
+        result
+            .VariablesSet.Should()
+            .BeEquivalentTo(new Dictionary<string, string> { ["mood"] = "happy", ["count"] = "3" });
+        result.Console.Should().Equal("mood is happy");
+    }
+
+    [Fact]
     public async Task A_throwing_script_fails_with_an_error_and_no_effects()
     {
         (ScriptTestRunService sut, AuthDbContext db, _) = Build();

@@ -91,7 +91,8 @@ public sealed partial class WasmtimeScriptExecutor : IScriptExecutor, IDisposabl
                 request.Inputs.Variables,
                 null,
                 false,
-                error
+                error,
+                []
             )
         );
 

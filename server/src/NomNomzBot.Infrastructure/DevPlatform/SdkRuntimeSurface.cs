@@ -249,6 +249,18 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("  call(key: string, ...args: string[]): string | null;");
         sb.AppendLine("};");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** Writes lines to the test run panel. Viewers never see them. Objects are shown as JSON. */"
+        );
+        sb.AppendLine("declare const console: {");
+        sb.AppendLine("  log(...values: unknown[]): void;");
+        sb.AppendLine("  info(...values: unknown[]): void;");
+        sb.AppendLine("  /** Marks the line with \"warn:\". */");
+        sb.AppendLine("  warn(...values: unknown[]): void;");
+        sb.AppendLine("  /** Marks the line with \"error:\". */");
+        sb.AppendLine("  error(...values: unknown[]): void;");
+        sb.AppendLine("};");
     }
 
     // One named interface per nnz.<namespace> — hovering `nnz` itself now shows six short type references

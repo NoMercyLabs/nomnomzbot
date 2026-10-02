@@ -205,6 +205,10 @@ data class TestRunResult(
     val capturedEffects: List<CapturedEffect> = emptyList(),
     val chatOutput: List<String> = emptyList(),
     val log: List<String> = emptyList(),
+    /** What the script set to a new value; null when the run kind does not track variables (pipelines). */
+    val variablesSet: Map<String, String>? = null,
+    /** The script's own console lines; null when the run kind has none (pipelines). */
+    val console: List<String>? = null,
 )
 
 /** One captured outward/mutating effect a dry-run recorded instead of performing (backend `CapturedEffectDto`). */

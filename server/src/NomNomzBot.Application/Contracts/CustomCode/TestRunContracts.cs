@@ -41,7 +41,9 @@ public sealed record TestRunResultDto(
     int HostCallCount,
     IReadOnlyList<CapturedEffectDto> CapturedEffects,
     IReadOnlyList<string> ChatOutput,
-    IReadOnlyList<string> Log
+    IReadOnlyList<string> Log,
+    IReadOnlyDictionary<string, string>? VariablesSet,
+    IReadOnlyList<string>? Console
 );
 
 /// <summary>

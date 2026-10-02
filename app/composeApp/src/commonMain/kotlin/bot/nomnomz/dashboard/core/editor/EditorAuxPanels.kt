@@ -68,6 +68,8 @@ data class EditorTestRunResult(
     val error: String?,
     val chatOutput: List<String>,
     val effects: List<EditorTestRunEffect>,
+    val variablesSet: Map<String, String>? = null,
+    val console: List<String>? = null,
 )
 
 /**

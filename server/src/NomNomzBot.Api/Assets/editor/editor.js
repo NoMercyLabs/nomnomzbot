@@ -1124,8 +1124,21 @@ function showTestRunResult(data) {
         data.effects.length === 0
             ? 'Captured effects: (none)'
             : `Captured effects:\n${data.effects.map((effect) => `${effect.name}  ${effect.argsPreview}`).join('\n')}`;
+    const sections = [chat, effects];
+    // Absent (not empty) when the run kind does not track them, so the panel never claims "none" for them.
+    if (data.variablesSet) {
+        const entries = Object.entries(data.variablesSet);
+        sections.push(
+            entries.length === 0
+                ? 'Variables set: (none)'
+                : `Variables set:\n${entries.map(([key, value]) => `${key} = ${value}`).join('\n')}`,
+        );
+    }
+    if (data.console) {
+        sections.push(data.console.length === 0 ? 'Console: (none)' : `Console:\n${data.console.join('\n')}`);
+    }
     dom.testRunResult.hidden = false;
-    dom.testRunResult.textContent = `${chat}\n\n${effects}`;
+    dom.testRunResult.textContent = sections.join('\n\n');
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────

@@ -12,8 +12,10 @@ package bot.nomnomz.dashboard.feature.codescripts.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorOutcome
 import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
+import bot.nomnomz.dashboard.core.editor.EditorTestRunResult
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -89,6 +91,27 @@ class CodeScriptsControllerTestRunTest {
     }
 
     @Test
+    fun the_editor_test_run_panel_gets_the_variables_the_script_set_and_its_console_lines() = runTest {
+        val captured =
+            TestRunResult(
+                success = true,
+                durationMs = 3,
+                hostCallCount = 0,
+                variablesSet = mapOf("mood" to "happy"),
+                console = listOf("mood is happy", "warn: careful"),
+            )
+        val editor = TestRunPressingEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(ApiResult.Ok(captured)), editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        val result: EditorTestRunResult = (editor.outcome as EditorOutcome.Ok).value
+        assertEquals(mapOf("mood" to "happy"), result.variablesSet)
+        assertEquals(listOf("mood is happy", "warn: careful"), result.console)
+    }
+
+    @Test
     fun test_run_failure_surfaces_the_error_and_no_result() = runTest {
         val api =
             FakeCodeScriptsApi(
@@ -161,6 +184,25 @@ class CodeScriptsControllerTestRunTest {
             testRun: EditorTestRun?,
             compile: suspend (Map<String, String>) -> CompileFeedback,
         ) = Unit
+    }
+
+    // Presses the editor's Test run once while the editor is open, keeping what the panel would show.
+    private class TestRunPressingEditor : ProjectEditorIO {
+        var outcome: EditorOutcome<EditorTestRunResult>? = null
+
+        override suspend fun editAndCompile(
+            title: String,
+            initialFiles: Map<String, String>,
+            entryPath: String,
+            language: String,
+            sdkTypes: String,
+            previewWidget: EditorPreviewWidget?,
+            history: EditorHistory?,
+            testRun: EditorTestRun?,
+            compile: suspend (Map<String, String>) -> CompileFeedback,
+        ) {
+            outcome = testRun?.run?.invoke(emptyMap(), emptyList())
+        }
     }
 
     private object StubSdkTypes : SdkTypesApi {
