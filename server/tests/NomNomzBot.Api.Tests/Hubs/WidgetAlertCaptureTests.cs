@@ -308,11 +308,9 @@ public sealed class WidgetAlertCaptureTests
         );
         capture.EventType.Should().Be("follow");
 
-        JsonElement payload = JsonSerializer.SerializeToElement(
-            JsonSerializer.Deserialize<JsonElement>(capture.Payload),
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
-        payload.GetProperty("DisplayName").GetString().Should().Be("PogChamp42");
+        // Stored in the hub's camelCase wire form, so a replay sends what the live push sent.
+        JsonElement payload = JsonSerializer.Deserialize<JsonElement>(capture.Payload);
+        payload.GetProperty("displayName").GetString().Should().Be("PogChamp42");
 
         // Same lookup surfaced by ChannelEventId alone (what the replay endpoint actually queries by) — not
         // type+recency, which is the gap this slice closes.

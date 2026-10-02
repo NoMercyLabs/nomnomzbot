@@ -130,6 +130,58 @@ public sealed class DashboardControllerReplayTests
     }
 
     [Fact]
+    public async Task A_replayed_alert_reaches_the_widget_with_the_same_field_names_the_live_push_had()
+    {
+        ReplayTestDbContext db = ReplayTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        string eventId = Guid.CreateVersion7().ToString();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Alert box",
+                IsEnabled = true,
+                EventSubscriptions = ["follow"],
+            }
+        );
+        db.SaveChanges();
+        FollowAlertDto follow = new("u1", "PogChamp42", "pogchamp42", null);
+        await WidgetAlertDispatch.RouteAsync(
+            db,
+            Substitute.For<IWidgetNotifier>(),
+            channel,
+            "follow",
+            follow,
+            excludeWidgetId: null,
+            eventId,
+            CancellationToken.None
+        );
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        List<string> replayedKeys = [];
+        await notifier.SendWidgetEventAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Do<WidgetEventDto>(dto =>
+                replayedKeys.AddRange(
+                    ((JsonElement)dto.Data!).EnumerateObject().Select(property => property.Name)
+                )
+            ),
+            Arg.Any<CancellationToken>()
+        );
+
+        await new RenderedAlertReplayer(db, notifier).ResendAsync(
+            channel,
+            eventId,
+            includeTts: true
+        );
+
+        // The live push goes out through the hub's camelCase JSON, which is what every widget reads (`e.user`).
+        replayedKeys.Should().Contain(["user", "displayName", "login", "userId"]);
+        replayedKeys.Should().NotContain("User");
+    }
+
+    [Fact]
     public async Task Resend_skips_the_captured_tts_when_the_response_replays_its_own()
     {
         ReplayTestDbContext db = ReplayTestDbContext.New();

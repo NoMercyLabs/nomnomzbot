@@ -153,7 +153,9 @@ internal static class WidgetAlertDispatch
             {
                 BroadcasterId = broadcasterId,
                 EventType = eventType,
-                Payload = JsonSerializer.Serialize(data),
+                // The hub's own wire form: a replay re-sends this text verbatim, so it must carry the names the live
+                // push carried (`user`, not `User`).
+                Payload = JsonSerializer.Serialize(data, OverlayWireJson.Options),
                 ChannelEventId = channelEventId,
             }
         );

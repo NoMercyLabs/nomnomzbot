@@ -19,13 +19,6 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// <summary>Broadcasts chat cleared events to dashboard AND overlay/widget clients (mirrors ChatMessageBroadcastHandler's fan-out — a chat_box overlay must drop every rendered message the SAME instant the dashboard does).</summary>
 public sealed class ChatClearedBroadcastHandler : IEventHandler<ChatClearedEvent>
 {
-    // camelCase so the overlay-feed payload byte-matches the frontend shape a widget parses (mirrors
-    // ChatMessageBroadcastHandler.OverlayJson) — one instance per handler class, the established convention.
-    private static readonly JsonSerializerOptions OverlayJson = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly IDashboardNotifier _notifier;
     private readonly IWidgetNotifier _widgets;
     private readonly IApplicationDbContext _db;
@@ -57,7 +50,7 @@ public sealed class ChatClearedBroadcastHandler : IEventHandler<ChatClearedEvent
 
         await _widgets.BroadcastOverlayEventAsync(
             @event.BroadcasterId.ToString(),
-            new("ChatCleared", JsonSerializer.Serialize(dto, OverlayJson)),
+            new("ChatCleared", JsonSerializer.Serialize(dto, OverlayWireJson.Options)),
             ct
         );
         await WidgetAlertDispatch.RouteAsync(
@@ -76,11 +69,6 @@ public sealed class ChatClearedBroadcastHandler : IEventHandler<ChatClearedEvent
 /// <summary>Broadcasts message deleted events to dashboard AND overlay/widget clients.</summary>
 public sealed class ChatMessageDeletedBroadcastHandler : IEventHandler<ChatMessageDeletedEvent>
 {
-    private static readonly JsonSerializerOptions OverlayJson = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly IDashboardNotifier _notifier;
     private readonly IWidgetNotifier _widgets;
     private readonly IApplicationDbContext _db;
@@ -112,7 +100,7 @@ public sealed class ChatMessageDeletedBroadcastHandler : IEventHandler<ChatMessa
 
         await _widgets.BroadcastOverlayEventAsync(
             @event.BroadcasterId.ToString(),
-            new("MessageDeleted", JsonSerializer.Serialize(dto, OverlayJson)),
+            new("MessageDeleted", JsonSerializer.Serialize(dto, OverlayWireJson.Options)),
             ct
         );
         await WidgetAlertDispatch.RouteAsync(
@@ -137,11 +125,6 @@ public sealed class ChatMessageDeletedBroadcastHandler : IEventHandler<ChatMessa
 public sealed class ChatUserMessagesClearedBroadcastHandler
     : IEventHandler<ChatUserMessagesClearedEvent>
 {
-    private static readonly JsonSerializerOptions OverlayJson = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly IDashboardNotifier _notifier;
     private readonly IWidgetNotifier _widgets;
     private readonly IApplicationDbContext _db;
@@ -180,7 +163,7 @@ public sealed class ChatUserMessagesClearedBroadcastHandler
 
         await _widgets.BroadcastOverlayEventAsync(
             @event.BroadcasterId.ToString(),
-            new("UserMessagesCleared", JsonSerializer.Serialize(dto, OverlayJson)),
+            new("UserMessagesCleared", JsonSerializer.Serialize(dto, OverlayWireJson.Options)),
             ct
         );
         await WidgetAlertDispatch.RouteAsync(

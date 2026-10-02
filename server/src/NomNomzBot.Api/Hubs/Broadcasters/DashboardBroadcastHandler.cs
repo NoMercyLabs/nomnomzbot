@@ -28,14 +28,6 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// </summary>
 public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageReceivedEvent>
 {
-    // The decorated chat payload the OVERLAY feed carries is serialized here (a JSON string inside
-    // OverlayEventDto), camelCase so it byte-matches the frontend ChatMessagePayload shape the dashboard
-    // receives over SignalR — a chat widget then parses exactly the same render-ready fields.
-    private static readonly JsonSerializerOptions OverlayJson = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly IDashboardNotifier _notifier;
     private readonly IChatMessageDecorator _decorator;
     private readonly IHubUserEnricher _enricher;
@@ -144,7 +136,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         // build a fully-styled bubble. OverlayEventFilter drops the raw duplicate so the widget sees only this.
         await _widgets.BroadcastOverlayEventAsync(
             evt.BroadcasterId.ToString(),
-            new("ChatMessage", JsonSerializer.Serialize(dto, OverlayJson)),
+            new("ChatMessage", JsonSerializer.Serialize(dto, OverlayWireJson.Options)),
             ct
         );
 

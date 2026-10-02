@@ -38,13 +38,6 @@ internal static class OverlayAlertBroadcast
     // "alerts" entry and AlertQueueService's own constant.
     private const string AlertsSurfaceNaturalKey = "alerts";
 
-    // camelCase so the overlay-feed payload byte-matches the frontend alert shape the dashboard receives over
-    // SignalR (mirrors ChatMessageBroadcastHandler.OverlayJson) — one shared options instance, reused for every alert.
-    private static readonly JsonSerializerOptions OverlayJson = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     public static async Task ToOverlaysAsync(
         IApplicationDbContext db,
         IWidgetNotifier notifier,
@@ -64,7 +57,7 @@ internal static class OverlayAlertBroadcast
         // (a) Generic overlay feed — one decorated event, replacing the raw journaled form the filter now drops.
         await notifier.BroadcastOverlayEventAsync(
             broadcasterId.ToString(),
-            new(eventType, JsonSerializer.Serialize(decoratedData, OverlayJson)),
+            new(eventType, JsonSerializer.Serialize(decoratedData, OverlayWireJson.Options)),
             cancellationToken
         );
 
