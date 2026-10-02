@@ -34,6 +34,7 @@ import bot.nomnomz.dashboard.core.network.PlatformDefaultBlastRadius
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsController
 import bot.nomnomz.dashboard.feature.admin.state.PlatformDefaultsState
+import kotlinx.coroutines.delay
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.platform_defaults_explain
 import nomnomzbot.composeapp.generated.resources.platform_defaults_preview_counted
@@ -133,5 +134,21 @@ internal fun PlatformDefaultBlastRadiusText(preview: PlatformDefaultBlastRadius?
                 color = tokens.mutedForeground,
             )
         }
+    }
+}
+
+private const val BlastRadiusPauseMs: Long = 400
+
+/**
+ * Counts the blast radius of the pending edit by itself, once the operator pauses, so no editor asks them to
+ * check it first. A new [change] restarts the pause; [needed] is false while a count for it is on screen, the
+ * values cannot be saved, or a save runs. A failed count is not retried until the values change.
+ */
+@Composable
+internal fun AutoBlastRadius(change: Any?, needed: Boolean, count: suspend () -> Unit) {
+    LaunchedEffect(change, needed) {
+        if (!needed) return@LaunchedEffect
+        delay(BlastRadiusPauseMs)
+        count()
     }
 }

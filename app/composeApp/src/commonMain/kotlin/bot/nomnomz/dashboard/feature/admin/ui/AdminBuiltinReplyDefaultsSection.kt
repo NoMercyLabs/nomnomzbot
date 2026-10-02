@@ -30,7 +30,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
-import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -44,8 +43,6 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.platform_defaults_apply
 import nomnomzbot.composeapp.generated.resources.platform_defaults_cancel
 import nomnomzbot.composeapp.generated.resources.platform_defaults_change
-import nomnomzbot.composeapp.generated.resources.platform_defaults_check_first
-import nomnomzbot.composeapp.generated.resources.platform_defaults_check_impact
 import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_counts_overridable
 import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_edit_title
 import nomnomzbot.composeapp.generated.resources.platform_defaults_reply_platform
@@ -129,9 +126,9 @@ private fun BuiltinReplyDefaultRow(row: BuiltinReplyDefault, onChange: () -> Uni
 }
 
 /**
- * The editor for one slot's wording. Flipping the switch or editing the text drops the previous count, so
- * "Check impact" (outline) must run for exactly this wording before the single primary "Apply to N channels"
- * arms. The switch back to the shipped wording is what clears the platform override.
+ * The editor for one slot's wording, open on the wording the bot uses now. Every edit drops the previous count
+ * and a fresh one loads by itself, so the single primary "Apply to N channels" always names the channels this
+ * exact wording changes. The quiet reset puts the shipped wording back, which clears the platform override.
  */
 @Composable
 internal fun BuiltinReplyDefaultEditDialog(
@@ -139,52 +136,36 @@ internal fun BuiltinReplyDefaultEditDialog(
     edit: BuiltinReplyDefaultEdit,
     controller: PlatformDefaultsController,
 ) {
-    val spacing = LocalSpacing.current
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
-    val busy: Boolean = edit.saving || edit.previewing
-    val missingTemplate: Boolean = !edit.useShipped && edit.template.isBlank()
 
+    AutoBlastRadius(change = edit.change, needed = edit.preview == null && !edit.missingText && !edit.saving) {
+        controller.previewReplyEdit()
+    }
     Dialog(onDismissRequest = controller::dismissReplyEdit) {
         DialogTitle(text = stringResource(Res.string.platform_defaults_reply_edit_title, row.builtinKey, row.slot))
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
-            Switch(checked = edit.useShipped, onCheckedChange = controller::editReplyUseShipped, enabled = !busy)
-            Text(
-                text = stringResource(Res.string.platform_defaults_reply_use_shipped),
-                style = typography.sm,
-                color = tokens.popoverForeground,
-            )
-        }
         Textarea(
-            value = if (edit.useShipped) row.shippedTemplate.orEmpty() else edit.template,
+            value = edit.template,
             onValueChange = controller::editReplyTemplate,
             label = stringResource(Res.string.platform_defaults_reply_template),
-            enabled = !busy && !edit.useShipped,
-            isError = missingTemplate,
-            errorText = if (missingTemplate) stringResource(Res.string.platform_defaults_reply_template_required) else null,
+            enabled = !edit.saving,
+            isError = edit.missingText,
+            errorText = if (edit.missingText) stringResource(Res.string.platform_defaults_reply_template_required) else null,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (edit.preview != null || edit.previewing) {
-            PlatformDefaultBlastRadiusText(preview = edit.preview)
-        } else {
-            Text(
-                text = stringResource(Res.string.platform_defaults_check_first),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
+        if (edit.differsFromShipped) {
+            Button(
+                onClick = controller::resetReplyToShipped,
+                variant = ButtonVariant.Ghost,
+                size = ButtonSize.Sm,
+                enabled = !edit.saving,
+            ) {
+                Text(text = stringResource(Res.string.platform_defaults_reply_use_shipped), maxLines = 1)
+            }
         }
+        if (!edit.missingText) PlatformDefaultBlastRadiusText(preview = edit.preview)
         DialogFooter {
             Button(onClick = controller::dismissReplyEdit, variant = ButtonVariant.Ghost, enabled = !edit.saving) {
                 Text(text = stringResource(Res.string.platform_defaults_cancel), maxLines = 1)
-            }
-            Button(
-                onClick = { scope.launch { controller.previewReplyEdit() } },
-                variant = ButtonVariant.Outline,
-                enabled = !busy && !missingTemplate && edit.preview == null,
-                loading = edit.previewing,
-            ) {
-                Text(text = stringResource(Res.string.platform_defaults_check_impact), maxLines = 1)
             }
             Button(
                 onClick = { scope.launch { controller.saveReplyEdit() } },

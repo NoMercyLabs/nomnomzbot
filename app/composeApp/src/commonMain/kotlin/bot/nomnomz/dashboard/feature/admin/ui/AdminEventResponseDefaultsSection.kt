@@ -46,8 +46,6 @@ import nomnomzbot.composeapp.generated.resources.event_responses_speak_with_tts
 import nomnomzbot.composeapp.generated.resources.platform_defaults_apply
 import nomnomzbot.composeapp.generated.resources.platform_defaults_cancel
 import nomnomzbot.composeapp.generated.resources.platform_defaults_change
-import nomnomzbot.composeapp.generated.resources.platform_defaults_check_first
-import nomnomzbot.composeapp.generated.resources.platform_defaults_check_impact
 import nomnomzbot.composeapp.generated.resources.platform_defaults_event_counts
 import nomnomzbot.composeapp.generated.resources.platform_defaults_event_edit_title
 import nomnomzbot.composeapp.generated.resources.platform_defaults_event_enabled
@@ -140,9 +138,12 @@ internal fun EventResponseDefaultEditDialog(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
-    val busy: Boolean = edit.saving || edit.previewing
+    val busy: Boolean = edit.saving
     val missingMessage: Boolean = edit.isEnabled && edit.message.isBlank()
 
+    AutoBlastRadius(change = edit.change, needed = edit.preview == null && !missingMessage && !busy) {
+        controller.previewEventEdit()
+    }
     Dialog(onDismissRequest = controller::dismissEventEdit) {
         DialogTitle(text = stringResource(Res.string.platform_defaults_event_edit_title, row.eventType.toEventLabel()))
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
@@ -173,26 +174,10 @@ internal fun EventResponseDefaultEditDialog(
                 color = tokens.popoverForeground,
             )
         }
-        if (edit.preview != null || edit.previewing) {
-            PlatformDefaultBlastRadiusText(preview = edit.preview)
-        } else {
-            Text(
-                text = stringResource(Res.string.platform_defaults_check_first),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-        }
+        if (!missingMessage) PlatformDefaultBlastRadiusText(preview = edit.preview)
         DialogFooter {
             Button(onClick = controller::dismissEventEdit, variant = ButtonVariant.Ghost, enabled = !edit.saving) {
                 Text(text = stringResource(Res.string.platform_defaults_cancel), maxLines = 1)
-            }
-            Button(
-                onClick = { scope.launch { controller.previewEventEdit() } },
-                variant = ButtonVariant.Outline,
-                enabled = !busy && !missingMessage && edit.preview == null,
-                loading = edit.previewing,
-            ) {
-                Text(text = stringResource(Res.string.platform_defaults_check_impact), maxLines = 1)
             }
             Button(
                 onClick = { scope.launch { controller.saveEventEdit() } },

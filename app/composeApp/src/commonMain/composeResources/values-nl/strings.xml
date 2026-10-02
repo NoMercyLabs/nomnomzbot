@@ -5851,8 +5851,6 @@
     <string name="platform_defaults_event_message">Bericht</string>
     <string name="platform_defaults_event_variables">Variabelen: %1$s</string>
     <string name="platform_defaults_event_message_required">Een reactie die aan staat heeft een bericht nodig.</string>
-    <string name="platform_defaults_check_impact">Impact bekijken</string>
-    <string name="platform_defaults_check_first">Bekijk de impact om te zien welke kanalen dit verandert.</string>
     <string name="platform_defaults_section_builtin_replies">Ingebouwde antwoorden</string>
     <string name="platform_defaults_reply_title">!%1$s · %2$s</string>
     <string name="platform_defaults_reply_platform">Platformtekst: %1$s</string>
@@ -5862,7 +5860,7 @@
     <string name="platform_defaults_reply_edit_title">Tekst van !%1$s · %2$s</string>
     <string name="platform_defaults_reply_use_shipped">De meegeleverde tekst gebruiken</string>
     <string name="platform_defaults_reply_template">Tekst</string>
-    <string name="platform_defaults_reply_template_required">Een platformtekst heeft inhoud nodig, of schakel terug naar de meegeleverde tekst.</string>
+    <string name="platform_defaults_reply_template_required">Een platformtekst heeft inhoud nodig. Gebruik de meegeleverde tekst om die niet meer te vervangen.</string>
     <string name="platform_defaults_section_tts_voice">TTS-stem</string>
     <string name="platform_defaults_voice_current">Platformstem: %1$s (%2$s)</string>
     <string name="platform_defaults_voice_missing">De stemcatalogus markeert nog geen platformstandaard.</string>

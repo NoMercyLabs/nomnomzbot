@@ -17,9 +17,11 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -142,7 +144,7 @@ class AdminPlatformDefaultsTabTest {
     }
 
     @Test
-    fun an_event_default_shows_its_count_only_after_check_impact_and_apply_sends_it() {
+    fun an_event_default_counts_its_impact_by_itself_and_apply_sends_it() {
         val follow = EventResponseDefault(
             eventType = "channel.follow",
             isEnabled = true,
@@ -163,19 +165,17 @@ class AdminPlatformDefaultsTabTest {
             waitForIdle()
 
             onNodeWithText("4 channel(s) follow this default, 2 answer with their own response").assertExists()
-            onNodeWithText("Check the impact to see which channels this changes.").assertExists()
-            onNode(hasText("Apply to 0 channel(s)") and hasClickAction()).assertIsNotEnabled()
-            assertTrue(api.eventPreviews.isEmpty(), "opening the editor previews nothing")
-        }
+            onNodeWithText("Check impact").assertDoesNotExist()
+            mainClock.advanceTimeBy(PastTheCountPauseMs)
+            waitForIdle()
+            assertEquals(1, api.eventPreviews.size, "opening the editor counts its impact without a click")
 
-        runTest {
             controller.editEventMessage("Thanks {user}!")
-            controller.previewEventEdit()
-        }
-        runComposeUiTest {
-            setContent { English { EventResponseDefaultsSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+            mainClock.advanceTimeBy(PastTheCountPauseMs)
             waitForIdle()
 
+            assertEquals(2, api.eventPreviews.size, "an edit counts again by itself")
             onNodeWithText("This changes 4 channel(s) right now, including: alpha, bravo.").assertExists()
             onNodeWithText("2 channel(s) keep their own setting.").assertExists()
             onNode(hasText("Apply to 4 channel(s)") and hasClickAction()).performClick()
@@ -187,7 +187,7 @@ class AdminPlatformDefaultsTabTest {
     }
 
     @Test
-    fun a_builtin_reply_shows_its_wording_and_apply_sends_the_previewed_count() {
+    fun a_builtin_reply_opens_editable_counts_by_itself_and_apply_sends_the_count() {
         val uptimeLive = BuiltinReplyDefault(
             builtinKey = "uptime",
             slot = "live",
@@ -207,20 +207,19 @@ class AdminPlatformDefaultsTabTest {
 
             onNodeWithText("Shipped wording: {channel} has been live for {uptime}.").assertExists()
             onNodeWithText("2 channel(s) answer with their own reply, every other channel uses this wording").assertExists()
-            onNodeWithText("Check the impact to see which channels this changes.").assertExists()
-            onNode(hasText("Apply to 0 channel(s)") and hasClickAction()).assertIsNotEnabled()
-            assertTrue(api.replyPreviews.isEmpty(), "opening the editor previews nothing")
-        }
+            onNodeWithText("Check impact").assertDoesNotExist()
+            mainClock.advanceTimeBy(PastTheCountPauseMs)
+            waitForIdle()
+            onNode(hasText("Use the shipped wording") and hasClickAction()).assertDoesNotExist()
+            assertEquals(1, api.replyPreviews.size, "opening the editor counts its impact without a click")
 
-        runTest {
-            controller.editReplyUseShipped(false)
-            controller.editReplyTemplate("Live for {uptime}!")
-            controller.previewReplyEdit()
-        }
-        runComposeUiTest {
-            setContent { English { BuiltinReplyDefaultsSection(controller.state.collectAsState().value, controller) } }
+            onNode(hasSetTextAction()).assertIsEnabled().performTextReplacement("Live for {uptime}!")
+            waitForIdle()
+            mainClock.advanceTimeBy(PastTheCountPauseMs)
             waitForIdle()
 
+            assertEquals("Live for {uptime}!", api.replyPreviews.last().second.template)
+            onNode(hasText("Use the shipped wording") and hasClickAction()).assertIsEnabled()
             onNodeWithText("This changes 3 channel(s) right now, including: alpha, bravo.").assertExists()
             onNodeWithText("2 channel(s) keep their own setting.").assertExists()
             onNode(hasText("Apply to 3 channel(s)") and hasClickAction()).performClick()
@@ -261,19 +260,17 @@ class AdminPlatformDefaultsTabTest {
 
             onNodeWithText("Platform voice: Aria (US) (en-US)").assertExists()
             onNodeWithText("3 channel(s) follow this voice, 1 picked their own").assertExists()
-            onNodeWithText("Check the impact to see which channels this changes.").assertExists()
-            onNode(hasText("Apply to 0 channel(s)") and hasClickAction()).assertIsNotEnabled()
-            assertTrue(api.voicePreviews.isEmpty(), "opening the editor previews nothing")
-        }
+            onNodeWithText("Check impact").assertDoesNotExist()
+            mainClock.advanceTimeBy(PastTheCountPauseMs)
+            waitForIdle()
+            assertEquals(1, api.voicePreviews.size, "opening the editor counts its impact without a click")
 
-        runTest {
             controller.pickVoice("en-GB-SoniaNeural")
-            controller.previewVoiceEdit()
-        }
-        runComposeUiTest {
-            setContent { English { TtsVoiceDefaultSection(controller.state.collectAsState().value, controller) } }
+            waitForIdle()
+            mainClock.advanceTimeBy(PastTheCountPauseMs)
             waitForIdle()
 
+            assertEquals(2, api.voicePreviews.size, "a new pick counts again by itself")
             onNodeWithText("This changes 3 channel(s) right now, including: alpha, bravo.").assertExists()
             onNodeWithText("1 channel(s) keep their own setting.").assertExists()
             onNode(hasText("Apply to 3 channel(s)") and hasClickAction()).performClick()
@@ -285,3 +282,6 @@ class AdminPlatformDefaultsTabTest {
         }
     }
 }
+
+// The editors count their impact once the operator pauses (AutoBlastRadius); the test clock steps past that.
+private const val PastTheCountPauseMs: Long = 500

@@ -80,25 +80,38 @@ data class EventResponseDefaultEdit(
 }
 
 /**
- * The draft of one built-in reply wording edit. [useShipped] means "back to the shipped wording" (a null
- * template on the wire); otherwise [template] is the platform wording. Any change drops [preview], so the save
- * can only ever carry a count the operator saw for exactly the wording being saved.
+ * The draft of one built-in reply wording edit. [template] is the wording the editor shows; when it is the
+ * [shippedTemplate] (or empty for a slot without one, where the command builds its own line) the change is a
+ * null template on the wire, so the platform follows the shipped wording again. Any change drops [preview], so
+ * the save can only ever carry a count the operator saw for exactly the wording being saved.
  */
 data class BuiltinReplyDefaultEdit(
     val builtinKey: String,
     val slot: String,
     val template: String,
-    val useShipped: Boolean,
+    val shippedTemplate: String?,
     val preview: PlatformDefaultBlastRadius? = null,
     val previewing: Boolean = false,
     val saving: Boolean = false,
 ) {
     val change: BuiltinReplyDefaultChange
-        get() = BuiltinReplyDefaultChange(template = if (useShipped) null else template.trim().ifEmpty { null })
+        get() {
+            val wording: String = template.trim()
+            val shipped: Boolean = wording.isEmpty() || wording == shippedTemplate?.trim()
+            return BuiltinReplyDefaultChange(template = if (shipped) null else wording)
+        }
 
-    /** A platform wording must say something; the save arms only once the count for this wording is shown. */
+    /** True while the wording replaces the shipped one, so going back to it is worth offering. */
+    val differsFromShipped: Boolean
+        get() = change.template != null
+
+    /** An empty box can only mean "the shipped wording" when there is no shipped wording to show. */
+    val missingText: Boolean
+        get() = template.isBlank() && shippedTemplate != null
+
+    /** The save arms only once the count for this wording is shown. */
     val canSave: Boolean
-        get() = preview != null && !saving && (useShipped || template.isNotBlank())
+        get() = preview != null && !saving && !missingText
 }
 
 /**
@@ -258,7 +271,7 @@ class PlatformDefaultsController(
         }
     }
 
-    /** Opens the editor on [eventType] with its current platform default. Nothing is previewed until asked. */
+    /** Opens the editor on [eventType] with its current platform default; the editor counts its blast radius. */
     fun openEventEdit(eventType: String) {
         val row: EventResponseDefault = _state.value.eventDefaults.firstOrNull { it.eventType == eventType } ?: return
         _state.value = _state.value.copy(
@@ -358,7 +371,7 @@ class PlatformDefaultsController(
         }
     }
 
-    /** Opens the editor on one slot with its current wording. Nothing is previewed until asked. */
+    /** Opens the editor on one slot with the wording the bot uses now, ready to edit. */
     fun openReplyEdit(builtinKey: String, slot: String) {
         val row: BuiltinReplyDefault = _state.value.replyDefaults.firstOrNull {
             it.builtinKey == builtinKey && it.slot == slot
@@ -368,14 +381,14 @@ class PlatformDefaultsController(
                 builtinKey = builtinKey,
                 slot = slot,
                 template = row.platformTemplate ?: row.shippedTemplate.orEmpty(),
-                useShipped = row.platformTemplate == null,
+                shippedTemplate = row.shippedTemplate,
             ),
         )
     }
 
-    fun editReplyUseShipped(useShipped: Boolean) {
-        val edit: BuiltinReplyDefaultEdit = _state.value.replyEdit ?: return
-        _state.value = _state.value.copy(replyEdit = edit.copy(useShipped = useShipped, preview = null))
+    /** Puts the shipped wording back in the editor; saved, it stops the platform replacing it. */
+    fun resetReplyToShipped() {
+        editReplyTemplate(_state.value.replyEdit?.shippedTemplate.orEmpty())
     }
 
     fun editReplyTemplate(template: String) {
@@ -469,7 +482,7 @@ class PlatformDefaultsController(
         }
     }
 
-    /** Opens the editor on the current voice. Nothing is previewed until asked. */
+    /** Opens the editor on the current voice; the editor counts its blast radius. */
     fun openVoiceEdit() {
         val current: String = _state.value.voiceDefault?.voiceId
             ?: _state.value.voiceCandidates.firstOrNull()?.voiceId

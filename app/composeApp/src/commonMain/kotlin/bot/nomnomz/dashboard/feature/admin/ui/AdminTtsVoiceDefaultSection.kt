@@ -47,8 +47,6 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.platform_defaults_apply
 import nomnomzbot.composeapp.generated.resources.platform_defaults_cancel
 import nomnomzbot.composeapp.generated.resources.platform_defaults_change
-import nomnomzbot.composeapp.generated.resources.platform_defaults_check_first
-import nomnomzbot.composeapp.generated.resources.platform_defaults_check_impact
 import nomnomzbot.composeapp.generated.resources.platform_defaults_voice_counts
 import nomnomzbot.composeapp.generated.resources.platform_defaults_voice_current
 import nomnomzbot.composeapp.generated.resources.platform_defaults_voice_edit_title
@@ -132,10 +130,13 @@ internal fun TtsVoiceDefaultEditDialog(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
-    val busy: Boolean = edit.saving || edit.previewing
+    val busy: Boolean = edit.saving
     var expanded: Boolean by remember { mutableStateOf(false) }
     val picked: TtsVoiceCandidate? = state.voiceCandidates.firstOrNull { it.voiceId == edit.voiceId }
 
+    AutoBlastRadius(change = edit.voiceId, needed = edit.preview == null && picked != null && !busy) {
+        controller.previewVoiceEdit()
+    }
     Dialog(onDismissRequest = controller::dismissVoiceEdit) {
         DialogTitle(text = stringResource(Res.string.platform_defaults_voice_edit_title))
         Select(
@@ -149,26 +150,10 @@ internal fun TtsVoiceDefaultEditDialog(
             onExpandedChange = { expanded = it },
             enabled = !busy,
         )
-        if (edit.preview != null || edit.previewing) {
-            PlatformDefaultBlastRadiusText(preview = edit.preview)
-        } else {
-            Text(
-                text = stringResource(Res.string.platform_defaults_check_first),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-            )
-        }
+        if (picked != null) PlatformDefaultBlastRadiusText(preview = edit.preview)
         DialogFooter {
             Button(onClick = controller::dismissVoiceEdit, variant = ButtonVariant.Ghost, enabled = !edit.saving) {
                 Text(text = stringResource(Res.string.platform_defaults_cancel), maxLines = 1)
-            }
-            Button(
-                onClick = { scope.launch { controller.previewVoiceEdit() } },
-                variant = ButtonVariant.Outline,
-                enabled = !busy && picked != null && edit.preview == null,
-                loading = edit.previewing,
-            ) {
-                Text(text = stringResource(Res.string.platform_defaults_check_impact), maxLines = 1)
             }
             Button(
                 onClick = { scope.launch { controller.saveVoiceEdit() } },
