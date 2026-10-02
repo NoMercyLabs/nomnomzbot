@@ -32,7 +32,7 @@
 
 param(
     [switch]$KeepRunning,
-    [int]$TimeoutSeconds = 300,
+    [int]$TimeoutSeconds = 600,
     [string]$Container = 'nomnomzbot-devbox'
 )
 
@@ -66,7 +66,10 @@ function ConvertTo-HostPath([string]$path) {
 }
 
 if ($inContainer) {
-    [string]$mounted = docker inspect -f '{{range .Mounts}}{{if eq .Destination "/workspace"}}{{.Source}}{{end}}{{end}}' $Container
+    # A backtick Go-template string, not "/workspace": Windows PowerShell 5.1 strips embedded double quotes
+    # from native-command arguments, which broke the template and read the mount as empty. The same reason every
+    # quoted word inside an `sh -lc '...'` below uses doubled single quotes, never double quotes.
+    [string]$mounted = docker inspect -f '{{range .Mounts}}{{if eq .Destination `/workspace`}}{{.Source}}{{end}}{{end}}' $Container
     [string]$here = ConvertTo-HostPath ([string]$repo)
     if ((ConvertTo-HostPath $mounted) -ne $here) {
         throw "$Container serves $mounted, not this checkout ($here). Run this from that checkout after landing the slice there, or stop the container so the API runs on the host from here."
@@ -83,7 +86,7 @@ if (-not $inContainer) {
 
 if ($inContainer) {
 Write-Host '== preparing the container database =='
-docker exec $Container sh -lc 'pkill -f "dotnet run" 2>/dev/null; true' | Out-Null
+docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; true' | Out-Null
 [string]$winDb = Join-Path $env:LOCALAPPDATA 'NomNomzBot/nomnomz.db'
 if (Test-Path $winDb) {
     # The container's own store starts empty, which leaves Channels/Users at zero rows and makes
@@ -108,88 +111,92 @@ if (Test-Path -LiteralPath $settings) {
     $key = $configured
 }
 
-Write-Host '== starting the API (allow ~3 minutes) =='
-[string]$hostLog = Join-Path ([System.IO.Path]::GetTempPath()) 'nnz-openapi-run.log'
-$hostApi = $null
-if ($inContainer) {
-    # DOTNET_gcServer=0: with 24 cores visible, server GC reserves a heap per core and Roslyn dies with
-    # OutOfMemoryException compiling Infrastructure — even with ~11 GB free in the container, so it is heap
-    # RESERVATION, not real pressure. Workstation GC compiles the same tree clean. Verified 2026-09-07:
-    # 83 errors under server GC, 0 errors with this set.
-    # DOTNET_GCHeapHardLimit: devbox/docker-compose.yml caps every .NET process at 3 GB (0xC0000000), and
-    # compiling Infrastructure needs more - Roslyn died with OutOfMemoryException on 2026-09-30 even with
-    # analyzers off. This one run gets 12 GB; the container itself has ~27 GB free.
-    docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e DOTNET_GCHeapHardLimit=0x300000000 -e "Encryption__Key=$key" -d $Container `
-        sh -lc 'cd /workspace/server/src/NomNomzBot.Api && dotnet run --no-launch-profile --urls http://0.0.0.0:5080 > /tmp/openapi-run.log 2>&1'
-}
-else {
-    # No --urls on the host run: the API binds the port recorded in its data dir on first boot and
-    # ignores the switch, so this reuses the machine's own already-locked 5080 rather than inventing one.
-    $env:ASPNETCORE_ENVIRONMENT = 'Development'
-    $env:Encryption__Key = $key
-    $hostApi = Start-Process -PassThru -WindowStyle Hidden -FilePath 'dotnet' `
-        -ArgumentList 'run', '--no-launch-profile' `
-        -WorkingDirectory (Join-Path $repo 'server/src/NomNomzBot.Api') `
-        -RedirectStandardOutput $hostLog -RedirectStandardError "$hostLog.err"
-}
-
-[int]$waited = 0
-[string]$health = '000'
-while ($waited -lt $TimeoutSeconds) {
-    Start-Sleep -Seconds 6
-    $waited += 6
+# try/finally: a failed start or fetch used to leave the API running in the container, holding 5080.
+try {
+    Write-Host '== starting the API (allow ~3 minutes, longer while another build runs) =='
+    [string]$hostLog = Join-Path ([System.IO.Path]::GetTempPath()) 'nnz-openapi-run.log'
+    $hostApi = $null
     if ($inContainer) {
-        $health = docker exec $Container sh -lc 'curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:5080/health' 2>$null
+        # DOTNET_gcServer=0: with 24 cores visible, server GC reserves a heap per core and Roslyn dies with
+        # OutOfMemoryException compiling Infrastructure — even with ~11 GB free in the container, so it is heap
+        # RESERVATION, not real pressure. Workstation GC compiles the same tree clean. Verified 2026-09-07:
+        # 83 errors under server GC, 0 errors with this set.
+        # DOTNET_GCHeapHardLimit: devbox/docker-compose.yml caps every .NET process at 3 GB (0xC0000000), and
+        # compiling Infrastructure needs more - Roslyn died with OutOfMemoryException on 2026-09-30 even with
+        # analyzers off. This one run gets 12 GB; the container itself has ~27 GB free.
+        docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e DOTNET_GCHeapHardLimit=0x300000000 -e "Encryption__Key=$key" -d $Container `
+            sh -lc 'cd /workspace/server/src/NomNomzBot.Api && dotnet run --no-launch-profile --urls http://0.0.0.0:5080 > /tmp/openapi-run.log 2>&1'
     }
     else {
-        try {
-            $health = [string](Invoke-WebRequest -Uri 'http://localhost:5080/health' -TimeoutSec 5 -UseBasicParsing).StatusCode
+        # No --urls on the host run: the API binds the port recorded in its data dir on first boot and
+        # ignores the switch, so this reuses the machine's own already-locked 5080 rather than inventing one.
+        $env:ASPNETCORE_ENVIRONMENT = 'Development'
+        $env:Encryption__Key = $key
+        $hostApi = Start-Process -PassThru -WindowStyle Hidden -FilePath 'dotnet' `
+            -ArgumentList 'run', '--no-launch-profile' `
+            -WorkingDirectory (Join-Path $repo 'server/src/NomNomzBot.Api') `
+            -RedirectStandardOutput $hostLog -RedirectStandardError "$hostLog.err"
+    }
+
+    [int]$waited = 0
+    [string]$health = '000'
+    while ($waited -lt $TimeoutSeconds) {
+        Start-Sleep -Seconds 6
+        $waited += 6
+        if ($inContainer) {
+            $health = docker exec $Container sh -lc 'curl -s -o /dev/null -w ''%{http_code}'' --max-time 5 http://localhost:5080/health' 2>$null
         }
-        catch { $health = '000' }
+        else {
+            try {
+                $health = [string](Invoke-WebRequest -Uri 'http://localhost:5080/health' -TimeoutSec 5 -UseBasicParsing).StatusCode
+            }
+            catch { $health = '000' }
+        }
+        if ($health -eq '200') { break }
+        [string]$fatal = ''
+        if ($inContainer) {
+            $fatal = docker exec $Container sh -lc 'grep -iE ''FTL|Hosting failed'' /tmp/openapi-run.log | head -1' 2>$null
+        }
+        elseif (Test-Path $hostLog) {
+            $fatal = (Select-String -Path $hostLog -Pattern 'FTL|Hosting failed' | Select-Object -First 1).Line
+        }
+        if ($fatal) { throw "API failed to start: $fatal" }
     }
-    if ($health -eq '200') { break }
-    [string]$fatal = ''
+    if ($health -ne '200') { throw "API did not reach health 200 within ${TimeoutSeconds}s" }
+    Write-Host "   health 200 after ${waited}s"
+
+    Write-Host '== fetching the document =='
     if ($inContainer) {
-        $fatal = docker exec $Container sh -lc 'grep -iE "FTL|Hosting failed" /tmp/openapi-run.log | head -1' 2>$null
+        docker exec $Container sh -lc 'curl -sf http://localhost:5080/openapi/v1.json -o /tmp/openapi-fetched.json && wc -c < /tmp/openapi-fetched.json' | Out-Host
+        docker cp "${Container}:/tmp/openapi-fetched.json" $snapshot
     }
-    elseif (Test-Path $hostLog) {
-        $fatal = (Select-String -Path $hostLog -Pattern 'FTL|Hosting failed' | Select-Object -First 1).Line
+    else {
+        Invoke-WebRequest -Uri 'http://localhost:5080/openapi/v1.json' -OutFile $snapshot -UseBasicParsing
+        Write-Host "   fetched $((Get-Item $snapshot).Length) bytes"
     }
-    if ($fatal) { throw "API failed to start: $fatal" }
-}
-if ($health -ne '200') { throw "API did not reach health 200 within ${TimeoutSeconds}s" }
-Write-Host "   health 200 after ${waited}s"
 
-Write-Host '== fetching the document =='
-if ($inContainer) {
-    docker exec $Container sh -lc 'curl -sf http://localhost:5080/openapi/v1.json -o /tmp/openapi-fetched.json && wc -c < /tmp/openapi-fetched.json' | Out-Host
-    docker cp "${Container}:/tmp/openapi-fetched.json" $snapshot
+    # A freshly generated document line-diffs enormously against the committed one purely from key
+    # ordering, so judge it SEMANTICALLY. A path or schema DISAPPEARING is the signal that matters.
+    # @(...) first: on a PSCustomObject, `.PSObject.Properties.Count` member-enumerates and yields an
+    # Object[] (one Count per property), which then fails to cast to [int]. Wrapping forces one array.
+    [int]$paths = @(
+        (Get-Content -Raw -LiteralPath $snapshot | ConvertFrom-Json).paths.PSObject.Properties
+    ).Count
+    Write-Host "   snapshot now carries $paths paths"
 }
-else {
-    Invoke-WebRequest -Uri 'http://localhost:5080/openapi/v1.json' -OutFile $snapshot -UseBasicParsing
-    Write-Host "   fetched $((Get-Item $snapshot).Length) bytes"
-}
-
-# A freshly generated document line-diffs enormously against the committed one purely from key
-# ordering, so judge it SEMANTICALLY. A path or schema DISAPPEARING is the signal that matters.
-# @(...) first: on a PSCustomObject, `.PSObject.Properties.Count` member-enumerates and yields an
-# Object[] (one Count per property), which then fails to cast to [int]. Wrapping forces one array.
-[int]$paths = @(
-    (Get-Content -Raw -LiteralPath $snapshot | ConvertFrom-Json).paths.PSObject.Properties
-).Count
-Write-Host "   snapshot now carries $paths paths"
-
-if (-not $KeepRunning) {
-    if ($inContainer) {
-        docker exec $Container sh -lc 'pkill -f "dotnet run" 2>/dev/null; true' | Out-Null
+finally {
+    if (-not $KeepRunning) {
+        if ($inContainer) {
+            docker exec $Container sh -lc 'pkill -f ''dotnet run'' 2>/dev/null; true' | Out-Null
+        }
+        elseif ($hostApi -and -not $hostApi.HasExited) {
+            Stop-Process -Id $hostApi.Id -Force
+        }
+        Write-Host '== API stopped =='
     }
-    elseif ($hostApi -and -not $hostApi.HasExited) {
-        Stop-Process -Id $hostApi.Id -Force
+    else {
+        Write-Host '== API left running on http://localhost:5080 =='
     }
-    Write-Host '== API stopped =='
-}
-else {
-    Write-Host '== API left running on http://localhost:5080 =='
 }
 
 Write-Host ''
