@@ -367,6 +367,12 @@ public sealed class OverlaySdkController : ControllerBase
             tts_queue_control: ttsQueueControl,
           };
 
+          // The generic feed carries each event's data as JSON text (OverlayEventDto.Payload).
+          function feedData(payload) {
+            if (typeof payload !== "string") return payload;
+            try { return JSON.parse(payload); } catch (_) { return payload; }
+          }
+
           function dispatch(target, args) {
             switch (target) {
               case "WidgetEvent": {
@@ -379,7 +385,7 @@ public sealed class OverlaySdkController : ControllerBase
               }
               case "WidgetSettingsChanged": applySettings((args[0] || {}).settings || {}); break;
               case "WidgetReload": location.reload(); break;
-              case "Event": { var oe = args[0] || {}; emit(oe.type, oe.payload); break; }
+              case "Event": { var oe = args[0] || {}; emit(oe.type, feedData(oe.payload)); break; }
               // Raw hub targets: unused by current server code (WidgetNotifier only ever sends WidgetEvent),
               // kept so a future broadcaster-wide push (bypassing per-widget subscription) still autoplays.
               case "PlaySound": { var ps = args[0] || {}; playSound(ps); emit("play_sound", ps); break; }
