@@ -75,34 +75,35 @@ function extensionOf(path) {
     return dot === -1 ? '' : path.slice(dot + 1).toLowerCase();
 }
 
-// A socket-free stand-in for the overlay SDK (window.NomNomz) so a widget mounts and subscribes with no hub
-// behind it. Same surface as /overlay/sdk.js; a postMessage bridge lets the fire bar drive events and push
-// settings. Injected as a classic script so it exists before the deferred module bundle runs.
-function previewSdkStub() {
-    return `(function () {
-  var handlers = {}, anyHandlers = [], settingsHandlers = [];
-  var settings = (window.WIDGET_SETTINGS && typeof window.WIDGET_SETTINGS === 'object') ? window.WIDGET_SETTINGS : {};
-  function on(type, fn) { if (typeof fn === 'function') (handlers[type] = handlers[type] || []).push(fn); return api; }
-  function off(type, fn) { var l = handlers[type]; if (l) handlers[type] = l.filter(function (h) { return h !== fn; }); return api; }
-  function onAny(fn) { if (typeof fn === 'function') anyHandlers.push(fn); return api; }
-  function onSettings(fn) { if (typeof fn === 'function') { settingsHandlers.push(fn); try { fn(settings); } catch (e) {} } return api; }
-  function emit(type, data) {
-    (handlers[type] || []).forEach(function (fn) { try { fn(data, type); } catch (e) { console.error(e); } });
-    anyHandlers.forEach(function (fn) { try { fn(type, data); } catch (e) {} });
-  }
-  var api = {
-    on: on, off: off, onAny: onAny, onSettings: onSettings,
-    reportError: function (m) { console.error('[preview widget]', m); },
-    get settings() { return settings; }
-  };
-  window.NomNomz = api;
-  window.addEventListener('message', function (ev) {
-    var m = ev.data;
-    if (!m) return;
-    if (m.__nnzFire) { emit(m.__nnzFire.type, m.__nnzFire.data || {}); }
-    else if (m.__nnzSettings) { settings = m.__nnzSettings; settingsHandlers.forEach(function (fn) { try { fn(settings); } catch (e) {} }); }
-  });
-})();`;
+// The overlay SDK as the preview runs it (preview-sdk.js): the live surface with no hub behind it. Fetched
+// once per page and inlined into every widget frame, because a sandboxed srcdoc frame cannot load it itself.
+const PREVIEW_SDK_URL = new URL('./preview-sdk.js', import.meta.url);
+
+function loadPreviewSdk() {
+    globalThis.__nnzPreviewSdk ??= fetch(PREVIEW_SDK_URL).then((response) => {
+        if (!response.ok) throw new Error(`preview-sdk.js: HTTP ${response.status}`);
+        return response.text();
+    });
+    return globalThis.__nnzPreviewSdk;
+}
+
+// The globals the overlay host page injects before the SDK and the bundle run (OverlayHostController).
+function widgetGlobals(widget, events) {
+    const values = {
+        WIDGET_ID: widget.id ?? 'preview',
+        WIDGET_TOKEN: 'preview',
+        WIDGET_NAME: widget.name ?? 'Preview',
+        WIDGET_SETTINGS: widget.settings ?? {},
+        WIDGET_EVENT_SUBSCRIPTIONS: events,
+    };
+    return Object.entries(values)
+        .map(([name, value]) => `window.${name}=${JSON.stringify(value).replace(/</g, '\\u003c')};`)
+        .join('');
+}
+
+// Inline <script> text must never contain its own closing tag.
+function inlineScript(source) {
+    return `<script>${source.replace(/<\/script/gi, '<\\/script')}<\/script>`;
 }
 
 export function initPreview({
@@ -112,15 +113,15 @@ export function initPreview({
     refresh,
     language,
     entry,
+    log,
     fireSamples = {},
     declaredEvents = [],
+    widget = {},
     noteText = '',
     snapshotFiles,
 }) {
     const framework = String(language ?? '').toLowerCase();
 
-    // Vue is the only framework whose preview mounts through the SDK stub, so it is also the only one whose
-    // fire bar can drive anything.
     const isVue = framework === 'vue';
     const entryExtension = extensionOf(entry);
     const mode = framework === 'script'
@@ -135,6 +136,7 @@ export function initPreview({
 
     let esbuild = null;
     let vueSfc = null;
+    let previewSdk = null;
     let timer = 0;
 
     function showNote(text, isError) {
@@ -146,6 +148,7 @@ export function initPreview({
     }
 
     function showFrame(srcdoc) {
+        clearLog();
         note.hidden = true;
         frame.hidden = false;
         frame.srcdoc = srcdoc;
@@ -172,19 +175,19 @@ export function initPreview({
         return [...events];
     }
 
+    function sdkScripts(files) {
+        return inlineScript(widgetGlobals(widget, subscribedEvents(files))) + inlineScript(previewSdk);
+    }
+
     function fireEvent(type) {
         const sample = fireSamples[type] ?? fireSamples._default ?? {};
+        addLogEntry({ kind: 'fired', type });
         // '*' rather than the origin: a sandboxed frame without allow-same-origin has an opaque origin, which
         // matches no origin string at all.
         frame.contentWindow?.postMessage({ __nnzFire: { type, data: sample } }, '*');
     }
 
     function refreshFireBar(files) {
-        if (!isVue) {
-            fireBar.hidden = true;
-            return;
-        }
-
         const events = subscribedEvents(files);
         if (events.length === 0) {
             fireBar.replaceChildren();
@@ -210,12 +213,50 @@ export function initPreview({
         fireBar.hidden = false;
     }
 
+    // ── Preview log: what the widget did that would reach the bot ───────────
+
+    function describeEntry(entry) {
+        switch (entry.kind) {
+            case 'fired':
+                return `Fired ${entry.type}`;
+            case 'action':
+                return `Would run ${entry.actionType} ${JSON.stringify(entry.params ?? {})}`;
+            case 'claim':
+                return `Claimed ${entry.key}`;
+            default:
+                return entry.message ?? 'Error';
+        }
+    }
+
+    function addLogEntry(entry) {
+        if (!log) return;
+        const row = document.createElement('li');
+        row.className = 'preview-log-row';
+        row.dataset.kind = entry.kind;
+        row.textContent = describeEntry(entry);
+        log.append(row);
+        log.hidden = false;
+        row.scrollIntoView({ block: 'nearest' });
+    }
+
+    function clearLog() {
+        if (!log) return;
+        log.replaceChildren();
+        log.hidden = true;
+    }
+
+    window.addEventListener('message', (event) => {
+        if (event.source !== frame.contentWindow) return;
+        const entry = event.data?.__nnzPreview;
+        if (entry && typeof entry === 'object') addLogEntry(entry);
+    });
+
     // ── Rendering ──────────────────────────────────────────────────────────
 
     function renderBundle(files, javascript, css) {
         const reset =
             'html,body{margin:0;padding:0;background:transparent;color:#e5e5e5;font-family:-apple-system,BlinkMacSystemFont,sans-serif;}';
-        const sdk = isVue ? `<script>${previewSdkStub()}<\/script>` : '';
+        const sdk = sdkScripts(files);
         showFrame(
             '<!doctype html><html><head><meta charset="utf-8">' +
                 `<style>${reset}</style><style>${css ?? ''}</style>` +
@@ -228,8 +269,12 @@ export function initPreview({
 
     function renderHtmlDirect() {
         const files = snapshotFiles();
-        fireBar.hidden = true;
-        showFrame(files[entry] ?? '');
+        const html = files[entry] ?? '';
+        const sdk = sdkScripts(files);
+        // The SDK must exist before the widget's own scripts, so it goes in as early as the page allows.
+        const head = /<head[^>]*>/i;
+        showFrame(head.test(html) ? html.replace(head, (tag) => tag + sdk) : sdk + html);
+        refreshFireBar(files);
     }
 
     // ── esbuild virtual file system ────────────────────────────────────────
@@ -399,9 +444,13 @@ export function initPreview({
     // ── Public surface ─────────────────────────────────────────────────────
 
     function rebuildNow() {
+        if (mode === 'note') {
+            showNote(idleNote, false);
+            return;
+        }
+        if (previewSdk === null) return; // the first render runs once the SDK has loaded
         if (mode === 'esbuild') buildBundle();
-        else if (mode === 'html') renderHtmlDirect();
-        else showNote(idleNote, false);
+        else renderHtmlDirect();
     }
 
     function schedule() {
@@ -412,20 +461,22 @@ export function initPreview({
 
     refresh.addEventListener('click', rebuildNow);
 
-    if (mode !== 'esbuild') {
+    if (mode === 'note') {
         rebuildNow();
     } else {
         showNote('Starting preview…', false);
-        loadEsbuild()
-            .then((loaded) => {
+        Promise.all([loadPreviewSdk(), mode === 'esbuild' ? loadEsbuild() : null])
+            .then(([sdk, loaded]) => {
+                previewSdk = sdk;
                 esbuild = loaded;
-                buildBundle();
+                rebuildNow();
             })
             .catch((error) => {
-                // Drop the cached rejection so a later open can retry rather than inherit the failure.
+                // Drop the cached rejections so a later open can retry rather than inherit the failure.
                 globalThis.__nnzEsbuild = null;
+                globalThis.__nnzPreviewSdk = null;
                 showNote(
-                    `Live preview unavailable (esbuild-wasm could not load):\n${error?.message ?? error}\n\n` +
+                    `Live preview unavailable (it could not load):\n${error?.message ?? error}\n\n` +
                         'Save & Compile still builds on the server.',
                     true,
                 );

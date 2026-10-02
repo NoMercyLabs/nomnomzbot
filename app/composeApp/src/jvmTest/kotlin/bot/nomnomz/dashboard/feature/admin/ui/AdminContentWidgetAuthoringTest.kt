@@ -28,6 +28,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -392,7 +393,7 @@ private class FakeProjectEditorIOForWidgetTest : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,

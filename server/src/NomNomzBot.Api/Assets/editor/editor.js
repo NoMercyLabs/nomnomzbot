@@ -84,6 +84,7 @@ const dom = {
     previewFrame: document.getElementById('previewFrame'),
     previewNote: document.getElementById('previewNote'),
     fireBar: document.getElementById('fireBar'),
+    previewLog: document.getElementById('previewLog'),
     refresh: document.getElementById('refresh'),
     activity: document.getElementById('activity'),
     sidebar: document.getElementById('sidebar'),
@@ -1068,6 +1069,7 @@ function initTestRun(enabled) {
         dom.runTest.hidden = true;
         dom.runSandboxHint.hidden = true;
         dom.fireBar.hidden = true;
+        dom.previewLog.hidden = true;
     }
 }
 
@@ -1146,11 +1148,13 @@ async function open(payload) {
         frame: dom.previewFrame,
         note: dom.previewNote,
         fireBar: dom.fireBar,
+        log: dom.previewLog,
         refresh: dom.refresh,
         language: payload.language ?? '',
         entry: state.entry,
         fireSamples: payload.fireSamples ?? {},
         declaredEvents: payload.eventSubscriptions ?? [],
+        widget: payload.widget ?? {},
         noteText: payload.previewNote ?? '',
         snapshotFiles,
     });

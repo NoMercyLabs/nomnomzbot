@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.widgets.state
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
@@ -183,7 +184,7 @@ class WidgetsController(
                 val seeded: ProjectDto = seedProject(framework, seedSource)
                 // A brand-new widget has no declared subscriptions yet — the fire bar falls back to scanning
                 // the seeded source until the operator saves one.
-                openEditor(channel, result.value.id, name, framework, seeded, result.value.eventSubscriptions, messages)
+                openEditor(channel, result.value.id, name, framework, seeded, previewWidgetOf(result.value), messages)
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -219,7 +220,7 @@ class WidgetsController(
                 is ApiResult.Ok -> loaded.value
                 is ApiResult.Failure -> seedProject(widget.framework, "")
             }
-        openEditor(channel, widget.id, widget.name, widget.framework, project, widget.eventSubscriptions, messages)
+        openEditor(channel, widget.id, widget.name, widget.framework, project, previewWidgetOf(widget), messages)
     }
 
     /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
@@ -387,7 +388,7 @@ class WidgetsController(
         title: String,
         framework: String,
         project: ProjectDto,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget,
         messages: WidgetEditorMessages,
     ) {
         projectEditor.editAndCompile(
@@ -399,11 +400,14 @@ class WidgetsController(
             // The widget-context nnz.d.ts powers `nnz.` autocomplete + diagnostics in the web editor; a fetch
             // failure degrades to a plain editor (no autocomplete), never blocks opening it.
             sdkTypes = fetchSdkTypes("widget"),
-            eventSubscriptions = eventSubscriptions,
+            previewWidget = previewWidget,
             compile = { editedFiles -> saveProjectFeedback(channel, widgetId, editedFiles, project.manifest, messages) },
         )
         load()
     }
+
+    private fun previewWidgetOf(widget: WidgetSummary): EditorPreviewWidget =
+        EditorPreviewWidget(widget.id, widget.name, widget.settings ?: JsonObject(emptyMap()), widget.eventSubscriptions)
 
     // Save the edited project (files + the preserved manifest) via putProject and map the build outcome to inline
     // feedback. The server returns a failure Result on a broken build (nothing persisted), so a transport or build

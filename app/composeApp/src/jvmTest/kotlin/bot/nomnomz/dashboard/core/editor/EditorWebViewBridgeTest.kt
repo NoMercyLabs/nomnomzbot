@@ -114,7 +114,7 @@ class EditorWebViewBridgeTest {
                 entryPath = "main.ts",
                 language = "script",
                 sdkTypes = "",
-                eventSubscriptions = emptyList(),
+                previewWidget = null,
                 history = null,
                 testRun = null,
                 compile = { files ->

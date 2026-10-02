@@ -20,13 +20,13 @@ actual class ProjectEditor : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         val unavailable: EditorUnavailableReason =
-            openInNativeWebView(title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun, compile)
+            openInNativeWebView(title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun, compile)
                 ?: return
         EditorUnavailableWindow.show(unavailable)
     }
@@ -38,7 +38,7 @@ actual class ProjectEditor : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
@@ -55,7 +55,7 @@ actual class ProjectEditor : ProjectEditorIO {
         val outcome: WebViewEditorOutcome =
             WebViewProjectEditor.editAndCompile(pageUrl, title) { post: (String) -> Unit ->
                 EditorBridgeSession(
-                    title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun, compile, post,
+                    title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun, compile, post,
                 )
             }
         return when (outcome) {

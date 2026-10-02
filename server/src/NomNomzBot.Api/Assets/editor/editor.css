@@ -751,6 +751,34 @@ body {
     border-color: #454545;
 }
 
+.preview-log {
+    max-height: 160px;
+    margin: var(--s2) 0 0;
+    padding: var(--s1) 0;
+    overflow-y: auto;
+    list-style: none;
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    font: 400 11px var(--font-code);
+}
+
+.preview-log-row {
+    padding: 2px var(--s3);
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.preview-log-row[data-kind="action"],
+.preview-log-row[data-kind="claim"] {
+    color: var(--text);
+}
+
+.preview-log-row[data-kind="error"] {
+    color: var(--danger);
+}
+
 .preview-body {
     flex: 1;
     min-height: 0;

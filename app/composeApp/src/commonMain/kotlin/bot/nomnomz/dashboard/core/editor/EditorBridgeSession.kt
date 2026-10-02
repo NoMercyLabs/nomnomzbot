@@ -20,7 +20,7 @@ class EditorBridgeSession(
     private val entryPath: String,
     private val language: String,
     private val sdkTypes: String,
-    private val eventSubscriptions: List<String>,
+    private val previewWidget: EditorPreviewWidget?,
     private val history: EditorHistory?,
     private val testRun: EditorTestRun?,
     private val compile: suspend (Map<String, String>) -> CompileFeedback,
@@ -32,7 +32,7 @@ class EditorBridgeSession(
             EditorBridgeProtocol.READY ->
                 post(
                     EditorBridgeProtocol.open(
-                        title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun != null,
+                        title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun != null,
                     )
                 )
             EditorBridgeProtocol.SAVE -> post(EditorBridgeProtocol.compiled(compile(message.files)))

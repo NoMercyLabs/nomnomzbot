@@ -66,7 +66,7 @@ object EditorBridgeProtocol {
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRunEnabled: Boolean,
     ): String =
@@ -85,7 +85,21 @@ object EditorBridgeProtocol {
                         // duplicated in the page's JS.
                         put("fireSamples", json.parseToJsonElement(WidgetFireBarSamples.allSamplesJson()))
                         // The widget's PERSISTED subscription list — the fire bar's authoritative source.
-                        put("eventSubscriptions", JsonArray(eventSubscriptions.map { event -> JsonPrimitive(event) }))
+                        put(
+                            "eventSubscriptions",
+                            JsonArray(previewWidget?.eventSubscriptions.orEmpty().map { event -> JsonPrimitive(event) }),
+                        )
+                        // What the preview injects as WIDGET_ID / WIDGET_NAME / WIDGET_SETTINGS, like the live page.
+                        if (previewWidget != null) {
+                            put(
+                                "widget",
+                                buildJsonObject {
+                                    put("id", previewWidget.id)
+                                    put("name", previewWidget.name)
+                                    put("settings", previewWidget.settings)
+                                },
+                            )
+                        }
                         // History / test-run panels are opt-in per caller; absent means the page hides them.
                         if (history != null) {
                             put("history", historyPageJson(history.initialVersions, history.initialHasMore))

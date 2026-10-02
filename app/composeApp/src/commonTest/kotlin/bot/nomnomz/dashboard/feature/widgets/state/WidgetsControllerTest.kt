@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.widgets.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.feedback.Feedback
@@ -46,6 +47,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Overlays page state machine the screen renders: resolve the active channel, then surface the
@@ -312,6 +315,7 @@ class WidgetsControllerTest {
                 framework = "vanilla",
                 activeVersionId = "v-1",
                 eventSubscriptions = listOf("follow", "cheer"),
+                settings = JsonObject(mapOf("color" to JsonPrimitive("red"))),
             ),
             messages,
         )
@@ -321,9 +325,17 @@ class WidgetsControllerTest {
         assertEquals("index.html", editor.openedEntry)
         assertEquals("<old/>", editor.openedEntryContent)
         assertEquals(listOf("w-1"), widgetsApi.loadedProjectIds)
-        // The widget's PERSISTED subscriptions were handed to the editor — the fire bar's authoritative source
-        // over scanning the source text (S060-remaining: it can no longer silently drift from the real list).
-        assertEquals(listOf("follow", "cheer"), editor.openedEventSubscriptions)
+        // The preview runs as this widget: its id, name and saved settings, plus its PERSISTED subscriptions —
+        // the fire bar's authoritative source over scanning the source text.
+        assertEquals(
+            EditorPreviewWidget(
+                id = "w-1",
+                name = "Timer",
+                settings = JsonObject(mapOf("color" to JsonPrimitive("red"))),
+                eventSubscriptions = listOf("follow", "cheer"),
+            ),
+            editor.openedPreviewWidget,
+        )
         // "Save & Compile" PUT exactly the edited project for that widget — a real server build, not a no-op.
         assertEquals(listOf("w-1" to mapOf("index.html" to "<new>hi</new>")), widgetsApi.savedProjects)
         // The build outcome was reported inline as success.
@@ -725,7 +737,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
     var openedFiles: Map<String, String>? = null
     var openedEntry: String? = null
     var openedSdkTypes: String? = null
-    var openedEventSubscriptions: List<String>? = null
+    var openedPreviewWidget: EditorPreviewWidget? = null
     val feedbacks: MutableList<CompileFeedback> = mutableListOf()
 
     val openedEntryContent: String?
@@ -737,7 +749,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
@@ -746,7 +758,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         openedFiles = initialFiles
         openedEntry = entryPath
         openedSdkTypes = sdkTypes
-        openedEventSubscriptions = eventSubscriptions
+        openedPreviewWidget = previewWidget
         for (edit in toSave) {
             // Model editing the entry file's content, then Save & Compile with the full updated file map.
             feedbacks += compile(initialFiles + (entryPath to edit))

@@ -18,6 +18,7 @@ import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -42,7 +43,13 @@ class EditorBridgeSessionTest {
                 entryPath = "src/App.vue",
                 language = "vue",
                 sdkTypes = "declare const nnz: { on(e: string): void };",
-                eventSubscriptions = listOf("channel.follow"),
+                previewWidget =
+                    EditorPreviewWidget(
+                        id = "w-1",
+                        name = "Alerts",
+                        settings = JsonObject(mapOf("color" to JsonPrimitive("red"))),
+                        eventSubscriptions = listOf("channel.follow"),
+                    ),
                 history = history,
                 testRun = testRun,
                 compile = { files ->
@@ -67,6 +74,10 @@ class EditorBridgeSessionTest {
         assertEquals("export const a = 1", payload["files"]!!.jsonObject["src/util.ts"]!!.jsonPrimitive.content)
         assertEquals("declare const nnz: { on(e: string): void };", payload["sdkTypes"]!!.jsonPrimitive.content)
         assertEquals("channel.follow", payload["eventSubscriptions"]!!.jsonArray.single().jsonPrimitive.content)
+        val widget: JsonObject = payload["widget"]!!.jsonObject
+        assertEquals("w-1", widget["id"]!!.jsonPrimitive.content)
+        assertEquals("Alerts", widget["name"]!!.jsonPrimitive.content)
+        assertEquals("red", widget["settings"]!!.jsonObject["color"]!!.jsonPrimitive.content)
         assertFalse(payload["testRunEnabled"]!!.jsonPrimitive.boolean)
         assertNull(payload["history"], "no history panel when the caller passed none")
         assertTrue(harness.compiled.isEmpty(), "opening never compiles")

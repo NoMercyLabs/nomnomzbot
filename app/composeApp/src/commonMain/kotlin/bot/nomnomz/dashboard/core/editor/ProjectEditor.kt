@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.editor
 
+import kotlinx.serialization.json.JsonObject
+
 // Contract for opening the multi-file dev-platform code editor over the dashboard (dev-platform.md §5, Pillar 3).
 // This is the multi-file successor to CustomCodeEditor: instead of one source string it edits a whole project —
 // a `path → content` file map with a fixed entry file — the "proper `src/` folder" that is the base of the
@@ -41,7 +43,8 @@ interface ProjectEditorIO {
      * language service so `nnz.` autocompletes with the typed SDK surface and inline diagnostics flag misuse. Empty
      * when the declarations could not be fetched — the editor then simply omits autocomplete (a pure enhancement).
      *
-     * [eventSubscriptions] is the widget's PERSISTED `EventSubscriptions` — the same list the overlay manifest
+     * [previewWidget] is the widget being edited, for its live preview; null for anything that is not a widget.
+     * Its `eventSubscriptions` are the widget's PERSISTED `EventSubscriptions` — the same list the overlay manifest
      * actually reads at runtime. The web editor's fire bar (test-fire-an-event) prefers this authoritative source
      * over scanning the source text for `.on('x')` calls, so the bar can't silently drift from what the widget
      * really receives; it falls back to the source scan only when this list is empty (a brand-new custom widget
@@ -58,7 +61,7 @@ interface ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String = "",
-        eventSubscriptions: List<String> = emptyList(),
+        previewWidget: EditorPreviewWidget? = null,
         history: EditorHistory? = null,
         testRun: EditorTestRun? = null,
         compile: suspend (Map<String, String>) -> CompileFeedback,
@@ -74,12 +77,23 @@ expect class ProjectEditor() : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }
+
+/**
+ * The widget the editor's preview runs as: the same id, name and settings the overlay page injects on stream, so
+ * code that reads them behaves in the preview the way it does live.
+ */
+data class EditorPreviewWidget(
+    val id: String,
+    val name: String,
+    val settings: JsonObject,
+    val eventSubscriptions: List<String>,
+)
 
 /** The outcome of a compile the editor renders inline — green on success, red with the real build error. */
 data class CompileFeedback(val ok: Boolean, val message: String)

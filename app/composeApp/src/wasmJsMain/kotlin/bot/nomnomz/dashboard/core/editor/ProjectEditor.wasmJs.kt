@@ -42,7 +42,7 @@ actual class ProjectEditor : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
-        eventSubscriptions: List<String>,
+        previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
         compile: suspend (Map<String, String>) -> CompileFeedback,
@@ -62,7 +62,7 @@ actual class ProjectEditor : ProjectEditorIO {
         val frame: JsAny = mountEditorFrame(EDITOR_PAGE + versionQuery())
         val session: EditorBridgeSession =
             EditorBridgeSession(
-                title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions, history, testRun, compile,
+                title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun, compile,
                 post = { messageJson: String -> postToEditor(frame, messageJson) },
             )
         try {

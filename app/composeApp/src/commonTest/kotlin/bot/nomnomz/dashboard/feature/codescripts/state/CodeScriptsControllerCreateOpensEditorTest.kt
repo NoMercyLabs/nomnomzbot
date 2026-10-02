@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.codescripts.state
 
 import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorHistory
+import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -153,7 +154,7 @@ class CodeScriptsControllerCreateOpensEditorTest {
             entryPath: String,
             language: String,
             sdkTypes: String,
-            eventSubscriptions: List<String>,
+            previewWidget: EditorPreviewWidget?,
             history: EditorHistory?,
             testRun: EditorTestRun?,
             compile: suspend (Map<String, String>) -> CompileFeedback,
