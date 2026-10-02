@@ -28,6 +28,7 @@ using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NSubstitute;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
@@ -88,6 +89,7 @@ public sealed class PlatformContentServicePipelineTests : IAsyncDisposable
             Substitute.For<IWidgetService>(),
             CreatePipelineService(),
             Substitute.For<IScriptExecutor>(),
+            ScriptBundlers.Real(),
             []
         );
 

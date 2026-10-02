@@ -36,6 +36,17 @@ public interface ICodeScriptService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Create a script whose Version 1 is a whole multi-file project (validate-on-save, same gates as
+    /// <see cref="SaveProjectAsync"/>). ALREADY_EXISTS on duplicate name; rejected → VALIDATION_FAILED.
+    /// </summary>
+    Task<Result<CodeScriptDetailDto>> CreateProjectAsync(
+        string name,
+        string? description,
+        ProjectDto project,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>Append a new immutable version (validate-on-save); publishes on valid only if requested.</summary>
     Task<Result<CodeScriptVersionDto>> CreateVersionAsync(
         Guid codeScriptId,

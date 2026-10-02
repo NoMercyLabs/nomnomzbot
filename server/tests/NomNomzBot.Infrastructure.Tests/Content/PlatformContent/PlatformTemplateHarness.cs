@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NomNomzBot.Infrastructure.Content.PlatformContent.Templates;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
@@ -72,6 +73,7 @@ internal sealed class PlatformTemplateHarness : IAsyncDisposable
             Substitute.For<IWidgetService>(),
             Substitute.For<Application.Commands.Services.IPipelineService>(),
             Substitute.For<IScriptExecutor>(),
+            ScriptBundlers.Real(),
             [installer]
         );
 

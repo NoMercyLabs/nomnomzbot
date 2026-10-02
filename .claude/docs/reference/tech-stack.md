@@ -15,7 +15,7 @@
 | Widgets | Vue SFC compiled by a pooled Jint + @vue/compiler-sfc (`JintVueSfcCompiler`), bundled by the esbuild binary, served by `OverlayVueRuntimeController` |
 | Backend comms (FE) | Typed shared KMP client over REST (v1 API) + SignalR (realtime) |
 | Payments | Stripe.net (present in `Directory.Packages.props`) |
-| Scripting | Jint (present in `Directory.Packages.props`) |
+| Scripting | Jint runs the script; on save the esbuild binary (`EsbuildScriptBundler`) strips TypeScript and bundles relative imports. esbuild is in the Docker image and CI; for local tests set `Widgets__EsbuildPath` to a downloaded `@esbuild/<platform>` binary |
 | WASM runtime | Wasmtime (present in `Directory.Packages.props`) |
 | Validation | FluentValidation (present in `Directory.Packages.props`) |
 | Mapping | Mapster (present in `Directory.Packages.props`) |

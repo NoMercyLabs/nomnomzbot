@@ -34,6 +34,7 @@ public sealed class CodeScriptService(
     IApplicationDbContext db,
     ICurrentTenantService tenant,
     IScriptExecutor executor,
+    IScriptBundler bundler,
     IEventBus eventBus,
     TimeProvider clock,
     IWidgetDependencyAllowlist dependencyAllowlist
@@ -106,21 +107,71 @@ public sealed class CodeScriptService(
         return Result.Success(await ToDetailAsync(script, cancellationToken));
     }
 
-    public async Task<Result<CodeScriptDetailDto>> CreateAsync(
+    public Task<Result<CodeScriptDetailDto>> CreateAsync(
         CreateCodeScriptRequest request,
         CancellationToken cancellationToken = default
     )
     {
+        (Dictionary<string, string> files, ProjectManifest manifest) = ProjectScaffold.SingleFile(
+            "script",
+            "typescript",
+            request.SourceCode
+        );
+        return CreateWithFirstVersionAsync(
+            request.Name,
+            request.Description,
+            files,
+            manifest,
+            cancellationToken
+        );
+    }
+
+    public async Task<Result<CodeScriptDetailDto>> CreateProjectAsync(
+        string name,
+        string? description,
+        ProjectDto project,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ProjectManifest manifest = project.Manifest.ToManifest();
+        Result validation = ProjectValidation.Validate(
+            project.Files,
+            manifest,
+            dependencyAllowlist
+        );
+        if (validation.IsFailure)
+            return Result.Failure<CodeScriptDetailDto>(
+                validation.ErrorMessage,
+                "VALIDATION_FAILED"
+            );
+        return await CreateWithFirstVersionAsync(
+            name,
+            description,
+            project.Files,
+            manifest,
+            cancellationToken
+        );
+    }
+
+    // Creates the script row + Version 1 built from the project. A rejected compile still persists both for audit.
+    private async Task<Result<CodeScriptDetailDto>> CreateWithFirstVersionAsync(
+        string name,
+        string? description,
+        IReadOnlyDictionary<string, string> files,
+        ProjectManifest manifest,
+        CancellationToken cancellationToken
+    )
+    {
         if (tenant.BroadcasterId is not { } bid)
             return Result.Failure<CodeScriptDetailDto>("No tenant.", "NO_TENANT");
-        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 100)
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 100)
             return Result.Failure<CodeScriptDetailDto>(
                 "Name is required (≤100).",
                 "VALIDATION_FAILED"
             );
 
         bool exists = await db.CodeScripts.AnyAsync(
-            s => s.BroadcasterId == bid && s.Name == request.Name && s.DeletedAt == null,
+            s => s.BroadcasterId == bid && s.Name == name && s.DeletedAt == null,
             cancellationToken
         );
         if (exists)
@@ -133,8 +184,8 @@ public sealed class CodeScriptService(
         CodeScript script = new()
         {
             BroadcasterId = bid,
-            Name = request.Name,
-            Description = request.Description,
+            Name = name,
+            Description = description,
             Language = "typescript",
             IsEnabled = true,
             CreatedAt = now,
@@ -142,10 +193,11 @@ public sealed class CodeScriptService(
         };
         db.CodeScripts.Add(script);
 
-        CodeScriptVersion version = await BuildVersionAsync(
+        CodeScriptVersion version = await BuildVersionFromProjectAsync(
             script,
             1,
-            request.SourceCode,
+            files,
+            manifest,
             cancellationToken
         );
         db.CodeScriptVersions.Add(version);
@@ -449,14 +501,12 @@ public sealed class CodeScriptService(
         return BuildVersionFromProjectAsync(script, versionNumber, files, manifest, ct);
     }
 
-    // Compiles a script version from a multi-file project: the manifest entry's RAW content is what is stored/
-    // displayed (SourceCode), while what the executor validate-on-saves is the entry + every relatively-imported
-    // sibling resolved into one flat script by ScriptImportResolver (S-OWN05) — Jint has no ES module loader, so a
-    // project whose entry does `import X from './y'` must be flattened before it ever reaches CompileAsync. A
-    // project with no relative imports resolves byte-for-byte to the entry content, so single-file authoring is
-    // unaffected. The WHOLE file set + manifest are stored so a later editor round-trips them. The caller guarantees
-    // the entry exists (ProjectValidation). This is the one place a CodeScriptVersion's compiled/validation fields
-    // are populated. CreatedAt/UpdatedAt are stamped by AuditableEntityInterceptor on save, not here.
+    // Compiles a script version from a project: the manifest entry's RAW content is what is stored/displayed
+    // (SourceCode), while what the executor validate-on-saves is the bundle — TypeScript stripped and every
+    // relatively-imported file inlined, because Jint runs plain JavaScript and has no module loader. The WHOLE file
+    // set + manifest are stored so a later editor round-trips them. The caller guarantees the entry exists
+    // (ProjectValidation). This is the one place a CodeScriptVersion's compiled/validation fields are populated.
+    // CreatedAt/UpdatedAt are stamped by AuditableEntityInterceptor on save, not here.
     private async Task<CodeScriptVersion> BuildVersionFromProjectAsync(
         CodeScript script,
         int versionNumber,
@@ -476,16 +526,16 @@ public sealed class CodeScriptService(
             ManifestJson = ProjectJson.SerializeManifest(manifest),
         };
 
-        Result<string> resolved = ScriptImportResolver.Resolve(files, manifest.Entry);
-        if (resolved.IsFailure)
+        Result<string> bundled = await bundler.BundleAsync(files, manifest.Entry, ct);
+        if (bundled.IsFailure)
         {
             version.ValidationStatus = "rejected";
             version.ValidationErrorsJson = JsonConvert.SerializeObject(
                 new[]
                 {
                     new ScriptValidationError(
-                        "import",
-                        resolved.ErrorMessage ?? "Invalid import.",
+                        "build",
+                        bundled.ErrorMessage ?? "The script build failed.",
                         null,
                         null
                     ),
@@ -494,7 +544,7 @@ public sealed class CodeScriptService(
             return version;
         }
 
-        Result<ScriptCompilation> compiled = await executor.CompileAsync(resolved.Value, ct);
+        Result<ScriptCompilation> compiled = await executor.CompileAsync(bundled.Value, ct);
         if (compiled.IsSuccess)
         {
             version.ValidationStatus = "valid";

@@ -38,6 +38,7 @@ using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Rewards;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
@@ -215,6 +216,7 @@ public sealed class BundleParityTypesTests
             db,
             tenant,
             executor,
+            ScriptBundlers.Real(),
             bus,
             TimeProvider.System,
             allowlist

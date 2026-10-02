@@ -419,6 +419,12 @@ public static class DependencyInjection
         // The out-of-process CLI runner behind the widget build service (esbuild). Not an I<X>Service, so it is
         // registered explicitly; IWidgetBuildService -> EsbuildWidgetBuildService is convention-bound.
         services.AddScoped<Widgets.Bundling.IProcessRunner, Widgets.Bundling.ProcessRunner>();
+        // The script build boundary: TypeScript + relative imports -> one plain-JavaScript program for Jint. Shares the
+        // esbuild binary and process runner with the widget build. Not an I<X>Service, so register explicitly.
+        services.AddScoped<
+            Application.Contracts.CustomCode.IScriptBundler,
+            CustomCode.EsbuildScriptBundler
+        >();
         // The curated multi-file dependency allowlist (dev-platform.md §4.2) — deny-by-default, no npm. A singleton:
         // it is a stateless, immutable policy. Not an I<X>Service, so register explicitly.
         services.AddSingleton<

@@ -40,6 +40,16 @@ jobs:
         working-directory: server
         run: dotnet csharpier check .
 
+      # The script and widget builds run the real esbuild binary in tests. Same pinned version as the Dockerfile.
+      - name: Install esbuild
+        env:
+          ESBUILD_VERSION: '0.28.1'
+        run: |
+          curl -fsSL "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-${ESBUILD_VERSION}.tgz" -o "$RUNNER_TEMP/esbuild.tgz"
+          tar -xzf "$RUNNER_TEMP/esbuild.tgz" -C "$RUNNER_TEMP" package/bin/esbuild
+          sudo install -m 0755 "$RUNNER_TEMP/package/bin/esbuild" /usr/local/bin/esbuild
+          esbuild --version
+
       - name: Build
         working-directory: server
         run: dotnet build NomNomzBot.slnx -c Debug

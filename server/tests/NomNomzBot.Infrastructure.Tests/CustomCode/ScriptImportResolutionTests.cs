@@ -25,8 +25,8 @@ namespace NomNomzBot.Infrastructure.Tests.CustomCode;
 /// <summary>
 /// S-OWN05 regression: an author extracting an array to its own file and doing
 /// <c>import SCENES from './scenes';</c> in the entry must actually work end to end, not just save without a syntax
-/// error. Proves the full real path — <see cref="CodeScriptService.SaveProjectAsync"/> (which resolves the project's
-/// imports via <see cref="ScriptImportResolver"/> before validate-on-save) through <see cref="ScriptRunner"/> into a
+/// error. Proves the full real path — <see cref="CodeScriptService.SaveProjectAsync"/> (which bundles the project
+/// with <see cref="EsbuildScriptBundler"/> before validate-on-save) through <see cref="ScriptRunner"/> into a
 /// REAL <see cref="JintScriptExecutor"/> — by asserting on the actual runtime value the imported module produced,
 /// not merely "it didn't throw".
 /// </summary>
@@ -43,6 +43,7 @@ public sealed class ScriptImportResolutionTests
             db,
             tenantService,
             new JintScriptExecutor(),
+            ScriptBundlers.Real(),
             new RecordingEventBus(),
             new FakeTimeProvider(Now),
             new WidgetDependencyAllowlist()
@@ -146,6 +147,59 @@ public sealed class ScriptImportResolutionTests
         run.IsSuccess.Should().BeTrue(run.ErrorMessage);
         run.Value.Outcome.Should().Be(ScriptExecutionOutcome.Success);
         run.Value.Output.Should().Be("hi/bye");
+    }
+
+    [Fact]
+    public async Task ATypedTypeScriptProject_SavesAndRunsWithItsTypesStripped()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        CodeScriptService codeScriptService = ServiceFor(db);
+        Guid scriptId = await SeedScriptAsync(codeScriptService);
+
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] =
+                "import { shout, type Mood } from './voice';\n"
+                + "enum Level { Low = 1, High = 3 }\n"
+                + "const mood: Mood = { word: 'hype', level: Level.High };\n"
+                + "const first: string | undefined = bot.args[0];\n"
+                + "bot.send(shout(mood) + ':' + (first ?? 'none'));\n",
+            ["voice.ts"] =
+                "export interface Mood { word: string; level: number }\n"
+                + "export function shout(m: Mood): string { return m.word.toUpperCase().repeat(m.level); }\n",
+        };
+
+        Result<CodeScriptVersionDto> saved = await codeScriptService.SaveProjectAsync(
+            scriptId,
+            new(files, new("index.ts", "script", "typescript", []))
+        );
+        saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        saved.Value.ValidationStatus.Should().Be("valid");
+        saved.Value.SourceCode.Should().Contain("const mood: Mood");
+
+        ScriptRunner runner = new(
+            db,
+            new JintScriptExecutor(),
+            new AllowAllCapabilityBroker(),
+            new NoopScriptExecutionMeter(),
+            new StubHostBridgeFactory(),
+            new FakeTimeProvider(Now)
+        );
+
+        Result<ScriptRunResult> run = await runner.RunAsync(
+            scriptId,
+            new ScriptInvocation(
+                "exec-ts",
+                "u1",
+                "Viewer",
+                ["kitte"],
+                new Dictionary<string, string>()
+            )
+        );
+
+        run.IsSuccess.Should().BeTrue(run.ErrorMessage);
+        run.Value.Outcome.Should().Be(ScriptExecutionOutcome.Success, run.Value.ErrorMessage);
+        run.Value.Output.Should().Be("HYPEHYPEHYPE:kitte");
     }
 
     [Fact]

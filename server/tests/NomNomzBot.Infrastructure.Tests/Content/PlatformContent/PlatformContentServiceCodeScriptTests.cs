@@ -23,6 +23,7 @@ using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
@@ -65,6 +66,7 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<IWidgetService>(),
             Substitute.For<Application.Commands.Services.IPipelineService>(),
             _executor,
+            ScriptBundlers.Real(),
             []
         );
 

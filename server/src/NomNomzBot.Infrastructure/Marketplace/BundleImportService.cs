@@ -246,12 +246,21 @@ public class BundleImportService : IBundleImportService
                     }
                 }
 
-                // Create + Version 1 from the entry file — validate-on-save recompiles the source on THIS
-                // instance. A rejected compile still persists the script + version for audit, so the
-                // failure path deletes that remnant before rolling the bundle back.
-                string entrySource = export.Files[export.Manifest.Entry];
-                Result<CodeScriptDetailDto> createdScript = await _codeScripts.CreateAsync(
-                    new(name, export.Description, entrySource),
+                // Create + Version 1 from the whole project — validate-on-save rebuilds it on THIS instance, so
+                // the editor round-trips the full src/ tree here too. A rejected compile still persists the
+                // script + version for audit, so the failure path deletes that remnant before rolling back.
+                Result<CodeScriptDetailDto> createdScript = await _codeScripts.CreateProjectAsync(
+                    name,
+                    export.Description,
+                    new(
+                        export.Files.ToDictionary(kv => kv.Key, kv => kv.Value),
+                        new(
+                            export.Manifest.Entry,
+                            export.Manifest.Kind,
+                            export.Manifest.Framework,
+                            export.Manifest.Dependencies
+                        )
+                    ),
                     ct
                 );
                 if (createdScript.IsFailure)
@@ -277,34 +286,6 @@ public class BundleImportService : IBundleImportService
                 created.Add((BundleFormat.CodeScriptType, createdScript.Value.Id, name));
                 // Keyed by the EXPORT name (rename-on-collision notwithstanding) — the graphs re-link by it.
                 scriptIdsByName[export.Name] = createdScript.Value.Id;
-
-                // A multi-file project (or one declaring dependencies) is stored whole via the project
-                // save, so the editor round-trips the full src/ tree on the importing instance too.
-                if (export.Files.Count > 1 || export.Manifest.Dependencies.Count > 0)
-                {
-                    Result<CodeScriptVersionDto> savedProject = await _codeScripts.SaveProjectAsync(
-                        createdScript.Value.Id,
-                        new(
-                            export.Files.ToDictionary(kv => kv.Key, kv => kv.Value),
-                            new(
-                                export.Manifest.Entry,
-                                export.Manifest.Kind,
-                                export.Manifest.Framework,
-                                export.Manifest.Dependencies
-                            )
-                        ),
-                        ct
-                    );
-                    if (savedProject.IsFailure)
-                        return await RollbackAsync(
-                            broadcasterId,
-                            actorUserId,
-                            created,
-                            savedProject.ErrorMessage,
-                            savedProject.ErrorCode,
-                            ct
-                        );
-                }
 
                 // D4: imported custom code ALWAYS lands disabled — enabling is an explicit owner action.
                 Result disabledScript = await _codeScripts.SetEnabledAsync(

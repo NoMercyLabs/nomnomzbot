@@ -49,6 +49,7 @@ using NomNomzBot.Infrastructure.Giveaways;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.PickLists;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
 
@@ -288,6 +289,7 @@ public class ExpandedBlastRadiusTests
             db,
             tenant,
             Substitute.For<IScriptExecutor>(),
+            ScriptBundlers.Real(),
             Substitute.For<IEventBus>(),
             Clock,
             Substitute.For<IWidgetDependencyAllowlist>()

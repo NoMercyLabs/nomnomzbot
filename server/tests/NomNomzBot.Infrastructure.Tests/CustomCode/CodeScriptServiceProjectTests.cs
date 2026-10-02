@@ -45,6 +45,7 @@ public sealed class CodeScriptServiceProjectTests
             db,
             tenantService,
             new JintScriptExecutor(),
+            ScriptBundlers.Real(),
             new RecordingEventBus(),
             new FakeTimeProvider(Now),
             new WidgetDependencyAllowlist()

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Application.DevPlatform.Projects;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
@@ -68,6 +69,7 @@ public sealed class PlatformContentService(
     IWidgetService widgetService,
     IPipelineService pipelineService,
     IScriptExecutor scriptExecutor,
+    IScriptBundler scriptBundler,
     IEnumerable<IPlatformTemplateInstaller> templateInstallers
 ) : IPlatformContentService
 {
@@ -743,7 +745,7 @@ public sealed class PlatformContentService(
         )
             return Result.Failure(error!, "VALIDATION_FAILED");
 
-        Result<ScriptCompilation> compiled = await scriptExecutor.CompileAsync(
+        Result<ScriptCompilation> compiled = await CompileScriptSourceAsync(
             payload!.SourceCode,
             ct
         );
@@ -753,6 +755,24 @@ public sealed class PlatformContentService(
                 "VALIDATION_FAILED"
             )
             : Result.Success();
+    }
+
+    // A code-script payload is one TypeScript/JavaScript source: bundle it as a one-file project (types stripped)
+    // exactly as a tenant editor save does, then validate the plain JavaScript the sandbox will run.
+    private async Task<Result<ScriptCompilation>> CompileScriptSourceAsync(
+        string sourceCode,
+        CancellationToken ct
+    )
+    {
+        (Dictionary<string, string> files, ProjectManifest manifest) = ProjectScaffold.SingleFile(
+            "script",
+            "typescript",
+            sourceCode
+        );
+        Result<string> bundled = await scriptBundler.BundleAsync(files, manifest.Entry, ct);
+        return bundled.IsFailure
+            ? Result.Failure<ScriptCompilation>(bundled.ErrorMessage!, bundled.ErrorCode)
+            : await scriptExecutor.CompileAsync(bundled.Value, ct);
     }
 
     // --- Selection / fan-out -------------------------------------------------------------------------
@@ -1281,7 +1301,7 @@ public sealed class PlatformContentService(
         )
             return new CodeScriptFanOutResult(0, [.. affectedRowIds]);
 
-        Result<ScriptCompilation> compiled = await scriptExecutor.CompileAsync(
+        Result<ScriptCompilation> compiled = await CompileScriptSourceAsync(
             payload!.SourceCode,
             ct
         );

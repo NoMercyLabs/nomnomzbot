@@ -43,6 +43,7 @@ public sealed class CodeScriptServiceTests
             db,
             tenant,
             new JintScriptExecutor(),
+            ScriptBundlers.Real(),
             bus,
             new FakeTimeProvider(Now),
             new WidgetDependencyAllowlist()

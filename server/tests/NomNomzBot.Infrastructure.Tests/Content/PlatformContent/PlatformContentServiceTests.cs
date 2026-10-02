@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
@@ -63,6 +64,7 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
             _widgetService,
             _pipelineService,
             _scriptExecutor,
+            ScriptBundlers.Real(),
             []
         );
 

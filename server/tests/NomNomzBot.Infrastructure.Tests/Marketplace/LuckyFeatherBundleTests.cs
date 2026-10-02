@@ -44,6 +44,7 @@ using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.Marketplace.FirstPartyBundles;
+using NomNomzBot.Infrastructure.Tests.CustomCode;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
@@ -114,6 +115,7 @@ public sealed class LuckyFeatherBundleTests
             db,
             tenant,
             new JintScriptExecutor(),
+            ScriptBundlers.Real(),
             Substitute.For<IEventBus>(),
             TimeProvider.System,
             allowlist
@@ -384,7 +386,7 @@ public sealed class LuckyFeatherBundleTests
         // the script "ran successfully".
         string? storedRaw = await h.Storage.GetAsync(Channel, LuckyFeatherBundle.HolderStorageKey);
         storedRaw.Should().NotBeNull();
-        JObject holder = JObject.Parse(storedRaw!);
+        JObject holder = JObject.Parse(storedRaw);
         holder["id"]!.Value<string>().Should().Be(Thief.ToString());
         holder["displayName"]!.Value<string>().Should().Be("FeatherThief");
 
