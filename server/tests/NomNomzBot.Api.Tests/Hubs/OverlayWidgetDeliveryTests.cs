@@ -124,6 +124,9 @@ public sealed class OverlayWidgetDeliveryTests
         public Task StopSound(StopSoundPayload payload) =>
             bus.Deliver(groupName, nameof(StopSound), payload);
 
+        public Task TtsQueueControl(TtsQueueControlPayload payload) =>
+            bus.Deliver(groupName, nameof(TtsQueueControl), payload);
+
         public Task Retract(RetractPayload payload) =>
             bus.Deliver(groupName, nameof(Retract), payload);
     }
@@ -144,7 +147,7 @@ public sealed class OverlayWidgetDeliveryTests
             >();
             hub.Clients.Returns(clients);
             hub.Groups.Returns(Bus);
-            Notifier = new WidgetNotifier(hub);
+            Notifier = new WidgetNotifier(hub, _presence);
         }
 
         public WidgetTestDbContext Db { get; } = WidgetTestDbContext.New();
@@ -197,7 +200,7 @@ public sealed class OverlayWidgetDeliveryTests
             };
             await hub.OnConnectedAsync();
             if (widgetId is { } id)
-                (await hub.JoinWidget(id.ToString())).Success.Should().BeTrue();
+                (await hub.JoinWidgetWithSdk(id.ToString(), "test")).Success.Should().BeTrue();
         }
 
         public Task FollowAsync(object decorated) =>

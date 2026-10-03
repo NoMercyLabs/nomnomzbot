@@ -90,9 +90,9 @@ public sealed class OverlaySdkTtsPlaybackTests
     {
         string sdk = Sdk();
 
-        // TtsConfigController's playback/* endpoints push a "tts_queue_control" WidgetEvent — it must reach
+        // TtsConfigController's playback/* endpoints push a raw TtsQueueControl target — it must reach
         // a real handler, not silently no-op through the dispatch() default case.
-        sdk.Should().Contain("tts_queue_control: ttsQueueControl");
+        sdk.Should().Contain("case \"TtsQueueControl\": ttsQueueControl(");
         sdk.Should().Contain("function ttsQueueControl(data)");
     }
 

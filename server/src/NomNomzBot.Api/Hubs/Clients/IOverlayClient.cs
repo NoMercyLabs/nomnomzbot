@@ -40,6 +40,9 @@ public interface IOverlayClient
     /// <summary>Instructs the overlay to stop a named clip handle, or all playback when <see cref="StopSoundPayload.All"/> is true.</summary>
     Task StopSound(StopSoundPayload payload);
 
+    /// <summary>Dashboard TTS queue command (skip/clear/pause/resume) for the audio page, which owns the queue.</summary>
+    Task TtsQueueControl(TtsQueueControlPayload payload);
+
     /// <summary>
     /// Moderation retraction (widgets-overlays.md §2a) — pushed on the SAME connection as the content it
     /// cancels, so it can never overtake it. Every surface pulls matching content by

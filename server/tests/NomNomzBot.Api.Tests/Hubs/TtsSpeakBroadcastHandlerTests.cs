@@ -69,8 +69,8 @@ public sealed class TtsSpeakBroadcastHandlerTests
         );
 
         // The anonymous payload carries exactly the fields the TTS overlay widget reads
-        // (text/voice/user/durationMs/audioUrl) — audioUrl is what lets the widget's own queue play the
-        // utterance in order, instead of the generic unqueued overlay sound bus.
+        // (text/voice/user/durationMs/audioUrl) — audioUrl is null: the audio rides the raw TtsSpeak to the one
+        // audio page, never the widget event, so a caption page cannot play it a second time.
         await widgets
             .Received(1)
             .SendWidgetEventAsync(
@@ -134,7 +134,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             && json.GetProperty("voice").GetString() == "en-US-AvaNeural"
             && json.GetProperty("user").GetString() == "u1"
             && json.GetProperty("durationMs").GetInt32() == 2500
-            && json.GetProperty("audioUrl").GetString() == "data:audio/mpeg;base64,AQIDBA==";
+            && json.GetProperty("audioUrl").ValueKind == JsonValueKind.Null;
     }
 
     /// <summary>

@@ -45,6 +45,22 @@ public sealed class TtsSpeakBroadcastHandler(
     )
     {
         await ReportIfNothingIsListeningAsync(@event.BroadcasterId, cancellationToken);
+        // Captions and indicators only need the words: the audio plays once, on the audio page, from the raw
+        // TtsSpeak below. A widget event that carried audio would be played by every page that received it.
+        if (@event.AudioUrl is not null)
+            await notifier.TtsSpeakAsync(
+                @event.BroadcasterId.ToString(),
+                new(
+                    @event.BroadcasterId,
+                    @event.Text,
+                    @event.VoiceId,
+                    @event.Provider,
+                    CueId: null,
+                    Options: null,
+                    AudioUrl: @event.AudioUrl
+                ),
+                cancellationToken
+            );
         await WidgetAlertDispatch.RouteAsync(
             db,
             notifier,
@@ -55,7 +71,7 @@ public sealed class TtsSpeakBroadcastHandler(
                 @event.VoiceId,
                 @event.RequestedByTwitchUserId,
                 @event.DurationMs,
-                @event.AudioUrl
+                AudioUrl: null
             ),
             // Non-null only when this utterance was fired by a pipeline action chain triggered by a PAID
             // channel event (e.g. a reward redemption whose actions include play_tts) — PlayTtsAction threads
@@ -95,7 +111,7 @@ public sealed class TtsSpeakBroadcastHandler(
                 ? "no widget on this channel subscribes tts_speak"
                 : "no browser source is open on the TTS widget";
         logger.LogWarning(
-            "TTS spoke for channel {BroadcasterId} but nothing could play it: {Reason}. Add the TTS Audio "
+            "TTS spoke for channel {BroadcasterId} but nothing could play it: {Reason}. Add the Audio Source "
                 + "overlay as a browser source in OBS.",
             broadcasterId,
             reason
@@ -104,7 +120,7 @@ public sealed class TtsSpeakBroadcastHandler(
             broadcasterId.ToString(),
             new(
                 "tts_no_output",
-                "TTS spoke but nothing played it — add the TTS Audio overlay as a browser source in OBS.",
+                "TTS spoke but nothing played it — add the Audio Source overlay as a browser source in OBS.",
                 new { reason, subscribingWidgets = subscribers.Count }
             ),
             cancellationToken

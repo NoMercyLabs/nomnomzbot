@@ -13,6 +13,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -33,7 +34,7 @@ namespace NomNomzBot.Api.Controllers;
 [Route("overlay")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
-[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
+[EnableRateLimiting(RateLimitPolicyNames.Anonymous)]
 public sealed class OverlayHostController : ControllerBase
 {
     private readonly IWidgetService _widgetService;
@@ -185,7 +186,7 @@ public sealed class OverlayHostController : ControllerBase
             <style>html,body{margin:0;padding:0;background:transparent;overflow:hidden}#app{position:fixed;inset:0}</style>
             {{ConfigScript(entry, token, nonce)}}
             {{runtimeTag}}
-            <script src="/overlay/sdk.js"></script>
+            <script src="/overlay/sdk.js?v={{OverlaySdkController.Version}}"></script>
             </head>
             <body>
             <div id="app"><script src="{{bundleUrl}}"></script></div>
@@ -201,7 +202,11 @@ public sealed class OverlayHostController : ControllerBase
         string token
     )
     {
-        string inject = ConfigScript(entry, token) + "\n<script src=\"/overlay/sdk.js\"></script>";
+        string inject =
+            ConfigScript(entry, token)
+            + "\n<script src=\"/overlay/sdk.js?v="
+            + OverlaySdkController.Version
+            + "\"></script>";
         if (bundleHtml.Contains("</head>", StringComparison.OrdinalIgnoreCase))
             return ReplaceFirst(bundleHtml, "</head>", inject + "</head>");
         if (bundleHtml.Contains("<body>", StringComparison.OrdinalIgnoreCase))

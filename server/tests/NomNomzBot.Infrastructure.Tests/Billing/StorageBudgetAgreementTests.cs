@@ -376,6 +376,10 @@ public sealed class StorageBudgetAgreementTests
         public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) => false;
 
         public bool IsOverlayConnected(Guid broadcasterId) => false;
+
+        public string? GetAudioTarget(Guid broadcasterId) => null;
+
+        public bool IsAudioSourceConnected(Guid broadcasterId) => false;
     }
 
     private sealed class FakeChannelRegistry : IChannelRegistry

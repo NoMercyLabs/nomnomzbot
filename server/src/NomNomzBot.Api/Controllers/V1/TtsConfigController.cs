@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
@@ -41,7 +42,7 @@ public class TtsConfigController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IWidgetService _widgetService;
     private readonly ITtsDispatchService _ttsDispatchService;
-    private readonly IWidgetEventNotifier _widgetEventNotifier;
+    private readonly IWidgetNotifier _overlayNotifier;
 
     public TtsConfigController(
         ITtsConfigService ttsConfigService,
@@ -50,7 +51,7 @@ public class TtsConfigController : BaseController
         ICurrentUserService currentUser,
         IWidgetService widgetService,
         ITtsDispatchService ttsDispatchService,
-        IWidgetEventNotifier widgetEventNotifier
+        IWidgetNotifier overlayNotifier
     )
     {
         _ttsConfigService = ttsConfigService;
@@ -59,7 +60,7 @@ public class TtsConfigController : BaseController
         _currentUser = currentUser;
         _widgetService = widgetService;
         _ttsDispatchService = ttsDispatchService;
-        _widgetEventNotifier = widgetEventNotifier;
+        _overlayNotifier = overlayNotifier;
     }
 
     /// <summary>
@@ -158,8 +159,8 @@ public class TtsConfigController : BaseController
         SendPlaybackControlAsync(channelId, "resume", ct);
 
     /// <summary>
-    /// Pushes a <c>tts_queue_control</c> widget event carrying <paramref name="action"/> to the channel's
-    /// <c>tts_caption</c> overlay group. The overlay SDK owns the live playback queue client-side (§ SDK
+    /// Pushes a TTS queue command carrying <paramref name="action"/> to the channel's
+    /// one audio page. The overlay SDK owns the live playback queue client-side (§ SDK
     /// <c>ttsQueue</c>/<c>playNextTts</c>) — the server has no visibility into what is currently queued or
     /// playing, so this is a fire-and-forget command, not a state mutation the server can verify.
     /// </summary>
@@ -169,24 +170,10 @@ public class TtsConfigController : BaseController
         CancellationToken ct
     )
     {
-        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+        if (!Guid.TryParse(channelId, out _))
             return BadRequestResponse("Invalid channel id.");
 
-        Result<WidgetDetail> widget = await _widgetService.EnsureSystemWidgetAsync(
-            channelId,
-            "tts_caption",
-            ct
-        );
-        if (widget.IsFailure)
-            return ResultResponse(widget);
-
-        await _widgetEventNotifier.SendWidgetEventAsync(
-            broadcasterId,
-            widget.Value.Id,
-            "tts_queue_control",
-            new { action },
-            ct
-        );
+        await _overlayNotifier.TtsQueueControlAsync(channelId, action, ct);
         return Ok(new StatusResponseDto<object> { Data = new { action } });
     }
 

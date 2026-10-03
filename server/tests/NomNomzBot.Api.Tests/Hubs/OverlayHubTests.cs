@@ -235,8 +235,8 @@ public sealed class OverlayHubTests
         Guid widgetA = Guid.NewGuid();
         Guid widgetB = Guid.NewGuid();
 
-        JoinWidgetResponse joinA = await f.Hub.JoinWidget(widgetA.ToString());
-        JoinWidgetResponse joinB = await f.Hub.JoinWidget(widgetB.ToString());
+        JoinWidgetResponse joinA = await f.Hub.JoinWidgetWithSdk(widgetA.ToString(), "test");
+        JoinWidgetResponse joinB = await f.Hub.JoinWidgetWithSdk(widgetB.ToString(), "test");
 
         joinA.Success.Should().BeTrue();
         joinB.Success.Should().BeTrue();
@@ -274,8 +274,8 @@ public sealed class OverlayHubTests
         Guid widgetA = Guid.NewGuid();
         Guid widgetB = Guid.NewGuid();
         Guid widgetC = Guid.NewGuid(); // never joined — must never be touched
-        await f.Hub.JoinWidget(widgetA.ToString());
-        await f.Hub.JoinWidget(widgetB.ToString());
+        await f.Hub.JoinWidgetWithSdk(widgetA.ToString(), "test");
+        await f.Hub.JoinWidgetWithSdk(widgetB.ToString(), "test");
 
         await f.Hub.OnDisconnectedAsync(null);
 
@@ -316,8 +316,8 @@ public sealed class OverlayHubTests
         await f.Hub.OnConnectedAsync();
         Guid widgetA = Guid.NewGuid();
         Guid widgetB = Guid.NewGuid();
-        await f.Hub.JoinWidget(widgetA.ToString());
-        await f.Hub.JoinWidget(widgetB.ToString());
+        await f.Hub.JoinWidgetWithSdk(widgetA.ToString(), "test");
+        await f.Hub.JoinWidgetWithSdk(widgetB.ToString(), "test");
 
         await f.Hub.LeaveWidget(widgetA.ToString());
         f.Groups.ClearReceivedCalls();
@@ -355,7 +355,7 @@ public sealed class OverlayHubTests
         );
         await f.Hub.OnConnectedAsync();
 
-        JoinWidgetResponse join = await f.Hub.JoinWidget(widgetId.ToString());
+        JoinWidgetResponse join = await f.Hub.JoinWidgetWithSdk(widgetId.ToString(), "test");
 
         join.Success.Should().BeTrue();
         await f
@@ -384,7 +384,7 @@ public sealed class OverlayHubTests
         );
         await f.Hub.OnConnectedAsync();
 
-        JoinWidgetResponse join = await f.Hub.JoinWidget(otherWidgetId.ToString());
+        JoinWidgetResponse join = await f.Hub.JoinWidgetWithSdk(otherWidgetId.ToString(), "test");
 
         join.Success.Should().BeFalse();
         join.Error.Should().NotBeNullOrWhiteSpace();
@@ -412,8 +412,8 @@ public sealed class OverlayHubTests
         Guid widgetA = Guid.NewGuid();
         Guid widgetB = Guid.NewGuid();
 
-        JoinWidgetResponse joinA = await f.Hub.JoinWidget(widgetA.ToString());
-        JoinWidgetResponse joinB = await f.Hub.JoinWidget(widgetB.ToString());
+        JoinWidgetResponse joinA = await f.Hub.JoinWidgetWithSdk(widgetA.ToString(), "test");
+        JoinWidgetResponse joinB = await f.Hub.JoinWidgetWithSdk(widgetB.ToString(), "test");
 
         joinA.Success.Should().BeTrue();
         joinB.Success.Should().BeTrue();

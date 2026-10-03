@@ -18,6 +18,7 @@ using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
@@ -62,9 +63,9 @@ public sealed class TtsConfigControllerOwnVoiceTests
             Substitute.For<ITtsLexiconService>(),
             db,
             currentUser,
-            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
+            Substitute.For<IWidgetService>(),
             Substitute.For<ITtsDispatchService>(),
-            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>()
+            Substitute.For<NomNomzBot.Api.Hubs.IWidgetNotifier>()
         );
     }
 

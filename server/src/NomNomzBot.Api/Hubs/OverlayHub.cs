@@ -81,6 +81,7 @@ public class OverlayHub : Hub<IOverlayClient>
         // answer "is any browser source connected at all" for features (sound-clip stop) that push to the
         // shared bus rather than one specific widget.
         _presence.Attach(Context.ConnectionId, overlayGroup);
+        _presence.RegisterOverlay(Context.ConnectionId, scope.BroadcasterId);
         // A widget gets its events as WidgetEvent, by subscription. Only a page that hosts no widget reads
         // the generic feed; JoinWidget takes a channel-wide connection off it again.
         if (scope.WidgetId is null)
@@ -102,7 +103,18 @@ public class OverlayHub : Hub<IOverlayClient>
         await base.OnDisconnectedAsync(exception);
     }
 
+    /// <summary>
+    /// The join an SDK that predates the single audio route sends. That SDK still plays every widget event it
+    /// receives, so it would double the sound: join it, then make it reload to pick up the current SDK.
+    /// </summary>
     public async Task<JoinWidgetResponse> JoinWidget(string widgetId)
+    {
+        JoinWidgetResponse response = await JoinWidgetWithSdk(widgetId, string.Empty);
+        await Clients.Caller.WidgetReload();
+        return response;
+    }
+
+    public async Task<JoinWidgetResponse> JoinWidgetWithSdk(string widgetId, string sdkVersion)
     {
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return new(false, "Not authenticated", null);
@@ -135,6 +147,9 @@ public class OverlayHub : Hub<IOverlayClient>
                 )
             : null;
 
+        if (await IsAudioSourceAsync(widget))
+            _presence.MarkAudioSource(Context.ConnectionId);
+
         // A real browser source just (re)connected — proof the widget is alive right now, so a fault stamped
         // by a past session (S-PL1: e.g. a one-off autoplay block on first load) must not keep painting the
         // dashboard row red forever. ReportRuntimeError re-stamps it below if the fault is still live.
@@ -147,6 +162,18 @@ public class OverlayHub : Hub<IOverlayClient>
             _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
 
         return new(true, null, widget?.Settings);
+    }
+
+    private async Task<bool> IsAudioSourceAsync(Widget? widget)
+    {
+        if (widget?.GalleryItemId is not Guid galleryItemId)
+            return false;
+        string? naturalKey = await _db
+            .WidgetGalleryItems.AsNoTracking()
+            .Where(i => i.Id == galleryItemId)
+            .Select(i => i.NaturalKey)
+            .FirstOrDefaultAsync();
+        return naturalKey == OverlayPresenceRegistry.AudioSourceNaturalKey;
     }
 
     /// <summary>

@@ -11,6 +11,7 @@
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -59,6 +60,9 @@ public interface IWidgetNotifier
         CancellationToken ct = default
     );
 
+    /// <summary>Pushes a TTS queue command to the channel's one audio page.</summary>
+    Task TtsQueueControlAsync(string broadcasterId, string action, CancellationToken ct = default);
+
     /// <summary>Broadcasts one generic overlay-feed event to every overlay client that hosts no widget.</summary>
     Task BroadcastOverlayEventAsync(
         string broadcasterId,
@@ -73,8 +77,25 @@ public interface IWidgetNotifier
 public class WidgetNotifier : IWidgetNotifier
 {
     private readonly IHubContext<OverlayHub, IOverlayClient> _hub;
+    private readonly IOverlayPresenceRegistry _presence;
 
-    public WidgetNotifier(IHubContext<OverlayHub, IOverlayClient> hub) => _hub = hub;
+    public WidgetNotifier(
+        IHubContext<OverlayHub, IOverlayClient> hub,
+        IOverlayPresenceRegistry presence
+    )
+    {
+        _hub = hub;
+        _presence = presence;
+    }
+
+    // Audio plays on exactly one page: the registry names it, nothing is sent when no page is open.
+    private IOverlayClient? AudioPage(string broadcasterId)
+    {
+        string? connectionId = Guid.TryParse(broadcasterId, out Guid parsed)
+            ? _presence.GetAudioTarget(parsed)
+            : null;
+        return connectionId is null ? null : _hub.Clients.Client(connectionId);
+    }
 
     public Task SendWidgetEventAsync(
         string broadcasterId,
@@ -107,19 +128,25 @@ public class WidgetNotifier : IWidgetNotifier
         string broadcasterId,
         PlaySoundPayload payload,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"overlay-{broadcasterId}").PlaySound(payload);
+    ) => AudioPage(broadcasterId)?.PlaySound(payload) ?? Task.CompletedTask;
 
     public Task StopSoundAsync(
         string broadcasterId,
         StopSoundPayload payload,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"overlay-{broadcasterId}").StopSound(payload);
+    ) => AudioPage(broadcasterId)?.StopSound(payload) ?? Task.CompletedTask;
 
     public Task TtsSpeakAsync(
         string broadcasterId,
         TtsSpeakPayload payload,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"overlay-{broadcasterId}").TtsSpeak(payload);
+    ) => AudioPage(broadcasterId)?.TtsSpeak(payload) ?? Task.CompletedTask;
+
+    public Task TtsQueueControlAsync(
+        string broadcasterId,
+        string action,
+        CancellationToken ct = default
+    ) => AudioPage(broadcasterId)?.TtsQueueControl(new(action)) ?? Task.CompletedTask;
 
     public Task BroadcastOverlayEventAsync(
         string broadcasterId,
