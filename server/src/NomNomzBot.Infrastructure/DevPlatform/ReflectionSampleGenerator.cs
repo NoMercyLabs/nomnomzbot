@@ -85,31 +85,31 @@ internal sealed class ReflectionSampleGenerator
     private static JsonValue StringValue(Type underlying, string propertyName)
     {
         if (underlying == typeof(DateTime) || underlying == typeof(DateTimeOffset))
-            return JsonValue.Create("2026-06-20T11:29:00Z")!;
+            return JsonValue.Create("2026-06-20T11:29:00Z");
         if (underlying == typeof(DateOnly))
-            return JsonValue.Create("2026-06-20")!;
+            return JsonValue.Create("2026-06-20");
         if (underlying == typeof(TimeOnly))
-            return JsonValue.Create("11:29:00")!;
+            return JsonValue.Create("11:29:00");
         if (underlying == typeof(TimeSpan))
-            return JsonValue.Create("00:05:00")!;
+            return JsonValue.Create("00:05:00");
         if (underlying == typeof(Guid))
-            return JsonValue.Create("11111111-2222-3333-4444-555555555555")!;
+            return JsonValue.Create("11111111-2222-3333-4444-555555555555");
         if (underlying.Name == "Ulid")
-            return JsonValue.Create("01ARZ3NDEKTSV4RRFFQ69G5FAV")!;
+            return JsonValue.Create("01ARZ3NDEKTSV4RRFFQ69G5FAV");
 
         string lower = propertyName.ToLowerInvariant();
         if (lower.Contains("email", StringComparison.Ordinal))
-            return JsonValue.Create("viewer@example.com")!;
+            return JsonValue.Create("viewer@example.com");
         if (
             lower.Contains("username", StringComparison.Ordinal)
             || lower.EndsWith("login", StringComparison.Ordinal)
         )
-            return JsonValue.Create("cool_user")!;
+            return JsonValue.Create("cool_user");
         if (
             lower.Contains("color", StringComparison.Ordinal)
             || lower.Contains("colour", StringComparison.Ordinal)
         )
-            return JsonValue.Create("#FF6B35")!;
+            return JsonValue.Create("#FF6B35");
         if (
             lower.Contains("url", StringComparison.Ordinal)
             || lower.Contains("uri", StringComparison.Ordinal)
@@ -117,34 +117,34 @@ internal sealed class ReflectionSampleGenerator
             || lower.Contains("website", StringComparison.Ordinal)
             || lower.Contains("logo", StringComparison.Ordinal)
         )
-            return JsonValue.Create("https://example.com/resource")!;
+            return JsonValue.Create("https://example.com/resource");
         if (lower.Contains("reason", StringComparison.Ordinal))
-            return JsonValue.Create("sample reason")!;
+            return JsonValue.Create("sample reason");
         if (
             lower.Contains("message", StringComparison.Ordinal)
             || lower.Contains("text", StringComparison.Ordinal)
             || lower.Contains("description", StringComparison.Ordinal)
             || lower.Contains("prompt", StringComparison.Ordinal)
         )
-            return JsonValue.Create($"Sample {SplitWords(propertyName)}")!;
+            return JsonValue.Create($"Sample {SplitWords(propertyName)}");
         if (
             lower.Contains("title", StringComparison.Ordinal)
             || lower.Contains("name", StringComparison.Ordinal)
         )
-            return JsonValue.Create($"Sample {SplitWords(propertyName)}")!;
+            return JsonValue.Create($"Sample {SplitWords(propertyName)}");
         if (lower.Contains("code", StringComparison.Ordinal))
-            return JsonValue.Create("ABC123")!;
+            return JsonValue.Create("ABC123");
         if (
             lower.Contains("status", StringComparison.Ordinal)
             || lower.Contains("state", StringComparison.Ordinal)
         )
-            return JsonValue.Create("active")!;
+            return JsonValue.Create("active");
         if (lower.EndsWith("id", StringComparison.Ordinal))
-            return JsonValue.Create($"id-{StableHash(propertyName) % 100_000}")!;
+            return JsonValue.Create($"id-{StableHash(propertyName) % 100_000}");
 
         return JsonValue.Create(
             $"sample-{SplitWords(propertyName).Replace(' ', '-').ToLowerInvariant()}"
-        )!;
+        );
     }
 
     // FNV-1a over the UTF-8 bytes. string.GetHashCode is randomized per process, which made the catalogue
