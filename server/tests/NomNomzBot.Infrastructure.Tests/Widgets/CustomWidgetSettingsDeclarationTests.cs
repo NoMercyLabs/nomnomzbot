@@ -148,6 +148,20 @@ public sealed class CustomWidgetSettingsDeclarationTests
                 "\"a\"",
                 "min"
             },
+            {
+                One(
+                    "{ \"key\": \"a\", \"label\": \"X\", \"type\": \"number\", \"default\": 1, \"min\": 0, \"max\": 10, \"step\": 0 }"
+                ),
+                "\"a\"",
+                "step"
+            },
+            {
+                One(
+                    "{ \"key\": \"a\", \"label\": \"X\", \"type\": \"number\", \"default\": 1, \"min\": 0, \"max\": 10, \"step\": -1 }"
+                ),
+                "\"a\"",
+                "step"
+            },
         };
 
     [Theory]

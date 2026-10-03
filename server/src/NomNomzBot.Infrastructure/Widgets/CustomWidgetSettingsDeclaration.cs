@@ -129,6 +129,10 @@ public static partial class CustomWidgetSettingsDeclaration
         if (min is not null && max is not null && min > max)
             return Bad(name, "min must not be greater than max.");
 
+        double? step = Number(element, "step");
+        if (step is <= 0)
+            return Bad(name, "step must be greater than 0.");
+
         string? help = Text(element, "help");
         return Result.Success(
             new WidgetSettingsField(
@@ -143,7 +147,7 @@ public static partial class CustomWidgetSettingsDeclaration
                 options,
                 min,
                 max,
-                Number(element, "step")
+                step
             )
         );
     }

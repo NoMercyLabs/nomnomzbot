@@ -265,7 +265,7 @@ private fun LoadedSettingsDialog(
 
 // One field, rendered by its schema type. Unused callbacks/params for a given type are ignored.
 @Composable
-private fun FieldControl(
+internal fun FieldControl(
     field: WidgetSettingsFieldDto,
     rawValue: String,
     onRawChange: (String) -> Unit,
@@ -315,7 +315,7 @@ private fun FieldControl(
                 val min: Float = minValue.toFloat()
                 val maxValue: Float = maxLimit.toFloat()
                 val step: Double = stepSize
-                val steps: Int = max(0, ((maxValue - min) / step).roundToInt() - 1)
+                val steps: Int = sliderStepCount(min, maxValue, step)
                 val current: Float = (rawValue.toFloatOrNull() ?: min).coerceIn(min, maxValue)
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                     Text(
@@ -330,6 +330,9 @@ private fun FieldControl(
                         steps = steps,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    help?.let {
+                        Text(text = it, style = typography.xs, color = tokens.mutedForeground)
+                    }
                 }
             } else {
                 AppTextField(
@@ -360,6 +363,7 @@ private fun FieldControl(
                 options = field.options.orEmpty().map { it.value to resolveSchemaString(it.label) },
                 selectedValue = selectValue,
                 onSelect = onSelectChange,
+                help = help,
             )
 
         "multiselect" ->
@@ -380,6 +384,9 @@ private fun FieldControl(
                             }
                         }
                     }
+                }
+                help?.let {
+                    Text(text = it, style = typography.xs, color = tokens.mutedForeground)
                 }
             }
 
@@ -424,6 +431,7 @@ private fun SelectControl(
     options: List<Pair<String, String>>,
     selectedValue: String,
     onSelect: (String) -> Unit,
+    help: String? = null,
 ) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
@@ -472,6 +480,9 @@ private fun SelectControl(
                     )
                 }
             }
+        }
+        help?.let {
+            Text(text = it, style = typography.xs, color = tokens.mutedForeground)
         }
     }
 }
@@ -601,6 +612,10 @@ private fun jsonElement(raw: String, field: WidgetSettingsFieldDto): JsonElement
     if (text.isEmpty()) return fallback
     return runCatching { SettingsJson.parseToJsonElement(text) }.getOrDefault(fallback)
 }
+
+// The number of in-between stops a slider gets. A step the schema declares as zero or less is not a real step.
+internal fun sliderStepCount(min: Float, max: Float, step: Double): Int =
+    if (step <= 0.0) 0 else max(0, ((max - min) / step).roundToInt() - 1)
 
 private fun formatNumber(value: Float, step: Double): String =
     if (step < 1.0) ((value * 100).roundToInt() / 100.0).toString() else value.roundToInt().toString()

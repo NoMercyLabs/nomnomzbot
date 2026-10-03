@@ -1814,6 +1814,8 @@
     <string name="widgets_gallery_empty">No gallery widgets available</string>
     <string name="widgets_gallery_search">Search by name or description</string>
     <string name="widgets_gallery_load_more">Load more</string>
+    <string name="widgets_gallery_load_more_error">Could not load more widgets: %1$s</string>
+    <string name="widgets_gallery_retry">Try again</string>
     <string name="widgets_gallery_error">Could not load the gallery: %1$s</string>
     <string name="widgets_gallery_close">Close</string>
     <string name="widgets_gallery_filter_all">All</string>
@@ -1919,7 +1921,7 @@
 
     <!-- Code Scripts page -->
     <string name="scripts_title">Code Scripts</string>
-    <string name="scripts_subtitle">Versioned Lua scripts attached to commands and pipeline actions.</string>
+    <string name="scripts_subtitle">Versioned JavaScript scripts attached to commands and pipeline actions.</string>
     <string name="scripts_loading">Loading scripts…</string>
     <string name="scripts_empty">No code scripts yet. Create one to get started.</string>
     <string name="scripts_error">Failed to load scripts: %1$s</string>

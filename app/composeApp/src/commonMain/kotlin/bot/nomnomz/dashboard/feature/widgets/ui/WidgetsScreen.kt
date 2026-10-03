@@ -202,6 +202,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_action_
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_count
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_loading
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_load_more
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_load_more_error
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_retry
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_search
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_title
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_first_party
@@ -1649,7 +1651,7 @@ private fun WidgetVersionRow(
 // cloned into an editable copy. Fetches its own list on open + on every filter change (loading / error / empty /
 // list). Install / Clone are Editor-gated (the page's manage floor); browsing itself is a public read.
 @Composable
-private fun GalleryBrowseDialog(
+internal fun GalleryBrowseDialog(
     manage: ManageDecision,
     loadGallery: suspend (GalleryListRequest) -> ApiResult<GalleryPage>,
     onInstall: (GalleryItemSummary) -> Unit,
@@ -1666,12 +1668,16 @@ private fun GalleryBrowseDialog(
     var items: List<GalleryItemSummary> by remember { mutableStateOf(emptyList()) }
     var page: ApiResult<GalleryPage>? by remember { mutableStateOf(null) }
     var loadingMore: Boolean by remember { mutableStateOf(false) }
+    var loadMoreError: String? by remember { mutableStateOf(null) }
 
     // Debounced: a filter/framework change resets the list and re-fetches page 1; typing waits 300ms so every
     // keystroke doesn't fire its own request.
     LaunchedEffect(selectedFramework, searchText) {
         delay(300)
         items = emptyList()
+        loadMoreError = null
+        // Cleared with the items, so the list shows "loading" for the fetch and "empty" only for a finished one.
+        page = null
         page = loadGallery(GalleryListRequest(framework = selectedFramework, search = searchText.trim().ifBlank { null }))
         (page as? ApiResult.Ok)?.let { items = it.value.items }
     }
@@ -1741,14 +1747,25 @@ private fun GalleryBrowseDialog(
                                 if (nextPage != null) {
                                     TextButton(
                                         onClick = {
+                                            loadMoreError = null
                                             loadingMore = true
                                         },
                                     ) {
                                         Text(
                                             text =
-                                                if (loadingMore) stringResource(Res.string.widgets_gallery_loading)
-                                                else stringResource(Res.string.widgets_gallery_load_more),
+                                                when {
+                                                    loadingMore -> stringResource(Res.string.widgets_gallery_loading)
+                                                    loadMoreError != null -> stringResource(Res.string.widgets_gallery_retry)
+                                                    else -> stringResource(Res.string.widgets_gallery_load_more)
+                                                },
                                             color = tokens.primary,
+                                        )
+                                    }
+                                    loadMoreError?.let { message ->
+                                        Text(
+                                            text = stringResource(Res.string.widgets_gallery_load_more_error, message),
+                                            style = typography.sm,
+                                            color = tokens.destructive,
                                         )
                                     }
                                     LaunchedEffect(loadingMore) {
@@ -1761,9 +1778,12 @@ private fun GalleryBrowseDialog(
                                                     page = nextPage,
                                                 )
                                             )
-                                        if (more is ApiResult.Ok) {
-                                            items = items + more.value.items
-                                            page = more
+                                        when (more) {
+                                            is ApiResult.Ok -> {
+                                                items = items + more.value.items
+                                                page = more
+                                            }
+                                            is ApiResult.Failure -> loadMoreError = more.error.message
                                         }
                                         loadingMore = false
                                     }
