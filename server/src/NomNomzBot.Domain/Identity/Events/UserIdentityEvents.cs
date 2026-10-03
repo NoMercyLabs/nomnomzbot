@@ -62,6 +62,7 @@ public sealed class PrimaryIdentityChangedEvent : DomainEventBase
 /// account during a link (platform-identity §3.1a). Every per-viewer domain re-keys
 /// <see cref="AbsorbedUserId"/> → <see cref="IntoUserId"/>.
 /// </summary>
+[Event(visibility: EventVisibility.Internal)]
 public sealed class ViewerRowAbsorbedEvent : DomainEventBase
 {
     /// <summary>The id of the record that was merged away.</summary>

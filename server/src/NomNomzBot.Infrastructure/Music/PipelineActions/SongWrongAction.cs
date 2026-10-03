@@ -171,6 +171,7 @@ public sealed class SongWrongAction : ICommandAction
 
         Result skipped = await _music.SkipAsync(
             ctx.BroadcasterId.ToString(),
+            ctx.TriggeredByUserId,
             ctx.CancellationToken
         );
         if (!skipped.IsSuccess)

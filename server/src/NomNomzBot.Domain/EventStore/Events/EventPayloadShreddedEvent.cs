@@ -16,6 +16,7 @@ namespace NomNomzBot.Domain.EventStore.Events;
 /// Emitted after a subject's crypto-shred DEK set has been destroyed for journal payloads, so the compliance
 /// audit pipeline can record the side effect. Inherits the canonical <see cref="DomainEventBase"/>.
 /// </summary>
+[Event(visibility: EventVisibility.Internal)]
 public sealed class EventPayloadShreddedEvent : DomainEventBase
 {
     /// <summary>A hash of the person's id. It does not show the real id.</summary>

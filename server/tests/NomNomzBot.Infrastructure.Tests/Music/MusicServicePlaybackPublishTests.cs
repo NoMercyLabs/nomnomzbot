@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
@@ -247,7 +248,7 @@ public sealed class MusicServicePlaybackPublishTests
     {
         (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
 
-        Result ok = await sut.SkipAsync(ChannelId.ToString());
+        Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
         ok.IsSuccess.Should().BeTrue();
         PlaybackStateChangedEvent published = bus
@@ -255,6 +256,82 @@ public sealed class MusicServicePlaybackPublishTests
             .Single();
         published.TrackName.Should().Be("Song B");
         published.IsPlaying.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SkipAsync_raises_SongSkipped_with_the_internal_id_of_a_chat_actor_and_the_track()
+    {
+        Guid viewerId = Guid.NewGuid();
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song B", isPlaying: true),
+            new NowPlayingCache(),
+            new SongRequestQueueStore(),
+            db =>
+                db.Users.Add(
+                    new User
+                    {
+                        Id = viewerId,
+                        TwitchUserId = "4242",
+                        Username = "viewer",
+                        UsernameNormalized = "viewer",
+                        DisplayName = "Viewer",
+                    }
+                )
+        );
+
+        Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242");
+
+        ok.IsSuccess.Should().BeTrue();
+        SongSkippedEvent skipped = bus.Published.OfType<SongSkippedEvent>().Single();
+        skipped.BroadcasterId.Should().Be(ChannelId);
+        skipped.SkippedByUserId.Should().Be(viewerId.ToString());
+        skipped.TrackName.Should().Be("Song B");
+    }
+
+    [Fact]
+    public async Task SkipAsync_keeps_the_internal_id_a_dashboard_actor_already_holds()
+    {
+        Guid dashboardUser = Guid.NewGuid();
+        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
+
+        await sut.SkipAsync(ChannelId.ToString(), dashboardUser.ToString());
+
+        bus.Published.OfType<SongSkippedEvent>()
+            .Single()
+            .SkippedByUserId.Should()
+            .Be(dashboardUser.ToString());
+    }
+
+    [Fact]
+    public async Task SkipAsync_raises_SongSkipped_with_an_empty_actor_when_nobody_resolves()
+    {
+        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
+
+        await sut.SkipAsync(ChannelId.ToString(), "9999");
+
+        bus.Published.OfType<SongSkippedEvent>().Single().SkippedByUserId.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SkipAsync_raises_no_SongSkipped_when_nothing_is_playing()
+    {
+        (MusicService sut, RecordingEventBus bus, _) = Build(currentTrackJson: null);
+
+        Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242");
+
+        ok.IsSuccess.Should().BeTrue();
+        bus.Published.OfType<SongSkippedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SkipAsync_raises_no_SongSkipped_when_the_channel_id_is_invalid()
+    {
+        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
+
+        Result failed = await sut.SkipAsync("not-a-guid", "4242");
+
+        failed.IsFailure.Should().BeTrue();
+        bus.Published.OfType<SongSkippedEvent>().Should().BeEmpty();
     }
 
     [Fact]
@@ -341,7 +418,8 @@ public sealed class MusicServicePlaybackPublishTests
     private static (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) Build(
         string? currentTrackJson,
         INowPlayingCache nowPlayingCache,
-        SongRequestQueueStore queueStore
+        SongRequestQueueStore queueStore,
+        Action<MusicTestDbContext>? seed = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -355,6 +433,7 @@ public sealed class MusicServicePlaybackPublishTests
                 AccessToken = "test-access-token",
             }
         );
+        seed?.Invoke(db);
         db.SaveChanges();
 
         FakeIntegrationTokenVault vault = new(db);

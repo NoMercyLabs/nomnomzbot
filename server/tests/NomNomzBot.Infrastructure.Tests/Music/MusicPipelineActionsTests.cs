@@ -540,7 +540,7 @@ public sealed class MusicPipelineActionsTests
                 )
             );
         music
-            .SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
@@ -552,7 +552,9 @@ public sealed class MusicPipelineActionsTests
 
         result.Succeeded.Should().BeTrue();
         result.Output.Should().Be("skipped: Wrong Track");
-        await music.Received(1).SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+        await music
+            .Received(1)
+            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>());
         // Someone else's pending request must survive — undo affects the caller's track only.
         await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
     }
@@ -574,7 +576,7 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Succeeded.Should().BeFalse();
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
@@ -595,7 +597,7 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Succeeded.Should().BeFalse();
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
@@ -608,7 +610,7 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(Playing() with { RequestedBy = "Bamo" }, []));
         music
-            .SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Failure("PROVIDER_UNAVAILABLE", "nope"));
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
@@ -656,7 +658,7 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Output.Should().Be("removed: Still Waiting");
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
@@ -736,7 +738,7 @@ public sealed class MusicPipelineActionsTests
             .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing(uri: "spotify:track:bad", name: "Bad Song"));
         music
-            .SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongBanAction action = new(music, blocks, chat, NullLogger<SongBanAction>.Instance);
@@ -759,7 +761,9 @@ public sealed class MusicPipelineActionsTests
         (await blocks.IsBlockedAsync(ChannelId, "spotify:track:bad")).Should().BeTrue();
 
         // …AND the playing track was skipped.
-        await music.Received(1).SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+        await music
+            .Received(1)
+            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -779,6 +783,8 @@ public sealed class MusicPipelineActionsTests
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Be("nothing is currently playing");
         db.BlockedTracks.Should().BeEmpty();
-        await music.DidNotReceive().SkipAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await music
+            .DidNotReceive()
+            .SkipAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

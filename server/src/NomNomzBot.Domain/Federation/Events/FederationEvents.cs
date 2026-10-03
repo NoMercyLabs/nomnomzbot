@@ -86,6 +86,7 @@ public sealed class FederatedEventReceivedEvent : DomainEventBase
 }
 
 /// <summary>Raised after an outbound event is signed and accepted by the transport for delivery to a peer.</summary>
+[Event(visibility: EventVisibility.Internal)]
 public sealed class FederatedEventDispatchedEvent : DomainEventBase
 {
     /// <summary>The id of the peer that gets the event.</summary>

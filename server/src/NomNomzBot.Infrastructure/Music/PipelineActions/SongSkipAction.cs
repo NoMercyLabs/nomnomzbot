@@ -49,6 +49,7 @@ public sealed class SongSkipAction : ICommandAction
     {
         Result skipped = await _music.SkipAsync(
             ctx.BroadcasterId.ToString(),
+            ctx.TriggeredByUserId,
             ctx.CancellationToken
         );
         if (skipped.IsFailure)

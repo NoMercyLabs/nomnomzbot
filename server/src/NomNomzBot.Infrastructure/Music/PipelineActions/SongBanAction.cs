@@ -89,7 +89,11 @@ public sealed class SongBanAction : ICommandAction
             return ActionResult.Failure(blocked.ErrorMessage ?? "failed to block the track");
 
         // The banned track should stop playing too — skip is best-effort on top of the block.
-        Result skipped = await _music.SkipAsync(broadcasterId, ctx.CancellationToken);
+        Result skipped = await _music.SkipAsync(
+            broadcasterId,
+            ctx.TriggeredByUserId,
+            ctx.CancellationToken
+        );
         if (skipped.IsFailure)
             _logger.LogWarning(
                 "song_ban blocked '{Track}' for {BroadcasterId} but the skip failed: {Error}",

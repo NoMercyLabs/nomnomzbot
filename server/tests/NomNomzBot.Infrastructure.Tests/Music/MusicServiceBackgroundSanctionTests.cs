@@ -162,7 +162,7 @@ public sealed class MusicServiceBackgroundSanctionTests
 
         sanctions.Current.Should().BeNull();
 
-        Result result = await sut.SkipAsync(ChannelId.ToString());
+        Result result = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
         result.IsSuccess.Should().BeTrue();
         observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");

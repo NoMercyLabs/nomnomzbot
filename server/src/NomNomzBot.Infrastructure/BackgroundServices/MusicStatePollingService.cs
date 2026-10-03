@@ -295,7 +295,7 @@ public sealed class MusicStatePollingService : BackgroundService
         ChannelContext? ctx = _channelRegistry.Get(channelId);
         if (ctx is null)
             return QuietPollInterval;
-        if (!ctx.IsLive && !ctx.HasMusicDemand)
+        if (ctx is { IsLive: false, HasMusicDemand: false })
             return IdlePollInterval;
         return IsActivelyPlaying(channelId) ? PollInterval : QuietPollInterval;
     }
@@ -364,7 +364,7 @@ public sealed class MusicStatePollingService : BackgroundService
         }
 
         ChannelPlaybackSnapshot next = nowPlaying is null
-            ? new(false, null, 0, 100, observedAt, true, true, true, true, true, true, true)
+            ? new(false, null, 0, 100, observedAt, true, true, true, true, true, true, true, null)
             : new ChannelPlaybackSnapshot(
                 nowPlaying.IsPlaying,
                 nowPlaying.TrackName,
@@ -377,7 +377,8 @@ public sealed class MusicStatePollingService : BackgroundService
                 nowPlaying.CanSkipPrevious,
                 nowPlaying.CanSeek,
                 nowPlaying.CanPause,
-                nowPlaying.CanResume
+                nowPlaying.CanResume,
+                nowPlaying.TrackUri
             );
 
         bool changed =
@@ -419,11 +420,34 @@ public sealed class MusicStatePollingService : BackgroundService
             },
             cancellationToken
         );
+
+        if (
+            previous is not null
+            && nowPlaying is not null
+            && next.TrackName is not null
+            && next.TrackUri is not null
+            && previous.TrackUri != next.TrackUri
+        )
+        {
+            await _eventBus.PublishAsync(
+                new TrackChangedEvent
+                {
+                    BroadcasterId = channelId,
+                    TrackName = next.TrackName,
+                    Artist = nowPlaying.Artist ?? "",
+                    TrackUri = next.TrackUri,
+                    AlbumArtUrl = nowPlaying.ImageUrl,
+                    DurationMs = nowPlaying.DurationMs,
+                    Provider = nowPlaying.Provider,
+                },
+                cancellationToken
+            );
+        }
     }
 
     private static bool HasChanged(ChannelPlaybackSnapshot previous, ChannelPlaybackSnapshot next)
     {
-        if (previous.TrackName != next.TrackName)
+        if (previous.TrackName != next.TrackName || previous.TrackUri != next.TrackUri)
             return true;
 
         if (previous.IsPlaying != next.IsPlaying)
@@ -498,7 +522,8 @@ public sealed class MusicStatePollingService : BackgroundService
         bool CanSkipPrevious,
         bool CanSeek,
         bool CanPause,
-        bool CanResume
+        bool CanResume,
+        string? TrackUri
     );
 
     /// <summary>Per-channel failure backoff state, kept in memory only.</summary>

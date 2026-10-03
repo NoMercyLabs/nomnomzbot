@@ -46,7 +46,7 @@ public sealed class MusicServiceCapabilityGatingTests
 
         (await sut.PlayAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.PauseAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
-        (await sut.SkipAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
+        (await sut.SkipAsync(channel, "4242")).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.PreviousAsync(channel)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.SeekAsync(channel, 5_000)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");
         (await sut.SetShuffleAsync(channel, true)).ErrorCode.Should().Be("CAPABILITY_UNSUPPORTED");

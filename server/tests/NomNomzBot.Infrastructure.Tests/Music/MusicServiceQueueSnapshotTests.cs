@@ -93,7 +93,7 @@ public sealed class MusicServiceQueueSnapshotTests
         (MusicService sut, RecordingEventBus bus) = Build();
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
 
-        (await sut.SkipAsync(ChannelId.ToString())).IsSuccess.Should().BeTrue();
+        (await sut.SkipAsync(ChannelId.ToString(), "4242")).IsSuccess.Should().BeTrue();
 
         // The request already sits in the provider's own queue, so a skip only advances the provider —
         // the entry leaves OUR queue when the live playback state confirms it is the track now playing

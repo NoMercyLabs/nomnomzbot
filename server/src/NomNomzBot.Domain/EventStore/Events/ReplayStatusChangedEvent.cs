@@ -17,6 +17,7 @@ namespace NomNomzBot.Domain.EventStore.Events;
 /// dashboard activity feed and other handlers can react. Inherits the canonical <see cref="DomainEventBase"/>
 /// (the store references that base; it never redefines its members).
 /// </summary>
+[Event(visibility: EventVisibility.Internal)]
 public sealed class ReplayStatusChangedEvent : DomainEventBase
 {
     /// <summary>The id of the replay run.</summary>

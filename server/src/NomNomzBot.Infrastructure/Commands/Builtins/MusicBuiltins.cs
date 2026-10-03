@@ -64,7 +64,11 @@ public sealed class SkipBuiltin(
             // The chat handler's own permission-denied line (system/permissiondenied).
             return Result.Success(await composer.ComposePermissionDeniedAsync(context, ct));
 
-        Result skipped = await music.SkipAsync(context.BroadcasterId.ToString(), ct);
+        Result skipped = await music.SkipAsync(
+            context.BroadcasterId.ToString(),
+            context.TriggeringUserId,
+            ct
+        );
         if (!skipped.IsSuccess)
             return Result.Success(await SkipFailureReplyAsync(context, skipped, ct));
 

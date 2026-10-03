@@ -332,8 +332,30 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return Result.Success();
     }
 
+    /// <summary>
+    /// The internal user id for whoever triggered an action. Chat-driven callers hold the platform user id, the
+    /// dashboard holds the internal one. Empty when nobody resolves (a timer or an automation token).
+    /// </summary>
+    private async Task<string> ResolveInternalUserIdAsync(
+        string actorId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (Guid.TryParse(actorId, out Guid internalId))
+            return internalId.ToString();
+        if (string.IsNullOrWhiteSpace(actorId))
+            return string.Empty;
+
+        Guid? viaTwitch = await _db
+            .Users.Where(u => u.TwitchUserId == actorId)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return viaTwitch?.ToString() ?? string.Empty;
+    }
+
     public async Task<Result> SkipAsync(
         string broadcasterId,
+        string skippedByUserId,
         CancellationToken cancellationToken = default
     )
     {
@@ -353,6 +375,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         FairQueue<SongRequestEntry>? fairQueue = _queueStore.TryGet(broadcasterId);
         bool hadPending = fairQueue is not null && !fairQueue.IsEmpty;
 
+        // Read before the provider advances: afterwards the cache holds the next track.
+        NowPlaying? skippedTrack = await GetNowPlayingAsync(broadcasterId, cancellationToken);
+
         // Reachable off a pipeline action (!songskip / !songwrong / !bansong automation) with no HTTP
         // request of its own — same no-person-present shape as HandOverNextAsync's already-fixed gap.
         using IDisposable sanction = _sanctions.Begin(
@@ -367,6 +392,20 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         {
             return PremiumRequired(ex);
         }
+
+        if (skippedTrack?.TrackName is { } skippedTrackName)
+            await _eventBus.PublishAsync(
+                new SongSkippedEvent
+                {
+                    BroadcasterId = tenantId,
+                    SkippedByUserId = await ResolveInternalUserIdAsync(
+                        skippedByUserId,
+                        cancellationToken
+                    ),
+                    TrackName = skippedTrackName,
+                },
+                cancellationToken
+            );
 
         // The head of the queue is about to become the playing track — push the fresh snapshot to the
         // sr_queue overlay surfaces.

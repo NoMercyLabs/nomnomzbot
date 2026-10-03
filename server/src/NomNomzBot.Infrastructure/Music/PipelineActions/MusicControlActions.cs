@@ -191,7 +191,11 @@ public sealed class MusicNextAction : ICommandAction
         ActionDefinition action
     )
     {
-        Result result = await _music.SkipAsync(ctx.BroadcasterId.ToString(), ctx.CancellationToken);
+        Result result = await _music.SkipAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.TriggeredByUserId,
+            ctx.CancellationToken
+        );
         return MusicControlResult.FromMusicResult(result, "skipped");
     }
 }

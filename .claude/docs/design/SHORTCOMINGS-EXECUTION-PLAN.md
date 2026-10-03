@@ -36,18 +36,19 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   defb69885), the `play_sound` handle, and the inbox notice when no Audio Source page is open
   (`AudioSourceMissingSource.cs`). Left: the live check. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
-- **S-EVENTS-NEVER-RAISED** (stream-facing) 23 of 231 domain events are never raised anywhere in
-  server/src (scan 2026-10-03, no `new X`/target-typed `new()` before a publish), yet EventCatalog offers
-  every one as a script trigger. Live harm: raid earnings never pay, because EngagementEarningHandler.cs:35
-  and the Automation API raid descriptor (AutomationEventDescriptors.cs:88) listen to RaidReceivedEvent
-  while a raid publishes RaidEvent. The rest: AfterRewardProcessedEvent, BeforeRewardProcessedEvent,
-  ChannelJoinedEvent, ChannelLeftEvent, ChannelSuspendedEvent, ChannelReinstatedEvent, CommandFailedEvent,
-  EventPayloadShreddedEvent, FeatureToggledEvent, FederatedEventDispatchedEvent, IntegrationErrorEvent,
-  MessageAutoModdedEvent, PermissionChangedEvent, ReplayStatusChangedEvent, RewardRefundedEvent,
-  SongSkippedEvent, StreamStatusChangedEvent, TrackChangedEvent, UserFirstChatEvent, ViewerRowAbsorbedEvent,
-  WidgetConnectedEvent, WidgetDisconnectedEvent. Done-when: each is raised where its action happens (a
-  test per event asserts the publish), or is removed with its handlers when a raised twin covers it, and
-  a test fails when a catalogued event has no raiser.
+- **S-EVENTS-NEVER-RAISED** (stream-facing) 8 script-visible domain events are still never raised in
+  server/src, yet the SDK offers each as a trigger: SongSkippedEvent, TrackChangedEvent (music),
+  PermissionChangedEvent, FeatureToggledEvent, IntegrationErrorEvent (admin), UserFirstChatEvent,
+  WidgetConnectedEvent, WidgetDisconnectedEvent (chat and overlays). The guard
+  EventCatalogRaisedEventsGuardTests holds them on its allowlist. Done-when: each is raised where its action
+  happens, a test per event asserts the published fields, and the allowlist is empty.
+- **S-ACTOR-PLATFORM** (stream-facing) A chat-triggered actor reaches a pipeline as a bare platform user id
+  (PipelineExecutionContext.TriggeredByUserId; ChatMessageHandler.cs sets it from the chat event) with no
+  platform. So a lookup of the internal user can only assume Twitch: MusicService.ResolveInternalUserIdAsync
+  and ModerationProjectionService.cs:245 both match Users.TwitchUserId, and a Kick or YouTube chatter
+  resolves to nobody. Done-when: the context carries the platform with the id, every internal-user lookup goes
+  through IUserIdentityService.ResolveUserAsync(provider, id), and a test with a Kick chatter skipping a song
+  publishes their internal id.
 - **S-EVENT-OFFLINE-POLL-RACE** (stream-facing) When the status poll sees the live-to-offline edge before the
   EventSub stream.offline arrives, it clears ChannelContext.WentLiveAt (StreamStatusPollingService.cs:362), so the
   later ChannelOfflineEvent says the stream lasted zero (StreamRunTime.cs). WentLiveAt is also read offline by

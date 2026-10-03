@@ -199,7 +199,7 @@ public sealed class MusicServiceQueuePushFailureTests
         int pushesAfterRequest = QueuePushCount(handler);
         pushesAfterRequest.Should().Be(1);
 
-        Result skip = await sut.SkipAsync(ChannelId.ToString());
+        Result skip = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
         skip.IsSuccess.Should().BeTrue();
         // A skip only advances the provider. Re-pushing the entry here would queue the same track a
@@ -231,7 +231,7 @@ public sealed class MusicServiceQueuePushFailureTests
         );
         await sut.AddToQueueAsync(ChannelId.ToString(), TrackUri, "viewer2");
 
-        Result skip = await sut.SkipAsync(ChannelId.ToString());
+        Result skip = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
         skip.IsSuccess.Should().BeTrue();
         (await sut.GetQueueAsync(ChannelId.ToString()))

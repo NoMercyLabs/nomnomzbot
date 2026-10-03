@@ -114,8 +114,8 @@ public sealed class SkipBuiltinTests
         await music
             .Received(1)
             .RemoveFromQueueAsync(Broadcaster.ToString(), 3, Arg.Any<CancellationToken>());
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
-        await music.DidNotReceiveWithAnyArgs().PlayAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
+        await music.DidNotReceiveWithAnyArgs().PlayAsync(default!);
     }
 
     [Fact]
@@ -135,8 +135,8 @@ public sealed class SkipBuiltinTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotContain("Not Mine");
-        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default, default);
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         SkipBuiltin sut = new(
             music,
@@ -156,7 +156,9 @@ public sealed class SkipBuiltinTests
 
         // The composer picks one of the informative skip variants (ToneTemplateCatalog), not a fixed line.
         result.Value.Should().BeOneOf("Skipped.", "Track skipped.", "Skipped the current track.");
-        await music.Received(1).SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
+        await music
+            .Received(1)
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>());
         // The gate asked the Gate-2 resolver about the exact action the dashboard's POST /music/skip needs.
         await roles
             .Received(1)
@@ -177,7 +179,7 @@ public sealed class SkipBuiltinTests
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
         result.Value.Should().Be("You don't have permission to use that command.");
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
@@ -199,7 +201,7 @@ public sealed class SkipBuiltinTests
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
         result.Value.Should().Be("Mods only, friend.");
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 
     [Fact]
@@ -207,7 +209,7 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Failure("internal provider detail 7731", "PREMIUM_REQUIRED"));
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
@@ -246,7 +248,7 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         SkipBuiltin sut = new(
             music,
@@ -256,10 +258,10 @@ public sealed class SkipBuiltinTests
 
         await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
-        await music.Received(1).SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
-        await roles
-            .DidNotReceiveWithAnyArgs()
-            .HasCapabilityAsync(default, default, default!, default);
+        await music
+            .Received(1)
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+        await roles.DidNotReceiveWithAnyArgs().HasCapabilityAsync(default, default, default!);
     }
 
     [Fact]
@@ -288,7 +290,7 @@ public sealed class SkipBuiltinTests
         );
         Result<string> no = await refused.ExecuteAsync(Ctx("40", ViewerLevel));
         no.Value.Should().Be("You don't have permission to use that command.");
-        await denied.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default, default);
+        await denied.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default);
     }
 
     [Fact]
@@ -296,15 +298,17 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
         result.IsSuccess.Should().BeTrue();
-        await music.Received(1).SkipAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>());
-        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default, default);
+        await music
+            .Received(1)
+            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
     }
 
     [Fact]
@@ -316,6 +320,6 @@ public sealed class SkipBuiltinTests
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
         result.IsSuccess.Should().BeTrue();
-        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default);
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!, default!);
     }
 }

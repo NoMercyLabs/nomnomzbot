@@ -11,15 +11,17 @@
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using FluentAssertions;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.DevPlatform;
 
 namespace NomNomzBot.Infrastructure.Tests.DevPlatform;
 
 /// <summary>
-/// The Event Catalog offers every <c>IDomainEvent</c> as a script trigger, so an event nothing ever
+/// The Event Catalog offers every <c>IDomainEvent</c> that is not <see cref="EventVisibility.Internal"/> as a
+/// script trigger, so an offered event nothing ever
 /// raises is a trigger that can never fire (the raid earning once sat on an event the Twitch raid
 /// translator never published). This guard reads the real
-/// source under <c>server/src</c> (outside the Domain project) and fails when a catalogued event has no
+/// source under <c>server/src</c> (outside the Domain project) and fails when an offered event has no
 /// construction site, unless it is in the explicit allowlist below. The allowlist only shrinks: an
 /// allowlisted event that IS raised fails the test until it is taken off the list.
 /// </summary>
@@ -29,16 +31,10 @@ public sealed class EventCatalogRaisedEventsGuardTests
     // Raise it (or remove the event), then delete the name from this list.
     private static readonly HashSet<string> NeverRaisedAllowlist = new(StringComparer.Ordinal)
     {
-        "EventPayloadShreddedEvent",
         "FeatureToggledEvent",
-        "FederatedEventDispatchedEvent",
         "IntegrationErrorEvent",
         "PermissionChangedEvent",
-        "ReplayStatusChangedEvent",
-        "SongSkippedEvent",
-        "TrackChangedEvent",
         "UserFirstChatEvent",
-        "ViewerRowAbsorbedEvent",
         "WidgetConnectedEvent",
         "WidgetDisconnectedEvent",
     };
@@ -47,12 +43,7 @@ public sealed class EventCatalogRaisedEventsGuardTests
     public void Every_catalogued_event_is_raised_somewhere_or_is_on_the_allowlist()
     {
         string source = ReadAllNonDomainSource();
-        List<string> catalogued =
-        [
-            .. new EventCatalog()
-                .Descriptors.Select(d => d.ClrType.Name)
-                .Distinct(StringComparer.Ordinal),
-        ];
+        List<string> catalogued = [.. OfferedEventNames().Distinct(StringComparer.Ordinal)];
         catalogued.Should().NotBeEmpty("the scan is broken if the catalog is empty");
 
         List<string> unraised =
@@ -74,10 +65,7 @@ public sealed class EventCatalogRaisedEventsGuardTests
     public void The_allowlist_only_holds_catalogued_events_that_are_still_never_raised()
     {
         string source = ReadAllNonDomainSource();
-        HashSet<string> catalogued = new(
-            new EventCatalog().Descriptors.Select(d => d.ClrType.Name),
-            StringComparer.Ordinal
-        );
+        HashSet<string> catalogued = new(OfferedEventNames(), StringComparer.Ordinal);
 
         List<string> notCatalogued = [.. NeverRaisedAllowlist.Where(n => !catalogued.Contains(n))];
         List<string> nowRaised = [.. NeverRaisedAllowlist.Where(n => IsConstructed(source, n))];
@@ -87,6 +75,12 @@ public sealed class EventCatalogRaisedEventsGuardTests
             .Should()
             .BeEmpty("a raised event must come off the allowlist so the list only shrinks");
     }
+
+    // An Internal event is server plumbing that no SDK context offers, so it is no trigger to guard.
+    private static IEnumerable<string> OfferedEventNames() =>
+        new EventCatalog()
+            .Descriptors.Where(d => d.Visibility != EventVisibility.Internal)
+            .Select(d => d.ClrType.Name);
 
     // Counts `new Name`, a target-typed `Name x = new(...)`, and `Name M(...) => new(...)`.
     private static bool IsConstructed(string source, string eventName)

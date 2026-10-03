@@ -99,6 +99,13 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<NomNomzBot.Domain.Music.Entities.BlockedTrack>(b =>
             b.HasKey(x => x.Id)
         );
+        modelBuilder.Entity<User>(b =>
+        {
+            b.HasKey(u => u.Id);
+            b.Ignore(u => u.Pronoun);
+            b.Ignore(u => u.AltPronoun);
+            b.Ignore(u => u.Channel);
+        });
         modelBuilder.Entity<Record>(b =>
         {
             b.HasKey(r => r.Id);
@@ -141,11 +148,12 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(IntegrationConnection)
                 // Mapped for real: MusicService appends a song-request history row per accepted request.
                 && t != typeof(Record)
+                && t != typeof(User)
             ),
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();

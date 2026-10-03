@@ -34,8 +34,16 @@ public interface IMusicService
     /// <summary>Pause playback. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
     Task<Result> PauseAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
-    /// <summary>Skip to the next track in the queue. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
-    Task<Result> SkipAsync(string broadcasterId, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Skip to the next track in the queue and raise <c>SongSkippedEvent</c> for the track that was playing.
+    /// <paramref name="skippedByUserId"/> is the person who asked: the platform user id from chat or a pipeline (resolved to the internal id before the event),
+    /// the internal user id from the dashboard. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.
+    /// </summary>
+    Task<Result> SkipAsync(
+        string broadcasterId,
+        string skippedByUserId,
+        CancellationToken cancellationToken = default
+    );
 
     /// <summary>Provider previous-track. Gated on <c>Previous</c>; fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.</summary>
     Task<Result> PreviousAsync(string broadcasterId, CancellationToken cancellationToken = default);

@@ -109,6 +109,86 @@ public sealed class MusicStatePollingServiceTests
         published[1].TrackName.Should().Be("Song B");
     }
 
+    [Fact]
+    public async Task A_new_track_uri_raises_TrackChanged_once_with_every_field()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", true, 1_000, trackUri: "spotify:track:a")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        bus.Published.OfType<TrackChangedEvent>()
+            .Should()
+            .BeEmpty("the first observation is a baseline, not a change");
+
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song B", true, 500, trackUri: "spotify:track:b")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        TrackChangedEvent raised = bus.Published.OfType<TrackChangedEvent>().Single();
+        raised.BroadcasterId.Should().Be(ChannelA);
+        raised.TrackName.Should().Be("Song B");
+        raised.Artist.Should().Be("Artist");
+        raised.TrackUri.Should().Be("spotify:track:b");
+        raised.DurationMs.Should().Be(200_000);
+        raised.Provider.Should().Be("spotify");
+        raised.AlbumArtUrl.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Pause_and_volume_changes_on_the_same_track_raise_no_TrackChanged()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", true, 1_000, trackUri: "spotify:track:a")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", true, 1_000, volumePercent: 30, trackUri: "spotify:track:a")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", false, 1_000, volumePercent: 30, trackUri: "spotify:track:a")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>().Should().HaveCount(3);
+        bus.Published.OfType<TrackChangedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_same_title_under_a_new_track_uri_still_raises_TrackChanged()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Intro", true, 1_000, trackUri: "spotify:track:one")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Intro", true, 10, trackUri: "spotify:track:two")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<TrackChangedEvent>()
+            .Single()
+            .TrackUri.Should()
+            .Be("spotify:track:two");
+    }
+
     /// <summary>S-MUSIC-5b: the poller's own <see cref="PlaybackStateChangedEvent"/> publish (a Spotify-app
     /// state change the bot didn't cause) must carry the requester too — the SAME fact
     /// <see cref="MusicService.GetNowPlayingAsync"/> already resolved onto <see cref="NowPlaying.RequestedBy"/>,
@@ -783,7 +863,8 @@ public sealed class MusicStatePollingServiceTests
         int progressMs,
         int volumePercent = 100,
         bool canSkipNext = true,
-        string? requestedBy = null
+        string? requestedBy = null,
+        string? trackUri = null
     ) =>
         new(
             trackName,
@@ -796,6 +877,7 @@ public sealed class MusicStatePollingServiceTests
             volumePercent,
             requestedBy,
             "spotify",
+            TrackUri: trackUri,
             CanSkipNext: canSkipNext
         );
 
@@ -1041,6 +1123,7 @@ public sealed class MusicStatePollingServiceTests
 
         public Task<Result> SkipAsync(
             string broadcasterId,
+            string skippedByUserId,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
