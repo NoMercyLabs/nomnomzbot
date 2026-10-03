@@ -426,4 +426,252 @@ public sealed partial class SdkScriptSurfaceDriftTests
 
     [GeneratedRegex(@"^  (?:readonly\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*[?(<:]")]
     private static partial Regex DocumentableMember();
+
+    /// <summary>One declared parameter of an SDK method: its name, whether it is optional, and its type text.</summary>
+    private sealed record DeclaredParameter(string Name, bool Optional, string Type);
+
+    // The d.ts parameters of one method line, split on the commas that sit outside any bracket. A rest
+    // parameter is skipped: the wrappers it types read the arguments object, so it has no name to compare.
+    private static List<DeclaredParameter> DeclaredParameters(string line, int openParen)
+    {
+        List<string> parts = [];
+        int depth = 0;
+        int start = openParen + 1;
+        for (int i = start; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c is '(' or '[' or '{' or '<')
+                depth++;
+            else if (c is ']' or '}' || (c == '>' && line[i - 1] != '='))
+                depth--;
+            else if (c == ')' && depth-- == 0)
+            {
+                parts.Add(line[start..i]);
+                break;
+            }
+            else if (depth == 0 && c == ',')
+            {
+                parts.Add(line[start..i]);
+                start = i + 1;
+            }
+        }
+
+        List<DeclaredParameter> parameters = [];
+        foreach (string part in parts.Select(p => p.Trim()).Where(p => p.Length > 0))
+        {
+            if (part.StartsWith("...", StringComparison.Ordinal))
+                continue;
+            int colon = part.IndexOf(':');
+            string name = part[..colon].Trim();
+            bool optional = name.EndsWith('?');
+            parameters.Add(
+                new DeclaredParameter(name.TrimEnd('?'), optional, part[(colon + 1)..].Trim())
+            );
+        }
+        return parameters;
+    }
+
+    /// <summary>Every nnz method as <c>path</c> to its d.ts member line, following each <c>Nnz*</c> member type.</summary>
+    private static Dictionary<string, string> DeclaredNnzMethodLines(string dts)
+    {
+        Dictionary<string, List<string>> blocks = TypeBlocks(dts);
+        Dictionary<string, string> methods = new(StringComparer.Ordinal);
+        Walk("nnz", string.Empty);
+        return methods;
+
+        void Walk(string block, string prefix)
+        {
+            foreach (string line in blocks[block])
+            {
+                Match property = PropertyMember().Match(line);
+                if (property.Success && blocks.ContainsKey(property.Groups[2].Value))
+                {
+                    Walk(property.Groups[2].Value, prefix + property.Groups[1].Value + ".");
+                    continue;
+                }
+
+                Match method = MethodMember().Match(line);
+                if (method.Success)
+                    methods[prefix + method.Groups[1].Value] = line;
+            }
+        }
+    }
+
+    private static string PlaceholderFor(string type)
+    {
+        if (type.EndsWith("[]", StringComparison.Ordinal))
+            return "[1]";
+        if (type.StartsWith("Record<", StringComparison.Ordinal) || type.StartsWith('{'))
+            return "{}";
+        if (type.Contains("string", StringComparison.Ordinal))
+            return "'a'";
+        return "1";
+    }
+
+    [GeneratedRegex(@"^function\s*[A-Za-z0-9_$]*\s*\(([^)]*)\)")]
+    private static partial Regex FunctionSignature();
+
+    /// <summary>A bootstrapped sandbox whose host <c>__call</c> records each call as <c>key argsJson</c>.</summary>
+    private static Engine RecordingEngine(List<string> hostCalls)
+    {
+        Engine engine = SandboxEngine();
+        engine.SetValue("__sleep", (Action<double>)(_ => { }));
+        engine.SetValue("__log", (Action<string, string>)((_, _) => { }));
+        engine.SetValue(
+            "__call",
+            (Func<string, string, string?>)(
+                (key, args) =>
+                {
+                    hostCalls.Add(key + " " + args);
+                    return null;
+                }
+            )
+        );
+        engine.Execute(JintScriptExecutor.Bootstrap);
+        return engine;
+    }
+
+    // Every host argument is a string the wrapper built; an optional one a script passes as null must reach the
+    // host as nothing (omitted or empty), never as the text "null"/"undefined"/"NaN"/"[object Object]".
+    [Fact]
+    public void Every_nnz_function_called_with_null_for_each_optional_parameter_never_sends_null_text_to_the_host()
+    {
+        List<string> hostCalls = [];
+        Engine engine = RecordingEngine(hostCalls);
+        List<string> offenders = [];
+        int optionalCalls = 0;
+
+        foreach ((string path, string line) in DeclaredNnzMethodLines(ScriptDts()))
+        {
+            List<DeclaredParameter> parameters = DeclaredParameters(
+                line,
+                MethodMember().Match(line).Length - 1
+            );
+            if (!parameters.Any(p => p.Optional))
+                continue;
+
+            string arguments = string.Join(
+                ", ",
+                parameters.Select(p => p.Optional ? "null" : PlaceholderFor(p.Type))
+            );
+            hostCalls.Clear();
+            optionalCalls++;
+            try
+            {
+                engine.Evaluate($"nnz.{path}({arguments})");
+            }
+            catch (Exception)
+            {
+                // A placeholder the function cannot use may throw; only what reached the host matters.
+            }
+
+            foreach (string call in hostCalls)
+            {
+                string[] sent =
+                    System.Text.Json.JsonSerializer.Deserialize<string[]>(
+                        call[(call.IndexOf(' ') + 1)..]
+                    ) ?? [];
+                if (
+                    sent.Any(a =>
+                        a is "null" or "undefined" or "NaN"
+                        || a.Contains("[object", StringComparison.Ordinal)
+                    )
+                )
+                    offenders.Add($"{path}({arguments}) sent the host: {call}");
+            }
+        }
+
+        optionalCalls
+            .Should()
+            .BeGreaterThan(5, "the walk must reach the optional-parameter methods");
+        offenders.Should().BeEmpty(string.Join("\n", offenders));
+    }
+
+    // The editor shows one parameter name; a script author writing against it must reach the same argument the
+    // wrapper reads, and a call that passes only the required ones must not leak "undefined" into the host.
+    [Fact]
+    public void Every_nnz_function_has_the_parameter_names_the_editor_shows_and_tolerates_optional_omission()
+    {
+        List<string> hostArguments = [];
+        Engine engine = RecordingEngine(hostArguments);
+
+        List<string> sources = Names(
+            engine,
+            """
+            (function walk(o, p, out) {
+              Object.keys(o).forEach(function (k) {
+                var v = o[k];
+                if (typeof v === 'function') out.push(p + k + String.fromCharCode(2) + v.toString());
+                else if (v && typeof v === 'object') walk(v, p + k + '.', out);
+              });
+              return out;
+            })(nnz, '', [])
+            """
+        );
+        Dictionary<string, string> runtime = sources.ToDictionary(
+            s => s.Split('\u0002')[0],
+            s => s.Split('\u0002')[1],
+            StringComparer.Ordinal
+        );
+        Dictionary<string, string> declared = DeclaredNnzMethodLines(ScriptDts());
+
+        runtime.Should().ContainKey("api.tts.speak");
+        List<string> mismatches = [];
+        foreach ((string path, string line) in declared)
+        {
+            if (!runtime.TryGetValue(path, out string? source))
+                continue;
+
+            Match signature = FunctionSignature().Match(source);
+            if (!signature.Success)
+            {
+                mismatches.Add($"{path}: the runtime source is unreadable: {source}");
+                continue;
+            }
+
+            List<string> runtimeNames =
+            [
+                .. signature
+                    .Groups[1]
+                    .Value.Split(
+                        ',',
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                    ),
+            ];
+            List<DeclaredParameter> parameters = DeclaredParameters(
+                line,
+                MethodMember().Match(line).Length - 1
+            );
+            List<string> declaredNames = [.. parameters.Select(p => p.Name)];
+            if (!runtimeNames.SequenceEqual(declaredNames, StringComparer.Ordinal))
+                mismatches.Add(
+                    $"{path}: runtime ({string.Join(", ", runtimeNames)}) vs editor ({string.Join(", ", declaredNames)})"
+                );
+
+            string arguments = string.Join(
+                ", ",
+                parameters.Where(p => !p.Optional).Select(p => PlaceholderFor(p.Type))
+            );
+            hostArguments.Clear();
+            try
+            {
+                engine.Evaluate($"nnz.{path}({arguments})");
+            }
+            catch (Exception)
+            {
+                // A placeholder the function cannot use may throw; only what reached the host matters.
+            }
+
+            foreach (
+                string sent in hostArguments.Where(h =>
+                    h.Contains("undefined", StringComparison.Ordinal)
+                    || h.Contains("NaN", StringComparison.Ordinal)
+                    || h.Contains("[object", StringComparison.Ordinal)
+                )
+            )
+                mismatches.Add($"{path}({arguments}) sent the host: {sent}");
+        }
+
+        mismatches.Should().BeEmpty(string.Join("\n", mismatches));
+    }
 }
