@@ -44,6 +44,21 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `Result.Value` unchecked. Done-when: each has a test that failed first; a left-out argument means the
   documented default or a clear script error, never the text "undefined"; egress over the cap is refused with a
   clear error; a script can stop its pipeline through a typed SDK call; the editor underlines the error line.
+- **S-OVERLAY-RELIABILITY** Checked against the code 2026-10-03. A muted sound plays at full volume
+  (`OverlaySdkController.cs:209`, `Number(volume) || 100`). TTS pause then resume adds a second `ended`
+  listener, so the next line is lost and two voices overlap (`:236-265`). Clone and install say "installed"
+  when the widget build failed (`WidgetService.cs:238, 344, 355`). A failed Vue compiler engine start leaks a
+  permit and after two failures every compile hangs (`JintVueSfcCompiler.cs:90, 141-145`). esbuild runs with
+  no timeout (`ProcessRunner.cs:44-64`). A duplicate gallery submit is a raw database error
+  (`WidgetGalleryService.cs:145-180`). Sample ids change on every restart (`ReflectionSampleGenerator.cs:144`).
+  Done-when: each has a test that failed first and now passes.
+- **S-EDITOR-RELIABILITY** Checked against the code 2026-10-03. Close and Esc in the code editor throw away
+  unsaved edits with no question (`editor.js:1313, 1363-1368`). The Problems side bar lists each `.vue` error
+  twice (`editor.js:575`). In the dashboard: the widget settings form drops the help text of slider, select
+  and multiselect fields and lets a custom schema set step 0 (`WidgetSettingsForms.kt:314-384`); the gallery
+  says "No gallery widgets available" while it reloads, and a failed "Load more" is silent
+  (`WidgetsScreen.kt:1673-1675, 1763`); `strings.xml` still says "Lua scripts" (en :1922, nl :1919).
+  Done-when: each has a test that failed first and now passes.
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
