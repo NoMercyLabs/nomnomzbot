@@ -56,11 +56,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   descriptions in `FirstPartyWidgetCatalogue.cs` are English literals in the same way. Done-when: the
   editor takes its labels from the app's resource strings (en and nl) in the open message, the gallery
   names and descriptions resolve through resource keys, and a test fails when a bundle label has no key.
-- **S-FLAKE-CONDUIT-HANDOVER** Full Infrastructure suite at 581272f0b (local slice-check, 2026-10-03):
-  `TwitchEventSubConduitHandoverTests.Notifications_still_waiting_when_the_old_instance_stops_are_
-  processed_by_its_successor` saw inbox count 1, expected 0. It passed 20 of 20, three times, when run
-  alone, so it fails only under full-suite load. Done-when: the cause is found and fixed (not
-  retried), and the test passes 200 repeated runs alongside the full suite's parallel load.
 ---
 
 ## OWNER PUNCH LIST 2026-09-10 — remaining follow-ups
