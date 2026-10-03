@@ -56,15 +56,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   declare `Fields`. Plan: one generated `NnzActionParams` map from the action descriptors, a generic
   invoke on both sides; an action that reads params it does not declare gets its `Fields`. Done-when:
   every registered action type has a typed member, and `invoke('obs_switch_scene', {})` is a type error.
-- **S-SDK-TEST-FIRE** The preview window is the test bench (owner, 2026-10-02). A script test run can
-  fire every trigger the script can have (each event-catalogue event with a realistic sample payload,
-  command args, viewer roles) and shows EVERY outward effect it would cause — chat messages, OBS calls,
-  TTS, music, widget emits, storage writes, scheduled pipelines, variables out — in order, as a
-  timeline, without sending anything live. Shipped: every trigger kind offers a sample built by its
-  live builder (Twitch alerts, command, reward, timer, OBS, custom data, webhook: 0c3cb33a7,
-  2ae82ca13), the panel shows one ordered timeline (4354d0999), and a custom widget declares its
-  settings in `settings.json` (0f99a9fe7, 928862b83). Left: the done-when test. Done-when: an E2E test fires a follow at a script that chats + switches an OBS scene + emits to a
-  widget and asserts all three rows.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
