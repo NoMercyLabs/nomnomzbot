@@ -61,6 +61,15 @@ public sealed class CaptureScriptHostBridge(
             return (key, args, ct) => _lastCallWasCaptured ? null : readInner(key, args, ct);
         }
 
+        // actions.invoke:<type> runs a real pipeline action, so a test run only records it and reports a success.
+        if (ScriptActionInvoker.ActionTypeOf(capabilityKey) is not null)
+            return (key, args, _) =>
+            {
+                _lastCallWasCaptured = true;
+                sink.Record(key, args);
+                return ScriptActionInvoker.CapturedResultJson;
+            };
+
         if (!CapturedReturns.TryGetValue(capabilityKey, out string? cannedReturn))
         {
             HostImportDelegate real = inner.Resolve(capabilityKey); // read capability — run for real

@@ -12,6 +12,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
@@ -71,7 +72,8 @@ public sealed class ScriptHostBridge(
     ITtsConfigService ttsConfig,
     IScheduledPipelineService scheduledPipelines,
     IApplicationDbContext db,
-    ISevenTvUserPaintResolver paintResolver
+    ISevenTvUserPaintResolver paintResolver,
+    IOwnerActionService ownerActions
 ) : IScriptHostBridge
 {
     private const int MaxResponseBytes = 256 * 1024;
@@ -117,7 +119,29 @@ public sealed class ScriptHostBridge(
         return returned;
     }
 
-    private HostImportDelegate Dispatch(string capabilityKey) =>
+    private HostImportDelegate Dispatch(string capabilityKey)
+    {
+        // One gate key per action type ("actions.invoke:<type>"): the type is part of the key, not an argument.
+        if (ScriptActionInvoker.ActionTypeOf(capabilityKey) is { } actionType)
+            return (_, args, ct) => InvokeAction(actionType, args, ct);
+        return DispatchFixed(capabilityKey);
+    }
+
+    private string? InvokeAction(
+        string actionType,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        (string json, ScriptHostError? error) = new ScriptActionInvoker(
+            broadcasterId,
+            ownerActions
+        ).Invoke(actionType, args, ct);
+        _lastError = error;
+        return json;
+    }
+
+    private HostImportDelegate DispatchFixed(string capabilityKey) =>
         capabilityKey switch
         {
             "chat.send" => SendChat,

@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Newtonsoft.Json.Linq;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -63,7 +64,8 @@ public sealed class ScriptHostBridgeLastErrorTests
             Substitute.For<ITtsConfigService>(),
             Substitute.For<IScheduledPipelineService>(),
             AuthTestBuilder.NewContext(),
-            Substitute.For<ISevenTvUserPaintResolver>()
+            Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<IOwnerActionService>()
         );
 
     private static string? Call(ScriptHostBridge bridge, string key, params string[] args) =>

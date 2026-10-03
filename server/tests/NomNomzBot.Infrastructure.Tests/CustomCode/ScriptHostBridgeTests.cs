@@ -118,7 +118,8 @@ public sealed class ScriptHostBridgeTests
             ttsConfig ?? Substitute.For<ITtsConfigService>(),
             scheduler ?? Substitute.For<IScheduledPipelineService>(),
             db ?? AuthTestBuilder.NewContext(),
-            paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>()
+            paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
         );
 
     private sealed class StubHandler(string body) : HttpMessageHandler

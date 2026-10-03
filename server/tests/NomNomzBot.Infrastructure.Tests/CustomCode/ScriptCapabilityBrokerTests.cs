@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Platform.Services;
@@ -26,7 +27,10 @@ public sealed class ScriptCapabilityBrokerTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000c001");
 
-    private static ScriptCapabilityBroker Build(bool featureEnabled = true)
+    private static ScriptCapabilityBroker Build(
+        bool featureEnabled = true,
+        params string[] actionTypes
+    )
     {
         // The broker gates on the per-channel Custom Code feature toggle (IFeatureService), NOT a platform
         // rollout FeatureFlag — the switch an owner actually flips must be the one that admits scripts.
@@ -38,7 +42,14 @@ public sealed class ScriptCapabilityBrokerTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(featureEnabled);
-        return new(features);
+        List<ICommandAction> actions = [];
+        foreach (string actionType in actionTypes)
+        {
+            ICommandAction action = Substitute.For<ICommandAction>();
+            action.ActionType.Returns(actionType);
+            actions.Add(action);
+        }
+        return new(features, actions);
     }
 
     [Fact]
@@ -226,6 +237,65 @@ public sealed class ScriptCapabilityBrokerTests
         Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
             Channel,
             ["schedule.pipeline"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task One_gate_key_per_registered_action_type_is_granted()
+    {
+        ScriptCapabilityBroker sut = Build(true, "tts_synthesize", "send_message");
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["actions.invoke:tts_synthesize"]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Granted.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Match<ScriptCapabilityDescriptor>(d =>
+                d.Key == "actions.invoke:tts_synthesize" && d.SideEffecting
+            );
+    }
+
+    [Fact]
+    public async Task An_action_gate_for_an_unregistered_action_type_is_forbidden()
+    {
+        ScriptCapabilityBroker sut = Build(true, "tts_synthesize");
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["actions.invoke:no_such_action"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task An_action_gate_is_forbidden_when_the_feature_is_gated_off()
+    {
+        ScriptCapabilityBroker sut = Build(false, "tts_synthesize");
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["actions.invoke:tts_synthesize"]
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task The_bare_actions_invoke_key_without_a_type_is_forbidden()
+    {
+        ScriptCapabilityBroker sut = Build(true, "tts_synthesize");
+
+        Result<ScriptCapabilityGrant> result = await sut.BuildGrantAsync(
+            Channel,
+            ["actions.invoke"]
         );
 
         result.ErrorCode.Should().Be("FORBIDDEN");

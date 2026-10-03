@@ -19,6 +19,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -118,7 +119,17 @@ public sealed class WidgetActionServiceTests : IDisposable
     }
 
     private WidgetActionService Service(WidgetTestDbContext db) =>
-        new(db, [_action], _authorization, _rateLimiter, NullLogger<WidgetActionService>.Instance);
+        new(
+            db,
+            new OwnerActionService(
+                db,
+                [_action],
+                _authorization,
+                _rateLimiter,
+                NullLogger<OwnerActionService>.Instance
+            ),
+            _rateLimiter
+        );
 
     private static WidgetActionRequest Request(
         Guid widgetId,
@@ -291,10 +302,8 @@ public sealed class WidgetActionServiceTests : IDisposable
     ) =>
         new(
             db,
-            [],
-            Substitute.For<IActionAuthorizationService>(),
-            new InMemoryRateLimiterPartitionStore(clock),
-            NullLogger<WidgetActionService>.Instance
+            Substitute.For<IOwnerActionService>(),
+            new InMemoryRateLimiterPartitionStore(clock)
         );
 
     [Fact]

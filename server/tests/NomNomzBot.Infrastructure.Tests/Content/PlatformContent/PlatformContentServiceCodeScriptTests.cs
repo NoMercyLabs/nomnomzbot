@@ -449,7 +449,8 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<Application.Tts.Services.ITtsConfigService>(),
             Substitute.For<Application.Commands.Services.IScheduledPipelineService>(),
             db,
-            Substitute.For<Application.Chat.Services.ISevenTvUserPaintResolver>()
+            Substitute.For<Application.Chat.Services.ISevenTvUserPaintResolver>(),
+            Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
         );
         return new(
             db,
