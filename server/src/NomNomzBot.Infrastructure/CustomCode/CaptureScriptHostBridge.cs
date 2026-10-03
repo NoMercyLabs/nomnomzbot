@@ -49,13 +49,40 @@ public sealed class CaptureScriptHostBridge(
         ["schedule.pipeline"] = "ok",
     };
 
+    // A captured write never reaches the real bridge, so the inner "last error" slot still holds the call before
+    // it. This flag makes "last.error" report null after a captured write, like a successful live call would.
+    private bool _lastCallWasCaptured;
+
     public HostImportDelegate Resolve(string capabilityKey)
     {
+        if (capabilityKey == ScriptHostErrorCodes.LastErrorKey)
+        {
+            HostImportDelegate readInner = inner.Resolve(capabilityKey);
+            return (key, args, ct) => _lastCallWasCaptured ? null : readInner(key, args, ct);
+        }
+
+        // actions.invoke:<type> runs a real pipeline action, so a test run only records it and reports a success.
+        if (ScriptActionInvoker.ActionTypeOf(capabilityKey) is not null)
+            return (key, args, _) =>
+            {
+                _lastCallWasCaptured = true;
+                sink.Record(key, args);
+                return ScriptActionInvoker.CapturedResultJson;
+            };
+
         if (!CapturedReturns.TryGetValue(capabilityKey, out string? cannedReturn))
-            return inner.Resolve(capabilityKey); // read capability — run for real
+        {
+            HostImportDelegate real = inner.Resolve(capabilityKey); // read capability — run for real
+            return (key, args, ct) =>
+            {
+                _lastCallWasCaptured = false;
+                return real(key, args, ct);
+            };
+        }
 
         return (key, args, ct) =>
         {
+            _lastCallWasCaptured = true;
             sink.Record(key, args);
             if (key is "chat.send" or "chat.reply")
                 sink.AddChatOutput(args.Count > 0 ? args[0] : string.Empty);

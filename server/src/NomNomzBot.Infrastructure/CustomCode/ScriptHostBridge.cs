@@ -12,6 +12,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
@@ -71,7 +72,8 @@ public sealed class ScriptHostBridge(
     ITtsConfigService ttsConfig,
     IScheduledPipelineService scheduledPipelines,
     IApplicationDbContext db,
-    ISevenTvUserPaintResolver paintResolver
+    ISevenTvUserPaintResolver paintResolver,
+    IOwnerActionService ownerActions
 ) : IScriptHostBridge
 {
     private const int MaxResponseBytes = 256 * 1024;
@@ -88,7 +90,58 @@ public sealed class ScriptHostBridge(
     // How many 100-row pages a name/title lookup will walk before giving up (bounded-and-allow).
     private const int MaxLookupPages = 10;
 
-    public HostImportDelegate Resolve(string capabilityKey) =>
+    // The last failed host call's reason (null after a success). Every call clears it first, so it only ever
+    // describes the LAST call; reading it through "last.error" is itself not a call and leaves it untouched.
+    private ScriptHostError? _lastError;
+
+    public HostImportDelegate Resolve(string capabilityKey)
+    {
+        if (capabilityKey == ScriptHostErrorCodes.LastErrorKey)
+            return (_, _, _) => _lastError?.ToJson();
+
+        HostImportDelegate handler = Dispatch(capabilityKey);
+        return (key, args, ct) =>
+        {
+            _lastError = null;
+            return handler(key, args, ct);
+        };
+    }
+
+    private string? Fail(string code, string message, string? returned = null)
+    {
+        _lastError = new(code, message);
+        return returned;
+    }
+
+    private string? Fail(Result failure, string? returned = null)
+    {
+        _lastError = ScriptHostError.FromResult(failure);
+        return returned;
+    }
+
+    private HostImportDelegate Dispatch(string capabilityKey)
+    {
+        // One gate key per action type ("actions.invoke:<type>"): the type is part of the key, not an argument.
+        if (ScriptActionInvoker.ActionTypeOf(capabilityKey) is { } actionType)
+            return (_, args, ct) => InvokeAction(actionType, args, ct);
+        return DispatchFixed(capabilityKey);
+    }
+
+    private string? InvokeAction(
+        string actionType,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        (string json, ScriptHostError? error) = new ScriptActionInvoker(
+            broadcasterId,
+            ownerActions
+        ).Invoke(actionType, args, ct);
+        _lastError = error;
+        return json;
+    }
+
+    private HostImportDelegate DispatchFixed(string capabilityKey) =>
         capabilityKey switch
         {
             "chat.send" => SendChat,
@@ -151,14 +204,17 @@ public sealed class ScriptHostBridge(
         string subject =
             args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId;
         if (string.IsNullOrWhiteSpace(subject))
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "user.get needs a user and the run has no triggering user."
+            );
 
         // Resolve by login / Twitch id / internal Guid — the SAME converger stats.viewer and tts.voice.*
         // use. Scripts target @mentions (logins), so a Guid-only lookup made every targeting script
         // (!stats @u, voice swap, ratio) fail to find its target; this makes the whole SDK consistent.
         User? user = ResolveViewerUser(subject, ct);
         if (user is null)
-            return null;
+            return Fail(ScriptHostErrorCodes.NotFound, $"No user matches '{subject}'.");
 
         // The 7TV "paint" this chatter wears, folded onto the SAME profile response rather than a second
         // capability key — a script that wants "who is this and how do they render" makes one round trip, not
@@ -196,7 +252,10 @@ public sealed class ScriptHostBridge(
             || !Uri.TryCreate(args[0], UriKind.Absolute, out Uri? uri)
             || uri.Scheme != Uri.UriSchemeHttps
         )
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "http.fetch needs an absolute https URL."
+            );
 
         try
         {
@@ -208,7 +267,10 @@ public sealed class ScriptHostBridge(
                 .GetAwaiter()
                 .GetResult();
             if (!response.IsSuccessStatusCode)
-                return null;
+                return Fail(
+                    ScriptHostErrorCodes.UpstreamFailed,
+                    $"The server answered {(int)response.StatusCode}."
+                );
 
             using System.IO.Stream body = response.Content.ReadAsStream(ct);
             byte[] buffer = new byte[MaxResponseBytes];
@@ -223,7 +285,11 @@ public sealed class ScriptHostBridge(
         }
         catch
         {
-            return null; // blocked egress / timeout / transport fault — fail closed
+            // blocked egress / timeout / transport fault — fail closed
+            return Fail(
+                ScriptHostErrorCodes.UpstreamFailed,
+                "The request was blocked or failed before a response arrived."
+            );
         }
     }
 
@@ -234,7 +300,11 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return "false";
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "music.queue needs a song title, artist or link.",
+                "false"
+            );
 
         // The music service takes the raw query (title/artist/link) and resolves + enqueues it host-side,
         // attributing the request to the trigger user; the bot's provider token never reaches the guest.
@@ -249,7 +319,7 @@ public sealed class ScriptHostBridge(
             )
             .GetAwaiter()
             .GetResult();
-        return queued.IsSuccess ? "true" : "false";
+        return queued.IsSuccess ? "true" : Fail(queued, "false");
     }
 
     private string? ReadBalance(
@@ -266,19 +336,22 @@ public sealed class ScriptHostBridge(
             ? userGuid
             : ResolveViewerUser(subject, ct)?.Id;
         if (viewerUserId is not { } viewerId)
-            return "0";
+            return Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{subject}'.", "0");
 
         Result<long> balance = currencyService
             .GetBalanceAsync(broadcasterId, viewerId, ct)
             .GetAwaiter()
             .GetResult();
-        return balance.IsSuccess ? balance.Value.ToString() : "0";
+        return balance.IsSuccess ? balance.Value.ToString() : Fail(balance, "0");
     }
 
     private string? SendChat(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                $"{capabilityKey} needs a non-empty message."
+            );
 
         // The guest holds only the Guid; the Helix provider resolves the Twitch channel id + bot token host-side.
         chatProvider.SendMessageAsync(broadcasterId, args[0], ct).GetAwaiter().GetResult();
@@ -294,7 +367,10 @@ public sealed class ScriptHostBridge(
         if (replyTo is null)
             return SendChat(capabilityKey, args, ct);
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "chat.reply needs a non-empty message."
+            );
 
         bool threaded = chatProvider
             .SendReplyAsync(broadcasterId, replyTo.MessageId, args[0], ct)
@@ -319,7 +395,7 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(ScriptHostErrorCodes.InvalidArgument, "storage.get needs a key.");
         return storageService.GetAsync(broadcasterId, args[0], ct).GetAwaiter().GetResult();
     }
 
@@ -330,7 +406,10 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count < 2 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "storage.set needs a key and a value."
+            );
 
         // The service enforces the bounds (key length, 64 KB value, 200-keys-per-channel); an over-cap
         // write is a typed failure host-side, surfaced to the guest as null — fail-closed, nothing written.
@@ -338,7 +417,7 @@ public sealed class ScriptHostBridge(
             .SetAsync(broadcasterId, args[0], args[1], ct)
             .GetAwaiter()
             .GetResult();
-        return set.IsSuccess ? "ok" : null;
+        return set.IsSuccess ? "ok" : Fail(set);
     }
 
     private string? StorageDelete(
@@ -348,13 +427,13 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(ScriptHostErrorCodes.InvalidArgument, "storage.delete needs a key.");
 
         Result deleted = storageService
             .DeleteAsync(broadcasterId, args[0], ct)
             .GetAwaiter()
             .GetResult();
-        return deleted.IsSuccess ? "ok" : null;
+        return deleted.IsSuccess ? "ok" : Fail(deleted);
     }
 
     private string? StorageList(
@@ -374,7 +453,7 @@ public sealed class ScriptHostBridge(
     private string? Speak(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(ScriptHostErrorCodes.InvalidArgument, "tts.speak needs the text to speak.");
         string? voiceOverride =
             args.Count > 1 && !string.IsNullOrWhiteSpace(args[1]) ? args[1] : null;
         // Per-utterance SSML prosody overrides (e.g. a script's "evil wizard" voice) — a one-off flourish for
@@ -404,7 +483,7 @@ public sealed class ScriptHostBridge(
             .GetAwaiter()
             .GetResult();
         if (outcome.IsFailure)
-            return null;
+            return Fail(outcome);
 
         return JsonConvert.SerializeObject(
             new
@@ -431,20 +510,29 @@ public sealed class ScriptHostBridge(
             || string.IsNullOrWhiteSpace(args[0])
             || string.IsNullOrWhiteSpace(args[1])
         )
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "widget.emit needs a widget and an event name."
+            );
 
         // Fail-closed, mirroring the widget_event pipeline action: the widget must exist AND be enabled in
         // THIS tenant (the service scopes by broadcaster, so another channel's widget resolves as not-found).
         WidgetDetail? widget = ResolveWidget(args[0], ct);
-        if (widget is null || !widget.IsEnabled)
-            return null;
+        if (widget is null)
+            return Fail(ScriptHostErrorCodes.NotFound, $"No widget matches '{args[0]}'.");
+        if (!widget.IsEnabled)
+            return Fail(ScriptHostErrorCodes.Refused, $"The widget '{widget.Name}' is turned off.");
 
         object? data = null;
         if (args.Count > 2 && !string.IsNullOrWhiteSpace(args[2]))
         {
             data = ParseDataJson(args[2]);
             if (data is null)
-                return null; // malformed payload — refuse rather than push garbage to the overlay
+                // malformed payload — refuse rather than push garbage to the overlay
+                return Fail(
+                    ScriptHostErrorCodes.InvalidArgument,
+                    "widget.emit data is not valid JSON."
+                );
         }
 
         widgetNotifier
@@ -461,11 +549,14 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "reward.get needs a reward id or title."
+            );
 
         RewardDetail? reward = ResolveReward(args[0], ct);
         if (reward is null)
-            return null;
+            return Fail(ScriptHostErrorCodes.NotFound, $"No reward matches '{args[0]}'.");
 
         return JsonConvert.SerializeObject(
             new
@@ -487,17 +578,28 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count < 2 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "reward.update needs a reward and a patch."
+            );
 
         RewardDetail? reward = ResolveReward(args[0], ct);
+        if (reward is null)
+            return Fail(ScriptHostErrorCodes.NotFound, $"No reward matches '{args[0]}'.");
         // Only bot-manageable rewards may be mutated from a script (Twitch only lets our client_id patch
         // rewards it created; an external reward is read-only) — fail closed before touching the service.
-        if (reward is null || !reward.IsManageable)
-            return null;
+        if (!reward.IsManageable)
+            return Fail(
+                ScriptHostErrorCodes.Refused,
+                $"The reward '{reward.Title}' was not created by the bot and is read-only."
+            );
 
         UpdateRewardRequest? patch = ReadRewardPatch(args[1]);
         if (patch is null)
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "reward.update patch is not a valid JSON object."
+            );
 
         // The rewards service is the ONE update path (same as the dashboard), so the Helix push + local
         // persistence happen exactly as they do there.
@@ -505,7 +607,7 @@ public sealed class ScriptHostBridge(
             .UpdateAsync(broadcasterId.ToString(), reward.Id, patch, ct)
             .GetAwaiter()
             .GetResult();
-        return updated.IsSuccess ? "ok" : null;
+        return updated.IsSuccess ? "ok" : Fail(updated);
     }
 
     private string? GetViewerStats(
@@ -554,7 +656,7 @@ public sealed class ScriptHostBridge(
             ct
         );
         if (platformUserId is null)
-            return null;
+            return Fail(ScriptHostErrorCodes.NotFound, "No viewer matches that user.");
 
         // NOT_FOUND = the viewer uses the channel default — the guest sees null, the honest "no assignment".
         Result<UserTtsVoiceDto> assigned = ttsConfig
@@ -562,7 +664,7 @@ public sealed class ScriptHostBridge(
             .GetAwaiter()
             .GetResult();
         if (assigned.IsFailure)
-            return null;
+            return Fail(assigned);
 
         return JsonConvert.SerializeObject(
             new
@@ -580,10 +682,10 @@ public sealed class ScriptHostBridge(
     )
     {
         if (args.Count == 0 || string.IsNullOrWhiteSpace(args[0]))
-            return null;
+            return Fail(ScriptHostErrorCodes.InvalidArgument, "tts.voice.set needs a viewer.");
         string? platformUserId = ResolveViewerPlatformId(args[0], ct);
         if (platformUserId is null)
-            return null;
+            return Fail(ScriptHostErrorCodes.NotFound, $"No viewer matches '{args[0]}'.");
 
         // An empty voice id clears the assignment back to the channel default (the !voice clear semantics).
         string voiceId = args.Count > 1 ? args[1] : string.Empty;
@@ -593,7 +695,7 @@ public sealed class ScriptHostBridge(
                 .ClearUserVoiceAsync(broadcasterId, platformUserId, ct)
                 .GetAwaiter()
                 .GetResult();
-            return cleared.IsSuccess ? "ok" : null;
+            return cleared.IsSuccess ? "ok" : Fail(cleared);
         }
 
         // The service is the ONE assignment path (same as the dashboard/mod override) — it validates the
@@ -602,7 +704,7 @@ public sealed class ScriptHostBridge(
             .SetUserVoiceAsync(broadcasterId, platformUserId, new() { VoiceId = voiceId }, ct)
             .GetAwaiter()
             .GetResult();
-        return set.IsSuccess ? "ok" : null;
+        return set.IsSuccess ? "ok" : Fail(set);
     }
 
     private string? SchedulePipeline(
@@ -619,7 +721,10 @@ public sealed class ScriptHostBridge(
             || string.IsNullOrWhiteSpace(args[0])
             || !int.TryParse(args[1], out int delaySeconds)
         )
-            return null;
+            return Fail(
+                ScriptHostErrorCodes.InvalidArgument,
+                "schedule.pipeline needs a pipeline name and a whole number of seconds."
+            );
 
         Dictionary<string, string>? variables = new(StringComparer.OrdinalIgnoreCase);
         if (args.Count > 2 && !string.IsNullOrWhiteSpace(args[2]))
@@ -630,10 +735,17 @@ public sealed class ScriptHostBridge(
             }
             catch (JsonException)
             {
-                return null; // malformed variables payload — refuse rather than schedule garbage
+                // malformed variables payload — refuse rather than schedule garbage
+                return Fail(
+                    ScriptHostErrorCodes.InvalidArgument,
+                    "schedule.pipeline variables are not a valid JSON object."
+                );
             }
             if (variables is null)
-                return null;
+                return Fail(
+                    ScriptHostErrorCodes.InvalidArgument,
+                    "schedule.pipeline variables are not a valid JSON object."
+                );
         }
 
         string? dedupeKey = args.Count > 3 && !string.IsNullOrWhiteSpace(args[3]) ? args[3] : null;
@@ -651,7 +763,7 @@ public sealed class ScriptHostBridge(
             )
             .GetAwaiter()
             .GetResult();
-        return scheduled.IsSuccess ? "ok" : null;
+        return scheduled.IsSuccess ? "ok" : Fail(scheduled);
     }
 
     // Resolves a viewer reference (internal Guid, Twitch id, or login) to the User row — the same

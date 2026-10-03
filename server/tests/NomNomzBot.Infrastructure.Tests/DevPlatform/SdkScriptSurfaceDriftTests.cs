@@ -13,6 +13,7 @@ using FluentAssertions;
 using Jint;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform;
+using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.DevPlatform;
 
@@ -81,7 +82,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
         return surface;
     }
 
-    private static string ScriptDts() =>
+    internal static string ScriptDts() =>
         new SdkTypeEmitter(new EventCatalog()).EmitTypeScript(SdkContext.Script);
 
     /// <summary>Every <c>declare const &lt;name&gt;: { … }</c> block in the emitted d.ts, with its member names.</summary>
@@ -281,7 +282,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
     }
 
     /// <summary>Each <c>interface X {</c> and <c>declare const x: {</c> block, with its top-level member lines.</summary>
-    private static Dictionary<string, List<string>> TypeBlocks(string dts)
+    internal static Dictionary<string, List<string>> TypeBlocks(string dts)
     {
         Dictionary<string, List<string>> blocks = new(StringComparer.Ordinal);
         string? open = null;
@@ -364,4 +365,65 @@ public sealed partial class SdkScriptSurfaceDriftTests
                 "each nnz function's d.ts signature must take the parameters the bootstrap reads"
             );
     }
+
+    [Fact]
+    public void The_declared_last_error_codes_are_exactly_the_codes_the_host_can_raise()
+    {
+        Match union = Regex.Match(
+            ScriptDts(),
+            @"interface NnzApiError \{[^}]*?\bcode:\s*([^;]+);",
+            RegexOptions.Singleline
+        );
+        union.Success.Should().BeTrue("the script d.ts must declare NnzApiError.code");
+
+        string[] declared = [.. union.Groups[1].Value.Split('|').Select(c => c.Trim().Trim('\''))];
+        string[] raised =
+        [
+            .. typeof(ScriptHostErrorCodes)
+                .GetFields()
+                .Where(f => f.IsLiteral && f.Name != nameof(ScriptHostErrorCodes.LastErrorKey))
+                .Select(f => (string)f.GetRawConstantValue()!),
+        ];
+
+        raised.Should().HaveCount(6);
+        declared.Should().BeEquivalentTo(raised);
+    }
+
+    [Fact]
+    public void Every_script_surface_member_has_a_jsdoc()
+    {
+        List<string> missing = [];
+        int total = 0;
+
+        // Only the runtime-authored half: the generated event payload interfaces are documented by their own
+        // emitter, not by SdkRuntimeSurface.
+        string surface =
+            SdkRuntimeSurface.ScriptApiInterfaces() + "\n" + SdkRuntimeSurface.ScriptGlobals();
+
+        foreach ((string block, List<string> lines) in TypeBlocks(surface))
+        {
+            string? previous = null;
+            foreach (string line in lines.Where(l => l.Trim().Length > 0))
+            {
+                Match member = DocumentableMember().Match(line);
+                if (member.Success)
+                {
+                    total++;
+                    if (
+                        previous is null
+                        || !previous.TrimEnd().EndsWith("*/", StringComparison.Ordinal)
+                    )
+                        missing.Add($"{block}.{member.Groups[1].Value}");
+                }
+                previous = line;
+            }
+        }
+
+        string report =
+            $"{total - missing.Count} of {total} members are documented; missing: {string.Join(", ", missing)}";
+        missing.Count.Should().Be(0, report);
+    }
+
+    [GeneratedRegex(@"^  (?:readonly\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*[?(<:]")]
+    private static partial Regex DocumentableMember();
 }

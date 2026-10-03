@@ -10,6 +10,7 @@
 
 using System.Globalization;
 using FluentAssertions;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
@@ -523,5 +524,126 @@ public sealed class NnzSdkBootstrapTests
         compilation
             .DeclaredCapabilities.Should()
             .BeEquivalentTo("stats.viewer", "tts.voice.get", "tts.voice.set");
+    }
+
+    [Fact]
+    public async Task LastError_returns_the_parsed_error_without_a_grant_or_a_host_call_charge()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "last.error" ? "{\"code\":\"not_found\",\"message\":\"no such user\"}" : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "var e = nnz.lastError; bot.send(e.code + '|' + e.message);",
+            Grant(), // nothing granted
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.ChatOutput.Should().Be("not_found|no such user");
+        r.HostCallCount.Should().Be(0);
+        bridge.Calls.Should().ContainSingle().Which.Key.Should().Be("last.error");
+    }
+
+    [Fact]
+    public async Task LastError_is_null_when_the_host_reports_no_error()
+    {
+        ScriptExecutionOutcomeResult r = await Run(
+            "bot.send(String(nnz.lastError === null));",
+            Grant(),
+            new RecordingBridge((_, _) => null)
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.ChatOutput.Should().Be("true");
+    }
+
+    [Fact]
+    public async Task Api_actions_invoke_sends_the_type_in_the_key_and_params_and_variables_as_json()
+    {
+        RecordingBridge bridge = new(
+            (key, _) =>
+                key == "actions.invoke:tts_synthesize"
+                    ? "{\"success\":true,\"output\":\"ok\",\"error\":null,\"variables\":{\"a\":\"1\"}}"
+                    : null
+        );
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "var res = nnz.api.actions.invoke('tts_synthesize', {text:'x'}, {a:1}); bot.send(res.success + '|' + res.output + '|' + res.variables.a);",
+            Grant("actions.invoke:tts_synthesize"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.ChatOutput.Should().Be("true|ok|1");
+        bridge.Calls.Should().ContainSingle();
+        bridge.Calls[0].Key.Should().Be("actions.invoke:tts_synthesize");
+        bridge.Calls[0].Args.Should().Equal("{\"text\":\"x\"}", "{\"a\":1}");
+    }
+
+    [Fact]
+    public async Task Api_actions_invoke_omits_absent_arguments_and_keeps_the_variables_slot()
+    {
+        RecordingBridge bare = new((_, _) => "{\"success\":true}");
+        await Run(
+            "nnz.api.actions.invoke('tts_synthesize');",
+            Grant("actions.invoke:tts_synthesize"),
+            bare
+        );
+        bare.Calls.Should().ContainSingle().Which.Args.Should().BeEmpty();
+
+        RecordingBridge varsOnly = new((_, _) => "{\"success\":true}");
+        await Run(
+            "nnz.api.actions.invoke('tts_synthesize', undefined, {a:1});",
+            Grant("actions.invoke:tts_synthesize"),
+            varsOnly
+        );
+        varsOnly.Calls.Should().ContainSingle().Which.Args.Should().Equal("", "{\"a\":1}");
+    }
+
+    [Fact]
+    public async Task Api_actions_invoke_is_denied_for_a_type_that_is_not_granted()
+    {
+        RecordingBridge bridge = new((_, _) => "{\"success\":true}");
+
+        ScriptExecutionOutcomeResult r = await Run(
+            "nnz.api.actions.invoke('other_action');",
+            Grant("actions.invoke:tts_synthesize"),
+            bridge
+        );
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Denied);
+        bridge.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Compile_declares_the_action_type_for_both_quote_styles()
+    {
+        ScriptCompilation compilation = (
+            await new JintScriptExecutor().CompileAsync(
+                """
+                nnz.api.actions.invoke('tts_synthesize', {text: 'x'});
+                nnz.api.actions.invoke( "send_message" );
+                """
+            )
+        ).Value;
+
+        compilation
+            .DeclaredCapabilities.Should()
+            .BeEquivalentTo("actions.invoke:tts_synthesize", "actions.invoke:send_message");
+    }
+
+    [Theory]
+    [InlineData("nnz.api.actions.invoke(kind);")]
+    [InlineData("nnz.api.actions.invoke('a' + x);")]
+    [InlineData("nnz.api.actions.invoke();")]
+    public async Task Compile_rejects_an_action_type_that_is_not_a_string_literal(string js)
+    {
+        Result<ScriptCompilation> result = await new JintScriptExecutor().CompileAsync(js);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("string literal");
     }
 }

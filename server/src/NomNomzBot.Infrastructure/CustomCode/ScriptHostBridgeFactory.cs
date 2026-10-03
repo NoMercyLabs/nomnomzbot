@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Analytics;
@@ -42,7 +43,8 @@ public sealed class ScriptHostBridgeFactory(
     ITtsConfigService ttsConfig,
     IScheduledPipelineService scheduledPipelines,
     IApplicationDbContext db,
-    ISevenTvUserPaintResolver paintResolver
+    ISevenTvUserPaintResolver paintResolver,
+    IOwnerActionService ownerActions
 ) : IScriptHostBridgeFactory
 {
     public IScriptHostBridge Create(
@@ -67,6 +69,7 @@ public sealed class ScriptHostBridgeFactory(
             ttsConfig,
             scheduledPipelines,
             db,
-            paintResolver
+            paintResolver,
+            ownerActions
         );
 }

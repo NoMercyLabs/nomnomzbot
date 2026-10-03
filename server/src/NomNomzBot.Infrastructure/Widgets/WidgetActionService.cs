@@ -9,12 +9,10 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
@@ -23,22 +21,10 @@ namespace NomNomzBot.Infrastructure.Widgets;
 /// <inheritdoc cref="IWidgetActionService"/>
 public sealed class WidgetActionService(
     IApplicationDbContext db,
-    IEnumerable<ICommandAction> actions,
-    IActionAuthorizationService authorization,
-    IRateLimiterPartitionStore rateLimiter,
-    ILogger<WidgetActionService> logger
+    IOwnerActionService ownerActions,
+    IRateLimiterPartitionStore rateLimiter
 ) : IWidgetActionService
 {
-    // Running an arbitrary action is what the dashboard's pipeline test-run does, so it needs the same permission.
-    internal const string RequiredActionKey = "pipelines:write";
-
-    // A widget runs a handful of actions per alert (synthesize, pause, resume, reply). The cap only stops a
-    // looping widget from flooding chat or the music provider.
-    internal const int InvocationsPerMinute = 60;
-
-    // One action never runs longer than the longest single step a pipeline allows (wait caps at 30 s).
-    private static readonly TimeSpan RunTimeout = TimeSpan.FromSeconds(45);
-
     internal const int MaxClaimKeyLength = 200;
 
     // Every copy of an overlay receives an event within moments of the others; ten minutes outlasts any retry.
@@ -59,49 +45,16 @@ public sealed class WidgetActionService(
         if (!widget.IsEnabled)
             return Result.Failure<WidgetActionOutcome>("This widget is turned off.", "FORBIDDEN");
 
-        ICommandAction? action = actions.FirstOrDefault(a =>
-            string.Equals(a.ActionType, request.ActionType, StringComparison.OrdinalIgnoreCase)
-        );
-        if (action is null)
-            return Errors.NotFound<WidgetActionOutcome>("Action", request.ActionType);
-
-        Guid? ownerUserId = await db
-            .Channels.AsNoTracking()
-            .Where(c => c.Id == request.BroadcasterId)
-            .Select(c => (Guid?)c.OwnerUserId)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (ownerUserId is null)
-            return Errors.NotFound<WidgetActionOutcome>(
-                "Channel",
-                request.BroadcasterId.ToString()
-            );
-
-        Result<bool> allowed = await authorization.AuthorizeActionAsync(
-            ownerUserId.Value,
-            request.BroadcasterId,
-            RequiredActionKey,
+        return await ownerActions.RunAsync(
+            new(
+                request.BroadcasterId,
+                request.ActionType,
+                request.Parameters,
+                request.Variables,
+                widget.Name,
+                $"widget-action:{request.WidgetId}"
+            ),
             cancellationToken
-        );
-        if (allowed is not { IsSuccess: true, Value: true })
-            return Result.Failure<WidgetActionOutcome>(
-                $"The channel owner may not run '{RequiredActionKey}' actions.",
-                "FORBIDDEN"
-            );
-
-        RateLimitLease lease = await rateLimiter.AcquireAsync(
-            $"widget-action:{request.WidgetId}",
-            InvocationsPerMinute,
-            TimeSpan.FromMinutes(1),
-            cancellationToken
-        );
-        if (!lease.IsAcquired)
-            return Result.Failure<WidgetActionOutcome>(
-                "This widget runs too many actions. Try again in a minute.",
-                "RATE_LIMITED"
-            );
-
-        return Result.Success(
-            await RunAsync(action, request, ownerUserId.Value, widget.Name, cancellationToken)
         );
     }
 
@@ -133,73 +86,4 @@ public sealed class WidgetActionService(
         );
         return Result.Success(lease.IsAcquired);
     }
-
-    private async Task<WidgetActionOutcome> RunAsync(
-        ICommandAction action,
-        WidgetActionRequest request,
-        Guid ownerUserId,
-        string widgetName,
-        CancellationToken cancellationToken
-    )
-    {
-        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken
-        );
-        timeout.CancelAfter(RunTimeout);
-
-        PipelineExecutionContext context = new()
-        {
-            BroadcasterId = request.BroadcasterId,
-            TriggeredByUserId = ownerUserId.ToString(),
-            TriggeredByDisplayName = widgetName,
-            MessageId = string.Empty,
-            RawMessage = string.Empty,
-            CancellationToken = timeout.Token,
-        };
-        foreach (
-            (string key, string value) in request.Variables ?? new Dictionary<string, string>()
-        )
-            context.Variables[key] = value;
-
-        ActionDefinition definition = new()
-        {
-            Type = action.ActionType,
-            Parameters = request.Parameters?.ToDictionary(p => p.Key, p => p.Value),
-        };
-
-        try
-        {
-            ActionResult result = await action.ExecuteAsync(context, definition);
-            if (result.Suspended)
-                return Outcome(
-                    false,
-                    null,
-                    $"'{action.ActionType}' can only run inside a pipeline.",
-                    context
-                );
-            return Outcome(result.Succeeded, result.Output, result.ErrorMessage, context);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            return Outcome(false, null, $"'{action.ActionType}' took too long.", context);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(
-                ex,
-                "Widget {Widget} action {Action} failed for channel {Channel}",
-                request.WidgetId,
-                action.ActionType,
-                request.BroadcasterId
-            );
-            return Outcome(false, null, ex.Message, context);
-        }
-    }
-
-    private static WidgetActionOutcome Outcome(
-        bool succeeded,
-        string? output,
-        string? error,
-        PipelineExecutionContext context
-    ) => new(succeeded, output, error, new Dictionary<string, string>(context.Variables));
 }

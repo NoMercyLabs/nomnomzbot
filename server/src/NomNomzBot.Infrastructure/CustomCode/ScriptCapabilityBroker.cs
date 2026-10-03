@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Platform.Services;
@@ -24,7 +25,10 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// owner flips on in Settings → Features. It is NOT a platform rollout <c>FeatureFlag</c>: gating on that
 /// (never-seeded) flag left the toggle inert and every script denied at run time regardless of the switch.
 /// </summary>
-public sealed class ScriptCapabilityBroker(IFeatureService features) : IScriptCapabilityBroker
+public sealed class ScriptCapabilityBroker(
+    IFeatureService features,
+    IEnumerable<ICommandAction>? actions = null
+) : IScriptCapabilityBroker
 {
     private const string FeatureGate = "custom_code";
 
@@ -64,6 +68,17 @@ public sealed class ScriptCapabilityBroker(IFeatureService features) : IScriptCa
         new("schedule.pipeline", "low", FeatureGate, SideEffecting: true),
     ];
 
+    // One gate per registered pipeline action type ("actions.invoke:<type>"): a script runs only the action
+    // types it names. The action runs as the channel owner through the owner's IAM (the widget invoke path), so
+    // the tier is tos like every capability that acts on the channel's behalf.
+    private ScriptCapabilityDescriptor? ActionGate(string key) =>
+        ScriptActionInvoker.ActionTypeOf(key) is { } actionType
+        && (actions ?? []).Any(a =>
+            string.Equals(a.ActionType, actionType, StringComparison.Ordinal)
+        )
+            ? new(key, "tos", FeatureGate, SideEffecting: true)
+            : null;
+
     public IReadOnlyList<ScriptCapabilityDescriptor> Catalog => CatalogEntries;
 
     public async Task<Result<ScriptCapabilityGrant>> BuildGrantAsync(
@@ -75,9 +90,8 @@ public sealed class ScriptCapabilityBroker(IFeatureService features) : IScriptCa
         List<ScriptCapabilityDescriptor> granted = [];
         foreach (string key in declaredCapabilities.Distinct(StringComparer.Ordinal))
         {
-            ScriptCapabilityDescriptor? descriptor = CatalogEntries.FirstOrDefault(c =>
-                c.Key == key
-            );
+            ScriptCapabilityDescriptor? descriptor =
+                CatalogEntries.FirstOrDefault(c => c.Key == key) ?? ActionGate(key);
             if (descriptor is null)
                 return Result.Failure<ScriptCapabilityGrant>(
                     $"Unknown capability: {key}.",

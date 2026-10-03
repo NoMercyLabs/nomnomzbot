@@ -268,7 +268,8 @@ public sealed class LuckyFeatherBundleTests
             Substitute.For<ITtsConfigService>(),
             h.Scheduler,
             h.Db,
-            paint ?? Substitute.For<ISevenTvUserPaintResolver>()
+            paint ?? Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
         );
 
         return new(h.Db, new JintScriptExecutor(), broker, meter, bridgeFactory, h.Clock);
