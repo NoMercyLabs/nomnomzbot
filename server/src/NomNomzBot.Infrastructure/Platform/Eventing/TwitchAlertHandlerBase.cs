@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
@@ -26,7 +27,7 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// trigger sources share. The response half is also an <see cref="IEventResponsePresenter"/>, so a dashboard
 /// replay runs the exact same variables and response key without logging or re-running anything else.
 /// </summary>
-public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter
+public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, ITriggerSampleSource
     where TEvent : class, IDomainEvent
 {
     protected abstract string EventTypeKey { get; }
@@ -56,6 +57,21 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter
     protected abstract string? GetUserId(TEvent @event);
     protected abstract string? GetUserDisplayName(TEvent @event);
     protected abstract Dictionary<string, string> BuildVariables(TEvent @event);
+
+    /// <summary>A realistic instance of the event, for a test run.</summary>
+    protected abstract TEvent SampleEvent(DateTimeOffset now);
+
+    public TriggerSample Sample(DateTimeOffset now)
+    {
+        ResponseTrigger trigger = TriggerFor(SampleEvent(now));
+        return new(
+            typeof(TEvent).Name,
+            trigger.ResponseKey,
+            trigger.UserId,
+            trigger.UserDisplayName,
+            trigger.Variables
+        );
+    }
 
     /// <summary>Renders a seconds count as chat-friendly text ("3 minutes", "45 seconds") instead of a raw
     /// number — shared by every handler that seeds a duration-typed template variable (ad breaks, timeouts,

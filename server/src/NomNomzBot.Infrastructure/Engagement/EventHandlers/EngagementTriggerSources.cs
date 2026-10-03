@@ -48,6 +48,14 @@ public sealed class FirstTimeChatterTriggerSource
             ["viewer.name"] = e.ViewerDisplayName,
         };
 
+    protected override FirstTimeChatterDetectedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            ViewerUserId = Guid.Parse("00000000-0000-0000-0000-0000000a0001"),
+            ViewerExternalUserId = "100000004",
+            ViewerDisplayName = "NightOwl",
+        };
+
     public Task HandleAsync(FirstTimeChatterDetectedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -83,6 +91,15 @@ public sealed class ReturningChatterTriggerSource
             ["engagement.daysSinceLastSeen"] = e.DaysSinceLastSeen.ToString(),
         };
 
+    protected override ReturningChatterDetectedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            ViewerUserId = Guid.Parse("00000000-0000-0000-0000-0000000a0002"),
+            ViewerExternalUserId = "100000005",
+            ViewerDisplayName = "CozyCarl",
+            DaysSinceLastSeen = 21,
+        };
+
     public Task HandleAsync(ReturningChatterDetectedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -116,6 +133,15 @@ public sealed class WatchStreakTriggerSource
             ["user.id"] = e.ViewerExternalUserId,
             ["viewer.name"] = e.ViewerDisplayName,
             ["engagement.streak"] = e.StreakCount.ToString(),
+        };
+
+    protected override WatchStreakMilestoneEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            ViewerUserId = Guid.Parse("00000000-0000-0000-0000-0000000a0003"),
+            ViewerExternalUserId = "100000006",
+            ViewerDisplayName = "StreakySam",
+            StreakCount = 10,
         };
 
     public Task HandleAsync(WatchStreakMilestoneEvent @event, CancellationToken ct = default) =>
@@ -157,6 +183,15 @@ public sealed class ModiversaryTriggerSource
             ["viewer.name"] = e.ViewerDisplayName,
             ["engagement.months"] = e.Months.ToString(),
             ["engagement.years"] = FormatYears(e.Months),
+        };
+
+    protected override ModiversaryReachedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            ViewerExternalUserId = "100000007",
+            ViewerDisplayName = "ModMaya",
+            ViewerLogin = "modmaya",
+            Months = 12,
         };
 
     public Task HandleAsync(ModiversaryReachedEvent @event, CancellationToken ct = default) =>

@@ -63,6 +63,17 @@ public sealed class WatchStreakHandler
             ["streak.message"] = e.CustomMessage ?? string.Empty,
         };
 
+    protected override WatchStreakReceivedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000006",
+            UserLogin = "streakysam",
+            UserDisplayName = "StreakySam",
+            StreakMonths = 5,
+            ChannelPointsEarned = 450,
+            CustomMessage = "Never missing a stream!",
+        };
+
     public async Task HandleAsync(WatchStreakReceivedEvent @event, CancellationToken ct = default)
     {
         await UpsertStreakAsync(@event, ct);

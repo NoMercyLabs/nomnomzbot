@@ -44,6 +44,22 @@ public sealed class HypeTrainBeganHandler
             ["hype_train.goal"] = e.Goal.ToString(),
         };
 
+    protected override HypeTrainBeganEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            HypeTrainId = "1b0AsbInCHZW2SQFQkCzqN07Ib2",
+            Level = 1,
+            Total = 1800,
+            Progress = 300,
+            Goal = 1000,
+            TopContributions =
+            [
+                new("100000002", "bitbaron", "BitBaron", "bits", 1000),
+                new("100000003", "subsally", "SubSally", "subscription", 500),
+            ],
+            ExpiresAt = now.AddMinutes(5),
+        };
+
     public Task HandleAsync(HypeTrainBeganEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -72,6 +88,20 @@ public sealed class HypeTrainEndedHandler
             ["hype_train.id"] = e.HypeTrainId,
             ["hype_train.level"] = e.Level.ToString(),
             ["hype_train.total"] = e.Total.ToString(),
+        };
+
+    protected override HypeTrainEndedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            HypeTrainId = "1b0AsbInCHZW2SQFQkCzqN07Ib2",
+            Level = 3,
+            Total = 6400,
+            TopContributions =
+            [
+                new("100000002", "bitbaron", "BitBaron", "bits", 3000),
+                new("100000003", "subsally", "SubSally", "subscription", 1500),
+            ],
+            EndedAt = now,
         };
 
     public Task HandleAsync(HypeTrainEndedEvent @event, CancellationToken ct = default) =>

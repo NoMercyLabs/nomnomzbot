@@ -38,6 +38,15 @@ public sealed class RaidEventHandler : TwitchAlertHandlerBase<RaidEvent>, IEvent
             ["viewers"] = e.ViewerCount.ToString(),
         };
 
+    protected override RaidEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            FromUserId = "100000014",
+            FromDisplayName = "RaidRider",
+            FromLogin = "raidrider",
+            ViewerCount = 42,
+        };
+
     public Task HandleAsync(RaidEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }

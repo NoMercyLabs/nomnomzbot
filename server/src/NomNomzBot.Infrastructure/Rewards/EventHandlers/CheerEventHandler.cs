@@ -47,6 +47,16 @@ public sealed class CheerEventHandler
             ["provider"] = e.Provider,
         };
 
+    protected override CheerEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000002",
+            UserDisplayName = "BitBaron",
+            Bits = 500,
+            Message = "Cheer500 keep it up!",
+            IsAnonymous = false,
+        };
+
     public Task HandleAsync(CheerEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }

@@ -45,6 +45,15 @@ public sealed class FollowEventHandler
             ["provider"] = e.Provider,
         };
 
+    protected override FollowEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000001",
+            UserDisplayName = "PixelPanda",
+            UserLogin = "pixelpanda",
+            FollowedAt = now,
+        };
+
     public Task HandleAsync(FollowEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }

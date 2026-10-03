@@ -43,6 +43,16 @@ public sealed class PollBeganHandler
             ["poll.choices"] = string.Join(", ", e.Choices.Select(c => c.Title)),
         };
 
+    protected override PollBeganEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            PollId = "ed961efd-8a3f-4cf5-a9d0-e616c590cd2a",
+            Title = "Which game next?",
+            Choices = [new("c1", "Elden Ring", 0, 0), new("c2", "Hades II", 0, 0)],
+            DurationSeconds = 120,
+            EndsAt = now.AddMinutes(2),
+        };
+
     public Task HandleAsync(PollBeganEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -74,6 +84,16 @@ public sealed class PollEndedHandler
             ["poll.results"] = string.Join(", ", e.Choices.Select(c => $"{c.Title}: {c.Votes}")),
         };
     }
+
+    protected override PollEndedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            PollId = "ed961efd-8a3f-4cf5-a9d0-e616c590cd2a",
+            Title = "Which game next?",
+            Status = "completed",
+            Choices = [new("c1", "Elden Ring", 14, 3), new("c2", "Hades II", 31, 8)],
+            WinningChoiceId = "c2",
+        };
 
     public Task HandleAsync(PollEndedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);

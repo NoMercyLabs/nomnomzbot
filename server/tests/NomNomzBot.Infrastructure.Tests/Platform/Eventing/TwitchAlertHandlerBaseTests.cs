@@ -52,6 +52,9 @@ public sealed class TwitchAlertHandlerBaseTests
         protected override Dictionary<string, string> BuildVariables(TestFollow @event) =>
             new() { ["user"] = "MrFunnyGoodFeeling" };
 
+        protected override TestFollow SampleEvent(DateTimeOffset now) =>
+            new(Guid.Empty, Guid.Empty);
+
         public Task Log(IApplicationDbContext db, TestFollow @event) =>
             LogChannelEventAsync(db, @event, @event.BroadcasterId, CancellationToken.None);
     }

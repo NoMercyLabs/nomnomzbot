@@ -63,6 +63,15 @@ public sealed class NewSubscriptionEventHandler
     /// they are announced through <see cref="GiftSubscriptionReceivedEventHandler"/> instead.</summary>
     protected override bool Announces(NewSubscriptionEvent e) => !e.IsGift;
 
+    protected override NewSubscriptionEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000003",
+            UserDisplayName = "SubSally",
+            Tier = "1000",
+            IsGift = false,
+        };
+
     public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -104,6 +113,17 @@ public sealed class GiftSubscriptionReceivedEventHandler
 
     /// <summary>Every recipient is named, including each one inside a gift bomb — a big gift earns the noise
     /// (owner decision 2026-09-29); the bomb's own <see cref="GiftSubscriptionEvent"/> still announces the batch.</summary>
+    protected override GiftSubscriptionReceivedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            RecipientUserId = "100000010",
+            RecipientDisplayName = "LuckyLuna",
+            GifterUserId = "100000011",
+            GifterDisplayName = "GenerousGus",
+            IsAnonymous = false,
+            Tier = "1000",
+        };
+
     public Task HandleAsync(GiftSubscriptionReceivedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -147,6 +167,17 @@ public sealed class ResubscriptionEventHandler
             ["provider"] = e.Provider,
         };
 
+    protected override ResubscriptionEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            UserId = "100000003",
+            UserDisplayName = "SubSally",
+            Tier = "2000",
+            CumulativeMonths = 14,
+            StreakMonths = 9,
+            Message = "Fourteen months and still loving it!",
+        };
+
     public Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -184,6 +215,21 @@ public sealed class GiftSubscriptionEventHandler
             ["count"] = e.GiftCount.ToString(),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
             ["provider"] = e.Provider,
+        };
+
+    protected override GiftSubscriptionEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            GifterUserId = "100000011",
+            GifterDisplayName = "GenerousGus",
+            Tier = "1000",
+            GiftCount = 2,
+            IsAnonymous = false,
+            Recipients =
+            [
+                new GiftRecipient("100000010", "LuckyLuna"),
+                new GiftRecipient("100000012", "HappyHana"),
+            ],
         };
 
     public Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default) =>

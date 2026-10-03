@@ -25,6 +25,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Platform;
@@ -1023,6 +1024,8 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Scoped
         );
+        // Every alert handler also offers a typed sample of its own event for a script test run.
+        services.AddImplementationsOf<ITriggerSampleSource>(infrastructure, ServiceLifetime.Scoped);
         services.AddScoped<EventStore.JournaledDomainEventReader>();
         services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
