@@ -38,7 +38,7 @@ function onFrame(d: NnzWidgetEventMap['game.lobby']): void {
     reset()
     visible.value = true
     phase.value = 'lobby'
-    target.value = Number(d.target) || 50
+    target.value = typeof d.target === 'number' && Number.isFinite(d.target) ? d.target : 50
     radius.value = Number(d.radius) || 10
     return
   }
@@ -59,7 +59,7 @@ function onFrame(d: NnzWidgetEventMap['game.lobby']): void {
   }
   if (d.kind === 'results') {
     phase.value = 'resolved'
-    target.value = Number(d.target) || target.value
+    if (typeof d.target === 'number' && Number.isFinite(d.target)) target.value = d.target
     results.value = Array.isArray(d.results) ? (d.results as DropResult[]) : []
     scheduleHide()
   }
