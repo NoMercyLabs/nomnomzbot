@@ -77,10 +77,18 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 - **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
   `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
   returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
-  OverlayHub, but the provider never reads that relay. So `nnz.api.music.nowPlaying()` and every other
-  now-playing reader give null whenever YouTube is the active service. Done-when: with YouTube active and the
-  player reporting a track, `GetCurrentTrackAsync` returns that track (from the relayed state), and with no
-  player attached it returns null; a test failed first. Every caller of the capability flag is listed N of M.
+  OverlayHub, but that relay does not exist: OverlayHub has no player-report method, and `now_playing.vue`
+  (:110-119, :340-342) only embeds a video from the bot's own snapshot (bot -> overlay, never back). So
+  `nnz.api.music.nowPlaying()` and all 4 callers of `GetCurrentTrackAsync` (`MusicService.cs:1033` read,
+  `:1807` poller publish, `:2012` lost-at-provider release, `:2100` duplicate gate) see null for YouTube, no
+  `PlaybackStateChangedEvent` fires, and `SongRequestQueueReconciler.cs:56` never advances a YouTube request.
+  Root cause: the playback driver for YouTube is the `ISongRequestSequencer` of `spec/music-sr.md` §3.5.2
+  ("target, not built"; YouTube plays through the browser-source IFrame, track-end via `onStateChange(ENDED)`).
+  Order: first a scout proves end to end on the dev box whether a YouTube song request ever plays today;
+  then the §3.5.2 sequencer is built in slices (player report hub method + per-channel state holder that
+  `GetCurrentTrackAsync` reads; overlay player plays the head and reports state; ENDED advances the queue).
+  Done-when: a YouTube request plays in the overlay, `GetCurrentTrackAsync` returns it while it plays and null
+  with no player attached, and it leaves the queue when it ends; each slice has a test that failed first.
 - **S-REWARD-PATCH-CLEARS-LIMITS** Found by the docs fact-check 2026-10-04. A reward update that leaves out
   a limit turns that limit off: `RewardService.cs:261-266` sends `IsMaxPerStreamEnabled:
   request.MaxPerStream.HasValue` (same for max per user per stream and global cooldown), the Helix body drops
