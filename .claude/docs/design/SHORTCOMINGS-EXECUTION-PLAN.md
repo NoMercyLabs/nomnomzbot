@@ -34,7 +34,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `(window as any).NomNomz` and `payload: any` (counted 2026-10-03). `as any` also hides every error from the
   editor's strict check. Done-when: each widget uses the typed SDK (the widget event map and its own settings
   type), none contains `any`, and a test fails when a first-party widget has an `any` or a type error in the
-  editor's widget compiler options.
+  editor's widget compiler options. Also: the game events `game.lobby`, `game.running` and `game.resolved`
+  have no payload type (`Api/Hubs/Broadcasters/WidgetEventPayloadRegistry.cs:68-70` registers them with
+  `null`), so the game widgets (crash, heist, drop_game) must read them as `Record<string, unknown>`. Give
+  each a payload record so the event map types them, and narrow the game widgets to it.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
