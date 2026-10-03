@@ -36,13 +36,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   defb69885), the `play_sound` handle, and the inbox notice when no Audio Source page is open
   (`AudioSourceMissingSource.cs`). Left: the live check. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
-- **S-ACTOR-PLATFORM** (stream-facing) A chat-triggered actor reaches a pipeline as a bare platform user id
-  (PipelineExecutionContext.TriggeredByUserId; ChatMessageHandler.cs sets it from the chat event) with no
-  platform. So a lookup of the internal user can only assume Twitch: MusicService.ResolveInternalUserIdAsync
-  and ModerationProjectionService.cs:245 both match Users.TwitchUserId, and a Kick or YouTube chatter
-  resolves to nobody. Done-when: the context carries the platform with the id, every internal-user lookup goes
-  through IUserIdentityService.ResolveUserAsync(provider, id), and a test with a Kick chatter skipping a song
-  publishes their internal id.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
