@@ -38,16 +38,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   handle); the dashboard inbox says when no Audio Source page is open (`IActionRequiredSource`);
   master and TTS sliders on the Sound screen. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
-- **S-SDK-RUNTIME** Script SDK says what it does. Done-when: every readme §7 script pitfall is fixed in
-  the runtime or the d.ts (tts.speak rate/pitch + `durationMs`, `user.get` paint, `economy.balance()` with
-  no argument reads the triggering viewer, `chat.reply` replies, `widget.emit(…, null)`, fractional
-  `schedule.pipeline` delay, a test-run tts result shaped like the live one incl. `voiceId` never null,
-  `random.pick([])` typed `T | undefined`, `tts.speak(text, '' | voice, rate, pitch)` typed with 4
-  params and an `undefined` voice meaning "no override", `economy.balance(platformId)` resolving the
-  viewer); scripts reach OBS and other pipeline actions (`nnz.api.actions.invoke`, reusing the pipeline
-  action descriptors, capability-gated); a failure is readable
-  (`nnz.lastError` or a typed result) instead of a bare false/null; JSDoc on every d.ts member; the drift
-  test compares interface members and parameter lists, not only top-level names.
 - **S-SDK-TRIGGER-TYPES** `bot.getVar` keys and `bot.args` are typed per trigger (command / event
   response / timer / pipeline) from the event catalogue; the script context drops the widget-only
   `NnzEventMap`. Done-when: the editor flags `bot.getVar('typo')` for the script's trigger.
