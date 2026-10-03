@@ -48,6 +48,15 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   says "No gallery widgets available" while it reloads, and a failed "Load more" is silent
   (`WidgetsScreen.kt:1673-1675, 1763`); `strings.xml` still says "Lua scripts" (en :1922, nl :1919).
   Done-when: each has a test that failed first and now passes.
+- **S-WIDGETS-SCREEN-HIERARCHY** Render check on dev 2026-10-03 (0.1.0+d40fc9685), checked against the code. The
+  overlay rows give every action the full accent: 8 `TextButton`s with `tokens.primary` text
+  (`WidgetsScreen.kt:943, 957, 1046, 1059, 1077, 1137, 1150, 1640`), so a row reads as six equal-weight
+  accent actions (Sleak: one primary per group, scarce accent). The gallery's first-party trust badge is
+  `BadgeVariant.Default` (`WidgetsScreen.kt:1895`); every gallery item today is first-party, so every card
+  carries a full-accent pill. After the gallery dialog closes, its 43 buttons stayed in the accessibility tree
+  and the first Close click did nothing (cause not found). Done-when: each row has at most one accent action,
+  the badge is quiet when every item has it, the closed dialog leaves no nodes; each with a test that failed
+  first, and a screenshot on dev.
 - **S-UF-AUDIO-ONE-SOURCE** (stream-facing) Follow-up to the one-audio-source rule (owner 2026-10-02, shipped
   as S-SDK-WIDGET-DELIVERY). Done-when: each UF line below has a test that failed first.
   UF·T9: On the one audio page, sound is one at a time: a TTS line that arrives during a sound clip waits
