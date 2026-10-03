@@ -120,34 +120,34 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 sleep: function (ms) { __sleep(Number(ms)); }
             },
             math: {
-                clamp: function (v, lo, hi) { v = Number(v); lo = Number(lo); hi = Number(hi); return v < lo ? lo : (v > hi ? hi : v); },
-                round: function (v, digits) { var d = Math.pow(10, Number(digits) || 0); return Math.round(Number(v) * d) / d; },
+                clamp: function (value, min, max) { value = Number(value); min = Number(min); max = Number(max); return value < min ? min : (value > max ? max : value); },
+                round: function (value, digits) { var d = Math.pow(10, Number(digits) || 0); return Math.round(Number(value) * d) / d; },
                 lerp: function (a, b, t) { return Number(a) + (Number(b) - Number(a)) * Number(t); },
-                sum: function (xs) { var s = 0; for (var i = 0; i < xs.length; i++) { s += Number(xs[i]); } return s; },
-                avg: function (xs) { return xs.length ? nnz.math.sum(xs) / xs.length : 0; },
-                min: function (xs) { return Math.min.apply(null, xs.map(Number)); },
-                max: function (xs) { return Math.max.apply(null, xs.map(Number)); },
-                randomInt: function (lo, hi) { lo = Math.ceil(Number(lo)); hi = Math.floor(Number(hi)); return Math.floor(Math.random() * (hi - lo + 1)) + lo; }
+                sum: function (values) { var s = 0; for (var i = 0; i < values.length; i++) { s += Number(values[i]); } return s; },
+                avg: function (values) { return values.length ? nnz.math.sum(values) / values.length : 0; },
+                min: function (values) { return Math.min.apply(null, values.map(Number)); },
+                max: function (values) { return Math.max.apply(null, values.map(Number)); },
+                randomInt: function (min, max) { min = Math.ceil(Number(min)); max = Math.floor(Number(max)); return Math.floor(Math.random() * (max - min + 1)) + min; }
             },
             str: {
-                padStart: function (v, n, p) { return String(v).padStart(Number(n), p === undefined ? ' ' : String(p)); },
-                padEnd: function (v, n, p) { return String(v).padEnd(Number(n), p === undefined ? ' ' : String(p)); },
-                trim: function (v) { return String(v).trim(); },
-                upper: function (v) { return String(v).toUpperCase(); },
-                lower: function (v) { return String(v).toLowerCase(); },
-                title: function (v) { return String(v).replace(/\w\S*/g, function (w) { return w.charAt(0).toUpperCase() + w.substr(1).toLowerCase(); }); },
-                truncate: function (v, n, e) { v = String(v); e = e === undefined ? '…' : String(e); n = Number(n); return v.length <= n ? v : v.slice(0, Math.max(0, n - e.length)) + e; },
-                slugify: function (v) { return String(v).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); },
-                format: function (tpl, vals) { return String(tpl).replace(/\{(\w+)\}/g, function (m, k) { return vals && vals[k] !== undefined ? String(vals[k]) : m; }); }
+                padStart: function (value, length, pad) { return String(value).padStart(Number(length), pad === undefined || pad === null ? ' ' : String(pad)); },
+                padEnd: function (value, length, pad) { return String(value).padEnd(Number(length), pad === undefined || pad === null ? ' ' : String(pad)); },
+                trim: function (value) { return String(value).trim(); },
+                upper: function (value) { return String(value).toUpperCase(); },
+                lower: function (value) { return String(value).toLowerCase(); },
+                title: function (value) { return String(value).replace(/\w\S*/g, function (w) { return w.charAt(0).toUpperCase() + w.substr(1).toLowerCase(); }); },
+                truncate: function (value, length, ellipsis) { value = String(value); ellipsis = ellipsis === undefined || ellipsis === null ? '…' : String(ellipsis); length = Number(length); return value.length <= length ? value : value.slice(0, Math.max(0, length - ellipsis.length)) + ellipsis; },
+                slugify: function (value) { return String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); },
+                format: function (template, values) { return String(template).replace(/\{(\w+)\}/g, function (m, k) { return values && values[k] !== undefined ? String(values[k]) : m; }); }
             },
             json: {
                 parse: function (text) { try { return JSON.parse(String(text)); } catch (e) { return null; } },
                 stringify: function (value) { try { return JSON.stringify(value); } catch (e) { return 'null'; } }
             },
             random: {
-                int: function (lo, hi) { return nnz.math.randomInt(lo, hi); },
-                pick: function (xs) { return xs[Math.floor(Math.random() * xs.length)]; },
-                shuffle: function (xs) { var a = xs.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = a[i]; a[i] = a[j]; a[j] = tmp; } return a; },
+                int: function (min, max) { return nnz.math.randomInt(min, max); },
+                pick: function (items) { return items[Math.floor(Math.random() * items.length)]; },
+                shuffle: function (items) { var a = items.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = a[i]; a[i] = a[j]; a[j] = tmp; } return a; },
                 uuid: function () { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; var val = c === 'x' ? r : (r & 0x3 | 0x8); return val.toString(16); }); }
             },
             api: {
@@ -166,10 +166,10 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     reply: function (text) { bot.call('chat.reply', String(text)); }
                 },
                 user: {
-                    get: function (id) { var r = id === undefined ? bot.call('user.get') : bot.call('user.get', String(id)); return r ? JSON.parse(r) : null; }
+                    get: function (id) { var r = id === undefined || id === null ? bot.call('user.get') : bot.call('user.get', String(id)); return r ? JSON.parse(r) : null; }
                 },
                 economy: {
-                    balance: function (userId) { var r = userId === undefined ? bot.call('economy.read') : bot.call('economy.read', String(userId)); return Number(r); }
+                    balance: function (userId) { var r = userId === undefined || userId === null ? bot.call('economy.read') : bot.call('economy.read', String(userId)); return Number(r); }
                 },
                 music: {
                     queue: function (uri) { return bot.call('music.queue', String(uri)) === 'true'; },
@@ -182,7 +182,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     get: function (key) { return bot.call('storage.get', String(key)); },
                     set: function (key, value) { return bot.call('storage.set', String(key), String(value)) === 'ok'; },
                     delete: function (key) { return bot.call('storage.delete', String(key)) === 'ok'; },
-                    list: function (prefix) { var r = prefix === undefined ? bot.call('storage.list') : bot.call('storage.list', String(prefix)); return r ? JSON.parse(r) : []; }
+                    list: function (prefix) { var r = prefix === undefined || prefix === null ? bot.call('storage.list') : bot.call('storage.list', String(prefix)); return r ? JSON.parse(r) : []; }
                 },
                 tts: {
                     // ratePercent/pitchPercent are optional per-call SSML prosody overrides (e.g. an "evil
@@ -198,24 +198,24 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                         return r ? JSON.parse(r) : null;
                     },
                     getVoice: function (userIdOrLogin) { var r = bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
-                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', String(userIdOrLogin), voiceId === undefined ? '' : String(voiceId)) === 'ok'; }
+                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', String(userIdOrLogin), voiceId === undefined || voiceId === null ? '' : String(voiceId)) === 'ok'; }
                 },
                 stats: {
-                    viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
+                    viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined || userIdOrLogin === null ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
                 },
                 widget: {
-                    emit: function (widget, eventType, data) { var r = data === undefined || data === null ? bot.call('widget.emit', String(widget), String(eventType)) : bot.call('widget.emit', String(widget), String(eventType), JSON.stringify(data)); return r === 'ok'; }
+                    emit: function (widgetIdOrName, eventType, data) { var r = data === undefined || data === null ? bot.call('widget.emit', String(widgetIdOrName), String(eventType)) : bot.call('widget.emit', String(widgetIdOrName), String(eventType), JSON.stringify(data)); return r === 'ok'; }
                 },
                 reward: {
-                    get: function (idOrTitle) { var r = bot.call('reward.get', String(idOrTitle)); return r ? JSON.parse(r) : null; },
-                    update: function (idOrTitle, patch) { return bot.call('reward.update', String(idOrTitle), JSON.stringify(patch)) === 'ok'; }
+                    get: function (rewardIdOrTitle) { var r = bot.call('reward.get', String(rewardIdOrTitle)); return r ? JSON.parse(r) : null; },
+                    update: function (rewardIdOrTitle, patch) { return bot.call('reward.update', String(rewardIdOrTitle), JSON.stringify(patch)) === 'ok'; }
                 },
                 schedule: {
                     pipeline: function (pipelineName, delaySeconds, variables, dedupeKey) {
                         // The host schedules whole seconds; rounding up never fires a pipeline early.
                         var d = String(Math.ceil(Number(delaySeconds)));
                         var v = variables === undefined || variables === null ? '{}' : JSON.stringify(variables);
-                        return (dedupeKey === undefined
+                        return (dedupeKey === undefined || dedupeKey === null
                             ? bot.call('schedule.pipeline', String(pipelineName), d, v)
                             : bot.call('schedule.pipeline', String(pipelineName), d, v, String(dedupeKey))) === 'ok';
                     }
