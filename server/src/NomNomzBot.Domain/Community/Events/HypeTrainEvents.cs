@@ -86,6 +86,11 @@ public sealed class HypeTrainEndedEvent : DomainEventBase
 /// Twitch's contribution kind — <c>bits</c>, <c>subscription</c>, or <c>other</c>; <paramref name="Total"/> is the
 /// amount in that type's own unit (bits count, or sub-equivalent value).
 /// </summary>
+/// <param name="UserId">The Twitch user id of the contributor (a number as text).</param>
+/// <param name="UserLogin">The login name of the contributor (lowercase).</param>
+/// <param name="UserDisplayName">The display name of the contributor, as shown in chat.</param>
+/// <param name="Type">The kind of contribution: bits, subscription or other.</param>
+/// <param name="Total">The amount in the unit of that kind: a bits count, or sub-equivalent value.</param>
 public sealed record HypeTrainContribution(
     string UserId,
     string UserLogin,

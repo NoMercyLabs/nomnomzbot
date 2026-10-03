@@ -25,6 +25,10 @@ public sealed class SongRequestQueueChangedEvent : DomainEventBase
 }
 
 /// <summary>One upcoming request in the snapshot — exactly the fields the sr_queue overlay renders.</summary>
+/// <param name="Title">The song title.</param>
+/// <param name="RequestedBy">The display name of the viewer who requested the song.</param>
+/// <param name="DurationSec">The song length in seconds.</param>
+/// <param name="Code">The short handle a viewer says to name this request, for example K7QM. Empty only for a snapshot made before codes existed.</param>
 public sealed record SongRequestQueueSnapshotItem(
     string Title,
     string RequestedBy,

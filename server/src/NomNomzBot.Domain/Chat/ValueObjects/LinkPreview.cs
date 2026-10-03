@@ -15,4 +15,8 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// og:description and og:image when present. Null on the fragment until the (opt-in, gated) link step resolves it;
 /// any missing tag is simply null — the link still renders with its url.
 /// </summary>
+/// <param name="Host">The site the link points to, for example example.com.</param>
+/// <param name="Title">The page title (og:title). Null when the page has none.</param>
+/// <param name="Description">The page description (og:description). Null when the page has none.</param>
+/// <param name="ImageUrl">The preview image link (og:image). Null when the page has none.</param>
 public sealed record LinkPreview(string Host, string? Title, string? Description, string? ImageUrl);

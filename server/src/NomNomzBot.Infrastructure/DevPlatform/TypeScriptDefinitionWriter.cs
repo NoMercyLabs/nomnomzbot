@@ -10,6 +10,7 @@
 
 using System.Reflection;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
@@ -32,13 +33,16 @@ internal sealed class TypeScriptDefinitionWriter
     private readonly List<Type> _objectTypes = [];
     private readonly Dictionary<Type, List<string>> _propertyLines = new();
     private readonly Queue<Type> _pending = new();
+    private readonly ILogger? _logger;
 
     public TypeScriptDefinitionWriter(
         SdkContext context,
         IReadOnlyList<string>? triggerKeys = null,
-        IReadOnlyList<ICommandAction>? actions = null
+        IReadOnlyList<ICommandAction>? actions = null,
+        ILogger? logger = null
     )
     {
+        _logger = logger;
         _context = context;
         _triggerKeys = triggerKeys;
         _actions = actions ?? [];
@@ -60,6 +64,9 @@ internal sealed class TypeScriptDefinitionWriter
                 string name = SdkReflection.JsonName(property);
                 bool nullable = SdkReflection.IsNullable(property);
                 string tsType = TsType(property.PropertyType, nullable);
+                string? doc = SummaryOf(property.DeclaringType, r => r.PropertySummary(property));
+                if (doc is not null)
+                    lines.Add($"  /** {doc} */");
                 lines.Add($"  {name}{(nullable ? "?" : string.Empty)}: {tsType};");
             }
             _propertyLines[type] = lines;
@@ -80,6 +87,9 @@ internal sealed class TypeScriptDefinitionWriter
 
         foreach (Type type in _objectTypes)
         {
+            string? doc = SummaryOf(type, r => r.TypeSummary(type));
+            if (doc is not null)
+                sb.AppendLine($"/** {doc} */");
             sb.AppendLine($"interface {_interfaceNames[type]} {{");
             foreach (string line in _propertyLines[type])
                 sb.AppendLine(line);
@@ -115,6 +125,14 @@ internal sealed class TypeScriptDefinitionWriter
         );
 
         return sb.ToString();
+    }
+
+    private string? SummaryOf(Type? owner, Func<XmlDocSummaryReader, string?> read)
+    {
+        if (owner is null)
+            return null;
+        XmlDocSummaryReader? reader = XmlDocSummaryReader.ForAssembly(owner.Assembly, _logger);
+        return reader is null ? null : read(reader);
     }
 
     private string TsType(Type type, bool nullable)

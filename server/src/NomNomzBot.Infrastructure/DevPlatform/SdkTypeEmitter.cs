@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -29,20 +30,23 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     private readonly IEventCatalog _catalog;
     private readonly ITriggerSampleCatalog? _samples;
     private readonly IReadOnlyList<ICommandAction> _actions;
+    private readonly ILogger<SdkTypeEmitter>? _logger;
 
     public SdkTypeEmitter(
         IEventCatalog catalog,
         ITriggerSampleCatalog? samples = null,
-        IEnumerable<ICommandAction>? actions = null
+        IEnumerable<ICommandAction>? actions = null,
+        ILogger<SdkTypeEmitter>? logger = null
     )
     {
+        _logger = logger;
         _catalog = catalog;
         _samples = samples;
         _actions = [.. actions ?? []];
     }
 
     public string EmitTypeScript(SdkContext context) =>
-        new TypeScriptDefinitionWriter(context, null, _actions).Build(VisibleFor(context));
+        new TypeScriptDefinitionWriter(context, null, _actions, _logger).Build(VisibleFor(context));
 
     public Result<string> EmitTypeScript(SdkContext context, string triggerKey) =>
         EmitTypeScript(context, [triggerKey]);
@@ -68,7 +72,8 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
             new TypeScriptDefinitionWriter(
                 context,
                 [.. union.OrderBy(key => key, StringComparer.Ordinal)],
-                _actions
+                _actions,
+                _logger
             ).Build(VisibleFor(context))
         );
     }

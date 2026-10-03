@@ -79,6 +79,12 @@ public sealed class PredictionEndedEvent : DomainEventBase
     public string? WinningOutcomeId { get; init; }
 }
 
+/// <summary>One outcome of a prediction with the points and users behind it.</summary>
+/// <param name="Id">The Twitch id of the outcome.</param>
+/// <param name="Title">The text of the outcome, as viewers see it.</param>
+/// <param name="ChannelPoints">The total channel points viewers spent on this outcome.</param>
+/// <param name="Users">The number of viewers who picked this outcome.</param>
+/// <param name="Color">The colour of the outcome: blue or pink.</param>
 public sealed record PredictionOutcome(
     string Id,
     string Title,

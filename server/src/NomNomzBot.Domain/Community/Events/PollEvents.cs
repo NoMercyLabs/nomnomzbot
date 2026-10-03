@@ -66,4 +66,9 @@ public sealed class PollEndedEvent : DomainEventBase
     public string? WinningChoiceId { get; init; }
 }
 
+/// <summary>One choice of a poll with its vote counts.</summary>
+/// <param name="Id">The Twitch id of the choice.</param>
+/// <param name="Title">The text of the choice, as viewers see it.</param>
+/// <param name="Votes">The total number of votes for the choice.</param>
+/// <param name="ChannelPointsVotes">How many of those votes viewers paid for with channel points.</param>
 public sealed record PollChoice(string Id, string Title, int Votes, int ChannelPointsVotes);

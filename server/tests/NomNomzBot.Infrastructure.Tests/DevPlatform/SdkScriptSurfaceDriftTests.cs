@@ -393,15 +393,39 @@ public sealed partial class SdkScriptSurfaceDriftTests
     [Fact]
     public void Every_script_surface_member_has_a_jsdoc()
     {
-        List<string> missing = [];
-        int total = 0;
-
-        // Only the runtime-authored half: the generated event payload interfaces are documented by their own
-        // emitter, not by SdkRuntimeSurface.
+        // Only the runtime-authored half: the generated event payload interfaces are covered by
+        // Every_generated_event_member_has_a_jsdoc.
         string surface =
             SdkRuntimeSurface.ScriptApiInterfaces() + "\n" + SdkRuntimeSurface.ScriptGlobals();
 
-        foreach ((string block, List<string> lines) in TypeBlocks(surface))
+        AssertEveryMemberHasJsDoc(surface);
+    }
+
+    [Fact]
+    public void Every_generated_event_member_has_a_jsdoc()
+    {
+        SdkTypeEmitter emitter = new(new EventCatalog());
+        string script = emitter.EmitTypeScript(SdkContext.Script);
+        string widget = emitter.EmitTypeScript(SdkContext.Widget);
+
+        // The reflected interfaces come first; the authored surface (checked above) follows them.
+        string generatedScript = script[
+            ..script.IndexOf(SdkRuntimeSurface.ScriptApiInterfaces(), StringComparison.Ordinal)
+        ];
+        string generatedWidget = widget[
+            ..widget.IndexOf("interface NnzEventMap {", StringComparison.Ordinal)
+        ];
+
+        AssertEveryMemberHasJsDoc(generatedScript);
+        AssertEveryMemberHasJsDoc(generatedWidget);
+    }
+
+    private static void AssertEveryMemberHasJsDoc(string dts)
+    {
+        List<string> missing = [];
+        int total = 0;
+
+        foreach ((string block, List<string> lines) in TypeBlocks(dts))
         {
             string? previous = null;
             foreach (string line in lines.Where(l => l.Trim().Length > 0))

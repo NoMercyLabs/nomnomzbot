@@ -41,4 +41,7 @@ public sealed class GiftSubscriptionEvent : DomainEventBase, IProviderScopedEven
     public required IReadOnlyList<GiftRecipient> Recipients { get; init; }
 }
 
+/// <summary>One viewer who received a gifted sub.</summary>
+/// <param name="UserId">The Twitch user id of the recipient (a number as text).</param>
+/// <param name="DisplayName">The display name of the recipient, as shown in chat.</param>
 public sealed record GiftRecipient(string UserId, string DisplayName);

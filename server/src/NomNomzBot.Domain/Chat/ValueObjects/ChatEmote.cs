@@ -20,6 +20,15 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// false for the rest. <see cref="SetId"/>/<see cref="OwnerId"/>/<see cref="Formats"/> are populated for
 /// <see cref="EmoteProvider.Twitch"/> only.
 /// </summary>
+/// <param name="Provider">The service the emote comes from, such as Twitch or 7TV.</param>
+/// <param name="Id">The emote id at that service.</param>
+/// <param name="Code">The text a viewer types to use the emote.</param>
+/// <param name="Urls">Image links keyed by scale, from "1" (small) to "4" (large).</param>
+/// <param name="Animated">True when the emote image is animated.</param>
+/// <param name="ZeroWidth">True when the emote draws on top of the emote before it (a 7TV overlay).</param>
+/// <param name="SetId">The Twitch emote set id. Set for Twitch emotes only.</param>
+/// <param name="OwnerId">The user id of the channel that owns the emote. Set for Twitch emotes only.</param>
+/// <param name="Formats">The image formats Twitch offers, such as static or animated. Set for Twitch emotes only.</param>
 public sealed record ChatEmote(
     EmoteProvider Provider,
     string Id,
