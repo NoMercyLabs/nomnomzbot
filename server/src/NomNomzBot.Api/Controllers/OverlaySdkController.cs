@@ -206,7 +206,8 @@ public sealed class OverlaySdkController : ControllerBase
 
             var el = document.createElement("audio");
             el.src = payload.playbackUrl;
-            el.volume = Math.max(0, Math.min(100, Number(payload.volume) || 100)) / 100;
+            var volume = payload.volume == null ? NaN : Number(payload.volume);
+            el.volume = Math.max(0, Math.min(100, isFinite(volume) ? volume : 100)) / 100;
             if (payload.handle) {
               soundHandles[payload.handle] = el;
               el.addEventListener("ended", function () {
@@ -233,8 +234,12 @@ public sealed class OverlaySdkController : ControllerBase
               ttsQueue.shift();
               playNextTts();
             };
-            el.addEventListener("ended", advance);
-            el.addEventListener("error", advance);
+            // Listeners go on once per element: a pause then resume calls this again for the same element.
+            if (!el.ttsListening) {
+              el.ttsListening = true;
+              el.addEventListener("ended", advance);
+              el.addEventListener("error", advance);
+            }
             el.play().catch(function (e) {
               report("tts playback blocked: " + ((e && e.message) || e));
               advance();

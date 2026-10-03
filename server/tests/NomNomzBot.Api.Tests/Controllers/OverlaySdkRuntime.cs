@@ -50,8 +50,20 @@ internal sealed class OverlaySdkRuntime
         };
         var __plays = 0;
         var __spoken = 0;
+        var __elements = [];
         function __element() {
-          return { style: {}, addEventListener: function () {}, play: function () { __plays++; return Promise.resolve(); }, pause: function () {} };
+          var el = {
+            style: {},
+            volume: 1,
+            playing: false,
+            listeners: {},
+            addEventListener: function (type, handler) { (el.listeners[type] = el.listeners[type] || []).push(handler); },
+            fire: function (type) { (el.listeners[type] || []).slice().forEach(function (h) { h(); }); },
+            play: function () { __plays++; el.playing = true; return Promise.resolve(); },
+            pause: function () { el.playing = false; }
+          };
+          __elements.push(el);
+          return el;
         }
         function SpeechSynthesisUtterance(text) { this.text = text; }
         var speechSynthesis = { getVoices: function () { return []; }, speak: function () { __spoken++; } };
