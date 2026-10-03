@@ -345,6 +345,38 @@ public sealed class ScriptTestRunServiceTests
     }
 
     [Fact]
+    public async Task A_role_alias_is_normalised_to_its_token()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, ChatsUserAndRole, ["chat.send"]);
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string>(),
+            [],
+            Trigger: "FollowEvent",
+            Role: "mod"
+        );
+
+        await sut.RunAsync(id, request); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, request)).Value;
+
+        result.ChatOutput.Should().ContainSingle().Which.Split('|')[1].Should().Be("moderator");
+    }
+
+    [Fact]
+    public async Task An_unknown_role_fails_validation_naming_the_role_and_runs_nothing()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, ChatsUserAndRole, ["chat.send"]);
+        ScriptTestRunRequest request = new(new Dictionary<string, string>(), [], Role: "king");
+
+        Result<TestRunResultDto> result = await sut.RunAsync(id, request);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("king");
+    }
+
+    [Fact]
     public async Task An_unknown_trigger_fails_validation_naming_the_id_and_runs_nothing()
     {
         (ScriptTestRunService sut, AuthDbContext db, _) = Build();
