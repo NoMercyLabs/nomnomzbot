@@ -35,7 +35,8 @@ public sealed class GameBuiltinsTests
 
     private static BuiltinCommandContext Context(
         string args,
-        string personality = PersonalityTone.Informative
+        string personality = PersonalityTone.Informative,
+        string? platform = null
     ) =>
         new()
         {
@@ -46,6 +47,7 @@ public sealed class GameBuiltinsTests
             RoleLevel = 2,
             Args = args,
             Personality = personality,
+            TriggeringPlatform = platform,
         };
 
     private static GameConfigDto Config(bool enabled) =>
@@ -138,7 +140,39 @@ public sealed class GameBuiltinsTests
 
         none.Value.Should().Be("Usage: !coinflip <bet>");
         junk.Value.Should().Be("Usage: !coinflip <bet>");
-        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!, default);
+        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task A_Kick_chatter_is_created_under_the_kick_provider_not_twitch()
+    {
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<UserDto>("account lookup failed", "ACCOUNT_ERROR"));
+        IGameService games = Substitute.For<IGameService>();
+        games
+            .ListGamesAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<GameConfigDto>>([Config(enabled: true)]));
+        CoinflipBuiltin kickSut = new(games, users, TestBuiltinComposer.Create());
+
+        await kickSut.ExecuteAsync(Context("50", platform: AuthEnums.Platform.Kick));
+
+        await users
+            .Received(1)
+            .GetOrCreateAsync(
+                "tw-1",
+                "viewer",
+                "Viewer",
+                AuthEnums.Platform.Kick,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -150,7 +184,7 @@ public sealed class GameBuiltinsTests
 
         // Actionable: names the game, that it isn't on, and where to turn it on (+ the currency dependency).
         reply.Value.Should().Contain("isn't enabled").And.Contain("Economy");
-        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!, default);
+        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!);
     }
 
     [Fact]
@@ -164,7 +198,7 @@ public sealed class GameBuiltinsTests
 
         reply.Value.Should().Contain("isn't enabled");
         reply.Value.Should().NotContain("Usage");
-        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!, default);
+        await games.DidNotReceiveWithAnyArgs().PlayAsync(default, default!);
     }
 
     [Fact]
@@ -321,9 +355,7 @@ public sealed class GameBuiltinsTests
         (CoinflipBuiltin sut, _) = BuildWithUnresolvedAccount();
 
         Result<string> sassy = await sut.ExecuteAsync(Context("50", PersonalityTone.Sassy));
-        Result<string> informative = await sut.ExecuteAsync(
-            Context("50", PersonalityTone.Informative)
-        );
+        Result<string> informative = await sut.ExecuteAsync(Context("50"));
 
         informative.Value.Should().Be("Could not resolve your account — try again.");
         sassy.Value.Should().NotBe(informative.Value);

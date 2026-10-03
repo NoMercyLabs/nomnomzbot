@@ -37,11 +37,14 @@ public interface IMusicService
     /// <summary>
     /// Skip to the next track in the queue and raise <c>SongSkippedEvent</c> for the track that was playing.
     /// <paramref name="skippedByUserId"/> is the person who asked: the platform user id from chat or a pipeline (resolved to the internal id before the event),
-    /// the internal user id from the dashboard. Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.
+    /// the internal user id from the dashboard. <paramref name="skippedByPlatform"/> names the provider that platform id
+    /// belongs to (<c>AuthEnums.Platform</c>); <c>null</c> means Twitch, and is ignored for an internal id.
+    /// Fails <c>CAPABILITY_UNSUPPORTED</c> / <c>PREMIUM_REQUIRED</c>.
     /// </summary>
     Task<Result> SkipAsync(
         string broadcasterId,
         string skippedByUserId,
+        string? skippedByPlatform = null,
         CancellationToken cancellationToken = default
     );
 

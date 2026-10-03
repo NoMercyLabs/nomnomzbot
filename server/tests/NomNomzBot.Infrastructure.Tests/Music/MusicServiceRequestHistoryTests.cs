@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
@@ -161,7 +162,8 @@ public sealed class MusicServiceRequestHistoryTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
         return (sut, db);
     }

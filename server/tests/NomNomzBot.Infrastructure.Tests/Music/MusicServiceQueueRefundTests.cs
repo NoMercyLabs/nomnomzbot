@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Identity;
@@ -245,7 +246,8 @@ public sealed class MusicServiceQueueRefundTests
             PermissiveMusicConfigService.Instance,
             accounts,
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
         return (sut, accounts, store);
     }

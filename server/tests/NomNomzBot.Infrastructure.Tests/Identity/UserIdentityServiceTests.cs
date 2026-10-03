@@ -67,6 +67,37 @@ public sealed class UserIdentityServiceTests
     }
 
     [Fact]
+    public async Task ResolveUserAsync_without_getOrCreate_finds_a_pre_identity_twitch_user_by_TwitchUserId()
+    {
+        using ServiceProvider provider = BuildProvider();
+        using IServiceScope scope = provider.CreateScope();
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        User legacy = new()
+        {
+            TwitchUserId = "4242",
+            Platform = "twitch",
+            Username = "legacy",
+            UsernameNormalized = "legacy",
+            DisplayName = "legacy",
+            Enabled = true,
+        };
+        db.Users.Add(legacy);
+        await db.SaveChangesAsync();
+
+        Result<Guid> twitch = await NewService(scope)
+            .ResolveUserAsync("twitch", "4242", getOrCreate: false);
+        Result<Guid> kick = await NewService(scope)
+            .ResolveUserAsync("kick", "4242", getOrCreate: false);
+
+        twitch.IsSuccess.Should().BeTrue();
+        twitch.Value.Should().Be(legacy.Id);
+        kick.IsFailure.Should().BeTrue();
+        kick.ErrorCode.Should().Be("IDENTITY_NOT_FOUND");
+        (await db.UserIdentities.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task ResolveUserAsync_getOrCreate_creates_user_and_primary_twitch_identity()
     {
         using ServiceProvider provider = BuildProvider();

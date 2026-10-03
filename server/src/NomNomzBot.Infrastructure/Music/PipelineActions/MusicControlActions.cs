@@ -194,6 +194,7 @@ public sealed class MusicNextAction : ICommandAction
         Result result = await _music.SkipAsync(
             ctx.BroadcasterId.ToString(),
             ctx.TriggeredByUserId,
+            ctx.TriggeredByPlatform,
             ctx.CancellationToken
         );
         return MusicControlResult.FromMusicResult(result, "skipped");

@@ -144,7 +144,12 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
         SkipBuiltin sut = new(
             music,
@@ -158,7 +163,12 @@ public sealed class SkipBuiltinTests
         result.Value.Should().BeOneOf("Skipped.", "Track skipped.", "Skipped the current track.");
         await music
             .Received(1)
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
         // The gate asked the Gate-2 resolver about the exact action the dashboard's POST /music/skip needs.
         await roles
             .Received(1)
@@ -209,7 +219,12 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Failure("internal provider detail 7731", "PREMIUM_REQUIRED"));
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
@@ -248,7 +263,12 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
         SkipBuiltin sut = new(
             music,
@@ -260,7 +280,12 @@ public sealed class SkipBuiltinTests
 
         await music
             .Received(1)
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
         await roles.DidNotReceiveWithAnyArgs().HasCapabilityAsync(default, default, default!);
     }
 
@@ -298,7 +323,12 @@ public sealed class SkipBuiltinTests
     {
         IMusicService music = Substitute.For<IMusicService>();
         music
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
         SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
 
@@ -307,7 +337,12 @@ public sealed class SkipBuiltinTests
         result.IsSuccess.Should().BeTrue();
         await music
             .Received(1)
-            .SkipAsync(Broadcaster.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
         await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
     }
 

@@ -96,6 +96,10 @@ public class PipelineRequest
     public string PipelineJson { get; init; } = "{}";
 
     public required string TriggeredByUserId { get; init; }
+
+    /// <summary>The provider key (<c>AuthEnums.Platform</c>) the <see cref="TriggeredByUserId"/> belongs to, when it is a
+    /// platform user id (a chat trigger). <c>null</c> means the id is internal or there is no actor.</summary>
+    public string? TriggeredByPlatform { get; init; }
     public required string TriggeredByDisplayName { get; init; }
     public string? MessageId { get; init; }
     public string? RedemptionId { get; init; }

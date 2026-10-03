@@ -13,9 +13,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Trust.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -38,7 +40,8 @@ public sealed class ModerationProjectionService(
     ITrustPolicyService trustPolicy,
     IEventBus eventBus,
     TimeProvider clock,
-    ILogger<ModerationProjectionService> logger
+    ILogger<ModerationProjectionService> logger,
+    IUserIdentityService identities
 ) : IModerationProjectionService
 {
     private const int DefaultHeatThreshold = 80;
@@ -67,13 +70,15 @@ public sealed class ModerationProjectionService(
         string? moderatorDisplayName = null,
         string? reason = null,
         int? durationSeconds = null,
+        string? subjectProvider = null,
         CancellationToken ct = default
     )
     {
+        string provider = subjectProvider ?? AuthEnums.Platform.Twitch;
         if (string.IsNullOrEmpty(subjectTwitchUserId))
             return Result.Success(); // anonymous/unattributed action — nothing to project
 
-        Guid? subjectUserId = await ResolveUserIdAsync(subjectTwitchUserId, ct);
+        Guid? subjectUserId = await ResolveUserIdAsync(provider, subjectTwitchUserId, ct);
         if (subjectUserId is null)
         {
             logger.LogDebug(
@@ -94,7 +99,7 @@ public sealed class ModerationProjectionService(
 
         Guid? moderatorUserId = string.IsNullOrEmpty(moderatorTwitchUserId)
             ? null
-            : await ResolveUserIdAsync(moderatorTwitchUserId, ct);
+            : await ResolveUserIdAsync(provider, moderatorTwitchUserId, ct);
 
         db.ModerationHistoryEntries.Add(
             new()
@@ -194,7 +199,11 @@ public sealed class ModerationProjectionService(
             if (action is null || string.IsNullOrEmpty(action.TargetUserId))
                 continue;
 
-            Guid? subjectUserId = await ResolveUserIdAsync(action.TargetUserId, ct);
+            Guid? subjectUserId = await ResolveUserIdAsync(
+                AuthEnums.Platform.Twitch,
+                action.TargetUserId,
+                ct
+            );
             if (subjectUserId is null)
                 continue;
 
@@ -242,13 +251,19 @@ public sealed class ModerationProjectionService(
 
     // ─── Internals ───────────────────────────────────────────────────────────
 
-    private async Task<Guid?> ResolveUserIdAsync(string twitchUserId, CancellationToken ct)
+    private async Task<Guid?> ResolveUserIdAsync(
+        string provider,
+        string providerUserId,
+        CancellationToken ct
+    )
     {
-        Guid id = await db
-            .Users.Where(u => u.TwitchUserId == twitchUserId)
-            .Select(u => u.Id)
-            .FirstOrDefaultAsync(ct);
-        return id == Guid.Empty ? null : id;
+        Result<Guid> resolved = await identities.ResolveUserAsync(
+            provider,
+            providerUserId,
+            getOrCreate: false,
+            ct
+        );
+        return resolved.IsSuccess ? resolved.Value : null;
     }
 
     private async Task<UserModerationHistory> UpsertHistoryAsync(

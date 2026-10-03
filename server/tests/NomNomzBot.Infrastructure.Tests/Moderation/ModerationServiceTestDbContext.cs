@@ -146,6 +146,13 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
             e.Ignore(c => c.ContentLabels);
         });
 
+        b.Entity<UserIdentity>(e =>
+        {
+            e.HasKey(i => i.Id);
+            e.Ignore(i => i.User);
+            e.Ignore(i => i.Connection);
+        });
+
         b.Entity<User>(e =>
         {
             e.HasKey(u => u.Id);
@@ -220,6 +227,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // The channel's moderator roster — read by the heat auto-timeout handler to decide immunity,
         // so it must be a REAL set here; navs are ignored in OnModelCreating above.
         typeof(ChannelModerator),
+        typeof(UserIdentity),
         // Per-channel trust tuning (S-OWN23) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Trust.Entities.TrustPolicy),
     ];
@@ -237,7 +245,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
+    public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();

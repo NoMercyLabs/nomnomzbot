@@ -540,7 +540,12 @@ public sealed class MusicPipelineActionsTests
                 )
             );
         music
-            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
@@ -554,7 +559,12 @@ public sealed class MusicPipelineActionsTests
         result.Output.Should().Be("skipped: Wrong Track");
         await music
             .Received(1)
-            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
         // Someone else's pending request must survive — undo affects the caller's track only.
         await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
     }
@@ -610,7 +620,12 @@ public sealed class MusicPipelineActionsTests
             .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(new MusicQueue(Playing() with { RequestedBy = "Bamo" }, []));
         music
-            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Failure("PROVIDER_UNAVAILABLE", "nope"));
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
@@ -738,7 +753,12 @@ public sealed class MusicPipelineActionsTests
             .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing(uri: "spotify:track:bad", name: "Bad Song"));
         music
-            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>())
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongBanAction action = new(music, blocks, chat, NullLogger<SongBanAction>.Instance);
@@ -763,7 +783,12 @@ public sealed class MusicPipelineActionsTests
         // …AND the playing track was skipped.
         await music
             .Received(1)
-            .SkipAsync(ChannelId.ToString(), "twitch-42", Arg.Any<CancellationToken>());
+            .SkipAsync(
+                ChannelId.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -785,6 +810,11 @@ public sealed class MusicPipelineActionsTests
         db.BlockedTracks.Should().BeEmpty();
         await music
             .DidNotReceive()
-            .SkipAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

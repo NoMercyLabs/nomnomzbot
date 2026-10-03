@@ -257,6 +257,7 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             BroadcasterId = request.BroadcasterId,
             TriggeredByUserId = request.TriggeredByUserId,
+            TriggeredByPlatform = request.TriggeredByPlatform,
             TriggeredByDisplayName = request.TriggeredByDisplayName,
             MessageId = request.MessageId ?? string.Empty,
             RedemptionId = request.RedemptionId,

@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Integrations;
@@ -68,7 +69,8 @@ public sealed class NowPlayingReaderCacheTests
                 PermissiveMusicConfigService.Instance,
                 Substitute.For<ICurrencyAccountService>(),
                 cache,
-                new OutboundSanctionAccessor()
+                new OutboundSanctionAccessor(),
+                Substitute.For<IUserIdentityService>()
             ),
             Cache = cache,
             Provider = provider,

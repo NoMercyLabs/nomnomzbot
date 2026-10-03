@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -88,7 +89,8 @@ public sealed class MusicServiceBackgroundSanctionTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            sanctions
+            sanctions,
+            Substitute.For<IUserIdentityService>()
         );
 
         return (service, sanctions, provider);

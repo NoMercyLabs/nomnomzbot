@@ -1124,6 +1124,7 @@ public sealed class MusicStatePollingServiceTests
         public Task<Result> SkipAsync(
             string broadcasterId,
             string skippedByUserId,
+            string? skippedByPlatform = null,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 

@@ -11,11 +11,14 @@
 using System.Net;
 using System.Text;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
@@ -266,11 +269,85 @@ public sealed class MusicServicePlaybackPublishTests
             TrackJson("Song B", isPlaying: true),
             new NowPlayingCache(),
             new SongRequestQueueStore(),
+            db => SeedViewer(db, viewerId, "4242", AuthEnums.Platform.Twitch)
+        );
+
+        Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242", AuthEnums.Platform.Twitch);
+
+        ok.IsSuccess.Should().BeTrue();
+        SongSkippedEvent skipped = bus.Published.OfType<SongSkippedEvent>().Single();
+        skipped.BroadcasterId.Should().Be(ChannelId);
+        skipped.SkippedByUserId.Should().Be(viewerId.ToString());
+        skipped.TrackName.Should().Be("Song B");
+    }
+
+    [Fact]
+    public async Task SkipAsync_resolves_a_kick_chatter_through_their_kick_identity()
+    {
+        Guid kickViewer = Guid.NewGuid();
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song B", isPlaying: true),
+            new NowPlayingCache(),
+            new SongRequestQueueStore(),
+            db => SeedViewer(db, kickViewer, "kick-777", AuthEnums.Platform.Kick)
+        );
+
+        Result ok = await sut.SkipAsync(ChannelId.ToString(), "kick-777", AuthEnums.Platform.Kick);
+
+        ok.IsSuccess.Should().BeTrue();
+        bus.Published.OfType<SongSkippedEvent>()
+            .Single()
+            .SkippedByUserId.Should()
+            .Be(kickViewer.ToString());
+    }
+
+    [Fact]
+    public async Task SkipAsync_without_a_platform_still_resolves_a_twitch_chatter()
+    {
+        Guid twitchViewer = Guid.NewGuid();
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song B", isPlaying: true),
+            new NowPlayingCache(),
+            new SongRequestQueueStore(),
+            db => SeedViewer(db, twitchViewer, "4242", AuthEnums.Platform.Twitch)
+        );
+
+        await sut.SkipAsync(ChannelId.ToString(), "4242");
+
+        bus.Published.OfType<SongSkippedEvent>()
+            .Single()
+            .SkippedByUserId.Should()
+            .Be(twitchViewer.ToString());
+    }
+
+    [Fact]
+    public async Task SkipAsync_never_maps_an_unknown_kick_id_onto_a_twitch_user_with_the_same_number()
+    {
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song B", isPlaying: true),
+            new NowPlayingCache(),
+            new SongRequestQueueStore(),
+            db => SeedViewer(db, Guid.NewGuid(), "5555", AuthEnums.Platform.Twitch)
+        );
+
+        await sut.SkipAsync(ChannelId.ToString(), "5555", AuthEnums.Platform.Kick);
+
+        bus.Published.OfType<SongSkippedEvent>().Single().SkippedByUserId.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SkipAsync_resolves_a_twitch_chatter_who_has_no_identity_row_yet()
+    {
+        Guid preIdentityUser = Guid.NewGuid();
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song B", isPlaying: true),
+            new NowPlayingCache(),
+            new SongRequestQueueStore(),
             db =>
                 db.Users.Add(
                     new User
                     {
-                        Id = viewerId,
+                        Id = preIdentityUser,
                         TwitchUserId = "4242",
                         Username = "viewer",
                         UsernameNormalized = "viewer",
@@ -279,13 +356,40 @@ public sealed class MusicServicePlaybackPublishTests
                 )
         );
 
-        Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242");
+        await sut.SkipAsync(ChannelId.ToString(), "4242", AuthEnums.Platform.Twitch);
 
-        ok.IsSuccess.Should().BeTrue();
-        SongSkippedEvent skipped = bus.Published.OfType<SongSkippedEvent>().Single();
-        skipped.BroadcasterId.Should().Be(ChannelId);
-        skipped.SkippedByUserId.Should().Be(viewerId.ToString());
-        skipped.TrackName.Should().Be("Song B");
+        bus.Published.OfType<SongSkippedEvent>()
+            .Single()
+            .SkippedByUserId.Should()
+            .Be(preIdentityUser.ToString());
+    }
+
+    private static void SeedViewer(
+        MusicTestDbContext db,
+        Guid userId,
+        string providerUserId,
+        string provider
+    )
+    {
+        db.Users.Add(
+            new User
+            {
+                Id = userId,
+                TwitchUserId = provider == AuthEnums.Platform.Twitch ? providerUserId : null,
+                Username = "viewer",
+                UsernameNormalized = "viewer",
+                DisplayName = "Viewer",
+            }
+        );
+        db.UserIdentities.Add(
+            new UserIdentity
+            {
+                UserId = userId,
+                Provider = provider,
+                ProviderUserId = providerUserId,
+                ProviderUsername = "viewer",
+            }
+        );
     }
 
     [Fact]
@@ -397,7 +501,8 @@ public sealed class MusicServicePlaybackPublishTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -468,7 +573,13 @@ public sealed class MusicServicePlaybackPublishTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             nowPlayingCache,
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            new UserIdentityService(
+                db,
+                Substitute.For<IServiceScopeFactory>(),
+                TimeProvider.System,
+                bus
+            )
         );
         return (sut, bus, handler);
     }

@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -91,7 +92,8 @@ public sealed class HandOverNextAsyncSanctionTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            sanctions
+            sanctions,
+            Substitute.For<IUserIdentityService>()
         );
 
         // No sanction in force here, matching exactly how the reconciler and the poller's recovery tick
@@ -160,7 +162,8 @@ public sealed class HandOverNextAsyncSanctionTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            sanctions
+            sanctions,
+            Substitute.For<IUserIdentityService>()
         );
 
         sanctions.Current.Should().BeNull();
@@ -207,7 +210,8 @@ public sealed class HandOverNextAsyncSanctionTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
 
         queueStore

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -30,18 +31,21 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
 {
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
+    private readonly IUserIdentityService _identities;
     private readonly IBuiltinResponseComposer _composer;
     private readonly bool _lurking;
 
     protected LurkBuiltinBase(
         IUserService users,
         IApplicationDbContext db,
+        IUserIdentityService identities,
         IBuiltinResponseComposer composer,
         bool lurking
     )
     {
         _users = users;
         _db = db;
+        _identities = identities;
         _composer = composer;
         _lurking = lurking;
     }
@@ -59,6 +63,7 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
             context.TriggeringUserId,
             context.TriggeringUserLogin,
             context.TriggeringUserDisplayName,
+            provider: context.TriggeringPlatform ?? AuthEnums.Platform.Twitch,
             cancellationToken: ct
         );
         if (caller.IsFailure)
@@ -81,10 +86,15 @@ public abstract class LurkBuiltinBase : IBuiltinCommand
                 )
             );
 
-        User? row = await _db.Users.FirstOrDefaultAsync(
-            u => u.TwitchUserId == context.TriggeringUserId,
+        Result<Guid> callerId = await _identities.ResolveUserAsync(
+            context.TriggeringPlatform ?? AuthEnums.Platform.Twitch,
+            context.TriggeringUserId,
+            getOrCreate: false,
             ct
         );
+        User? row = callerId.IsSuccess
+            ? await _db.Users.FirstOrDefaultAsync(u => u.Id == callerId.Value, ct)
+            : null;
         if (row is not null)
         {
             row.IsLurking = _lurking;
@@ -120,9 +130,10 @@ public sealed class LurkBuiltin : LurkBuiltinBase
     public LurkBuiltin(
         IUserService users,
         IApplicationDbContext db,
+        IUserIdentityService identities,
         IBuiltinResponseComposer composer
     )
-        : base(users, db, composer, lurking: true) { }
+        : base(users, db, identities, composer, lurking: true) { }
 
     public override string BuiltinKey => "lurk";
 }
@@ -133,9 +144,10 @@ public sealed class UnlurkBuiltin : LurkBuiltinBase
     public UnlurkBuiltin(
         IUserService users,
         IApplicationDbContext db,
+        IUserIdentityService identities,
         IBuiltinResponseComposer composer
     )
-        : base(users, db, composer, lurking: false) { }
+        : base(users, db, identities, composer, lurking: false) { }
 
     public override string BuiltinKey => "unlurk";
 }

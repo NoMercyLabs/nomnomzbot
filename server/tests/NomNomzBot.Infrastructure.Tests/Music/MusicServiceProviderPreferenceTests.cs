@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -172,7 +173,8 @@ public sealed class MusicServiceProviderPreferenceTests
             configService,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
     }
 

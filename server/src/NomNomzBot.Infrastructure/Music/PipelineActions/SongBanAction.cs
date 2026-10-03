@@ -92,6 +92,7 @@ public sealed class SongBanAction : ICommandAction
         Result skipped = await _music.SkipAsync(
             broadcasterId,
             ctx.TriggeredByUserId,
+            ctx.TriggeredByPlatform,
             ctx.CancellationToken
         );
         if (skipped.IsFailure)

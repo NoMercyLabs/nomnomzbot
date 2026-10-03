@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity.Jobs;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
@@ -33,6 +34,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
+    private readonly IUserIdentityService _identities;
     private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _clock;
 
@@ -40,6 +42,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         ITwitchUsersApi twitchUsers,
         IUserService users,
         IApplicationDbContext db,
+        IUserIdentityService identities,
         IBuiltinResponseComposer composer,
         TimeProvider clock
     )
@@ -47,6 +50,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         _twitchUsers = twitchUsers;
         _users = users;
         _db = db;
+        _identities = identities;
         _composer = composer;
         _clock = clock;
     }
@@ -64,13 +68,19 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
             context.TriggeringUserId,
             context.TriggeringUserLogin,
             context.TriggeringUserDisplayName,
+            provider: context.TriggeringPlatform ?? AuthEnums.Platform.Twitch,
             cancellationToken: ct
         );
 
-        User? row = await _db.Users.FirstOrDefaultAsync(
-            u => u.TwitchUserId == context.TriggeringUserId,
+        Result<Guid> callerId = await _identities.ResolveUserAsync(
+            context.TriggeringPlatform ?? AuthEnums.Platform.Twitch,
+            context.TriggeringUserId,
+            getOrCreate: false,
             ct
         );
+        User? row = callerId.IsSuccess
+            ? await _db.Users.FirstOrDefaultAsync(u => u.Id == callerId.Value, ct)
+            : null;
         if (row is null)
             return Result.Success(
                 await ReplyAsync(
@@ -81,7 +91,10 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
                 )
             );
 
-        if (row.AccountCreatedAt is null)
+        // The chat id of a non-Twitch chatter means nothing to Helix: never send it there.
+        bool isTwitchChatter =
+            (context.TriggeringPlatform ?? AuthEnums.Platform.Twitch) == AuthEnums.Platform.Twitch;
+        if (row.AccountCreatedAt is null && isTwitchChatter)
         {
             Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByIdsAsync(
                 [context.TriggeringUserId],

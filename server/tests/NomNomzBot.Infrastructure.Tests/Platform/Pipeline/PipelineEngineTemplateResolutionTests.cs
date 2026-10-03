@@ -296,6 +296,55 @@ public sealed class PipelineEngineTemplateResolutionTests
         fixtureAction.CapturedElement!.Value.GetArrayLength().Should().Be(2);
     }
 
+    private sealed class CapturesActorFixtureAction : ICommandAction
+    {
+        public string ActionType => "guard_fixture_captures_actor";
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+        public IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
+
+        public string? CapturedUserId { get; private set; }
+        public string? CapturedPlatform { get; private set; }
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            CapturedUserId = ctx.TriggeredByUserId;
+            CapturedPlatform = ctx.TriggeredByPlatform;
+            return Task.FromResult(ActionResult.Success("ok"));
+        }
+    }
+
+    [Theory]
+    [InlineData("kick")]
+    [InlineData(null)]
+    public async Task Request_TriggeredByPlatform_ReachesTheContextTheActionSees(string? platform)
+    {
+        CapturesActorFixtureAction fixtureAction = new();
+        PipelineEngine engine = CreateEngine(
+            [fixtureAction],
+            new MapResolver(new Dictionary<string, string>())
+        );
+        PipelineRequest request = new()
+        {
+            BroadcasterId = Channel,
+            TriggeredByUserId = "u1",
+            TriggeredByDisplayName = "TestUser",
+            TriggeredByPlatform = platform,
+            PipelineJson = """{"steps":[{"action":{"type":"guard_fixture_captures_actor"}}]}""",
+            MessageId = "m1",
+            RawMessage = "",
+        };
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(request);
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        fixtureAction.CapturedUserId.Should().Be("u1");
+        fixtureAction.CapturedPlatform.Should().Be(platform);
+    }
+
     [Fact]
     public async Task TemplatedTextField_PlainNonJsonTemplate_StillResolvesToAJsonString_Regression()
     {

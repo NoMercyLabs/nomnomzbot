@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
@@ -53,6 +54,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly ICurrencyAccountService _accounts;
     private readonly INowPlayingCache _nowPlayingCache;
     private readonly IOutboundSanctionAccessor _sanctions;
+    private readonly IUserIdentityService _identities;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -66,7 +68,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         IMusicConfigService config,
         ICurrencyAccountService accounts,
         INowPlayingCache nowPlayingCache,
-        IOutboundSanctionAccessor sanctions
+        IOutboundSanctionAccessor sanctions,
+        IUserIdentityService identities
     )
     {
         _providers = providers;
@@ -81,6 +84,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         _accounts = accounts;
         _nowPlayingCache = nowPlayingCache;
         _sanctions = sanctions;
+        _identities = identities;
     }
 
     /// <summary>
@@ -338,6 +342,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// </summary>
     private async Task<string> ResolveInternalUserIdAsync(
         string actorId,
+        string? actorPlatform,
         CancellationToken cancellationToken
     )
     {
@@ -346,16 +351,19 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (string.IsNullOrWhiteSpace(actorId))
             return string.Empty;
 
-        Guid? viaTwitch = await _db
-            .Users.Where(u => u.TwitchUserId == actorId)
-            .Select(u => (Guid?)u.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-        return viaTwitch?.ToString() ?? string.Empty;
+        Result<Guid> resolved = await _identities.ResolveUserAsync(
+            actorPlatform ?? AuthEnums.Platform.Twitch,
+            actorId,
+            getOrCreate: false,
+            cancellationToken
+        );
+        return resolved.IsSuccess ? resolved.Value.ToString() : string.Empty;
     }
 
     public async Task<Result> SkipAsync(
         string broadcasterId,
         string skippedByUserId,
+        string? skippedByPlatform = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -400,6 +408,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                     BroadcasterId = tenantId,
                     SkippedByUserId = await ResolveInternalUserIdAsync(
                         skippedByUserId,
+                        skippedByPlatform,
                         cancellationToken
                     ),
                     TrackName = skippedTrackName,

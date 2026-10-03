@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -84,7 +85,8 @@ public sealed class SongRequestLostAtProviderTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
 
         Harness harness = new()

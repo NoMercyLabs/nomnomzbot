@@ -10,15 +10,18 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Trust.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Trust;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -57,13 +60,20 @@ public sealed class AutoModDeniedHeatHandlerTests
         trustPolicy
             .GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(TrustScoreCalculator.DefaultPolicy);
+        RecordingEventBus bus = new();
         ModerationProjectionService projections = new(
             db,
             moderation,
             trustPolicy,
-            new RecordingEventBus(),
+            bus,
             new FakeTimeProvider(new(T0)),
-            NullLogger<ModerationProjectionService>.Instance
+            NullLogger<ModerationProjectionService>.Instance,
+            new UserIdentityService(
+                db,
+                Substitute.For<IServiceScopeFactory>(),
+                TimeProvider.System,
+                bus
+            )
         );
         db.Users.Add(
             new()
@@ -74,6 +84,15 @@ public sealed class AutoModDeniedHeatHandlerTests
                 UsernameNormalized = "viewer77",
                 DisplayName = "Viewer77",
                 CreatedAt = T0.AddYears(-2),
+            }
+        );
+        db.UserIdentities.Add(
+            new()
+            {
+                UserId = Subject,
+                Provider = AuthEnums.Platform.Twitch,
+                ProviderUserId = SubjectTwitchId,
+                ProviderUsername = "viewer77",
             }
         );
         db.SaveChanges();

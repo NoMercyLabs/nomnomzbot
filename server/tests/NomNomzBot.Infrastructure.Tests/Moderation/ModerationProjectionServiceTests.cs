@@ -11,16 +11,19 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Trust.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Trust;
 using NomNomzBot.Domain.Trust.Entities;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -75,7 +78,13 @@ public sealed class ModerationProjectionServiceTests
             trustPolicy,
             bus,
             new FakeTimeProvider(new(T0)),
-            NullLogger<ModerationProjectionService>.Instance
+            NullLogger<ModerationProjectionService>.Instance,
+            new UserIdentityService(
+                db,
+                Substitute.For<IServiceScopeFactory>(),
+                TimeProvider.System,
+                bus
+            )
         );
         return (sut, db, bus);
     }
@@ -93,7 +102,75 @@ public sealed class ModerationProjectionServiceTests
                 CreatedAt = T0.AddYears(-2), // 24 months of tenure — the trust base signal
             }
         );
+        db.UserIdentities.Add(
+            new()
+            {
+                UserId = Subject,
+                Provider = AuthEnums.Platform.Twitch,
+                ProviderUserId = SubjectTwitchId,
+                ProviderUsername = "viewer42",
+            }
+        );
         await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task A_kick_subject_is_resolved_through_their_kick_identity()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+        Guid kickUser = Guid.NewGuid();
+        db.Users.Add(
+            new()
+            {
+                Id = kickUser,
+                Username = "kicker",
+                UsernameNormalized = "kicker",
+                DisplayName = "Kicker",
+            }
+        );
+        db.UserIdentities.Add(
+            new()
+            {
+                UserId = kickUser,
+                Provider = AuthEnums.Platform.Kick,
+                ProviderUserId = "kick-9",
+                ProviderUsername = "kicker",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result result = await sut.ApplyActionAsync(
+            Channel,
+            "kick-9",
+            "ban",
+            T0,
+            subjectProvider: AuthEnums.Platform.Kick
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        UserModerationHistory history = await db.UserModerationHistories.SingleAsync();
+        history.SubjectUserId.Should().Be(kickUser);
+        history.BanCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_kick_subject_never_lands_on_a_twitch_user_with_the_same_id()
+    {
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build();
+        await SeedSubjectAsync(db);
+
+        Result result = await sut.ApplyActionAsync(
+            Channel,
+            SubjectTwitchId,
+            "ban",
+            T0,
+            subjectProvider: AuthEnums.Platform.Kick
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        (await db.UserModerationHistories.CountAsync()).Should().Be(0);
+        (await db.ModerationHistoryEntries.CountAsync()).Should().Be(0);
     }
 
     /// <summary>The clean-slate score for the same tenure the seeded subject has.</summary>

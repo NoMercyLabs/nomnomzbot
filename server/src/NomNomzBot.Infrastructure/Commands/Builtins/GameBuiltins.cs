@@ -15,6 +15,7 @@ using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -122,6 +123,7 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             context.TriggeringUserId,
             context.TriggeringUserLogin,
             context.TriggeringUserDisplayName,
+            provider: context.TriggeringPlatform ?? AuthEnums.Platform.Twitch,
             cancellationToken: ct
         );
         if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid playerUserId))

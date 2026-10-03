@@ -173,6 +173,7 @@ public sealed class RunPipelineAction : ICommandAction
             BroadcasterId = ctx.BroadcasterId,
             PipelineId = targetPipelineId,
             TriggeredByUserId = ctx.TriggeredByUserId,
+            TriggeredByPlatform = ctx.TriggeredByPlatform,
             TriggeredByDisplayName = ctx.TriggeredByDisplayName,
             MessageId = ctx.MessageId,
             RawMessage = ctx.RawMessage,

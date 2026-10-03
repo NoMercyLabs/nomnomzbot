@@ -42,6 +42,9 @@ public sealed class BuiltinCommandContext
 {
     public required Guid BroadcasterId { get; init; }
     public required string TriggeringUserId { get; init; }
+
+    /// <summary>The provider key (<c>AuthEnums.Platform</c>) <see cref="TriggeringUserId"/> belongs to; <c>null</c> when the id is internal or the invoker has no platform (the dashboard, a test).</summary>
+    public string? TriggeringPlatform { get; init; }
     public required string TriggeringUserDisplayName { get; init; }
 
     /// <summary>Twitch login (lowercase) of the caller — the get-or-create viewer-resolution key.</summary>

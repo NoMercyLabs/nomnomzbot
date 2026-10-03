@@ -33,7 +33,8 @@ public sealed class LurkBuiltinsTests
     private const string Login = "stoney_eagle";
 
     private static BuiltinCommandContext Context(
-        string personality = PersonalityTone.Informative
+        string personality = PersonalityTone.Informative,
+        string? platform = null
     ) =>
         new()
         {
@@ -42,6 +43,7 @@ public sealed class LurkBuiltinsTests
             TriggeringUserDisplayName = "Stoney_Eagle",
             TriggeringUserLogin = Login,
             Personality = personality,
+            TriggeringPlatform = platform,
         };
 
     private static IBuiltinResponseComposer FakeComposer()
@@ -112,7 +114,12 @@ public sealed class LurkBuiltinsTests
         );
         await db.SaveChangesAsync();
 
-        LurkBuiltin builtin = new(FakeUsers(), db, FakeComposer());
+        LurkBuiltin builtin = new(
+            FakeUsers(),
+            db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            FakeComposer()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -137,12 +144,15 @@ public sealed class LurkBuiltinsTests
         );
         await db.SaveChangesAsync();
 
-        LurkBuiltin builtin = new(FakeUsers(), db, FakeComposer());
+        LurkBuiltin builtin = new(
+            FakeUsers(),
+            db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            FakeComposer()
+        );
 
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
-        Result<string> informative = await builtin.ExecuteAsync(
-            Context(PersonalityTone.Informative)
-        );
+        Result<string> informative = await builtin.ExecuteAsync(Context());
 
         string oldHardcodedString = "@Stoney_Eagle is now lurking. Enjoy the stream!";
         sassy.Value.Should().NotBe(oldHardcodedString);
@@ -178,7 +188,12 @@ public sealed class LurkBuiltinsTests
         );
         await db.SaveChangesAsync();
 
-        UnlurkBuiltin builtin = new(FakeUsers(), db, FakeComposer());
+        UnlurkBuiltin builtin = new(
+            FakeUsers(),
+            db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            FakeComposer()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -219,16 +234,42 @@ public sealed class LurkBuiltinsTests
         Result<string> lurking = await new LurkBuiltin(
             FakeUsers(),
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             TestBuiltinComposer.Create(replies)
         ).ExecuteAsync(context);
         Result<string> back = await new UnlurkBuiltin(
             FakeUsers(),
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             TestBuiltinComposer.Create(replies)
         ).ExecuteAsync(context);
 
         lurking.Value.Should().Be("Stoney_Eagle vanishes into the shadows.");
         back.Value.Should().Be("@Stoney_Eagle is no longer lurking. Welcome back!");
+    }
+
+    [Fact]
+    public async Task A_Kick_chatter_is_created_under_the_kick_provider_not_twitch()
+    {
+        IUserService users = FakeUsers();
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+
+        await new LurkBuiltin(
+            users,
+            db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            FakeComposer()
+        ).ExecuteAsync(Context(platform: AuthEnums.Platform.Kick));
+
+        await users
+            .Received(1)
+            .GetOrCreateAsync(
+                TwitchId,
+                Login,
+                "Stoney_Eagle",
+                AuthEnums.Platform.Kick,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -260,6 +301,7 @@ public sealed class LurkBuiltinsTests
         Result<string> result = await new LurkBuiltin(
             users,
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             TestBuiltinComposer.Create()
         ).ExecuteAsync(Context());
 

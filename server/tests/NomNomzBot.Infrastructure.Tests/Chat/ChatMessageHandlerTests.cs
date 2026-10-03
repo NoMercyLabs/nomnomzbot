@@ -733,6 +733,68 @@ public sealed class ChatMessageHandlerTests
             .Be("editor", "the pipeline variable must carry the RESOLVED effective role");
     }
 
+    [Theory]
+    [InlineData("kick")]
+    [InlineData("twitch")]
+    public async Task A_pipeline_command_run_carries_the_chat_events_platform_as_the_actor_platform(
+        string provider
+    )
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["staffonly"] = new()
+        {
+            Name = "staffonly",
+            TemplateResponses = [],
+            GlobalCooldown = 0,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "pipeline",
+            PipelineGraphJson = "{\"steps\":[]}",
+        };
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
+        PipelineRequest? captured = null;
+        pipeline
+            .ExecuteAsync(Arg.Do<PipelineRequest>(r => captured = r), Arg.Any<CancellationToken>())
+            .Returns(
+                new PipelineExecutionResult
+                {
+                    ExecutionId = "exec-1",
+                    Outcome = PipelineOutcome.Completed,
+                    Duration = TimeSpan.Zero,
+                }
+            );
+
+        ChatMessageHandler sut = new(
+            registry,
+            new ServiceCollection()
+                .BuildServiceProvider()
+                .GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            NoopChatSender(),
+            pipeline,
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            new(),
+            TimeProvider.System,
+            new OutboundSanctionAccessor(),
+            TestBuiltinComposer.Create(),
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        await sut.HandleAsync(
+            MessageEvent("!staffonly", provider: provider),
+            CancellationToken.None
+        );
+
+        captured.Should().NotBeNull("the pipeline command must have run");
+        captured!.TriggeredByUserId.Should().Be("tw-viewer-1");
+        captured.TriggeredByPlatform.Should().Be(provider);
+    }
+
     [Fact]
     public async Task Builtin_context_carries_the_channel_personality()
     {
@@ -2456,10 +2518,12 @@ public sealed class ChatMessageHandlerTests
 
     private static ChatMessageReceivedEvent MessageEvent(
         string message,
-        bool isSubscriber = false
+        bool isSubscriber = false,
+        string provider = "twitch"
     ) =>
         new()
         {
+            Provider = provider,
             BroadcasterId = Broadcaster,
             MessageId = "msg-1",
             TwitchBroadcasterId = "tw-777",

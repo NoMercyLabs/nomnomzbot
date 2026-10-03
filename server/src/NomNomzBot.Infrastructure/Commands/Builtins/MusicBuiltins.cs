@@ -67,6 +67,7 @@ public sealed class SkipBuiltin(
         Result skipped = await music.SkipAsync(
             context.BroadcasterId.ToString(),
             context.TriggeringUserId,
+            context.TriggeringPlatform,
             ct
         );
         if (!skipped.IsSuccess)

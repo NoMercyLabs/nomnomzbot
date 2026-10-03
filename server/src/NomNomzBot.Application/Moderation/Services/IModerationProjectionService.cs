@@ -41,6 +41,7 @@ public interface IModerationProjectionService
         string? moderatorDisplayName = null,
         string? reason = null,
         int? durationSeconds = null,
+        string? subjectProvider = null,
         CancellationToken ct = default
     );
 

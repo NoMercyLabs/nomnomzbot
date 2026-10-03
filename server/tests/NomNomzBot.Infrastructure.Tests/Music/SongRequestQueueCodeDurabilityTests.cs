@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Integrations;
@@ -228,7 +229,8 @@ public sealed class SongRequestQueueCodeDurabilityTests
             PermissiveMusicConfigService.Instance,
             Substitute.For<ICurrencyAccountService>(),
             new NowPlayingCache(),
-            new OutboundSanctionAccessor()
+            new OutboundSanctionAccessor(),
+            Substitute.For<IUserIdentityService>()
         );
     }
 

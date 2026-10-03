@@ -306,6 +306,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             {
                 BroadcasterId = @event.BroadcasterId,
                 TriggeringUserId = @event.UserId,
+                TriggeringPlatform = @event.Provider,
                 TriggeringUserDisplayName = @event.UserDisplayName,
                 TriggeringUserLogin = @event.UserLogin,
                 MessageId = @event.MessageId,
@@ -455,6 +456,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     PipelineId = command.PipelineId,
                     PipelineJson = command.PipelineGraphJson,
                     TriggeredByUserId = @event.UserId,
+                    TriggeredByPlatform = @event.Provider,
                     TriggeredByDisplayName = @event.UserDisplayName,
                     MessageId = @event.MessageId,
                     RawMessage = @event.Message,
@@ -521,6 +523,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     {
                         BroadcasterId = @event.BroadcasterId,
                         TriggeringUserId = @event.UserId,
+                        TriggeringPlatform = @event.Provider,
                         TriggeringUserDisplayName = @event.UserDisplayName,
                         TriggeringUserLogin = @event.UserLogin,
                         MessageId = @event.MessageId,
@@ -1374,6 +1377,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     PipelineId = trigger.PipelineId,
                     PipelineJson = trigger.PipelineGraphJson,
                     TriggeredByUserId = @event.UserId,
+                    TriggeredByPlatform = @event.Provider,
                     TriggeredByDisplayName = @event.UserDisplayName,
                     MessageId = @event.MessageId,
                     RawMessage = @event.Message,

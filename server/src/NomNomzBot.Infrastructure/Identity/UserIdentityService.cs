@@ -92,10 +92,22 @@ public sealed class UserIdentityService : IUserIdentityService
             return Result.Success(existing);
 
         if (!getOrCreate)
-            return Result.Failure<Guid>(
-                $"No identity for {normalizedProvider}:{providerUserId}.",
-                "IDENTITY_NOT_FOUND"
+        {
+            // Users made by the login upsert or the mod/VIP roster have no identity row until the next
+            // backfill; a Twitch id still resolves to them through the TwitchUserId projection.
+            Guid? preIdentity = await FindPreIdentityTwitchUserAsync(
+                _db,
+                normalizedProvider,
+                providerUserId,
+                cancellationToken
             );
+            return preIdentity is { } found
+                ? Result.Success(found)
+                : Result.Failure<Guid>(
+                    $"No identity for {normalizedProvider}:{providerUserId}.",
+                    "IDENTITY_NOT_FOUND"
+                );
+        }
 
         // Create in a dedicated scope so this never races the caller's scoped DbContext (mirrors
         // UserService.GetOrCreateAsync, which can be called inside seed loops alongside other queries).
@@ -372,6 +384,27 @@ public sealed class UserIdentityService : IUserIdentityService
         );
 
     /// <summary>
+    /// The user keyed by <c>TwitchUserId</c> for a Twitch id, or null. Twitch only: a Kick or YouTube id
+    /// must never land on a Twitch user that happens to share the number.
+    /// </summary>
+    private static async Task<Guid?> FindPreIdentityTwitchUserAsync(
+        IApplicationDbContext db,
+        string normalizedProvider,
+        string providerUserId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (normalizedProvider != AuthEnums.Platform.Twitch)
+            return null;
+
+        Guid id = await db
+            .Users.Where(u => u.TwitchUserId == providerUserId)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return id == Guid.Empty ? null : id;
+    }
+
+    /// <summary>
     /// Finds the internal user to attach a fresh identity to. For Twitch a pre-identity <see cref="User"/>
     /// keyed by <c>TwitchUserId</c> may already exist (created before the identity table, or via the chat
     /// get-or-create) — reuse it. Otherwise mint a new user.
@@ -385,15 +418,14 @@ public sealed class UserIdentityService : IUserIdentityService
     {
         // Twitch has pre-identity users keyed by TwitchUserId (created before the identity table / via chat
         // get-or-create) — reuse one if present rather than minting a duplicate.
-        if (normalizedProvider == AuthEnums.Platform.Twitch)
-        {
-            User? legacy = await db.Users.FirstOrDefaultAsync(
-                u => u.TwitchUserId == providerUserId,
-                cancellationToken
-            );
-            if (legacy is not null)
-                return Result.Success(legacy.Id);
-        }
+        Guid? legacy = await FindPreIdentityTwitchUserAsync(
+            db,
+            normalizedProvider,
+            providerUserId,
+            cancellationToken
+        );
+        if (legacy is { } legacyId)
+            return Result.Success(legacyId);
 
         // Mint the user. TwitchUserId is the hot-path projection only for a Twitch identity; a YouTube/Kick/
         // Twitter user has none (nullable projection, platform-identity §1). Username is a placeholder here —

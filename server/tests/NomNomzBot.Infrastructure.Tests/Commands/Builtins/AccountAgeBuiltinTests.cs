@@ -37,7 +37,8 @@ public sealed class AccountAgeBuiltinTests
     private static readonly DateTimeOffset Now = new(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
 
     private static BuiltinCommandContext Context(
-        string personality = PersonalityTone.Informative
+        string personality = PersonalityTone.Informative,
+        string? platform = null
     ) =>
         new()
         {
@@ -46,6 +47,7 @@ public sealed class AccountAgeBuiltinTests
             TriggeringUserDisplayName = "Stoney_Eagle",
             TriggeringUserLogin = Login,
             Personality = personality,
+            TriggeringPlatform = platform,
         };
 
     private static IBuiltinResponseComposer FakeComposer()
@@ -102,6 +104,61 @@ public sealed class AccountAgeBuiltinTests
     }
 
     [Fact]
+    public async Task A_Kick_chatter_is_created_under_kick_and_never_sent_to_Helix()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        User row = new()
+        {
+            Username = Login,
+            UsernameNormalized = Login,
+            DisplayName = "Stoney_Eagle",
+            AccountCreatedAt = null,
+        };
+        db.Users.Add(row);
+        await db.SaveChangesAsync();
+
+        IUserService users = FakeUsers();
+        IUserIdentityService identities = Substitute.For<IUserIdentityService>();
+        identities
+            .ResolveUserAsync(
+                AuthEnums.Platform.Kick,
+                TwitchId,
+                Arg.Any<bool>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(row.Id));
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+
+        AccountAgeBuiltin builtin = new(
+            twitch,
+            users,
+            db,
+            identities,
+            FakeComposer(),
+            new FakeTimeProvider(Now)
+        );
+
+        Result<string> result = await builtin.ExecuteAsync(
+            Context(platform: AuthEnums.Platform.Kick)
+        );
+
+        await users
+            .Received(1)
+            .GetOrCreateAsync(
+                TwitchId,
+                Login,
+                "Stoney_Eagle",
+                AuthEnums.Platform.Kick,
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .DidNotReceive()
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain("could not be determined");
+    }
+
+    [Fact]
     public async Task Reports_the_real_duration_from_an_already_hydrated_row()
     {
         await using CommandsTestDbContext db = CommandsTestDbContext.New();
@@ -122,6 +179,7 @@ public sealed class AccountAgeBuiltinTests
             Substitute.For<ITwitchUsersApi>(),
             FakeUsers(),
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             FakeComposer(),
             new FakeTimeProvider(Now)
         );
@@ -152,14 +210,13 @@ public sealed class AccountAgeBuiltinTests
             Substitute.For<ITwitchUsersApi>(),
             FakeUsers(),
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             FakeComposer(),
             new FakeTimeProvider(Now)
         );
 
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
-        Result<string> informative = await builtin.ExecuteAsync(
-            Context(PersonalityTone.Informative)
-        );
+        Result<string> informative = await builtin.ExecuteAsync(Context());
 
         string oldHardcodedString = "@Stoney_Eagle your Twitch account is 2 years old.";
         sassy.Value.Should().NotBe(oldHardcodedString);
@@ -220,6 +277,7 @@ public sealed class AccountAgeBuiltinTests
             twitch,
             FakeUsers(),
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             FakeComposer(),
             new FakeTimeProvider(Now)
         );
@@ -265,6 +323,7 @@ public sealed class AccountAgeBuiltinTests
             twitch,
             FakeUsers(),
             db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             FakeComposer(),
             new FakeTimeProvider(Now)
         );

@@ -324,7 +324,7 @@ public class MusicController : BaseController
     public async Task<IActionResult> Skip(string channelId, CancellationToken ct)
     {
         string skippedBy = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        Result result = await _musicService.SkipAsync(channelId, skippedBy, ct);
+        Result result = await _musicService.SkipAsync(channelId, skippedBy, null, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<object> { Message = "Skipped to next track." });

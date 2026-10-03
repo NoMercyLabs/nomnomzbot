@@ -32,6 +32,7 @@ public sealed class UserBannedProjectionHandler(IModerationProjectionService pro
             @event.ModeratorUserId,
             @event.ModeratorDisplayName,
             @event.Reason,
+            subjectProvider: @event.Provider,
             ct: ct
         );
 }
@@ -50,6 +51,7 @@ public sealed class UserTimedOutProjectionHandler(IModerationProjectionService p
             @event.ModeratorDisplayName,
             @event.Reason,
             @event.DurationSeconds,
+            @event.Provider,
             ct
         );
 }
