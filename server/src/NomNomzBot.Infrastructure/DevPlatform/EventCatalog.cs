@@ -72,7 +72,7 @@ public sealed partial class EventCatalog : IEventCatalog
     ///   <item>the name is <c>module</c> joined to the remaining words with <c>.</c>.</item>
     /// </list>
     /// Examples: <c>ChannelOnlineEvent</c> (Stream) → <c>stream.channel.online</c>;
-    /// <c>RaidReceivedEvent</c> (Stream) → <c>stream.raid.received</c>. A <c>[Event("chat.message")]</c>
+    /// <c>RaidEvent</c> (Stream) → <c>stream.raid</c>. A <c>[Event("chat.message")]</c>
     /// override bypasses all of this.
     /// </summary>
     public static string DeriveWireName(Type type)

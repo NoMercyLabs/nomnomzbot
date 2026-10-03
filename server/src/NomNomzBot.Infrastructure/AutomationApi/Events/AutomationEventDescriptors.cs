@@ -89,11 +89,11 @@ public sealed class RaidReceivedEventDescriptor : IAutomationEventDescriptor
 {
     public string PublicName => "Twitch.RaidReceived";
     public string Description => "Another channel raided this channel.";
-    public Type DomainEventType => typeof(RaidReceivedEvent);
+    public Type DomainEventType => typeof(RaidEvent);
 
     public object ProjectPayload(DomainEventBase domainEvent)
     {
-        RaidReceivedEvent e = (RaidReceivedEvent)domainEvent;
+        RaidEvent e = (RaidEvent)domainEvent;
         return new { fromDisplayName = e.FromDisplayName, viewerCount = e.ViewerCount };
     }
 }

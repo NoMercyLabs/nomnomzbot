@@ -57,17 +57,15 @@ public sealed class EventCatalogTests
     {
         EventCatalog catalog = new();
 
-        // RaidReceivedEvent carries no [Event] attribute → safe Broadcaster default, convention wire name.
-        EventDescriptor raid = catalog.Descriptors.Single(d =>
-            d.ClrType == typeof(RaidReceivedEvent)
-        );
+        // RaidEvent carries no [Event] attribute → safe Broadcaster default, convention wire name.
+        EventDescriptor raid = catalog.Descriptors.Single(d => d.ClrType == typeof(RaidEvent));
         raid.Visibility.Should().Be(EventVisibility.Broadcaster);
-        raid.WireName.Should().Be("stream.raid.received");
+        raid.WireName.Should().Be("stream.raid");
     }
 
     [Theory]
     // module.<words> from the type name, trailing "Event" removed, PascalCase split, leading stutter dropped.
-    [InlineData(typeof(RaidReceivedEvent), "stream.raid.received")]
+    [InlineData(typeof(RaidEvent), "stream.raid")]
     [InlineData(typeof(ChannelOnlineEvent), "stream.channel.online")]
     [InlineData(typeof(ChatMessageReceivedEvent), "chat.message.received")]
     public void Derives_the_convention_wire_name_from_the_type_name(Type type, string expected)

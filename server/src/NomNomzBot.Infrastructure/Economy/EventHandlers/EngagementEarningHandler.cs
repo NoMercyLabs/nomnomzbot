@@ -32,7 +32,7 @@ public sealed class EngagementEarningHandler(
     : IEventHandler<FollowEvent>,
         IEventHandler<NewSubscriptionEvent>,
         IEventHandler<CheerEvent>,
-        IEventHandler<RaidReceivedEvent>
+        IEventHandler<RaidEvent>
 {
     public async Task HandleAsync(FollowEvent @event, CancellationToken cancellationToken = default)
     {
@@ -92,10 +92,7 @@ public sealed class EngagementEarningHandler(
         );
     }
 
-    public async Task HandleAsync(
-        RaidReceivedEvent @event,
-        CancellationToken cancellationToken = default
-    )
+    public async Task HandleAsync(RaidEvent @event, CancellationToken cancellationToken = default)
     {
         Guid? viewerUserId = await ResolveViewerIdAsync(
             @event.FromUserId,

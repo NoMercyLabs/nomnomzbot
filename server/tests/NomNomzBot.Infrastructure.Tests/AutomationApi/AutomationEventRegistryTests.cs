@@ -12,6 +12,7 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
 
@@ -69,6 +70,37 @@ public sealed class AutomationEventRegistryTests
                 "Twitch.RaidReceived"
             );
         registry.Catalog.Should().OnlyContain(c => !string.IsNullOrWhiteSpace(c.Description));
+    }
+
+    [Fact]
+    public void The_raid_descriptor_maps_the_raised_RaidEvent_to_the_public_payload()
+    {
+        // RaidEvent is what the Twitch channel.raid translator actually publishes.
+        AutomationEventRegistry registry = BuildFull();
+        registry.TryGet(typeof(RaidEvent), out IAutomationEventDescriptor? raid).Should().BeTrue();
+        raid!.PublicName.Should().Be("Twitch.RaidReceived");
+
+        RaidEvent domainEvent = new()
+        {
+            BroadcasterId = Guid.NewGuid(),
+            FromUserId = "5678",
+            FromDisplayName = "Raiding_Streamer",
+            FromLogin = "raiding_streamer",
+            ViewerCount = 250,
+        };
+
+        JsonElement payload = JsonSerializer.SerializeToElement(raid.ProjectPayload(domainEvent));
+
+        payload.GetProperty("fromDisplayName").GetString().Should().Be("Raiding_Streamer");
+        payload.GetProperty("viewerCount").GetInt32().Should().Be(250);
+        payload
+            .EnumerateObject()
+            .Select(p => p.Name)
+            .Should()
+            .BeEquivalentTo(
+                ["fromDisplayName", "viewerCount"],
+                "the user id and login stay internal"
+            );
     }
 
     [Fact]
