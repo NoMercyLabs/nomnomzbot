@@ -78,6 +78,9 @@ const dom = {
     problemCount: document.getElementById('problemCount'),
     save: document.getElementById('save'),
     close: document.getElementById('close'),
+    unsavedBackdrop: document.getElementById('unsavedBackdrop'),
+    unsavedKeep: document.getElementById('unsavedKeep'),
+    unsavedDiscard: document.getElementById('unsavedDiscard'),
     newFile: document.getElementById('newFile'),
     togglePreview: document.getElementById('togglePreview'),
     format: document.getElementById('format'),
@@ -130,6 +133,9 @@ const state = {
     wrap: false,
     minimap: true,
     labels: null,
+    // The files as the host last accepted them: what Close and Esc compare against before throwing edits away.
+    savedFiles: new Map(),
+    pendingSave: null,
 };
 
 // ── Words ──────────────────────────────────────────────────────────────────
@@ -144,6 +150,10 @@ const DEFAULT_LABELS = Object.freeze({
     hidePreview: 'Hide preview',
     showPreview: 'Show preview',
     close: 'Close',
+    unsavedChangesTitle: 'Unsaved changes',
+    unsavedChangesBody: 'You have edits that are not saved. If you close now, they are lost.',
+    keepEditing: 'Keep editing',
+    discardChanges: 'Discard changes',
     saveAndCompile: 'Save & Compile',
     compiling: 'Compiling…',
     views: 'Views',
@@ -1117,15 +1127,48 @@ function requestSave() {
     dom.save.disabled = true;
     dom.save.textContent = t('compiling');
     dom.result.hidden = true;
+    state.pendingSave = new Map(state.files);
     postToHost({ type: HOST_MESSAGE.save, files: Object.fromEntries(state.files) });
 }
 
 function showCompileResult({ ok, message }) {
+    // Only a save the host accepted makes its files the new baseline; a failed compile leaves them unsaved.
+    if (ok && state.pendingSave) state.savedFiles = state.pendingSave;
+    state.pendingSave = null;
     dom.result.hidden = false;
     dom.result.dataset.ok = String(Boolean(ok));
     dom.result.textContent = message ?? '';
     dom.save.disabled = false;
     dom.save.textContent = t('saveAndCompile');
+}
+
+function hasUnsavedEdits() {
+    flushActive();
+    if (state.files.size !== state.savedFiles.size) return true;
+    for (const [path, content] of state.files) {
+        if (state.savedFiles.get(path) !== content) return true;
+    }
+    return false;
+}
+
+// Close and Esc go through here: with unsaved edits the host hears nothing until the author chooses Discard.
+function requestClose() {
+    if (!hasUnsavedEdits()) {
+        postToHost({ type: HOST_MESSAGE.close });
+        return;
+    }
+    dom.unsavedBackdrop.hidden = false;
+    dom.unsavedKeep.focus();
+}
+
+function keepEditing() {
+    dom.unsavedBackdrop.hidden = true;
+    state.editor?.focus();
+}
+
+function discardChanges() {
+    dom.unsavedBackdrop.hidden = true;
+    postToHost({ type: HOST_MESSAGE.close });
 }
 
 // ── History (S-CODE-COLLAPSE) ────────────────────────────────────────────
@@ -1362,6 +1405,8 @@ async function open(payload) {
     state.entry = payload.entry ?? [...state.files.keys()][0] ?? 'index.ts';
     if (!state.files.has(state.entry)) state.files.set(state.entry, '');
     state.active = state.entry;
+    state.savedFiles = new Map(state.files);
+    state.pendingSave = null;
 
     applyLabels(payload.labels ?? {});
     dom.title.textContent = payload.title ?? t('defaultTitle');
@@ -1456,7 +1501,9 @@ function renderBundleMeta(payload) {
 
 function wireChrome() {
     dom.save.addEventListener('click', requestSave);
-    dom.close.addEventListener('click', () => postToHost({ type: HOST_MESSAGE.close }));
+    dom.close.addEventListener('click', requestClose);
+    dom.unsavedKeep.addEventListener('click', keepEditing);
+    dom.unsavedDiscard.addEventListener('click', discardChanges);
     dom.newFile.addEventListener('click', addFile);
     dom.togglePreview.addEventListener('click', () =>
         setPreviewCollapsed(dom.shell.dataset.preview !== 'collapsed'),
@@ -1511,7 +1558,9 @@ function wireChrome() {
             // would lose unsaved work to a keystroke meant for the palette.
             if (!dom.paletteBackdrop.hidden) return;
             event.preventDefault();
-            postToHost({ type: HOST_MESSAGE.close });
+            // Esc on the confirm is "Keep editing": the safe answer, never a second way to close.
+            if (!dom.unsavedBackdrop.hidden) keepEditing();
+            else requestClose();
         } else if (event.key === 'F1' || (meta && event.shiftKey && event.key.toLowerCase() === 'p')) {
             event.preventDefault();
             openPalette('commands');

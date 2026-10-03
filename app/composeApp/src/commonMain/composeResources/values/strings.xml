@@ -5976,6 +5976,10 @@
     <string name="editor_hide_preview">Hide preview</string>
     <string name="editor_show_preview">Show preview</string>
     <string name="editor_close">Close</string>
+    <string name="editor_unsaved_changes_title">Unsaved changes</string>
+    <string name="editor_unsaved_changes_body">You have edits that are not saved. If you close now, they are lost.</string>
+    <string name="editor_keep_editing">Keep editing</string>
+    <string name="editor_discard_changes">Discard changes</string>
     <string name="editor_save_and_compile">Save &amp; Compile</string>
     <string name="editor_compiling">Compiling…</string>
     <string name="editor_views">Views</string>

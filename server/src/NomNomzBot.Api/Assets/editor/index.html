@@ -180,6 +180,18 @@
     </div>
 </div>
 
+<!-- Unsaved-changes confirm: Close and Esc land here when the files differ from the last accepted save. -->
+<div class="confirm-backdrop" id="unsavedBackdrop" hidden>
+    <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="unsavedTitle" aria-describedby="unsavedBody">
+        <h2 class="confirm-title" id="unsavedTitle" data-i18n="unsavedChangesTitle">Unsaved changes</h2>
+        <p class="confirm-body" id="unsavedBody" data-i18n="unsavedChangesBody">You have edits that are not saved. If you close now, they are lost.</p>
+        <div class="confirm-actions">
+            <button type="button" class="btn btn-danger" id="unsavedDiscard" data-i18n="discardChanges">Discard changes</button>
+            <button type="button" class="btn btn-primary" id="unsavedKeep" data-i18n="keepEditing">Keep editing</button>
+        </div>
+    </div>
+</div>
+
 <div class="boot" id="boot">
     <p id="bootMessage" data-i18n="loadingEditor">Loading editor…</p>
 </div>

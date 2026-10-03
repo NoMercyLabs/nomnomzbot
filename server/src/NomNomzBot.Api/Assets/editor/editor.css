@@ -714,6 +714,55 @@ body {
     font-size: 12px;
 }
 
+/* ── Unsaved-changes confirm ───────────────────────────────────────────── */
+
+.confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 60;
+}
+
+.confirm {
+    width: min(420px, 90vw);
+    padding: var(--s4);
+    background: var(--surface-raised);
+    border: 1px solid #3a3a3a;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+.confirm-title {
+    margin: 0 0 var(--s2);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.confirm-body {
+    margin: 0 0 var(--s4);
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s2);
+}
+
+/* The panel's 16px padding is wider than its 8px radius, so the buttons take the smaller radius, not the parent's. */
+.confirm-actions .btn {
+    border-radius: var(--radius-sm);
+}
+
+/* Destructive, and deliberately not the accent: the accent marks Keep editing, the safe answer. */
+.btn-danger {
+    color: var(--danger);
+}
+
 .panel-splitter {
     height: 5px;
     flex: 0 0 5px;

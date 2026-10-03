@@ -5949,6 +5949,10 @@
     <string name="editor_hide_preview">Voorbeeld verbergen</string>
     <string name="editor_show_preview">Voorbeeld tonen</string>
     <string name="editor_close">Sluiten</string>
+    <string name="editor_unsaved_changes_title">Niet-opgeslagen wijzigingen</string>
+    <string name="editor_unsaved_changes_body">Je hebt wijzigingen die niet zijn opgeslagen. Als je nu sluit, gaan ze verloren.</string>
+    <string name="editor_keep_editing">Blijven bewerken</string>
+    <string name="editor_discard_changes">Wijzigingen weggooien</string>
     <string name="editor_save_and_compile">Opslaan &amp; compileren</string>
     <string name="editor_compiling">Compileren…</string>
     <string name="editor_views">Weergaven</string>
