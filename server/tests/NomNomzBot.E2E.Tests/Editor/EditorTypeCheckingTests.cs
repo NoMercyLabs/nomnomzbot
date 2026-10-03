@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
 using NomNomzBot.E2E.Tests.Harness;
@@ -167,9 +169,78 @@ public sealed class EditorTypeCheckingTests : PageTest
         IReadOnlyList<string> codes = await DiagnosticCodesAsync("index.js", expected: 2);
         IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.js");
 
-        // Property 'displayNme' / 'feilds' does not exist (TS2339); the correctly spelled fields type-check.
-        Assert.All(codes, code => Assert.Equal("2339", code));
+        // Property 'displayNme' / 'feilds' does not exist: TS2339, or TS2551 when TypeScript also suggests the
+        // real name. The correctly spelled fields type-check.
+        Assert.All(codes, code => Assert.Contains(code, new[] { "2339", "2551" }));
         Assert.Equal([2, 4], lines.Order());
+    }
+
+    [E2EFact]
+    public async Task A_widget_script_reading_a_misspelled_setting_is_an_error()
+    {
+        (string widgetTypes, string settingKey) = await WidgetWithTypedSettingsAsync();
+
+        await OpenAsync(
+            "vanilla-js",
+            "index.js",
+            $"""
+            console.log(NomNomz.settings.{settingKey});
+            console.log(NomNomz.settings.{settingKey}Typo);
+            """,
+            widgetTypes
+        );
+
+        IReadOnlyList<string> codes = await DiagnosticCodesAsync("index.js", expected: 1);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.js");
+
+        // The real setting type-checks; the misspelled one does not exist on NnzWidgetSettings.
+        Assert.All(codes, code => Assert.Contains(code, new[] { "2339", "2551" }));
+        Assert.Equal([2], lines);
+    }
+
+    // The first of this channel's widgets whose types carry a settings interface with at least one member, and the
+    // name of that member. The channel is the token's own tenant, so the test never names a widget id.
+    private async Task<(string Types, string SettingKey)> WidgetWithTypedSettingsAsync()
+    {
+        IAPIResponse list = await Page.APIRequest.GetAsync(
+            $"{E2ESettings.BaseUrl}/api/v1/channels/{TokenTenant()}/widgets?take=100",
+            new() { Headers = AuthHeaders() }
+        );
+        Assert.Equal(200, list.Status);
+        JsonElement page = (await list.JsonAsync())!.Value;
+
+        foreach (JsonElement widget in page.GetProperty("data").EnumerateArray())
+        {
+            string id = widget.GetProperty("id").GetString()!;
+            IAPIResponse types = await Page.APIRequest.GetAsync(
+                $"{E2ESettings.BaseUrl}/api/v1/sdk/types.d.ts?context=widget&widget={id}",
+                new() { Headers = AuthHeaders() }
+            );
+            Assert.Equal(200, types.Status);
+            string text = await types.TextAsync();
+            Match member = Regex.Match(
+                text,
+                @"interface NnzWidgetSettings \{[^}]*?^\s*(?:readonly\s+)?([A-Za-z_]\w*)\??:",
+                RegexOptions.Multiline
+            );
+            if (member.Success)
+                return (text, member.Groups[1].Value);
+        }
+
+        Assert.Fail("No widget on this channel has a settings schema with a plain-named setting.");
+        return default;
+    }
+
+    private static Dictionary<string, string> AuthHeaders() =>
+        new() { ["Authorization"] = $"Bearer {E2ESettings.Token}" };
+
+    // The 'tenant' claim of the E2E token: the broadcaster the token acts for.
+    private static string TokenTenant()
+    {
+        string payload = E2ESettings.Token.Split('.')[1].Replace('-', '+').Replace('_', '/');
+        payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+        using JsonDocument claims = JsonDocument.Parse(Convert.FromBase64String(payload));
+        return claims.RootElement.GetProperty("tenant").GetString()!;
     }
 
     private async Task<string> SdkTypesAsync(string context)

@@ -405,7 +405,7 @@ class WidgetsController(
             language = framework.ifBlank { "html" },
             // The widget-context nnz.d.ts powers `nnz.` autocomplete + diagnostics in the web editor; a fetch
             // failure degrades to a plain editor (no autocomplete), never blocks opening it.
-            sdkTypes = fetchSdkTypes("widget"),
+            sdkTypes = fetchSdkTypes(widgetId),
             previewWidget = previewWidget,
             compile = { editedFiles -> saveProjectFeedback(channel, widgetId, editedFiles, project.manifest, messages) },
         )
@@ -444,10 +444,10 @@ class WidgetsController(
             is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
         }
 
-    // Fetch the generated nnz.d.ts for [context] to hand the editor's TypeScript language service; degrade to an
-    // empty string (no autocomplete) on any failure rather than block the editor from opening.
-    private suspend fun fetchSdkTypes(context: String): String =
-        when (val result: ApiResult<String> = sdkTypesApi.types(context)) {
+    // Fetch the generated widget nnz.d.ts (settings typed from [widgetId]'s schema) to hand the editor's TypeScript
+    // language service; degrade to an empty string (no autocomplete) on any failure rather than block the editor.
+    private suspend fun fetchSdkTypes(widgetId: String): String =
+        when (val result: ApiResult<String> = sdkTypesApi.types("widget", widgetId = widgetId)) {
             is ApiResult.Ok -> result.value
             is ApiResult.Failure -> ""
         }

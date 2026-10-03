@@ -215,7 +215,10 @@ internal static class SdkRuntimeSurface
     /// <c>WIDGET_*</c> values the host page injects before the bundle runs. A widget has no capability broker, so
     /// none of the <c>nnz</c> batteries or <c>nnz.api.*</c> wrappers exist here.
     /// </summary>
-    public static string WidgetGlobals(string? customPayloadName = null)
+    public static string WidgetGlobals(
+        string? customPayloadName = null,
+        string settingsType = "Record<string, unknown>"
+    )
     {
         StringBuilder sb = new();
         sb.AppendLine("/**");
@@ -233,14 +236,12 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  /** Fires immediately with the injected settings, then again on every dashboard change. */"
         );
-        sb.AppendLine(
-            "  onSettings(handler: (settings: Record<string, unknown>) => void): NnzOverlaySdk;"
-        );
+        sb.AppendLine($"  onSettings(handler: (settings: {settingsType}) => void): NnzOverlaySdk;");
         sb.AppendLine(
             "  /** Logs the message and reports it to the server as a widget runtime error. */"
         );
         sb.AppendLine("  reportError(message: string): void;");
-        sb.AppendLine("  readonly settings: Record<string, unknown>;");
+        sb.AppendLine($"  readonly settings: {settingsType};");
         sb.AppendLine("  readonly actions: NnzOverlayActions;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -308,7 +309,7 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("declare const WIDGET_ID: string;");
         sb.AppendLine("declare const WIDGET_TOKEN: string;");
         sb.AppendLine("declare const WIDGET_NAME: string;");
-        sb.AppendLine("declare const WIDGET_SETTINGS: Record<string, unknown>;");
+        sb.AppendLine($"declare const WIDGET_SETTINGS: {settingsType};");
         sb.Append("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
         return sb.ToString();
     }

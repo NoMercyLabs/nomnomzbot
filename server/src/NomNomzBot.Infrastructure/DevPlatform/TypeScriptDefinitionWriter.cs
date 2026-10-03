@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
+using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Infrastructure.DevPlatform;
 
@@ -35,15 +36,18 @@ internal sealed class TypeScriptDefinitionWriter
     private readonly Queue<Type> _pending = new();
     private readonly ILogger? _logger;
     private readonly IWidgetEventPayloadRegistry? _widgetEvents;
+    private readonly WidgetSettingsSchema? _widgetSettings;
 
     public TypeScriptDefinitionWriter(
         SdkContext context,
         IReadOnlyList<string>? triggerKeys = null,
         IReadOnlyList<ICommandAction>? actions = null,
         ILogger? logger = null,
-        IWidgetEventPayloadRegistry? widgetEvents = null
+        IWidgetEventPayloadRegistry? widgetEvents = null,
+        WidgetSettingsSchema? widgetSettings = null
     )
     {
+        _widgetSettings = context == SdkContext.Widget ? widgetSettings : null;
         _widgetEvents = context == SdkContext.Widget ? widgetEvents : null;
         _logger = logger;
         _context = context;
@@ -131,10 +135,16 @@ internal sealed class TypeScriptDefinitionWriter
         sb.AppendLine(ActionParamsTypeWriter.Write(_actions));
 
         string? customPayloadName = RenderWidgetEventMap(sb);
+        string settingsType = "Record<string, unknown>";
+        if (_widgetSettings is not null)
+        {
+            sb.AppendLine(WidgetSettingsTypeWriter.Write(_widgetSettings));
+            settingsType = WidgetSettingsTypeWriter.InterfaceName;
+        }
         sb.AppendLine(
             _context == SdkContext.Script
                 ? SdkRuntimeSurface.ScriptGlobals(_triggerKeys)
-                : SdkRuntimeSurface.WidgetGlobals(customPayloadName)
+                : SdkRuntimeSurface.WidgetGlobals(customPayloadName, settingsType)
         );
 
         return sb.ToString();

@@ -52,4 +52,16 @@ class SdkTypesApiTest {
             calls,
         )
     }
+
+    @Test
+    fun a_widget_adds_its_id_so_the_settings_are_typed() = runTest {
+        val (api, calls) = spied()
+
+        api.types("widget", widgetId = "01JABCDEFGHJKMNPQRSTVWXYZ0")
+
+        assertEquals(
+            listOf("GET" to "api/v1/sdk/types.d.ts?context=widget&widget=01JABCDEFGHJKMNPQRSTVWXYZ0"),
+            calls,
+        )
+    }
 }

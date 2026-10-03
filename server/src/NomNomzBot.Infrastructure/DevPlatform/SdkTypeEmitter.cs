@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.DevPlatform;
@@ -52,6 +53,16 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
         new TypeScriptDefinitionWriter(context, null, _actions, _logger, _widgetEvents).Build(
             VisibleFor(context)
         );
+
+    public string EmitWidgetTypeScript(WidgetSettingsSchema settings) =>
+        new TypeScriptDefinitionWriter(
+            SdkContext.Widget,
+            null,
+            _actions,
+            _logger,
+            _widgetEvents,
+            settings
+        ).Build(VisibleFor(SdkContext.Widget));
 
     public Result<string> EmitTypeScript(SdkContext context, string triggerKey) =>
         EmitTypeScript(context, [triggerKey]);

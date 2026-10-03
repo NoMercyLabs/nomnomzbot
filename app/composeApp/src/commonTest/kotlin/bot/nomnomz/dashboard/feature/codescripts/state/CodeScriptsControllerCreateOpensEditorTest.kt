@@ -168,6 +168,7 @@ class CodeScriptsControllerCreateOpensEditorTest {
     }
 
     private object StubSdkTypes : SdkTypesApi {
-        override suspend fun types(context: String, scriptId: String?): ApiResult<String> = ApiResult.Ok("")
+        override suspend fun types(context: String, scriptId: String?, widgetId: String?): ApiResult<String> =
+            ApiResult.Ok("")
     }
 }

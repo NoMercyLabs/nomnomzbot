@@ -12,9 +12,12 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Infrastructure.DevPlatform;
+using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -29,7 +32,12 @@ public sealed class SdkTypesTriggerTests
     private static readonly Guid MysteryScript = Guid.Parse("0192a000-0000-7000-8000-00000000f003");
 
     private static SdkController Controller() =>
-        new(new SdkTypeEmitter(new EventCatalog(), new OneSampleCatalog()), new FakeResolver());
+        new(
+            new SdkTypeEmitter(new EventCatalog(), new OneSampleCatalog()),
+            new FakeResolver(),
+            Substitute.For<IWidgetService>(),
+            Substitute.For<ICurrentTenantService>()
+        );
 
     [Fact]
     public async Task A_known_trigger_returns_the_union_of_its_keys()

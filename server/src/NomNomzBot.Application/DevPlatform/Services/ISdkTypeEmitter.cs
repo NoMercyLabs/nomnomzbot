@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
+using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Application.DevPlatform.Services;
 
@@ -40,6 +41,12 @@ public interface ISdkTypeEmitter
     /// of every trigger. One unknown trigger, or an empty list, is a failure, so no wrong narrow type is served.
     /// </summary>
     Result<string> EmitTypeScript(SdkContext context, IReadOnlyList<string> triggerKeys);
+
+    /// <summary>
+    /// The widget <c>nnz.d.ts</c> for one widget: <c>settings</c>, <c>onSettings</c> and <c>WIDGET_SETTINGS</c> are
+    /// typed as <c>NnzWidgetSettings</c>, one member per field of <paramref name="settings"/>.
+    /// </summary>
+    string EmitWidgetTypeScript(WidgetSettingsSchema settings);
 
     /// <summary>
     /// The event catalog for <paramref name="context"/> — one item per visible event: wire name,

@@ -432,6 +432,8 @@ class WidgetsControllerTest {
         // Requested the widget-context declarations, and the exact reflected content reached the editor call --
         // the string the wasmJs actual passes straight into addExtraLib.
         assertEquals("widget", sdkTypesApi.requestedContext)
+        // The widget's own id, so the server types its settings from the widget's schema.
+        assertEquals("w-1", sdkTypesApi.requestedWidgetId)
         assertEquals(reflectedDeclarations, editor.openedSdkTypes)
     }
 
@@ -728,9 +730,11 @@ private fun widgetsController(
 // takes in production.
 private class FakeSdkTypesApi(private val declarations: String = "") : SdkTypesApi {
     var requestedContext: String? = null
+    var requestedWidgetId: String? = null
 
-    override suspend fun types(context: String, scriptId: String?): ApiResult<String> {
+    override suspend fun types(context: String, scriptId: String?, widgetId: String?): ApiResult<String> {
         requestedContext = context
+        requestedWidgetId = widgetId
         return ApiResult.Ok(declarations)
     }
 }

@@ -77381,7 +77381,7 @@
         "tags": [
           "Developer SDK"
         ],
-        "summary": "The generated `nnz.d.ts` for the requested context, as `text/plain` — the `NnzEventMap`,\nevery payload interface, and the typed `nnz.on&lt;K&gt;` declaration. With `trigger` (an event\nresponse key or `command`, script context only) `bot.getVar` is typed to that trigger's variable\nkeys. `400` on an unknown context or trigger.",
+        "summary": "The generated `nnz.d.ts` for the requested context, as `text/plain` — the `NnzEventMap`,\nevery payload interface, and the typed `nnz.on&lt;K&gt;` declaration. With `trigger` (an event\nresponse key or `command`, script context only) `bot.getVar` is typed to that trigger's variable\nkeys. With `widget` (a widget id in the form the widget routes use, widget context only) the widget's\nown settings are typed from its settings schema; a widget of another channel is a `404`. `400` on\nan unknown context or trigger.",
         "parameters": [
           {
             "name": "context",
@@ -77404,6 +77404,13 @@
               "type": "string",
               "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
               "format": "ulid"
+            }
+          },
+          {
+            "name": "widget",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
