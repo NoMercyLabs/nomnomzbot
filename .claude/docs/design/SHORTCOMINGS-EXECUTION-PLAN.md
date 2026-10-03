@@ -28,14 +28,6 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-SDK-WIDGET-DELIVERY** (stream-facing, first) Each event reaches its subscribers once, and every
-  sound and TTS line plays on one page only (e95e7417d: newest Audio Source page, else newest overlay
-  page). Owner decision 2026-10-02: "lets have just one audio source for tss and all other scripts and
-  audio fragments, and have volume control handled on the bots side so balance stays static across
-  multiple streaming pc's used by that user". Shipped: bot-side master and TTS volume (ca32f9f63,
-  defb69885), the `play_sound` handle, and the inbox notice when no Audio Source page is open
-  (`AudioSourceMissingSource.cs`). Left: the live check. Done-when: tests prove each, and on the deployed site one
-  TTS line and one sound clip play once with a caption page and an Audio Source page both open.
 - **S-FIRSTPARTY-WIDGETS-TYPED** The 23 first-party widgets (`Infrastructure/Content/Widgets/Assets/*.vue`)
   are the code streamers open and copy, and all 23 use `any`: about 140 sites, mostly
   `(window as any).NomNomz` and `payload: any` (counted 2026-10-03). `as any` also hides every error from the
