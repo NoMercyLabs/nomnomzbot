@@ -62,9 +62,8 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   TTS, music, widget emits, storage writes, scheduled pipelines, variables out — in order, as a
   timeline, without sending anything live. Shipped: every trigger kind offers a sample built by its
   live builder (Twitch alerts, command, reward, timer, OBS, custom data, webhook: 0c3cb33a7,
-  2ae82ca13), and the panel shows one ordered timeline (4354d0999). Left: custom widgets have no
-  **Settings** form (`WidgetsScreen.kt:704`; in progress: a `settings.json` in the widget project).
-  Done-when: an E2E test fires a follow at a script that chats + switches an OBS scene + emits to a
+  2ae82ca13), the panel shows one ordered timeline (4354d0999), and a custom widget declares its
+  settings in `settings.json` (0f99a9fe7, 928862b83). Left: the done-when test. Done-when: an E2E test fires a follow at a script that chats + switches an OBS scene + emits to a
   widget and asserts all three rows.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
