@@ -128,6 +128,16 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   reloads. A rotate after a leak does not cut the leaked page off, and the result dialog (`strings.xml:1734`)
   says the overlay goes blank. Done-when: when the old token's grace ends (or at once on a second rotate),
   connections that joined with it are dropped; the dialog text matches; a test failed first.
+- **S-REACT-WIDGET-HONEST** Found by the docs writer + scout 2026-10-04. The app offers `react` when creating a
+  widget (`WidgetFrameworks.kt:14`), but a react widget cannot build or run: esbuild with the service's flags
+  (`EsbuildWidgetBuildService.cs:128,148-157`) fails `Could not resolve "react/jsx-runtime"`; `react` is not on
+  the dependency allowlist (`WidgetDependencyAllowlist.cs:23-26`, so declaring it fails
+  `WIDGET_DEPENDENCY_NOT_ALLOWED`); the overlay page loads a runtime only for vue (`OverlayHostController.cs:168-174`).
+  The spec (`spec/widgets-overlays.md:285`) gives react only a build flag and no runtime; tests mock the build.
+  Done-when: react is treated like svelte today: the server refuses a react create/build with
+  `WIDGET_FRAMEWORK_UNSUPPORTED`, the app does not offer it, existing react widgets (count them on the dev box
+  read-only) show the coded failure, a test failed first. Building a real React runtime (vendored global like
+  `/overlay/vue.js`) is an owner decision, asked 2026-10-04.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
