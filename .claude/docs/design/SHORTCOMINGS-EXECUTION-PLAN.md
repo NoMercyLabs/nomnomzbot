@@ -20,6 +20,75 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-02 — code editor 100% type safe, SDK reliable and easy (in progress, top of queue)
+
+Owner: "get the code editor to be 100% type safe and ensure the SDK is reliable and easy to use and
+understand" + "a ton of tests to fire so scripts can be tested on their logic and output — every OBS and
+chat exposable visible from the preview window". The draft user docs live in `docs/sdk/` (one topic per
+page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
+defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
+
+- **S-SDK-WIDGET-DELIVERY** (stream-facing, first) `OverlaySdkController.cs:382` sends journaled
+  events as a JSON *string* (`HubResponseDtos.cs:189`) and the SDK never parses it, while every widget
+  joins that group (`OverlayHub.cs:78-79`): `follow` / alerts / `ChatMessage` reach every widget, even one
+  with an empty event list, with `data` as text (`data.user` is undefined), and a subscribed widget gets
+  them twice. Play-sound / TTS audio also goes to every open widget page (`OverlaySdkController.cs:385-387`,
+  comment calls the targets "unused"). TTS goes to every `tts_speak` subscriber and the SDK autoplays it
+  in each, so "TTS Audio" + "TTS Caption" both play the line. Owner decision 2026-10-02: "lets have just
+  one audio source for tss and all other scripts and audio fragments, and have volume control handled on
+  the bots side so balance stays static across multiple streaming pc's used by that user". Owner has only
+  ever heard a sound once: find what stops the duplicates live before changing it. Done-when: a widget gets
+  each event once, as an object, only when it subscribes; one Audio source plays TTS, sound clips and
+  script audio, other widgets only get the events for visuals; volume is set bot-side (per clip, TTS, and a
+  channel master) so every streaming PC sounds the same; no Audio source open → the dashboard says so;
+  tests prove each.
+- **S-SDK-RUNTIME** Script SDK says what it does. Done-when: every readme §7 script pitfall is fixed in
+  the runtime or the d.ts (tts.speak rate/pitch + `durationMs`, `user.get` paint, `economy.balance()` with
+  no argument reads the triggering viewer, `chat.reply` replies, `widget.emit(…, null)`, fractional
+  `schedule.pipeline` delay, a test-run tts result shaped like the live one incl. `voiceId` never null,
+  `random.pick([])` typed `T | undefined`, `tts.speak(text, '' | voice, rate, pitch)` typed with 4
+  params and an `undefined` voice meaning "no override", `economy.balance(platformId)` resolving the
+  viewer); scripts reach OBS and other pipeline actions (`nnz.api.actions.invoke`, reusing the pipeline
+  action descriptors, capability-gated); a failure is readable
+  (`nnz.lastError` or a typed result) instead of a bare false/null; JSDoc on every d.ts member; the drift
+  test compares interface members and parameter lists, not only top-level names.
+- **S-SDK-TRIGGER-TYPES** `bot.getVar` keys and `bot.args` are typed per trigger (command / event
+  response / timer / pipeline) from the event catalogue; the script context drops the widget-only
+  `NnzEventMap`. Done-when: the editor flags `bot.getVar('typo')` for the script's trigger.
+- **S-SDK-WIDGET-TYPES** Widget context without `any`: a typed event map (`NomNomz.on('follow', d => d.…)`
+  autocompletes the real payload; the anonymous payloads — now_playing, track_saved_changed, tts_speak,
+  tts_queue_control, ChatMessageEnriched, sr_queue — become records, hub DTOs reachable from
+  Infrastructure), typed per-widget `settings` from the settings schema, typed `actions.invoke` from the
+  pipeline action descriptors, `claim` rejection and `AUTH_REQUIRED` in the types. A custom widget's event
+  subscriptions are derived on save from its `NomNomz.on(…)` calls (today a dashboard-made widget starts
+  with none and gets no events at all — stream-facing). Done-when: an E2E editor test shows a payload
+  field typo as an error, and a new custom widget with `NomNomz.on('follow', …)` receives a fired follow.
+- **S-SDK-TEST-FIRE** The preview window is the test bench (owner, 2026-10-02). A script test run can
+  fire every trigger the script can have (each event-catalogue event with a realistic sample payload,
+  command args, viewer roles) and shows EVERY outward effect it would cause — chat messages, OBS calls,
+  TTS, music, widget emits, storage writes, scheduled pipelines, variables out — in order, as a
+  timeline, without sending anything live. Left: a script test run takes only args and variables
+  (`ScriptTestRunRequest`); it cannot pick a trigger or a viewer role. Plan: each
+  `TwitchAlertHandlerBase` handler gets a typed sample of its own domain event, and its real
+  `BuildVariables` makes the test variables (same keys as live, the widget-samples pattern); the command
+  path seeds args and `user.role`; reward, OBS, custom-data, webhook and timer sources likewise. The
+  panel shows chat, effects and console as one ordered timeline. Custom widgets have no **Settings**
+  form (`WidgetsScreen.kt:701`). Done-when: an E2E test fires a follow at a script that chats + switches
+  an OBS scene + emits to a widget and asserts all three rows.
+- **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
+  fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
+  the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
+- **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
+  source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
+  programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
+  audit (atlas Phase 4), not the delivery. Runs after the SDK fixes above so no page documents a bug.
+- **S-FLAKE-ECON-SQLITE** CI run 37055095636 attempt 1: `CurrencyBalanceConcurrencyTests.Concurrent_
+  debits_against_a_balance_covering_only_one_leave_exactly_one_winner` threw `SQLite Error 5: unable to
+  delete/modify user-function due to active statements`. Done-when: the cause is found and fixed (not
+  retried), and the test passes 200 repeated local runs.
+
+---
+
 ## OWNER PUNCH LIST 2026-09-10 — remaining follow-ups
 
 - **S-STREAMDECK-OBS-ICONS** Stream Deck OBS plugin icon art — Done-when: every OBS action ships its
