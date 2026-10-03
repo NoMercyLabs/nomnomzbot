@@ -393,6 +393,7 @@ private class FakeProjectEditorIOForWidgetTest : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
+        sdkTypesUnavailable: Boolean,
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,

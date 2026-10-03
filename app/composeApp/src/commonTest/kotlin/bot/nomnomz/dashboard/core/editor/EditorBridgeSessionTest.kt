@@ -32,6 +32,7 @@ class EditorBridgeSessionTest {
     private class Harness(
         history: EditorHistory? = null,
         testRun: EditorTestRun? = null,
+        sdkTypesUnavailable: Boolean = false,
         private val feedback: CompileFeedback = CompileFeedback(ok = true, message = "Compiled v2"),
     ) {
         val compiled: MutableList<Map<String, String>> = mutableListOf()
@@ -43,6 +44,7 @@ class EditorBridgeSessionTest {
                 entryPath = "src/App.vue",
                 language = "vue",
                 sdkTypes = "declare const nnz: { on(e: string): void };",
+                sdkTypesUnavailable = sdkTypesUnavailable,
                 previewWidget =
                     EditorPreviewWidget(
                         id = "w-1",
@@ -77,6 +79,7 @@ class EditorBridgeSessionTest {
         assertEquals("src/App.vue", payload["entry"]!!.jsonPrimitive.content)
         assertEquals("export const a = 1", payload["files"]!!.jsonObject["src/util.ts"]!!.jsonPrimitive.content)
         assertEquals("declare const nnz: { on(e: string): void };", payload["sdkTypes"]!!.jsonPrimitive.content)
+        assertFalse(payload["sdkTypesUnavailable"]!!.jsonPrimitive.boolean)
         assertEquals("channel.follow", payload["eventSubscriptions"]!!.jsonArray.single().jsonPrimitive.content)
         // The fire bar sends the server's own sample table, the one the widget Test button fires from.
         assertEquals(
@@ -90,6 +93,16 @@ class EditorBridgeSessionTest {
         assertFalse(payload["testRunEnabled"]!!.jsonPrimitive.boolean)
         assertNull(payload["history"], "no history panel when the caller passed none")
         assertTrue(harness.compiled.isEmpty(), "opening never compiles")
+    }
+
+    @Test
+    fun theOpenMessageCarriesTheSdkTypesUnavailableFlagWhenTheFetchFailed() = runTest {
+        val harness = Harness(sdkTypesUnavailable = true)
+
+        harness.session.handle(EditorInboundMessage(EditorBridgeProtocol.READY))
+
+        val payload: JsonObject = parse(harness.posted.single())["payload"]!!.jsonObject
+        assertTrue(payload["sdkTypesUnavailable"]!!.jsonPrimitive.boolean)
     }
 
     @Test

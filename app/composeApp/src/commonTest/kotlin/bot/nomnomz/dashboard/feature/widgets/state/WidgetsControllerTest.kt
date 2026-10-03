@@ -435,6 +435,46 @@ class WidgetsControllerTest {
         // The widget's own id, so the server types its settings from the widget's schema.
         assertEquals("w-1", sdkTypesApi.requestedWidgetId)
         assertEquals(reflectedDeclarations, editor.openedSdkTypes)
+        assertEquals(false, editor.openedSdkTypesUnavailable)
+    }
+
+    @Test
+    fun edit_widget_code_flags_a_failed_sdk_types_fetch_to_the_editor() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
+                    )
+                ),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.html" to "<old/>"),
+                            manifest =
+                                ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                        )
+                    ),
+                putProjectResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
+            )
+        val editor = FakeProjectEditor(toSave = emptyList())
+        val controller =
+            widgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                widgetsApi,
+                editor,
+                sdkTypesApi = FakeSdkTypesApi(fails = true),
+            )
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
+        )
+
+        assertEquals("index.html", editor.openedEntry, "the editor still opens")
+        assertEquals("", editor.openedSdkTypes)
+        assertEquals(true, editor.openedSdkTypesUnavailable)
     }
 
     @Test
@@ -728,13 +768,17 @@ private fun widgetsController(
 // A fake SDK-types facade. The editor tests don't assert on the declarations (the fake project editor never
 // opens a real language service), so it just returns an empty d.ts — the same graceful path a fetch failure
 // takes in production.
-private class FakeSdkTypesApi(private val declarations: String = "") : SdkTypesApi {
+private class FakeSdkTypesApi(
+    private val declarations: String = "",
+    private val fails: Boolean = false,
+) : SdkTypesApi {
     var requestedContext: String? = null
     var requestedWidgetId: String? = null
 
     override suspend fun types(context: String, scriptId: String?, widgetId: String?): ApiResult<String> {
         requestedContext = context
         requestedWidgetId = widgetId
+        if (fails) return ApiResult.Failure(ApiError(500, "ERR", "boom"))
         return ApiResult.Ok(declarations)
     }
 }
@@ -749,6 +793,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
     var openedFiles: Map<String, String>? = null
     var openedEntry: String? = null
     var openedSdkTypes: String? = null
+    var openedSdkTypesUnavailable: Boolean? = null
     var openedPreviewWidget: EditorPreviewWidget? = null
     val feedbacks: MutableList<CompileFeedback> = mutableListOf()
 
@@ -761,6 +806,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         entryPath: String,
         language: String,
         sdkTypes: String,
+        sdkTypesUnavailable: Boolean,
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
@@ -770,6 +816,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         openedFiles = initialFiles
         openedEntry = entryPath
         openedSdkTypes = sdkTypes
+        openedSdkTypesUnavailable = sdkTypesUnavailable
         openedPreviewWidget = previewWidget
         for (edit in toSave) {
             // Model editing the entry file's content, then Save & Compile with the full updated file map.

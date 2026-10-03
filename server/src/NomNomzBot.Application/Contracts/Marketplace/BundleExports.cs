@@ -71,7 +71,7 @@ public sealed record WidgetExport
     public required string Name { get; init; }
     public string? Description { get; init; }
 
-    /// <summary>vanilla | vue | react | svelte.</summary>
+    /// <summary>vanilla | vue | react.</summary>
     public string Framework { get; init; } = "vanilla";
 
     public IReadOnlyDictionary<string, object?> Settings { get; init; } =

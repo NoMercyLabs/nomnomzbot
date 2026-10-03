@@ -34,7 +34,7 @@ data class ProjectDto(
 /**
  * The project manifest on the wire (backend `ProjectManifestDto`) — `{ entry, kind, framework, dependencies[] }`.
  * [entry] is the path in [ProjectDto.files] the build compiles first; [kind] is `widget` or `script`; [framework]
- * ∈ `vanilla | vue | react | svelte` (widgets) or the script language; [dependencies] is the npm allow-list the
+ * ∈ `vanilla | vue | react` (widgets) or the script language; [dependencies] is the npm allow-list the
  * project declares (currently `vue`-only), null/empty when it declares none.
  */
 @Serializable

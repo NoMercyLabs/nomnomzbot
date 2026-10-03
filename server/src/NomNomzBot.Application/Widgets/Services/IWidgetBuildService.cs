@@ -29,7 +29,7 @@ public interface IWidgetBuildService
 
 /// <summary>
 /// A widget project to build: its <paramref name="Manifest"/> (entry / framework ∈ <c>vanilla</c> | <c>react</c> |
-/// <c>vue</c> | <c>svelte</c> / declared dependencies) and its <paramref name="Files"/> (<c>path → content</c>). The
+/// <c>vue</c> / declared dependencies) and its <paramref name="Files"/> (<c>path → content</c>). The
 /// manifest <c>Entry</c> must exist in <paramref name="Files"/>; esbuild bundles from it, resolving relative imports.
 /// </summary>
 public sealed record WidgetBuildInput(

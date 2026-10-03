@@ -19,7 +19,7 @@ namespace NomNomzBot.Infrastructure.Widgets.Pipeline;
 
 /// <summary>
 /// Supplies the channel's overlay widgets for the <c>widget</c> resource-picker kind (S-RICH-PICKERS).
-/// <see cref="PipelineOption.SecondaryText"/> is the widget's kind — its authored framework (vue/react/svelte/
+/// <see cref="PipelineOption.SecondaryText"/> is the widget's kind — its authored framework (vue/react/
 /// vanilla) and install source (first_party/verified_gallery/custom), the two facts that identify a widget
 /// beyond its name.
 /// </summary>

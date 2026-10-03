@@ -69,6 +69,7 @@ object EditorBridgeProtocol {
         entryPath: String,
         language: String,
         sdkTypes: String,
+        sdkTypesUnavailable: Boolean,
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
@@ -84,6 +85,7 @@ object EditorBridgeProtocol {
                         put("entry", entryPath)
                         put("language", language)
                         put("sdkTypes", sdkTypes)
+                        put("sdkTypesUnavailable", sdkTypesUnavailable)
                         // The server's sample table, the one the widget Test button fires from.
                         put("fireSamples", previewWidget?.fireSamples ?: JsonObject(emptyMap()))
                         // The widget's PERSISTED subscription list — the fire bar's authoritative source.

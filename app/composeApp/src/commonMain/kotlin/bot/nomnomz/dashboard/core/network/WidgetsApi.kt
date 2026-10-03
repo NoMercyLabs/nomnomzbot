@@ -333,7 +333,7 @@ data class UpdateWidgetBody(
     val eventSubscriptions: List<String>? = null,
 )
 
-/** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue | react | svelte`. */
+/** The create-widget request body (backend `CreateWidgetRequest`). [framework] ∈ `vanilla | vue | react`. */
 @Serializable
 data class CreateWidgetBody(
     val name: String,
@@ -360,7 +360,7 @@ data class CloneWidgetBody(
 
 /**
  * An overlay widget (backend `WidgetDetail`): its [id], display [name], the source [framework]
- * (`vanilla | vue | react | svelte`), the [source] provenance (`first_party | verified_gallery | custom`),
+ * (`vanilla | vue | react`), the [source] provenance (`first_party | verified_gallery | custom`),
  * whether it is live, the [overlayUrl] the operator copies into OBS, and [activeVersionId] — the version the
  * overlay currently serves (null until the first successful compile; also the version the editor loads to edit).
  * The authored source and compiled bundle are NOT here — they live on `WidgetVersion` rows. Timestamps and other

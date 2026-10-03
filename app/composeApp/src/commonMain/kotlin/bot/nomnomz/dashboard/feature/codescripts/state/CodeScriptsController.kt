@@ -35,7 +35,9 @@ import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
 import bot.nomnomz.dashboard.core.network.TestTrigger
+import bot.nomnomz.dashboard.core.network.EditorSdkTypes
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
+import bot.nomnomz.dashboard.core.network.typesForEditor
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -272,6 +274,7 @@ class CodeScriptsController(
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
         val project: ProjectDto = current.project
 
+        val sdkTypes: EditorSdkTypes = sdkTypesApi.typesForEditor("script", scriptId = id)
         projectEditor.editAndCompile(
             title = displayName,
             initialFiles = project.files,
@@ -282,8 +285,9 @@ class CodeScriptsController(
             // never show anything. Per-file language is resolved from the file extension by the editor itself.
             language = "script",
             // The script-context nnz.d.ts drives `nnz.` autocomplete + diagnostics in the web editor; a fetch
-            // failure degrades to a plain editor rather than blocking editing.
-            sdkTypes = fetchSdkTypes("script", scriptId = id),
+            // failure still opens the editor, flagged so the page says the types are missing.
+            sdkTypes = sdkTypes.declarations,
+            sdkTypesUnavailable = sdkTypes.unavailable,
             history = buildEditorHistory(id, current),
             testRun = buildEditorTestRun(id),
             compile = { editedFiles -> saveProjectFeedback(id, editedFiles, project, compiledMessage) },
@@ -477,14 +481,6 @@ class CodeScriptsController(
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
-
-    // Fetch the generated nnz.d.ts for [context] to hand the editor's TypeScript language service; degrade to an
-    // empty string (no autocomplete) on any failure rather than block the editor from opening.
-    private suspend fun fetchSdkTypes(context: String, scriptId: String? = null): String =
-        when (val result: ApiResult<String> = sdkTypesApi.types(context, scriptId)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> ""
-        }
 
     // Save the edited project (files + the preserved manifest) and map the outcome to inline editor feedback. The
     // server returns a failure Result on a broken validation/compile (nothing persisted), so a failure surfaces

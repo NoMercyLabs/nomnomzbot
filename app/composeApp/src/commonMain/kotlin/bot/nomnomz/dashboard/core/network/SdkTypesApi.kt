@@ -33,3 +33,16 @@ class RestSdkTypesApi(private val client: ApiClient) : SdkTypesApi {
         return client.getText("api/v1/sdk/types.d.ts?context=${context.encodeQuery()}$scriptQuery$widgetQuery")
     }
 }
+
+/** The declarations the editor gets, and whether the fetch failed (the editor then says so, instead of guessing). */
+data class EditorSdkTypes(val declarations: String, val unavailable: Boolean)
+
+suspend fun SdkTypesApi.typesForEditor(
+    context: String,
+    scriptId: String? = null,
+    widgetId: String? = null,
+): EditorSdkTypes =
+    when (val result: ApiResult<String> = types(context, scriptId, widgetId)) {
+        is ApiResult.Ok -> EditorSdkTypes(result.value, unavailable = false)
+        is ApiResult.Failure -> EditorSdkTypes("", unavailable = true)
+    }

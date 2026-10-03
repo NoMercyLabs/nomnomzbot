@@ -31,7 +31,7 @@ public class WidgetGalleryItem : SoftDeletableEntity
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
 
-    /// <summary><c>vue</c> | <c>react</c> | <c>svelte</c> | <c>vanilla</c>.</summary>
+    /// <summary><c>vue</c> | <c>react</c> | <c>vanilla</c>.</summary>
     public string Framework { get; set; } = "vanilla";
 
     /// <summary><c>first_party</c> | <c>verified_community</c> | <c>unverified</c>.</summary>

@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.editor.EditorHistory
 import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptDetail
@@ -86,6 +87,31 @@ class CodeScriptsControllerCreateOpensEditorTest {
         assertTrue(controller.state.value is CodeScriptsState.Ready, "the list stays put on a failed create")
     }
 
+    @Test
+    fun a_failed_sdk_types_fetch_is_flagged_to_the_editor_not_silently_dropped() = runTest {
+        val editor = RecordingProjectEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(), editor, FailingSdkTypes)
+
+        controller.load()
+        controller.create("My New Script", null, "nnz.api.chat.send('hi');", "Saved.", "Script")
+
+        assertTrue(editor.opened, "a failed types fetch must still open the editor")
+        assertEquals(true, editor.lastSdkTypesUnavailable, "the editor is told the SDK types are missing")
+        assertEquals("", editor.lastSdkTypes)
+    }
+
+    @Test
+    fun a_working_sdk_types_fetch_hands_the_editor_the_real_text_and_no_flag() = runTest {
+        val editor = RecordingProjectEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(), editor, TextSdkTypes("declare const nnz: {};"))
+
+        controller.load()
+        controller.create("My New Script", null, "nnz.api.chat.send('hi');", "Saved.", "Script")
+
+        assertEquals(false, editor.lastSdkTypesUnavailable)
+        assertEquals("declare const nnz: {};", editor.lastSdkTypes)
+    }
+
     private inner class FakeCodeScriptsApi(
         private val createShouldFail: Boolean = false,
     ) : CodeScriptsApi {
@@ -150,6 +176,8 @@ class CodeScriptsControllerCreateOpensEditorTest {
     private class RecordingProjectEditor : ProjectEditorIO {
         var opened: Boolean = false
         var lastTitle: String? = null
+        var lastSdkTypes: String? = null
+        var lastSdkTypesUnavailable: Boolean? = null
 
         override suspend fun editAndCompile(
             title: String,
@@ -157,6 +185,7 @@ class CodeScriptsControllerCreateOpensEditorTest {
             entryPath: String,
             language: String,
             sdkTypes: String,
+            sdkTypesUnavailable: Boolean,
             previewWidget: EditorPreviewWidget?,
             history: EditorHistory?,
             testRun: EditorTestRun?,
@@ -164,11 +193,23 @@ class CodeScriptsControllerCreateOpensEditorTest {
         ) {
             opened = true
             lastTitle = title
+            lastSdkTypes = sdkTypes
+            lastSdkTypesUnavailable = sdkTypesUnavailable
         }
     }
 
     private object StubSdkTypes : SdkTypesApi {
         override suspend fun types(context: String, scriptId: String?, widgetId: String?): ApiResult<String> =
             ApiResult.Ok("")
+    }
+
+    private object FailingSdkTypes : SdkTypesApi {
+        override suspend fun types(context: String, scriptId: String?, widgetId: String?): ApiResult<String> =
+            ApiResult.Failure(ApiError(500, "ERR", "boom"))
+    }
+
+    private class TextSdkTypes(private val text: String) : SdkTypesApi {
+        override suspend fun types(context: String, scriptId: String?, widgetId: String?): ApiResult<String> =
+            ApiResult.Ok(text)
     }
 }

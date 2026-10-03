@@ -34,7 +34,7 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     [MaxLength(500)]
     public string? Description { get; set; }
 
-    /// <summary><c>vue</c> | <c>react</c> | <c>svelte</c> | <c>vanilla</c> — the source language the build compiles.</summary>
+    /// <summary><c>vue</c> | <c>react</c> | <c>vanilla</c> — the source language the build compiles.</summary>
     [MaxLength(20)]
     public string Framework { get; set; } = "vanilla";
 

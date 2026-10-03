@@ -106,7 +106,7 @@ class RestWidgetGalleryApi(private val client: ApiClient) : WidgetGalleryApi {
 
 /**
  * A row in the public widget-gallery browse list (backend `GalleryItemSummary`): its [id], display [name],
- * optional [description], the source [framework] (`vanilla | vue | react | svelte`), the [trustTier]
+ * optional [description], the source [framework] (`vanilla | vue | react`), the [trustTier]
  * (`first_party | verified_community | unverified`), how many channels have installed it ([installCount]), and
  * whether it is offered on the hosted SaaS tier ([availableInSaaS]). The heavy fields (source, default config)
  * load only on the detail read.
@@ -155,7 +155,7 @@ data class GalleryItemDetail(
 /**
  * The community submit body (backend `SubmitGalleryItemRequest`) — a signed-in user proposes a GitHub-hosted
  * widget for review. [pinnedCommitSha] must be the FULL 40-hex commit; [gitHubRepoUrl] must be a
- * `https://github.com/{owner}/{repo}` URL. [framework] is `vanilla | vue | react | svelte`.
+ * `https://github.com/{owner}/{repo}` URL. [framework] is `vanilla | vue | react`.
  */
 @Serializable
 data class SubmitGalleryItemBody(

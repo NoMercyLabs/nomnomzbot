@@ -29,7 +29,9 @@ import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
+import bot.nomnomz.dashboard.core.network.EditorSdkTypes
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
+import bot.nomnomz.dashboard.core.network.typesForEditor
 import bot.nomnomz.dashboard.core.network.SubmitGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.WidgetGalleryApi
@@ -397,6 +399,7 @@ class WidgetsController(
         previewWidget: EditorPreviewWidget,
         messages: WidgetEditorMessages,
     ) {
+        val sdkTypes: EditorSdkTypes = sdkTypesApi.typesForEditor("widget", widgetId = widgetId)
         projectEditor.editAndCompile(
             title = title,
             initialFiles = project.files,
@@ -404,8 +407,9 @@ class WidgetsController(
             // Highlighting is best-effort; the framework doubles as the editor's language badge.
             language = framework.ifBlank { "html" },
             // The widget-context nnz.d.ts powers `nnz.` autocomplete + diagnostics in the web editor; a fetch
-            // failure degrades to a plain editor (no autocomplete), never blocks opening it.
-            sdkTypes = fetchSdkTypes(widgetId),
+            // failure still opens the editor, flagged so the page says the types are missing.
+            sdkTypes = sdkTypes.declarations,
+            sdkTypesUnavailable = sdkTypes.unavailable,
             previewWidget = previewWidget,
             compile = { editedFiles -> saveProjectFeedback(channel, widgetId, editedFiles, project.manifest, messages) },
         )
@@ -442,14 +446,6 @@ class WidgetsController(
             widgetsApi.putProject(channel, widgetId, ProjectDto(files = files, manifest = manifest))) {
             is ApiResult.Ok -> CompileFeedback(ok = true, message = messages.compiled)
             is ApiResult.Failure -> CompileFeedback(ok = false, message = result.error.message)
-        }
-
-    // Fetch the generated widget nnz.d.ts (settings typed from [widgetId]'s schema) to hand the editor's TypeScript
-    // language service; degrade to an empty string (no autocomplete) on any failure rather than block the editor.
-    private suspend fun fetchSdkTypes(widgetId: String): String =
-        when (val result: ApiResult<String> = sdkTypesApi.types("widget", widgetId = widgetId)) {
-            is ApiResult.Ok -> result.value
-            is ApiResult.Failure -> ""
         }
 
     // A one-file seed project for a widget with no saved project yet — mirrors the backend's single-file scaffold

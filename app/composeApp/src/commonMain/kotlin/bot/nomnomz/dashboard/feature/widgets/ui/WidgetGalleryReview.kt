@@ -90,7 +90,7 @@ import org.jetbrains.compose.resources.stringResource
 // The community widget-gallery submit + reviewer-queue surfaces (widgets-overlays.md §5c), rendered as dialogs
 // off the Overlays page. Both are pure projections over the suspend lambdas the WidgetsController exposes — they
 // hold only their own transient dialog state, never the page's. The frameworks a submission may declare.
-private val SubmitFrameworks: List<String> = listOf("vanilla", "vue", "react", "svelte")
+private val SubmitFrameworks: List<String> = WIDGET_FRAMEWORKS
 
 /**
  * The community submit form (any signed-in user): propose a GitHub-hosted widget for review. The backend

@@ -15,7 +15,7 @@ namespace NomNomzBot.Infrastructure.Widgets;
 /// <summary>
 /// The starter templates offered when creating a new custom widget — working, SDK-using HTML so a new widget is
 /// never a blank editor. All are <c>vanilla</c> (browser-ready, zero build dependency); they call the overlay SDK
-/// global (<c>window.NomNomz</c>) the host injects. React/Vue/Svelte starters follow with the framework build.
+/// global (<c>window.NomNomz</c>) the host injects. React/Vue starters follow with the framework build.
 /// </summary>
 public static class WidgetTemplateCatalogue
 {

@@ -114,6 +114,7 @@ class EditorWebViewBridgeTest {
                 entryPath = "main.ts",
                 language = "script",
                 sdkTypes = "",
+                sdkTypesUnavailable = false,
                 previewWidget = null,
                 history = null,
                 testRun = null,

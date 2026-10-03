@@ -1297,9 +1297,6 @@ private fun WidgetTokenRotationResultDialog(outcome: RotatedWidgetToken, onDismi
     )
 }
 
-// The framework set the backend accepts for a new widget (CreateWidgetRequest.framework).
-private val WIDGET_FRAMEWORKS: List<String> = listOf("vanilla", "vue", "react", "svelte")
-
 // Dialog to create a new widget: pick a framework and, optionally, a starter template. Choosing a template
 // adopts its framework and seeds the editor with its source; "Blank" starts from an empty editor on the
 // currently-selected framework. On confirm the widget is created and the compile-on-save editor opens.

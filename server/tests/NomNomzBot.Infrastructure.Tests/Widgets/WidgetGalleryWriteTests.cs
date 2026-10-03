@@ -32,17 +32,18 @@ public sealed class WidgetGalleryWriteTests
 {
     private static readonly Guid Submitter = Guid.Parse("0192a000-0000-7000-8000-0000000000f1");
     private static readonly Guid Reviewer = Guid.Parse("0192a000-0000-7000-8000-0000000000f2");
-    private static readonly PaginationParams FirstPage = new(1, 25);
+    private static readonly PaginationParams FirstPage = new();
     private static readonly FakeTimeProvider Clock = new(new(2026, 7, 17, 16, 0, 0, TimeSpan.Zero));
 
     private static SubmitGalleryItemRequest Submission(
         string url = "https://www.github.com/acme/confetti-widget.git",
-        string sha = "0123456789ABCDEF0123456789abcdef01234567"
+        string sha = "0123456789ABCDEF0123456789abcdef01234567",
+        string framework = "vue"
     ) =>
         new()
         {
             Name = "Confetti",
-            Framework = "vue",
+            Framework = framework,
             GitHubRepoUrl = url,
             PinnedCommitSha = sha,
             PinnedTag = "v1.0.0",
@@ -123,6 +124,26 @@ public sealed class WidgetGalleryWriteTests
         (await service.GetAsync(detail.Id.ToString(), privileged: true))
             .IsSuccess.Should()
             .BeTrue();
+    }
+
+    [Fact]
+    public async Task Submit_refuses_svelte_with_the_build_service_code_and_stores_nothing()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        (WidgetGalleryService service, WidgetTestDbContext db, RecordingEventBus bus) = New(
+            database
+        );
+
+        Result<GalleryItemDetail> submitted = await service.SubmitAsync(
+            Submitter,
+            Submission(framework: "svelte")
+        );
+
+        submitted.IsFailure.Should().BeTrue();
+        submitted.ErrorCode.Should().Be("WIDGET_FRAMEWORK_UNSUPPORTED");
+        (await db.WidgetGalleryItems.CountAsync()).Should().Be(0);
+        (await db.WidgetGallerySubmissionEvents.CountAsync()).Should().Be(0);
+        bus.Published.Should().BeEmpty();
     }
 
     [Theory]

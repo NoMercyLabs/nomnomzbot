@@ -42,6 +42,7 @@ actual class ProjectEditor : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
+        sdkTypesUnavailable: Boolean,
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
@@ -62,7 +63,8 @@ actual class ProjectEditor : ProjectEditorIO {
         val frame: JsAny = mountEditorFrame(EDITOR_PAGE + versionQuery())
         val session: EditorBridgeSession =
             EditorBridgeSession(
-                title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun, compile,
+                title, initialFiles, entryPath, language, sdkTypes, sdkTypesUnavailable, previewWidget, history, testRun,
+                compile,
                 post = { messageJson: String -> postToEditor(frame, messageJson) },
             )
         try {

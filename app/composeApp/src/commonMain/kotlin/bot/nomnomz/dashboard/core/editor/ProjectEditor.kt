@@ -41,7 +41,8 @@ interface ProjectEditorIO {
      * [sdkTypes] is the generated `nnz.d.ts` ambient declarations for the artifact's context (widget vs script),
      * fetched by the caller from `GET /api/v1/sdk/types.d.ts`. The web editor feeds it to an in-browser TypeScript
      * language service so `nnz.` autocompletes with the typed SDK surface and inline diagnostics flag misuse. Empty
-     * when the declarations could not be fetched — the editor then simply omits autocomplete (a pure enhancement).
+     * when the declarations could not be fetched; [sdkTypesUnavailable] is then true and the editor page says the
+     * types are missing instead of reporting every SDK name as unknown.
      *
      * [previewWidget] is the widget being edited, for its live preview; null for anything that is not a widget.
      * Its `eventSubscriptions` are the widget's PERSISTED `EventSubscriptions` — the same list the overlay manifest
@@ -61,6 +62,7 @@ interface ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String = "",
+        sdkTypesUnavailable: Boolean = false,
         previewWidget: EditorPreviewWidget? = null,
         history: EditorHistory? = null,
         testRun: EditorTestRun? = null,
@@ -77,6 +79,7 @@ expect class ProjectEditor() : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
+        sdkTypesUnavailable: Boolean,
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
