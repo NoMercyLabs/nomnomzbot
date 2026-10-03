@@ -82,7 +82,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
         return surface;
     }
 
-    private static string ScriptDts() =>
+    internal static string ScriptDts() =>
         new SdkTypeEmitter(new EventCatalog()).EmitTypeScript(SdkContext.Script);
 
     /// <summary>Every <c>declare const &lt;name&gt;: { … }</c> block in the emitted d.ts, with its member names.</summary>
@@ -282,7 +282,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
     }
 
     /// <summary>Each <c>interface X {</c> and <c>declare const x: {</c> block, with its top-level member lines.</summary>
-    private static Dictionary<string, List<string>> TypeBlocks(string dts)
+    internal static Dictionary<string, List<string>> TypeBlocks(string dts)
     {
         Dictionary<string, List<string>> blocks = new(StringComparer.Ordinal);
         string? open = null;

@@ -49,9 +49,9 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  /** The viewer's display name as shown in chat. */");
         sb.AppendLine("  displayName: string;");
         sb.AppendLine(
-            "  /** The URL of the viewer's profile picture. null when they have none. */"
+            "  /** The URL of the viewer's profile picture. Absent when they have none. */"
         );
-        sb.AppendLine("  avatarUrl: string | null;");
+        sb.AppendLine("  avatarUrl?: string;");
         sb.AppendLine("  /** The 7TV paint this viewer wears; absent when they wear none. */");
         sb.AppendLine("  paint?: NnzApiPaint;");
         sb.AppendLine("}");
@@ -59,13 +59,15 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("/** A 7TV name paint, ready to apply as CSS. */");
         sb.AppendLine("interface NnzApiPaint {");
         sb.AppendLine(
-            "  /** The CSS background image of the paint. null when the paint sets none. */"
+            "  /** The CSS background image of the paint. Absent when the paint sets none. */"
         );
-        sb.AppendLine("  backgroundImage: string | null;");
-        sb.AppendLine("  /** The CSS text color of the paint. null when the paint sets none. */");
-        sb.AppendLine("  color: string | null;");
-        sb.AppendLine("  /** The CSS text shadow of the paint. null when the paint sets none. */");
-        sb.AppendLine("  textShadow: string | null;");
+        sb.AppendLine("  backgroundImage?: string;");
+        sb.AppendLine("  /** The CSS text color of the paint. Absent when the paint sets none. */");
+        sb.AppendLine("  color?: string;");
+        sb.AppendLine(
+            "  /** The CSS text shadow of the paint. Absent when the paint sets none. */"
+        );
+        sb.AppendLine("  textShadow?: string;");
         sb.AppendLine("  /** True when the paint is an image only. */");
         sb.AppendLine("  isImageOnly: boolean;");
         sb.AppendLine("}");
