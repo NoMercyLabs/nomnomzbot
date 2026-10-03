@@ -40,7 +40,8 @@ const VUE_ENTRY = '__nnz_vue_main__.js';
 
 const REBUILD_DEBOUNCE_MS = 500;
 
-const SCRIPT_NOTE = 'Code scripts run in the bot sandbox — press Save & Compile to validate.';
+// The editor's label function (editor.js `t`), handed in by initPreview. Until then an id shows itself.
+let t = (id) => id;
 
 const ESBUILD_LOADER_BY_EXTENSION = Object.freeze({
     ts: 'ts',
@@ -81,7 +82,7 @@ const PREVIEW_SDK_URL = new URL('./preview-sdk.js', import.meta.url);
 
 function loadPreviewSdk() {
     globalThis.__nnzPreviewSdk ??= fetch(PREVIEW_SDK_URL).then((response) => {
-        if (!response.ok) throw new Error(`preview-sdk.js: HTTP ${response.status}`);
+        if (!response.ok) throw new Error(t('previewSdkHttp', { status: response.status }));
         return response.text();
     });
     return globalThis.__nnzPreviewSdk;
@@ -92,7 +93,7 @@ function widgetGlobals(widget, events) {
     const values = {
         WIDGET_ID: widget.id ?? 'preview',
         WIDGET_TOKEN: 'preview',
-        WIDGET_NAME: widget.name ?? 'Preview',
+        WIDGET_NAME: widget.name ?? t('previewWidgetName'),
         WIDGET_SETTINGS: widget.settings ?? {},
         WIDGET_EVENT_SUBSCRIPTIONS: events,
     };
@@ -119,7 +120,9 @@ export function initPreview({
     widget = {},
     noteText = '',
     snapshotFiles,
+    t: label,
 }) {
+    t = label;
     const framework = String(language ?? '').toLowerCase();
 
     const isVue = framework === 'vue';
@@ -132,7 +135,7 @@ export function initPreview({
             ? 'html'
             : 'esbuild';
 
-    const idleNote = noteText || (mode === 'note' ? SCRIPT_NOTE : '');
+    const idleNote = noteText || (mode === 'note' ? t('previewScriptNote') : '');
 
     let esbuild = null;
     let vueSfc = null;
@@ -197,7 +200,7 @@ export function initPreview({
 
         const label = document.createElement('span');
         label.className = 'fire-label';
-        label.textContent = 'Fire event:';
+        label.textContent = t('previewFireEvent');
 
         fireBar.replaceChildren(
             label,
@@ -218,13 +221,16 @@ export function initPreview({
     function describeEntry(entry) {
         switch (entry.kind) {
             case 'fired':
-                return `Fired ${entry.type}`;
+                return t('previewLogFired', { type: entry.type });
             case 'action':
-                return `Would run ${entry.actionType} ${JSON.stringify(entry.params ?? {})}`;
+                return t('previewLogAction', {
+                    actionType: entry.actionType,
+                    params: JSON.stringify(entry.params ?? {}),
+                });
             case 'claim':
-                return `Claimed ${entry.key}`;
+                return t('previewLogClaim', { key: entry.key });
             default:
-                return entry.message ?? 'Error';
+                return entry.message ?? t('previewLogError');
         }
     }
 
@@ -299,7 +305,7 @@ export function initPreview({
         if (parsed.errors?.length) throw new Error(parsed.errors[0].message ?? String(parsed.errors[0]));
 
         const descriptor = parsed.descriptor;
-        if (!descriptor.scriptSetup && !descriptor.script) throw new Error('SFC has no <script> block');
+        if (!descriptor.scriptSetup && !descriptor.script) throw new Error(t('previewSfcNoScript'));
 
         let hash = 0;
         for (let i = 0; i < path.length; i++) hash = ((hash << 5) - hash + path.charCodeAt(i)) | 0;
@@ -329,11 +335,12 @@ export function initPreview({
     }
 
     function vueEntrySource() {
+        const mountErrorTemplate = JSON.stringify(t('previewMountError')).replace(/</g, '\\u003c');
         return (
             `import __App from "./${entry}";\n` +
             'import { createApp } from "vue";\n' +
             'try { window.__nnzApp = createApp(__App); window.__nnzApp.mount("#app"); }\n' +
-            'catch (e) { var d = document.getElementById("app"); if (d) { d.textContent = "Mount error: " + ((e && e.message) || e); d.style.color = "#f87171"; } }'
+            `catch (e) { var d = document.getElementById("app"); if (d) { d.textContent = ${mountErrorTemplate}.replace("{message}", (e && e.message) || e); d.style.color = "#f87171"; } }`
         );
     }
 
@@ -347,7 +354,7 @@ export function initPreview({
                         const resolved = resolveVfs(files, args.importer, args.path);
                         return resolved
                             ? { path: resolved, namespace: 'nnzvfs' }
-                            : { errors: [{ text: `Cannot resolve ${args.path} from ${args.importer}` }] };
+                            : { errors: [{ text: t('previewCannotResolve', { path: args.path, importer: args.importer }) }] };
                     }
                     return { path: args.path, external: true };
                 });
@@ -356,14 +363,14 @@ export function initPreview({
                     if (args.path === VUE_ENTRY) return { contents: vueEntrySource(), loader: 'js' };
 
                     const contents = files[args.path];
-                    if (contents == null) return { errors: [{ text: `Missing file ${args.path}` }] };
+                    if (contents == null) return { errors: [{ text: t('previewMissingFile', { path: args.path }) }] };
 
                     if (args.path.endsWith('.vue')) {
                         try {
                             return { contents: compileVueFile(args.path, contents), loader: 'ts' };
                         } catch (error) {
                             return {
-                                errors: [{ text: `Vue compile (${args.path}): ${error?.message ?? error}` }],
+                                errors: [{ text: t('previewVueCompile', { path: args.path, message: error?.message ?? error }) }],
                             };
                         }
                     }
@@ -378,18 +385,18 @@ export function initPreview({
 
         const files = snapshotFiles();
         if (!(entry in files)) {
-            showNote(`Entry file ${entry} is missing.`, true);
+            showNote(t('previewEntryMissing', { entry }), true);
             return;
         }
 
         if (isVue && !vueSfc) {
-            showNote('Loading Vue compiler…', false);
+            showNote(t('previewLoadingVue'), false);
             try {
                 vueSfc = await loadVueSfc();
             } catch (error) {
                 // Drop the cached rejection so the next edit retries instead of inheriting the failure.
                 globalThis.__nnzVueSfc = null;
-                showNote(`Vue compiler could not load:\n${error?.message ?? error}`, true);
+                showNote(`${t('previewVueLoadFailed')}\n${error?.message ?? error}`, true);
                 return;
             }
         }
@@ -420,7 +427,7 @@ export function initPreview({
             const css = result.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
             renderBundle(files, javascript, css);
         } catch (error) {
-            showNote(`Preview build failed:\n${error?.message ?? error}`, true);
+            showNote(`${t('previewBuildFailed')}\n${error?.message ?? error}`, true);
         }
     }
 
@@ -464,7 +471,7 @@ export function initPreview({
     if (mode === 'note') {
         rebuildNow();
     } else {
-        showNote('Starting preview…', false);
+        showNote(t('previewStarting'), false);
         Promise.all([loadPreviewSdk(), mode === 'esbuild' ? loadEsbuild() : null])
             .then(([sdk, loaded]) => {
                 previewSdk = sdk;
@@ -476,8 +483,7 @@ export function initPreview({
                 globalThis.__nnzEsbuild = null;
                 globalThis.__nnzPreviewSdk = null;
                 showNote(
-                    `Live preview unavailable (it could not load):\n${error?.message ?? error}\n\n` +
-                        'Save & Compile still builds on the server.',
+                    `${t('previewUnavailable')}\n${error?.message ?? error}\n\n` + t('previewUnavailableHint'),
                     true,
                 );
             });

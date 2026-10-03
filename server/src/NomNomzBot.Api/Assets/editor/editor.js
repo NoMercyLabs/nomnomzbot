@@ -250,6 +250,26 @@ const DEFAULT_LABELS = Object.freeze({
     bundleKind: 'Kind',
     bundleEntry: 'Entry',
     bundleFiles: 'Files',
+    previewScriptNote: 'Code scripts run in the bot sandbox — press Save & Compile to validate.',
+    previewFireEvent: 'Fire event:',
+    previewLogFired: 'Fired {type}',
+    previewLogAction: 'Would run {actionType} {params}',
+    previewLogClaim: 'Claimed {key}',
+    previewLogError: 'Error',
+    previewMountError: 'Mount error: {message}',
+    previewEntryMissing: 'Entry file {entry} is missing.',
+    previewLoadingVue: 'Loading Vue compiler…',
+    previewVueLoadFailed: 'Vue compiler could not load:',
+    previewBuildFailed: 'Preview build failed:',
+    previewStarting: 'Starting preview…',
+    previewUnavailable: 'Live preview unavailable (it could not load):',
+    previewUnavailableHint: 'Save & Compile still builds on the server.',
+    previewSfcNoScript: 'The Vue file has no script block.',
+    previewCannotResolve: 'Cannot resolve {path} from {importer}',
+    previewMissingFile: 'Missing file {path}',
+    previewVueCompile: 'Vue compile ({path}): {message}',
+    previewSdkHttp: 'The preview SDK could not be fetched (HTTP {status}).',
+    previewWidgetName: 'Preview',
 });
 
 // `{name}` placeholders; an unknown id shows itself so a gap is visible, never blank.
@@ -1431,6 +1451,7 @@ async function open(payload) {
         declaredEvents: payload.eventSubscriptions ?? [],
         widget: payload.widget ?? {},
         noteText: payload.previewNote ?? '',
+        t,
         snapshotFiles,
     });
 

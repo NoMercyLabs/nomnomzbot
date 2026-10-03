@@ -106,6 +106,11 @@ public class EditorAssetContractTests
                     .Matches(script, @"\bt\('(?<id>\w+)'")
                     .Select(match => match.Groups["id"].Value)
             )
+            .Concat(
+                Regex
+                    .Matches(Read("preview.js"), @"\bt\('(?<id>\w+)'")
+                    .Select(match => match.Groups["id"].Value)
+            )
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
@@ -165,6 +170,61 @@ public class EditorAssetContractTests
         }
 
         unmarked.Should().BeEmpty("every visible text must carry a data-i18n marker");
+    }
+
+    [Fact]
+    public void The_preview_script_holds_no_user_visible_english_literal()
+    {
+        // preview.js builds notes, log rows, the fire-bar label and error texts. A Dutch dashboard must show
+        // them in Dutch, so every one is a t('id') label and none is an English phrase in the code.
+        // Line by line: a quote inside a regex literal on one line must not shift every later pairing.
+        List<string> phrases = [];
+        foreach (string rawLine in Read("preview.js").Split('\n'))
+        {
+            string line = rawLine.Trim();
+            if (line.StartsWith("//") || line.StartsWith("/*") || line.StartsWith('*'))
+                continue;
+            line = Regex.Replace(line, @"\s//\s.*$", "");
+
+            foreach (
+                Match match in Regex.Matches(
+                    line,
+                    @"'(?:[^'\\]|\\.)*'|""(?:[^""\\]|\\.)*""|`[^`]*(?:`|$)"
+                )
+            )
+            {
+                string literal = Regex.Replace(match.Value, @"\$\{[^}]*\}", "");
+                bool generatedCode =
+                    literal.StartsWith("'<") || literal.StartsWith("`<") || literal.Contains(';');
+                bool phrase = Regex.IsMatch(literal, "[A-Za-z]{2,} +[A-Za-z]{2,}");
+                // One capitalised word is a text too: 'Error', 'Preview', `Fired ${type}`.
+                bool word = Regex.IsMatch(literal, @"^['""`][A-Z][a-z]+(?:[ :'""`]|$)");
+                if ((phrase && !generatedCode) || word || (phrase && literal.StartsWith('"')))
+                    phrases.Add(line);
+            }
+        }
+
+        phrases.Should().BeEmpty("every text the preview shows must come from the label map");
+    }
+
+    [Fact]
+    public void The_preview_labels_are_all_used_by_the_preview_script()
+    {
+        Dictionary<string, string> defaults = ReadDefaultLabels();
+        string script = Read("preview.js");
+
+        List<string> ids = Regex
+            .Matches(script, @"\bt\('(?<id>\w+)'")
+            .Select(match => match.Groups["id"].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        ids.Should().NotBeEmpty("preview.js must read its words through t()");
+        defaults
+            .Keys.Where(id => id.StartsWith("preview", StringComparison.Ordinal))
+            .Where(id => !ids.Contains(id))
+            .Should()
+            .BeEmpty("a preview label nothing reads is dead weight");
     }
 
     private static Dictionary<string, string> ReadDefaultLabels()

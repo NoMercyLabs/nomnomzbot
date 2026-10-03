@@ -6073,4 +6073,24 @@
     <string name="editor_bundle_kind">Kind</string>
     <string name="editor_bundle_entry">Entry</string>
     <string name="editor_bundle_files">Files</string>
+    <string name="editor_preview_script_note">Code scripts run in the bot sandbox — press Save &amp; Compile to validate.</string>
+    <string name="editor_preview_fire_event">Fire event:</string>
+    <string name="editor_preview_log_fired">Fired {type}</string>
+    <string name="editor_preview_log_action">Would run {actionType} {params}</string>
+    <string name="editor_preview_log_claim">Claimed {key}</string>
+    <string name="editor_preview_log_error">Error</string>
+    <string name="editor_preview_mount_error">Mount error: {message}</string>
+    <string name="editor_preview_entry_missing">Entry file {entry} is missing.</string>
+    <string name="editor_preview_loading_vue">Loading Vue compiler…</string>
+    <string name="editor_preview_vue_load_failed">Vue compiler could not load:</string>
+    <string name="editor_preview_build_failed">Preview build failed:</string>
+    <string name="editor_preview_starting">Starting preview…</string>
+    <string name="editor_preview_unavailable">Live preview unavailable (it could not load):</string>
+    <string name="editor_preview_unavailable_hint">Save &amp; Compile still builds on the server.</string>
+    <string name="editor_preview_sfc_no_script">The Vue file has no script block.</string>
+    <string name="editor_preview_cannot_resolve">Cannot resolve {path} from {importer}</string>
+    <string name="editor_preview_missing_file">Missing file {path}</string>
+    <string name="editor_preview_vue_compile">Vue compile ({path}): {message}</string>
+    <string name="editor_preview_sdk_http">The preview SDK could not be fetched (HTTP {status}).</string>
+    <string name="editor_preview_widget_name">Preview</string>
 </resources>

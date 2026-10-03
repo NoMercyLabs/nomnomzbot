@@ -6046,4 +6046,24 @@
     <string name="editor_bundle_kind">Soort</string>
     <string name="editor_bundle_entry">Start</string>
     <string name="editor_bundle_files">Bestanden</string>
+    <string name="editor_preview_script_note">Codescripts draaien in de botsandbox — druk op Opslaan &amp; compileren om te controleren.</string>
+    <string name="editor_preview_fire_event">Gebeurtenis afvuren:</string>
+    <string name="editor_preview_log_fired">{type} afgevuurd</string>
+    <string name="editor_preview_log_action">Zou {actionType} uitvoeren {params}</string>
+    <string name="editor_preview_log_claim">{key} geclaimd</string>
+    <string name="editor_preview_log_error">Fout</string>
+    <string name="editor_preview_mount_error">Fout bij het starten: {message}</string>
+    <string name="editor_preview_entry_missing">Het startbestand {entry} ontbreekt.</string>
+    <string name="editor_preview_loading_vue">Vue-compiler laden…</string>
+    <string name="editor_preview_vue_load_failed">De Vue-compiler kon niet laden:</string>
+    <string name="editor_preview_build_failed">Het voorbeeld bouwen is mislukt:</string>
+    <string name="editor_preview_starting">Voorbeeld starten…</string>
+    <string name="editor_preview_unavailable">Live voorbeeld niet beschikbaar (het kon niet laden):</string>
+    <string name="editor_preview_unavailable_hint">Opslaan &amp; compileren bouwt nog steeds op de server.</string>
+    <string name="editor_preview_sfc_no_script">Het Vue-bestand heeft geen scriptblok.</string>
+    <string name="editor_preview_cannot_resolve">{path} is niet te vinden vanuit {importer}</string>
+    <string name="editor_preview_missing_file">Bestand {path} ontbreekt</string>
+    <string name="editor_preview_vue_compile">Vue-compilatie ({path}): {message}</string>
+    <string name="editor_preview_sdk_http">De voorbeeld-SDK kon niet worden opgehaald (HTTP {status}).</string>
+    <string name="editor_preview_widget_name">Voorbeeld</string>
 </resources>
