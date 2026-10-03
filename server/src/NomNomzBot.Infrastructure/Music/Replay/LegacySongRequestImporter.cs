@@ -90,6 +90,7 @@ public sealed class LegacySongRequestImporter : ILegacySongRequestImporter
         {
             DataSource = path.Value,
             Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
         };
 
         await using SqliteConnection connection = new(connectionString.ToString());

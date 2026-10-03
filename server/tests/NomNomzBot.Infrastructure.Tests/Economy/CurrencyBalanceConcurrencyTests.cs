@@ -42,7 +42,7 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
         $"nomnomz_econ_race_{Guid.NewGuid():N}.db"
     );
 
-    private string ConnectionString => $"Data Source={_dbPath};Default Timeout=90";
+    private string ConnectionString => $"Data Source={_dbPath};Default Timeout=90;Pooling=False";
 
     public void Dispose()
     {
@@ -280,8 +280,8 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
                 {
                     JarId = jar.Id,
                     MemberBroadcasterId = Owner,
-                    Role = NomNomzBot.Domain.Economy.Enums.JarRole.Owner,
-                    Status = NomNomzBot.Domain.Economy.Enums.JarMembershipStatus.Accepted,
+                    Role = Domain.Economy.Enums.JarRole.Owner,
+                    Status = Domain.Economy.Enums.JarMembershipStatus.Accepted,
                     AcceptedAt = Clock.GetUtcNow().UtcDateTime,
                 }
             );
@@ -368,8 +368,8 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
                 {
                     JarId = jar.Id,
                     MemberBroadcasterId = Owner,
-                    Role = NomNomzBot.Domain.Economy.Enums.JarRole.Owner,
-                    Status = NomNomzBot.Domain.Economy.Enums.JarMembershipStatus.Accepted,
+                    Role = Domain.Economy.Enums.JarRole.Owner,
+                    Status = Domain.Economy.Enums.JarMembershipStatus.Accepted,
                     AcceptedAt = Clock.GetUtcNow().UtcDateTime,
                 }
             );

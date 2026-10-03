@@ -70,7 +70,7 @@ public sealed class SqliteMigrationService
 
         MigrationCounts counts = new();
 
-        string connectionString = $"Data Source={sqliteFilePath};Mode=ReadOnly;";
+        string connectionString = $"Data Source={sqliteFilePath};Mode=ReadOnly;Pooling=False;";
         await using SqliteConnection conn = new(connectionString);
         await conn.OpenAsync(cancellationToken);
 

@@ -42,7 +42,7 @@ public sealed class UsageMeteringConcurrencyTests : IDisposable
         $"nomnomz_billing_race_{Guid.NewGuid():N}.db"
     );
 
-    private string ConnectionString => $"Data Source={_dbPath};Default Timeout=90";
+    private string ConnectionString => $"Data Source={_dbPath};Default Timeout=90;Pooling=False";
 
     public void Dispose()
     {

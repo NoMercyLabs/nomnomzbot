@@ -646,7 +646,8 @@ internal sealed class SqliteTestDatabase : IDisposable
 
     public static SqliteTestDatabase Open()
     {
-        string connectionString = $"DataSource=file:{Guid.NewGuid():N}?mode=memory&cache=shared";
+        string connectionString =
+            $"DataSource=file:{Guid.NewGuid():N}?mode=memory&cache=shared;Pooling=False";
         SqliteConnection keepAlive = new(connectionString);
         keepAlive.Open();
 

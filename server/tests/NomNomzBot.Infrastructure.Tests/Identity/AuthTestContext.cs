@@ -143,7 +143,7 @@ internal static class AuthTestBuilder
     }
 
     private static string SharedCacheConnectionString(string databaseName) =>
-        $"Data Source=file:{databaseName}?mode=memory&cache=shared";
+        $"Data Source=file:{databaseName}?mode=memory&cache=shared;Pooling=False";
 
     /// <summary>
     /// Parks the keep-alive connection and creates the schema for <paramref name="databaseName"/>, then hands

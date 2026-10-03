@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
+
 namespace NomNomzBot.Infrastructure.Platform;
 
 /// <summary>
@@ -26,7 +28,15 @@ public static class SelfHostDataPaths
 
     public static string DatabaseFile => Path.Combine(BaseDirectory, "nomnomz.db");
 
-    public static string SqliteConnectionString => $"Data Source={DatabaseFile}";
+    // Pooling off: Microsoft.Data.Sqlite's pool can hand one native handle to two connections when several
+    // threads open at once (ReclaimLeakedConnections vs Activate; dotnet/efcore#36591, #37668), which fails as
+    // SQLite Error 5 on close.
+    public static string SqliteConnectionString =>
+        new SqliteConnectionStringBuilder
+        {
+            DataSource = DatabaseFile,
+            Pooling = false,
+        }.ConnectionString;
 
     public static string LogsDirectory => Ensure(Path.Combine(BaseDirectory, "logs"));
 
