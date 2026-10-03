@@ -149,6 +149,16 @@ public partial class WidgetGalleryService(
         if (sha.IsFailure)
             return Result.Failure<GalleryItemDetail>(sha.ErrorMessage, sha.ErrorCode);
 
+        bool alreadySubmitted = await db.WidgetGalleryItems.AnyAsync(
+            i => i.GitHubRepoUrl == repoUrl.Value && i.PinnedCommitSha == sha.Value,
+            cancellationToken
+        );
+        if (alreadySubmitted)
+            return Result.Failure<GalleryItemDetail>(
+                "This repository commit has already been submitted to the gallery.",
+                "ALREADY_EXISTS"
+            );
+
         // Snapshot the submitter's identity so the moderation queue stays readable even if the account
         // is later renamed or removed.
         User? submitter = await db.Users.FirstOrDefaultAsync(

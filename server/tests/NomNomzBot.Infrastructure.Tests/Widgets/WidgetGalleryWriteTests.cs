@@ -146,6 +146,28 @@ public sealed class WidgetGalleryWriteTests
         bus.Published.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Submit_twice_for_the_same_repo_and_pin_is_refused_and_keeps_one_row_and_one_history_event()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        (WidgetGalleryService service, WidgetTestDbContext db, _) = New(database);
+        Result<GalleryItemDetail> first = await service.SubmitAsync(Submitter, Submission());
+
+        Result<GalleryItemDetail> second = await service.SubmitAsync(
+            Submitter,
+            Submission(
+                "https://github.com/acme/confetti-widget",
+                "0123456789abcdef0123456789abcdef01234567"
+            )
+        );
+
+        first.IsSuccess.Should().BeTrue(first.ErrorMessage);
+        second.IsFailure.Should().BeTrue();
+        second.ErrorCode.Should().Be("ALREADY_EXISTS");
+        (await db.WidgetGalleryItems.CountAsync()).Should().Be(1);
+        (await db.WidgetGallerySubmissionEvents.CountAsync()).Should().Be(1);
+    }
+
     [Theory]
     [InlineData("https://gitlab.com/acme/widget", "0123456789abcdef0123456789abcdef01234567")]
     [InlineData("https://github.com/acme", "0123456789abcdef0123456789abcdef01234567")]
