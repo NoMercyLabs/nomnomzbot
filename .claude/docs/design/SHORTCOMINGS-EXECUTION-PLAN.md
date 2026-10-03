@@ -28,17 +28,15 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-SDK-WIDGET-DELIVERY** (stream-facing, first) `OverlaySdkController.cs:382` sends journaled
-  events as a JSON *string* (`HubResponseDtos.cs:189`) and the SDK never parses it, while every widget
-  joins that group (`OverlayHub.cs:78-79`): `follow` / alerts / `ChatMessage` reach every widget, even one
-  with an empty event list, with `data` as text (`data.user` is undefined), and a subscribed widget gets
-  them twice. Play-sound / TTS audio also goes to every open widget page (`OverlaySdkController.cs:385-387`,
+- **S-SDK-WIDGET-DELIVERY** (stream-facing, first) Event delivery is fixed (811b7913d: each event once,
+  as an object, only to subscribers). Left: play-sound / TTS audio still goes to every open widget page
+  over the shared `overlay-{b}` group (`WidgetNotifier.cs` ~110-134; `OverlaySdkController.cs:385-387`,
   comment calls the targets "unused"). TTS goes to every `tts_speak` subscriber and the SDK autoplays it
   in each, so "TTS Audio" + "TTS Caption" both play the line. Owner decision 2026-10-02: "lets have just
   one audio source for tss and all other scripts and audio fragments, and have volume control handled on
   the bots side so balance stays static across multiple streaming pc's used by that user". Owner has only
-  ever heard a sound once: find what stops the duplicates live before changing it. Done-when: a widget gets
-  each event once, as an object, only when it subscribes; one Audio source plays TTS, sound clips and
+  ever heard a sound once: find what stops the duplicates live before changing it. Done-when: one Audio
+  source plays TTS, sound clips and
   script audio, other widgets only get the events for visuals; volume is set bot-side (per clip, TTS, and a
   channel master) so every streaming PC sounds the same; no Audio source open → the dashboard says so;
   tests prove each.
