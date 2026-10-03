@@ -200,7 +200,11 @@ public sealed class JintScriptExecutorTests
         JintScriptExecutor sut = new();
         ScriptExecutionRequest request = Request("nnz.time.sleep(999999); bot.send('done');") with
         {
-            Budget = ScriptResourceBudget.Baseline with { WallClockMs = 6_000 },
+            // 10 s of headroom over the 5 s clamp: engine start-up under full-suite load used up a 1 s margin.
+            Budget = ScriptResourceBudget.Baseline with
+            {
+                WallClockMs = 15_000,
+            },
         };
 
         ScriptExecutionOutcomeResult r = (await sut.ExecuteAsync(request, Grant(), NoBridge)).Value;
