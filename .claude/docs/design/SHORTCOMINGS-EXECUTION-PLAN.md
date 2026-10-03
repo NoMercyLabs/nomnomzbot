@@ -73,15 +73,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
   audit (atlas Phase 4), not the delivery. Runs after the SDK fixes above so no page documents a bug.
-- **S-FLAKE-ECON-SQLITE** CI run 37055095636 attempt 1: `CurrencyBalanceConcurrencyTests.Concurrent_
-  debits_against_a_balance_covering_only_one_leave_exactly_one_winner` threw `SQLite Error 5: unable to
-  delete/modify user-function due to active statements`. Sibling, same error (local slice-check on master
-  with lane B staged, 2026-10-03): `WatchSessionConcurrencyTests.Concurrent_GetOrOpenAsync_calls_for_the_
-  same_key_mint_exactly_one_session_row`, thrown from `DbContext.Dispose` -> `SqliteConnection.Close` ->
-  `SqliteConnectionPool.Return` (WatchSessionConcurrencyTests.cs:192). Both are many concurrent contexts
-  on one shared SQLite database, so the cause is likely in the shared test setup that registers a
-  user function. Done-when: the cause is found and fixed (not retried) for both, and each passes 200
-  repeated local runs.
 - **S-FLAKE-SUPPORTER-SOCKET** CI run 37087401465 attempt 1 (2026-10-03, sha cffd5d7b2):
   `SupporterSocketHostedServiceTests.Reconcile_StartsARunner_WhoseFramesPersistAsTips_AndAReplayDedups`
   threw `A second operation was started on this context instance before a previous operation completed`
