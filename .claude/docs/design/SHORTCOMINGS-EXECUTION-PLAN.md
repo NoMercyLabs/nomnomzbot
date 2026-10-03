@@ -43,11 +43,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   resolves to nobody. Done-when: the context carries the platform with the id, every internal-user lookup goes
   through IUserIdentityService.ResolveUserAsync(provider, id), and a test with a Kick chatter skipping a song
   publishes their internal id.
-- **S-EVENT-OFFLINE-POLL-RACE** (stream-facing) When the status poll sees the live-to-offline edge before the
-  EventSub stream.offline arrives, it clears ChannelContext.WentLiveAt (StreamStatusPollingService.cs:362), so the
-  later ChannelOfflineEvent says the stream lasted zero (StreamRunTime.cs). WentLiveAt is also read offline by
-  StreamController.cs:150, DashboardHub.cs:184 and TemplateResolver.cs:430, so it cannot simply stay set.
-  Done-when: a test with the poll edge first, then the EventSub offline, sees the real duration.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
