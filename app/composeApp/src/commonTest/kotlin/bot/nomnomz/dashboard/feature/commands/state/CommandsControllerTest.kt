@@ -832,6 +832,9 @@ private class RecordingCodeScriptsApi : bot.nomnomz.dashboard.core.network.CodeS
         id: String,
         body: bot.nomnomz.dashboard.core.network.ScriptTestRunBody,
     ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> = error("stub")
+
+    override suspend fun testTriggers(): ApiResult<List<bot.nomnomz.dashboard.core.network.TestTrigger>> =
+        error("stub")
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful

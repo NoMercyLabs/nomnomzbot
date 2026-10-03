@@ -1932,6 +1932,17 @@
     <string name="scripts_editor_source_label">Source</string>
     <string name="scripts_editor_edit_code">Edit &amp; compile</string>
     <string name="scripts_editor_compiled">Compiled and published</string>
+    <string name="scripts_test_manual">Manual</string>
+    <string name="scripts_test_trigger_label">Trigger</string>
+    <string name="scripts_test_role_label">Run as</string>
+    <string name="scripts_test_role_broadcaster">Broadcaster</string>
+    <string name="scripts_test_role_editor">Editor</string>
+    <string name="scripts_test_role_lead_moderator">Lead moderator</string>
+    <string name="scripts_test_role_moderator">Moderator</string>
+    <string name="scripts_test_role_artist">Artist</string>
+    <string name="scripts_test_role_vip">VIP</string>
+    <string name="scripts_test_role_subscriber">Subscriber</string>
+    <string name="scripts_test_role_viewer">Viewer</string>
     <string name="code_editor_window_title">Code editor: %1$s</string>
     <string name="code_editor_unavailable_title">Editing needs the system web view</string>
     <string name="code_editor_unavailable_bot_title">The code editor could not load</string>

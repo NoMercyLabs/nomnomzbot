@@ -32,14 +32,14 @@ class EditorBridgeSession(
             EditorBridgeProtocol.READY ->
                 post(
                     EditorBridgeProtocol.open(
-                        title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun != null,
+                        title, initialFiles, entryPath, language, sdkTypes, previewWidget, history, testRun,
                     )
                 )
             EditorBridgeProtocol.SAVE -> post(EditorBridgeProtocol.compiled(compile(message.files)))
             EditorBridgeProtocol.HISTORY_LOAD_MORE -> postHistory(history?.loadMore?.invoke())
             EditorBridgeProtocol.HISTORY_ROLLBACK -> postHistory(history?.rollback?.invoke(message.versionId))
             EditorBridgeProtocol.HISTORY_DELETE -> postHistory(history?.delete?.invoke(message.versionId))
-            EditorBridgeProtocol.TEST_RUN -> postTestRun(testRun?.run?.invoke(message.variables, message.args))
+            EditorBridgeProtocol.TEST_RUN -> postTestRun(testRun?.run?.invoke(message.variables, message.args, message.trigger, message.role))
             EditorBridgeProtocol.CLOSE -> return false
         }
         return true

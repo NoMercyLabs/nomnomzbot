@@ -17,6 +17,8 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.TestRun;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
@@ -91,6 +93,13 @@ public sealed class ScriptTestRunService(
                 )
             );
 
+        string? roleToken = ResolveRoleToken(request.Role);
+        if (!string.IsNullOrWhiteSpace(request.Role) && roleToken is null)
+            return Result.Failure<TestRunResultDto>(
+                $"Unknown role '{request.Role}'.",
+                "VALIDATION_FAILED"
+            );
+
         TriggerSample? sample = null;
         if (request.Trigger is not null)
         {
@@ -102,7 +111,7 @@ public sealed class ScriptTestRunService(
                 );
         }
 
-        Dictionary<string, string> seeded = SeedVariables(sample, request);
+        Dictionary<string, string> seeded = SeedVariables(sample, request, roleToken);
         string triggeringUserId = sample?.UserId ?? broadcasterId.ToString();
         ScriptExecutionRequest execRequest = new(
             Guid.NewGuid().ToString("N")[..12],
@@ -168,7 +177,8 @@ public sealed class ScriptTestRunService(
     // The sample's variables first, then the author's edits over them, then the chosen viewer role.
     private static Dictionary<string, string> SeedVariables(
         TriggerSample? sample,
-        ScriptTestRunRequest request
+        ScriptTestRunRequest request,
+        string? roleToken
     )
     {
         Dictionary<string, string> seeded = new(
@@ -177,9 +187,19 @@ public sealed class ScriptTestRunService(
         );
         foreach (KeyValuePair<string, string> pair in request.Variables)
             seeded[pair.Key] = pair.Value;
-        if (!string.IsNullOrWhiteSpace(request.Role))
-            seeded["user.role"] = request.Role;
+        if (roleToken is not null)
+            seeded["user.role"] = roleToken;
         return seeded;
+    }
+
+    // A real role token or alias ("mod") becomes its canonical token; anything else is null, never a silent viewer.
+    private static string? ResolveRoleToken(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            return null;
+        PermissionLevel level = ChatRole.Parse(role);
+        bool isViewer = role.Trim().ToLowerInvariant() is "viewer" or "everyone";
+        return level == PermissionLevel.Everyone && !isViewer ? null : ChatRole.ToToken(level);
     }
 
     // Only what the script set to a new value — an input it left alone is not something it did.

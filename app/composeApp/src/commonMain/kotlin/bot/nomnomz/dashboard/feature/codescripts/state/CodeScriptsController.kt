@@ -14,6 +14,8 @@ import bot.nomnomz.dashboard.core.editor.CompileFeedback
 import bot.nomnomz.dashboard.core.editor.EditorHistory
 import bot.nomnomz.dashboard.core.editor.EditorOutcome
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
+import bot.nomnomz.dashboard.core.editor.EditorTestRunLabels
+import bot.nomnomz.dashboard.core.editor.EditorTestTrigger
 import bot.nomnomz.dashboard.core.editor.EditorTestRunEffect
 import bot.nomnomz.dashboard.core.editor.EditorTestRunResult
 import bot.nomnomz.dashboard.core.editor.EditorVersionSummary
@@ -31,6 +33,7 @@ import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
+import bot.nomnomz.dashboard.core.network.TestTrigger
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +44,17 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.scripts_action_error
 import nomnomzbot.composeapp.generated.resources.scripts_editor_compiled
 import nomnomzbot.composeapp.generated.resources.scripts_row_type
+import nomnomzbot.composeapp.generated.resources.scripts_test_manual
+import nomnomzbot.composeapp.generated.resources.scripts_test_trigger_label
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_label
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_broadcaster
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_editor
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_lead_moderator
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_moderator
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_artist
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_vip
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_subscriber
+import nomnomzbot.composeapp.generated.resources.scripts_test_role_viewer
 import org.jetbrains.compose.resources.getString
 
 // The Code Scripts page's state-holder. Lists all scripts, opens a project view for one (its `src/` file set +
@@ -311,9 +325,9 @@ class CodeScriptsController(
 
     // Wires the editor's Test run panel onto this controller's own [testRun] — the same dry-run logic already
     // exercised directly (see CodeScriptsControllerTestRunTest), read back off state instead of duplicated here.
-    private fun buildEditorTestRun(id: String): EditorTestRun =
-        EditorTestRun { variables, args ->
-            testRun(id, variables, args)
+    private suspend fun buildEditorTestRun(id: String): EditorTestRun =
+        EditorTestRun(triggers = fetchEditorTriggers(), labels = editorTestRunLabels()) { variables, args, trigger, role ->
+            testRun(id, variables, args, trigger, role)
             val current: CodeScriptsState = _state.value
             val error: String? = (current as? CodeScriptsState.Editing)?.testError
             val result: TestRunResult? = (current as? CodeScriptsState.Editing)?.testResult
@@ -338,18 +352,51 @@ class CodeScriptsController(
             }
         }
 
+    // The server's real event samples for the picker; a failed lookup degrades to "Manual only" rather than
+    // blocking the editor (the run itself still works without a trigger).
+    private suspend fun fetchEditorTriggers(): List<EditorTestTrigger> =
+        when (val result: ApiResult<List<TestTrigger>> = api.testTriggers()) {
+            is ApiResult.Ok ->
+                result.value.map { sample -> EditorTestTrigger(sample.id, sample.responseKey, sample.variables) }
+            is ApiResult.Failure -> emptyList()
+        }
+
+    private suspend fun editorTestRunLabels(): EditorTestRunLabels =
+        EditorTestRunLabels(
+            manual = getString(Res.string.scripts_test_manual),
+            trigger = getString(Res.string.scripts_test_trigger_label),
+            role = getString(Res.string.scripts_test_role_label),
+            roles =
+                mapOf(
+                    "broadcaster" to getString(Res.string.scripts_test_role_broadcaster),
+                    "editor" to getString(Res.string.scripts_test_role_editor),
+                    "lead_moderator" to getString(Res.string.scripts_test_role_lead_moderator),
+                    "moderator" to getString(Res.string.scripts_test_role_moderator),
+                    "artist" to getString(Res.string.scripts_test_role_artist),
+                    "vip" to getString(Res.string.scripts_test_role_vip),
+                    "subscriber" to getString(Res.string.scripts_test_role_subscriber),
+                    "viewer" to getString(Res.string.scripts_test_role_viewer),
+                ),
+        )
+
     /**
      * Dry-run the open script's current version with sample [variables] + [args]. Effects are captured, never
      * performed (backend enforces this). Surfaces the captured result — chat output + effects — inline over the
      * editor, or the failure reason. Only applies while [id]'s editor is open.
      */
-    suspend fun testRun(id: String, variables: Map<String, String>, args: List<String>) {
+    suspend fun testRun(
+        id: String,
+        variables: Map<String, String>,
+        args: List<String>,
+        trigger: String? = null,
+        role: String? = null,
+    ) {
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
         _state.value = current.copy(testRunning = true, testError = null)
 
         when (
-            val result: ApiResult<TestRunResult> = api.testRun(id, ScriptTestRunBody(variables, args))
+            val result: ApiResult<TestRunResult> = api.testRun(id, ScriptTestRunBody(variables, args, trigger, role))
         ) {
             is ApiResult.Ok -> updateEditing(id) { it.copy(testRunning = false, testResult = result.value, testError = null) }
             is ApiResult.Failure -> updateEditing(id) { it.copy(testRunning = false, testError = result.error.message) }

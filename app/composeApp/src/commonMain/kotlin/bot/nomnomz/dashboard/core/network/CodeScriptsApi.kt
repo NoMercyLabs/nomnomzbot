@@ -79,6 +79,9 @@ interface CodeScriptsApi {
      * schedules) is CAPTURED and returned rather than performed; reads run live. Nothing is dispatched or persisted.
      */
     suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult>
+
+    /** The real event samples a test run can fire (backend `GET /code-scripts/test-triggers`). */
+    suspend fun testTriggers(): ApiResult<List<TestTrigger>>
 }
 
 class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
@@ -122,6 +125,9 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
 
     override suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult> =
         client.postEnvelope("api/v1/code-scripts/$id/test-run", body)
+
+    override suspend fun testTriggers(): ApiResult<List<TestTrigger>> =
+        client.getEnvelope("api/v1/code-scripts/test-triggers")
 }
 
 /** Script summary shown in the list (backend `CodeScriptSummaryDto`). */
@@ -185,11 +191,25 @@ data class CreateScriptBody(val name: String, val description: String? = null, v
 @Serializable
 data class CreateVersionBody(val sourceCode: String, val publish: Boolean = false)
 
-/** Test-run body — sample variables + args for a dry-run (backend `ScriptTestRunRequest`). */
+/**
+ * Test-run body (backend `ScriptTestRunRequest`): sample variables + args for a dry-run, the optional [trigger]
+ * (a [TestTrigger.id]) whose real event sample seeds the run, and the optional viewer [role] token it runs as.
+ */
 @Serializable
 data class ScriptTestRunBody(
     val variables: Map<String, String> = emptyMap(),
     val args: List<String> = emptyList(),
+    val trigger: String? = null,
+    val role: String? = null,
+)
+
+/** One trigger sample a test run can fire (backend `TestTriggerDto`). */
+@Serializable
+data class TestTrigger(
+    val id: String = "",
+    val responseKey: String = "",
+    val userDisplayName: String? = null,
+    val variables: Map<String, String> = emptyMap(),
 )
 
 /**
