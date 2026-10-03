@@ -55,6 +55,10 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 - **S-SDK-TRIGGER-TYPES** `bot.getVar` keys and `bot.args` are typed per trigger (command / event
   response / timer / pipeline) from the event catalogue; the script context drops the widget-only
   `NnzEventMap`. Done-when: the editor flags `bot.getVar('typo')` for the script's trigger.
+- **S-SDK-EVENT-DOCS** The event payload interfaces the type emitter generates (about 1,100 members,
+  counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
+  takes each member's text from the payload record's XML doc. Done-when: a drift test like
+  `Every_script_surface_member_has_a_jsdoc` covers the generated blocks and passes.
 - **S-SDK-WIDGET-TYPES** Widget context without `any`: a typed event map (`NomNomz.on('follow', d => d.…)`
   autocompletes the real payload; the anonymous payloads — now_playing, track_saved_changed, tts_speak,
   tts_queue_control, ChatMessageEnriched, sr_queue — become records, hub DTOs reachable from
