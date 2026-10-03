@@ -344,6 +344,16 @@
     "use-cheap-models-for-research.md",
     "model-router-shared-limits.md"
    ]
+  },
+  {
+   "id": "dispatch-one-item",
+   "require": "^(?:(?=[\\s\\S]*\\byou are (?:a |the )?manager\\b)|(?![\\s\\S]*(?:^|\\n)[ \\t]*(?:[-*][ \\t]*)?(?:#+[ \\t]*)?(?:item[ \\t]+)?(?:2|b)[.):][ \\t]))(?![\\s\\S]*\\b(?:full|your|the)[ \\t]+brief[ \\t]+is[ \\t]+in\\b)",
+   "text": "One work item per builder, written inline in the prompt. A builder brief may not list a second numbered or lettered item (a line starting '2.', '2)', 'b.' or 'Item 2'): give each item its own builder and run them in parallel, builds through .scratch/build-slot.sh. Steps inside the one item are bullets. The brief text goes in the prompt itself, never 'your brief is in <file>' (the guards cannot read a file). Managers may list lanes.",
+   "source": "Stoney 2026-10-03 (\"when will you ever become reliable when i give you a task?\"): 3 of 4 builders got 5-8 items each and ran out of context with half-done work; memory feedback-one-item-per-builder-and-checked-docs.md, feedback-limit-builds-not-builders.md",
+   "covers": [
+    "feedback-one-item-per-builder-and-checked-docs.md",
+    "feedback-limit-builds-not-builders.md"
+   ]
   }
  ],
  "output": [
@@ -939,6 +949,14 @@
    "source": "memory user-docs-one-topic-per-page-for-non-coders.md",
    "covers": [
     "user-docs-one-topic-per-page-for-non-coders.md"
+   ]
+  },
+  {
+   "id": "amend-only",
+   "text": "Reword the last commit with `git commit --amend --only -F <msg>`; a bare --amend commits everything staged (git apply --3way stages files).",
+   "source": "memory amend-sweeps-the-index.md",
+   "covers": [
+    "amend-sweeps-the-index.md"
    ]
   }
  ]
