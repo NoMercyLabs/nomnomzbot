@@ -36,9 +36,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   defb69885), the `play_sound` handle, and the inbox notice when no Audio Source page is open
   (`AudioSourceMissingSource.cs`). Left: the live check. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
-- **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
-  fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
-  the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
 - **S-FIRSTPARTY-WIDGETS-TYPED** The 23 first-party widgets (`Infrastructure/Content/Widgets/Assets/*.vue`)
   are the code streamers open and copy, and all 23 use `any`: about 140 sites, mostly
   `(window as any).NomNomz` and `payload: any` (counted 2026-10-03). `as any` also hides every error from the
