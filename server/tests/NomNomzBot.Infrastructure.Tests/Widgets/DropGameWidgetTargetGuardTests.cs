@@ -48,8 +48,14 @@ public sealed class DropGameWidgetTargetGuardTests
         source
             .Should()
             .Contain(
-                "typeof d.target === 'number' && Number.isFinite(d.target)",
-                "only a missing or non-numeric target falls back to the default"
+                "target.value = d.target ?? 50",
+                "`??` falls back to the default only when the typed frame carries no target at all"
+            );
+        source
+            .Should()
+            .Contain(
+                "if (d.target != null) target.value = d.target",
+                "a results frame without a target leaves the drawn zone alone, and a target of 0 is kept"
             );
     }
 }

@@ -8,6 +8,11 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 interface DropMarker { player: string; landed: number; distance: number; hit: boolean }
 interface DropResult { player: string; landed: number | null; distance: number | null; won: boolean; payout: number }
 
+type GameFrame =
+  | NnzWidgetEventMap['game.lobby']
+  | NnzWidgetEventMap['game.running']
+  | NnzWidgetEventMap['game.resolved']
+
 const cfg = reactive<NnzWidgetSettings>({ accentColor: '#9146ff', hideAfterMs: 12000 })
 
 const visible = ref<boolean>(false)
@@ -32,35 +37,40 @@ function reset(): void {
 }
 
 // Frames arrive typed by phase; the payload 'kind' separates a round opening from an individual drop.
-function onFrame(d: NnzWidgetEventMap['game.lobby']): void {
-  if (!d || typeof d !== 'object') return
+function onFrame(d: GameFrame): void {
   if (d.kind === 'round_open') {
     reset()
     visible.value = true
     phase.value = 'lobby'
-    target.value = typeof d.target === 'number' && Number.isFinite(d.target) ? d.target : 50
-    radius.value = Number(d.radius) || 10
+    target.value = d.target ?? 50
+    radius.value = d.radius || 10
     return
   }
   if (d.kind === 'drop') {
     drops.value = [...drops.value, {
-      player: String(d.player || ''),
-      landed: Number(d.landed) || 0,
-      distance: Number(d.distance) || 0,
-      hit: !!d.hit,
+      player: d.player,
+      landed: d.landed,
+      distance: d.distance,
+      hit: d.hit,
     }]
     return
   }
-  if (d.cancelled) {
+  if (d.kind === 'cancelled') {
     phase.value = 'cancelled'
-    cancelReason.value = String(d.reason || '')
+    cancelReason.value = d.reason
     scheduleHide()
     return
   }
   if (d.kind === 'results') {
     phase.value = 'resolved'
-    if (typeof d.target === 'number' && Number.isFinite(d.target)) target.value = d.target
-    results.value = Array.isArray(d.results) ? (d.results as DropResult[]) : []
+    if (d.target != null) target.value = d.target
+    results.value = d.results.map((r): DropResult => ({
+      player: r.player,
+      landed: r.landed ?? null,
+      distance: r.distance ?? null,
+      won: r.won === true,
+      payout: r.payout,
+    }))
     scheduleHide()
   }
 }

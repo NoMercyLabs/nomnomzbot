@@ -572,7 +572,12 @@ public sealed class LiveGameEngine(
         await PublishCancelledAsync(session, reason, ct);
         await PushFrameAsync(
             runtime,
-            new Dictionary<string, object?> { ["cancelled"] = true, ["reason"] = reason },
+            new Dictionary<string, object?>
+            {
+                ["kind"] = "cancelled",
+                ["cancelled"] = true,
+                ["reason"] = reason,
+            },
             ct
         );
     }

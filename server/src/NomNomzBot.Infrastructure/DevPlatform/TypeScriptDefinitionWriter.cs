@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.DevPlatform;
 
@@ -66,8 +67,12 @@ internal sealed class TypeScriptDefinitionWriter
         if (_widgetEvents is not null)
         {
             foreach (WidgetEventPayloadEntry entry in _widgetEvents.Events)
+            {
                 if (entry.PayloadType is not null)
                     RegisterObject(entry.PayloadType);
+                foreach (Type variant in entry.Variants ?? [])
+                    RegisterObject(variant);
+            }
             RegisterObject(_widgetEvents.CustomEventPayloadType);
         }
 
@@ -79,7 +84,9 @@ internal sealed class TypeScriptDefinitionWriter
             {
                 string name = SdkReflection.JsonName(property);
                 bool nullable = SdkReflection.IsNullable(property);
-                string tsType = TsType(property.PropertyType, nullable);
+                string tsType = property.GetCustomAttribute<WireLiteralAttribute>() is { } literal
+                    ? string.Join(" | ", literal.Values.Select(v => $"'{v}'"))
+                    : TsType(property.PropertyType, nullable);
                 string? doc = SummaryOf(property.DeclaringType, r => r.PropertySummary(property));
                 if (doc is not null)
                     lines.Add($"  /** {doc} */");
@@ -162,7 +169,7 @@ internal sealed class TypeScriptDefinitionWriter
         );
         sb.AppendLine("interface NnzWidgetEventMap {");
         foreach (WidgetEventPayloadEntry entry in _widgetEvents.Events)
-            sb.AppendLine($"  '{entry.Name}': {WidgetPayloadName(entry.PayloadType)};");
+            sb.AppendLine($"  '{entry.Name}': {WidgetPayloadName(entry)};");
         sb.AppendLine("}");
         sb.AppendLine();
 
@@ -172,17 +179,21 @@ internal sealed class TypeScriptDefinitionWriter
         );
         sb.AppendLine("type NnzWidgetAnyEvent =");
         foreach (WidgetEventPayloadEntry entry in _widgetEvents.Events)
-            sb.AppendLine(
-                $"  | [eventType: '{entry.Name}', data: {WidgetPayloadName(entry.PayloadType)}]"
-            );
+            sb.AppendLine($"  | [eventType: '{entry.Name}', data: {WidgetPayloadName(entry)}]");
         sb.AppendLine($"  | [eventType: `custom.${{string}}`, data: {customName}];");
         sb.AppendLine();
 
         return customName;
     }
 
-    private string WidgetPayloadName(Type? payloadType) =>
-        payloadType is null ? "Record<string, unknown>" : _interfaceNames[payloadType];
+    private string WidgetPayloadName(WidgetEventPayloadEntry entry)
+    {
+        if (entry.Variants is { Count: > 0 } variants)
+            return string.Join(" | ", variants.Select(v => _interfaceNames[v]));
+        return entry.PayloadType is null
+            ? "Record<string, unknown>"
+            : _interfaceNames[entry.PayloadType];
+    }
 
     private string? SummaryOf(Type? owner, Func<XmlDocSummaryReader, string?> read)
     {

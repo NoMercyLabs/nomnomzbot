@@ -8,6 +8,11 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 interface CrewMember { player: string; stake: number }
 interface HeistResult { player: string; stake: number; escaped: boolean; payout: number }
 
+type GameFrame =
+  | NnzWidgetEventMap['game.lobby']
+  | NnzWidgetEventMap['game.running']
+  | NnzWidgetEventMap['game.resolved']
+
 const cfg = reactive({ accentColor: '#9146ff', hideAfterMs: 12000 })
 
 const visible = ref<boolean>(false)
@@ -24,25 +29,29 @@ function reset(): void {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = undefined }
 }
 
-// The game frames are built per game, so the SDK types them as a plain record; each field is narrowed here.
-function onFrame(d: Record<string, unknown>): void {
-  if (!d || typeof d !== 'object') return
+// The payload's `kind` narrows the typed frame union; a heist sends round_open, join and results.
+function onFrame(d: GameFrame): void {
   if (d.kind === 'round_open') {
     reset()
     visible.value = true
     phase.value = 'lobby'
-    successChance.value = Number(d.successChance) || 0
+    successChance.value = d.successChance || 0
     return
   }
   if (d.kind === 'join') {
-    successChance.value = Number(d.successChance) || successChance.value
-    crew.value = Array.isArray(d.crew) ? (d.crew as CrewMember[]) : crew.value
+    successChance.value = d.successChance || successChance.value
+    crew.value = d.crew ?? crew.value
     return
   }
   if (d.kind === 'results') {
     phase.value = 'resolved'
-    successChance.value = Number(d.successChance) || successChance.value
-    results.value = Array.isArray(d.results) ? (d.results as HeistResult[]) : []
+    successChance.value = d.successChance || successChance.value
+    results.value = d.results.map((r): HeistResult => ({
+      player: r.player,
+      stake: r.stake ?? 0,
+      escaped: r.escaped === true,
+      payout: r.payout,
+    }))
     scheduleHide()
   }
 }

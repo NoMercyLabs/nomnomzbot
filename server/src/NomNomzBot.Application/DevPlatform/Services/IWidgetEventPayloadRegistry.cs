@@ -13,9 +13,15 @@ namespace NomNomzBot.Application.DevPlatform.Services;
 /// <summary>
 /// One widget event: the name a widget passes to <c>NomNomz.on(...)</c> and the C# type of the payload the bot
 /// sends under that name. A null <paramref name="PayloadType"/> means the frame has no single type (a free-form
-/// object), so the generated declarations type it as <c>Record&lt;string, unknown&gt;</c>.
+/// object), so the generated declarations type it as <c>Record&lt;string, unknown&gt;</c>. A non-null
+/// <paramref name="Variants"/> means the name carries several payload shapes told apart by a <c>kind</c> literal, so
+/// the declarations type it as the union of them (and <paramref name="PayloadType"/> stays null).
 /// </summary>
-public sealed record WidgetEventPayloadEntry(string Name, Type? PayloadType);
+public sealed record WidgetEventPayloadEntry(
+    string Name,
+    Type? PayloadType,
+    IReadOnlyList<Type>? Variants = null
+);
 
 /// <summary>
 /// The one truth for "widget event name -> payload type". The widget overlay broadcasters live in the Api project,

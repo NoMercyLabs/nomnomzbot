@@ -10,6 +10,7 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
+using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -18,10 +19,27 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// The widget event name -> payload type table behind the typed <c>NomNomz.on(...)</c> declarations. It sits beside
 /// the broadcasters that send these events; <c>WidgetEventPayloadRegistryDriftTests</c> holds it to
 /// <see cref="WidgetTestSamples"/> (same name, same runtime type) and to every name a broadcaster sends. A null type
-/// is a frame each game builds for itself, so it has no one record to name.
+/// with no variants is a raw SDK-local event; the live-game events list the frame records their widgets narrow on <c>kind</c>.
 /// </summary>
 internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
 {
+    // A live game pushes these while the round is open or running (the lobby/running split is the engine's phase,
+    // and a late join or a drop can land in either), and the last two when it ends.
+    private static readonly Type[] LiveFrames =
+    [
+        typeof(GameRoundOpenFrame),
+        typeof(GameJoinFrame),
+        typeof(GameMultiplierFrame),
+        typeof(GameCashoutFrame),
+        typeof(GameDropFrame),
+    ];
+
+    private static readonly Type[] FinalFrames =
+    [
+        typeof(GameResultsFrame),
+        typeof(GameCancelledFrame),
+    ];
+
     public IReadOnlyList<WidgetEventPayloadEntry> Events { get; } =
     [
         new("follow", typeof(FollowAlertDto)),
@@ -65,9 +83,9 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("supporter.merch", typeof(SupporterAlertPayload)),
         new("supporter.charity", typeof(SupporterAlertPayload)),
         new("voice_trigger", typeof(VoiceTriggerWidgetEventPayload)),
-        new("game.lobby", null),
-        new("game.running", null),
-        new("game.resolved", null),
+        new("game.lobby", null, LiveFrames),
+        new("game.running", null, LiveFrames),
+        new("game.resolved", null, FinalFrames),
         // Raised by the overlay SDK itself from the raw PlaySound / StopSound hub targets.
         new("play_sound", null),
         new("stop_sound", null),

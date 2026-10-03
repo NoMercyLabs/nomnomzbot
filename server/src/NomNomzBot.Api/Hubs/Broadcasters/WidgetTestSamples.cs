@@ -12,6 +12,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -266,37 +267,44 @@ internal static class WidgetTestSamples
         ["custom.heartrate"] = _ => new CustomDataWidgetPayload(
             new Dictionary<string, string> { ["bpm"] = "142" }
         ),
-        // Live-game frames share a `kind`-discriminated envelope across all four game widgets: `round_open`
-        // opens the round, `results` resolves it. The results item carries the superset each game's board
-        // reads (player/won/payout plus drop's landed/distance and crash's multiplier).
-        ["game.lobby"] = _ => RoundOpen(),
-        ["game.running"] = _ => RoundOpen(),
-        ["game.resolved"] = _ => new
+        // Live-game frames share a `kind`-discriminated envelope across all four game widgets. The samples are
+        // the drop game's frames: the lobby opens, a player drops, the round resolves.
+        ["game.lobby"] = _ => new GameRoundOpenFrame
         {
-            kind = "results",
-            target = 50,
-            winner = "TestWinner",
-            results = new[]
-            {
-                new
+            LobbySeconds = 30,
+            Target = 50,
+            Radius = 12,
+        },
+        ["game.running"] = _ => new GameDropFrame
+        {
+            Player = "TestWinner",
+            Landed = 52.4,
+            Distance = 2.4,
+            Hit = true,
+        },
+        ["game.resolved"] = _ => new GameResultsFrame
+        {
+            Target = 50,
+            Radius = 12,
+            Results =
+            [
+                new()
                 {
-                    player = "TestWinner",
-                    won = true,
-                    payout = 500,
-                    landed = 50,
-                    distance = 0,
-                    multiplier = 2.5,
+                    Player = "TestWinner",
+                    Landed = 52.4,
+                    Distance = 2.4,
+                    Won = true,
+                    Payout = 500,
                 },
-                new
+                new()
                 {
-                    player = "SecondPlace",
-                    won = false,
-                    payout = 0,
-                    landed = 34,
-                    distance = 16,
-                    multiplier = 0.0,
+                    Player = "SecondPlace",
+                    Landed = 34,
+                    Distance = 16,
+                    Won = false,
+                    Payout = 0,
                 },
-            },
+            ],
         },
     };
 
@@ -309,14 +317,6 @@ internal static class WidgetTestSamples
 
     private static RoleChangedAlertDto RoleChanged() =>
         new("100000013", "TestPromoted", "testpromoted", AvatarUrl, Pronouns, Standing);
-
-    private static object RoundOpen() =>
-        new
-        {
-            kind = "round_open",
-            target = 50,
-            radius = 12,
-        };
 
     private static ModActionDto ModAction(
         string action,

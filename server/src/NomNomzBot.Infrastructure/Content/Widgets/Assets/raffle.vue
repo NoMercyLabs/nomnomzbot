@@ -26,18 +26,13 @@ function reset(): void {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = undefined }
 }
 
-// A game frame (game.lobby / game.running / game.resolved) is relayed as is, so its payload arrives as `unknown`.
-interface RaffleFrame {
-  kind?: string
-  pot?: number
-  entrants?: Entrant[]
-  winner?: string
-  results?: RaffleResult[]
-}
+type GameFrame =
+  | NnzWidgetEventMap['game.lobby']
+  | NnzWidgetEventMap['game.running']
+  | NnzWidgetEventMap['game.resolved']
 
-function onFrame(frame: unknown): void {
-  if (!frame || typeof frame !== 'object') return
-  const d: RaffleFrame = frame as RaffleFrame
+// The payload's `kind` narrows the typed frame union; a raffle sends round_open, join and results.
+function onFrame(d: GameFrame): void {
   if (d.kind === 'round_open') {
     reset()
     visible.value = true
@@ -45,15 +40,20 @@ function onFrame(frame: unknown): void {
     return
   }
   if (d.kind === 'join') {
-    pot.value = Number(d.pot) || pot.value
-    entrants.value = Array.isArray(d.entrants) ? d.entrants : entrants.value
+    pot.value = d.pot || pot.value
+    entrants.value = d.entrants ?? entrants.value
     return
   }
   if (d.kind === 'results') {
     phase.value = 'resolved'
-    pot.value = Number(d.pot) || pot.value
-    winner.value = String(d.winner || '')
-    results.value = Array.isArray(d.results) ? d.results : []
+    pot.value = d.pot || pot.value
+    winner.value = d.winner ?? ''
+    results.value = d.results.map((r): RaffleResult => ({
+      player: r.player,
+      stake: r.stake ?? 0,
+      won: r.won === true,
+      payout: r.payout,
+    }))
     scheduleHide()
   }
 }

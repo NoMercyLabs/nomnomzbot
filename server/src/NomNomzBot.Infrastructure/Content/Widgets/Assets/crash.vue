@@ -8,6 +8,11 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 interface CashOut { player: string; multiplier: number; payout: number }
 interface CrashResult { player: string; stake: number; cashedAt: number | null; payout: number }
 
+type GameFrame =
+  | NnzWidgetEventMap['game.lobby']
+  | NnzWidgetEventMap['game.running']
+  | NnzWidgetEventMap['game.resolved']
+
 const cfg = reactive<NnzWidgetSettings>({ accentColor: '#9146ff', hideAfterMs: 12000 })
 
 const visible = ref<boolean>(false)
@@ -28,8 +33,7 @@ function reset(): void {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = undefined }
 }
 
-function onFrame(d: NnzWidgetEventMap['game.lobby']): void {
-  if (!d || typeof d !== 'object') return
+function onFrame(d: GameFrame): void {
   if (d.kind === 'round_open') {
     reset()
     visible.value = true
@@ -42,32 +46,37 @@ function onFrame(d: NnzWidgetEventMap['game.lobby']): void {
   }
   if (d.kind === 'progress') {
     phase.value = 'running'
-    multiplier.value = Number(d.multiplier) || multiplier.value
+    multiplier.value = d.multiplier || multiplier.value
     return
   }
   if (d.kind === 'cashout') {
     cashed.value = [...cashed.value, {
-      player: String(d.player || ''),
-      multiplier: Number(d.multiplier) || 0,
-      payout: Number(d.payout) || 0,
+      player: d.player,
+      multiplier: d.multiplier,
+      payout: d.payout,
     }]
     return
   }
   if (d.kind === 'bust') {
     phase.value = 'crashed'
-    multiplier.value = Number(d.multiplier) || multiplier.value
+    multiplier.value = d.multiplier || multiplier.value
     return
   }
   if (d.kind === 'cap') {
     capped.value = true
-    multiplier.value = Number(d.multiplier) || multiplier.value
+    multiplier.value = d.multiplier || multiplier.value
     return
   }
   if (d.kind === 'results') {
     phase.value = 'resolved'
-    capped.value = !!d.capped
-    multiplier.value = Number(d.crashedAt) || multiplier.value
-    results.value = Array.isArray(d.results) ? (d.results as CrashResult[]) : []
+    capped.value = d.capped === true
+    multiplier.value = d.crashedAt || multiplier.value
+    results.value = d.results.map((r): CrashResult => ({
+      player: r.player,
+      stake: r.stake ?? 0,
+      cashedAt: r.cashedAt ?? null,
+      payout: r.payout,
+    }))
     scheduleHide()
   }
 }

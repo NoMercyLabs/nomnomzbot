@@ -60,6 +60,7 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
         {
             Type sampleType = WidgetTestSamples.For(name, now).GetType();
             Type? expected;
+            IReadOnlyList<Type>? variants = null;
             if (name.StartsWith("custom.", StringComparison.Ordinal))
             {
                 expected = Registry.CustomEventPayloadType;
@@ -75,19 +76,43 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
                     continue;
                 }
                 expected = entry.PayloadType;
+                variants = entry.Variants;
             }
 
-            // A null registry type is a free-form frame; its sample is an anonymous object.
-            bool matches = expected is null
-                ? sampleType.Name.Contains("AnonymousType", StringComparison.Ordinal)
+            // A null registry type is a free-form frame; its sample is an anonymous object. A variant list means
+            // the sample must be one of the frame records.
+            bool matches =
+                variants is not null ? variants.Contains(sampleType)
+                : expected is null
+                    ? sampleType.Name.Contains("AnonymousType", StringComparison.Ordinal)
                 : sampleType == expected;
             if (!matches)
                 mismatches.Add(
-                    $"{name}: sample is {sampleType.Name}, registry says {expected?.Name ?? "free-form"}"
+                    $"{name}: sample is {sampleType.Name}, registry says {(variants is not null ? string.Join(" | ", variants.Select(v => v.Name)) : expected?.Name ?? "free-form")}"
                 );
         }
 
         mismatches.Should().BeEmpty(string.Join("; ", mismatches));
+    }
+
+    [Fact]
+    public void No_registered_widget_event_has_a_null_payload_type()
+    {
+        // Only the two events the overlay SDK raises itself from raw hub targets may stay free-form.
+        List<string> untyped =
+        [
+            .. Registry
+                .Events.Where(e => e.PayloadType is null && e.Variants is null)
+                .Select(e => e.Name)
+                .Where(n => !SdkLocalEvents.Contains(n)),
+        ];
+
+        untyped
+            .Should()
+            .BeEmpty(
+                "these widget events reach a widget as Record<string, unknown>: "
+                    + string.Join(", ", untyped)
+            );
     }
 
     [Fact]
@@ -149,7 +174,8 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
         dts.Should().Contain("  'follow': NnzFollowAlertDto;");
         dts.Should().Contain("interface NnzFollowAlertDto {");
         dts.Should().Contain("  displayName: string;");
-        dts.Should().Contain("  'game.lobby': Record<string, unknown>;");
+        dts.Should().MatchRegex(@"  'game\.lobby': Nnz\w+( \| Nnz\w+)+;");
+        dts.Should().NotContain("'game.lobby': Record<string, unknown>");
         dts.Should()
             .Contain(
                 "on(eventType: `custom.${string}`, handler: (data: NnzCustomDataWidgetPayload,"

@@ -484,6 +484,16 @@ public sealed class LiveGameEngineTests
             .Should()
             .ContainSingle(e => e.Reason == "min_players_unmet");
         (await h.Db.GamePlays.CountAsync()).Should().Be(0, "nobody was settled");
+
+        // The widget's cancel frame is discriminated by kind; `cancelled` stays for older widgets.
+        Dictionary<string, object?> frame = h
+            .Overlay.Sent.Single(f => f.EventType == "game.resolved")
+            .Data.Should()
+            .BeAssignableTo<Dictionary<string, object?>>()
+            .Subject;
+        frame["kind"].Should().Be("cancelled");
+        frame["cancelled"].Should().Be(true);
+        frame["reason"].Should().Be("min_players_unmet");
     }
 
     [Fact]

@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.DevPlatform;
 
 namespace NomNomzBot.Infrastructure.Tests.DevPlatform;
@@ -26,6 +27,22 @@ public sealed partial class SdkWidgetEventTypesTests
     /// <summary>A payload with documented members, like the real alert records.</summary>
     private sealed record FakeFollow(string DisplayName, int Followers);
 
+    private sealed record FakeOpened
+    {
+        [WireLiteral("opened")]
+        public string Kind { get; init; } = "opened";
+
+        public required int Seconds { get; init; }
+    }
+
+    private sealed record FakeTick
+    {
+        [WireLiteral("tick", "stop")]
+        public required string Kind { get; init; }
+
+        public double? Value { get; init; }
+    }
+
     private sealed record FakeCustom(IReadOnlyDictionary<string, string> Fields);
 
     private sealed class FakeRegistry : IWidgetEventPayloadRegistry
@@ -35,6 +52,7 @@ public sealed partial class SdkWidgetEventTypesTests
             new("follow", typeof(FakeFollow)),
             new("supporter.tip", typeof(FakeFollow)),
             new("game.lobby", null),
+            new("game.running", null, [typeof(FakeOpened), typeof(FakeTick)]),
         ];
 
         public Type CustomEventPayloadType => typeof(FakeCustom);
@@ -95,6 +113,19 @@ public sealed partial class SdkWidgetEventTypesTests
         string dts = WidgetDts(new FakeRegistry());
 
         dts.Should().Contain("  'game.lobby': Record<string, unknown>;");
+    }
+
+    [Fact]
+    public void An_event_with_variants_is_the_union_of_its_records_and_each_kind_is_a_literal()
+    {
+        string dts = WidgetDts(new FakeRegistry());
+
+        dts.Should().Contain("  'game.running': NnzFakeOpened | NnzFakeTick;");
+        dts.Should().Contain("  | [eventType: 'game.running', data: NnzFakeOpened | NnzFakeTick]");
+        dts.Should().Contain("  kind: 'opened';");
+        dts.Should().Contain("  seconds: number;");
+        dts.Should().Contain("  kind: 'tick' | 'stop';");
+        dts.Should().Contain("  value?: number | null;");
     }
 
     [Fact]
