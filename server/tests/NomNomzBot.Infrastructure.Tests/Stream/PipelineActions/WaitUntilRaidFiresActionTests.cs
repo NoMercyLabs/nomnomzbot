@@ -137,7 +137,9 @@ public sealed class WaitUntilRaidFiresActionTests
 
         result.Succeeded.Should().BeTrue();
         stopwatch.Elapsed.Should().BeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(250));
-        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(2));
+        // Far below the 300 s raid window it would hit if it ignored the deadline; under full-suite load a
+        // 300 ms delay has taken over 4 s, so a tighter ceiling only measures the machine.
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(30));
     }
 
     [Fact]
