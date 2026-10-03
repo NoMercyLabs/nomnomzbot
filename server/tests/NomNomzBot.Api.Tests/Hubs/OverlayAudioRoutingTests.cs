@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -192,7 +193,8 @@ public sealed class OverlayAudioRoutingTests
     private sealed record Joined(
         OverlayHub Hub,
         OverlayPresenceRegistry Registry,
-        IOverlayClient Caller
+        IOverlayClient Caller,
+        IActionRequiredChangeNotifier Notifier
     );
 
     private static async Task<Joined> ConnectedPageAsync(
@@ -214,12 +216,14 @@ public sealed class OverlayAudioRoutingTests
         >();
         clients.Caller.Returns(caller);
         OverlayPresenceRegistry registry = new();
+        IActionRequiredChangeNotifier notifier = Substitute.For<IActionRequiredChangeNotifier>();
         OverlayHub hub = new(
             db,
             Substitute.For<IWidgetService>(),
             tickets,
             registry,
             Substitute.For<IChannelRegistry>(),
+            notifier,
             NullLogger<OverlayHub>.Instance
         )
         {
@@ -228,7 +232,7 @@ public sealed class OverlayAudioRoutingTests
             Clients = clients,
         };
         await hub.OnConnectedAsync();
-        return new(hub, registry, caller);
+        return new(hub, registry, caller, notifier);
     }
 
     private static async Task<Guid> SeedWidgetAsync(WidgetTestDbContext db, string naturalKey)
@@ -264,6 +268,37 @@ public sealed class OverlayAudioRoutingTests
         page.Registry.IsAudioSourceConnected(Broadcaster).Should().BeTrue();
         page.Registry.GetAudioTarget(Broadcaster).Should().Be("audio-conn");
         await page.Caller.DidNotReceive().WidgetReload();
+    }
+
+    [Fact]
+    public async Task An_audio_source_joining_and_leaving_signals_the_inbox_each_time()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "tts_audio");
+        Joined page = await ConnectedPageAsync(db, "audio-conn");
+        page.Notifier.ClearReceivedCalls();
+
+        await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+
+        page.Registry.IsAudioSourceConnected(Broadcaster).Should().BeTrue();
+        page.Notifier.Received(1).NotifyChanged(Broadcaster);
+        page.Notifier.ClearReceivedCalls();
+
+        await page.Hub.OnDisconnectedAsync(null);
+
+        page.Registry.IsAudioSourceConnected(Broadcaster).Should().BeFalse();
+        page.Notifier.Received(1).NotifyChanged(Broadcaster);
+    }
+
+    [Fact]
+    public async Task A_page_connecting_signals_the_inbox_so_a_missing_audio_source_shows_at_once()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+
+        Joined page = await ConnectedPageAsync(db, "caption-conn");
+
+        page.Registry.IsOverlayConnected(Broadcaster).Should().BeTrue();
+        page.Notifier.Received(1).NotifyChanged(Broadcaster);
     }
 
     [Fact]

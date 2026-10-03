@@ -19,6 +19,7 @@ using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -192,6 +193,7 @@ public sealed class OverlayWidgetDeliveryTests
                 _tickets,
                 _presence,
                 Substitute.For<IChannelRegistry>(),
+                Substitute.For<IActionRequiredChangeNotifier>(),
                 NullLogger<OverlayHub>.Instance
             )
             {

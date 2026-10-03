@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -83,6 +84,7 @@ public sealed class OverlayHubTests
             tickets,
             new(),
             channelRegistry,
+            Substitute.For<IActionRequiredChangeNotifier>(),
             NullLogger<OverlayHub>.Instance
         )
         {

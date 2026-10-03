@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -37,6 +38,7 @@ public class OverlayHub : Hub<IOverlayClient>
     private readonly IOverlayTicketService _tickets;
     private readonly OverlayPresenceRegistry _presence;
     private readonly IChannelRegistry _registry;
+    private readonly IActionRequiredChangeNotifier _inbox;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
@@ -45,6 +47,7 @@ public class OverlayHub : Hub<IOverlayClient>
         IOverlayTicketService tickets,
         OverlayPresenceRegistry presence,
         IChannelRegistry registry,
+        IActionRequiredChangeNotifier inbox,
         ILogger<OverlayHub> logger
     )
     {
@@ -53,6 +56,7 @@ public class OverlayHub : Hub<IOverlayClient>
         _tickets = tickets;
         _presence = presence;
         _registry = registry;
+        _inbox = inbox;
         _logger = logger;
     }
 
@@ -90,6 +94,7 @@ public class OverlayHub : Hub<IOverlayClient>
             await Groups.AddToGroupAsync(Context.ConnectionId, feedGroup);
             _presence.Attach(Context.ConnectionId, feedGroup);
         }
+        _inbox.NotifyChanged(scope.BroadcasterId);
         _logger.LogDebug("Overlay connected for channel {B}", scope.BroadcasterId);
         await base.OnConnectedAsync();
     }
@@ -99,7 +104,10 @@ public class OverlayHub : Hub<IOverlayClient>
         foreach (string groupName in _presence.Drop(Context.ConnectionId))
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
         if (Context.Items["BroadcasterId"] is Guid broadcasterId)
+        {
             _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
+            _inbox.NotifyChanged(broadcasterId);
+        }
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -148,7 +156,10 @@ public class OverlayHub : Hub<IOverlayClient>
             : null;
 
         if (await IsAudioSourceAsync(widget))
+        {
             _presence.MarkAudioSource(Context.ConnectionId);
+            _inbox.NotifyChanged(broadcasterId);
+        }
 
         // A real browser source just (re)connected — proof the widget is alive right now, so a fault stamped
         // by a past session (S-PL1: e.g. a one-off autoplay block on first load) must not keep painting the

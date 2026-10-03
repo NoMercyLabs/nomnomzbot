@@ -17,6 +17,8 @@ import bot.nomnomz.dashboard.feature.integrations.ui.providerDisplayName
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.attention_audio_source_missing_message
+import nomnomzbot.composeapp.generated.resources.attention_audio_source_missing_title
 import nomnomzbot.composeapp.generated.resources.attention_bot_not_moderator_message
 import nomnomzbot.composeapp.generated.resources.attention_bot_not_moderator_title
 import nomnomzbot.composeapp.generated.resources.attention_eventsub_unauthorized_message
@@ -103,6 +105,7 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
         "attention_scope_missing_title" ->
             AttentionText(Res.string.attention_scope_missing_title, listOf(literal(item.param("scope"))))
         "attention_eventsub_unauthorized_title" -> AttentionText(Res.string.attention_eventsub_unauthorized_title)
+        "attention_audio_source_missing_title" -> AttentionText(Res.string.attention_audio_source_missing_title)
         "attention_widget_build_failed_title" ->
             AttentionText(Res.string.attention_widget_build_failed_title, listOf(literal(item.param("widgetName"))))
         "attention_webhook_disabled_title" ->
@@ -189,6 +192,7 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
         "attention_scope_missing_message" -> AttentionText(Res.string.attention_scope_missing_message)
         "attention_eventsub_unauthorized_message" ->
             AttentionText(Res.string.attention_eventsub_unauthorized_message, listOf(literal(item.param("topics"))))
+        "attention_audio_source_missing_message" -> AttentionText(Res.string.attention_audio_source_missing_message)
         "attention_widget_build_failed_message" ->
             AttentionText(Res.string.attention_widget_build_failed_message, listOf(literal(item.param("version"))))
         "attention_widget_build_failed_nothing_live_message" ->
