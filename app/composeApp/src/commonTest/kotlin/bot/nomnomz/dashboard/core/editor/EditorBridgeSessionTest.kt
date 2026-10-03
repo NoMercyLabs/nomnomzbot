@@ -49,6 +49,10 @@ class EditorBridgeSessionTest {
                         name = "Alerts",
                         settings = JsonObject(mapOf("color" to JsonPrimitive("red"))),
                         eventSubscriptions = listOf("channel.follow"),
+                        fireSamples =
+                            JsonObject(
+                                mapOf("channel.follow" to JsonObject(mapOf("login" to JsonPrimitive("server-login"))))
+                            ),
                     ),
                 history = history,
                 testRun = testRun,
@@ -74,6 +78,11 @@ class EditorBridgeSessionTest {
         assertEquals("export const a = 1", payload["files"]!!.jsonObject["src/util.ts"]!!.jsonPrimitive.content)
         assertEquals("declare const nnz: { on(e: string): void };", payload["sdkTypes"]!!.jsonPrimitive.content)
         assertEquals("channel.follow", payload["eventSubscriptions"]!!.jsonArray.single().jsonPrimitive.content)
+        // The fire bar sends the server's own sample table, the one the widget Test button fires from.
+        assertEquals(
+            "server-login",
+            payload["fireSamples"]!!.jsonObject["channel.follow"]!!.jsonObject["login"]!!.jsonPrimitive.content,
+        )
         val widget: JsonObject = payload["widget"]!!.jsonObject
         assertEquals("w-1", widget["id"]!!.jsonPrimitive.content)
         assertEquals("Alerts", widget["name"]!!.jsonPrimitive.content)

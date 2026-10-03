@@ -184,7 +184,15 @@ class WidgetsController(
                 val seeded: ProjectDto = seedProject(framework, seedSource)
                 // A brand-new widget has no declared subscriptions yet — the fire bar falls back to scanning
                 // the seeded source until the operator saves one.
-                openEditor(channel, result.value.id, name, framework, seeded, previewWidgetOf(result.value), messages)
+                openEditor(
+                    channel,
+                    result.value.id,
+                    name,
+                    framework,
+                    seeded,
+                    previewWidgetOf(channel, result.value),
+                    messages,
+                )
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -220,7 +228,7 @@ class WidgetsController(
                 is ApiResult.Ok -> loaded.value
                 is ApiResult.Failure -> seedProject(widget.framework, "")
             }
-        openEditor(channel, widget.id, widget.name, widget.framework, project, previewWidgetOf(widget), messages)
+        openEditor(channel, widget.id, widget.name, widget.framework, project, previewWidgetOf(channel, widget), messages)
     }
 
     /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
@@ -404,8 +412,21 @@ class WidgetsController(
         load()
     }
 
-    private fun previewWidgetOf(widget: WidgetSummary): EditorPreviewWidget =
-        EditorPreviewWidget(widget.id, widget.name, widget.settings ?: JsonObject(emptyMap()), widget.eventSubscriptions)
+    // A failed samples fetch opens the editor anyway; its fire bar then sends empty payloads.
+    private suspend fun previewWidgetOf(channel: String, widget: WidgetSummary): EditorPreviewWidget {
+        val samples: JsonObject =
+            when (val fetched: ApiResult<JsonObject> = widgetsApi.testEventSamples(channel)) {
+                is ApiResult.Ok -> fetched.value
+                is ApiResult.Failure -> JsonObject(emptyMap())
+            }
+        return EditorPreviewWidget(
+            widget.id,
+            widget.name,
+            widget.settings ?: JsonObject(emptyMap()),
+            widget.eventSubscriptions,
+            samples,
+        )
+    }
 
     // Save the edited project (files + the preserved manifest) via putProject and map the build outcome to inline
     // feedback. The server returns a failure Result on a broken build (nothing persisted), so a transport or build

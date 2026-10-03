@@ -52,6 +52,19 @@ public sealed class WidgetTestEventController : BaseController
         _clock = clock;
     }
 
+    /// <summary>The sample payload of every event type, keyed by type, plus the fallback under "_default". The
+    /// editor preview fires from this table, so a preview test sends what <see cref="Fire"/> sends.</summary>
+    [RequireAction("widget:read")]
+    [HttpGet("test-event/samples")]
+    [ProducesResponseType<StatusResponseDto<Dictionary<string, object>>>(StatusCodes.Status200OK)]
+    public IActionResult Samples(string channelId) =>
+        Ok(
+            new StatusResponseDto<Dictionary<string, object>>
+            {
+                Data = WidgetTestSamples.Table(_clock.GetUtcNow()),
+            }
+        );
+
     /// <summary>Fire a sample event of <paramref name="request"/>.EventType to the channel's subscribed widgets.</summary>
     [RequireAction("widget:write")]
     [HttpPost("test-event")]

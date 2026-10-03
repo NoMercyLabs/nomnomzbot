@@ -159,6 +159,13 @@ interface WidgetsApi {
      * differently from one the overlay actually heard.
      */
     suspend fun testEvent(channelId: String, eventType: String): ApiResult<String>
+
+    /**
+     * The sample payload of every event type, keyed by type, plus the fallback under `_default` (backend
+     * `WidgetTestEventController.Samples`). The editor preview fires from this table, so a preview test sends
+     * exactly what [testEvent] sends.
+     */
+    suspend fun testEventSamples(channelId: String): ApiResult<JsonObject>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -302,6 +309,9 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
             "api/v1/channels/$channelId/widgets/test-event",
             TestEventBody(eventType = eventType),
         )
+
+    override suspend fun testEventSamples(channelId: String): ApiResult<JsonObject> =
+        client.getEnvelope("api/v1/channels/$channelId/widgets/test-event/samples")
 }
 
 /** The test-fire request body (backend `WidgetTestEventRequest`). [data] is always omitted — a sample is used. */

@@ -680,6 +680,9 @@ private object StubWidgetsApi : bot.nomnomz.dashboard.core.network.WidgetsApi {
         widgetId: String,
     ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
     override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> = error("stub")
+
+    override suspend fun testEventSamples(channelId: String): ApiResult<kotlinx.serialization.json.JsonObject> =
+        error("stub")
 }
 
 private object StubPickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {

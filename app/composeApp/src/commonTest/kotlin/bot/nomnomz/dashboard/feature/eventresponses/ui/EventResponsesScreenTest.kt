@@ -677,6 +677,9 @@ private class FakeWidgetsApi : WidgetsApi {
     override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> =
         error("stub")
     override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> = error("stub")
+
+    override suspend fun testEventSamples(channelId: String): ApiResult<kotlinx.serialization.json.JsonObject> =
+        error("stub")
 }
 
 private class FakePickListsApi : PickListsApi {

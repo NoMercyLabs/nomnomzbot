@@ -333,6 +333,7 @@ class WidgetsControllerTest {
                 name = "Timer",
                 settings = JsonObject(mapOf("color" to JsonPrimitive("red"))),
                 eventSubscriptions = listOf("follow", "cheer"),
+                fireSamples = widgetsApi.testEventSamplesResult.let { (it as ApiResult.Ok).value },
             ),
             editor.openedPreviewWidget,
         )
@@ -1020,6 +1021,12 @@ private class RecordingWidgetsApi(
         testedEventTypes += eventType
         return testEventResult
     }
+
+    // The server's sample table, as the editor preview's fire bar receives it.
+    var testEventSamplesResult: ApiResult<JsonObject> =
+        ApiResult.Ok(JsonObject(mapOf("follow" to JsonObject(mapOf("login" to JsonPrimitive("server-login"))))))
+
+    override suspend fun testEventSamples(channelId: String): ApiResult<JsonObject> = testEventSamplesResult
 }
 
 // A recording fake gallery catalogue: returns the preset [listResult] / [detail] and records every browse

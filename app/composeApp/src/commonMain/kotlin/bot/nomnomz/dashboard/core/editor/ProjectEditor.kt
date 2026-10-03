@@ -86,13 +86,15 @@ expect class ProjectEditor() : ProjectEditorIO {
 
 /**
  * The widget the editor's preview runs as: the same id, name and settings the overlay page injects on stream, so
- * code that reads them behaves in the preview the way it does live.
+ * code that reads them behaves in the preview the way it does live. [fireSamples] is the server's sample table
+ * (event type to payload, fallback under `_default`) that the preview's fire bar sends.
  */
 data class EditorPreviewWidget(
     val id: String,
     val name: String,
     val settings: JsonObject,
     val eventSubscriptions: List<String>,
+    val fireSamples: JsonObject,
 )
 
 /** The outcome of a compile the editor renders inline — green on success, red with the real build error. */

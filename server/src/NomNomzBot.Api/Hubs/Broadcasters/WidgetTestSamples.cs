@@ -52,7 +52,24 @@ internal static class WidgetTestSamples
     public static object For(string eventType, DateTimeOffset now) =>
         Samples.TryGetValue(eventType, out Func<DateTimeOffset, object>? sample)
             ? sample(now)
-            : new { user = "TestUser" };
+            : Fallback();
+
+    /// <summary>The key under which <see cref="Table"/> carries the fallback sample.</summary>
+    public const string FallbackKey = "_default";
+
+    /// <summary>Every sample by event type, plus the fallback under <see cref="FallbackKey"/>: the one table the
+    /// editor preview fires from, so it sends exactly what the Test button does.</summary>
+    public static Dictionary<string, object> Table(DateTimeOffset now)
+    {
+        Dictionary<string, object> table = Samples.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value(now)
+        );
+        table[FallbackKey] = Fallback();
+        return table;
+    }
+
+    private static object Fallback() => new { user = "TestUser" };
 
     private static readonly Dictionary<string, Func<DateTimeOffset, object>> Samples = new()
     {

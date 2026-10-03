@@ -82,9 +82,8 @@ object EditorBridgeProtocol {
                         put("entry", entryPath)
                         put("language", language)
                         put("sdkTypes", sdkTypes)
-                        // Per-event payload shapes for the preview's fire bar, single-sourced here rather than
-                        // duplicated in the page's JS.
-                        put("fireSamples", json.parseToJsonElement(WidgetFireBarSamples.allSamplesJson()))
+                        // The server's sample table, the one the widget Test button fires from.
+                        put("fireSamples", previewWidget?.fireSamples ?: JsonObject(emptyMap()))
                         // The widget's PERSISTED subscription list — the fire bar's authoritative source.
                         put(
                             "eventSubscriptions",
