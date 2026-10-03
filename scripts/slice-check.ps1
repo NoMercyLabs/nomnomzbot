@@ -189,9 +189,12 @@ try {
     [string]$inspectReport = Join-Path ([System.IO.Path]::GetTempPath()) "slice-inspect-$PID.xml"
     # jb takes ONE semicolon-joined wildcard list on --include=<value>; splatted args are rejected.
     [string]$inspectInclude = ($relativePaths -join ';')
+    # Caches inside the tree being inspected: the default home keys one ~170 MB cache per solution path, so
+    # every removed worktree left its cache behind (4 GB on 2026-10-03, which tripped the disk floor).
+    [string]$inspectCaches = Join-Path $server '../.scratch/jb-caches'
     Invoke-Native 'jb inspectcode failed on slice files' {
         dotnet jb inspectcode NomNomzBot.slnx --include="$inspectInclude" --no-build --format=Xml `
-            --output="$inspectReport" --severity=WARNING
+            --output="$inspectReport" --severity=WARNING --caches-home="$inspectCaches"
     }
 
     # Gate by CATEGORY, not by a list of ids. The owner's examples (a redundant `!`, a mergeable

@@ -17,6 +17,7 @@ it runs with --no-build.
 Usage: python scripts/inspect-slice.py server/src/A.cs,server/tests/B.cs
 """
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -39,11 +40,14 @@ def main() -> int:
         print("no .cs files to inspect")
         return 0
 
-    report = Path(tempfile.gettempdir()) / "inspect-slice.xml"
+    # PID in the name: agents run this at the same time, and one fixed file made them read each other's report.
+    report = Path(tempfile.gettempdir()) / f"inspect-slice-{os.getpid()}.xml"
+    # Caches inside this tree, so they leave with the worktree (the default home kept one per path).
+    caches = repo / ".scratch" / "jb-caches"
     command = [
         "dotnet", "jb", "inspectcode", "NomNomzBot.slnx",
         f"--include={';'.join(relative)}", "--no-build", "--format=Xml",
-        f"--output={report}", "--severity=WARNING",
+        f"--output={report}", "--severity=WARNING", f"--caches-home={caches}",
     ]
     if subprocess.run(command, cwd=server, stdout=subprocess.DEVNULL).returncode != 0:
         print("jb inspectcode failed")
