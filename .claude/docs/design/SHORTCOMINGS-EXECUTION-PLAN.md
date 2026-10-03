@@ -42,6 +42,26 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   schema; an event with no translator uses the reflection sample. Done-when: a test checks all 219 samples
   against their schema (failed first: 77 of 219), and the fixture-pinning test is replaced by one that pins the
   translated values.
+- **S-SCRIPT-MISSING-EXPORT** Found by the docs fact-check 2026-10-04, reproduced with the real esbuild and flags
+  (`EsbuildScriptBundler.cs:76-91`). A script that imports a name another file does not export still saves:
+  esbuild exits 0 and emits `(void 0)(...)`, `CompileAsync` only parses (`JintScriptExecutor.cs:260-261`),
+  `CodeScriptService.cs:540-547` marks the version valid, and the first run faults with `TypeError: (void 0) is
+  not a function`. The editor marks it red (TS2305/TS2306), but a red mark does not block Save
+  (`editor.js:1146-1153`). Done-when: the save is refused with the file, line and column of the import (for
+  example esbuild's `import-is-undefined` raised to an error), in the same `data.errors` shape as other build
+  problems; a test failed first.
+- **S-WIDGET-EMIT-FAILURE** Found by the docs fact-check 2026-10-04. The script SDK says
+  `nnz.api.widget.emit` returns `false` when the send fails (`SdkRuntimeSurface.cs:654`), but the send at
+  `ScriptHostBridge.cs:556-560` is not caught, so a failed send faults the whole script ("Script execution
+  faulted.", `JintScriptExecutor.cs:501-505`). Done-when: a failed send returns `false` and sets `nnz.lastError`,
+  as the contract says; a test that makes the send throw failed first.
+- **S-V7-TIEBREAK** Found 2026-10-04 while fixing the alert-capture prune (a Guid v7 is ordered only to the
+  millisecond; inside one millisecond it is random, so `ThenBy(x => x.Id)` is not insertion order). 9 more
+  sites sort by `ThenBy(Descending)(x => x.Id)`: `YouTubeLiveChatBanLedger.cs:77`, `AlertQueueService.cs:128`,
+  `:148`, `PlatformAudioAssetService.cs:55`, `PipelineExecutionQueryService.cs:63`, `AdminService.cs:451`,
+  `DatabaseEventSubInbox.cs:68`, `ErasureService.cs:1079`, `ImpersonationTokenMinter.cs:42`. Done-when: each is
+  classified (needs insertion order or only a stable order), each that needs insertion order uses
+  `MonotonicGuid` or a real sequence, with a test that failed first; N of 9 reported.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
