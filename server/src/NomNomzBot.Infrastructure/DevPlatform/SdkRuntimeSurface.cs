@@ -408,6 +408,8 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  setVar(key: string, value: string): void;");
         sb.AppendLine("  /** Appends to the script's output (capped by the execution budget). */");
         sb.AppendLine("  send(message: string): void;");
+        sb.AppendLine("  /** Stops the actions after this one in the same pipeline. */");
+        sb.AppendLine("  stopPipeline(): void;");
         sb.AppendLine(
             "  /** The raw capability bridge every nnz.api.* wrapper goes through; an ungranted key is denied. */"
         );

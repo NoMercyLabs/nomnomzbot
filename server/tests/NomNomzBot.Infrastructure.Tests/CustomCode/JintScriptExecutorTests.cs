@@ -78,6 +78,37 @@ public sealed class JintScriptExecutorTests
     }
 
     [Fact]
+    public async Task Calling_bot_stopPipeline_makes_the_outcome_stop_the_pipeline()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(
+                Request("bot.send('last words'); bot.stopPipeline();"),
+                Grant(),
+                NoBridge
+            )
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.StopPipeline.Should().BeTrue();
+        r.ChatOutput.Should().Be("last words");
+    }
+
+    [Fact]
+    public async Task A_script_that_never_calls_bot_stopPipeline_lets_the_pipeline_go_on()
+    {
+        JintScriptExecutor sut = new();
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(Request("bot.send('hi');"), Grant(), NoBridge)
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.StopPipeline.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Console_lines_are_kept_in_order_with_their_level()
     {
         JintScriptExecutor sut = new();

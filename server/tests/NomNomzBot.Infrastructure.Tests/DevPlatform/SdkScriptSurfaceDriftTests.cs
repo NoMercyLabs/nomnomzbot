@@ -49,6 +49,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
         engine.SetValue("__getVar", (Func<string, string?>)(_ => null));
         engine.SetValue("__setVar", (Action<string, string>)((_, _) => { }));
         engine.SetValue("__send", (Action<string>)(_ => { }));
+        engine.SetValue("__stop", (Action)(() => { }));
         engine.SetValue("__call", (Func<string, string, string?>)((_, _) => null));
         engine.SetValue("__argsJson", "[]");
         return engine;
@@ -209,6 +210,7 @@ public sealed partial class SdkScriptSurfaceDriftTests
         dts.Should().Contain("  getVar(key: string): string | null;");
         dts.Should().Contain("  setVar(key: string, value: string): void;");
         dts.Should().Contain("  send(message: string): void;");
+        dts.Should().Contain("  stopPipeline(): void;");
         dts.Should().Contain("  call(key: string, ...args: string[]): string | null;");
     }
 

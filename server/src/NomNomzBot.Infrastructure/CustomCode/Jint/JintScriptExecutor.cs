@@ -79,6 +79,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             getVar: function (k) { return __getVar(need('bot.getVar', 'a key', k)); },
             setVar: function (k, v) { __setVar(need('bot.setVar', 'a key', k), need('bot.setVar', 'a value', v)); },
             send: function (m) { __send(need('bot.send', 'a message', m)); },
+            stopPipeline: function () { __stop(); },
             call: function (k) {
                 var key = need('bot.call', 'a key', k);
                 var rest = Array.prototype.slice.call(arguments, 1);
@@ -371,6 +372,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         int droppedLogLines = 0;
         HashSet<string> grantedKeys = new(grant.Granted.Select(g => g.Key), StringComparer.Ordinal);
         int hostCalls = 0;
+        bool stopPipeline = false;
         Stopwatch stopwatch = Stopwatch.StartNew();
         ScriptExecutionOutcome outcome;
         string? error = null;
@@ -421,6 +423,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     }
                 )
             );
+            engine.SetValue("__stop", (Action)(() => stopPipeline = true));
             engine.SetValue(
                 "__call",
                 (Func<string, string, string?>)(
@@ -513,7 +516,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     hostCalls,
                     vars,
                     output.Length == 0 ? null : output.ToString(),
-                    StopPipeline: false,
+                    StopPipeline: stopPipeline,
                     error,
                     logLines,
                     errorPosition
