@@ -1783,6 +1783,8 @@
     <string name="widgets_settings_action_short">Settings</string>
     <string name="widgets_settings_title">%1$s settings</string>
     <string name="widgets_settings_loading">Loading settings…</string>
+    <string name="widgets_settings_empty_title">No settings yet</string>
+    <string name="widgets_settings_empty_body">This widget declares no settings. Add a settings.json file in the code editor to give it a settings form.</string>
     <string name="widgets_settings_error">Could not load settings: %1$s</string>
     <string name="widgets_settings_close">Close</string>
     <string name="widgets_settings_invalid_json">Not valid JSON.</string>

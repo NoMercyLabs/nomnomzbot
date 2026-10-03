@@ -699,9 +699,6 @@ private fun WidgetRow(
     // disturbs the page's Ready list the way a real mutation would.
     var testResult: ApiResult<String>? by remember(widget.id) { mutableStateOf(null) }
 
-    // Typed settings exist for first-party widgets (their type has an authored schema the backend serves); the
-    // Settings affordance is shown only then. A self-authored custom widget is configured via the code editor.
-    val hasTypedSettings: Boolean = widget.isSystem
     val catalogueAction: CatalogueRowAction = widget.catalogueRowAction()
 
     val stateLabel: String =
@@ -770,7 +767,6 @@ private fun WidgetRow(
                     verticalArrangement = Arrangement.spacedBy(spacing.s1),
                 ) {
                     WidgetRowActions(
-                        hasTypedSettings = hasTypedSettings,
                         manage = manage,
                         settingsLabel = settingsLabel,
                         onSettings = onSettings,
@@ -813,7 +809,6 @@ private fun WidgetRow(
                     modifier = Modifier.weight(1f),
                 )
                 WidgetRowActions(
-                    hasTypedSettings = hasTypedSettings,
                     manage = manage,
                     settingsLabel = settingsLabel,
                     onSettings = onSettings,
@@ -1009,7 +1004,6 @@ private fun WidgetRowInfo(
 // inside the Expanded Row (beside [WidgetRowInfo]) and the Compact FlowRow (beneath it).
 @Composable
 private fun WidgetRowActions(
-    hasTypedSettings: Boolean,
     manage: ManageDecision,
     settingsLabel: String,
     onSettings: () -> Unit,
@@ -1037,21 +1031,18 @@ private fun WidgetRowActions(
 ) {
     val tokens = LocalTokens.current
 
-    // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
-    // shown only for widget types that have a registered typed form. Gated by the Editor manage floor.
-    if (hasTypedSettings) {
-        ManageGate(decision = manage) { enabled ->
-            TextButton(
-                onClick = onSettings,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = settingsLabel },
-            ) {
-                Text(
-                    text = stringResource(Res.string.widgets_settings_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
+    // Typed settings form over the widget's config; a widget with no schema explains that in the dialog.
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onSettings,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = settingsLabel },
+        ) {
+            Text(
+                text = stringResource(Res.string.widgets_settings_action_short),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                maxLines = 1,
+            )
         }
     }
     ManageGate(decision = manage) { enabled ->

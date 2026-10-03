@@ -71,6 +71,8 @@ import kotlinx.serialization.json.contentOrNull
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.widgets_settings_cancel
 import nomnomzbot.composeapp.generated.resources.widgets_settings_close
+import nomnomzbot.composeapp.generated.resources.widgets_settings_empty_body
+import nomnomzbot.composeapp.generated.resources.widgets_settings_empty_title
 import nomnomzbot.composeapp.generated.resources.widgets_settings_error
 import nomnomzbot.composeapp.generated.resources.widgets_settings_invalid_json
 import nomnomzbot.composeapp.generated.resources.widgets_settings_listens_for
@@ -114,27 +116,38 @@ internal fun WidgetSettingsDialog(
     var result: ApiResult<WidgetSettingsSchemaDto>? by remember(widget.id) { mutableStateOf(null) }
     LaunchedEffect(widget.id) { result = loadSchema() }
 
-    when (val current: ApiResult<WidgetSettingsSchemaDto>? = result) {
-        null -> InfoSettingsDialog(widget.name, stringResource(Res.string.widgets_settings_loading), onDismiss)
-        is ApiResult.Failure ->
+    val current: ApiResult<WidgetSettingsSchemaDto>? = result
+    when (settingsLoadView(current)) {
+        SettingsLoadView.Loading ->
+            InfoSettingsDialog(widget.name, stringResource(Res.string.widgets_settings_loading), onDismiss)
+        SettingsLoadView.NoSettings ->
             InfoSettingsDialog(
-                widget.name,
-                stringResource(Res.string.widgets_settings_error, current.error.message),
+                stringResource(Res.string.widgets_settings_empty_title),
+                stringResource(Res.string.widgets_settings_empty_body),
                 onDismiss,
             )
-        is ApiResult.Ok -> LoadedSettingsDialog(widget, current.value, onDismiss, onSave)
+        SettingsLoadView.Error ->
+            InfoSettingsDialog(
+                widget.name,
+                stringResource(
+                    Res.string.widgets_settings_error,
+                    (current as ApiResult.Failure).error.message,
+                ),
+                onDismiss,
+            )
+        SettingsLoadView.Form -> LoadedSettingsDialog(widget, (current as ApiResult.Ok).value, onDismiss, onSave)
     }
 }
 
 // A minimal dialog for the loading / error states — the schema-driven form is not yet (or cannot be) shown.
 @Composable
-private fun InfoSettingsDialog(widgetName: String, message: String, onDismiss: () -> Unit) {
+private fun InfoSettingsDialog(title: String, message: String, onDismiss: () -> Unit) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = stringResource(Res.string.widgets_settings_title, widgetName), style = typography.lg)
+            Text(text = title, style = typography.lg)
         },
         text = { Text(text = message, style = typography.sm, color = tokens.mutedForeground) },
         confirmButton = {

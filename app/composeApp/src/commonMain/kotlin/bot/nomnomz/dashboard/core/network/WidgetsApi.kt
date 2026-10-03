@@ -71,7 +71,7 @@ interface WidgetsApi {
     /**
      * The widget's typed settings schema — the field/type/default contract the dashboard renders its generic
      * settings form from (so a first-party widget is configured through controls, not by editing its source).
-     * Fails for a self-authored custom widget with no first-party schema (those use the code editor).
+     * Fails with WIDGET_NO_SETTINGS_SCHEMA for a widget with no first-party schema and no settings.json.
      */
     suspend fun getSettingsSchema(channelId: String, widgetId: String): ApiResult<WidgetSettingsSchemaDto>
 

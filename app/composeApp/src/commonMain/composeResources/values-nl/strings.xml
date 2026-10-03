@@ -1780,6 +1780,8 @@
     <string name="widgets_settings_action_short">Instellingen</string>
     <string name="widgets_settings_title">Instellingen voor %1$s</string>
     <string name="widgets_settings_loading">Instellingen laden…</string>
+    <string name="widgets_settings_empty_title">Nog geen instellingen</string>
+    <string name="widgets_settings_empty_body">Deze widget heeft geen instellingen. Voeg een settings.json-bestand toe in de code-editor om er een instellingenformulier voor te maken.</string>
     <string name="widgets_settings_error">Kon de instellingen niet laden: %1$s</string>
     <string name="widgets_settings_close">Sluiten</string>
     <string name="widgets_settings_invalid_json">Geen geldige JSON.</string>
