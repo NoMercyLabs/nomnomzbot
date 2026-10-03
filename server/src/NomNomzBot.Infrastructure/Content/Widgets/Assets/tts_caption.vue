@@ -2,21 +2,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Speaking indicator + caption for TTS. Driven by the "tts_speak" widget event —
 // { text, voice, user, durationMs } (pushable today via the widget_event pipeline action; TTS audio
 // itself rides the host page's audio bus via PlaySound, so this widget only renders the caption).
 // Idle (hidden) until an event arrives; hides again when the utterance's duration elapses.
-interface TtsCaptionConfig {
-  showText: boolean
-  voiceLabel: boolean   // show the voice name beside the speaker
-  position: string      // 'top' | 'bottom'
-  accentColor: string
-}
-
-const cfg = reactive<TtsCaptionConfig>({
+const cfg = reactive<NnzWidgetSettings>({
   showText: true,
   voiceLabel: false,
   position: 'bottom',
@@ -29,8 +22,8 @@ const voice = ref<string>('')
 const user = ref<string>('')
 let hideTimer: number | undefined
 
-function onSpeak(d: any): void {
-  const data: any = d || {}
+function onSpeak(d: NnzWidgetEventMap['tts_speak'] | null | undefined): void {
+  const data: Partial<NnzWidgetEventMap['tts_speak']> = d || {}
   text.value = data.text || ''
   voice.value = data.voice || ''
   user.value = data.user || ''
@@ -44,21 +37,21 @@ function onSpeak(d: any): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.showText === 'boolean') cfg.showText = s.showText
     if (typeof s.voiceLabel === 'boolean') cfg.voiceLabel = s.voiceLabel
     if (typeof s.position === 'string' && s.position) cfg.position = s.position
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('tts_speak', onSpeak)
+  NomNomz.on('tts_speak', onSpeak)
 })
 
 onUnmounted(() => {
   if (hideTimer) window.clearTimeout(hideTimer)
-  if (!nnz) return
-  nnz.off('tts_speak', onSpeak)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('tts_speak', onSpeak)
 })
 </script>
 

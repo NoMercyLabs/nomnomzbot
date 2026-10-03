@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // The TTS AUDIO source: a browser source whose only job is to be the page TTS plays out of. The SDK does
 // the playing (it receives the dispatched utterance and plays the server-synthesised audioUrl through a
@@ -13,12 +13,7 @@ const nnz = (window as any).NomNomz
 // It renders nothing by default — add it to OBS, size it 1x1, and leave it. "Control audio via OBS" must
 // be ON for the scene to hear it. The optional indicator is for setup: turn it on, speak once, confirm the
 // source is alive, turn it back off.
-interface TtsAudioConfig {
-  showIndicator: boolean
-  accentColor: string
-}
-
-const cfg = reactive<TtsAudioConfig>({
+const cfg = reactive<NnzWidgetSettings>({
   showIndicator: false,
   accentColor: '#9146ff',
 })
@@ -26,7 +21,7 @@ const cfg = reactive<TtsAudioConfig>({
 const speaking = ref<boolean>(false)
 let clearTimer: number | undefined
 
-function onSpeak(payload: any): void {
+function onSpeak(payload: NnzWidgetEventMap['tts_speak']): void {
   if (!cfg.showIndicator) return
   speaking.value = true
   if (clearTimer) window.clearTimeout(clearTimer)
@@ -35,19 +30,20 @@ function onSpeak(payload: any): void {
   clearTimer = window.setTimeout(() => (speaking.value = false), ms)
 }
 
-function applySettings(next: Partial<TtsAudioConfig> | undefined): void {
+function applySettings(next: Partial<NnzWidgetSettings> | undefined): void {
   if (!next) return
   Object.assign(cfg, next)
 }
 
 onMounted(() => {
-  applySettings(nnz?.settings)
-  nnz?.onSettings?.(applySettings)
-  nnz?.on('tts_speak', onSpeak)
+  if (typeof NomNomz === 'undefined') return
+  applySettings(NomNomz.settings)
+  NomNomz.onSettings(applySettings)
+  NomNomz.on('tts_speak', onSpeak)
 })
 
 onUnmounted(() => {
-  nnz?.off('tts_speak', onSpeak)
+  if (typeof NomNomz !== 'undefined') NomNomz.off('tts_speak', onSpeak)
   if (clearTimer) window.clearTimeout(clearTimer)
 })
 </script>

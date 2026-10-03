@@ -11,7 +11,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
-using Microsoft.Playwright.Xunit;
 using NomNomzBot.E2E.Tests.Harness;
 
 namespace NomNomzBot.E2E.Tests.Editor;
@@ -22,7 +21,7 @@ namespace NomNomzBot.E2E.Tests.Editor;
 /// Monaco's TypeScript worker reports. A script runs in the Jint sandbox, which has no DOM; a widget runs in a
 /// browser, and its plain JavaScript is checked as strictly as TypeScript.
 /// </summary>
-public sealed class EditorTypeCheckingTests : PageTest
+public sealed class EditorTypeCheckingTests : EditorPageTest
 {
     private const string ScriptTypes = "declare const bot: { args: string[] };";
 
@@ -355,18 +354,6 @@ public sealed class EditorTypeCheckingTests : PageTest
         return default;
     }
 
-    private static Dictionary<string, string> AuthHeaders() =>
-        new() { ["Authorization"] = $"Bearer {E2ESettings.Token}" };
-
-    // The 'tenant' claim of the E2E token: the broadcaster the token acts for.
-    private static string TokenTenant()
-    {
-        string payload = E2ESettings.Token.Split('.')[1].Replace('-', '+').Replace('_', '/');
-        payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
-        using JsonDocument claims = JsonDocument.Parse(Convert.FromBase64String(payload));
-        return claims.RootElement.GetProperty("tenant").GetString()!;
-    }
-
     private async Task<string> SdkTypesAsync(string context)
     {
         IAPIResponse types = await Page.APIRequest.GetAsync(
@@ -381,176 +368,5 @@ public sealed class EditorTypeCheckingTests : PageTest
         );
         Assert.Equal(200, types.Status);
         return await types.TextAsync();
-    }
-
-    private async Task<IReadOnlyList<int>> DiagnosticLinesAsync(string path) =>
-        await Page.EvaluateAsync<int[]>(
-            """
-            (path) => window.monaco.editor
-                .getModelMarkers({ resource: window.monaco.Uri.parse('file:///' + path) })
-                .map((marker) => marker.startLineNumber)
-            """,
-            path
-        );
-
-    private async Task OpenAsync(
-        string language,
-        string entry,
-        string source,
-        string sdkTypes,
-        bool sdkTypesUnavailable = false
-    )
-    {
-        await ServeEditorFromTheWorkingTreeAsync();
-        await Page.GotoAsync(
-            $"{E2ESettings.BaseUrl}/editor/index.html",
-            new() { WaitUntil = WaitUntilState.DOMContentLoaded }
-        );
-        await Page.EvaluateAsync(
-            """
-            ([language, entry, source, sdkTypes, sdkTypesUnavailable]) => window.postMessage({
-                type: 'nnz:editor:open',
-                payload: {
-                    title: 'Type check',
-                    language,
-                    entry,
-                    files: { [entry]: source },
-                    sdkTypes,
-                    ...(sdkTypesUnavailable ? { sdkTypesUnavailable: true } : {}),
-                },
-            }, window.location.origin)
-            """,
-            new object[] { language, entry, source, sdkTypes, sdkTypesUnavailable }
-        );
-    }
-
-    private bool _editorRouted;
-
-    /// <summary>
-    /// Serves <c>/editor/*</c> from the working tree's <c>Assets/editor</c> folder, so these tests check the editor
-    /// code in the tree and not whichever build the instance under test runs. Everything else (the SDK types
-    /// endpoint included) still goes to the instance.
-    /// </summary>
-    private async Task ServeEditorFromTheWorkingTreeAsync()
-    {
-        if (_editorRouted)
-            return;
-        _editorRouted = true;
-
-        string folder = EditorAssetsFolder();
-        await Page.RouteAsync(
-            new Regex(@"^" + Regex.Escape(E2ESettings.BaseUrl) + @"/editor/[^?]*(\?.*)?$"),
-            async route =>
-            {
-                string name = new Uri(route.Request.Url).AbsolutePath["/editor/".Length..];
-                string file = Path.Combine(folder, name.Length == 0 ? "index.html" : name);
-                if (!File.Exists(file) || Path.GetDirectoryName(file) != folder)
-                {
-                    await route.ContinueAsync();
-                    return;
-                }
-
-                await route.FulfillAsync(
-                    new()
-                    {
-                        BodyBytes = await File.ReadAllBytesAsync(file),
-                        ContentType = Path.GetExtension(file) switch
-                        {
-                            ".html" => "text/html; charset=utf-8",
-                            ".js" => "text/javascript; charset=utf-8",
-                            ".css" => "text/css; charset=utf-8",
-                            _ => "application/octet-stream",
-                        },
-                    }
-                );
-            }
-        );
-    }
-
-    private static string EditorAssetsFolder()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (
-            directory is not null
-            && !Directory.Exists(Path.Combine(directory.FullName, "server", "src"))
-        )
-            directory = directory.Parent;
-
-        return directory is null
-            ? throw new DirectoryNotFoundException(
-                "No folder above the test assembly holds server/src."
-            )
-            : Path.Combine(
-                directory.FullName,
-                "server",
-                "src",
-                "NomNomzBot.Api",
-                "Assets",
-                "editor"
-            );
-    }
-
-    // The files named by the Problems panel rows, once per row.
-    private async Task<IReadOnlyList<string>> ProblemFilesAsync()
-    {
-        await Page.WaitForTimeoutAsync(1_500);
-        return await Page.EvaluateAsync<string[]>(
-            """
-            () => [...document.querySelectorAll('#problems .problem-where')]
-                .map((el) => el.textContent.split(':')[0])
-            """
-        );
-    }
-
-    // Errors the TypeScript worker itself reports for a model: the truth behind a "no markers" check, which
-    // would also pass when the worker had not answered yet.
-    private async Task<int> WorkerDiagnosticCountAsync(string path)
-    {
-        await Page.WaitForFunctionAsync(
-            "(path) => window.monaco?.editor.getModel(window.monaco.Uri.parse('file:///' + path))",
-            path,
-            new() { Timeout = 60_000 }
-        );
-        return await Page.EvaluateAsync<int>(
-            """
-            async (path) => {
-                const uri = window.monaco.Uri.parse('file:///' + path);
-                const getWorker = await window.monaco.languages.typescript.getTypeScriptWorker();
-                const worker = await getWorker(uri);
-                const name = uri.toString();
-                const semantic = await worker.getSemanticDiagnostics(name);
-                const syntactic = await worker.getSyntacticDiagnostics(name);
-                return semantic.length + syntactic.length;
-            }
-            """,
-            path
-        );
-    }
-
-    /// <summary>
-    /// The TypeScript diagnostic codes on <paramref name="path"/>, once at least <paramref name="expected"/>
-    /// have arrived — the worker reports asynchronously, so an early read is empty, not clean.
-    /// </summary>
-    private async Task<IReadOnlyList<string>> DiagnosticCodesAsync(string path, int expected)
-    {
-        await Page.WaitForFunctionAsync(
-            """
-            ([path, expected]) => window.monaco?.editor
-                .getModelMarkers({ resource: window.monaco.Uri.parse('file:///' + path) }).length >= expected
-            """,
-            new object[] { path, expected },
-            new() { Timeout = 60_000 }
-        );
-        // A settled worker reports once more after the first batch; give it that beat before reading.
-        await Page.WaitForTimeoutAsync(1_500);
-        string[] codes = await Page.EvaluateAsync<string[]>(
-            """
-            (path) => window.monaco.editor
-                .getModelMarkers({ resource: window.monaco.Uri.parse('file:///' + path) })
-                .map((marker) => String(typeof marker.code === 'object' ? marker.code.value : marker.code))
-            """,
-            path
-        );
-        return codes;
     }
 }

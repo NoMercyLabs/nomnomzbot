@@ -2,22 +2,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Countdown to a wall-clock target or for a fixed duration (BRB / starting-soon). Entirely
 // settings-driven: the dashboard controls it live through widget-settings saves (WidgetSettingsChanged
 // → onSettings re-arms the countdown) — no event feed needed. `target` (ISO date-time) wins over
 // `durationMs`, which (re)starts whenever it changes.
-interface CountdownConfig {
-  target: string        // ISO date-time; '' = use durationMs
-  durationMs: number    // countdown length when no target is set; 0 = idle
-  label: string
-  onCompleteText: string
-  accentColor: string
-}
-
-const cfg = reactive<CountdownConfig>({
+// target is an ISO date-time ('' = use durationMs); durationMs is the length when no target is set (0 = idle).
+const cfg = reactive<NnzWidgetSettings>({
   target: '',
   durationMs: 0,
   label: 'Starting soon',
@@ -61,8 +54,8 @@ onMounted(() => {
   tick = window.setInterval(() => {
     if (endAt > 0) remainingMs.value = Math.max(0, endAt - Date.now())
   }, 250)
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.target === 'string') cfg.target = s.target
     if (isFinite(Number(s.durationMs)) && Number(s.durationMs) >= 0) cfg.durationMs = Number(s.durationMs)
