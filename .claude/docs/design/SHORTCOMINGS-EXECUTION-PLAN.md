@@ -48,8 +48,14 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (`WidgetEventSubscriptions.cs:22-37`; add-only on purpose, so a hand-added event is never dropped).
   Left: the emitter writes a typed widget event map from those records (`NomNomz.on('follow', d => d.`
   autocompletes the real payload), typed per-widget `settings` from the settings schema (a widget-scoped
-  types request), typed `actions.invoke` from the pipeline action descriptors, `claim` rejection and
+  types request), `claim` rejection and
   `AUTH_REQUIRED` in the types. Done-when: an E2E editor test shows a payload field typo as an error.
+- **S-SDK-ACTION-TYPES** `actions.invoke` is the one untyped door: script and widget both declare
+  `invoke(actionType: string, params?: Record<string, ...>)` (`SdkRuntimeSurface.cs:267`, `:659`), so a
+  typo in the action type or a missing required param fails only at run time. 110 action types; 89
+  declare `Fields`. Plan: one generated `NnzActionParams` map from the action descriptors, a generic
+  invoke on both sides; an action that reads params it does not declare gets its `Fields`. Done-when:
+  every registered action type has a typed member, and `invoke('obs_switch_scene', {})` is a type error.
 - **S-SDK-TEST-FIRE** The preview window is the test bench (owner, 2026-10-02). A script test run can
   fire every trigger the script can have (each event-catalogue event with a realistic sample payload,
   command args, viewer roles) and shows EVERY outward effect it would cause — chat messages, OBS calls,
