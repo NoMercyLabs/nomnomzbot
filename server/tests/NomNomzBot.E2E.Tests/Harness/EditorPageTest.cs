@@ -48,7 +48,8 @@ public abstract class EditorPageTest : PageTest
         string entry,
         string source,
         string sdkTypes,
-        bool sdkTypesUnavailable = false
+        bool sdkTypesUnavailable = false,
+        Dictionary<string, string>? extraFiles = null
     )
     {
         await ServeEditorFromTheWorkingTreeAsync();
@@ -58,19 +59,27 @@ public abstract class EditorPageTest : PageTest
         );
         await Page.EvaluateAsync(
             """
-            ([language, entry, source, sdkTypes, sdkTypesUnavailable]) => window.postMessage({
+            ([language, entry, source, sdkTypes, sdkTypesUnavailable, extraFiles]) => window.postMessage({
                 type: 'nnz:editor:open',
                 payload: {
                     title: 'Type check',
                     language,
                     entry,
-                    files: { [entry]: source },
+                    files: { [entry]: source, ...extraFiles },
                     sdkTypes,
                     ...(sdkTypesUnavailable ? { sdkTypesUnavailable: true } : {}),
                 },
             }, window.location.origin)
             """,
-            new object[] { language, entry, source, sdkTypes, sdkTypesUnavailable }
+            new object?[]
+            {
+                language,
+                entry,
+                source,
+                sdkTypes,
+                sdkTypesUnavailable,
+                extraFiles ?? new Dictionary<string, string>(),
+            }
         );
     }
 

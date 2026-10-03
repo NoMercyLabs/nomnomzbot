@@ -1155,7 +1155,42 @@ function requestSave() {
     postToHost({ type: HOST_MESSAGE.save, files: Object.fromEntries(state.files) });
 }
 
-function showCompileResult({ ok, message }) {
+const BUILD_MARKER_OWNER = 'nnz-build';
+
+// The host's build errors become Error markers (owner 'nnz-build'), each ending at the end of its line.
+// An error with no file goes on the entry file; one with no line, or naming a file the project lacks, is skipped.
+function showBuildErrors(errors) {
+    const monaco = state.monaco;
+    if (!monaco) return;
+    for (const model of monaco.editor.getModels()) monaco.editor.setModelMarkers(model, BUILD_MARKER_OWNER, []);
+
+    const byFile = new Map();
+    for (const error of Array.isArray(errors) ? errors : []) {
+        const file = error?.file ?? state.entry;
+        if (!state.files.has(file) || !Number.isInteger(error.line) || error.line < 1) continue;
+        if (!byFile.has(file)) byFile.set(file, []);
+        byFile.get(file).push(error);
+    }
+
+    for (const [file, fileErrors] of byFile) {
+        const model = modelFor(file);
+        const markers = fileErrors
+            .filter((error) => error.line <= model.getLineCount())
+            .map((error) => ({
+                severity: monaco.MarkerSeverity.Error,
+                message: error.message ?? '',
+                code: error.code,
+                startLineNumber: error.line,
+                startColumn: Math.max(1, error.column ?? 1),
+                endLineNumber: error.line,
+                endColumn: Math.max(model.getLineMaxColumn(error.line), (error.column ?? 1) + 1),
+            }));
+        monaco.editor.setModelMarkers(model, BUILD_MARKER_OWNER, markers);
+    }
+}
+
+function showCompileResult({ ok, message, errors }) {
+    showBuildErrors(errors);
     // Only a save the host accepted makes its files the new baseline; a failed compile leaves them unsaved.
     if (ok && state.pendingSave) state.savedFiles = state.pendingSave;
     state.pendingSave = null;
