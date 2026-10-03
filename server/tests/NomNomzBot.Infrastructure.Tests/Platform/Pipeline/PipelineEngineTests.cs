@@ -339,9 +339,11 @@ public class InfraPipelineEngineTests
     public async Task ExecuteAsync_ExceedsConcurrencyLimit_ReturnsFailed()
     {
         PipelineEngine engine = CreateEngine();
-        const string json = """{"steps":[{"action":{"type":"wait","milliseconds":5000}}]}""";
+        // The longest step the wait action allows: the five must still be running when the sixth arrives,
+        // even on a loaded machine where a short wait has already ended (they are cancelled below).
+        const string json = """{"steps":[{"action":{"type":"wait","milliseconds":30000}}]}""";
 
-        // Start 5 long-running pipelines
+        // Start 5 long-running pipelines; each takes its slot before ExecuteAsync first yields
         List<CancellationTokenSource> ctsList =
         [
             .. Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()),
@@ -352,8 +354,6 @@ public class InfraPipelineEngineTests
                 engine.ExecuteAsync(BuildRequest(json, TestChannel), cts.Token)
             ),
         ];
-
-        await Task.Delay(100); // Let them register
 
         // 6th should fail
         PipelineExecutionResult overflow = await engine.ExecuteAsync(
