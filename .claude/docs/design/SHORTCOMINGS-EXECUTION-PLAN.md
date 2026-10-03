@@ -53,10 +53,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   later ChannelOfflineEvent says the stream lasted zero (StreamRunTime.cs). WentLiveAt is also read offline by
   StreamController.cs:150, DashboardHub.cs:184 and TemplateResolver.cs:430, so it cannot simply stay set.
   Done-when: a test with the poll edge first, then the EventSub offline, sees the real duration.
-- **S-SDK-EVENT-DOCS** The event payload interfaces the type emitter generates (about 1,100 members,
-  counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
-  takes each member's text from the payload record's XML doc. Done-when: a drift test like
-  `Every_script_surface_member_has_a_jsdoc` covers the generated blocks and passes.
 - **S-SDK-WIDGET-TYPES** Widget context without `any`. The payloads are records already
   (`Api/Hubs/Dtos/WidgetEventPayloads.cs`; tts_queue_control is a raw typed target since e95e7417d), and a
   custom widget's subscriptions are added on save from its `NomNomz.on(...)` calls
