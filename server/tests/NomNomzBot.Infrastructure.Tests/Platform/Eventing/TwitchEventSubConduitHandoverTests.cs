@@ -125,6 +125,17 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
             await Task.Delay(50, timeout.Token);
     }
 
+    /// <summary>A drained notification is dispatched first and leaves the inbox after, so a test that saw the
+    /// dispatch waits for the removal too.</summary>
+    private async Task WaitUntilInboxEmptyAsync()
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        while (
+            await _db.Set<EventSubInboxMessage>().AsNoTracking().AnyAsync(CancellationToken.None)
+        )
+            await Task.Delay(50, timeout.Token);
+    }
+
     [Fact]
     public async Task A_notification_on_the_standby_shard_is_processed_once_by_the_active_instance()
     {
@@ -139,11 +150,11 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         // queue, cooldowns and caches are not the live ones — the active instance's are.
         await ReceiveAsync(green, "msg-sr");
         await WaitUntilAsync(() => blueProcessed.MessageIds.Count == 1);
+        await WaitUntilInboxEmptyAsync();
         await Task.Delay(600); // a further drain cycle on both sides: nothing may run it a second time
 
         blueProcessed.MessageIds.Should().Equal("msg-sr");
         greenProcessed.MessageIds.Should().BeEmpty();
-        (await _db.Set<EventSubInboxMessage>().AsNoTracking().CountAsync()).Should().Be(0);
 
         await blue.StopAsync(CancellationToken.None);
         await green.StopAsync(CancellationToken.None);
@@ -344,11 +355,11 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
         await green.WaitUntilActiveAsync(timeout.Token);
         await WaitUntilAsync(() => greenProcessed.MessageIds.Count == 1);
+        await WaitUntilInboxEmptyAsync();
 
         // The one in hand finished on blue; the waiting one went to green. Each exactly once.
         blueProcessed.MessageIds.Should().Equal("msg-1");
         greenProcessed.MessageIds.Should().Equal("msg-2");
-        (await _db.Set<EventSubInboxMessage>().AsNoTracking().CountAsync()).Should().Be(0);
         await green.StopAsync(CancellationToken.None);
     }
 
