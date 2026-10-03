@@ -354,11 +354,17 @@ public sealed class StreamStatusPollingService : BackgroundService
             }
             // Rising edge (offline → live): anchor the uptime clock the dashboard reads.
             if (!wasLive)
+            {
                 ctx.WentLiveAt = stream.StartedAt;
+                ctx.LastStreamStartedAt = null;
+            }
         }
         else if (wasLive)
         {
-            // Falling edge (live → offline): the uptime anchor is no longer meaningful.
+            // Falling edge (live → offline): the uptime anchor is no longer meaningful, but a late
+            // EventSub offline still needs the go-live moment to measure the stream.
+            if (ctx.WentLiveAt is not null)
+                ctx.LastStreamStartedAt = ctx.WentLiveAt;
             ctx.WentLiveAt = null;
         }
 

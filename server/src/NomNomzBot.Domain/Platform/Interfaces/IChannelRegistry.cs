@@ -144,6 +144,9 @@ public class ChannelContext
     public string? CurrentGame { get; set; }
     public DateTimeOffset? WentLiveAt { get; set; }
 
+    /// <summary>The go-live moment of the stream that just ended, kept so a late offline signal can still measure it.</summary>
+    public DateTimeOffset? LastStreamStartedAt { get; set; }
+
     /// <summary>
     /// Connection ids currently wanting fresh music/now-playing data for this channel (a connected
     /// dashboard music panel, overlay now-playing widget, or Stream Deck/Automation API client).

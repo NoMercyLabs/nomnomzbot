@@ -105,6 +105,30 @@ public sealed class StreamStatusPollingServiceTests
     }
 
     [Fact]
+    public void Live_to_offline_keeps_the_go_live_moment_for_a_late_offline_signal()
+    {
+        ChannelContext ctx = Ctx(isLive: true);
+        ctx.WentLiveAt = StartedAt;
+
+        StreamStatusPollingService.ApplyStreamState(ctx, new() { IsLive = true }, Offline());
+
+        ctx.WentLiveAt.Should().BeNull();
+        ctx.LastStreamStartedAt.Should().Be(StartedAt);
+    }
+
+    [Fact]
+    public void Offline_to_live_clears_the_previous_streams_go_live_moment()
+    {
+        ChannelContext ctx = Ctx(isLive: false);
+        ctx.LastStreamStartedAt = StartedAt.AddDays(-1);
+
+        StreamStatusPollingService.ApplyStreamState(ctx, new() { IsLive = false }, Live("t", "g"));
+
+        ctx.WentLiveAt.Should().Be(StartedAt);
+        ctx.LastStreamStartedAt.Should().BeNull();
+    }
+
+    [Fact]
     public void Live_to_offline_clears_live_uptime_and_viewers()
     {
         ChannelContext ctx = Ctx(isLive: true);

@@ -20,8 +20,9 @@ namespace NomNomzBot.Infrastructure.Stream;
 internal static class StreamRunTime
 {
     /// <summary>
-    /// Time from the channel's recorded go-live moment to <paramref name="offlineAt"/>. Zero when the
-    /// go-live moment is unknown (channel not in the registry, or no anchor yet) or lies in the future.
+    /// Time from the channel's recorded go-live moment to <paramref name="offlineAt"/>. The moment is
+    /// <c>WentLiveAt</c>, or <c>LastStreamStartedAt</c> when the status poll already saw the stream end.
+    /// Zero when the go-live moment is unknown (channel not in the registry, or no anchor yet) or lies in the future.
     /// </summary>
     public static TimeSpan Between(
         IChannelRegistry registry,
@@ -29,7 +30,8 @@ internal static class StreamRunTime
         DateTimeOffset offlineAt
     )
     {
-        DateTimeOffset? wentLiveAt = registry.Get(broadcasterId)?.WentLiveAt;
+        ChannelContext? ctx = registry.Get(broadcasterId);
+        DateTimeOffset? wentLiveAt = ctx?.WentLiveAt ?? ctx?.LastStreamStartedAt;
         if (wentLiveAt is null)
             return TimeSpan.Zero;
 

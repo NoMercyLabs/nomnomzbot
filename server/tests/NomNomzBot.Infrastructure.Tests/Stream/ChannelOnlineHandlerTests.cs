@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
@@ -34,7 +35,7 @@ public sealed class ChannelOnlineHandlerTests
     private static readonly Guid Broadcaster = Guid.Parse("0192f000-0000-7000-8000-0000000000c1");
     private static readonly Guid Owner = Guid.Parse("0192f000-0000-7000-8000-0000000000c9");
 
-    private static (ChannelOnlineHandler Sut, AuthDbContext Db) Build()
+    private static (ChannelOnlineHandler Sut, AuthDbContext Db) Build(ChannelContext? ctx = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -58,20 +59,19 @@ public sealed class ChannelOnlineHandlerTests
         registry
             .GetOrCreateAsync(Broadcaster, "tw-9", "streamer9", Arg.Any<CancellationToken>())
             .Returns(
-                new ChannelContext
-                {
-                    BroadcasterId = Broadcaster,
-                    TwitchChannelId = "tw-9",
-                    ChannelName = "streamer9",
-                }
+                ctx
+                    ?? new ChannelContext
+                    {
+                        BroadcasterId = Broadcaster,
+                        TwitchChannelId = "tw-9",
+                        ChannelName = "streamer9",
+                    }
             );
 
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(Substitute.For<IEventResponseExecutor>())
-            .AddSingleton(
-                Substitute.For<NomNomzBot.Application.Contracts.Twitch.ITwitchStreamsApi>()
-            )
+            .AddSingleton(Substitute.For<ITwitchStreamsApi>())
             .BuildServiceProvider();
 
         ChannelOnlineHandler sut = new(
@@ -102,7 +102,7 @@ public sealed class ChannelOnlineHandlerTests
         await sut.HandleAsync(
             new ChannelOnlineEvent
             {
-                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+                Provider = AuthEnums.Platform.Twitch,
                 BroadcasterId = Broadcaster,
                 BroadcasterDisplayName = "Streamer9",
                 StreamTitle = "New session",
@@ -125,5 +125,36 @@ public sealed class ChannelOnlineHandlerTests
                 s => s.Id != "stale-stream" && s.EndedAt == null,
                 "the new stream stays open"
             );
+    }
+
+    [Fact]
+    public async Task A_new_go_live_clears_the_previous_streams_anchor()
+    {
+        DateTimeOffset oldStart = new(2026, 8, 20, 10, 0, 0, TimeSpan.Zero);
+        DateTimeOffset newStart = new(2026, 8, 27, 18, 0, 0, TimeSpan.Zero);
+        ChannelContext ctx = new()
+        {
+            BroadcasterId = Broadcaster,
+            TwitchChannelId = "tw-9",
+            ChannelName = "streamer9",
+            LastStreamStartedAt = oldStart,
+        };
+        (ChannelOnlineHandler sut, AuthDbContext _) = Build(ctx);
+
+        await sut.HandleAsync(
+            new ChannelOnlineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer9",
+                StreamTitle = "New session",
+                GameName = "Just Chatting",
+                StartedAt = newStart,
+            }
+        );
+
+        ctx.WentLiveAt.Should().Be(newStart);
+        ctx.LastStreamStartedAt.Should()
+            .BeNull("an older stream's start must never survive a new go-live");
     }
 }

@@ -11,11 +11,14 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
+using NomNomzBot.Infrastructure.Stream.Jobs;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 using NSubstitute;
 
@@ -350,6 +353,79 @@ public sealed class StreamLifecycleTranslatorsTests
             .ContainSingle()
             .Subject.StreamDuration.Should()
             .Be(TimeSpan.FromHours(2));
+    }
+
+    private static (ChannelContext Ctx, IChannelRegistry Registry) LiveContext(
+        Guid tenant,
+        DateTimeOffset wentLiveAt
+    )
+    {
+        ChannelContext ctx = new()
+        {
+            BroadcasterId = tenant,
+            TwitchChannelId = "broadcaster-99",
+            ChannelName = "streamer",
+            IsLive = true,
+            WentLiveAt = wentLiveAt,
+        };
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(tenant).Returns(ctx);
+        return (ctx, registry);
+    }
+
+    [Fact]
+    public async Task StreamOffline_AfterThePollSawTheEndFirst_StillPublishesTheRealStreamDuration()
+    {
+        Guid tenant = Guid.NewGuid();
+        FakeTimeProvider clock = new(new(2026, 6, 20, 14, 0, 0, TimeSpan.Zero));
+        (ChannelContext ctx, IChannelRegistry registry) = LiveContext(
+            tenant,
+            new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        );
+        StreamStatusPollingService.ApplyStreamState(
+            ctx,
+            new() { IsLive = true },
+            Result.Failure<TwitchStream>("no data", TwitchErrorCodes.NotFound)
+        );
+        CapturingEventBus bus = new();
+        StreamOfflineTranslator translator = new(bus, clock, registry);
+
+        await translator.TranslateAsync(Notification(tenant, "stream.offline", OfflinePayload));
+
+        bus.EventsOf<ChannelOfflineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.StreamDuration.Should()
+            .Be(TimeSpan.FromHours(2));
+        ctx.WentLiveAt.Should().BeNull("uptime readers must still see an offline channel");
+    }
+
+    [Fact]
+    public async Task StreamOffline_WithNoAnchorAfterANewGoLive_PublishesZeroNotTheOldStreamsLength()
+    {
+        Guid tenant = Guid.NewGuid();
+        FakeTimeProvider clock = new(new(2026, 6, 21, 20, 0, 0, TimeSpan.Zero));
+        (ChannelContext ctx, IChannelRegistry registry) = LiveContext(
+            tenant,
+            new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)
+        );
+        StreamStatusPollingService.ApplyStreamState(
+            ctx,
+            new() { IsLive = true },
+            Result.Failure<TwitchStream>("no data", TwitchErrorCodes.NotFound)
+        );
+        // The next go-live (rising edge) clears the old anchor, and the new stream then ends with no anchor.
+        ctx.LastStreamStartedAt = null;
+        CapturingEventBus bus = new();
+        StreamOfflineTranslator translator = new(bus, clock, registry);
+
+        await translator.TranslateAsync(Notification(tenant, "stream.offline", OfflinePayload));
+
+        bus.EventsOf<ChannelOfflineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.StreamDuration.Should()
+            .Be(TimeSpan.Zero);
     }
 
     [Fact]

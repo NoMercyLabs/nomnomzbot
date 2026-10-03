@@ -129,6 +129,7 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
         channelCtx.IsLive = true;
         channelCtx.CurrentStreamId = streamId;
         channelCtx.WentLiveAt = @event.StartedAt;
+        channelCtx.LastStreamStartedAt = null;
         channelCtx.CurrentTitle = title;
         channelCtx.CurrentGame = gameName;
         channelCtx.SessionChatters.Clear();

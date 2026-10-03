@@ -91,6 +91,7 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             channelCtx.IsLive = false;
             channelCtx.CurrentStreamId = null;
             channelCtx.WentLiveAt = null;
+            channelCtx.LastStreamStartedAt = null;
         }
 
         channel.IsLive = false;
