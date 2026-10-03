@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.editor.EditorHistory
 import bot.nomnomz.dashboard.core.editor.EditorOutcome
 import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
+import bot.nomnomz.dashboard.core.editor.EditorTestTrigger
 import bot.nomnomz.dashboard.core.editor.EditorTestRunResult
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -30,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
+import bot.nomnomz.dashboard.core.network.TestTrigger
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import kotlin.test.Test
@@ -112,6 +114,37 @@ class CodeScriptsControllerTestRunTest {
     }
 
     @Test
+    fun the_editor_offers_the_server_trigger_samples_and_the_run_sends_the_chosen_trigger_and_role() = runTest {
+        val api =
+            FakeCodeScriptsApi(ApiResult.Ok(TestRunResult(success = true, durationMs = 1, hostCallCount = 0)))
+        api.triggers =
+            listOf(
+                TestTrigger(
+                    id = "FollowEvent",
+                    responseKey = "chat.follow",
+                    userDisplayName = "Sample Follower",
+                    variables = mapOf("user" to "Sample Follower"),
+                )
+            )
+        val editor = TestRunPressingEditor()
+        editor.pressTrigger = "FollowEvent"
+        editor.pressRole = "vip"
+        val controller = CodeScriptsController(api, editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        assertEquals(
+            listOf(EditorTestTrigger("FollowEvent", "chat.follow", mapOf("user" to "Sample Follower"))),
+            editor.triggers,
+        )
+        assertEquals(
+            ScriptTestRunBody(emptyMap(), emptyList(), trigger = "FollowEvent", role = "vip"),
+            api.lastTestRunBody,
+        )
+    }
+
+    @Test
     fun test_run_failure_surfaces_the_error_and_no_result() = runTest {
         val api =
             FakeCodeScriptsApi(
@@ -145,6 +178,10 @@ class CodeScriptsControllerTestRunTest {
         override suspend fun get(id: String): ApiResult<CodeScriptDetail> = ApiResult.Ok(detail)
 
         override suspend fun getProject(id: String): ApiResult<ProjectDto> = ApiResult.Ok(project)
+
+        var triggers: List<TestTrigger> = emptyList()
+
+        override suspend fun testTriggers(): ApiResult<List<TestTrigger>> = ApiResult.Ok(triggers)
 
         override suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult> {
             lastTestRunBody = body
@@ -189,6 +226,9 @@ class CodeScriptsControllerTestRunTest {
     // Presses the editor's Test run once while the editor is open, keeping what the panel would show.
     private class TestRunPressingEditor : ProjectEditorIO {
         var outcome: EditorOutcome<EditorTestRunResult>? = null
+        var triggers: List<EditorTestTrigger> = emptyList()
+        var pressTrigger: String? = null
+        var pressRole: String? = null
 
         override suspend fun editAndCompile(
             title: String,
@@ -201,7 +241,8 @@ class CodeScriptsControllerTestRunTest {
             testRun: EditorTestRun?,
             compile: suspend (Map<String, String>) -> CompileFeedback,
         ) {
-            outcome = testRun?.run?.invoke(emptyMap(), emptyList())
+            triggers = testRun?.triggers.orEmpty()
+            outcome = testRun?.run?.invoke(emptyMap(), emptyList(), pressTrigger, pressRole)
         }
     }
 

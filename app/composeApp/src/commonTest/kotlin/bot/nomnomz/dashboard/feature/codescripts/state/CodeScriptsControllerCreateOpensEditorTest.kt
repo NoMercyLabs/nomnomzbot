@@ -27,6 +27,7 @@ import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
+import bot.nomnomz.dashboard.core.network.TestTrigger
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
 import kotlin.test.Test
@@ -114,6 +115,8 @@ class CodeScriptsControllerCreateOpensEditorTest {
             getProjectCallIds += id
             return ApiResult.Ok(project)
         }
+
+        override suspend fun testTriggers(): ApiResult<List<TestTrigger>> = ApiResult.Ok(emptyList())
 
         override suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult> =
             error("not exercised in this test")

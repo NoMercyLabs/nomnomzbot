@@ -157,7 +157,7 @@ class EditorBridgeSessionTest {
     @Test
     fun testRunPostsTheVariablesTheScriptSetAndItsConsoleLines() = runTest {
         val testRun =
-            EditorTestRun { _, _ ->
+            EditorTestRun { _, _, _, _ ->
                 EditorOutcome.Ok(
                     EditorTestRunResult(
                         success = true,
@@ -184,7 +184,7 @@ class EditorBridgeSessionTest {
     fun testRunPassesVariablesAndArgsAndPostsCapturedEffects() = runTest {
         val received: MutableList<Pair<Map<String, String>, List<String>>> = mutableListOf()
         val testRun =
-            EditorTestRun { variables, args ->
+            EditorTestRun { variables, args, _, _ ->
                 received += variables to args
                 EditorOutcome.Ok(
                     EditorTestRunResult(
@@ -209,5 +209,75 @@ class EditorBridgeSessionTest {
         assertTrue(reply["ok"]!!.jsonPrimitive.boolean)
         assertEquals("hi Stoney_Eagle", reply["chatOutput"]!!.jsonArray.single().jsonPrimitive.content)
         assertEquals("chat.send", reply["effects"]!!.jsonArray.single().jsonObject["name"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun testRunPassesTheChosenTriggerAndRoleToTheCaller() = runTest {
+        val received: MutableList<Pair<String?, String?>> = mutableListOf()
+        val testRun =
+            EditorTestRun { _, _, trigger, role ->
+                received += trigger to role
+                EditorOutcome.Ok(
+                    EditorTestRunResult(
+                        success = true,
+                        durationMs = 1,
+                        hostCallCount = 0,
+                        error = null,
+                        chatOutput = emptyList(),
+                        effects = emptyList(),
+                    )
+                )
+            }
+        val harness = Harness(testRun = testRun)
+
+        harness.session.handle(
+            EditorBridgeProtocol.decode(
+                """{"type":"nnz:editor:testRun","variables":{},"args":[],"trigger":"x","role":"vip"}"""
+            )!!
+        )
+        harness.session.handle(
+            EditorBridgeProtocol.decode("""{"type":"nnz:editor:testRun","variables":{},"args":[]}""")!!
+        )
+
+        assertEquals(listOf<Pair<String?, String?>>("x" to "vip", null to null), received)
+    }
+
+    @Test
+    fun theOpenPayloadCarriesTheTriggerListAndTheLabels() = runTest {
+        val testRun =
+            EditorTestRun(
+                triggers =
+                    listOf(
+                        EditorTestTrigger(
+                            id = "FollowEvent",
+                            label = "chat.follow",
+                            variables = mapOf("user" to "Sample Follower"),
+                        )
+                    ),
+                labels =
+                    EditorTestRunLabels(
+                        manual = "Manual",
+                        trigger = "Trigger",
+                        role = "Viewer role",
+                        roles = mapOf("moderator" to "Moderator", "viewer" to "Viewer"),
+                    ),
+            ) { _, _, _, _ ->
+                EditorOutcome.Failed("unused")
+            }
+        val harness = Harness(testRun = testRun)
+
+        harness.session.handle(EditorInboundMessage(EditorBridgeProtocol.READY))
+
+        val payload: JsonObject = parse(harness.posted.single())["payload"]!!.jsonObject
+        assertTrue(payload["testRunEnabled"]!!.jsonPrimitive.boolean)
+        val trigger: JsonObject = payload["testTriggers"]!!.jsonArray.single().jsonObject
+        assertEquals("FollowEvent", trigger["id"]!!.jsonPrimitive.content)
+        assertEquals("chat.follow", trigger["label"]!!.jsonPrimitive.content)
+        assertEquals("Sample Follower", trigger["variables"]!!.jsonObject["user"]!!.jsonPrimitive.content)
+        val labels: JsonObject = payload["labels"]!!.jsonObject
+        assertEquals("Manual", labels["manual"]!!.jsonPrimitive.content)
+        assertEquals("Trigger", labels["trigger"]!!.jsonPrimitive.content)
+        assertEquals("Viewer role", labels["role"]!!.jsonPrimitive.content)
+        assertEquals("Moderator", labels["roles"]!!.jsonObject["moderator"]!!.jsonPrimitive.content)
     }
 }

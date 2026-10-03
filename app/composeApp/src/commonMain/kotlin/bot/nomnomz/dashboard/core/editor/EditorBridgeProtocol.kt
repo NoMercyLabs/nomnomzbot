@@ -58,6 +58,8 @@ object EditorBridgeProtocol {
                 if (message.type == HISTORY_ROLLBACK || message.type == HISTORY_DELETE) message.versionId else "",
             variables = if (message.type == TEST_RUN) message.variables else emptyMap(),
             args = if (message.type == TEST_RUN) message.args else emptyList(),
+            trigger = if (message.type == TEST_RUN) message.trigger else null,
+            role = if (message.type == TEST_RUN) message.role else null,
         )
     }
 
@@ -69,7 +71,7 @@ object EditorBridgeProtocol {
         sdkTypes: String,
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
-        testRunEnabled: Boolean,
+        testRun: EditorTestRun?,
     ): String =
         encode(
             buildJsonObject {
@@ -104,11 +106,30 @@ object EditorBridgeProtocol {
                         if (history != null) {
                             put("history", historyPageJson(history.initialVersions, history.initialHasMore))
                         }
-                        put("testRunEnabled", testRunEnabled)
+                        put("testRunEnabled", testRun != null)
+                        if (testRun != null) {
+                            put("testTriggers", JsonArray(testRun.triggers.map { trigger -> triggerJson(trigger) }))
+                            put("labels", labelsJson(testRun.labels))
+                        }
                     },
                 )
             }
         )
+
+    private fun triggerJson(trigger: EditorTestTrigger): JsonObject =
+        buildJsonObject {
+            put("id", trigger.id)
+            put("label", trigger.label)
+            put("variables", JsonObject(trigger.variables.mapValues { entry -> JsonPrimitive(entry.value) }))
+        }
+
+    private fun labelsJson(labels: EditorTestRunLabels): JsonObject =
+        buildJsonObject {
+            put("manual", labels.manual)
+            put("trigger", labels.trigger)
+            put("role", labels.role)
+            put("roles", JsonObject(labels.roles.mapValues { entry -> JsonPrimitive(entry.value) }))
+        }
 
     fun compiled(feedback: CompileFeedback): String =
         encode(
@@ -206,4 +227,6 @@ data class EditorInboundMessage(
     val versionId: String = "",
     val variables: Map<String, String> = emptyMap(),
     val args: List<String> = emptyList(),
+    val trigger: String? = null,
+    val role: String? = null,
 )

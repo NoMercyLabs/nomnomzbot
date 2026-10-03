@@ -97,6 +97,10 @@ const dom = {
     runNote: document.getElementById('runNote'),
     runSandboxHint: document.getElementById('runSandboxHint'),
     testRun: document.getElementById('testRun'),
+    testRunTrigger: document.getElementById('testRunTrigger'),
+    testRunTriggerLabel: document.getElementById('testRunTriggerLabel'),
+    testRunRole: document.getElementById('testRunRole'),
+    testRunRoleLabel: document.getElementById('testRunRoleLabel'),
     testRunVars: document.getElementById('testRunVars'),
     testRunArgs: document.getElementById('testRunArgs'),
     testRunButton: document.getElementById('testRunButton'),
@@ -1062,9 +1066,10 @@ function showHistoryError(message) {
 
 // Shows/hides the Test run panel folded into Run & test. Hidden for anything without an [EditorTestRun] wired
 // (widgets, which use the Run view's live iframe preview + fire bar instead — mutually exclusive with this).
-function initTestRun(enabled) {
+function initTestRun(enabled, triggers, labels) {
     dom.testRun.hidden = !enabled;
     if (enabled) {
+        fillTestRunPickers(triggers, labels);
         // The widget-only sandbox preview controls have nothing to drive for a code script (no DOM to render).
         dom.runTest.hidden = true;
         dom.runSandboxHint.hidden = true;
@@ -1085,6 +1090,37 @@ function parseTestRunVariables(text) {
     return variables;
 }
 
+// Trigger select: "Manual" (no trigger) then one option per server sample, labelled by the sample's label; role
+// select: the role tokens the host named, default viewer. The words come from the host in `labels` - none live here.
+// Picking a trigger fills the variables box with that sample's variables; the author's edits afterwards still win.
+function fillTestRunPickers(triggers, labels) {
+    const samples = new Map(triggers.map((trigger) => [trigger.id, trigger]));
+    dom.testRunTriggerLabel.textContent = labels.trigger ?? '';
+    dom.testRunRoleLabel.textContent = labels.role ?? '';
+
+    dom.testRunTrigger.replaceChildren(
+        new Option(labels.manual ?? '', ''),
+        ...triggers.map((trigger) => new Option(trigger.label, trigger.id)),
+    );
+    dom.testRunTrigger.onchange = () => {
+        const sample = samples.get(dom.testRunTrigger.value);
+        dom.testRunVars.value = sample
+            ? Object.entries(sample.variables)
+                  .map(([key, value]) => `${key}=${value}`)
+                  .join('\n')
+            : '';
+    };
+    // Nothing to pick between when the host sent no samples; the run stays "Manual".
+    dom.testRunTrigger.hidden = triggers.length === 0;
+    dom.testRunTriggerLabel.hidden = triggers.length === 0;
+
+    const roles = Object.entries(labels.roles ?? {});
+    dom.testRunRole.replaceChildren(...roles.map(([token, text]) => new Option(text, token)));
+    dom.testRunRole.value = 'viewer';
+    dom.testRunRole.hidden = roles.length === 0;
+    dom.testRunRoleLabel.hidden = roles.length === 0;
+}
+
 function parseTestRunArgs(text) {
     return text.trim().length === 0 ? [] : text.trim().split(/\s+/);
 }
@@ -1098,6 +1134,8 @@ function requestTestRun() {
         type: HOST_MESSAGE.testRun,
         variables: parseTestRunVariables(dom.testRunVars.value),
         args: parseTestRunArgs(dom.testRunArgs.value),
+        trigger: dom.testRunTrigger.value || null,
+        role: dom.testRunRole.value || null,
     });
 }
 
@@ -1207,7 +1245,7 @@ async function open(payload) {
             : 'Renders the current editor contents. Fire an event below to drive it.';
 
     initHistory(payload.history ?? null);
-    initTestRun(Boolean(payload.testRunEnabled));
+    initTestRun(Boolean(payload.testRunEnabled), payload.testTriggers ?? [], payload.labels ?? {});
 
     dom.boot.hidden = true;
     dom.shell.hidden = false;

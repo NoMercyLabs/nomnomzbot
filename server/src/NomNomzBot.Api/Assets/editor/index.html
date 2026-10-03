@@ -97,6 +97,11 @@
                          Effects are captured, never performed; the live channel is never touched. Hidden unless
                          the host opened this editor with a test-run capability (code scripts, not widgets). -->
                     <div class="test-run" id="testRun" hidden>
+                        <!-- Trigger + role pickers: their words arrive from the host in the open payload (`labels`). -->
+                        <label class="field-label" for="testRunTrigger" id="testRunTriggerLabel"></label>
+                        <select class="field" id="testRunTrigger"></select>
+                        <label class="field-label" for="testRunRole" id="testRunRoleLabel"></label>
+                        <select class="field" id="testRunRole"></select>
                         <label class="field-label" for="testRunVars">Variables (one key=value per line)</label>
                         <textarea class="field field-mono" id="testRunVars" rows="4"></textarea>
                         <label class="field-label" for="testRunArgs">Arguments (space-separated)</label>

@@ -1927,6 +1927,17 @@
     <string name="scripts_editor_source_label">Broncode</string>
     <string name="scripts_editor_edit_code">Bewerken en compileren</string>
     <string name="scripts_editor_compiled">Gecompileerd en gepubliceerd</string>
+    <string name="scripts_test_manual">Handmatig</string>
+    <string name="scripts_test_trigger_label">Trigger</string>
+    <string name="scripts_test_role_label">Uitvoeren als</string>
+    <string name="scripts_test_role_broadcaster">Streamer</string>
+    <string name="scripts_test_role_editor">Editor</string>
+    <string name="scripts_test_role_lead_moderator">Hoofdmoderator</string>
+    <string name="scripts_test_role_moderator">Moderator</string>
+    <string name="scripts_test_role_artist">Artiest</string>
+    <string name="scripts_test_role_vip">VIP</string>
+    <string name="scripts_test_role_subscriber">Abonnee</string>
+    <string name="scripts_test_role_viewer">Kijker</string>
     <string name="code_editor_window_title">Code-editor: %1$s</string>
     <string name="code_editor_unavailable_title">Bewerken heeft de systeemwebweergave nodig</string>
     <string name="code_editor_unavailable_bot_title">De code-editor kon niet laden</string>
