@@ -110,6 +110,24 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Done-when: only the listed unit names are accepted (own-key check), every other name gives NaN as the
   documented contract says; a Jint test failed first. Check the other bootstrap lookups by name for the same
   pattern and report N of M.
+- **S-ALERTS-WHEN-OFF** Found by the docs fact-check 2026-10-04. Queued alerts go to the alerts system widget
+  whenever a page of it is attached (`AlertQueueService.cs:91-105`); that path checks neither "turned on" nor
+  the event list, unlike the general routing (`WidgetAlertRouting.cs:23-24`). An alerts page left open keeps
+  playing alerts after the streamer turns the widget off. Done-when: a turned-off alerts widget gets no alert
+  and the entry is handled the same way as "no page attached"; a test failed first. Check every other direct
+  `SendWidgetEventAsync` caller for the same skipped check and report N of M.
+- **S-CHANNEL-TOKEN-ROTATE-TRUTH** Found by the docs writer 2026-10-04. The page-level "Rotate token" button on
+  the widgets screen (`WidgetsScreen.kt:580`) rotates the channel-wide overlay token (`ChannelService.cs:712`),
+  but widget addresses carry each widget's own token (`WidgetService.cs:1623`); its dialog says every
+  browser-source URL stops working (`strings.xml:1725`), which is false. Done-when: find every consumer of the
+  channel-wide token (N of M); if none is left, the button and endpoint go; if some are left, the dialog names
+  exactly what stops working. Truthful text, a test that failed first.
+- **S-ROTATED-TOKEN-OPEN-PAGE** Found by the docs writer 2026-10-04. The overlay hub checks a widget token only
+  when a page connects (`OverlayHub.cs:67-77`), so after a rotate (and after the 15-minute grace,
+  `WidgetService.cs:1118`) a page that is already open with the old address keeps receiving events until it
+  reloads. A rotate after a leak does not cut the leaked page off, and the result dialog (`strings.xml:1734`)
+  says the overlay goes blank. Done-when: when the old token's grace ends (or at once on a second rotate),
+  connections that joined with it are dropped; the dialog text matches; a test failed first.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
