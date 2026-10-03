@@ -39,6 +39,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class CodeScriptsController(
     ICodeScriptService scripts,
     IScriptTestRunService testRuns,
+    ITriggerSampleCatalog triggerSamples,
     IFeatureService featureService,
     ICurrentTenantService tenant
 ) : BaseController
@@ -191,6 +192,30 @@ public class CodeScriptsController(
         return gate.IsFailure
             ? ResultResponse(gate)
             : ResultResponse(await testRuns.RunAsync(id, request, ct));
+    }
+
+    /// <summary>The trigger samples a test run can fire (<c>trigger</c> on the test-run body), sorted by response key.</summary>
+    [HttpGet("test-triggers")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TestTriggerDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListTestTriggers(CancellationToken ct)
+    {
+        Result gate = await FeatureGateAsync(ct);
+        if (gate.IsFailure)
+            return ResultResponse(gate);
+        IReadOnlyList<TestTriggerDto> triggers =
+        [
+            .. triggerSamples
+                .List()
+                .Select(sample => new TestTriggerDto(
+                    sample.Id,
+                    sample.ResponseKey,
+                    sample.UserDisplayName,
+                    sample.Variables
+                )),
+        ];
+        return ResultResponse(Result.Success(triggers));
     }
 
     /// <summary>Enable or disable a code script.</summary>

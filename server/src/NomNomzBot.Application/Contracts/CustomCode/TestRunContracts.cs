@@ -14,11 +14,23 @@ namespace NomNomzBot.Application.Contracts.CustomCode;
 
 /// <summary>
 /// The inputs to a script dry-run (test-run): the seed variables and positional args the author supplies to
-/// exercise the script's current version without causing real side effects.
+/// exercise the script's current version without causing real side effects. <see cref="Trigger"/> (a
+/// <see cref="TriggerSample.Id"/>) seeds the triggering user and the variables a live event sets; the request's own
+/// <see cref="Variables"/> win over the sample's. <see cref="Role"/> is the viewer role written to <c>user.role</c>.
 /// </summary>
 public sealed record ScriptTestRunRequest(
     IReadOnlyDictionary<string, string> Variables,
-    IReadOnlyList<string> Args
+    IReadOnlyList<string> Args,
+    string? Trigger = null,
+    string? Role = null
+);
+
+/// <summary>One trigger sample the editor offers for a test run (<c>GET code-scripts/test-triggers</c>).</summary>
+public sealed record TestTriggerDto(
+    string Id,
+    string ResponseKey,
+    string? UserDisplayName,
+    IReadOnlyDictionary<string, string> Variables
 );
 
 /// <summary>

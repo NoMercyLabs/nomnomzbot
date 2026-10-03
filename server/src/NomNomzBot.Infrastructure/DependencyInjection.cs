@@ -422,10 +422,7 @@ public static class DependencyInjection
         services.AddScoped<Widgets.Bundling.IProcessRunner, Widgets.Bundling.ProcessRunner>();
         // The script build boundary: TypeScript + relative imports -> one plain-JavaScript program for Jint. Shares the
         // esbuild binary and process runner with the widget build. Not an I<X>Service, so register explicitly.
-        services.AddScoped<
-            Application.Contracts.CustomCode.IScriptBundler,
-            CustomCode.EsbuildScriptBundler
-        >();
+        services.AddScoped<IScriptBundler, CustomCode.EsbuildScriptBundler>();
         // The curated multi-file dependency allowlist (dev-platform.md §4.2) — deny-by-default, no npm. A singleton:
         // it is a stateless, immutable policy. Not an I<X>Service, so register explicitly.
         services.AddSingleton<
@@ -726,30 +723,15 @@ public static class DependencyInjection
         >();
 
         // The sandbox script executor — Jint on self-host (Wasmtime SaaS adapter is a separate profile binding).
-        services.AddScoped<
-            Application.Contracts.CustomCode.IScriptExecutor,
-            CustomCode.Jint.JintScriptExecutor
-        >();
+        services.AddScoped<IScriptExecutor, CustomCode.Jint.JintScriptExecutor>();
         // The script run orchestrator + capability broker (non-"*Service", so registered explicitly).
-        services.AddScoped<
-            Application.Contracts.CustomCode.IScriptRunner,
-            CustomCode.ScriptRunner
-        >();
+        services.AddScoped<IScriptRunner, CustomCode.ScriptRunner>();
         // The single construction site for the per-execution host bridge (shared by the live runner + test-run;
         // non-"*Service", so registered explicitly). IScriptTestRunService / IPipelineTestRunService follow the
         // I<X>Service convention and are bound by AddServicesByConvention above.
-        services.AddScoped<
-            Application.Contracts.CustomCode.IScriptHostBridgeFactory,
-            CustomCode.ScriptHostBridgeFactory
-        >();
-        services.AddScoped<
-            Application.Contracts.CustomCode.IScriptCapabilityBroker,
-            CustomCode.ScriptCapabilityBroker
-        >();
-        services.AddScoped<
-            Application.Contracts.CustomCode.IScriptExecutionMeter,
-            CustomCode.ScriptExecutionMeter
-        >();
+        services.AddScoped<IScriptHostBridgeFactory, CustomCode.ScriptHostBridgeFactory>();
+        services.AddScoped<IScriptCapabilityBroker, CustomCode.ScriptCapabilityBroker>();
+        services.AddScoped<IScriptExecutionMeter, CustomCode.ScriptExecutionMeter>();
         services.AddScoped<Application.Contracts.Billing.IStripeGateway, Billing.StripeGateway>();
 
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
@@ -1026,6 +1008,7 @@ public static class DependencyInjection
         );
         // Every alert handler also offers a typed sample of its own event for a script test run.
         services.AddImplementationsOf<ITriggerSampleSource>(infrastructure, ServiceLifetime.Scoped);
+        services.AddScoped<ITriggerSampleCatalog, TriggerSampleCatalog>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();
         services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
