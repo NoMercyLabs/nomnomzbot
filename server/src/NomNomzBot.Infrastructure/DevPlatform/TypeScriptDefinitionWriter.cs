@@ -10,6 +10,7 @@
 
 using System.Reflection;
 using System.Text;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
 
@@ -25,16 +26,22 @@ internal sealed class TypeScriptDefinitionWriter
 {
     private readonly SdkContext _context;
     private readonly IReadOnlyList<string>? _triggerKeys;
+    private readonly IReadOnlyList<ICommandAction> _actions;
     private readonly Dictionary<Type, string> _interfaceNames = new();
     private readonly HashSet<string> _usedNames = new(StringComparer.Ordinal);
     private readonly List<Type> _objectTypes = [];
     private readonly Dictionary<Type, List<string>> _propertyLines = new();
     private readonly Queue<Type> _pending = new();
 
-    public TypeScriptDefinitionWriter(SdkContext context, IReadOnlyList<string>? triggerKeys = null)
+    public TypeScriptDefinitionWriter(
+        SdkContext context,
+        IReadOnlyList<string>? triggerKeys = null,
+        IReadOnlyList<ICommandAction>? actions = null
+    )
     {
         _context = context;
         _triggerKeys = triggerKeys;
+        _actions = actions ?? [];
     }
 
     public string Build(IReadOnlyList<EventDescriptor> events)
@@ -97,6 +104,9 @@ internal sealed class TypeScriptDefinitionWriter
             sb.AppendLine("}");
             sb.AppendLine();
         }
+
+        // Both contexts reach the same pipeline actions through invoke(), so both get the typed parameter map.
+        sb.AppendLine(ActionParamsTypeWriter.Write(_actions));
 
         sb.AppendLine(
             _context == SdkContext.Script

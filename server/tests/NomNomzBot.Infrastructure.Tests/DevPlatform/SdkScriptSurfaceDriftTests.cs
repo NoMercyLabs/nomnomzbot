@@ -259,7 +259,8 @@ public sealed partial class SdkScriptSurfaceDriftTests
         Dictionary<string, List<string>> blocks = TypeBlocks(dts);
         List<string> functions = [];
         Walk("nnz", string.Empty);
-        return functions;
+        // An overloaded method is one runtime function: count its signatures once.
+        return [.. functions.Distinct(StringComparer.Ordinal)];
 
         void Walk(string block, string prefix)
         {

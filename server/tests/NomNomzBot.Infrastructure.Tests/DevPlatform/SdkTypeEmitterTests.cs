@@ -381,7 +381,7 @@ public sealed class SdkTypeEmitterTests
         ts.Should().Contain("  readonly actions: NnzOverlayActions;");
         ts.Should()
             .Contain(
-                "  invoke(actionType: string, params?: Record<string, any>, variables?: Record<string, string | number>): Promise<NnzActionResult>;"
+                "  invoke<T extends NnzActionsWithOptionalParams>(actionType: T, params?: NnzActionParams[T], variables?: Record<string, string | number>): Promise<NnzActionResult>;"
             );
         ts.Should().Contain("  claim(key: string): Promise<boolean>;");
         ts.Should().Contain("  readonly settings: Record<string, any>;");

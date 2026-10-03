@@ -264,7 +264,13 @@ internal static class SdkRuntimeSurface
             "   *  the outcome, also when the bot refuses or the action fails; rejects only when the overlay is offline. */"
         );
         sb.AppendLine(
-            "  invoke(actionType: string, params?: Record<string, any>, variables?: Record<string, string | number>): Promise<NnzActionResult>;"
+            "  invoke<T extends keyof NnzActionParams>(actionType: T, params: NnzActionParams[T], variables?: Record<string, string | number>): Promise<NnzActionResult>;"
+        );
+        sb.AppendLine(
+            "  /** Same call for an action with no required field: params may be left out. */"
+        );
+        sb.AppendLine(
+            "  invoke<T extends NnzActionsWithOptionalParams>(actionType: T, params?: NnzActionParams[T], variables?: Record<string, string | number>): Promise<NnzActionResult>;"
         );
         sb.AppendLine(
             "  /** True only for the first open copy of this widget to claim the key (e.g. a redemption id), for ten"
@@ -656,7 +662,13 @@ internal static class SdkRuntimeSurface
             "  /** Runs one pipeline action by its type, for example 'tts_synthesize'. The type must be a string literal: the grant is per type. */"
         );
         sb.AppendLine(
-            "  invoke(actionType: string, params?: Record<string, unknown>, variables?: Record<string, string | number>): NnzApiActionResult;"
+            "  invoke<T extends keyof NnzActionParams>(actionType: T, params: NnzActionParams[T], variables?: Record<string, string | number>): NnzApiActionResult;"
+        );
+        sb.AppendLine(
+            "  /** Same call for an action with no required field: params may be left out. */"
+        );
+        sb.AppendLine(
+            "  invoke<T extends NnzActionsWithOptionalParams>(actionType: T, params?: NnzActionParams[T], variables?: Record<string, string | number>): NnzApiActionResult;"
         );
         sb.AppendLine("}");
         sb.AppendLine();
