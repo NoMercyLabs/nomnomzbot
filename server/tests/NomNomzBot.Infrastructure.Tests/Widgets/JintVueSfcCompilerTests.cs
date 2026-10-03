@@ -136,4 +136,31 @@ public sealed class JintVueSfcCompilerTests : IClassFixture<VueSfcCompilerFixtur
         second.IsSuccess.Should().BeTrue(second.ErrorMessage);
         compiler.WarmEngineCount.Should().Be(1);
     }
+
+    [Fact]
+    public async Task A_failed_engine_creation_returns_a_coded_failure_and_frees_the_pool_slot()
+    {
+        int created = 0;
+        using JintVueSfcCompiler compiler = new(
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    new Dictionary<string, string?> { ["Widgets:VueCompilerPoolSize"] = "1" }
+                )
+                .Build(),
+            NullLogger<JintVueSfcCompiler>.Instance,
+            () => ++created == 1 ? throw new InvalidOperationException("no memory") : new()
+        );
+
+        Result<VueSfcOutput> first = compiler.Compile(RepresentativeSfc, "A.vue");
+
+        first.IsFailure.Should().BeTrue();
+        first.ErrorCode.Should().Be(JintVueSfcCompiler.CompileFailedCode);
+        // With one slot, a leaked permit makes the next compile wait forever.
+        Task<Result<VueSfcOutput>> second = Task.Run(() =>
+            compiler.Compile(RepresentativeSfc, "B.vue")
+        );
+        Task finished = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(10)));
+        finished.Should().BeSameAs(second, "the pool slot must be free again");
+        created.Should().Be(2);
+    }
 }

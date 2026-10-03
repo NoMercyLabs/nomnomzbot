@@ -57,19 +57,29 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
     private readonly Prepared<Script> _preparedWrapper;
     private readonly SemaphoreSlim _gate;
     private readonly ConcurrentQueue<Engine> _pool = new();
-    private readonly int _maxEngines;
     private int _createdEngines;
     private bool _disposed;
 
+    private readonly Func<Engine> _createEngine;
+
     public JintVueSfcCompiler(IConfiguration configuration, ILogger<JintVueSfcCompiler> logger)
+        : this(configuration, logger, null) { }
+
+    /// <summary>Test seam: <paramref name="engineFactory"/> replaces warm-engine creation.</summary>
+    internal JintVueSfcCompiler(
+        IConfiguration configuration,
+        ILogger<JintVueSfcCompiler> logger,
+        Func<Engine>? engineFactory
+    )
     {
         _logger = logger;
+        _createEngine = engineFactory ?? CreateWarmEngine;
 
         int configured = int.TryParse(configuration["Widgets:VueCompilerPoolSize"], out int parsed)
             ? parsed
             : 2;
-        _maxEngines = Math.Clamp(configured, 1, 8);
-        _gate = new(_maxEngines, _maxEngines);
+        int maxEngines = Math.Clamp(configured, 1, 8);
+        _gate = new(maxEngines, maxEngines);
 
         string bundleJs = ReadEmbeddedResource(BundleResourceName);
         string wrapperJs = ReadEmbeddedResource(WrapperResourceName);
@@ -87,7 +97,20 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         string scopeId = ComputeScopeId(filename, source);
-        Engine engine = Rent();
+        Engine engine;
+        try
+        {
+            engine = Rent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Vue SFC engine creation failed for {Filename}", filename);
+            return Result.Failure<VueSfcOutput>(
+                $"The Vue SFC compiler could not start: {ex.Message}",
+                CompileFailedCode
+            );
+        }
+
         bool healthy = true;
         try
         {
@@ -141,7 +164,15 @@ public sealed class JintVueSfcCompiler : IVueSfcCompiler, IDisposable
     private Engine Rent()
     {
         _gate.Wait();
-        return _pool.TryDequeue(out Engine? engine) ? engine : CreateWarmEngine();
+        try
+        {
+            return _pool.TryDequeue(out Engine? engine) ? engine : _createEngine();
+        }
+        catch
+        {
+            _gate.Release();
+            throw;
+        }
     }
 
     private Engine CreateWarmEngine()
