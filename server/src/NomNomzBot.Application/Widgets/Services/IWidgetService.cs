@@ -69,12 +69,6 @@ public interface IWidgetService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Get a widget by its public access token (for overlay URLs).</summary>
-    Task<Result<WidgetDetail>> GetByTokenAsync(
-        string token,
-        CancellationToken cancellationToken = default
-    );
-
     /// <summary>
     /// The typed settings schema for a widget, so the dashboard renders a generic settings form (no source editing).
     /// Resolves the widget's first-party type from its gallery link (<c>GalleryItemId</c> → the item's natural key)

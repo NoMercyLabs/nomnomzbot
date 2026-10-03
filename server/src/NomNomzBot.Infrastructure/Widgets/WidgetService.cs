@@ -657,36 +657,6 @@ public class WidgetService : IWidgetService
         return Result.Success(await ToDetailAsync(widget, cancellationToken));
     }
 
-    public async Task<Result<WidgetDetail>> GetByTokenAsync(
-        string token,
-        CancellationToken cancellationToken = default
-    )
-    {
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(
-            c => c.OverlayToken == token,
-            cancellationToken
-        );
-
-        if (channel is null)
-            return Result.Failure<WidgetDetail>(
-                "No channel found for the provided token.",
-                "NOT_FOUND"
-            );
-
-        Widget? widget = await _db
-            .Widgets.Where(w => w.BroadcasterId == channel.Id && w.IsEnabled)
-            .OrderBy(w => w.Name)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (widget is null)
-            return Result.Failure<WidgetDetail>(
-                "No enabled widget found for the provided token.",
-                "NOT_FOUND"
-            );
-
-        return Result.Success(await ToDetailAsync(widget, cancellationToken));
-    }
-
     public async Task<Result<WidgetSettingsSchema>> GetSettingsSchemaAsync(
         string broadcasterId,
         string widgetId,
