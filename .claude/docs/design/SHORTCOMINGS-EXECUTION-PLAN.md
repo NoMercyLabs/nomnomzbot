@@ -97,6 +97,12 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   limits on Twitch. Done-when: a field left out of the patch keeps its current value on Twitch and in the local
   copy, and turning a limit off is an explicit value; every caller of the update (script bridge, dashboard,
   pipeline actions) is listed N of M and keeps working; a test failed first.
+- **S-VANILLA-SDK-ORDER** Found by the docs writer 2026-10-04. A vanilla widget page gets its config and
+  `/overlay/sdk.js` spliced in just before `</head>` (`OverlayHostController.cs:205-210`), though the method
+  says it runs "before the app runs". A widget script placed in `<head>` runs first and finds no `NomNomz`.
+  Done-when: the config and SDK go in right after the opening `<head>` tag (or before the first `<script>`),
+  so they run before every widget script; the body and no-head fallbacks keep that promise too; a test with a
+  head script failed first.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
