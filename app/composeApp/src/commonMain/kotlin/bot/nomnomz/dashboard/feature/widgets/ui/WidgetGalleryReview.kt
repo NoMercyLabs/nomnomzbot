@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.InlineError
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.i18n.resolveGalleryText
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -370,14 +371,18 @@ private fun ReviewRow(item: GalleryItemSummary, onOpen: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
                 Text(
-                    text = resolveRowLabel(item.name, typeLabel = "Widget", discriminatorSource = item.id),
+                    text =
+                        resolveGalleryText(
+                            item.nameKey,
+                            resolveRowLabel(item.name, typeLabel = "Widget", discriminatorSource = item.id),
+                        ),
                     style = typography.base,
                     color = tokens.cardForeground,
                 )
                 Badge(variant = BadgeVariant.Secondary) { Text(text = item.framework) }
             }
             item.description?.let {
-                Text(text = it, style = typography.sm, color = tokens.mutedForeground)
+                Text(text = resolveGalleryText(item.descriptionKey, it), style = typography.sm, color = tokens.mutedForeground)
             }
             TextButton(onClick = onOpen) { Text(text = stringResource(Res.string.widgets_review_verify)) }
         }
@@ -404,7 +409,11 @@ private fun ReviewDetailPanel(
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
-            text = resolveRowLabel(detail.name, typeLabel = "Widget", discriminatorSource = detail.id),
+            text =
+                resolveGalleryText(
+                    detail.nameKey,
+                    resolveRowLabel(detail.name, typeLabel = "Widget", discriminatorSource = detail.id),
+                ),
             style = typography.lg,
             color = tokens.cardForeground,
         )

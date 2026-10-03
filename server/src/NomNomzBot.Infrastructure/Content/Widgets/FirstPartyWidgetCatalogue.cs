@@ -23,7 +23,17 @@ public sealed record FirstPartyWidgetDefinition(
     string Description,
     Dictionary<string, object> DefaultSettings,
     List<string> DefaultEventSubscriptions
-);
+)
+{
+    /// <summary>
+    /// Translation key of the display name, derived from <see cref="Key"/> so the pair can never drift from the
+    /// entry. <see cref="Name"/> stays as the English fallback for a client that does not know the key.
+    /// </summary>
+    public string NameKey => $"widget.gallery.{Key}.name";
+
+    /// <summary>Translation key of the description (see <see cref="NameKey"/>).</summary>
+    public string DescriptionKey => $"widget.gallery.{Key}.description";
+}
 
 /// <summary>
 /// The 21 first-party overlay widgets shipped in-repo (widgets-overlays.md). Each declares its <c>key</c>, display
@@ -139,7 +149,7 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: "crash",
             Name: "Crash",
-            Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters "
+            Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type "
                 + "!crash to lock in their multiplier, and the bust/max reveal + payout board.",
             DefaultSettings: new() { ["accentColor"] = "#9146ff", ["hideAfterMs"] = 12000 },
             DefaultEventSubscriptions: ["game.lobby", "game.running", "game.resolved"]
@@ -337,7 +347,7 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: "recent_followers",
             Name: "Recent Followers",
-            Description: "A persistent standings panel of the most recent followers, newest on top — a always-on "
+            Description: "A persistent standings panel of the most recent followers, newest on top — an always-on "
                 + "list rather than a one-at-a-time alert, with a configurable count and title.",
             DefaultSettings: new()
             {

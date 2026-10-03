@@ -100436,7 +100436,7 @@
           },
           "framework": {
             "type": "string",
-            "description": "Source language of the widget: `vanilla` | `vue` | `react` | `svelte`."
+            "description": "Source language of the widget: `vanilla` | `vue` | `react`."
           },
           "description": {
             "type": [
@@ -103756,6 +103756,18 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "nameKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionKey": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A single gallery item in full: the summary fields plus everything the dashboard's install/clone UI needs\nto preview and pre-configure — the item's string? GalleryItemDetail.SourceCode (for the preview pane), its declared\nDictionary&lt;string, object&gt; GalleryItemDetail.DefaultSettings / List&lt;string&gt; GalleryItemDetail.DefaultEventSubscriptions (applied on install), its\nstring GalleryItemDetail.SourceKind provenance (`in_repo` | `github`) — and the review/pin fields the\nmoderation UI reads (GitHub provenance, string GalleryItemDetail.ReviewStatus, notes, timestamps)."
@@ -103802,6 +103814,18 @@
           },
           "availableInSaaS": {
             "type": "boolean"
+          },
+          "nameKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionKey": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A row in the public widget-gallery browse list (widgets-overlays.md §5c). The lightweight shape a channel scans\nwhen choosing what to install/clone — the heavy fields (source, default config) load only on the detail read.\nstring GalleryItemSummary.TrustTier is `first_party` | `verified_community` | `unverified`."
@@ -135239,7 +135263,7 @@
             "type": "boolean"
           }
         },
-        "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\n`Framework` is the source language (vue|react|svelte|vanilla); `Source` is the provenance\n(first_party|verified_gallery|custom). bool WidgetDetail.GalleryUpdateAvailable is true when\nGuid? WidgetDetail.GalleryItemId is set and the gallery item's source has moved on since this widget was installed\nor last updated from it — the streamer's clone is running stale code. Always false for a self-authored\n`custom` widget (no gallery link to compare against). bool WidgetDetail.IsAttached is true when a live\nbrowser source has this widget open right now (`IOverlayPresenceRegistry`) — the \"overlay last-seen\"\nsignal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.\nbool WidgetDetail.IsCustomized is true when the channel has saved its own code over a catalogue widget's source\n(a first-party system widget or a gallery install) — the dashboard marks it \"Edited\" and offers the reset to\nthe catalogue source; a catalogue update never overwrites it on its own. Always false for a `custom`\nwidget, which has no catalogue source to differ from."
+        "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\n`Framework` is the source language (vue|react|vanilla); `Source` is the provenance\n(first_party|verified_gallery|custom). bool WidgetDetail.GalleryUpdateAvailable is true when\nGuid? WidgetDetail.GalleryItemId is set and the gallery item's source has moved on since this widget was installed\nor last updated from it — the streamer's clone is running stale code. Always false for a self-authored\n`custom` widget (no gallery link to compare against). bool WidgetDetail.IsAttached is true when a live\nbrowser source has this widget open right now (`IOverlayPresenceRegistry`) — the \"overlay last-seen\"\nsignal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.\nbool WidgetDetail.IsCustomized is true when the channel has saved its own code over a catalogue widget's source\n(a first-party system widget or a gallery install) — the dashboard marks it \"Edited\" and offers the reset to\nthe catalogue source; a catalogue update never overwrites it on its own. Always false for a `custom`\nwidget, which has no catalogue source to differ from."
       },
       "WidgetSettingsField": {
         "required": [

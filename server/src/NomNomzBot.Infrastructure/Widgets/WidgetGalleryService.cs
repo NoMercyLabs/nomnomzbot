@@ -402,7 +402,9 @@ public partial class WidgetGalleryService(
             i.Framework,
             i.TrustTier,
             i.InstallCount,
-            i.AvailableInSaaS
+            i.AvailableInSaaS,
+            CatalogueEntry(i)?.NameKey,
+            CatalogueEntry(i)?.DescriptionKey
         );
 
     private static GalleryItemDetail ToDetail(WidgetGalleryItem i) =>
@@ -424,6 +426,15 @@ public partial class WidgetGalleryService(
             i.ReviewStatus,
             i.ReviewNotes,
             i.ReviewedAt,
-            i.CreatedAt
+            i.CreatedAt,
+            CatalogueEntry(i)?.NameKey,
+            CatalogueEntry(i)?.DescriptionKey
         );
+
+    // Only a first-party row whose natural key is a real catalogue entry has translation keys; a community
+    // submission can never claim one, however its natural key is spelled.
+    private static FirstPartyWidgetDefinition? CatalogueEntry(WidgetGalleryItem i) =>
+        i is { TrustTier: "first_party", NaturalKey: not null }
+            ? FirstPartyWidgetCatalogue.All.FirstOrDefault(w => w.Key == i.NaturalKey)
+            : null;
 }

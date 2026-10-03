@@ -263,6 +263,50 @@ public sealed class WidgetGalleryServiceTests
     }
 
     [Fact]
+    public async Task List_carries_translation_keys_for_a_catalogue_item_and_null_for_the_rest()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        await SeedItemAsync(database, "Goal_Bar"); // first_party + natural key "goal_bar" is in the catalogue
+        await SeedItemAsync(database, "Mystery"); // first_party but not a catalogue key
+        await SeedItemAsync(database, "Goal_Bar Remix", trustTier: "verified_community");
+        await SeedItemAsync(database, "Labels", trustTier: "verified_community"); // community item, catalogue-like key
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new(), FirstPage);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        Dictionary<string, GalleryItemSummary> byName = result.Value.Items.ToDictionary(i =>
+            i.Name
+        );
+        byName["Goal_Bar"].NameKey.Should().Be("widget.gallery.goal_bar.name");
+        byName["Goal_Bar"].DescriptionKey.Should().Be("widget.gallery.goal_bar.description");
+        byName["Goal_Bar"].Name.Should().Be("Goal_Bar"); // the sent name stays as the fallback
+        byName["Mystery"].NameKey.Should().BeNull();
+        byName["Mystery"].DescriptionKey.Should().BeNull();
+        byName["Goal_Bar Remix"].NameKey.Should().BeNull();
+        byName["Labels"].NameKey.Should().BeNull();
+        byName["Labels"].DescriptionKey.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Get_carries_translation_keys_for_a_catalogue_item_and_null_for_a_community_item()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid firstParty = await SeedItemAsync(database, "Goal_Bar");
+        Guid community = await SeedItemAsync(database, "Labels", trustTier: "verified_community");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        GalleryItemDetail first = (await NewService(db).GetAsync(firstParty.ToString())).Value;
+        GalleryItemDetail other = (await NewService(db).GetAsync(community.ToString())).Value;
+
+        first.NameKey.Should().Be("widget.gallery.goal_bar.name");
+        first.DescriptionKey.Should().Be("widget.gallery.goal_bar.description");
+        other.NameKey.Should().BeNull();
+        other.DescriptionKey.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Get_a_non_verified_item_is_not_found()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();

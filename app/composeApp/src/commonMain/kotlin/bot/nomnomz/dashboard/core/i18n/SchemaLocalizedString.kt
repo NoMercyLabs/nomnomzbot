@@ -48,3 +48,15 @@ fun verbatimSchemaText(text: LocalizedTextDto?): String? = text?.text
 
 /** The Compose Resources string name a backend dot-separated translation key maps to. */
 fun schemaResourceName(key: String): String = key.replace('.', '_')
+
+/** The Compose resource a gallery item's translation key names, or null when the key is absent or unknown. */
+@OptIn(ExperimentalResourceApi::class)
+fun galleryTextResource(key: String?): StringResource? =
+    if (key.isNullOrBlank()) null else Res.allStringResources[schemaResourceName(key)]
+
+/** Gallery item text in the viewer's locale when the backend sent a [key]; otherwise the [fallback] as sent. */
+@Composable
+fun resolveGalleryText(key: String?, fallback: String): String {
+    val resource: StringResource = galleryTextResource(key) ?: return fallback
+    return stringResource(resource)
+}

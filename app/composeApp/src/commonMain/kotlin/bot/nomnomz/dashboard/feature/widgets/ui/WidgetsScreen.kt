@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.i18n.resolveGalleryText
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -1793,7 +1794,12 @@ private fun GalleryItemCard(
     val typography = LocalTypography.current
 
     val itemDisplayName: String =
-        resolveRowLabel(item.name, typeLabel = "Widget", discriminatorSource = item.id)
+        resolveGalleryText(
+            item.nameKey,
+            resolveRowLabel(item.name, typeLabel = "Widget", discriminatorSource = item.id),
+        )
+    val itemDescription: String? =
+        item.description?.takeIf { it.isNotBlank() }?.let { resolveGalleryText(item.descriptionKey, it) }
     val installLabel: String = stringResource(Res.string.widgets_gallery_install_action, itemDisplayName)
     val cloneLabel: String = stringResource(Res.string.widgets_gallery_clone_action, itemDisplayName)
 
@@ -1809,7 +1815,7 @@ private fun GalleryItemCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            item.description?.takeIf { it.isNotBlank() }?.let { description ->
+            itemDescription?.let { description ->
                 Text(
                     text = description,
                     style = typography.sm,

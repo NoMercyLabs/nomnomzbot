@@ -22,7 +22,9 @@ public sealed record GalleryItemSummary(
     string Framework,
     string TrustTier,
     int InstallCount,
-    bool AvailableInSaaS
+    bool AvailableInSaaS,
+    string? NameKey = null,
+    string? DescriptionKey = null
 );
 
 /// <summary>
@@ -50,7 +52,9 @@ public sealed record GalleryItemDetail(
     string ReviewStatus,
     string? ReviewNotes,
     DateTime? ReviewedAt,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? NameKey = null,
+    string? DescriptionKey = null
 );
 
 /// <summary>

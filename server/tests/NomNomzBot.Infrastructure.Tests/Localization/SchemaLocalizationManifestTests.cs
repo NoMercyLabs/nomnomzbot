@@ -155,6 +155,13 @@ public sealed class SchemaLocalizationManifestTests
         foreach (LocalizedText text in BuiltinReplyLabels.All())
             keys.Add(text.Key);
 
+        // S-EDITOR-I18N: every first-party gallery entry's name/description key.
+        foreach (FirstPartyWidgetDefinition widget in FirstPartyWidgetCatalogue.All)
+        {
+            keys.Add(widget.NameKey);
+            keys.Add(widget.DescriptionKey);
+        }
+
         return [.. keys.Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal)];
     }
 
