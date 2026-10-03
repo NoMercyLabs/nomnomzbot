@@ -2,8 +2,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) comes from this widget's own SDK types. An event payload is read as a loose record: one
+// handler serves several event types, so each field is narrowed where it is read.
+type Payload = Record<string, unknown>
+
+function asPayload(data: unknown): Payload {
+  return data !== null && typeof data === 'object' ? (data as Payload) : {}
+}
 
 const ALL_EVENTS: string[] = [
   'follow', 'subscription', 'resub', 'gift', 'cheer', 'raid',
@@ -26,41 +32,41 @@ let raf = 0
 let last = 0
 
 // Supporter events carry the amount in minor units (SupporterAlertPayload.amountMinor, cents).
-function money(d: any): string {
+function money(d: Payload): string {
   const amount: number = (Number(d.amountMinor) || 0) / 100
-  return d.currency ? amount.toFixed(2) + ' ' + d.currency : amount.toFixed(2)
+  return d.currency ? amount.toFixed(2) + ' ' + String(d.currency) : amount.toFixed(2)
 }
 
 // The wire DTOs (AlertDtos.cs, camelCase) name their subject field differently per event type: FollowAlertDto/
 // SubscriptionAlertDto/ResubAlertDto/CheerAlertDto use `displayName`; GiftSubAlertDto uses `gifterDisplayName`
 // (no subscriber identity, only the gifter); RaidAlertDto uses `fromDisplayName`. The real supporter.* payload
 // (SupporterWidgetEventHandler: SupporterAlertPayload) uses `supporterDisplayName`.
-function nameOf(type: string, d: any): string {
-  if (type === 'gift') return d.gifterDisplayName || 'Someone'
-  if (type === 'raid') return d.fromDisplayName || 'Someone'
-  if (type.indexOf('supporter.') === 0) return d.supporterDisplayName || 'Someone'
-  return d.displayName || d.user || 'Someone'
+function nameOf(type: string, d: Payload): string {
+  if (type === 'gift') return String(d.gifterDisplayName || 'Someone')
+  if (type === 'raid') return String(d.fromDisplayName || 'Someone')
+  if (type.indexOf('supporter.') === 0) return String(d.supporterDisplayName || 'Someone')
+  return String(d.displayName || d.user || 'Someone')
 }
 
-function chipFor(type: string, data: any): Chip | null {
-  const d: any = data || {}
+function chipFor(type: string, data: unknown): Chip | null {
+  const d: Payload = asPayload(data)
   const user: string = nameOf(type, d)
   switch (type) {
     case 'follow': return { id: ++seq, icon: '★', text: user + ' followed' }
     case 'subscription': return { id: ++seq, icon: '✦', text: user + ' subscribed' }
-    case 'resub': return { id: ++seq, icon: '✦', text: user + ' resubbed ' + (d.months || 0) + 'mo' }
-    case 'gift': return { id: ++seq, icon: '✚', text: user + ' gifted ' + (d.count || 1) }
-    case 'cheer': return { id: ++seq, icon: '◆', text: user + ' cheered ' + (d.bits || 0) }
-    case 'raid': return { id: ++seq, icon: '⚑', text: user + ' raided ' + (d.viewerCount || 0) }
+    case 'resub': return { id: ++seq, icon: '✦', text: user + ' resubbed ' + String(d.months || 0) + 'mo' }
+    case 'gift': return { id: ++seq, icon: '✚', text: user + ' gifted ' + String(d.count || 1) }
+    case 'cheer': return { id: ++seq, icon: '◆', text: user + ' cheered ' + String(d.bits || 0) }
+    case 'raid': return { id: ++seq, icon: '⚑', text: user + ' raided ' + String(d.viewerCount || 0) }
     case 'supporter.tip': return { id: ++seq, icon: '♥', text: user + ' tipped ' + money(d) }
-    case 'supporter.membership': return { id: ++seq, icon: '♥', text: user + ' became a member' + (d.quantity ? ' (' + d.quantity + 'mo)' : '') }
-    case 'supporter.merch': return { id: ++seq, icon: '♥', text: user + ' bought merch' + (d.quantity ? ' x' + d.quantity : '') }
+    case 'supporter.membership': return { id: ++seq, icon: '♥', text: user + ' became a member' + (d.quantity ? ' (' + String(d.quantity) + 'mo)' : '') }
+    case 'supporter.merch': return { id: ++seq, icon: '♥', text: user + ' bought merch' + (d.quantity ? ' x' + String(d.quantity) : '') }
     case 'supporter.charity': return { id: ++seq, icon: '♥', text: user + ' donated ' + money(d) + ' to charity' }
     default: return null
   }
 }
 
-function handle(type: string, data: any): void {
+function handle(type: string, data: unknown): void {
   if (cfg.events.indexOf(type) === -1) return
   const chip: Chip | null = chipFor(type, data)
   if (!chip) return
@@ -86,12 +92,12 @@ function frame(t: number): void {
   raf = requestAnimationFrame(frame)
 }
 
-const handlers: Record<string, (d: any) => void> = {}
+const handlers: Record<string, (d: unknown) => void> = {}
 
 onMounted(() => {
   raf = requestAnimationFrame(frame)
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (Array.isArray(s.events)) cfg.events = s.events.slice()
     if (isFinite(Number(s.speed)) && Number(s.speed) > 0) cfg.speed = Number(s.speed)
@@ -99,16 +105,16 @@ onMounted(() => {
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   ALL_EVENTS.forEach((type: string) => {
-    const fn = (d: any) => handle(type, d)
+    const fn = (d: unknown): void => handle(type, d)
     handlers[type] = fn
-    nnz.on(type, fn)
+    NomNomz.on(type, fn)
   })
 })
 
 onUnmounted(() => {
   if (raf) cancelAnimationFrame(raf)
-  if (!nnz) return
-  Object.keys(handlers).forEach((type: string) => nnz.off(type, handlers[type]))
+  if (typeof NomNomz === 'undefined') return
+  Object.entries(handlers).forEach(([type, fn]) => NomNomz.off(type, fn))
 })
 </script>
 

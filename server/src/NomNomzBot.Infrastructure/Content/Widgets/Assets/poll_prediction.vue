@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Live poll / prediction bars. Binds the alert vocabulary the dashboard broadcasters use —
 // poll_begin/poll_progress/poll_end (PollBeganAlertDto: { pollId, title, choices: [{ id, title, votes,
@@ -17,6 +17,18 @@ interface PollPredConfig {
 }
 
 const cfg = reactive<PollPredConfig>({ position: 'left', colors: {}, accentColor: '#9146ff' })
+
+type PollFrame = NnzWidgetEventMap['poll_begin'] | NnzWidgetEventMap['poll_progress'] | NnzWidgetEventMap['poll_end']
+type PredictionFrame =
+  | NnzWidgetEventMap['prediction_begin']
+  | NnzWidgetEventMap['prediction_progress']
+  | NnzWidgetEventMap['prediction_lock']
+  | NnzWidgetEventMap['prediction_end']
+
+// The colors setting is free-form JSON (typed unknown); this narrows it to its object shape.
+function isObject<T extends object>(v: unknown): v is T {
+  return !!v && typeof v === 'object'
+}
 
 interface Bar { id: string; label: string; value: number; won: boolean }
 
@@ -42,9 +54,9 @@ function show(kind: string, name: string, next: Bar[]): void {
   ended.value = false
 }
 
-function pollBars(d: any, winningId: string): Bar[] {
-  const choices: any[] = (d && Array.isArray(d.choices)) ? d.choices : []
-  return choices.map((c: any) => ({
+function pollBars(d: PollFrame, winningId: string): Bar[] {
+  const choices: PollFrame['choices'] = (d && Array.isArray(d.choices)) ? d.choices : []
+  return choices.map((c: PollFrame['choices'][number]) => ({
     id: (c && c.id) || '',
     label: (c && c.title) || '',
     value: (Number(c && c.votes) || 0) + (Number(c && c.channelPointsVotes) || 0),
@@ -52,9 +64,9 @@ function pollBars(d: any, winningId: string): Bar[] {
   }))
 }
 
-function predictionBars(d: any, winningId: string): Bar[] {
-  const outcomes: any[] = (d && Array.isArray(d.outcomes)) ? d.outcomes : []
-  return outcomes.map((o: any) => ({
+function predictionBars(d: PredictionFrame, winningId: string): Bar[] {
+  const outcomes: PredictionFrame['outcomes'] = (d && Array.isArray(d.outcomes)) ? d.outcomes : []
+  return outcomes.map((o: PredictionFrame['outcomes'][number]) => ({
     id: (o && o.id) || '',
     label: (o && o.title) || '',
     value: Number(o && o.channelPoints) || 0,
@@ -67,50 +79,50 @@ function scheduleHide(): void {
   hideTimer = window.setTimeout(() => { mode.value = '' }, 8000)
 }
 
-function onPollBegin(d: any): void { show('poll', (d && d.title) || 'Poll', pollBars(d, '')) }
-function onPollProgress(d: any): void { show('poll', (d && d.title) || title.value, pollBars(d, '')) }
-function onPollEnd(d: any): void {
+function onPollBegin(d: NnzWidgetEventMap['poll_begin']): void { show('poll', (d && d.title) || 'Poll', pollBars(d, '')) }
+function onPollProgress(d: NnzWidgetEventMap['poll_progress']): void { show('poll', (d && d.title) || title.value, pollBars(d, '')) }
+function onPollEnd(d: NnzWidgetEventMap['poll_end']): void {
   show('poll', (d && d.title) || title.value, pollBars(d, (d && d.winningChoiceId) || ''))
   scheduleHide()
 }
-function onPredBegin(d: any): void { show('prediction', (d && d.title) || 'Prediction', predictionBars(d, '')) }
-function onPredProgress(d: any): void { show('prediction', (d && d.title) || title.value, predictionBars(d, '')) }
-function onPredLock(d: any): void {
+function onPredBegin(d: NnzWidgetEventMap['prediction_begin']): void { show('prediction', (d && d.title) || 'Prediction', predictionBars(d, '')) }
+function onPredProgress(d: NnzWidgetEventMap['prediction_progress']): void { show('prediction', (d && d.title) || title.value, predictionBars(d, '')) }
+function onPredLock(d: NnzWidgetEventMap['prediction_lock']): void {
   show('prediction', (d && d.title) || title.value, predictionBars(d, ''))
   locked.value = true
 }
-function onPredEnd(d: any): void {
+function onPredEnd(d: NnzWidgetEventMap['prediction_end']): void {
   show('prediction', (d && d.title) || title.value, predictionBars(d, (d && d.winningOutcomeId) || ''))
   scheduleHide()
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.position === 'string' && s.position) cfg.position = s.position
-    if (s.colors && typeof s.colors === 'object') cfg.colors = s.colors
+    if (isObject<PollPredConfig['colors']>(s.colors)) cfg.colors = s.colors
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('poll_begin', onPollBegin)
-  nnz.on('poll_progress', onPollProgress)
-  nnz.on('poll_end', onPollEnd)
-  nnz.on('prediction_begin', onPredBegin)
-  nnz.on('prediction_progress', onPredProgress)
-  nnz.on('prediction_lock', onPredLock)
-  nnz.on('prediction_end', onPredEnd)
+  NomNomz.on('poll_begin', onPollBegin)
+  NomNomz.on('poll_progress', onPollProgress)
+  NomNomz.on('poll_end', onPollEnd)
+  NomNomz.on('prediction_begin', onPredBegin)
+  NomNomz.on('prediction_progress', onPredProgress)
+  NomNomz.on('prediction_lock', onPredLock)
+  NomNomz.on('prediction_end', onPredEnd)
 })
 
 onUnmounted(() => {
   if (hideTimer) window.clearTimeout(hideTimer)
-  if (!nnz) return
-  nnz.off('poll_begin', onPollBegin)
-  nnz.off('poll_progress', onPollProgress)
-  nnz.off('poll_end', onPollEnd)
-  nnz.off('prediction_begin', onPredBegin)
-  nnz.off('prediction_progress', onPredProgress)
-  nnz.off('prediction_lock', onPredLock)
-  nnz.off('prediction_end', onPredEnd)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('poll_begin', onPollBegin)
+  NomNomz.off('poll_progress', onPollProgress)
+  NomNomz.off('poll_end', onPollEnd)
+  NomNomz.off('prediction_begin', onPredBegin)
+  NomNomz.off('prediction_progress', onPredProgress)
+  NomNomz.off('prediction_lock', onPredLock)
+  NomNomz.off('prediction_end', onPredEnd)
 })
 </script>
 

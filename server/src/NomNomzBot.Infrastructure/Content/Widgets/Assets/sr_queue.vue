@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Upcoming song-request queue. Driven by the "sr_queue" widget event — a full queue snapshot
 // { items: [{ title, requestedBy, durationSec }] } (pushable today via the widget_event pipeline
@@ -33,10 +33,12 @@ function fmtDuration(sec: number): string {
   return m + ':' + (r < 10 ? '0' : '') + r
 }
 
-function onQueue(d: any): void {
-  const raw: any[] = (d && Array.isArray(d.items)) ? d.items : []
+type SrQueueItem = NnzWidgetEventMap['sr_queue']['items'][number]
+
+function onQueue(d: NnzWidgetEventMap['sr_queue'] | null | undefined): void {
+  const raw: SrQueueItem[] = (d && Array.isArray(d.items)) ? d.items : []
   items.value = raw
-    .map((it: any) => ({
+    .map((it: SrQueueItem | null | undefined) => ({
       title: (it && it.title) || '',
       requestedBy: (it && it.requestedBy) || '',
       durationSec: Number(it && it.durationSec) || 0,
@@ -46,20 +48,20 @@ function onQueue(d: any): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
     if (typeof s.showRequester === 'boolean') cfg.showRequester = s.showRequester
     if (typeof s.showDuration === 'boolean') cfg.showDuration = s.showDuration
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('sr_queue', onQueue)
+  NomNomz.on('sr_queue', onQueue)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('sr_queue', onQueue)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('sr_queue', onQueue)
 })
 </script>
 

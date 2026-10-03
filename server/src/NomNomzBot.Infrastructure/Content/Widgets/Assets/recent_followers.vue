@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 const cfg = reactive({ count: 5, title: 'Recent followers', accentColor: '#9146ff' })
 const followers = ref<string[]>([])
@@ -11,7 +11,7 @@ const followers = ref<string[]>([])
 // Newest first, capped at the configured count — a persistent standings panel, not a one-shot alert.
 const shown = computed<string[]>(() => followers.value.slice(0, Math.max(1, cfg.count)))
 
-function onFollow(d: any): void {
+function onFollow(d: NnzWidgetEventMap['follow'] | null | undefined): void {
   // FollowAlertDto (AlertDtos.cs) — camelCase on the wire: displayName, not user.
   const user: string = (d && d.displayName) || ''
   if (!user) return
@@ -19,19 +19,19 @@ function onFollow(d: any): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
     if (typeof s.title === 'string') cfg.title = s.title
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('follow', onFollow)
+  NomNomz.on('follow', onFollow)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('follow', onFollow)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('follow', onFollow)
 })
 </script>
 

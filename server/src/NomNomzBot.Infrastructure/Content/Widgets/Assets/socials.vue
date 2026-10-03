@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 interface Social { label: string; handle: string }
 
@@ -18,7 +18,7 @@ const index = ref<number>(0)
 let rotator: number | undefined
 
 const current = computed<Social | null>(() =>
-  cfg.handles.length > 0 ? cfg.handles[index.value % cfg.handles.length] : null,
+  cfg.handles[index.value % cfg.handles.length] ?? null,
 )
 
 function restartRotation(): void {
@@ -31,16 +31,17 @@ function restartRotation(): void {
   }
 }
 
-function normalize(raw: any): Social[] {
+// The JSON setting arrives as `unknown`: it must be an array before any entry is read.
+function normalize(raw: unknown): Social[] {
   if (!Array.isArray(raw)) return []
   return raw
-    .map((h: any) => ({ label: String((h && h.label) || ''), handle: String((h && h.handle) || '') }))
+    .map((h: Partial<Social> | null | undefined) => ({ label: String((h && h.label) || ''), handle: String((h && h.handle) || '') }))
     .filter((h: Social) => h.handle.length > 0)
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if ('handles' in s) cfg.handles = normalize(s.handles)
     if (isFinite(Number(s.rotateMs)) && Number(s.rotateMs) > 0) cfg.rotateMs = Number(s.rotateMs)

@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Live value of a custom data source (custom-events.md): subscribes to "custom.<source>" and reads
 // one named field from the event's extracted-fields map ({ fields: { bpm: "72", ... } } — the
@@ -32,27 +32,32 @@ const cfg = reactive<CustomDataConfig>({
 const raw = ref<string>('') // idle until the first event; rendered as '—' meanwhile
 let boundType = ''
 
-function pickField(d: any): string {
-  const fields: any = (d && d.fields && typeof d.fields === 'object') ? d.fields : d
+// The event name is built at run time ("custom." + source), so the payload arrives as `unknown`:
+// { fields: { ... } } or the bare fields map, narrowed to a record before any field is read.
+function pickField(d: unknown): string {
+  const payload: { fields?: unknown } | null = (typeof d === 'object' && d !== null) ? (d as { fields?: unknown }) : null
+  const fields: unknown = (payload && payload.fields && typeof payload.fields === 'object') ? payload.fields : d
   if (!fields || typeof fields !== 'object') return ''
-  if (cfg.field && fields[cfg.field] != null) return String(fields[cfg.field])
-  const keys: string[] = Object.keys(fields)
-  return keys.length ? String(fields[keys[0]]) : ''
+  const map: Record<string, unknown> = fields as Record<string, unknown>
+  if (cfg.field && map[cfg.field] != null) return String(map[cfg.field])
+  const keys: string[] = Object.keys(map)
+  const first: string | undefined = keys[0]
+  return first === undefined ? '' : String(map[first])
 }
 
-function onData(d: any): void {
+function onData(d: unknown): void {
   const value: string = pickField(d)
   if (value !== '') raw.value = value
 }
 
 // The subscription tracks the configured source: unbind the old "custom.<name>" and bind the new one.
 function rebind(): void {
-  if (!nnz) return
+  if (typeof NomNomz === 'undefined') return
   const type: string = 'custom.' + cfg.source
   if (type === boundType) return
-  if (boundType) nnz.off(boundType, onData)
+  if (boundType) NomNomz.off(boundType, onData)
   boundType = type
-  nnz.on(boundType, onData)
+  NomNomz.on(boundType, onData)
   raw.value = ''
 }
 
@@ -71,8 +76,8 @@ const display = computed<string>(() => {
 })
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.source === 'string' && s.source) cfg.source = s.source
     if (typeof s.field === 'string') cfg.field = s.field
@@ -87,8 +92,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  if (boundType) nnz.off(boundType, onData)
+  if (typeof NomNomz === 'undefined') return
+  if (boundType) NomNomz.off(boundType, onData)
 })
 </script>
 

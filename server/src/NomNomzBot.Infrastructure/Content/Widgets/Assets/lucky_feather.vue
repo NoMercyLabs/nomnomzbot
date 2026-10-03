@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// This marketplace bundle has no settings schema, so onSettings hands it Record<string, unknown>.
 
 // Chest-steal overlay for the "Lucky Feather" preset (marketplace bundle, not a FirstPartyWidgetCatalogue
 // entry). The feather steal/expiry pipeline pushes two event types this widget listens for directly:
@@ -81,13 +81,37 @@ function announce(previous: Holder | null, next: Holder): void {
   bannerTimer = window.setTimeout(() => { bannerVisible.value = false }, Math.max(1000, cfg.bannerDurationMs))
 }
 
-function readHolder(raw: any): Holder | null {
-  if (!raw || typeof raw !== 'object' || !raw.id) return null
-  const paint = raw.paint && typeof raw.paint === 'object' ? {
-    backgroundImage: typeof raw.paint.backgroundImage === 'string' ? raw.paint.backgroundImage : null,
-    color: typeof raw.paint.color === 'string' ? raw.paint.color : null,
-    textShadow: typeof raw.paint.textShadow === 'string' ? raw.paint.textShadow : null,
-    isImageOnly: !!raw.paint.isImageOnly,
+// The "steal" and "hide" events are not in the typed event map, so their payloads arrive as `unknown`;
+// a holder is read field by field from this loose shape, which also accepts the snake_case spellings.
+interface RawPaint {
+  backgroundImage?: unknown
+  color?: unknown
+  textShadow?: unknown
+  isImageOnly?: unknown
+}
+interface RawHolder {
+  id?: unknown
+  displayName?: unknown
+  display_name?: unknown
+  avatarUrl?: unknown
+  image_url?: unknown
+  paint?: RawPaint | null
+}
+interface StealPayload {
+  newHolder?: unknown
+  previousHolder?: unknown
+}
+
+function readHolder(value: unknown): Holder | null {
+  if (!value || typeof value !== 'object') return null
+  const raw: RawHolder = value as RawHolder
+  if (!raw.id) return null
+  const rawPaint: RawPaint | null | undefined = raw.paint
+  const paint: ChatPaint | null = rawPaint && typeof rawPaint === 'object' ? {
+    backgroundImage: typeof rawPaint.backgroundImage === 'string' ? rawPaint.backgroundImage : null,
+    color: typeof rawPaint.color === 'string' ? rawPaint.color : null,
+    textShadow: typeof rawPaint.textShadow === 'string' ? rawPaint.textShadow : null,
+    isImageOnly: !!rawPaint.isImageOnly,
   } : null
   return {
     id: String(raw.id),
@@ -97,8 +121,8 @@ function readHolder(raw: any): Holder | null {
   }
 }
 
-function onSteal(data: any): void {
-  const d: any = data || {}
+function onSteal(data: unknown): void {
+  const d: StealPayload = (data && typeof data === 'object' ? data : {}) as StealPayload
   const next = readHolder(d.newHolder)
   if (!next) return
   const previous = readHolder(d.previousHolder)
@@ -112,23 +136,23 @@ function onHide(): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.idleText === 'string') cfg.idleText = s.idleText
     if (typeof s.stolenTemplate === 'string') cfg.stolenTemplate = s.stolenTemplate
     if (isFinite(Number(s.bannerDurationMs)) && Number(s.bannerDurationMs) > 0) cfg.bannerDurationMs = Number(s.bannerDurationMs)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('steal', onSteal)
-  nnz.on('hide', onHide)
+  NomNomz.on('steal', onSteal)
+  NomNomz.on('hide', onHide)
 })
 
 onUnmounted(() => {
   if (bannerTimer) window.clearTimeout(bannerTimer)
-  if (!nnz) return
-  nnz.off('steal', onSteal)
-  nnz.off('hide', onHide)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('steal', onSteal)
+  NomNomz.off('hide', onHide)
 })
 </script>
 

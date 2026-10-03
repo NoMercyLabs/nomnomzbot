@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 interface GoalColors { bar?: string; track?: string; text?: string }
 interface GoalLabels { title?: string }
@@ -14,6 +14,11 @@ interface GoalConfig {
   resetCadence: string
   colors: GoalColors
   labels: GoalLabels
+}
+
+// The colors and labels settings are free-form JSON (typed unknown); this narrows one to its object shape.
+function isObject<T extends object>(v: unknown): v is T {
+  return !!v && typeof v === 'object'
 }
 
 const cfg = reactive<GoalConfig>({
@@ -42,7 +47,7 @@ function defaultTitle(metric: string): string {
 const title = computed<string>(() => cfg.labels.title || defaultTitle(cfg.metric))
 
 // A goal event carrying our metric is the authoritative value; matching count events live-increment between them.
-function onGoal(d: any): void {
+function onGoal(d: NnzWidgetEventMap['goal']): void {
   if (!d || d.metric !== cfg.metric) return
   if (isFinite(Number(d.value))) value.value = Number(d.value)
   if (isFinite(Number(d.target)) && Number(d.target) > 0) cfg.target = Number(d.target)
@@ -50,14 +55,14 @@ function onGoal(d: any): void {
 function onFollow(): void { if (cfg.metric === 'followers') value.value += 1 }
 function onSub(): void { if (cfg.metric === 'subs') value.value += 1 }
 // GiftSubAlertDto — camelCase on the wire: count, not amount.
-function onGift(d: any): void { if (cfg.metric === 'subs') value.value += Math.max(1, Number(d && d.count) || 1) }
+function onGift(d: NnzWidgetEventMap['gift']): void { if (cfg.metric === 'subs') value.value += Math.max(1, Number(d && d.count) || 1) }
 // CheerAlertDto — camelCase on the wire: bits, not amount.
-function onCheer(d: any): void { if (cfg.metric === 'bits') value.value += Math.max(0, Number(d && d.bits) || 0) }
+function onCheer(d: NnzWidgetEventMap['cheer']): void { if (cfg.metric === 'bits') value.value += Math.max(0, Number(d && d.bits) || 0) }
 
 onMounted(() => {
   value.value = cfg.start
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.metric === 'string' && s.metric) cfg.metric = s.metric
     if (isFinite(Number(s.target))) cfg.target = Number(s.target)
@@ -66,23 +71,23 @@ onMounted(() => {
       if (value.value < cfg.start) value.value = cfg.start
     }
     if (typeof s.resetCadence === 'string') cfg.resetCadence = s.resetCadence
-    if (s.colors && typeof s.colors === 'object') cfg.colors = s.colors
-    if (s.labels && typeof s.labels === 'object') cfg.labels = s.labels
+    if (isObject<GoalColors>(s.colors)) cfg.colors = s.colors
+    if (isObject<GoalLabels>(s.labels)) cfg.labels = s.labels
   })
-  nnz.on('goal', onGoal)
-  nnz.on('follow', onFollow)
-  nnz.on('subscription', onSub)
-  nnz.on('gift', onGift)
-  nnz.on('cheer', onCheer)
+  NomNomz.on('goal', onGoal)
+  NomNomz.on('follow', onFollow)
+  NomNomz.on('subscription', onSub)
+  NomNomz.on('gift', onGift)
+  NomNomz.on('cheer', onCheer)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('goal', onGoal)
-  nnz.off('follow', onFollow)
-  nnz.off('subscription', onSub)
-  nnz.off('gift', onGift)
-  nnz.off('cheer', onCheer)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('goal', onGoal)
+  NomNomz.off('follow', onFollow)
+  NomNomz.off('subscription', onSub)
+  NomNomz.off('gift', onGift)
+  NomNomz.off('cheer', onCheer)
 })
 </script>
 

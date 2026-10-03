@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Standing now-playing display driven by the "now_playing" widget event (WidgetNowPlayingHandler:
 // { isPlaying, track, artist, artUrl, provider, trackUri }), adapting per the current track's provider:
@@ -119,16 +119,16 @@ const showYoutubeVideo = computed<boolean>(
   () => cfg.youtubeMode === 'video' && isPlaying.value && !!youtubeVideoId.value
 )
 
-function onTrackSavedChanged(d: any): void {
-  const data: any = d || {}
+function onTrackSavedChanged(d: NnzWidgetEventMap['track_saved_changed'] | null | undefined): void {
+  const data: Partial<NnzWidgetEventMap['track_saved_changed']> = d || {}
   heartIsSaved.value = !!data.isSaved
   heartPulse.value = true
   if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
   heartPulseTimeout = window.setTimeout(() => { heartPulse.value = false }, 1600)
 }
 
-function onNowPlaying(d: any): void {
-  const data: any = d || {}
+function onNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): void {
+  const data: Partial<NnzWidgetEventMap['now_playing']> = d || {}
   if (cfg.provider && data.provider && data.provider !== cfg.provider) return
   isPlaying.value = !!data.isPlaying
   track.value = data.track || ''
@@ -153,7 +153,7 @@ async function fetchCurrentState(): Promise<void> {
   try {
     const res = await fetch(`/api/v1/overlay/now-playing?token=${encodeURIComponent(token)}`)
     if (!res.ok) return
-    const body = await res.json()
+    const body: { data?: NnzWidgetEventMap['now_playing'] } | null = await res.json()
     if (body?.data) onNowPlaying(body.data)
   } catch {
     // Best-effort seed only — the next now_playing hub event still arrives normally.
@@ -161,9 +161,9 @@ async function fetchCurrentState(): Promise<void> {
 }
 
 onMounted(() => {
-  if (!nnz) return
+  if (typeof NomNomz === 'undefined') return
   fetchCurrentState()
-  nnz.onSettings((s: any) => {
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.layout === 'string' && s.layout) cfg.layout = s.layout
     if (typeof s.showArt === 'boolean') cfg.showArt = s.showArt
@@ -177,16 +177,16 @@ onMounted(() => {
       else if (!cfg.enableAudio) disconnectSpotify()
     }
   })
-  nnz.on('now_playing', onNowPlaying)
-  nnz.on('track_saved_changed', onTrackSavedChanged)
+  NomNomz.on('now_playing', onNowPlaying)
+  NomNomz.on('track_saved_changed', onTrackSavedChanged)
 })
 
 onUnmounted(() => {
   stopTicking()
   if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
-  if (!nnz) return
-  nnz.off('now_playing', onNowPlaying)
-  nnz.off('track_saved_changed', onTrackSavedChanged)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('now_playing', onNowPlaying)
+  NomNomz.off('track_saved_changed', onTrackSavedChanged)
   disconnectSpotify()
 })
 
@@ -196,12 +196,32 @@ onUnmounted(() => {
 // selectable device in Spotify Connect — it does NOT transfer playback to itself; the streamer picks the
 // active device themselves, same as switching between a phone and a desktop app.
 
-let spotifyPlayer: any = null
+// The slice of the Spotify Web Playback SDK this widget uses (the SDK ships no TypeScript declarations here).
+interface SpotifyPlayer {
+  addListener(event: string, listener: (arg: { message: string }) => void): boolean
+  connect(): Promise<boolean>
+  disconnect(): void
+}
+interface SpotifyPlayerOptions {
+  name: string
+  getOAuthToken: (cb: (token: string) => void) => void
+  volume: number
+}
+interface SpotifyNamespace { Player: new (options: SpotifyPlayerOptions) => SpotifyPlayer }
+interface OverlayWindow extends Window {
+  Spotify?: SpotifyNamespace
+  onSpotifyWebPlaybackSDKReady?: () => void
+  AudioContext?: typeof AudioContext
+  webkitAudioContext?: typeof AudioContext
+}
+const overlayWindow: OverlayWindow = window
+
+let spotifyPlayer: SpotifyPlayer | null = null
 let sdkLoadPromise: Promise<void> | null = null
 
 function widgetToken(): string {
   const params = new URLSearchParams(location.search)
-  return (window as any).WIDGET_TOKEN || params.get('token') || ''
+  return (typeof WIDGET_TOKEN === 'string' ? WIDGET_TOKEN : '') || params.get('token') || ''
 }
 
 async function fetchPlaybackToken(): Promise<string | null> {
@@ -224,8 +244,8 @@ async function fetchPlaybackToken(): Promise<string | null> {
 function loadSpotifySdk(): Promise<void> {
   if (sdkLoadPromise) return sdkLoadPromise
   sdkLoadPromise = new Promise((resolve, reject) => {
-    if ((window as any).Spotify) { resolve(); return }
-    ;(window as any).onSpotifyWebPlaybackSDKReady = () => resolve()
+    if (overlayWindow.Spotify) { resolve(); return }
+    overlayWindow.onSpotifyWebPlaybackSDKReady = () => resolve()
     const script = document.createElement('script')
     script.src = 'https://sdk.scdn.co/spotify-player.js'
     script.onerror = () => reject(new Error('Spotify SDK failed to load'))
@@ -248,9 +268,11 @@ async function connectSpotify(): Promise<void> {
     return
   }
 
-  const Spotify = (window as any).Spotify
-  const player = new Spotify.Player({
-    name: (window as any).WIDGET_NAME ? `NomNomzBot — ${(window as any).WIDGET_NAME}` : 'NomNomzBot Overlay',
+  const Spotify: SpotifyNamespace | undefined = overlayWindow.Spotify
+  if (!Spotify) { spotifyStatus.value = 'error'; return }
+  const widgetName: string = typeof WIDGET_NAME === 'string' ? WIDGET_NAME : ''
+  const player: SpotifyPlayer = new Spotify.Player({
+    name: widgetName ? `NomNomzBot — ${widgetName}` : 'NomNomzBot Overlay',
     getOAuthToken: (cb: (token: string) => void) => {
       fetchPlaybackToken().then((t) => { if (t) cb(t) })
     },
@@ -262,19 +284,19 @@ async function connectSpotify(): Promise<void> {
     checkAutoplayAllowed().then((allowed) => { if (!allowed) spotifyStatus.value = 'muted' })
   })
   player.addListener('not_ready', () => { spotifyStatus.value = 'connecting' })
-  player.addListener('initialization_error', ({ message }: { message: string }) => {
+  player.addListener('initialization_error', ({ message }) => {
     console.error('[now_playing] initialization_error:', message)
     spotifyStatus.value = 'error'
   })
-  player.addListener('authentication_error', ({ message }: { message: string }) => {
+  player.addListener('authentication_error', ({ message }) => {
     console.error('[now_playing] authentication_error:', message)
     spotifyStatus.value = 'blocked'
   })
-  player.addListener('account_error', ({ message }: { message: string }) => {
+  player.addListener('account_error', ({ message }) => {
     console.error('[now_playing] account_error (non-Premium?):', message)
     spotifyStatus.value = 'blocked'
   }) // non-Premium account
-  player.addListener('playback_error', ({ message }: { message: string }) => {
+  player.addListener('playback_error', ({ message }) => {
     console.error('[now_playing] playback_error:', message)
   })
 
@@ -299,7 +321,7 @@ function disconnectSpotify(): void {
 // (network/DRM succeed) but nothing is audible. Probes via a throwaway AudioContext rather than the SDK's
 // own (sandboxed in a cross-origin iframe, unreadable). Also covers YouTube's iframe autoplay block.
 async function checkAutoplayAllowed(): Promise<boolean> {
-  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext
+  const Ctx: typeof AudioContext | undefined = overlayWindow.AudioContext || overlayWindow.webkitAudioContext
   if (!Ctx) return true
   const ctx = new Ctx()
   await ctx.resume().catch(() => {})

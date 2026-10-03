@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 interface Cheerer { user: string; bits: number }
 
@@ -16,31 +16,31 @@ const board = ref<Cheerer[]>([])
 
 const shown = computed<Cheerer[]>(() => board.value.slice(0, Math.max(1, cfg.count)))
 
-function onCheer(d: any): void {
+function onCheer(d: NnzWidgetEventMap['cheer'] | null | undefined): void {
   // CheerAlertDto (AlertDtos.cs) — camelCase on the wire: displayName/bits, not user/amount.
   const user: string = (d && d.displayName) || ''
   const bits: number = Number(d && d.bits) || 0
   if (!user || bits <= 0) return
   totals[user] = (totals[user] || 0) + bits
-  board.value = Object.keys(totals)
-    .map((u) => ({ user: u, bits: totals[u] }))
+  board.value = Object.entries(totals)
+    .map(([user, bits]) => ({ user, bits }))
     .sort((a, b) => b.bits - a.bits)
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.count)) && Number(s.count) > 0) cfg.count = Number(s.count)
     if (typeof s.title === 'string') cfg.title = s.title
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('cheer', onCheer)
+  NomNomz.on('cheer', onCheer)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('cheer', onCheer)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('cheer', onCheer)
 })
 </script>
 

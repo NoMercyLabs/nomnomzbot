@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Channel-point redemption popup. Binds "reward_redeemed" (RewardRedeemedBroadcastHandler:
 // RewardRedeemedDto — { rewardId, rewardTitle, userDisplayName, cost, userInput, avatarUrl, ... }).
@@ -36,7 +36,7 @@ const visible = ref<boolean>(false)
 const cardKey = ref<number>(0)
 let timer: number | undefined
 
-function enabled(d: any): boolean {
+function enabled(d: Partial<NnzWidgetEventMap['reward_redeemed']>): boolean {
   if (!cfg.rewards.length) return true
   const id: string = (d && d.rewardId) || ''
   const title: string = (d && d.rewardTitle) || ''
@@ -53,8 +53,8 @@ function headline(card: RedemptionCard): string {
   return card.user + ' redeemed ' + card.reward + '!'
 }
 
-function onRedeemed(data: any): void {
-  const d: any = data || {}
+function onRedeemed(data: NnzWidgetEventMap['reward_redeemed'] | null | undefined): void {
+  const d: Partial<NnzWidgetEventMap['reward_redeemed']> = data || {}
   if (!enabled(d)) return
   queue.push({
     user: d.userDisplayName || 'Someone',
@@ -81,8 +81,8 @@ function showNext(): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (Array.isArray(s.rewards)) cfg.rewards = s.rewards.slice()
     if (typeof s.textTemplate === 'string') cfg.textTemplate = s.textTemplate
@@ -90,13 +90,13 @@ onMounted(() => {
     if (typeof s.soundClipId === 'string') cfg.soundClipId = s.soundClipId
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('reward_redeemed', onRedeemed)
+  NomNomz.on('reward_redeemed', onRedeemed)
 })
 
 onUnmounted(() => {
   if (timer) window.clearTimeout(timer)
-  if (!nnz) return
-  nnz.off('reward_redeemed', onRedeemed)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('reward_redeemed', onRedeemed)
 })
 </script>
 

@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 const cfg = reactive({ windowMs: 300000, accentColor: '#9146ff' })
 
@@ -26,33 +26,34 @@ function add(n: number): void {
 }
 function onSub(): void { add(1) }
 // GiftSubAlertDto (AlertDtos.cs) — camelCase on the wire: count, not amount. A gift of N counts as N.
-function onGift(d: any): void { add(Math.max(1, Number(d && d.count) || 1)) }
+function onGift(d: NnzWidgetEventMap['gift'] | null | undefined): void { add(Math.max(1, Number(d && d.count) || 1)) }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.windowMs)) && Number(s.windowMs) > 0) cfg.windowMs = Number(s.windowMs)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('subscription', onSub)
-  nnz.on('resub', onSub)
-  nnz.on('gift', onGift)
+  NomNomz.on('subscription', onSub)
+  NomNomz.on('resub', onSub)
+  NomNomz.on('gift', onGift)
   // Re-evaluate the window each second so the train cools down on its own.
   ticker = window.setInterval(() => {
     now.value = Date.now()
     const cutoff = now.value - cfg.windowMs
-    if (events.value.length && events.value[0] < cutoff) {
+    const oldest: number | undefined = events.value[0]
+    if (oldest !== undefined && oldest < cutoff) {
       events.value = events.value.filter((t) => t >= cutoff)
     }
   }, 1000)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('subscription', onSub)
-  nnz.off('resub', onSub)
-  nnz.off('gift', onGift)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('subscription', onSub)
+  NomNomz.off('resub', onSub)
+  NomNomz.off('gift', onGift)
   if (ticker) clearInterval(ticker)
 })
 </script>

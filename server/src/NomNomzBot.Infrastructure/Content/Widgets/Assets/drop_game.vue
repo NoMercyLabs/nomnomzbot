@@ -2,13 +2,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 interface DropMarker { player: string; landed: number; distance: number; hit: boolean }
 interface DropResult { player: string; landed: number | null; distance: number | null; won: boolean; payout: number }
 
-const cfg = reactive({ accentColor: '#9146ff', hideAfterMs: 12000 })
+const cfg = reactive<NnzWidgetSettings>({ accentColor: '#9146ff', hideAfterMs: 12000 })
 
 const visible = ref<boolean>(false)
 const phase = ref<'lobby' | 'running' | 'resolved' | 'cancelled'>('lobby')
@@ -32,7 +32,7 @@ function reset(): void {
 }
 
 // Frames arrive typed by phase; the payload 'kind' separates a round opening from an individual drop.
-function onFrame(d: any): void {
+function onFrame(d: NnzWidgetEventMap['game.lobby']): void {
   if (!d || typeof d !== 'object') return
   if (d.kind === 'round_open') {
     reset()
@@ -60,7 +60,7 @@ function onFrame(d: any): void {
   if (d.kind === 'results') {
     phase.value = 'resolved'
     target.value = Number(d.target) || target.value
-    results.value = Array.isArray(d.results) ? d.results : []
+    results.value = Array.isArray(d.results) ? (d.results as DropResult[]) : []
     scheduleHide()
   }
 }
@@ -71,22 +71,22 @@ function scheduleHide(): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
     if (isFinite(Number(s.hideAfterMs)) && Number(s.hideAfterMs) > 0) cfg.hideAfterMs = Number(s.hideAfterMs)
   })
-  nnz.on('game.lobby', onFrame)
-  nnz.on('game.running', onFrame)
-  nnz.on('game.resolved', onFrame)
+  NomNomz.on('game.lobby', onFrame)
+  NomNomz.on('game.running', onFrame)
+  NomNomz.on('game.resolved', onFrame)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('game.lobby', onFrame)
-  nnz.off('game.running', onFrame)
-  nnz.off('game.resolved', onFrame)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('game.lobby', onFrame)
+  NomNomz.off('game.running', onFrame)
+  NomNomz.off('game.resolved', onFrame)
   if (hideTimer) clearTimeout(hideTimer)
 })
 </script>

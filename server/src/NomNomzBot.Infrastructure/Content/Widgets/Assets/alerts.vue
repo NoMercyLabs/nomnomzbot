@@ -2,9 +2,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Its type does not cross files, so
-// keep it loose. All event/settings wiring happens in onMounted; nothing here touches the DOM at module load.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) comes from this widget's own SDK types. An event payload is read as a loose record: one
+// handler serves several event types, so each field is narrowed where it is read. All event/settings wiring
+// happens in onMounted; nothing here touches the DOM at module load.
+type Payload = Record<string, unknown>
+
+function asPayload(data: unknown): Payload {
+  return data !== null && typeof data === 'object' ? (data as Payload) : {}
+}
 
 const ALL_EVENTS: string[] = [
   'follow', 'subscription', 'resub', 'gift', 'cheer', 'raid',
@@ -57,7 +63,7 @@ function randomizeCardPosition(): void {
   cardTopPct.value = CARD_TOP_BOTTOM_MARGIN_PCT + Math.random() * (100 - 2 * CARD_TOP_BOTTOM_MARGIN_PCT)
 }
 
-function tierText(tier: string | undefined): string {
+function tierText(tier: unknown): string {
   if (tier === '2000') return 'Tier 2'
   if (tier === '3000') return 'Tier 3'
   return tier ? 'Tier 1' : ''
@@ -65,9 +71,9 @@ function tierText(tier: string | undefined): string {
 
 // Supporter events carry the amount in minor units (SupporterAlertPayload.amountMinor, cents) — divide down
 // for display, same as every other currency-formatting spot in the codebase.
-function money(d: any): string {
+function money(d: Payload): string {
   const amount: number = (Number(d.amountMinor) || 0) / 100
-  const currency: string = d.currency || ''
+  const currency: string = String(d.currency || '')
   return currency ? amount.toFixed(2) + ' ' + currency : amount.toFixed(2)
 }
 
@@ -75,22 +81,22 @@ function money(d: any): string {
 // SubscriptionAlertDto/ResubAlertDto/CheerAlertDto use `displayName`; GiftSubAlertDto (no subscriber identity —
 // only the gifter) uses `gifterDisplayName`; RaidAlertDto uses `fromDisplayName`. The real supporter.* payload
 // (SupporterWidgetEventHandler: SupporterAlertPayload) uses `supporterDisplayName`.
-function nameOf(type: string, d: any): string {
-  if (type === 'gift') return d.gifterDisplayName || 'Someone'
-  if (type === 'raid') return d.fromDisplayName || 'Someone'
-  if (type.indexOf('supporter.') === 0) return d.supporterDisplayName || 'Someone'
-  return d.displayName || d.user || 'Someone'
+function nameOf(type: string, d: Payload): string {
+  if (type === 'gift') return String(d.gifterDisplayName || 'Someone')
+  if (type === 'raid') return String(d.fromDisplayName || 'Someone')
+  if (type.indexOf('supporter.') === 0) return String(d.supporterDisplayName || 'Someone')
+  return String(d.displayName || d.user || 'Someone')
 }
 
 // Bits/gift-count/tip-amount gates keep small/spammy events off the overlay.
-function passesThreshold(type: string, d: any): boolean {
+function passesThreshold(type: string, d: Payload): boolean {
   if (type === 'cheer') return (Number(d.bits) || 0) >= cfg.minBits
   if (type === 'gift') return (Number(d.count) || 0) >= cfg.minGiftCount
   if (type.indexOf('supporter.') === 0) return (Number(d.amountMinor) || 0) / 100 >= cfg.minAmount
   return true
 }
 
-function applyTemplate(type: string, d: any): string {
+function applyTemplate(type: string, d: Payload): string {
   const amount: number = type === 'cheer' ? Number(d.bits) || 0
     : type === 'gift' ? Number(d.count) || 0
     : type.indexOf('supporter.') === 0 ? (Number(d.amountMinor) || 0) / 100
@@ -103,25 +109,25 @@ function applyTemplate(type: string, d: any): string {
     .replace(/\{viewers\}/g, String(d.viewerCount ?? d.viewers ?? ''))
 }
 
-function cardFor(type: string, d: any): AlertCard | null {
+function cardFor(type: string, d: Payload): AlertCard | null {
   // voice_trigger carries its own text + per-word sticker image (VoiceTriggerWidgetEventPayload) — it does
   // not follow the {user}-shaped textTemplate other alert types use, since there is no "user" involved.
   if (type === 'voice_trigger') {
-    return { title: (d.word || '') + ' (' + (d.count || 0) + ')', detail: '', imageUrl: d.stickerImageUrl || undefined }
+    return { title: String(d.word || '') + ' (' + String(d.count || 0) + ')', detail: '', imageUrl: d.stickerImageUrl ? String(d.stickerImageUrl) : undefined }
   }
   if (cfg.textTemplate) return { title: applyTemplate(type, d), detail: '' }
   const user: string = nameOf(type, d)
   switch (type) {
     case 'follow': return { title: user + ' just followed!', detail: '' }
     case 'subscription': return { title: user + ' just subscribed!', detail: tierText(d.tier) }
-    case 'resub': return { title: user + ' resubscribed!', detail: (d.months || 0) + ' months ' + tierText(d.tier) }
-    case 'gift': return { title: user + ' gifted ' + (d.count || 1) + ' sub' + (Number(d.count) === 1 ? '' : 's') + '!', detail: tierText(d.tier) }
-    case 'cheer': return { title: user + ' cheered ' + (d.bits || 0) + ' bits!', detail: '', imageUrl: d.imageUrl || undefined }
-    case 'raid': return { title: user + ' is raiding!', detail: (d.viewerCount || 0) + ' viewers incoming' }
-    case 'supporter.tip': return { title: user + ' tipped ' + money(d), detail: d.messageText || '' }
-    case 'supporter.membership': return { title: user + ' joined as a member!', detail: (tierText(d.tier) + (d.quantity ? ' · ' + d.quantity + ' mo' : '')).trim() }
-    case 'supporter.merch': return { title: user + ' bought merch!', detail: d.quantity ? d.quantity + ' item' + (Number(d.quantity) === 1 ? '' : 's') : '' }
-    case 'supporter.charity': return { title: user + ' donated ' + money(d) + ' to charity!', detail: d.messageText || '' }
+    case 'resub': return { title: user + ' resubscribed!', detail: String(d.months || 0) + ' months ' + tierText(d.tier) }
+    case 'gift': return { title: user + ' gifted ' + String(d.count || 1) + ' sub' + (Number(d.count) === 1 ? '' : 's') + '!', detail: tierText(d.tier) }
+    case 'cheer': return { title: user + ' cheered ' + String(d.bits || 0) + ' bits!', detail: '', imageUrl: d.imageUrl ? String(d.imageUrl) : undefined }
+    case 'raid': return { title: user + ' is raiding!', detail: String(d.viewerCount || 0) + ' viewers incoming' }
+    case 'supporter.tip': return { title: user + ' tipped ' + money(d), detail: String(d.messageText || '') }
+    case 'supporter.membership': return { title: user + ' joined as a member!', detail: (tierText(d.tier) + (d.quantity ? ' · ' + String(d.quantity) + ' mo' : '')).trim() }
+    case 'supporter.merch': return { title: user + ' bought merch!', detail: d.quantity ? String(d.quantity) + ' item' + (Number(d.quantity) === 1 ? '' : 's') : '' }
+    case 'supporter.charity': return { title: user + ' donated ' + money(d) + ' to charity!', detail: String(d.messageText || '') }
     default: return null
   }
 }
@@ -133,8 +139,8 @@ function enabled(type: string): boolean {
   return cfg.events.includes(type)
 }
 
-function handle(type: string, data: any): void {
-  const d: any = data || {}
+function handle(type: string, data: unknown): void {
+  const d: Payload = asPayload(data)
   if (!enabled(type) || !passesThreshold(type, d)) return
   const card: AlertCard | null = cardFor(type, d)
   if (!card) return
@@ -158,12 +164,12 @@ function showNext(): void {
   }, Math.max(1000, holdMs))
 }
 
-const handlers: Record<string, (d: any) => void> = {}
+const handlers: Record<string, (d: unknown) => void> = {}
 
 onMounted(() => {
-  if (!nnz) return
+  if (typeof NomNomz === 'undefined') return
   // onSettings fires immediately with saved settings and again on every change — react live.
-  nnz.onSettings((s: any) => {
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (Array.isArray(s.events)) cfg.events = s.events.slice()
     if (typeof s.textTemplate === 'string') cfg.textTemplate = s.textTemplate
@@ -175,16 +181,16 @@ onMounted(() => {
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
   ALL_EVENTS.forEach((type: string) => {
-    const fn = (d: any) => handle(type, d)
+    const fn = (d: unknown): void => handle(type, d)
     handlers[type] = fn
-    nnz.on(type, fn)
+    NomNomz.on(type, fn)
   })
 })
 
 onUnmounted(() => {
   if (timer) window.clearTimeout(timer)
-  if (!nnz) return
-  Object.keys(handlers).forEach((type: string) => nnz.off(type, handlers[type]))
+  if (typeof NomNomz === 'undefined') return
+  Object.entries(handlers).forEach(([type, fn]) => NomNomz.off(type, fn))
 })
 </script>
 

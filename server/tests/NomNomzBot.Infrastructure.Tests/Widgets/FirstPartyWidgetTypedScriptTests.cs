@@ -18,39 +18,10 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
 /// <summary>
 /// The first-party widgets are the code a streamer opens and copies, so they must show the typed way to write a
-/// widget: no TypeScript <c>any</c> in a <c>&lt;script&gt;</c> block. A widget that is converted stays converted
-/// (it fails on a new <c>any</c>), and <see cref="NotYetConverted"/> can only shrink (it fails on a name that no
-/// longer has an <c>any</c>). Plan item S-FIRSTPARTY-WIDGETS-TYPED.
+/// widget: no TypeScript <c>any</c> in a <c>&lt;script&gt;</c> block.
 /// </summary>
 public sealed class FirstPartyWidgetTypedScriptTests
 {
-    /// <summary>
-    /// The widgets that still use <c>any</c>. Delete a name when its widget is converted.
-    /// </summary>
-    private static readonly HashSet<string> NotYetConverted = new(StringComparer.Ordinal)
-    {
-        "alerts",
-        "chat_box",
-        "crash",
-        "custom_data",
-        "drop_game",
-        "emote_wall",
-        "event_ticker",
-        "goal_bar",
-        "heist",
-        "labels",
-        "lucky_feather",
-        "now_playing",
-        "poll_prediction",
-        "raffle",
-        "recent_followers",
-        "redemption_alert",
-        "socials",
-        "sr_queue",
-        "sub_train",
-        "top_cheerers",
-    };
-
     private const string AssetPrefix = "NomNomzBot.Infrastructure.Content.Widgets.Assets.";
 
     /// <summary>
@@ -76,36 +47,15 @@ public sealed class FirstPartyWidgetTypedScriptTests
 
     [Theory]
     [MemberData(nameof(AssetSources))]
-    public void A_converted_widget_has_no_any_in_its_script(string key)
+    public void A_first_party_widget_has_no_any_in_its_script(string key)
     {
-        if (NotYetConverted.Contains(key))
-            return;
-
         IReadOnlyList<int> lines = ScriptAnyLines(LoadAsset(key));
 
         lines
             .Should()
-            .BeEmpty($"{key}.vue is typed: it has an `any` on line(s) {string.Join(", ", lines)}");
-    }
-
-    [Theory]
-    [MemberData(nameof(AssetSources))]
-    public void A_widget_on_the_not_yet_converted_list_still_has_an_any(string key)
-    {
-        if (!NotYetConverted.Contains(key))
-            return;
-
-        ScriptAnyLines(LoadAsset(key))
-            .Should()
-            .NotBeEmpty(
-                $"{key}.vue has no `any` left: remove \"{key}\" from {nameof(NotYetConverted)}"
+            .BeEmpty(
+                $"{key}.vue must be typed: it has an `any` on line(s) {string.Join(", ", lines)}"
             );
-    }
-
-    [Fact]
-    public void The_not_yet_converted_list_names_only_shipped_widgets()
-    {
-        NotYetConverted.Except(AssetKeys).Should().BeEmpty();
     }
 
     [Fact]

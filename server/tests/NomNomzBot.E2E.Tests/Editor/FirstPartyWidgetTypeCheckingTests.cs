@@ -28,6 +28,25 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
     [InlineData("tts_audio", "Audio Source")]
     [InlineData("tts_caption", "TTS Caption")]
     [InlineData("countdown_timer", "Countdown / Timer")]
+    [InlineData("alerts", "Alerts")]
+    [InlineData("chat_box", "Chat Box")]
+    [InlineData("crash", "Crash")]
+    [InlineData("drop_game", "Drop Game")]
+    [InlineData("event_ticker", "Event Ticker")]
+    [InlineData("goal_bar", "Goal Bar")]
+    [InlineData("heist", "Heist")]
+    [InlineData("labels", "Labels")]
+    [InlineData("now_playing", "Now Playing")]
+    [InlineData("poll_prediction", "Poll / Prediction")]
+    [InlineData("custom_data", "Custom Data")]
+    [InlineData("emote_wall", "Emote Wall")]
+    [InlineData("raffle", "Raffle")]
+    [InlineData("recent_followers", "Recent Followers")]
+    [InlineData("redemption_alert", "Redemption Alert")]
+    [InlineData("socials", "Socials")]
+    [InlineData("sr_queue", "SR Queue")]
+    [InlineData("sub_train", "Sub Train")]
+    [InlineData("top_cheerers", "Top Cheerers")]
     public async Task A_converted_widget_has_no_type_problems(string naturalKey, string galleryName)
     {
         string? installedId = await InstalledWidgetIdAsync(galleryName);
@@ -39,7 +58,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
 
             await OpenAsync("vue", "App.vue", source, sdkTypes);
 
-            Assert.Equal(0, await WorkerDiagnosticCountAsync("App.vue.__script.ts"));
+            AssertNoProblems(await WorkerDiagnosticsAsync("App.vue.__script.ts"));
             Assert.Empty(await DiagnosticLinesAsync("App.vue"));
         }
         finally

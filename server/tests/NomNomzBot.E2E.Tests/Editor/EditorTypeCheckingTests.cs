@@ -123,7 +123,7 @@ public sealed class EditorTypeCheckingTests : EditorPageTest
             ""
         );
 
-        Assert.Equal(0, await WorkerDiagnosticCountAsync("App.vue.__script.ts"));
+        AssertNoProblems(await WorkerDiagnosticsAsync("App.vue.__script.ts"));
         Assert.Empty(await DiagnosticLinesAsync("App.vue"));
     }
 
@@ -174,7 +174,7 @@ public sealed class EditorTypeCheckingTests : EditorPageTest
             ""
         );
 
-        Assert.Equal(0, await WorkerDiagnosticCountAsync("index.tsx"));
+        AssertNoProblems(await WorkerDiagnosticsAsync("index.tsx"));
         Assert.Empty(await DiagnosticLinesAsync("index.tsx"));
     }
 

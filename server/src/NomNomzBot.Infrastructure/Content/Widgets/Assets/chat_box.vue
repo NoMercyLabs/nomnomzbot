@@ -2,8 +2,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) comes from this widget's own SDK types. A chat payload is read as a loose record and each
+// field is narrowed where it is read, so one bad field never breaks a line.
+type Payload = Record<string, unknown>
+
+function asPayload(data: unknown): Payload {
+  return data !== null && typeof data === 'object' ? (data as Payload) : {}
+}
 
 // Renders the decorated chat DTO ("ChatMessage" — the camelCase DashboardChatMessageDto shape the
 // ChatMessageBroadcastHandler pushes to overlays: fragments with resolved emote urls, badges, colour,
@@ -82,7 +88,7 @@ function contrastColor(hex: string, theme: string): string {
   const c: number = (1 - Math.abs(2 * targetL - 1)) * s
   const x: number = c * (1 - Math.abs(((hDeg / 60) % 2) - 1))
   const m: number = targetL - c / 2
-  let [r2, g2, b2]: number[] =
+  const [r2, g2, b2]: [number, number, number] =
     hDeg < 60 ? [c, x, 0] : hDeg < 120 ? [x, c, 0] : hDeg < 180 ? [0, c, x] :
     hDeg < 240 ? [0, x, c] : hDeg < 300 ? [x, 0, c] : [c, 0, x]
   const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0')
@@ -96,11 +102,13 @@ const rootStyle = computed<Record<string, string>>(() => {
 })
 
 // An explicit background hex overrides the theme's line background (inline styles beat the theme class).
-const lineStyle = computed<Record<string, string>>(() =>
-  hexColor(cfg.background) ? { background: hexToRgba(cfg.background, cfg.backgroundOpacity) } : {},
-)
+const lineStyle = computed<Record<string, string>>(() => {
+  const style: Record<string, string> = {}
+  if (hexColor(cfg.background)) style.background = hexToRgba(cfg.background, cfg.backgroundOpacity)
+  return style
+})
 
-function clockLabel(iso: any): string {
+function clockLabel(iso: unknown): string {
   const d: Date = new Date(String(iso || ''))
   if (isNaN(d.getTime())) return ''
   const hh: string = String(d.getHours()).padStart(2, '0')
@@ -127,6 +135,18 @@ interface ChatPaint {
   isImageOnly: boolean
 }
 
+// One fragment of a chat message (ChatFragmentDto): the template reads the member that matches `type`.
+interface ChatFragment {
+  type: string
+  text?: string
+  emote?: { urls?: Record<string, string> } | null
+  cheermote?: { urls?: Record<string, string>; colorHex?: string | null; bits?: number } | null
+  mention?: { color?: string | null; displayName?: string | null; username?: string | null } | null
+  linkUrl?: string | null
+  linkPreview?: { title?: string | null; description?: string | null; imageUrl?: string | null } | null
+  gif?: { url?: string } | null
+}
+
 interface ChatLine {
   id: string
   // The RAW chat message id, unlike `id` which is suffixed with a sequence to stay unique when the same
@@ -143,7 +163,7 @@ interface ChatLine {
   pronouns: string
   avatarUrl: string
   badgeUrls: string[]
-  fragments: any[]
+  fragments: ChatFragment[]
   message: string
   time: string
   faded: boolean
@@ -195,7 +215,7 @@ const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick',
 
 // Highest-priority role wins the line accent when a user carries more than one — broadcaster and
 // moderator/VIP/subscriber are not mutually exclusive on Twitch (a mod can also be a subscriber).
-function resolveRole(m: any): string {
+function resolveRole(m: Payload): string {
   if (m.isBroadcaster) return 'broadcaster'
   if (m.isModerator) return 'moderator'
   if (m.isVip) return 'vip'
@@ -207,32 +227,33 @@ const lines = ref<ChatLine[]>([])
 let seq = 0
 const fadeTimers: number[] = []
 
-function hexColor(c: any): string {
+function hexColor(c: unknown): string {
   return (typeof c === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c.trim())) ? c.trim() : ''
 }
 
-function firstUrl(urls: any, keys: string[]): string {
+function firstUrl(urls: unknown, keys: string[]): string {
   if (!urls) return ''
-  for (let i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]]
+  const map: Payload = urls as Payload
+  for (const key of keys) if (map[key]) return String(map[key])
   return ''
 }
 
-function emoteUrl(fr: any): string {
+function emoteUrl(fr: ChatFragment): string {
   return firstUrl(fr && fr.emote && fr.emote.urls, ['2', '1', '3'])
 }
 
-function cheermoteUrl(fr: any): string {
+function cheermoteUrl(fr: ChatFragment): string {
   return firstUrl(fr && fr.cheermote && fr.cheermote.urls, ['2', '1', '3'])
 }
 
 // Twitch's native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): the fragment already carries a
 // directly-fetchable url — no separate resolve step, unlike media-share's clip/video lookups.
-function gifUrl(fr: any): string {
+function gifUrl(fr: ChatFragment): string {
   return (fr && fr.gif && typeof fr.gif.url === 'string') ? fr.gif.url : ''
 }
 
 // Mention/cheermote may carry a #RRGGBB accent; guard it before binding to style so bad data can't inject CSS.
-function fragColor(c: any): Record<string, string> {
+function fragColor(c: unknown): Record<string, string> {
   const hex: string = hexColor(c)
   return hex ? { color: hex } : {}
 }
@@ -240,42 +261,55 @@ function fragColor(c: any): Record<string, string> {
 // A line already on screen turned out to mean something richer — a song request resolving to a real track.
 // Matched on the RAW message id; an id we never rendered (the line already scrolled off, or this overlay
 // started after it) simply finds nothing and is ignored.
-function onEnriched(e: any): void {
-  const id: string = e && e.messageId ? String(e.messageId) : ''
+function onEnriched(data: unknown): void {
+  const e: Payload = asPayload(data)
+  const id: string = e.messageId ? String(e.messageId) : ''
   if (!id) return
 
   const line: ChatLine | undefined = lines.value.find((l: ChatLine) => l.sourceId === id)
   if (!line) return
 
   line.card = {
-    linkUrl: e.linkUrl || undefined,
-    title: e.title || undefined,
-    description: e.description || undefined,
-    imageUrl: e.imageUrl || undefined,
-    provider: e.provider || undefined,
+    linkUrl: e.linkUrl ? String(e.linkUrl) : undefined,
+    title: e.title ? String(e.title) : undefined,
+    description: e.description ? String(e.description) : undefined,
+    imageUrl: e.imageUrl ? String(e.imageUrl) : undefined,
+    provider: e.provider ? String(e.provider) : undefined,
   }
 }
 
-function onChat(m: any): void {
-  if (!m || typeof m !== 'object') return
-  const text: string = m.message || ''
+function paintOf(value: unknown): ChatPaint | null {
+  if (!value || typeof value !== 'object') return null
+  const p: Payload = value as Payload
+  return {
+    backgroundImage: typeof p.backgroundImage === 'string' ? p.backgroundImage : null,
+    color: typeof p.color === 'string' ? p.color : null,
+    textShadow: typeof p.textShadow === 'string' ? p.textShadow : null,
+    isImageOnly: !!p.isImageOnly,
+  }
+}
+
+function onChat(data: unknown): void {
+  if (!data || typeof data !== 'object') return
+  const m: Payload = data as Payload
+  const text: string = String(m.message || '')
   if (cfg.hideCommands && (m.isCommand || text.charAt(0) === '!')) return
-  const login: string = (m.username || '').toLowerCase()
+  const login: string = String(m.username || '').toLowerCase()
   if (cfg.hideBots && KNOWN_BOTS.indexOf(login) !== -1) return
 
   const line: ChatLine = {
-    id: (m.id || '') + '-' + (++seq),
-    sourceId: m.id || '',
+    id: String(m.id || '') + '-' + (++seq),
+    sourceId: String(m.id || ''),
     userId: typeof m.userId === 'string' ? m.userId : '',
     card: null,
-    name: m.displayName || m.username || 'Someone',
+    name: String(m.displayName || m.username || 'Someone'),
     color: hexColor(m.color),
-    pronouns: m.pronouns || '',
+    pronouns: String(m.pronouns || ''),
     avatarUrl: typeof m.avatarUrl === 'string' ? m.avatarUrl : '',
     badgeUrls: cfg.showBadges
-      ? (m.badges || []).map((b: any) => firstUrl(b.urls, ['2', '1', '4'])).filter((u: string) => !!u)
+      ? (Array.isArray(m.badges) ? (m.badges as Payload[]) : []).map((b: Payload) => firstUrl(b.urls, ['2', '1', '4'])).filter((u: string) => !!u)
       : [],
-    fragments: m.fragments || [],
+    fragments: Array.isArray(m.fragments) ? (m.fragments as ChatFragment[]) : [],
     message: text,
     time: clockLabel(m.timestamp),
     faded: false,
@@ -285,12 +319,7 @@ function onChat(m: any): void {
     replyUserName: typeof m.replyParentUserName === 'string' ? m.replyParentUserName : '',
     replyMessageBody: typeof m.replyParentMessageBody === 'string' ? m.replyParentMessageBody : '',
     provider: typeof m.provider === 'string' ? m.provider.toLowerCase() : 'twitch',
-    paint: m.paint && typeof m.paint === 'object' ? {
-      backgroundImage: typeof m.paint.backgroundImage === 'string' ? m.paint.backgroundImage : null,
-      color: typeof m.paint.color === 'string' ? m.paint.color : null,
-      textShadow: typeof m.paint.textShadow === 'string' ? m.paint.textShadow : null,
-      isImageOnly: !!m.paint.isImageOnly,
-    } : null,
+    paint: paintOf(m.paint),
   }
   const next: ChatLine[] = lines.value.concat([line])
   while (next.length > Math.max(1, cfg.maxMessages)) next.shift()
@@ -304,8 +333,9 @@ function onChat(m: any): void {
 // A moderator (or Twitch AutoMod) deleted ONE message — Twitch removes it from its own chat immediately, so a
 // line this overlay kept rendering after that is the exact "unacceptable" gap being fixed here. Matched on the
 // same RAW message id onEnriched already keys off; a line already scrolled off finds nothing and is a no-op.
-function onMessageDeleted(e: any): void {
-  const id: string = e && e.messageId ? String(e.messageId) : ''
+function onMessageDeleted(data: unknown): void {
+  const e: Payload = asPayload(data)
+  const id: string = e.messageId ? String(e.messageId) : ''
   if (!id) return
   lines.value = lines.value.filter((l: ChatLine) => l.sourceId !== id)
 }
@@ -317,15 +347,16 @@ function onChatCleared(): void {
 
 // A targeted per-chatter purge (channel.chat.clear_user_messages) — every line from that ONE person goes;
 // everyone else's messages stay exactly as they were.
-function onUserMessagesCleared(e: any): void {
-  const targetUserId: string = e && e.targetUserId ? String(e.targetUserId) : ''
+function onUserMessagesCleared(data: unknown): void {
+  const e: Payload = asPayload(data)
+  const targetUserId: string = e.targetUserId ? String(e.targetUserId) : ''
   if (!targetUserId) return
   lines.value = lines.value.filter((l: ChatLine) => l.userId !== targetUserId)
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.theme === 'string' && s.theme) cfg.theme = s.theme
     if (isFinite(Number(s.maxMessages)) && Number(s.maxMessages) > 0) cfg.maxMessages = Number(s.maxMessages)
@@ -343,21 +374,21 @@ onMounted(() => {
       cfg.backgroundOpacity = Number(s.backgroundOpacity)
     if (typeof s.showTimestamps === 'boolean') cfg.showTimestamps = s.showTimestamps
   })
-  nnz.on('ChatMessage', onChat)
-  nnz.on('ChatMessageEnriched', onEnriched)
-  nnz.on('MessageDeleted', onMessageDeleted)
-  nnz.on('ChatCleared', onChatCleared)
-  nnz.on('UserMessagesCleared', onUserMessagesCleared)
+  NomNomz.on('ChatMessage', onChat)
+  NomNomz.on('ChatMessageEnriched', onEnriched)
+  NomNomz.on('MessageDeleted', onMessageDeleted)
+  NomNomz.on('ChatCleared', onChatCleared)
+  NomNomz.on('UserMessagesCleared', onUserMessagesCleared)
 })
 
 onUnmounted(() => {
   fadeTimers.forEach((t: number) => window.clearTimeout(t))
-  if (!nnz) return
-  nnz.off('ChatMessage', onChat)
-  nnz.off('ChatMessageEnriched', onEnriched)
-  nnz.off('MessageDeleted', onMessageDeleted)
-  nnz.off('ChatCleared', onChatCleared)
-  nnz.off('UserMessagesCleared', onUserMessagesCleared)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('ChatMessage', onChat)
+  NomNomz.off('ChatMessageEnriched', onEnriched)
+  NomNomz.off('MessageDeleted', onMessageDeleted)
+  NomNomz.off('ChatCleared', onChatCleared)
+  NomNomz.off('UserMessagesCleared', onUserMessagesCleared)
 })
 </script>
 

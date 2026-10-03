@@ -153,29 +153,41 @@ public abstract class EditorPageTest : PageTest
     }
 
     // Errors the TypeScript worker itself reports for a model: the truth behind a "no markers" check, which
-    // would also pass when the worker had not answered yet.
-    protected async Task<int> WorkerDiagnosticCountAsync(string path)
+    // would also pass when the worker had not answered yet. Each entry names the line, the code and the source
+    // text, so a failing assertion shows what to fix.
+    protected async Task<IReadOnlyList<string>> WorkerDiagnosticsAsync(string path)
     {
         await Page.WaitForFunctionAsync(
             "(path) => window.monaco?.editor.getModel(window.monaco.Uri.parse('file:///' + path))",
             path,
             new() { Timeout = 60_000 }
         );
-        return await Page.EvaluateAsync<int>(
+        return await Page.EvaluateAsync<string[]>(
             """
             async (path) => {
                 const uri = window.monaco.Uri.parse('file:///' + path);
+                const model = window.monaco.editor.getModel(uri);
                 const getWorker = await window.monaco.languages.typescript.getTypeScriptWorker();
                 const worker = await getWorker(uri);
                 const name = uri.toString();
-                const semantic = await worker.getSemanticDiagnostics(name);
-                const syntactic = await worker.getSyntacticDiagnostics(name);
-                return semantic.length + syntactic.length;
+                const all = [
+                    ...(await worker.getSyntacticDiagnostics(name)),
+                    ...(await worker.getSemanticDiagnostics(name)),
+                ];
+                const text = (m) => typeof m === 'string' ? m : (m?.messageText ?? '');
+                return all.map((d) => {
+                    const line = d.start === undefined ? 0 : model.getPositionAt(d.start).lineNumber;
+                    const source = line ? model.getLineContent(line).trim() : '';
+                    return `${line}: TS${d.code} ${text(d.messageText)} | ${source}`;
+                });
             }
             """,
             path
         );
     }
+
+    protected static void AssertNoProblems(IReadOnlyList<string> problems) =>
+        Assert.True(problems.Count == 0, string.Join(Environment.NewLine, problems));
 
     /// <summary>
     /// The TypeScript diagnostic codes on <paramref name="path"/>, once at least <paramref name="expected"/>

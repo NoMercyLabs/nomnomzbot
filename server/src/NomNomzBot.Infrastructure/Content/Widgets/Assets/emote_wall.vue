@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Emotes from chat float across the screen. Binds the decorated "ChatMessage" overlay event and
 // harvests its emote/cheermote fragments (resolved image urls — Twitch plus the BTTV/FFZ/7TV fragments
@@ -37,13 +37,25 @@ const emotes = ref<FlyingEmote[]>([])
 let seq = 0
 const removeTimers: number[] = []
 
-function firstUrl(urls: any, keys: string[]): string {
+// The decorated "ChatMessage" event is not in the typed event map, so its payload arrives as `unknown` and
+// only the parts this widget reads are described here.
+interface FragmentUrls { [size: string]: string | undefined }
+interface ChatFragment {
+  type?: string
+  emote?: { provider?: string; urls?: FragmentUrls }
+  cheermote?: { urls?: FragmentUrls }
+}
+
+function firstUrl(urls: FragmentUrls | undefined, keys: string[]): string {
   if (!urls) return ''
-  for (let i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]]
+  for (const key of keys) {
+    const url: string | undefined = urls[key]
+    if (url) return url
+  }
   return ''
 }
 
-function providerAllowed(fr: any): boolean {
+function providerAllowed(fr: ChatFragment): boolean {
   if (!cfg.providers.length) return true
   const p: string = ((fr.emote && fr.emote.provider) || 'twitch').toLowerCase()
   return cfg.providers.indexOf(p) !== -1
@@ -67,9 +79,10 @@ function spawn(url: string): void {
   }, durationMs))
 }
 
-function onChat(m: any): void {
-  const fragments: any[] = (m && Array.isArray(m.fragments)) ? m.fragments : []
-  fragments.forEach((fr: any) => {
+function onChat(m: unknown): void {
+  const message: { fragments?: unknown } | null = (typeof m === 'object' && m !== null) ? (m as { fragments?: unknown }) : null
+  const fragments: ChatFragment[] = (message && Array.isArray(message.fragments)) ? message.fragments : []
+  fragments.forEach((fr: ChatFragment | null) => {
     if (!fr) return
     let url = ''
     if (fr.type === 'emote' && fr.emote && providerAllowed(fr))
@@ -81,22 +94,22 @@ function onChat(m: any): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (isFinite(Number(s.density)) && Number(s.density) > 0) cfg.density = Number(s.density)
     if (isFinite(Number(s.size)) && Number(s.size) > 0) cfg.size = Number(s.size)
     if (typeof s.animation === 'string' && s.animation) cfg.animation = s.animation
-    if (Array.isArray(s.providers)) cfg.providers = s.providers.map((p: any) => String(p).toLowerCase())
+    if (Array.isArray(s.providers)) cfg.providers = s.providers.map((p: string) => String(p).toLowerCase())
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })
-  nnz.on('ChatMessage', onChat)
+  NomNomz.on('ChatMessage', onChat)
 })
 
 onUnmounted(() => {
   removeTimers.forEach((t: number) => window.clearTimeout(t))
-  if (!nnz) return
-  nnz.off('ChatMessage', onChat)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('ChatMessage', onChat)
 })
 </script>
 

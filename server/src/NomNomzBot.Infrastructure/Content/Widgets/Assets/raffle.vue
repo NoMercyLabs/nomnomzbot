@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
+// (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 interface Entrant { player: string; stake: number }
 interface RaffleResult { player: string; stake: number; won: boolean; payout: number }
@@ -26,8 +26,18 @@ function reset(): void {
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = undefined }
 }
 
-function onFrame(d: any): void {
-  if (!d || typeof d !== 'object') return
+// A game frame (game.lobby / game.running / game.resolved) is relayed as is, so its payload arrives as `unknown`.
+interface RaffleFrame {
+  kind?: string
+  pot?: number
+  entrants?: Entrant[]
+  winner?: string
+  results?: RaffleResult[]
+}
+
+function onFrame(frame: unknown): void {
+  if (!frame || typeof frame !== 'object') return
+  const d: RaffleFrame = frame as RaffleFrame
   if (d.kind === 'round_open') {
     reset()
     visible.value = true
@@ -54,22 +64,22 @@ function scheduleHide(): void {
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings((s: any) => {
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (!s || typeof s !== 'object') return
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
     if (isFinite(Number(s.hideAfterMs)) && Number(s.hideAfterMs) > 0) cfg.hideAfterMs = Number(s.hideAfterMs)
   })
-  nnz.on('game.lobby', onFrame)
-  nnz.on('game.running', onFrame)
-  nnz.on('game.resolved', onFrame)
+  NomNomz.on('game.lobby', onFrame)
+  NomNomz.on('game.running', onFrame)
+  NomNomz.on('game.resolved', onFrame)
 })
 
 onUnmounted(() => {
-  if (!nnz) return
-  nnz.off('game.lobby', onFrame)
-  nnz.off('game.running', onFrame)
-  nnz.off('game.resolved', onFrame)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('game.lobby', onFrame)
+  NomNomz.off('game.running', onFrame)
+  NomNomz.off('game.resolved', onFrame)
   if (hideTimer) clearTimeout(hideTimer)
 })
 </script>
