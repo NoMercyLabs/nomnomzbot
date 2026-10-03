@@ -65,16 +65,30 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             }
             return { log: line(''), info: line(''), warn: line('warn'), error: line('error') };
         })();
-        var bot = {
+        var bot, nnz;
+        (function () {
+        // A left-out argument is never turned into the text "undefined" or "null": a required one is a
+        // script error that names the call and the argument; an optional one is skipped by the caller.
+        function missing(v) { return v === undefined || v === null; }
+        function need(call, what, v) {
+            if (missing(v)) { throw new Error(call + ' needs ' + what); }
+            return String(v);
+        }
+        bot = {
             args: JSON.parse(__argsJson),
-            getVar: function (k) { return __getVar(String(k)); },
-            setVar: function (k, v) { __setVar(String(k), String(v)); },
-            send: function (m) { __send(String(m)); },
+            getVar: function (k) { return __getVar(need('bot.getVar', 'a key', k)); },
+            setVar: function (k, v) { __setVar(need('bot.setVar', 'a key', k), need('bot.setVar', 'a value', v)); },
+            send: function (m) { __send(need('bot.send', 'a message', m)); },
             call: function (k) {
-                return __call(String(k), JSON.stringify(Array.prototype.slice.call(arguments, 1).map(String)));
+                var key = need('bot.call', 'a key', k);
+                var rest = Array.prototype.slice.call(arguments, 1);
+                for (var i = 0; i < rest.length; i++) {
+                    if (missing(rest[i])) { throw new Error('bot.call needs a value for argument ' + (i + 1)); }
+                }
+                return __call(key, JSON.stringify(rest.map(String)));
             }
         };
-        var nnz = {
+        nnz = {
             get lastError() { var r = __call('last.error', '[]'); return r ? JSON.parse(r) : null; },
             units: {
                 convert: function (value, from, to) {
@@ -117,7 +131,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 // call can never claim the whole budget. The going example: nnz.api.tts.speak(line) returns
                 // { durationMs }, and nnz.time.sleep(result.durationMs) holds chat.send until the line is
                 // actually spoken.
-                sleep: function (ms) { __sleep(Number(ms)); }
+                sleep: function (ms) { need('nnz.time.sleep', 'a number of milliseconds', ms); var n = Number(ms); if (n !== n) { throw new Error('nnz.time.sleep needs a number of milliseconds'); } __sleep(n); }
             },
             math: {
                 clamp: function (value, min, max) { value = Number(value); min = Number(min); max = Number(max); return value < min ? min : (value > max ? max : value); },
@@ -153,7 +167,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             api: {
                 actions: {
                     invoke: function (actionType, params, variables) {
-                        var args = ['actions.invoke:' + String(actionType)];
+                        var args = ['actions.invoke:' + need('actions.invoke', 'an action type', actionType)];
                         var hasVariables = variables !== undefined && variables !== null;
                         if (hasVariables || (params !== undefined && params !== null))
                             args.push(params === undefined || params === null ? '' : JSON.stringify(params));
@@ -162,8 +176,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     }
                 },
                 chat: {
-                    send: function (text) { bot.call('chat.send', String(text)); },
-                    reply: function (text) { bot.call('chat.reply', String(text)); }
+                    send: function (text) { bot.call('chat.send', need('chat.send', 'a message', text)); },
+                    reply: function (text) { bot.call('chat.reply', need('chat.reply', 'a message', text)); }
                 },
                 user: {
                     get: function (id) { var r = id === undefined || id === null ? bot.call('user.get') : bot.call('user.get', String(id)); return r ? JSON.parse(r) : null; }
@@ -172,16 +186,16 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     balance: function (userId) { var r = userId === undefined || userId === null ? bot.call('economy.read') : bot.call('economy.read', String(userId)); return Number(r); }
                 },
                 music: {
-                    queue: function (uri) { return bot.call('music.queue', String(uri)) === 'true'; },
+                    queue: function (uri) { return bot.call('music.queue', need('music.queue', 'a track uri', uri)) === 'true'; },
                     nowPlaying: function () { var r = bot.call('music.nowPlaying'); return r ? JSON.parse(r) : null; }
                 },
                 http: {
-                    fetch: function (url) { return bot.call('http.fetch', String(url)); }
+                    fetch: function (url) { return bot.call('http.fetch', need('http.fetch', 'a url', url)); }
                 },
                 storage: {
-                    get: function (key) { return bot.call('storage.get', String(key)); },
-                    set: function (key, value) { return bot.call('storage.set', String(key), String(value)) === 'ok'; },
-                    delete: function (key) { return bot.call('storage.delete', String(key)) === 'ok'; },
+                    get: function (key) { return bot.call('storage.get', need('storage.get', 'a key', key)); },
+                    set: function (key, value) { return bot.call('storage.set', need('storage.set', 'a key', key), need('storage.set', 'a value', value)) === 'ok'; },
+                    delete: function (key) { return bot.call('storage.delete', need('storage.delete', 'a key', key)) === 'ok'; },
                     list: function (prefix) { var r = prefix === undefined || prefix === null ? bot.call('storage.list') : bot.call('storage.list', String(prefix)); return r ? JSON.parse(r) : []; }
                 },
                 tts: {
@@ -190,38 +204,49 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     // undefined or null param is "no override" (''), never the literal "undefined"; trailing
                     // ones are dropped so a 1-arg call still sends one arg.
                     speak: function (text, voiceId, ratePercent, pitchPercent) {
-                        var args = ['tts.speak', String(text)];
+                        var args = ['tts.speak', need('tts.speak', 'the text to say', text)];
                         var rest = [voiceId, ratePercent, pitchPercent];
                         while (rest.length && (rest[rest.length - 1] === undefined || rest[rest.length - 1] === null)) rest.pop();
                         for (var i = 0; i < rest.length; i++) args.push(rest[i] === undefined || rest[i] === null ? '' : String(rest[i]));
                         var r = bot.call.apply(bot, args);
                         return r ? JSON.parse(r) : null;
                     },
-                    getVoice: function (userIdOrLogin) { var r = bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
-                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', String(userIdOrLogin), voiceId === undefined || voiceId === null ? '' : String(voiceId)) === 'ok'; }
+                    getVoice: function (userIdOrLogin) { var r = missing(userIdOrLogin) ? bot.call('tts.voice.get') : bot.call('tts.voice.get', String(userIdOrLogin)); return r ? JSON.parse(r) : null; },
+                    setVoice: function (userIdOrLogin, voiceId) { return bot.call('tts.voice.set', need('tts.setVoice', 'a user id or login', userIdOrLogin), missing(voiceId) ? '' : String(voiceId)) === 'ok'; }
                 },
                 stats: {
                     viewer: function (userIdOrLogin) { var r = userIdOrLogin === undefined || userIdOrLogin === null ? bot.call('stats.viewer') : bot.call('stats.viewer', String(userIdOrLogin)); return r ? JSON.parse(r) : null; }
                 },
                 widget: {
-                    emit: function (widgetIdOrName, eventType, data) { var r = data === undefined || data === null ? bot.call('widget.emit', String(widgetIdOrName), String(eventType)) : bot.call('widget.emit', String(widgetIdOrName), String(eventType), JSON.stringify(data)); return r === 'ok'; }
+                    emit: function (widgetIdOrName, eventType, data) {
+                        var widget = need('widget.emit', 'a widget id or name', widgetIdOrName);
+                        var type = need('widget.emit', 'an event type', eventType);
+                        var r = missing(data) ? bot.call('widget.emit', widget, type) : bot.call('widget.emit', widget, type, JSON.stringify(data));
+                        return r === 'ok';
+                    }
                 },
                 reward: {
-                    get: function (rewardIdOrTitle) { var r = bot.call('reward.get', String(rewardIdOrTitle)); return r ? JSON.parse(r) : null; },
-                    update: function (rewardIdOrTitle, patch) { return bot.call('reward.update', String(rewardIdOrTitle), JSON.stringify(patch)) === 'ok'; }
+                    get: function (rewardIdOrTitle) { var r = bot.call('reward.get', need('reward.get', 'a reward id or title', rewardIdOrTitle)); return r ? JSON.parse(r) : null; },
+                    update: function (rewardIdOrTitle, patch) {
+                        var reward = need('reward.update', 'a reward id or title', rewardIdOrTitle);
+                        if (missing(patch)) { throw new Error('reward.update needs a patch'); }
+                        return bot.call('reward.update', reward, JSON.stringify(patch)) === 'ok';
+                    }
                 },
                 schedule: {
                     pipeline: function (pipelineName, delaySeconds, variables, dedupeKey) {
                         // The host schedules whole seconds; rounding up never fires a pipeline early.
-                        var d = String(Math.ceil(Number(delaySeconds)));
-                        var v = variables === undefined || variables === null ? '{}' : JSON.stringify(variables);
-                        return (dedupeKey === undefined || dedupeKey === null
-                            ? bot.call('schedule.pipeline', String(pipelineName), d, v)
-                            : bot.call('schedule.pipeline', String(pipelineName), d, v, String(dedupeKey))) === 'ok';
+                        var name = need('schedule.pipeline', 'a pipeline name', pipelineName);
+                        var d = String(Math.ceil(Number(need('schedule.pipeline', 'a delay in seconds', delaySeconds))));
+                        var v = missing(variables) ? '{}' : JSON.stringify(variables);
+                        return (missing(dedupeKey)
+                            ? bot.call('schedule.pipeline', name, d, v)
+                            : bot.call('schedule.pipeline', name, d, v, String(dedupeKey))) === 'ok';
                     }
                 }
             }
         };
+        })();
         """;
 
     public Task<Result<ScriptCompilation>> CompileAsync(
@@ -239,7 +264,14 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             return Task.FromResult(
                 Result.Failure<ScriptCompilation>(
                     $"Script failed to compile: {ex.Message}",
-                    "VALIDATION_FAILED"
+                    "VALIDATION_FAILED",
+                    errorData: (
+                        ex as Acornima.ParseErrorException
+                        ?? ex.InnerException as Acornima.ParseErrorException
+                    )
+                        is { } parse
+                        ? ToSourcePosition(sourceCode, parse.LineNumber, parse.Column + 1)
+                        : null
                 )
             );
         }
@@ -342,6 +374,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         Stopwatch stopwatch = Stopwatch.StartNew();
         ScriptExecutionOutcome outcome;
         string? error = null;
+        ScriptSourcePosition? errorPosition = null;
 
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken
@@ -425,8 +458,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 )
             );
 
-            engine.Execute(Bootstrap);
-            engine.Execute(request.CompiledJs);
+            engine.Execute(Bootstrap, BootstrapSourceName);
+            engine.Execute(request.CompiledJs, ScriptSourceName);
             outcome = ScriptExecutionOutcome.Success;
         }
         catch (ScriptHostBudgetException)
@@ -460,6 +493,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         {
             outcome = ScriptExecutionOutcome.Faulted;
             error = ex.Message;
+            errorPosition = LocateRuntimeError(ex, request.CompiledJs);
         }
         catch (Exception)
         {
@@ -481,11 +515,45 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     output.Length == 0 ? null : output.ToString(),
                     StopPipeline: false,
                     error,
-                    logLines
+                    logLines,
+                    errorPosition
                 )
             )
         );
     }
+
+    // The Jint source names, so a runtime location tells the author's script apart from the sandbox's own helpers.
+    private const string BootstrapSourceName = "nnz-bootstrap";
+    private const string ScriptSourceName = "script";
+
+    // A bundle position (both numbers from 1) in the author's own file, through the bundle's source map. A bundle
+    // without a map (plain JavaScript run directly) is already the author's source.
+    private static ScriptSourcePosition ToSourcePosition(string bundle, int line, int column) =>
+        ScriptSourceMap.FromBundle(bundle)?.Map(line, column) ?? new(null, line, column);
+
+    // Where in the author's source a runtime error happened: the throw site when it is in the script, else the
+    // innermost script frame of the stack (a sandbox helper such as a missing-argument check throws from inside
+    // the bootstrap, but the author's call is the place to fix). Null when no script frame is on the stack.
+    private static ScriptSourcePosition? LocateRuntimeError(JavaScriptException ex, string bundle)
+    {
+        if (
+            JintException.TryGetJavaScriptLocation(ex, out Acornima.SourceLocation location)
+            && location.SourceFile == ScriptSourceName
+        )
+            return ToSourcePosition(bundle, location.Start.Line, location.Start.Column + 1);
+
+        Match frame = ScriptFrame().Match(ex.JavaScriptStackTrace ?? "");
+        return frame.Success
+            ? ToSourcePosition(
+                bundle,
+                int.Parse(frame.Groups["line"].Value),
+                int.Parse(frame.Groups["column"].Value)
+            )
+            : null;
+    }
+
+    [GeneratedRegex(@"\(?script:(?<line>\d+):(?<column>\d+)\)?")]
+    private static partial Regex ScriptFrame();
 
     private static void Append(StringBuilder output, string message, long maxBytes)
     {

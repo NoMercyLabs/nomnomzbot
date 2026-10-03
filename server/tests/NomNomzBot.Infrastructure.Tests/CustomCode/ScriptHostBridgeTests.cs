@@ -62,7 +62,8 @@ public sealed class ScriptHostBridgeTests
         IScheduledPipelineService? scheduler = null,
         IApplicationDbContext? db = null,
         ISevenTvUserPaintResolver? paintResolver = null,
-        ScriptReplyTarget? replyTo = null
+        ScriptReplyTarget? replyTo = null,
+        long? egressCap = null
     ) =>
         BuildFor(
             Channel,
@@ -80,7 +81,8 @@ public sealed class ScriptHostBridgeTests
             scheduler,
             db,
             paintResolver,
-            replyTo
+            replyTo,
+            egressCap
         );
 
     // Same wiring, but bound to an arbitrary tenant — the tenant-isolation tests need a channel-B bridge.
@@ -100,7 +102,8 @@ public sealed class ScriptHostBridgeTests
         IScheduledPipelineService? scheduler = null,
         IApplicationDbContext? db = null,
         ISevenTvUserPaintResolver? paintResolver = null,
-        ScriptReplyTarget? replyTo = null
+        ScriptReplyTarget? replyTo = null,
+        long? egressCap = null
     ) =>
         new(
             channel,
@@ -120,7 +123,8 @@ public sealed class ScriptHostBridgeTests
             scheduler ?? Substitute.For<IScheduledPipelineService>(),
             db ?? AuthTestBuilder.NewContext(),
             paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
-            Substitute.For<IOwnerActionService>()
+            Substitute.For<IOwnerActionService>(),
+            egressCap
         );
 
     private sealed class StubHandler(string body) : HttpMessageHandler
@@ -294,6 +298,66 @@ public sealed class ScriptHostBridgeTests
             )
             .Should()
             .Be("hello from the web");
+    }
+
+    [Fact]
+    public void Http_fetch_over_the_egress_cap_is_refused_and_an_earlier_fetch_went_out()
+    {
+        CountingHandler handler = new("0123456789012345678901234567890123456789");
+        IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient(EgressHttpClient.Name).Returns(new HttpClient(handler));
+        ScriptHostBridge bridge = Build(http: factory, egressCap: 100);
+        HostImportDelegate fetch = bridge.Resolve("http.fetch");
+
+        string? first = fetch("http.fetch", ["https://e.co/a"], CancellationToken.None);
+        string? second = fetch("http.fetch", ["https://e.co/b"], CancellationToken.None);
+
+        first.Should().Be("0123456789012345678901234567890123456789");
+        second.Should().BeNull();
+        handler.Requests.Should().Be(2);
+        JObject error = JObject.Parse(
+            bridge.Resolve(ScriptHostErrorCodes.LastErrorKey)(
+                "last.error",
+                [],
+                CancellationToken.None
+            )!
+        );
+        error["code"]!.Value<string>().Should().Be(ScriptHostErrorCodes.LimitExceeded);
+        error["message"]!.Value<string>().Should().Contain("100");
+    }
+
+    [Fact]
+    public void Http_fetch_refuses_a_request_that_would_cross_the_cap_before_sending_it()
+    {
+        CountingHandler handler = new("0123456789");
+        IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient(EgressHttpClient.Name).Returns(new HttpClient(handler));
+        ScriptHostBridge bridge = Build(http: factory, egressCap: 10);
+
+        string? body = bridge.Resolve("http.fetch")(
+            "http.fetch",
+            ["https://example.com/a-long-address-that-alone-is-over-the-cap"],
+            CancellationToken.None
+        );
+
+        body.Should().BeNull();
+        handler.Requests.Should().Be(0);
+    }
+
+    private sealed class CountingHandler(string body) : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Requests++;
+            return Task.FromResult(
+                new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) }
+            );
+        }
     }
 
     [Fact]

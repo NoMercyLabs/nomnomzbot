@@ -316,8 +316,8 @@ public sealed class SdkTypeEmitterTests
                 interface NnzApiTtsNamespace {
                   /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. Null when TTS refused the line. */
                   speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;
-                  /** The voice assigned to a viewer. null when the viewer uses the channel default or no viewer matches. */
-                  getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;
+                  /** The voice assigned to a viewer. userIdOrLogin is optional and defaults to the user who triggered the script. null when the viewer uses the channel default or no viewer matches. */
+                  getVoice(userIdOrLogin?: string): NnzApiTtsVoice | null;
                   /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */
                   setVoice(userIdOrLogin: string, voiceId?: string): boolean;
                 }

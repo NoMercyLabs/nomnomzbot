@@ -128,6 +128,11 @@ public sealed class ScriptRunner(
             bridge,
             cancellationToken
         );
+        if (executed.IsFailure)
+            return Result.Failure<ScriptRunResult>(
+                executed.ErrorMessage ?? "The script could not be run.",
+                executed.ErrorCode ?? "SCRIPT_EXECUTION_FAILED"
+            );
         ScriptExecutionOutcomeResult outcome = executed.Value;
 
         script.LastRanAt = clock.GetUtcNow().UtcDateTime;
@@ -154,7 +159,8 @@ public sealed class ScriptRunner(
                 outcome.ChatOutput,
                 outcome.StopPipeline,
                 outcome.ErrorMessage,
-                denial
+                denial,
+                outcome.ErrorPosition
             )
         );
     }

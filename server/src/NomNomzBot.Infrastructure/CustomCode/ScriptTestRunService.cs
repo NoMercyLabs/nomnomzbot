@@ -147,6 +147,11 @@ public sealed class ScriptTestRunService(
             captureBridge,
             cancellationToken
         );
+        if (executed.IsFailure)
+            return Result.Failure<TestRunResultDto>(
+                executed.ErrorMessage ?? "The script could not be run.",
+                executed.ErrorCode ?? "SCRIPT_EXECUTION_FAILED"
+            );
         ScriptExecutionOutcomeResult outcome = executed.Value;
 
         List<string> chatOutput = [.. sink.ChatOutput];
@@ -160,13 +165,14 @@ public sealed class ScriptTestRunService(
             $"Outcome: {outcome.Outcome}",
             $"{outcome.HostCallCount} host call(s), {sink.Effects.Count} captured effect(s).",
         ];
-        if (!success && outcome.ErrorMessage is not null)
-            log.Add($"Error: {outcome.ErrorMessage}");
+        string? error = success ? null : WithPosition(outcome.ErrorMessage, outcome.ErrorPosition);
+        if (error is not null)
+            log.Add($"Error: {error}");
 
         return Result.Success(
             new TestRunResultDto(
                 success,
-                success ? null : outcome.ErrorMessage,
+                error,
                 outcome.ElapsedMs,
                 outcome.HostCallCount,
                 sink.Effects,
@@ -180,6 +186,12 @@ public sealed class ScriptTestRunService(
             }
         );
     }
+
+    // Names the place in the author's own file, so a test run's error can be found without counting lines.
+    private static string? WithPosition(string? message, ScriptSourcePosition? position) =>
+        message is null || position is null
+            ? message
+            : $"{message} (line {position.Line}, column {position.Column})";
 
     // The sample's variables first, then the author's edits over them, then the chosen viewer role.
     private static Dictionary<string, string> SeedVariables(

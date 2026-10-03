@@ -531,15 +531,7 @@ public sealed class CodeScriptService(
         {
             version.ValidationStatus = "rejected";
             version.ValidationErrorsJson = JsonConvert.SerializeObject(
-                new[]
-                {
-                    new ScriptValidationError(
-                        "build",
-                        bundled.ErrorMessage ?? "The script build failed.",
-                        null,
-                        null
-                    ),
-                }
+                BuildErrors(bundled, manifest.Entry)
             );
             return version;
         }
@@ -560,16 +552,46 @@ public sealed class CodeScriptService(
             version.ValidationErrorsJson = JsonConvert.SerializeObject(
                 new[]
                 {
-                    new ScriptValidationError(
+                    ToValidationError(
                         "syntax",
                         compiled.ErrorMessage ?? "Invalid.",
-                        null,
-                        null
+                        compiled.ErrorData as ScriptSourcePosition,
+                        manifest.Entry
                     ),
                 }
             );
         }
         return version;
+    }
+
+    // One rejection per problem esbuild named, each at its own line and column; a failure with no position (the
+    // build tool is missing, a path is unsafe) stays one rejection with no line.
+    private static List<ScriptValidationError> BuildErrors(Result<string> bundled, string entry)
+    {
+        if (bundled.ErrorData is List<ScriptBuildError> { Count: > 0 } found)
+            return found
+                .Select(e => ToValidationError("build", e.Message, e.Position, entry))
+                .ToList();
+        return [new("build", bundled.ErrorMessage ?? "The script build failed.", null, null)];
+    }
+
+    // The message always names its file. The line and column fields are set only for the entry file, the one the
+    // editor shows, so a line number is never read against the wrong file.
+    private static ScriptValidationError ToValidationError(
+        string code,
+        string message,
+        ScriptSourcePosition? position,
+        string entry
+    )
+    {
+        if (position is null)
+            return new(code, message, null, null);
+        if (position.File is null)
+            return new(code, message, position.Line, position.Column);
+        string named = $"{position.File}:{position.Line}:{position.Column}: {message}";
+        return position.File == entry
+            ? new(code, named, position.Line, position.Column)
+            : new(code, named, null, null);
     }
 
     private Task EmitValidatedAsync(CodeScriptVersion version, CancellationToken ct) =>

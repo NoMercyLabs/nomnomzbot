@@ -34,6 +34,7 @@ public sealed class ScriptRunnerTests
 
     private static (ScriptRunner Sut, AuthDbContext Db) Build(
         NomNomzBot.Domain.Chat.Interfaces.IChatProvider? chat = null,
+        IScriptExecutor? executor = null,
         params string[] granted
     )
     {
@@ -92,7 +93,7 @@ public sealed class ScriptRunnerTests
         return (
             new(
                 db,
-                new JintScriptExecutor(),
+                executor ?? new JintScriptExecutor(),
                 broker,
                 meter,
                 bridgeFactory,
@@ -162,12 +163,36 @@ public sealed class ScriptRunnerTests
     }
 
     [Fact]
+    public async Task An_executor_failure_is_returned_with_its_code_not_thrown()
+    {
+        IScriptExecutor executor = Substitute.For<IScriptExecutor>();
+        executor
+            .ExecuteAsync(
+                Arg.Any<ScriptExecutionRequest>(),
+                Arg.Any<ScriptCapabilityGrant>(),
+                Arg.Any<IScriptHostBridge>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<ScriptExecutionOutcomeResult>("sandbox is down", "SANDBOX_DOWN")
+            );
+        (ScriptRunner sut, AuthDbContext db) = Build(executor: executor);
+        Guid id = await SeedAsync(db, enabled: true, withValidVersion: true);
+
+        Result<ScriptRunResult> result = await sut.RunAsync(id, Invocation());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("SANDBOX_DOWN");
+        result.ErrorMessage.Should().Be("sandbox is down");
+    }
+
+    [Fact]
     public async Task A_reply_from_the_script_threads_under_the_message_that_started_it()
     {
         NomNomzBot.Domain.Chat.Interfaces.IChatProvider chat =
             Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
         chat.SendReplyAsync(Channel, "m-9", "thanks!", Arg.Any<CancellationToken>()).Returns(true);
-        (ScriptRunner sut, AuthDbContext db) = Build(chat, "chat.reply");
+        (ScriptRunner sut, AuthDbContext db) = Build(chat, granted: "chat.reply");
         Guid id = await SeedAsync(
             db,
             enabled: true,

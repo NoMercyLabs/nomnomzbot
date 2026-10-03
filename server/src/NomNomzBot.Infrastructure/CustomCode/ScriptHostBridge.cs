@@ -73,10 +73,16 @@ public sealed class ScriptHostBridge(
     IScheduledPipelineService scheduledPipelines,
     IApplicationDbContext db,
     ISevenTvUserPaintResolver paintResolver,
-    IOwnerActionService ownerActions
+    IOwnerActionService ownerActions,
+    long? maxEgressBytes = null
 ) : IScriptHostBridge
 {
     private const int MaxResponseBytes = 256 * 1024;
+
+    // Request plus response bytes of every http.fetch in this run, against the budget's MaxEgressBytes.
+    private readonly long _egressCap =
+        maxEgressBytes ?? ScriptResourceBudget.Baseline.MaxEgressBytes;
+    private long _egressUsed;
 
     // user.get's paint field is OMITTED (not null, not {}) for a viewer wearing no cosmetic — a script must be
     // able to key off "is this field present" without inspecting every sub-field. The default JsonConvert
@@ -257,6 +263,10 @@ public sealed class ScriptHostBridge(
                 "http.fetch needs an absolute https URL."
             );
 
+        long requestBytes = Encoding.UTF8.GetByteCount(uri.AbsoluteUri);
+        if (_egressUsed + requestBytes > _egressCap)
+            return EgressCapReached();
+        _egressUsed += requestBytes;
         try
         {
             // The egress client resolves-then-pins + blocks non-public IPs + is https-only (SSRF-hardened);
@@ -272,15 +282,17 @@ public sealed class ScriptHostBridge(
                     $"The server answered {(int)response.StatusCode}."
                 );
 
+            // Read one byte past what is left of the run's cap, so a body that would cross it is seen as crossing.
+            int allowed = (int)Math.Min(MaxResponseBytes, _egressCap - _egressUsed);
             using System.IO.Stream body = response.Content.ReadAsStream(ct);
-            byte[] buffer = new byte[MaxResponseBytes];
+            byte[] buffer = new byte[allowed];
             int total = 0;
             int read;
-            while (
-                total < MaxResponseBytes
-                && (read = body.Read(buffer, total, MaxResponseBytes - total)) > 0
-            )
+            while (total < allowed && (read = body.Read(buffer, total, allowed - total)) > 0)
                 total += read;
+            _egressUsed += total;
+            if (total == allowed && allowed < MaxResponseBytes && body.ReadByte() >= 0)
+                return EgressCapReached();
             return Encoding.UTF8.GetString(buffer, 0, total);
         }
         catch
@@ -292,6 +304,12 @@ public sealed class ScriptHostBridge(
             );
         }
     }
+
+    private string? EgressCapReached() =>
+        Fail(
+            ScriptHostErrorCodes.LimitExceeded,
+            $"http.fetch would pass the {_egressCap} byte limit on data sent and received in one run."
+        );
 
     private string? QueueMusic(
         string capabilityKey,

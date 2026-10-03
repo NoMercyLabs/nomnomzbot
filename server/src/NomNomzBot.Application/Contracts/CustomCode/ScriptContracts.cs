@@ -97,7 +97,8 @@ public sealed record ScriptExecutionOutcomeResult(
     string? ChatOutput,
     bool StopPipeline,
     string? ErrorMessage,
-    IReadOnlyList<string> LogLines
+    IReadOnlyList<string> LogLines,
+    ScriptSourcePosition? ErrorPosition = null
 );
 
 /// <summary>The result of compiling+validating a script at save time (custom-code.md §4).</summary>
@@ -130,7 +131,8 @@ public sealed record ScriptRunResult(
     string? Output,
     bool StopPipeline,
     string? ErrorMessage,
-    ScriptDenialReason? DenialReason
+    ScriptDenialReason? DenialReason,
+    ScriptSourcePosition? ErrorPosition = null
 );
 
 /// <summary>The sandbox exec-ms quota verdict for a period (custom-code.md §4). <c>LimitMs</c> -1 = unlimited.</summary>

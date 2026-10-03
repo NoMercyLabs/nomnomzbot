@@ -40,7 +40,8 @@ public sealed class ScriptTestRunServiceTests
         ITtsDispatchService? tts = null,
         NomNomzBot.Domain.Chat.Interfaces.IChatProvider? chat = null,
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier? widgetNotifier = null,
-        string? registeredActionType = null
+        string? registeredActionType = null,
+        IScriptExecutor? executor = null
     )
     {
         chat ??= Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
@@ -100,7 +101,15 @@ public sealed class ScriptTestRunServiceTests
             TimeProvider.System
         );
         return (
-            new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory, tts, samples),
+            new(
+                db,
+                tenant,
+                executor ?? new JintScriptExecutor(),
+                broker,
+                bridgeFactory,
+                tts,
+                samples
+            ),
             db,
             storage
         );
@@ -176,6 +185,30 @@ public sealed class ScriptTestRunServiceTests
     }
 
     private static ScriptTestRunRequest Request() => new(new Dictionary<string, string>(), []);
+
+    [Fact]
+    public async Task An_executor_failure_is_returned_with_its_code_not_thrown()
+    {
+        IScriptExecutor executor = Substitute.For<IScriptExecutor>();
+        executor
+            .ExecuteAsync(
+                Arg.Any<ScriptExecutionRequest>(),
+                Arg.Any<ScriptCapabilityGrant>(),
+                Arg.Any<IScriptHostBridge>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<ScriptExecutionOutcomeResult>("sandbox is down", "SANDBOX_DOWN")
+            );
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build(executor: executor);
+        Guid id = await SeedAsync(db, "bot.send('x');", []);
+
+        Result<TestRunResultDto> result = await sut.RunAsync(id, Request());
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("SANDBOX_DOWN");
+        result.ErrorMessage.Should().Be("sandbox is down");
+    }
 
     [Fact]
     public async Task Captures_side_effects_runs_reads_real_and_leaves_the_store_untouched()

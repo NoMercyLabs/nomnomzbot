@@ -81,6 +81,10 @@ public sealed partial class EsbuildScriptBundler(
             "--target=es2022",
             // A tsconfig.json inside the project must not change how the sandbox code is emitted.
             "--tsconfig-raw={}",
+            // The map rides inside the bundle so a runtime error line maps back to the author's own file (no
+            // second file to carry); the sources themselves are left out, the author's files are already stored.
+            "--sourcemap=inline",
+            "--sources-content=false",
             "--log-level=error",
             "--color=false",
             Normalize(entry),
@@ -105,20 +109,38 @@ public sealed partial class EsbuildScriptBundler(
         if (run.ExitCode == 0)
             return Result.Success(run.StandardOutput);
 
-        return Result.Failure<string>(Describe(run.StandardError), "SCRIPT_BUILD_FAILED");
+        List<ScriptBuildError> errors = ParseErrors(run.StandardError);
+        return Result.Failure<string>(
+            Describe(run.StandardError, errors),
+            "SCRIPT_BUILD_FAILED",
+            errorData: errors
+        );
     }
 
-    // One `file:line:column: message` line per error, the form editors and people both read.
-    private static string Describe(string standardError)
-    {
-        List<string> errors = LoggedError()
+    private static List<ScriptBuildError> ParseErrors(string standardError) =>
+        LoggedError()
             .Matches(standardError)
-            .Select(m =>
-                $"{m.Groups["file"].Value}:{m.Groups["line"].Value}:{m.Groups["column"].Value}: {m.Groups["message"].Value}"
-            )
+            .Select(m => new ScriptBuildError(
+                m.Groups["message"].Value,
+                new(
+                    m.Groups["file"].Value,
+                    int.Parse(m.Groups["line"].Value),
+                    // esbuild counts columns from 0; editors from 1.
+                    int.Parse(m.Groups["column"].Value) + 1
+                )
+            ))
             .ToList();
+
+    // One `file:line:column: message` line per error, the form editors and people both read.
+    private static string Describe(string standardError, List<ScriptBuildError> errors)
+    {
         if (errors.Count > 0)
-            return string.Join('\n', errors);
+            return string.Join(
+                '\n',
+                errors.Select(e =>
+                    $"{e.Position.File}:{e.Position.Line}:{e.Position.Column - 1}: {e.Message}"
+                )
+            );
         return string.IsNullOrWhiteSpace(standardError)
             ? "The script build failed."
             : standardError.Trim();

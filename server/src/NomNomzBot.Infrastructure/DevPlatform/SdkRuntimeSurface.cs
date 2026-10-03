@@ -626,9 +626,9 @@ internal static class SdkRuntimeSurface
             "  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;"
         );
         sb.AppendLine(
-            "  /** The voice assigned to a viewer. null when the viewer uses the channel default or no viewer matches. */"
+            "  /** The voice assigned to a viewer. userIdOrLogin is optional and defaults to the user who triggered the script. null when the viewer uses the channel default or no viewer matches. */"
         );
-        sb.AppendLine("  getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;");
+        sb.AppendLine("  getVoice(userIdOrLogin?: string): NnzApiTtsVoice | null;");
         sb.AppendLine(
             "  /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */"
         );
