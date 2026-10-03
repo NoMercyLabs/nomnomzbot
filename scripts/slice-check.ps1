@@ -30,6 +30,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Under `powershell -File` (bash, CI), "-Paths a.cs,b.cs" binds as ONE string; split it so both forms work.
+$Paths = @($Paths | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $repo = Join-Path $PSScriptRoot '..' | Resolve-Path
 $worktree = $null
 
