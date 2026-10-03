@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 
 namespace NomNomzBot.Application.DevPlatform.Services;
@@ -26,6 +27,13 @@ public interface ISdkTypeEmitter
     /// context.
     /// </summary>
     string EmitTypeScript(SdkContext context);
+
+    /// <summary>
+    /// The script <c>nnz.d.ts</c> for one trigger: <c>bot.getVar</c> accepts only the variable keys that trigger
+    /// sets, plus a dynamic overload for keys set elsewhere. <paramref name="triggerKey"/> is an event response
+    /// key (<c>channel.follow</c>) or <c>command</c> for a chat command. An unknown trigger is a failure.
+    /// </summary>
+    Result<string> EmitTypeScript(SdkContext context, string triggerKey);
 
     /// <summary>
     /// The event catalog for <paramref name="context"/> — one item per visible event: wire name,

@@ -34,7 +34,8 @@ public sealed class SdkTypeEmitterTests
     [Fact]
     public void Script_dts_lands_the_chat_message_event_in_the_event_map_with_typed_payload()
     {
-        string ts = RealEmitter().EmitTypeScript(SdkContext.Script);
+        // Only a widget page has an event map: a script has no event bus.
+        string ts = RealEmitter().EmitTypeScript(SdkContext.Widget);
 
         // The map entry keys the stable wire name to the reflected payload interface.
         ts.Should().Contain("'chat.message': NnzChatMessageReceived;");
@@ -112,7 +113,7 @@ public sealed class SdkTypeEmitterTests
             ts.Should().NotContain("NnzInternalSample");
             ts.Should().NotContain("whatever");
             // The Public sibling still comes through, so the absence is the tier filter, not an empty emit.
-            ts.Should().Contain("nnztest.pii.sample");
+            ts.Should().Contain("interface NnzPiiSample {");
         }
     }
 
@@ -409,8 +410,11 @@ public sealed class SdkTypeEmitterTests
         // SDK surface is now authored alongside them.
         string ts = RealEmitter().EmitTypeScript(SdkContext.Script);
 
-        ts.Should().Contain("'chat.message': NnzChatMessageReceived;");
         ts.Should().Contain("interface NnzChatMessageReceived {");
+        RealEmitter()
+            .EmitTypeScript(SdkContext.Widget)
+            .Should()
+            .Contain("'chat.message': NnzChatMessageReceived;");
 
         // …and the authored globals sit alongside them, untouched by the reflection pass.
         ts.Should().Contain("declare const bot: {");

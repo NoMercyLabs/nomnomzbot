@@ -1431,7 +1431,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         }
     }
 
-    private static Dictionary<string, string> BuildInitialVariables(
+    internal static Dictionary<string, string> BuildInitialVariables(
         ChatMessageReceivedEvent @event,
         string args
     )

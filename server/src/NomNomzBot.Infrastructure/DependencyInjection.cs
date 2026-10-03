@@ -1244,7 +1244,7 @@ public static class DependencyInjection
             Application.DevPlatform.Services.IEventCatalog,
             DevPlatform.EventCatalog
         >();
-        services.AddSingleton<
+        services.AddScoped<
             Application.DevPlatform.Services.ISdkTypeEmitter,
             DevPlatform.SdkTypeEmitter
         >();

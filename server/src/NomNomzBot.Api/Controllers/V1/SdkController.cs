@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
@@ -38,18 +39,29 @@ public class SdkController : BaseController
 
     /// <summary>
     /// The generated <c>nnz.d.ts</c> for the requested context, as <c>text/plain</c> — the <c>NnzEventMap</c>,
-    /// every payload interface, and the typed <c>nnz.on&lt;K&gt;</c> declaration. <c>400</c> on an unknown context.
+    /// every payload interface, and the typed <c>nnz.on&lt;K&gt;</c> declaration. With <c>trigger</c> (an event
+    /// response key or <c>command</c>, script context only) <c>bot.getVar</c> is typed to that trigger's variable
+    /// keys. <c>400</c> on an unknown context or trigger.
     /// </summary>
     [HttpGet("types.d.ts")]
     [RequireAction("sdk:read")]
     [Produces("text/plain")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetTypes([FromQuery] string? context)
+    public IActionResult GetTypes([FromQuery] string? context, [FromQuery] string? trigger)
     {
         if (!TryParseContext(context, out SdkContext parsed))
             return BadRequestResponse("Unknown context — use 'widget' or 'script'.");
 
-        return Content(_emitter.EmitTypeScript(parsed), "text/plain");
+        if (string.IsNullOrWhiteSpace(trigger))
+            return Content(_emitter.EmitTypeScript(parsed), "text/plain");
+
+        if (parsed != SdkContext.Script)
+            return BadRequestResponse("A trigger applies to the script context only.");
+
+        Result<string> typed = _emitter.EmitTypeScript(parsed, trigger);
+        return typed.IsSuccess
+            ? Content(typed.Value, "text/plain")
+            : BadRequestResponse(typed.ErrorMessage, typed.ErrorCode);
     }
 
     /// <summary>
