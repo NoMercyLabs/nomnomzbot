@@ -99,13 +99,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   processed_by_its_successor` saw inbox count 1, expected 0. It passed 20 of 20, three times, when run
   alone, so it fails only under full-suite load. Done-when: the cause is found and fixed (not
   retried), and the test passes 200 repeated runs alongside the full suite's parallel load.
-- **S-FLAKE-INTERVAL-RACE** CI run 37104337272 attempt 1 (2026-10-03, sha ca32f9f63):
-  `RedemptionTimerExpiryServiceTests.ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying`
-  failed and passed on re-run. The same test exists in ScheduledPipelineExpiryServiceTests,
-  TimerServiceTests and YouTubeLiveChatPollWorkerTests (4 of 4). Suspected cause: the test advances the
-  fake clock before the service has created its delay timer, and its wait helper gives up silently after
-  1 s. Done-when: the cause is confirmed and fixed in all 4, and each passes 200 repeated runs.
-
 ---
 
 ## OWNER PUNCH LIST 2026-09-10 — remaining follow-ups
