@@ -81,6 +81,14 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   now-playing reader give null whenever YouTube is the active service. Done-when: with YouTube active and the
   player reporting a track, `GetCurrentTrackAsync` returns that track (from the relayed state), and with no
   player attached it returns null; a test failed first. Every caller of the capability flag is listed N of M.
+- **S-REWARD-PATCH-CLEARS-LIMITS** Found by the docs fact-check 2026-10-04. A reward update that leaves out
+  a limit turns that limit off: `RewardService.cs:261-266` sends `IsMaxPerStreamEnabled:
+  request.MaxPerStream.HasValue` (same for max per user per stream and global cooldown), the Helix body drops
+  only null fields, not `false` (`TwitchHelixTransport.cs:89`), and the local copy clears them too
+  (`RewardService.cs:1230-1238`). So `nnz.api.reward.update(id, { cost: 500 })` silently removes all three
+  limits on Twitch. Done-when: a field left out of the patch keeps its current value on Twitch and in the local
+  copy, and turning a limit off is an explicit value; every caller of the update (script bridge, dashboard,
+  pipeline actions) is listed N of M and keeps working; a test failed first.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
