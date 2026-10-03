@@ -140,13 +140,21 @@ internal sealed class ReflectionSampleGenerator
         )
             return JsonValue.Create("active")!;
         if (lower.EndsWith("id", StringComparison.Ordinal))
-            return JsonValue.Create(
-                $"id-{Math.Abs(propertyName.GetHashCode(StringComparison.Ordinal)) % 100_000}"
-            )!;
+            return JsonValue.Create($"id-{StableHash(propertyName) % 100_000}")!;
 
         return JsonValue.Create(
             $"sample-{SplitWords(propertyName).Replace(' ', '-').ToLowerInvariant()}"
         )!;
+    }
+
+    // FNV-1a over the UTF-8 bytes. string.GetHashCode is randomized per process, which made the catalogue
+    // sample ids change on every restart.
+    private static uint StableHash(string value)
+    {
+        uint hash = 2166136261;
+        foreach (byte b in System.Text.Encoding.UTF8.GetBytes(value))
+            hash = (hash ^ b) * 16777619;
+        return hash;
     }
 
     private static long IntegerValue(string propertyName)
