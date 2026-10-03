@@ -10,6 +10,7 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
 
 namespace NomNomzBot.Infrastructure.Widgets.Bundling;
 
@@ -19,6 +20,15 @@ namespace NomNomzBot.Infrastructure.Widgets.Bundling;
 /// </summary>
 public sealed class ProcessRunner : IProcessRunner
 {
+    /// <summary>How long a run may take when the request sets no timeout.</summary>
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>The esbuild timeout: <c>Widgets:EsbuildTimeoutSeconds</c>, or <see cref="DefaultTimeout"/>.</summary>
+    public static TimeSpan EsbuildTimeout(IConfiguration configuration) =>
+        configuration.GetValue<int?>("Widgets:EsbuildTimeoutSeconds") is > 0 and int seconds
+            ? TimeSpan.FromSeconds(seconds)
+            : DefaultTimeout;
+
     public async Task<ProcessRunResult> RunAsync(
         ProcessRunRequest request,
         CancellationToken cancellationToken = default
@@ -51,31 +61,45 @@ public sealed class ProcessRunner : IProcessRunner
             return new(false, -1, string.Empty, ex.Message);
         }
 
-        if (request.StandardInput is not null)
-        {
-            await process.StandardInput.WriteAsync(
-                request.StandardInput.AsMemory(),
-                cancellationToken
-            );
-            process.StandardInput.Close();
-        }
+        TimeSpan timeout = request.Timeout ?? DefaultTimeout;
+        using CancellationTokenSource timeoutSource =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(timeout);
 
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        Task<string> stderr = process.StandardError.ReadToEndAsync(cancellationToken);
-
+        // Every wait below shares one token, so a cancel or a timeout during the stdin write or the output
+        // reads kills the process too, not only one during the wait for exit.
         try
         {
-            await process.WaitForExitAsync(cancellationToken);
+            if (request.StandardInput is not null)
+            {
+                await process.StandardInput.WriteAsync(
+                    request.StandardInput.AsMemory(),
+                    timeoutSource.Token
+                );
+                process.StandardInput.Close();
+            }
+
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
+            Task<string> stderr = process.StandardError.ReadToEndAsync(timeoutSource.Token);
+
+            await process.WaitForExitAsync(timeoutSource.Token);
+
+            return new(true, process.ExitCode, await stdout, await stderr);
         }
         catch (OperationCanceledException)
         {
             TryKill(process);
-            throw;
-        }
+            if (cancellationToken.IsCancellationRequested)
+                throw;
 
-        string outputText = await stdout;
-        string errorText = await stderr;
-        return new(true, process.ExitCode, outputText, errorText);
+            return new(
+                true,
+                -1,
+                string.Empty,
+                $"The process timed out after {timeout.TotalSeconds:0.##} seconds and was killed.",
+                TimedOut: true
+            );
+        }
     }
 
     private static void TryKill(Process process)

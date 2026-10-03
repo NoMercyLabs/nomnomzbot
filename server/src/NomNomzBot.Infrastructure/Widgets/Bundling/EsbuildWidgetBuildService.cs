@@ -50,6 +50,7 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
     private readonly IWidgetDependencyAllowlist _allowlist;
     private readonly ILogger<EsbuildWidgetBuildService> _logger;
     private readonly string _esbuildPath;
+    private readonly TimeSpan _esbuildTimeout;
 
     public EsbuildWidgetBuildService(
         IProcessRunner process,
@@ -64,6 +65,7 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
         _allowlist = allowlist;
         _logger = logger;
         _esbuildPath = configuration["Widgets:EsbuildPath"] ?? "esbuild";
+        _esbuildTimeout = ProcessRunner.EsbuildTimeout(configuration);
     }
 
     public async Task<Result<WidgetBuildOutput>> BuildAsync(
@@ -259,7 +261,13 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
     )
     {
         ProcessRunResult run = await _process.RunAsync(
-            new(_esbuildPath, arguments, StandardInput: null, WorkingDirectory: workDir),
+            new(
+                _esbuildPath,
+                arguments,
+                StandardInput: null,
+                WorkingDirectory: workDir,
+                Timeout: _esbuildTimeout
+            ),
             cancellationToken
         );
 

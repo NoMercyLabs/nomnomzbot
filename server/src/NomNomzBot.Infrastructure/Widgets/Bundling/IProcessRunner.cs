@@ -26,21 +26,25 @@ public interface IProcessRunner
 /// What to run: the executable, its arguments, the text to feed on stdin (null = no stdin), and an optional
 /// <paramref name="WorkingDirectory"/> (null = the host's current directory). The multi-file widget build sets the
 /// working directory to a materialized temp project so esbuild resolves relative imports from the entry file.
+/// <paramref name="Timeout"/> caps the run (null = <see cref="ProcessRunner.DefaultTimeout"/>); a run that exceeds it is killed.
 /// </summary>
 public sealed record ProcessRunRequest(
     string FileName,
     IReadOnlyList<string> Arguments,
     string? StandardInput,
-    string? WorkingDirectory = null
+    string? WorkingDirectory = null,
+    TimeSpan? Timeout = null
 );
 
 /// <summary>
 /// The result. <see cref="Started"/> is false when the executable could not be launched at all (not found / not
-/// executable) — distinct from a process that ran and exited non-zero.
+/// executable) — distinct from a process that ran and exited non-zero. <see cref="TimedOut"/> is true when the
+/// process was killed for exceeding its timeout.
 /// </summary>
 public sealed record ProcessRunResult(
     bool Started,
     int ExitCode,
     string StandardOutput,
-    string StandardError
+    string StandardError,
+    bool TimedOut = false
 );

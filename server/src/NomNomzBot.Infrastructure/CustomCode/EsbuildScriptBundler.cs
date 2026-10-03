@@ -31,6 +31,7 @@ public sealed partial class EsbuildScriptBundler(
 ) : IScriptBundler
 {
     private readonly string _esbuildPath = configuration["Widgets:EsbuildPath"] ?? "esbuild";
+    private readonly TimeSpan _esbuildTimeout = ProcessRunner.EsbuildTimeout(configuration);
 
     // esbuild's plain-text log: `✘ [ERROR] <message>`, a blank line, then `    <file>:<line>:<column>:`.
     [GeneratedRegex(
@@ -55,7 +56,13 @@ public sealed partial class EsbuildScriptBundler(
                 return Result.Failure<string>(written.ErrorMessage!, written.ErrorCode);
 
             ProcessRunResult run = await process.RunAsync(
-                new(_esbuildPath, Arguments(entry), StandardInput: null, WorkingDirectory: workDir),
+                new(
+                    _esbuildPath,
+                    Arguments(entry),
+                    StandardInput: null,
+                    WorkingDirectory: workDir,
+                    Timeout: _esbuildTimeout
+                ),
                 cancellationToken
             );
             return ToResult(run);
