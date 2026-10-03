@@ -243,7 +243,7 @@ Behavior (one line each):
 **As-built additions to `IWidgetService`** (ids are `string` on the interface, see the file map):
 - `GetDeleteBlastRadiusAsync` — the counted blast radius of a delete: stored versions plus the pipeline steps that name the widget in `PipelineStep.ConfigJson` (a MINIMUM when some references only resolve at run time). The dashboard renders it before the delete confirm.
 - `GetByTokenAsync` — a widget by its public overlay token.
-- `GetSettingsSchemaAsync` — the typed settings schema behind the generic settings form; `NOT_FOUND` for a `custom` widget (configured through the code editor).
+- `GetSettingsSchemaAsync` — the typed settings schema behind the generic settings form; for a `custom` widget it is read from the `settings.json` in the active version's project files (`widget-sdk.md` §7), and `WIDGET_NO_SETTINGS_SCHEMA` (`NOT_FOUND`) when the project has none.
 - `GetProjectAsync` / `SaveProjectAsync` — the multi-file project (`ProjectDto` = `Files` + `Manifest`). Save re-builds through `IWidgetBuildService` (the trust boundary — a client bundle is never trusted); a clean build appends a new successful `WidgetVersion` (files + manifest + bundle + hash) and activates it; a failed build returns the reason and persists NO version.
 - `ClearRuntimeErrorAsync` — the success-side twin of `RecordRuntimeErrorAsync`: clears a stamped `LastRuntimeError` and stamps `LastRanAt` when the browser source reconnects cleanly; a no-op when no error is stamped.
 - Token-resolved public reads (token-auth only, never the user JWT): `GetOverlayBundleAsync`, `GetSpotifyPlaybackTokenAsync` (short-lived scoped access token, never the refresh token), `GetNowPlayingSnapshotAsync`, `GetScriptStorageValueAsync`, `GetQueueSnapshotAsync`.

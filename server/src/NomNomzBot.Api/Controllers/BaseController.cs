@@ -232,6 +232,7 @@ public abstract class BaseController : ControllerBase
             or "INVALID_STATE"
             or "PROJECT_PATH_INVALID"
             or "WIDGET_PROJECT_PATH_INVALID"
+            or "WIDGET_SETTINGS_INVALID"
             or "WIDGET_CLONE_SOURCE_INVALID"
             or "BUNDLE_INVALID"
             or "ENVELOPE_INVALID"

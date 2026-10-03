@@ -708,7 +708,7 @@ public class WidgetService : IWidgetService
 
         // A first-party widget is installed from a gallery item whose NaturalKey IS its widget key (alerts,
         // chat_box, …); that key selects the authored schema. A self-authored `custom` widget carries no gallery
-        // link (and no first-party key), so it has no typed schema — it is configured through the code editor.
+        // link (and no first-party key); its schema, if any, comes from the settings.json in its project.
         string? naturalKey = widget.GalleryItemId is { } galleryItemId
             ? await _db
                 .WidgetGalleryItems.Where(item => item.Id == galleryItemId)
@@ -719,13 +719,44 @@ public class WidgetService : IWidgetService
         WidgetSettingsSchema? schema = naturalKey is not null
             ? _settingsSchemas.GetByKey(naturalKey)
             : null;
-        if (schema is null)
+        if (schema is not null)
+            return Result.Success(schema);
+
+        return await GetDeclaredSettingsSchemaAsync(widget, cancellationToken);
+    }
+
+    // A custom widget declares its settings in a project-root settings.json; the active version's stored files
+    // carry it. No declaration (no active version, or no file) keeps the WIDGET_NO_SETTINGS_SCHEMA answer.
+    private async Task<Result<WidgetSettingsSchema>> GetDeclaredSettingsSchemaAsync(
+        Widget widget,
+        CancellationToken cancellationToken
+    )
+    {
+        string? filesJson = widget.ActiveVersionId is { } versionId
+            ? await _db
+                .WidgetVersions.Where(v => v.Id == versionId)
+                .Select(v => v.FilesJson)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+        Dictionary<string, string>? files = ProjectJson.DeserializeFiles(filesJson);
+        if (
+            files is null
+            || !files.TryGetValue(CustomWidgetSettingsDeclaration.FileName, out string? declaration)
+        )
             return Result.Failure<WidgetSettingsSchema>(
-                "This widget has no typed settings schema — configure it through the code editor.",
+                "This widget has no typed settings schema — add a settings.json to its project to declare one.",
                 "WIDGET_NO_SETTINGS_SCHEMA"
             );
 
-        return Result.Success(schema);
+        Result<IReadOnlyList<WidgetSettingsField>> fields = CustomWidgetSettingsDeclaration.Parse(
+            declaration
+        );
+        if (fields.IsFailure)
+            return Result.Failure<WidgetSettingsSchema>(fields.ErrorMessage, fields.ErrorCode);
+
+        return Result.Success(
+            new WidgetSettingsSchema("custom", widget.Name, fields.Value, widget.EventSubscriptions)
+        );
     }
 
     public async Task<Result<WidgetVersionDetail>> CompileAsync(
@@ -889,6 +920,19 @@ public class WidgetService : IWidgetService
         );
         if (widget is null)
             return Errors.NotFound<WidgetVersionDetail>("Widget", widgetId);
+
+        if (
+            project.Files.TryGetValue(
+                CustomWidgetSettingsDeclaration.FileName,
+                out string? declaration
+            )
+        )
+        {
+            Result<IReadOnlyList<WidgetSettingsField>> parsed =
+                CustomWidgetSettingsDeclaration.Parse(declaration);
+            if (parsed.IsFailure)
+                return Result.Failure<WidgetVersionDetail>(parsed.ErrorMessage, parsed.ErrorCode);
+        }
 
         ProjectManifest manifest = project.Manifest.ToManifest();
 

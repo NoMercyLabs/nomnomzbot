@@ -187,7 +187,7 @@ Load-time injection is **per widget SPA** — there is no shared host page. Each
 <script>window.__NOMNOMZ__ = { widgetId, name, version, settings, hubUrl, token };</script>
 ```
 
-`createWidget()` reads it, exposes `config = settings` typed to the widget's declared settings schema, and self-connects with `hubUrl`+`token`. Live changes arrive via `WidgetSettingsChanged` and update `config` in place (→ `onConfigChange`). Unknown keys are ignored. Settings are validated server-side against the widget's declared schema on save.
+`createWidget()` reads it, exposes `config = settings` typed to the widget's declared settings schema, and self-connects with `hubUrl`+`token`. Live changes arrive via `WidgetSettingsChanged` and update `config` in place (→ `onConfigChange`). Unknown keys are ignored. Settings are validated server-side against the widget's declared schema on save. A self-authored widget declares its schema in a project-root `settings.json` (`{ "fields": [ { key, label, type, group?, default, help?, options?, min?, max?, step? } ] }`; types `bool`, `number`, `text`, `color`, `select`, `multiselect`, `json`), which feeds the same generic dashboard form. Saving a project with an invalid `settings.json` fails with `WIDGET_SETTINGS_INVALID` (naming the field and the rule) and stores no version; a project without the file has no settings form.
 
 ---
 
