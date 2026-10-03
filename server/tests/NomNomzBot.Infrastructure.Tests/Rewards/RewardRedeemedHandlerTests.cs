@@ -68,6 +68,7 @@ public sealed class RewardRedeemedHandlerTests
         RewardRedeemedHandler handler = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
             engine,
+            new RecordingEventBus(),
             NullLogger<RewardRedeemedHandler>.Instance
         );
 

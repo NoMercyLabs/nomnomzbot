@@ -34,7 +34,7 @@ enabled, async all the way, `Result<T>` (`NomNomzBot.Application.Common.Models`)
 | § | Subject | Status |
 |---|---|---|
 | 1 | Entities | Built. Column deltas and the extra entities are listed in §1. `CommandCooldownState` (G.3) and `CommandUsage` (M.5) exist but no code writes them. |
-| 2 | Domain events | Partly built: `CommandExecutedEvent`, `CommandFailedEvent` (plus `VoiceTriggerFiredEvent`). Every other event is **unbuilt**. |
+| 2 | Domain events | Partly built: `CommandExecutedEvent` (a failed run has `Succeeded = false`) (plus `VoiceTriggerFiredEvent`). Every other event is **unbuilt**. |
 | 3.1 | `ICommandService` | Built; different signatures. |
 | 3.2 | Command dispatch | Built as `ChatMessageHandler`; `ICommandDispatcher` does not exist. |
 | 3.3 | `IPipelineEngine` | Built; different request/outcome shape plus the resume methods. |
@@ -103,11 +103,11 @@ app-interpreted-JSON config table is the per-row upcast anchor.
 
 ## 2. Domain events
 
-**As-built:** only `CommandExecutedEvent` and `CommandFailedEvent` exist (in `Domain/Commands/Events/`, plus `VoiceTriggerFiredEvent`). `BeforeCommandExecutedEvent`, `AfterCommandExecutedEvent` and every net-new event below are **unbuilt**; the engine records runs in `PipelineExecution` rows instead. The rest of this section is the design intent.
+**As-built:** only `CommandExecutedEvent` (`Succeeded = false` on a failed run) exists (in `Domain/Commands/Events/`, plus `VoiceTriggerFiredEvent`). `BeforeCommandExecutedEvent`, `AfterCommandExecutedEvent` and every net-new event below are **unbuilt**; the engine records runs in `PipelineExecution` rows instead. The rest of this section is the design intent.
 
 In `NomNomzBot.Domain/Events/`, inheriting the canonical **`DomainEventBase`** (platform-conventions §2.0 — supplies
 `Guid EventId`, `DateTimeOffset OccurredAt`, `Guid BroadcasterId`; events add only payload fields, never redeclaring the base members). **Existing events to KEEP** (already correct shape — reuse, do
-not recreate): `BeforeCommandExecutedEvent`, `AfterCommandExecutedEvent`, `CommandExecutedEvent`, `CommandFailedEvent`.
+not recreate): `BeforeCommandExecutedEvent`, `AfterCommandExecutedEvent`, `CommandExecutedEvent` (a failed run is the same event with `Succeeded = false`).
 
 **Net-new events to add** (one responsibility each; all `sealed`, init-only):
 
@@ -157,7 +157,7 @@ Task<Result<string>>     ExecuteAsync(string broadcasterId, string commandName, 
 2. Check the caller's effective rung against the command's `MinPermissionLevel`; a refusal sends a system notice (`system/permissiondenied`).
 3. Check global and per-user cooldowns through `ICooldownManager` (§3.11); a hit sends a cooldown notice.
 4. Execute: a `template` command renders through `ITemplateResolver` and sends the reply; a `pipeline` or `code` command builds a `PipelineRequest` and calls `IPipelineEngine.ExecuteAsync`; a built-in calls `IBuiltinCommand.ExecuteAsync` and sends the reply through `IBuiltinResponseComposer` (§11).
-5. Set the cooldown and publish `CommandExecutedEvent` or `CommandFailedEvent`. `CommandUseCountHandler` folds a success into `Command.UseCount` / `LastUsedAt`.
+5. Set the cooldown and publish `CommandExecutedEvent` (with `Succeeded` true or false). `CommandUseCountHandler` folds a success into `Command.UseCount` / `LastUsedAt`.
 
 The same handler also fires chat triggers (`ChatTrigger`), sound triggers, passive clip links and poll votes for a message. **Design intent, unbuilt:** the `ICommandDispatcher.DispatchAsync` contract with a typed result, the `CommandCooldownBlockedEvent`, and `CommandUsage` appends.
 

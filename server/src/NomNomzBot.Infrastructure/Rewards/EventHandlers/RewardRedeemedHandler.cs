@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -35,16 +36,19 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
+    private readonly IEventBus _eventBus;
     private readonly ILogger<RewardRedeemedHandler> _logger;
 
     public RewardRedeemedHandler(
         IServiceScopeFactory scopeFactory,
         IPipelineEngine pipeline,
+        IEventBus eventBus,
         ILogger<RewardRedeemedHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
         _pipeline = pipeline;
+        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -219,9 +223,12 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         CancellationToken ct
     )
     {
+        bool succeeded = false;
+        TimeSpan duration;
+        long startedAt = Stopwatch.GetTimestamp();
         try
         {
-            await _pipeline.ExecuteAsync(
+            PipelineExecutionResult result = await _pipeline.ExecuteAsync(
                 new()
                 {
                     BroadcasterId = broadcasterId,
@@ -243,12 +250,58 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 },
                 ct
             );
+            succeeded = result.Outcome is PipelineOutcome.Completed or PipelineOutcome.Stopped;
+            duration = result.Duration;
+        }
+        catch (Exception ex)
+        {
+            duration = Stopwatch.GetElapsedTime(startedAt);
+            _logger.LogError(
+                ex,
+                "Failed to execute reward pipeline in channel {Channel}",
+                broadcasterId
+            );
+        }
+
+        await PublishAfterProcessedAsync(
+            broadcasterId,
+            rewardId,
+            redemptionId,
+            succeeded,
+            duration,
+            ct
+        );
+    }
+
+    private async Task PublishAfterProcessedAsync(
+        Guid broadcasterId,
+        string rewardId,
+        string redemptionId,
+        bool succeeded,
+        TimeSpan duration,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            await _eventBus.PublishAsync(
+                new AfterRewardProcessedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    RewardId = rewardId,
+                    RedemptionId = redemptionId,
+                    Succeeded = succeeded,
+                    Duration = duration,
+                },
+                ct
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "Failed to execute reward pipeline in channel {Channel}",
+                "Failed to publish AfterRewardProcessedEvent for {RedemptionId} in channel {Channel}",
+                redemptionId,
                 broadcasterId
             );
         }

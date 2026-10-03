@@ -163,10 +163,7 @@ public sealed class PlatformAdminService(
         // An operator suspending their own channel locks themselves out of the very console that could
         // reinstate it (the channel-scoped surface goes dark for a suspended tenant). Another operator
         // has to do it.
-        Guid? actingUserId = await db
-            .IamPrincipals.Where(p => p.Id == principalId)
-            .Select(p => p.UserId)
-            .FirstOrDefaultAsync(ct);
+        Guid? actingUserId = await PrincipalUserIdAsync(principalId, ct);
         if (actingUserId is not null && actingUserId == channel.OwnerUserId)
             return Result.Failure(
                 "You cannot suspend your own channel; another operator has to.",
@@ -183,6 +180,16 @@ public sealed class PlatformAdminService(
             broadcasterId,
             request.NewStatus,
             request.Reason,
+            ct
+        );
+        await eventBus.PublishAsync(
+            new ChannelSuspendedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Status = request.NewStatus,
+                Reason = request.Reason,
+                ActorUserId = actingUserId,
+            },
             ct
         );
         return Result.Success();
@@ -219,6 +226,14 @@ public sealed class PlatformAdminService(
             broadcasterId,
             AuthEnums.ChannelStatus.Active,
             justification,
+            ct
+        );
+        await eventBus.PublishAsync(
+            new ChannelReinstatedEvent
+            {
+                BroadcasterId = broadcasterId,
+                ActorUserId = await PrincipalUserIdAsync(principalId, ct),
+            },
             ct
         );
         return Result.Success();
@@ -862,6 +877,12 @@ public sealed class PlatformAdminService(
             ? userId
             : null;
     }
+
+    private Task<Guid?> PrincipalUserIdAsync(Guid principalId, CancellationToken ct) =>
+        db
+            .IamPrincipals.Where(p => p.Id == principalId)
+            .Select(p => p.UserId)
+            .FirstOrDefaultAsync(ct);
 
     private Task PublishSuspensionChangedAsync(
         Guid principalId,

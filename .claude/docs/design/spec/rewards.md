@@ -190,9 +190,8 @@ public sealed class RewardRedemptionUpdatedEvent : DomainEventBase, IProviderSco
 
 Reward CRUD mirrored from Twitch's own feed (§1.2 path 3), each `sealed class … : DomainEventBase`:
 `RewardCreatedEvent` and `RewardUpdatedEvent` (`TwitchRewardId, Title, Cost, IsEnabled, IsPaused`) and
-`RewardRemovedEvent` (`TwitchRewardId, Title`). Also on the bus: `RewardRefundedEvent` (`RewardId, RedemptionId,
-Reason`), `BeforeRewardProcessedEvent` (`RewardId, RedemptionId, UserId, UserInput`) and `AfterRewardProcessedEvent`
-(`RewardId, RedemptionId, Succeeded, Duration`). The extra Twitch events are in §12.
+`RewardRemovedEvent` (`TwitchRewardId, Title`). Also on the bus: `AfterRewardProcessedEvent`
+(`RewardId, RedemptionId, Succeeded, Duration`), raised by `RewardRedeemedHandler` after a redemption's pipeline ran. A refund is `RewardRedemptionUpdatedEvent` with status `canceled`. The extra Twitch events are in §12.
 
 There is **no** `RewardRedemptionFulfilledEvent`, `RewardRedemptionRefundedEvent` or
 `RewardConfigurationChangedEvent`. A fulfil/refund made through the bot is observed through Twitch's own

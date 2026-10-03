@@ -29,23 +29,13 @@ public sealed class EventCatalogRaisedEventsGuardTests
     // Raise it (or remove the event), then delete the name from this list.
     private static readonly HashSet<string> NeverRaisedAllowlist = new(StringComparer.Ordinal)
     {
-        "AfterRewardProcessedEvent",
-        "BeforeRewardProcessedEvent",
-        "ChannelJoinedEvent",
-        "ChannelLeftEvent",
-        "ChannelSuspendedEvent",
-        "ChannelReinstatedEvent",
-        "CommandFailedEvent",
         "EventPayloadShreddedEvent",
         "FeatureToggledEvent",
         "FederatedEventDispatchedEvent",
         "IntegrationErrorEvent",
-        "MessageAutoModdedEvent",
         "PermissionChangedEvent",
         "ReplayStatusChangedEvent",
-        "RewardRefundedEvent",
         "SongSkippedEvent",
-        "StreamStatusChangedEvent",
         "TrackChangedEvent",
         "UserFirstChatEvent",
         "ViewerRowAbsorbedEvent",

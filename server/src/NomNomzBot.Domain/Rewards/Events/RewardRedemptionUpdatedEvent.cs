@@ -16,8 +16,7 @@ namespace NomNomzBot.Domain.Rewards.Events;
 /// <summary>
 /// Published when a custom channel-point reward redemption changes status
 /// (<c>channel.channel_points_custom_reward_redemption.update</c>) — the streamer or a moderator marks a
-/// queued redemption <c>fulfilled</c> or <c>canceled</c>. Distinct from <see cref="RewardRefundedEvent"/>,
-/// which only models the refund case and carries neither the fulfilled status nor the viewer/title — this
+/// queued redemption <c>fulfilled</c> or <c>canceled</c>. A refund is the <c>canceled</c> status; this
 /// event surfaces the full status transition and who it applied to.
 /// </summary>
 public sealed class RewardRedemptionUpdatedEvent : DomainEventBase, IProviderScopedEvent

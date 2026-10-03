@@ -87,16 +87,25 @@ public sealed class WarningSentProjectionHandler(IModerationProjectionService pr
         );
 }
 
-/// <summary>The AutoMod leg (+5 heat) — a message AutoMod held/flagged for this user.</summary>
-public sealed class MessageAutoModdedProjectionHandler(IModerationProjectionService projections)
-    : IEventHandler<MessageAutoModdedEvent>
+/// <summary>
+/// The AutoMod leg (+5 heat) — a moderator denied a message AutoMod held for this user
+/// (<c>automod.message.update</c> with status <c>denied</c>; approved and expired verdicts add no heat).
+/// </summary>
+public sealed class AutoModDeniedProjectionHandler(IModerationProjectionService projections)
+    : IEventHandler<AutoModMessageUpdatedEvent>
 {
-    public Task HandleAsync(MessageAutoModdedEvent @event, CancellationToken ct = default) =>
-        projections.ApplyActionAsync(
-            @event.BroadcasterId,
-            @event.UserId,
-            "automod_denied",
-            @event.OccurredAt.UtcDateTime,
-            ct: ct
-        );
+    private const string DeniedStatus = "denied";
+
+    public Task HandleAsync(AutoModMessageUpdatedEvent @event, CancellationToken ct = default) =>
+        string.Equals(@event.Status, DeniedStatus, StringComparison.OrdinalIgnoreCase)
+            ? projections.ApplyActionAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                "automod_denied",
+                @event.OccurredAt.UtcDateTime,
+                @event.ModeratorId,
+                @event.ModeratorDisplayName,
+                ct: ct
+            )
+            : Task.CompletedTask;
 }

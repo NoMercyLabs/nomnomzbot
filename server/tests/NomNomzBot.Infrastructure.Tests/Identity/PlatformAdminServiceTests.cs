@@ -363,6 +363,62 @@ public sealed class PlatformAdminServiceTests
     }
 
     [Fact]
+    public async Task Suspend_raises_the_channel_scoped_ChannelSuspended_for_the_acting_operator()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid operatorUser = Guid.NewGuid();
+        Guid principal = SeedPrincipalFor(db, operatorUser, "ops", "tenant:suspend");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        Result result = await sut.SuspendTenantAsync(
+            principal,
+            tenant,
+            new("platform_banned", "ToS violation")
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        ChannelSuspendedEvent raised = bus.Published.OfType<ChannelSuspendedEvent>().Single();
+        raised.BroadcasterId.Should().Be(tenant, "a channel script triggers on its own channel");
+        raised.Status.Should().Be("platform_banned");
+        raised.Reason.Should().Be("ToS violation");
+        raised.ActorUserId.Should().Be(operatorUser);
+    }
+
+    [Fact]
+    public async Task A_refused_suspend_raises_no_ChannelSuspended()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid unpermitted = SeedPrincipal(db, "tenant:other");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        (await sut.SuspendTenantAsync(unpermitted, tenant, new("suspended", "nope")))
+            .IsFailure.Should()
+            .BeTrue();
+
+        bus.Published.OfType<ChannelSuspendedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Reinstate_raises_the_channel_scoped_ChannelReinstated_for_the_acting_operator()
+    {
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
+        Guid operatorUser = Guid.NewGuid();
+        Guid principal = SeedPrincipalFor(db, operatorUser, "ops", "tenant:suspend");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+        await sut.SuspendTenantAsync(principal, tenant, new("suspended", "spam"));
+
+        Result result = await sut.ReinstateTenantAsync(principal, tenant, "appeal accepted");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        ChannelReinstatedEvent raised = bus.Published.OfType<ChannelReinstatedEvent>().Single();
+        raised.BroadcasterId.Should().Be(tenant);
+        raised.ActorUserId.Should().Be(operatorUser);
+    }
+
+    [Fact]
     public async Task BeginTenantAccess_creates_a_scoped_timeboxed_support_assignment()
     {
         (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
