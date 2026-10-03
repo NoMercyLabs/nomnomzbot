@@ -62,6 +62,12 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `DatabaseEventSubInbox.cs:68`, `ErasureService.cs:1079`, `ImpersonationTokenMinter.cs:42`. Done-when: each is
   classified (needs insertion order or only a stable order), each that needs insertion order uses
   `MonotonicGuid` or a real sequence, with a test that failed first; N of 9 reported.
+- **S-JSON-STRINGIFY-TYPE** Found by the docs writer 2026-10-04. `nnz.json.stringify` is typed `string` and
+  documented "Returns 'null' when the value cannot be serialized" (`SdkRuntimeSurface.cs:536-538`), but
+  `JSON.stringify(undefined)` and `JSON.stringify(function)` return `undefined` without throwing, and the
+  bootstrap passes that through (`JintScriptExecutor.cs:160`), so a typed `string` is `undefined` at run time.
+  Done-when: the bootstrap returns `'null'` for every value JSON cannot represent, so the type holds; a Jint
+  test failed first. Check the other 25 helpers for the same type-versus-runtime gap and report N of 26.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
