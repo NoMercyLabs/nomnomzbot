@@ -61,9 +61,9 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   (`WidgetsScreen.kt:943, 957, 1046, 1059, 1077, 1137, 1150, 1640`), so a row reads as six equal-weight
   accent actions (Sleak: one primary per group, scarce accent). The gallery's first-party trust badge is
   `BadgeVariant.Default` (`WidgetsScreen.kt:1895`); every gallery item today is first-party, so every card
-  carries a full-accent pill. After the gallery dialog closes, its 43 buttons stayed in the accessibility tree
-  and the first Close click did nothing (cause not found). Done-when: each row has at most one accent action,
-  the badge is quiet when every item has it, the closed dialog leaves no nodes; each with a test that failed
+  carries a full-accent pill. (The closed gallery dialog's 43 buttons staying in the accessibility tree is
+  S-CMP-A11Y-DIALOG: upstream CMP-9368, `ComposeWebSemanticsListener.kt:120-152` on 1.9.0.) Done-when: each
+  row has at most one accent action, the badge is quiet when every item has it; each with a test that failed
   first, and a screenshot on dev.
 - **S-UF-AUDIO-ONE-SOURCE** (stream-facing) Follow-up to the one-audio-source rule (owner 2026-10-02, shipped
   as S-SDK-WIDGET-DELIVERY). Done-when: each UF line below has a test that failed first.
