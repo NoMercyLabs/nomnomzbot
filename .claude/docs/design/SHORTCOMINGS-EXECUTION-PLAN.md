@@ -39,6 +39,12 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
+- **S-FIRSTPARTY-WIDGETS-TYPED** The 23 first-party widgets (`Infrastructure/Content/Widgets/Assets/*.vue`)
+  are the code streamers open and copy, and all 23 use `any`: about 140 sites, mostly
+  `(window as any).NomNomz` and `payload: any` (counted 2026-10-03). `as any` also hides every error from the
+  editor's strict check. Done-when: each widget uses the typed SDK (the widget event map and its own settings
+  type), none contains `any`, and a test fails when a first-party widget has an `any` or a type error in the
+  editor's widget compiler options.
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
