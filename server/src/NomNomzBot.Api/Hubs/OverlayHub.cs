@@ -22,6 +22,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Domain.Widgets.Events;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -39,6 +40,7 @@ public class OverlayHub : Hub<IOverlayClient>
     private readonly OverlayPresenceRegistry _presence;
     private readonly IChannelRegistry _registry;
     private readonly IActionRequiredChangeNotifier _inbox;
+    private readonly IEventBus _eventBus;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
@@ -48,6 +50,7 @@ public class OverlayHub : Hub<IOverlayClient>
         OverlayPresenceRegistry presence,
         IChannelRegistry registry,
         IActionRequiredChangeNotifier inbox,
+        IEventBus eventBus,
         ILogger<OverlayHub> logger
     )
     {
@@ -57,6 +60,7 @@ public class OverlayHub : Hub<IOverlayClient>
         _presence = presence;
         _registry = registry;
         _inbox = inbox;
+        _eventBus = eventBus;
         _logger = logger;
     }
 
@@ -101,9 +105,17 @@ public class OverlayHub : Hub<IOverlayClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        Guid? channel = Context.Items["BroadcasterId"] as Guid?;
         foreach (string groupName in _presence.Drop(Context.ConnectionId))
+        {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-        if (Context.Items["BroadcasterId"] is Guid broadcasterId)
+            if (
+                channel is Guid owner
+                && OverlayPresenceRegistry.TryParseWidgetId(owner, groupName, out Guid widgetId)
+            )
+                await PublishWidgetDisconnectedAsync(owner, widgetId);
+        }
+        if (channel is Guid broadcasterId)
         {
             _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
             _inbox.NotifyChanged(broadcasterId);
@@ -135,7 +147,17 @@ public class OverlayHub : Hub<IOverlayClient>
 
         string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-        _presence.Attach(Context.ConnectionId, groupName);
+        bool newlyJoined = _presence.Attach(Context.ConnectionId, groupName);
+        if (newlyJoined && Guid.TryParse(widgetId, out Guid connectedWidgetId))
+            await _eventBus.PublishAsync(
+                new WidgetConnectedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    WidgetId = connectedWidgetId,
+                    ConnectionId = Context.ConnectionId,
+                },
+                Context.ConnectionAborted
+            );
         string feedGroup = OverlayPresenceRegistry.FeedGroupName(broadcasterId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, feedGroup);
         _presence.Detach(Context.ConnectionId, feedGroup);
@@ -251,9 +273,21 @@ public class OverlayHub : Hub<IOverlayClient>
             return;
         string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-        _presence.Detach(Context.ConnectionId, groupName);
+        bool wasJoined = _presence.Detach(Context.ConnectionId, groupName);
+        if (wasJoined && Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            await PublishWidgetDisconnectedAsync(broadcasterId, parsedWidgetId);
         _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
     }
+
+    private Task PublishWidgetDisconnectedAsync(Guid broadcasterId, Guid widgetId) =>
+        _eventBus.PublishAsync(
+            new WidgetDisconnectedEvent
+            {
+                BroadcasterId = broadcasterId,
+                WidgetId = widgetId,
+                ConnectionId = Context.ConnectionId,
+            }
+        );
 
     public Task WidgetReady(string widgetId)
     {

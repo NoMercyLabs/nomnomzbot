@@ -234,6 +234,15 @@ public class FeatureService : IFeatureService
             },
             cancellationToken
         );
+        await _eventBus.PublishAsync(
+            new FeatureToggledEvent
+            {
+                BroadcasterId = broadcasterId,
+                FeatureKey = feature.FeatureKey,
+                Enabled = feature.IsEnabled,
+            },
+            cancellationToken
+        );
 
         Catalogue.TryGetValue(
             feature.FeatureKey,

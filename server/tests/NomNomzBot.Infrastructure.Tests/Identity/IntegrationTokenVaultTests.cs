@@ -270,6 +270,61 @@ public sealed class IntegrationTokenVaultTests
     }
 
     [Fact]
+    public async Task MarkRefreshFailure_RaisesIntegrationError_WithProviderChannelAndTheErrorText()
+    {
+        (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();
+        Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+
+        await vault.MarkRefreshFailureAsync(connectionId, "twitch_refresh_400");
+
+        IntegrationConnection stored = await db.IntegrationConnections.AsNoTracking().SingleAsync();
+        stored.ConsecutiveFailureCount.Should().Be(1);
+        IntegrationErrorEvent evt = bus.Published.OfType<IntegrationErrorEvent>().Single();
+        evt.IntegrationName.Should().Be(stored.Provider);
+        evt.BroadcasterId.Should().Be(Tenant);
+        evt.ErrorMessage.Should().Be("twitch_refresh_400");
+    }
+
+    [Fact]
+    public async Task MarkTransientRefreshFailure_RaisesIntegrationError_WithProviderChannelAndTheErrorText()
+    {
+        (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();
+        Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+
+        await vault.MarkTransientRefreshFailureAsync(connectionId, "Kick refresh failed (503)");
+
+        IntegrationConnection stored = await db.IntegrationConnections.AsNoTracking().SingleAsync();
+        stored.LastErrorAt.Should().NotBeNull();
+        IntegrationErrorEvent evt = bus.Published.OfType<IntegrationErrorEvent>().Single();
+        evt.IntegrationName.Should().Be(stored.Provider);
+        evt.BroadcasterId.Should().Be(Tenant);
+        evt.ErrorMessage.Should().Be("Kick refresh failed (503)");
+    }
+
+    [Theory]
+    [InlineData("invalid_grant ya29.A0ARrdaM-abcdefghijklmnopqrstuvwxyz0123456789")]
+    [InlineData("failed: https://id.twitch.tv/oauth2/token?refresh_token=abc")]
+    [InlineData("{\"access_token\":\"short\"}")]
+    public async Task RefreshFailures_NeverCarryATokenLikeValueOnTheRaisedEvent(string error)
+    {
+        (IntegrationTokenVault vault, _, RecordingEventBus bus) = Build();
+        Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+
+        await vault.MarkRefreshFailureAsync(connectionId, error);
+        await vault.MarkTransientRefreshFailureAsync(connectionId, error);
+
+        List<IntegrationErrorEvent> raised = bus.Published.OfType<IntegrationErrorEvent>().ToList();
+        raised.Should().HaveCount(2);
+        raised
+            .Should()
+            .AllSatisfy(e =>
+            {
+                e.ErrorMessage.Should().Be("Token refresh failed.");
+                e.ErrorMessage.Should().NotContain("ya29").And.NotContain("refresh_token");
+            });
+    }
+
+    [Fact]
     public async Task Reconnect_WithAnExistingLiveConnection_UpdatesItInPlace_InsteadOfInsertingASibling()
     {
         // The qtkitte incident: reconnecting Spotify with a NEW (BYOC) client id created a SECOND live row —

@@ -65,6 +65,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly TimeProvider _timeProvider;
     private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IBuiltinResponseComposer _composer;
+    private const int MaxFirstChatChecked = 50_000;
+
     private readonly ILogger<ChatMessageHandler> _logger;
 
     public ChatMessageHandler(
@@ -145,6 +147,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             );
             if (firstOfSession && channelCtx.IsLive && !featureIgnored)
                 await FireSessionFirstMessageAsync(@event, cancellationToken);
+
+            if (!featureIgnored)
+                await RaiseUserFirstChatIfFirstEverAsync(@event, channelCtx, cancellationToken);
         }
 
         if (featureIgnored)
@@ -1390,6 +1395,65 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         );
         if (!string.IsNullOrWhiteSpace(resolved))
             await _chat.SendMessageAsync(@event.BroadcasterId, @event.Provider, resolved, ct);
+    }
+
+    /// <summary>
+    /// Raises <see cref="UserFirstChatEvent"/> when the viewer has no earlier stored message in this
+    /// channel. The database is read once per viewer per process; a failed read releases the claim so
+    /// the next message retries. Failures never reach the chat hot path.
+    /// </summary>
+    private async Task RaiseUserFirstChatIfFirstEverAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext channelCtx,
+        CancellationToken ct
+    )
+    {
+        string key = $"{@event.Provider}:{@event.UserId}";
+        if (channelCtx.FirstChatChecked.Count >= MaxFirstChatChecked)
+            channelCtx.FirstChatChecked.Clear();
+        if (!channelCtx.FirstChatChecked.TryAdd(key, 0))
+            return;
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            // The current message may already be stored when this runs, so it is excluded.
+            bool chattedBefore = await db
+                .ChatMessages.IgnoreQueryFilters()
+                .AnyAsync(
+                    m =>
+                        m.BroadcasterId == @event.BroadcasterId
+                        && m.Provider == @event.Provider
+                        && m.UserId == @event.UserId
+                        && m.Id != @event.MessageId,
+                    ct
+                );
+            if (chattedBefore)
+                return;
+
+            await _eventBus.PublishAsync(
+                new UserFirstChatEvent
+                {
+                    BroadcasterId = @event.BroadcasterId,
+                    ChannelId = @event.TwitchBroadcasterId,
+                    UserId = @event.UserId,
+                    Username = @event.UserDisplayName,
+                },
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            channelCtx.FirstChatChecked.TryRemove(key, out _);
+            _logger.LogWarning(
+                ex,
+                "first-chat check failed for {Channel}, will retry on the next message",
+                @event.BroadcasterId
+            );
+        }
     }
 
     /// <summary>

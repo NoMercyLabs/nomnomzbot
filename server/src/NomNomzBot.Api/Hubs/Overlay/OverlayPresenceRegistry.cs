@@ -75,21 +75,16 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
             return _overlays.Values.Any(o => o.BroadcasterId == broadcasterId && o.IsAudioSource);
     }
 
-    public void Attach(string connectionId, string groupName) =>
+    /// <summary>Records the group on the connection; true only when it was not already held.</summary>
+    public bool Attach(string connectionId, string groupName) =>
         _connectionWidgets
             .GetOrAdd(connectionId, static _ => new(StringComparer.Ordinal))
             .TryAdd(groupName, 0);
 
-    public void Detach(string connectionId, string groupName)
-    {
-        if (
-            _connectionWidgets.TryGetValue(
-                connectionId,
-                out ConcurrentDictionary<string, byte>? groups
-            )
-        )
-            groups.TryRemove(groupName, out _);
-    }
+    /// <summary>Forgets the group on the connection; true only when it was held.</summary>
+    public bool Detach(string connectionId, string groupName) =>
+        _connectionWidgets.TryGetValue(connectionId, out ConcurrentDictionary<string, byte>? groups)
+        && groups.TryRemove(groupName, out _);
 
     /// <summary>Drops a whole connection, returning the groups it held so the hub can leave each one.</summary>
     public IReadOnlyCollection<string> Drop(string connectionId)
@@ -111,6 +106,16 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
 
     public static string GroupName(Guid broadcasterId, string widgetId) =>
         $"widget-{broadcasterId}-{widgetId}";
+
+    /// <summary>Maps a widget group name back to its widget id; false for any other group or a non-Guid id.</summary>
+    public static bool TryParseWidgetId(Guid broadcasterId, string groupName, out Guid widgetId)
+    {
+        string prefix = GroupName(broadcasterId, string.Empty);
+        if (groupName.StartsWith(prefix, StringComparison.Ordinal))
+            return Guid.TryParse(groupName.AsSpan(prefix.Length), out widgetId);
+        widgetId = Guid.Empty;
+        return false;
+    }
 
     /// <summary>The broadcaster-wide group every overlay connection joins on connect (<c>OverlayHub.OnConnectedAsync</c>).</summary>
     public static string OverlayGroupName(Guid broadcasterId) => $"overlay-{broadcasterId}";

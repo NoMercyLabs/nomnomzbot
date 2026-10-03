@@ -94,6 +94,12 @@ internal sealed class FeatureServiceTestDbContext : DbContext, IApplicationDbCon
             e.Ignore(f => f.RequiredScopes);
         });
 
+        b.Entity<Permission>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Ignore(p => p.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -102,7 +108,7 @@ internal sealed class FeatureServiceTestDbContext : DbContext, IApplicationDbCon
         b.ApplySqliteCompatibility();
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(ChannelFeature)];
+    private static readonly HashSet<Type> Mapped = [typeof(ChannelFeature), typeof(Permission)];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [
@@ -218,7 +224,7 @@ internal sealed class FeatureServiceTestDbContext : DbContext, IApplicationDbCon
     public DbSet<Storage> Storages => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         throw new NotSupportedException();
-    public DbSet<Permission> Permissions => throw new NotSupportedException();
+    public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
         throw new NotSupportedException();
     public DbSet<BotAccount> BotAccounts => throw new NotSupportedException();

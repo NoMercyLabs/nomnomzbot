@@ -12,10 +12,14 @@ namespace NomNomzBot.Domain.Chat.Events;
 
 using Platform;
 
-/// <summary>When a viewer writes in the channel chat for the first time.</summary>
+/// <summary>
+/// Fires once, on the first message a viewer ever writes in a channel, whether the stream is live or
+/// offline. It does not fire for muted or ignored viewers. After a restart it fires again only if the
+/// viewer has no stored chat in that channel.
+/// </summary>
 public sealed class UserFirstChatEvent : DomainEventBase
 {
-    /// <summary>The id of the channel where the viewer chatted for the first time.</summary>
+    /// <summary>The platform id of the channel owner (the channel where the viewer chatted).</summary>
     public required string ChannelId { get; init; }
 
     /// <summary>The Twitch user id (a number as text) of the viewer.</summary>

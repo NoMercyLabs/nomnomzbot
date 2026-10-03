@@ -83,7 +83,7 @@ The Alert, TTS and Sound surfaces are each added to OBS once (one browser source
 
 ## 2. Domain events
 
-All inherit `DomainEventBase` (the `abstract record` defined in platform-conventions §2.0, providing `Guid EventId`, `Guid BroadcasterId`, `DateTimeOffset OccurredAt`; events must NOT redeclare these). Published via `IEventBus`. Records use `required` init properties matching the existing `WidgetConnectedEvent` style. **Existing two events widened** (`WidgetId`/`ConnectionId` ids stay `string` on the wire for SignalR connection ids; widget ids become `Guid`).
+All inherit `DomainEventBase` (the `abstract record` defined in platform-conventions §2.0, providing `Guid EventId`, `Guid BroadcasterId`, `DateTimeOffset OccurredAt`; events must NOT redeclare these). Published via `IEventBus`. `WidgetConnectedEvent` and `WidgetDisconnectedEvent` are raised by `OverlayHub`: connected when a connection newly joins a widget (`JoinWidget`/`JoinWidgetWithSdk`; joining a widget it already holds raises nothing), disconnected when it leaves a widget it held (`LeaveWidget`) or drops (`OnDisconnectedAsync`, one per widget group held). One event per widget; a reconnect raises a new disconnected + connected pair; a non-Guid widget id raises nothing. Records use `required` init properties matching the existing `WidgetConnectedEvent` style. **Existing two events widened** (`WidgetId`/`ConnectionId` ids stay `string` on the wire for SignalR connection ids; widget ids become `Guid`).
 
 ```csharp
 namespace NomNomzBot.Domain.Events;

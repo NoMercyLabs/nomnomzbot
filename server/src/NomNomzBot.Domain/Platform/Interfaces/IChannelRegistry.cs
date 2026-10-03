@@ -260,6 +260,15 @@ public class ChannelContext
     public ConcurrentDictionary<string, string> SessionChatters { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Viewers whose stored chat was already looked up in this process (key = "provider:userId"), so the
+    /// "first message ever" check reads the database at most once per viewer, never per message.
+    /// When the set reaches its size limit it is cleared, so viewers already looked up are checked
+    /// again on their next message; their stored chat then keeps the event from firing twice.
+    /// </summary>
+    public ConcurrentDictionary<string, byte> FirstChatChecked { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Messages received since the bot joined. Used by TimerService for MinChatActivity checks.</summary>
     public long MessageCount { get; set; }
 

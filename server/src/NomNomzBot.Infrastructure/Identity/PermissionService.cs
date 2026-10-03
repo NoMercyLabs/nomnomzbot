@@ -13,6 +13,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -26,10 +28,12 @@ namespace NomNomzBot.Infrastructure.Identity;
 public sealed class PermissionService : IPermissionService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IEventBus _eventBus;
 
-    public PermissionService(IApplicationDbContext db)
+    public PermissionService(IApplicationDbContext db, IEventBus eventBus)
     {
         _db = db;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<bool>> CheckPermissionAsync(
@@ -99,6 +103,7 @@ public sealed class PermissionService : IPermissionService
             cancellationToken
         );
 
+        bool changed = existing is null || !IsAllow(existing.PermissionValue);
         if (existing is not null)
         {
             existing.PermissionValue = "allow";
@@ -119,6 +124,8 @@ public sealed class PermissionService : IPermissionService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        if (changed)
+            await PublishChangedAsync(broadcasterGuid, userId, permission, 1, cancellationToken);
         return Result.Success();
     }
 
@@ -145,10 +152,35 @@ public sealed class PermissionService : IPermissionService
         if (existing is null)
             return Result.Success(); // Nothing to revoke
 
+        bool changed = IsAllow(existing.PermissionValue);
         existing.PermissionValue = "deny";
         await _db.SaveChangesAsync(cancellationToken);
+        if (changed)
+            await PublishChangedAsync(broadcasterGuid, userId, permission, 0, cancellationToken);
         return Result.Success();
     }
+
+    private static bool IsAllow(string permissionValue) => permissionValue is "allow" or "1";
+
+    private Task PublishChangedAsync(
+        Guid broadcasterId,
+        string userId,
+        string permission,
+        int newValue,
+        CancellationToken cancellationToken
+    ) =>
+        _eventBus.PublishAsync(
+            new PermissionChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                SubjectType = "user",
+                SubjectId = userId,
+                ResourceType = "channel",
+                ResourceId = permission,
+                NewPermissionValue = newValue,
+            },
+            cancellationToken
+        );
 
     public async Task<Result<IReadOnlyList<string>>> GetEffectivePermissionsAsync(
         string userId,

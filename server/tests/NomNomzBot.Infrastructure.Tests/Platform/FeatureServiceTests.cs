@@ -92,6 +92,28 @@ public sealed class FeatureServiceTests
     }
 
     [Fact]
+    public async Task Toggling_on_then_off_raises_FeatureToggled_with_the_stored_Enabled_each_time()
+    {
+        FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();
+        (FeatureService sut, RecordingEventBus bus, _) = BuildWith(db);
+
+        await sut.ToggleFeatureAsync(Channel.ToString(), "custom_code");
+        (await db.ChannelFeatures.AsNoTracking().SingleAsync()).IsEnabled.Should().BeTrue();
+        FeatureToggledEvent on = bus.Published.OfType<FeatureToggledEvent>().Single();
+        on.BroadcasterId.Should().Be(Channel);
+        on.FeatureKey.Should().Be("custom_code");
+        on.Enabled.Should().BeTrue();
+
+        bus.Published.Clear();
+        await sut.ToggleFeatureAsync(Channel.ToString(), "custom_code");
+        (await db.ChannelFeatures.AsNoTracking().SingleAsync()).IsEnabled.Should().BeFalse();
+        FeatureToggledEvent off = bus.Published.OfType<FeatureToggledEvent>().Single();
+        off.BroadcasterId.Should().Be(Channel);
+        off.FeatureKey.Should().Be("custom_code");
+        off.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task An_invalid_channel_id_publishes_nothing()
     {
         (FeatureService sut, RecordingEventBus bus, _) = Build();

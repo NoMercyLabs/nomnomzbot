@@ -27,6 +27,6 @@ public sealed class PermissionChangedEvent : DomainEventBase
     /// <summary>The id of the thing the permission is for.</summary>
     public required string ResourceId { get; init; }
 
-    /// <summary>The new permission value.</summary>
+    /// <summary>The new permission value: 1 for allow, 0 for deny.</summary>
     public required int NewPermissionValue { get; init; }
 }

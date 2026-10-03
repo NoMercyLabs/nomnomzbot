@@ -123,7 +123,7 @@ public sealed class FeatureFlagAdministeredEvent : DomainEventBase
 }
 ```
 
-> Existing `FeatureToggledEvent` (per-channel feature on/off, key+bool) is a **different, narrower** event already consumed by the pipeline; do not collapse `FeatureFlagAdministeredEvent` into it. Likewise it is **not** the platform-conventions `FeatureFlagChangedEvent` (which `IFeatureFlagService` raises to invalidate cached evaluations) — this one carries operator identity + override scope for the admin audit trail. The admin service (`IFeatureFlagAdminService`, §3.2 note) emits **both**: `FeatureFlagAdministeredEvent` (audit) and the platform-conventions `FeatureFlagChangedEvent` (cache invalidation).
+> Existing `FeatureToggledEvent` (per-channel feature on/off, key+bool) is a **different, narrower** event, published by `FeatureService.ToggleFeatureAsync` after every channel toggle (the event bus delivers it; no built-in handler consumes it yet); do not collapse `FeatureFlagAdministeredEvent` into it. Likewise it is **not** the platform-conventions `FeatureFlagChangedEvent` (which `IFeatureFlagService` raises to invalidate cached evaluations) — this one carries operator identity + override scope for the admin audit trail. The admin service (`IFeatureFlagAdminService`, §3.2 note) emits **both**: `FeatureFlagAdministeredEvent` (audit) and the platform-conventions `FeatureFlagChangedEvent` (cache invalidation).
 
 ---
 

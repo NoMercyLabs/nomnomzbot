@@ -12,7 +12,13 @@ using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Widgets.Events;
 
-/// <summary>When a widget disconnects from the server.</summary>
+/// <summary>
+/// Raised by the overlay hub when a connection that held a widget lets it go: an explicit leave of a
+/// widget it had joined, or the connection dropping. One event per widget: a dropped connection that held
+/// two widgets raises two. Leaving a widget that was never joined raises nothing, and a leave followed by
+/// the drop raises only once. A reconnect raises a new pair (this one for the old connection, a
+/// connected event for the new one).
+/// </summary>
 public sealed class WidgetDisconnectedEvent : DomainEventBase
 {
     /// <summary>The id of the widget that disconnected.</summary>

@@ -10,6 +10,7 @@
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
@@ -262,6 +263,7 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             connection.ConsecutiveFailureCount,
             error
         );
+        await PublishIntegrationErrorAsync(connection, error, cancellationToken);
 
         if (crossedThreshold)
             await _eventBus.PublishAsync(
@@ -297,8 +299,45 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
             connectionId,
             error
         );
+        await PublishIntegrationErrorAsync(connection, error, cancellationToken);
         return Result.Success();
     }
+
+    private const string SafeRefreshFailureSummary = "Token refresh failed.";
+
+    // Every current caller passes a fixed status text, but the event reaches scripts and the dashboard, so a
+    // free-form string (a response body, a URL, a token) is never passed on: only short plain text goes through.
+    private static readonly Regex SafeErrorText = new(
+        @"^[A-Za-z0-9 _().:,-]{1,120}$",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(50)
+    );
+
+    private static readonly Regex TokenLikeRun = new(
+        @"[A-Za-z0-9_.-]{32,}",
+        RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(50)
+    );
+
+    private static string ToSafeErrorText(string error) =>
+        SafeErrorText.IsMatch(error) && !TokenLikeRun.IsMatch(error)
+            ? error
+            : SafeRefreshFailureSummary;
+
+    private Task PublishIntegrationErrorAsync(
+        IntegrationConnection connection,
+        string error,
+        CancellationToken cancellationToken
+    ) =>
+        _eventBus.PublishAsync(
+            new IntegrationErrorEvent
+            {
+                BroadcasterId = connection.BroadcasterId ?? Guid.Empty,
+                IntegrationName = connection.Provider,
+                ErrorMessage = ToSafeErrorText(error),
+            },
+            cancellationToken
+        );
 
     public async Task<Result> RevokeConnectionAsync(
         Guid connectionId,
