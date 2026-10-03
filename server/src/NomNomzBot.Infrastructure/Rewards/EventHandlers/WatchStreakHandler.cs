@@ -27,7 +27,8 @@ namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 /// expose, so a streamer's configured response actually reaches this real Twitch event (the parallel
 /// <c>engagement.watch_streak</c> handler in Engagement/EventHandlers listens for a bot-computed
 /// milestone event that nothing in this codebase ever publishes — dead on its own).
-/// Variables exposed: user.id, user.name, streak.months, streak.points
+/// Variables exposed: user, user.id, user.login, user.name, viewer.name, engagement.streak (the preset's
+/// names) and streak.months, streak.points, streak.message
 /// </summary>
 public sealed class WatchStreakHandler
     : TwitchAlertHandlerBase<WatchStreakReceivedEvent>,
@@ -55,9 +56,12 @@ public sealed class WatchStreakHandler
     protected override Dictionary<string, string> BuildVariables(WatchStreakReceivedEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
+            ["user"] = e.UserDisplayName,
             ["user.id"] = e.UserId,
             ["user.login"] = e.UserLogin,
             ["user.name"] = e.UserDisplayName,
+            ["viewer.name"] = e.UserDisplayName,
+            ["engagement.streak"] = e.StreakMonths.ToString(),
             ["streak.months"] = e.StreakMonths.ToString(),
             ["streak.points"] = e.ChannelPointsEarned.ToString(),
             ["streak.message"] = e.CustomMessage ?? string.Empty,

@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Infrastructure.Platform.Eventing;
 
@@ -62,8 +63,7 @@ public sealed class TriggerSampleTests
         int handlers = typeof(TwitchAlertHandlerBase<>)
             .Assembly.GetTypes()
             .Count(type =>
-                !type.IsAbstract
-                && type.BaseType is { IsGenericType: true } baseType
+                type is { IsAbstract: false, BaseType: { IsGenericType: true } baseType }
                 && baseType.GetGenericTypeDefinition() == typeof(TwitchAlertHandlerBase<>)
             );
 
@@ -97,5 +97,32 @@ public sealed class TriggerSampleTests
         ban.ResponseKey.Should().Be(timeout.ResponseKey);
         timeout.Variables["duration"].Should().Be("10 minutes");
         ban.Variables["duration"].Should().Be("permanent");
+    }
+
+    [Fact]
+    public void Every_variable_a_preset_advertises_is_set_by_its_live_trigger()
+    {
+        // The dashboard offers each preset's variables as placeholders. A placeholder the live trigger never
+        // sets prints empty on stream: the live watch streak set none of {user}, {viewer.name} and
+        // {engagement.streak}, which its preset advertises.
+        Dictionary<string, IReadOnlyList<string>> advertised =
+            EventResponsePresetCatalog.Presets.ToDictionary(
+                preset => preset.EventType,
+                preset => preset.Variables
+            );
+
+        List<string> unset =
+        [
+            .. AllSamples()
+                .Where(sample => advertised.ContainsKey(sample.ResponseKey))
+                .SelectMany(sample =>
+                    advertised[sample.ResponseKey]
+                        .Where(variable => !sample.Variables.ContainsKey(variable))
+                        .Select(variable => $"{sample.Id}: {{{variable}}}")
+                ),
+        ];
+
+        // Joined, so a failure names every gap (BeEmpty names only the first).
+        string.Join(", ", unset).Should().BeEmpty();
     }
 }
