@@ -12,6 +12,7 @@ using System.Net;
 using FluentAssertions;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -119,7 +120,7 @@ public sealed class ScriptHostBridgeTests
             scheduler ?? Substitute.For<IScheduledPipelineService>(),
             db ?? AuthTestBuilder.NewContext(),
             paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>(),
-            Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
+            Substitute.For<IOwnerActionService>()
         );
 
     private sealed class StubHandler(string body) : HttpMessageHandler

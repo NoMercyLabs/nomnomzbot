@@ -10,6 +10,7 @@
 
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Localization;
@@ -123,7 +124,9 @@ public sealed class WidgetActionServiceTests : IDisposable
             db,
             new OwnerActionService(
                 db,
-                [_action],
+                new ServiceCollection()
+                    .AddSingleton<ICommandAction>(_action)
+                    .BuildServiceProvider(),
                 _authorization,
                 _rateLimiter,
                 NullLogger<OwnerActionService>.Instance

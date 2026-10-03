@@ -75,7 +75,7 @@ public sealed class ScriptHostBridgeLastErrorTests
     {
         string? json = Call(bridge, "last.error");
         json.Should().NotBeNull("the previous call failed, so there is an error to read");
-        JObject error = JObject.Parse(json!);
+        JObject error = JObject.Parse(json);
         error.Properties().Select(p => p.Name).Should().BeEquivalentTo("code", "message");
         return (error["code"]!.Value<string>()!, error["message"]!.Value<string>()!);
     }

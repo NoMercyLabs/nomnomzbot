@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -27,7 +28,7 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// </summary>
 public sealed class ScriptCapabilityBroker(
     IFeatureService features,
-    IEnumerable<ICommandAction>? actions = null
+    IServiceProvider? services = null
 ) : IScriptCapabilityBroker
 {
     private const string FeatureGate = "custom_code";
@@ -70,10 +71,11 @@ public sealed class ScriptCapabilityBroker(
 
     // One gate per registered pipeline action type ("actions.invoke:<type>"): a script runs only the action
     // types it names. The action runs as the channel owner through the owner's IAM (the widget invoke path), so
-    // the tier is tos like every capability that acts on the channel's behalf.
+    // the tier is tos like every capability that acts on the channel's behalf. The actions are resolved per
+    // call: run_code is an action whose runner needs this broker, so injecting them is a DI cycle.
     private ScriptCapabilityDescriptor? ActionGate(string key) =>
         ScriptActionInvoker.ActionTypeOf(key) is { } actionType
-        && (actions ?? []).Any(a =>
+        && (services?.GetServices<ICommandAction>() ?? []).Any(a =>
             string.Equals(a.ActionType, actionType, StringComparison.Ordinal)
         )
             ? new(key, "tos", FeatureGate, SideEffecting: true)

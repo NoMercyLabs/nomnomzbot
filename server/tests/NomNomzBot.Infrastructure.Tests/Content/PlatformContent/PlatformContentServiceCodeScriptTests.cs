@@ -11,6 +11,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -450,7 +451,7 @@ public sealed class PlatformContentServiceCodeScriptTests : IAsyncDisposable
             Substitute.For<Application.Commands.Services.IScheduledPipelineService>(),
             db,
             Substitute.For<Application.Chat.Services.ISevenTvUserPaintResolver>(),
-            Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
+            Substitute.For<IOwnerActionService>()
         );
         return new(
             db,

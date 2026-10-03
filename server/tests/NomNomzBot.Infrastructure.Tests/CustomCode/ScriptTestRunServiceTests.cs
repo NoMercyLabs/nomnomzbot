@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Platform.Services;
@@ -68,7 +69,7 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
             db,
             Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>(),
-            Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
+            Substitute.For<IOwnerActionService>()
         );
 
         return (new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory, tts), db, storage);

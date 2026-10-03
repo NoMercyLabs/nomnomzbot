@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
@@ -22,7 +23,7 @@ namespace NomNomzBot.Infrastructure.Commands;
 /// <inheritdoc cref="IOwnerActionService"/>
 public sealed class OwnerActionService(
     IApplicationDbContext db,
-    IEnumerable<ICommandAction> actions,
+    IServiceProvider services,
     IActionAuthorizationService authorization,
     IRateLimiterPartitionStore rateLimiter,
     ILogger<OwnerActionService> logger
@@ -43,9 +44,13 @@ public sealed class OwnerActionService(
         CancellationToken cancellationToken = default
     )
     {
-        ICommandAction? action = actions.FirstOrDefault(a =>
-            string.Equals(a.ActionType, request.ActionType, StringComparison.OrdinalIgnoreCase)
-        );
+        // Resolved per call, not injected: run_code is itself an action and the script bridge reaches this
+        // service, so an IEnumerable<ICommandAction> dependency is a DI cycle (as in RunPipelineAction).
+        ICommandAction? action = services
+            .GetServices<ICommandAction>()
+            .FirstOrDefault(a =>
+                string.Equals(a.ActionType, request.ActionType, StringComparison.OrdinalIgnoreCase)
+            );
         if (action is null)
             return Errors.NotFound<WidgetActionOutcome>("Action", request.ActionType);
 

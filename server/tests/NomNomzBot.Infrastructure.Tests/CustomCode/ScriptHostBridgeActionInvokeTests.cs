@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Localization;
@@ -134,7 +135,9 @@ public sealed class ScriptHostBridgeActionInvokeTests : IDisposable
             Substitute.For<ISevenTvUserPaintResolver>(),
             new OwnerActionService(
                 _db,
-                [_action],
+                new ServiceCollection()
+                    .AddSingleton<ICommandAction>(_action)
+                    .BuildServiceProvider(),
                 _authorization,
                 _rateLimiter,
                 NullLogger<OwnerActionService>.Instance
@@ -148,7 +151,7 @@ public sealed class ScriptHostBridgeActionInvokeTests : IDisposable
     {
         string? json = Call(bridge, "last.error");
         json.Should().NotBeNull("the call failed, so there is an error to read");
-        return JObject.Parse(json!)["code"]!.Value<string>()!;
+        return JObject.Parse(json)["code"]!.Value<string>()!;
     }
 
     private static void ShouldHaveWidgetResultShape(JObject result) =>

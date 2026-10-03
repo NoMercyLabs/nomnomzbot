@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -42,14 +43,14 @@ public sealed class ScriptCapabilityBrokerTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(featureEnabled);
-        List<ICommandAction> actions = [];
+        ServiceCollection actions = new();
         foreach (string actionType in actionTypes)
         {
             ICommandAction action = Substitute.For<ICommandAction>();
             action.ActionType.Returns(actionType);
-            actions.Add(action);
+            actions.AddSingleton(action);
         }
-        return new(features, actions);
+        return new(features, actions.BuildServiceProvider());
     }
 
     [Fact]
