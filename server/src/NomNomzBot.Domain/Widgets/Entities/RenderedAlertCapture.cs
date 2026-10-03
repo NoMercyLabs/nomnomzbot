@@ -30,7 +30,8 @@ namespace NomNomzBot.Domain.Widgets.Entities;
 /// </remarks>
 public class RenderedAlertCapture : BaseEntity, ITenantScoped
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    // Monotonic, not plain CreateVersion7: the prune orders by Id to find the oldest capture (see MonotonicGuid).
+    public Guid Id { get; set; } = MonotonicGuid.Create();
 
     public Guid BroadcasterId { get; set; }
 

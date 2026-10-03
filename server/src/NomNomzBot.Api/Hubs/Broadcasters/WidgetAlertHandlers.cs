@@ -193,9 +193,9 @@ internal static class WidgetAlertDispatch
         await db.SaveChangesAsync(cancellationToken);
 
         // CreatedAt is stamped by AuditableEntityInterceptor at SaveChanges time and can tie between rows
-        // written in the same tick (test fakes with no interceptor tie on every row); Id (Guid.CreateVersion7,
-        // time-ordered) breaks the tie deterministically toward "insertion order", so the oldest row is always
-        // the one pruned.
+        // written in the same tick (test fakes with no interceptor tie on every row); Id (MonotonicGuid, which
+        // rises with every capture made in this process) breaks the tie toward "insertion order", so the
+        // oldest row is always the one pruned.
         List<Guid> staleIds = await db
             .RenderedAlertCaptures.Where(c => c.BroadcasterId == broadcasterId)
             .OrderByDescending(c => c.CreatedAt)

@@ -138,6 +138,33 @@ public sealed class WidgetAlertCaptureTests
     }
 
     /// <summary>
+    /// The prune orders rows by CreatedAt, then by Id, and trusts Id to follow creation order. A plain
+    /// Guid.CreateVersion7 only orders to the millisecond; inside one millisecond the rest is random, so two
+    /// captures made in the same millisecond could prune the newer one. A burst of captures, all made within a
+    /// few milliseconds, must sort by Id exactly in the order they were created.
+    /// </summary>
+    [Fact]
+    public void Capture_ids_sort_in_creation_order_even_inside_one_millisecond()
+    {
+        List<Guid> created = [];
+        for (int i = 0; i < 5000; i++)
+            created.Add(new RenderedAlertCapture().Id);
+
+        List<Guid> sortedByGuid = created.Order().ToList();
+        sortedByGuid.Should().Equal(created);
+
+        // SQLite stores a Guid as text; Postgres compares the 16 bytes. Both must agree with creation order.
+        List<string> sortedByText = created
+            .Select(g => g.ToString())
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        sortedByText.Should().Equal(created.Select(g => g.ToString()));
+        List<byte[]> bytes = created.Select(g => g.ToByteArray(bigEndian: true)).ToList();
+        for (int i = 1; i < bytes.Count; i++)
+            bytes[i - 1].AsSpan().SequenceCompareTo(bytes[i]).Should().BeNegative();
+    }
+
+    /// <summary>
     /// The regression this guards: a shared per-broadcaster ring buffer that also captured "ChatMessage" filled
     /// its 40-slot window with ordinary chat traffic within seconds on any active channel, evicting the rare,
     /// valuable alert (a follow/sub/raid) a streamer actually wanted to replay before they ever clicked Replay
