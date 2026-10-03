@@ -302,6 +302,7 @@ class ApiClient(
      * `StatusResponseDto<T>`. Honours the same 401 → refresh-once retry as the JSON helpers.
      */
     internal suspend fun getText(path: String): ApiResult<String> {
+        requestSpy?.invoke("GET", path)
         val base: String = baseUrl() ?: return noConnection()
         var response: HttpResponse =
             try {

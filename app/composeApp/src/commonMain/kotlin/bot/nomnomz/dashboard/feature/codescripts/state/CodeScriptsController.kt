@@ -283,7 +283,7 @@ class CodeScriptsController(
             language = "script",
             // The script-context nnz.d.ts drives `nnz.` autocomplete + diagnostics in the web editor; a fetch
             // failure degrades to a plain editor rather than blocking editing.
-            sdkTypes = fetchSdkTypes("script"),
+            sdkTypes = fetchSdkTypes("script", scriptId = id),
             history = buildEditorHistory(id, current),
             testRun = buildEditorTestRun(id),
             compile = { editedFiles -> saveProjectFeedback(id, editedFiles, project, compiledMessage) },
@@ -480,8 +480,8 @@ class CodeScriptsController(
 
     // Fetch the generated nnz.d.ts for [context] to hand the editor's TypeScript language service; degrade to an
     // empty string (no autocomplete) on any failure rather than block the editor from opening.
-    private suspend fun fetchSdkTypes(context: String): String =
-        when (val result: ApiResult<String> = sdkTypesApi.types(context)) {
+    private suspend fun fetchSdkTypes(context: String, scriptId: String? = null): String =
+        when (val result: ApiResult<String> = sdkTypesApi.types(context, scriptId)) {
             is ApiResult.Ok -> result.value
             is ApiResult.Failure -> ""
         }

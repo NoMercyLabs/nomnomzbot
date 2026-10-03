@@ -19,11 +19,15 @@ interface SdkTypesApi {
     /**
      * Fetch the `nnz.d.ts` declarations for [context] — `widget` (the overlay SDK) or `script` (the code-script
      * SDK). The two contexts expose different globals, so the editor requests the one matching what it is editing.
+     * A saved script passes its [scriptId] so the server types `bot.getVar` with the keys of the triggers that run
+     * it; a new, unsaved script passes none and gets the plain declarations.
      */
-    suspend fun types(context: String): ApiResult<String>
+    suspend fun types(context: String, scriptId: String? = null): ApiResult<String>
 }
 
 class RestSdkTypesApi(private val client: ApiClient) : SdkTypesApi {
-    override suspend fun types(context: String): ApiResult<String> =
-        client.getText("api/v1/sdk/types.d.ts?context=${context.encodeQuery()}")
+    override suspend fun types(context: String, scriptId: String?): ApiResult<String> {
+        val scriptQuery: String = if (scriptId == null) "" else "&script=${scriptId.encodeQuery()}"
+        return client.getText("api/v1/sdk/types.d.ts?context=${context.encodeQuery()}$scriptQuery")
+    }
 }

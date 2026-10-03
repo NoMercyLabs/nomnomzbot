@@ -731,6 +731,8 @@ public static class DependencyInjection
         // I<X>Service convention and are bound by AddServicesByConvention above.
         services.AddScoped<IScriptHostBridgeFactory, CustomCode.ScriptHostBridgeFactory>();
         services.AddScoped<IScriptCapabilityBroker, CustomCode.ScriptCapabilityBroker>();
+        // Finds the triggers that run a script, for the editor's typed getVar (non-"*Service", so registered here).
+        services.AddScoped<ICodeScriptTriggerResolver, CustomCode.CodeScriptTriggerResolver>();
         services.AddScoped<IScriptExecutionMeter, CustomCode.ScriptExecutionMeter>();
         services.AddScoped<Application.Contracts.Billing.IStripeGateway, Billing.StripeGateway>();
 

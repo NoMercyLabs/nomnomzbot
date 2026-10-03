@@ -729,7 +729,7 @@ private fun widgetsController(
 private class FakeSdkTypesApi(private val declarations: String = "") : SdkTypesApi {
     var requestedContext: String? = null
 
-    override suspend fun types(context: String): ApiResult<String> {
+    override suspend fun types(context: String, scriptId: String?): ApiResult<String> {
         requestedContext = context
         return ApiResult.Ok(declarations)
     }

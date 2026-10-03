@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
@@ -34,8 +35,13 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class SdkController : BaseController
 {
     private readonly ISdkTypeEmitter _emitter;
+    private readonly ICodeScriptTriggerResolver _triggers;
 
-    public SdkController(ISdkTypeEmitter emitter) => _emitter = emitter;
+    public SdkController(ISdkTypeEmitter emitter, ICodeScriptTriggerResolver triggers)
+    {
+        _emitter = emitter;
+        _triggers = triggers;
+    }
 
     /// <summary>
     /// The generated <c>nnz.d.ts</c> for the requested context, as <c>text/plain</c> — the <c>NnzEventMap</c>,
@@ -47,21 +53,57 @@ public class SdkController : BaseController
     [RequireAction("sdk:read")]
     [Produces("text/plain")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetTypes([FromQuery] string? context, [FromQuery] string? trigger)
+    public async Task<IActionResult> GetTypes(
+        [FromQuery] string? context,
+        [FromQuery] string? trigger,
+        [FromQuery] Guid? script,
+        CancellationToken cancellationToken = default
+    )
     {
         if (!TryParseContext(context, out SdkContext parsed))
             return BadRequestResponse("Unknown context — use 'widget' or 'script'.");
 
-        if (string.IsNullOrWhiteSpace(trigger))
+        bool hasTrigger = !string.IsNullOrWhiteSpace(trigger);
+        if (!hasTrigger && script is null)
             return Content(_emitter.EmitTypeScript(parsed), "text/plain");
 
         if (parsed != SdkContext.Script)
-            return BadRequestResponse("A trigger applies to the script context only.");
+            return BadRequestResponse("A trigger or script applies to the script context only.");
 
-        Result<string> typed = _emitter.EmitTypeScript(parsed, trigger);
+        if (hasTrigger && script is not null)
+            return BadRequestResponse("Pass either a trigger or a script, not both.");
+
+        if (script is { } scriptId)
+            return await GetScriptTypesAsync(scriptId, cancellationToken);
+
+        Result<string> typed = _emitter.EmitTypeScript(parsed, trigger!);
         return typed.IsSuccess
             ? Content(typed.Value, "text/plain")
             : BadRequestResponse(typed.ErrorMessage, typed.ErrorCode);
+    }
+
+    // A script with no known trigger, or one whose trigger cannot list its variables, gets the plain untyped
+    // surface — never a narrow type that could flag a key a real trigger sets.
+    private async Task<IActionResult> GetScriptTypesAsync(
+        Guid scriptId,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<IReadOnlyList<string>> triggers = await _triggers.GetTriggerKeysAsync(
+            scriptId,
+            cancellationToken
+        );
+        if (!triggers.IsSuccess)
+            return NotFoundResponse(triggers.ErrorMessage, triggers.ErrorCode);
+
+        if (triggers.Value.Count > 0)
+        {
+            Result<string> typed = _emitter.EmitTypeScript(SdkContext.Script, triggers.Value);
+            if (typed.IsSuccess)
+                return Content(typed.Value, "text/plain");
+        }
+
+        return Content(_emitter.EmitTypeScript(SdkContext.Script), "text/plain");
     }
 
     /// <summary>

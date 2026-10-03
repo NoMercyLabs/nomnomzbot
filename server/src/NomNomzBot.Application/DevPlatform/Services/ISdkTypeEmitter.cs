@@ -36,6 +36,12 @@ public interface ISdkTypeEmitter
     Result<string> EmitTypeScript(SdkContext context, string triggerKey);
 
     /// <summary>
+    /// The script <c>nnz.d.ts</c> for a script that several triggers run: <c>NnzVarKey</c> is the union of the keys
+    /// of every trigger. One unknown trigger, or an empty list, is a failure, so no wrong narrow type is served.
+    /// </summary>
+    Result<string> EmitTypeScript(SdkContext context, IReadOnlyList<string> triggerKeys);
+
+    /// <summary>
     /// The event catalog for <paramref name="context"/> — one item per visible event: wire name,
     /// tier, and the payload JSON Schema. Ordered by wire name.
     /// </summary>

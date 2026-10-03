@@ -37,14 +37,31 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     public string EmitTypeScript(SdkContext context) =>
         new TypeScriptDefinitionWriter(context).Build(VisibleFor(context));
 
-    public Result<string> EmitTypeScript(SdkContext context, string triggerKey)
+    public Result<string> EmitTypeScript(SdkContext context, string triggerKey) =>
+        EmitTypeScript(context, [triggerKey]);
+
+    public Result<string> EmitTypeScript(SdkContext context, IReadOnlyList<string> triggerKeys)
     {
-        IReadOnlyList<string>? keys = TriggerVariableKeys(triggerKey);
-        if (keys is null)
-            return Result.Failure<string>($"Unknown trigger '{triggerKey}'.", "UNKNOWN_TRIGGER");
+        if (triggerKeys.Count == 0)
+            return Result.Failure<string>("No trigger given.", "UNKNOWN_TRIGGER");
+
+        HashSet<string> union = new(StringComparer.Ordinal);
+        foreach (string triggerKey in triggerKeys)
+        {
+            IReadOnlyList<string>? keys = TriggerVariableKeys(triggerKey);
+            if (keys is null)
+                return Result.Failure<string>(
+                    $"Unknown trigger '{triggerKey}'.",
+                    "UNKNOWN_TRIGGER"
+                );
+            union.UnionWith(keys);
+        }
 
         return Result.Success(
-            new TypeScriptDefinitionWriter(context, keys).Build(VisibleFor(context))
+            new TypeScriptDefinitionWriter(
+                context,
+                [.. union.OrderBy(key => key, StringComparer.Ordinal)]
+            ).Build(VisibleFor(context))
         );
     }
 

@@ -83,6 +83,12 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
             b.Ignore(s => s.Pipeline);
         });
 
+        modelBuilder.Entity<PipelineTrigger>(b =>
+        {
+            b.HasKey(t => t.Id);
+            b.Ignore(t => t.Pipeline);
+        });
+
         modelBuilder.Entity<SoundClip>(b =>
         {
             b.HasKey(c => c.Id);
@@ -249,6 +255,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
         typeof(WidgetVersion),
         typeof(Pipeline),
         typeof(PipelineStep),
+        typeof(PipelineTrigger),
         typeof(SoundClip),
         typeof(Reward),
         typeof(Redemption),
@@ -460,7 +467,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
-    public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
+    public DbSet<PipelineTrigger> PipelineTriggers => Set<PipelineTrigger>();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
     public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
