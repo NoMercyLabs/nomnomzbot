@@ -434,7 +434,8 @@ public sealed class CodeScriptService(
         if (version.ValidationStatus != "valid")
             return Result.Failure<CodeScriptVersionDto>(
                 FirstValidationError(version),
-                "VALIDATION_FAILED"
+                "VALIDATION_FAILED",
+                errorData: AllValidationErrors(version)
             );
 
         // A clean compile: append the version, store the whole project, and hot-swap it live (publish).
@@ -575,8 +576,9 @@ public sealed class CodeScriptService(
         return [new("build", bundled.ErrorMessage ?? "The script build failed.", null, null)];
     }
 
-    // The message always names its file. The line and column fields are set only for the entry file, the one the
-    // editor shows, so a line number is never read against the wrong file.
+    // The message always names its file, and the file, line and column fields carry the position of every
+    // positioned problem, so a client can mark the right line in the right file. A position with no file belongs
+    // to the entry (the bundle's own source).
     private static ScriptValidationError ToValidationError(
         string code,
         string message,
@@ -587,11 +589,9 @@ public sealed class CodeScriptService(
         if (position is null)
             return new(code, message, null, null);
         if (position.File is null)
-            return new(code, message, position.Line, position.Column);
+            return new(code, message, position.Line, position.Column, entry);
         string named = $"{position.File}:{position.Line}:{position.Column}: {message}";
-        return position.File == entry
-            ? new(code, named, position.Line, position.Column)
-            : new(code, named, null, null);
+        return new(code, named, position.Line, position.Column, position.File);
     }
 
     private Task EmitValidatedAsync(CodeScriptVersion version, CancellationToken ct) =>
@@ -651,6 +651,14 @@ public sealed class CodeScriptService(
             ?.FirstOrDefault()
             ?.Message
         ?? "The script failed validation.";
+
+    // Every problem of a rejected version, with its position, for the response's data.errors.
+    private static ProjectBuildFailure AllValidationErrors(CodeScriptVersion version) =>
+        new(
+            (Deserialize<List<ScriptValidationError>>(version.ValidationErrorsJson) ?? [])
+                .Select(e => new ProjectBuildError(e.Code, e.Message, e.File, e.Line, e.Column))
+                .ToList()
+        );
 
     private static CodeScriptVersionDto ToVersionDto(CodeScriptVersion v) =>
         new(

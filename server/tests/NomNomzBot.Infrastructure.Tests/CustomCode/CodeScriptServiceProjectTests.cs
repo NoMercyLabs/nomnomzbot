@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -181,6 +183,72 @@ public sealed class CodeScriptServiceProjectTests
         saved.ErrorCode.Should().Be("VALIDATION_FAILED");
         saved.ErrorMessage.Should().Contain("lodash");
         db.CodeScriptVersions.Count(v => v.CodeScriptId == scriptId).Should().Be(1);
+    }
+
+    private static JsonElement ErrorsOf(Result<CodeScriptVersionDto> failed)
+    {
+        failed
+            .ErrorData.Should()
+            .NotBeNull("a rejected save carries every problem, not only a message");
+        string json = JsonSerializer.Serialize(
+            failed.ErrorData,
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            }
+        );
+        return JsonDocument.Parse(json).RootElement.GetProperty("errors");
+    }
+
+    [Fact]
+    public async Task SaveProject_SyntaxErrorInTheEntry_CarriesItsFileLineAndColumn()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        CodeScriptService sut = ServiceFor(db, Channel);
+        Guid scriptId = await SeedScriptAsync(sut);
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] = "let a = 1;\nlet b = 2;\nlet c = ;\n",
+        };
+
+        Result<CodeScriptVersionDto> saved = await sut.SaveProjectAsync(
+            scriptId,
+            Project(files, "index.ts")
+        );
+
+        saved.ErrorCode.Should().Be("VALIDATION_FAILED");
+        JsonElement errors = ErrorsOf(saved);
+        errors.GetArrayLength().Should().Be(1);
+        errors[0].GetProperty("file").GetString().Should().Be("index.ts");
+        errors[0].GetProperty("line").GetInt32().Should().Be(3);
+        errors[0].GetProperty("column").GetInt32().Should().Be(9);
+        errors[0].GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
+        errors[0].GetProperty("code").GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task SaveProject_SyntaxErrorInAnImportedFile_NamesThatFileAndItsLine()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        CodeScriptService sut = ServiceFor(db, Channel);
+        Guid scriptId = await SeedScriptAsync(sut);
+        Dictionary<string, string> files = new()
+        {
+            ["index.ts"] = "import { v } from './lib';\nbot.send(v);\n",
+            ["lib.ts"] = "export const a = 1;\nexport const v = ;\n",
+        };
+
+        Result<CodeScriptVersionDto> saved = await sut.SaveProjectAsync(
+            scriptId,
+            Project(files, "index.ts")
+        );
+
+        saved.ErrorCode.Should().Be("VALIDATION_FAILED");
+        JsonElement errors = ErrorsOf(saved);
+        errors.GetArrayLength().Should().Be(1);
+        errors[0].GetProperty("file").GetString().Should().Be("lib.ts");
+        errors[0].GetProperty("line").GetInt32().Should().Be(2);
     }
 
     [Fact]

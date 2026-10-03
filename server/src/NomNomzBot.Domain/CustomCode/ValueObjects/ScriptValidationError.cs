@@ -15,4 +15,11 @@ namespace NomNomzBot.Domain.CustomCode.ValueObjects;
 /// <param name="Message">The reason in plain words, for the author to read.</param>
 /// <param name="Line">The line in the script where the problem is. Null when it has no single line.</param>
 /// <param name="Column">The column in that line where the problem starts. Null when it has no single column.</param>
-public sealed record ScriptValidationError(string Code, string Message, int? Line, int? Column);
+/// <param name="File">The project file the line and column belong to. Null when unknown (older stored errors).</param>
+public sealed record ScriptValidationError(
+    string Code,
+    string Message,
+    int? Line,
+    int? Column,
+    string? File = null
+);

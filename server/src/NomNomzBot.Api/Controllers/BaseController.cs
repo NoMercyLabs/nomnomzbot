@@ -54,11 +54,16 @@ public abstract class BaseController : ControllerBase
             }
         );
 
-    protected IActionResult BadRequestResponse(string? message = null, string? code = null) =>
+    protected IActionResult BadRequestResponse(
+        string? message = null,
+        string? code = null,
+        object? data = null
+    ) =>
         BadRequest(
             new StatusResponseDto<object>
             {
                 Status = "error",
+                Data = data,
                 Message = message ?? "Bad request",
                 Code = code,
             }
@@ -249,7 +254,8 @@ public abstract class BaseController : ControllerBase
             or "NO_SCOPES"
             or "NO_TENANT" => BadRequestResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
-                result.ErrorCode
+                result.ErrorCode,
+                result.ErrorData as NomNomzBot.Application.Common.Models.IResponseErrorData
             ),
             "ALREADY_EXISTS"
             or "ALREADY_CURRENT"
