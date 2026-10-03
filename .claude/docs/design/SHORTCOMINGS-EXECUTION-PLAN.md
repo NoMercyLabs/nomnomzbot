@@ -29,15 +29,8 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-FIRSTPARTY-WIDGETS-TYPED** The 23 first-party widgets (`Infrastructure/Content/Widgets/Assets/*.vue`)
-  are the code streamers open and copy, and all 23 use `any`: about 140 sites, mostly
-  `(window as any).NomNomz` and `payload: any` (counted 2026-10-03). `as any` also hides every error from the
-  editor's strict check. Done-when: each widget uses the typed SDK (the widget event map and its own settings
-  type), none contains `any`, and a test fails when a first-party widget has an `any` or a type error in the
-  editor's widget compiler options. Also: the game events `game.lobby`, `game.running` and `game.resolved`
-  have no payload type (`Api/Hubs/Broadcasters/WidgetEventPayloadRegistry.cs:68-70` registers them with
-  `null`), so the game widgets (crash, heist, drop_game) must read them as `Record<string, unknown>`. Give
-  each a payload record so the event map types them, and narrow the game widgets to it.
+- **S-GAME-EVENT-PAYLOADS** The game events `game.lobby`, `game.running` and `game.resolved` have no payload type (`Api/Hubs/Broadcasters/WidgetEventPayloadRegistry.cs:68-70` registers them with `null`), so the game widgets (crash, heist, drop_game) read them as `Record<string, unknown>`.
+  Done-when: each event has a payload record, the widget event map types it, the game widgets narrow to it, and a test fails when a game event has no payload type.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
