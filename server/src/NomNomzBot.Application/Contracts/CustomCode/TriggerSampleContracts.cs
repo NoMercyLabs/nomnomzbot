@@ -21,7 +21,15 @@ public sealed record TriggerSample(
     string? UserId,
     string? UserDisplayName,
     IReadOnlyDictionary<string, string> Variables
-);
+)
+{
+    /// <summary>
+    /// The variable keys the editor types for this trigger when they differ from <see cref="Variables"/>: a
+    /// webhook's payload keys belong to the endpoint, so it types <c>payload.${string}</c>, not the sample's keys.
+    /// Null: the editor types the keys of <see cref="Variables"/>.
+    /// </summary>
+    public IReadOnlyList<string>? TypeKeys { get; init; }
+}
 
 /// <summary>A live trigger that can describe a sample of itself for a test run.</summary>
 public interface ITriggerSampleSource

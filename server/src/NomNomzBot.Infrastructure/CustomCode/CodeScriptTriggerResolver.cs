@@ -17,12 +17,13 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.DevPlatform;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
+using NomNomzBot.Infrastructure.Webhooks.EventHandlers;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
 
 /// <summary>
 /// Resolves the SDK trigger keys of a script: script -> <c>run_code</c> steps -> pipelines -> the chat command,
-/// timer, reward, event response and pipeline trigger rows that start each pipeline. Every query is scoped to the current
+/// timer, reward, webhook endpoint, event response and pipeline trigger rows that start each pipeline. Every query is scoped to the current
 /// channel, so another channel's pipeline never adds a key.
 /// </summary>
 public sealed class CodeScriptTriggerResolver(
@@ -98,6 +99,15 @@ public sealed class CodeScriptTriggerResolver(
             cancellationToken
         );
 
+        bool hasWebhook = await db.InboundWebhookEndpoints.AnyAsync(
+            endpoint =>
+                endpoint.BroadcasterId == broadcasterId
+                && endpoint.IsEnabled
+                && endpoint.TargetPipelineId != null
+                && pipelineIds.Contains(endpoint.TargetPipelineId.Value),
+            cancellationToken
+        );
+
         List<(string Kind, string ConfigJson)> triggerRows = (
             await db
                 .PipelineTriggers.Where(trigger =>
@@ -118,6 +128,8 @@ public sealed class CodeScriptTriggerResolver(
             keys.Add(TimerSampleSource.ResponseKey);
         if (hasReward)
             keys.Add(RewardRedeemedSampleSource.ResponseKey);
+        if (hasWebhook)
+            keys.Add(InboundWebhookTriggerSampleSource.ResponseKey);
         keys.UnionWith(eventTypes);
         foreach ((string kind, string configJson) in triggerRows)
         {

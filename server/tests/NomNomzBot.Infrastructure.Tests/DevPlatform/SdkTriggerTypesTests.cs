@@ -15,6 +15,7 @@ using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.DevPlatform;
+using NomNomzBot.Infrastructure.Webhooks.EventHandlers;
 
 namespace NomNomzBot.Infrastructure.Tests.DevPlatform;
 
@@ -62,6 +63,22 @@ public sealed class SdkTriggerTypesTests
         ts.Should().Contain("  getVar(key: string, dynamic: true): string | null;");
         ts.Should().NotContain("  getVar(key: string): string | null;");
         ts.Should().NotContain("interface NnzEventMap");
+    }
+
+    [Fact]
+    public void A_webhook_types_its_fixed_keys_and_any_payload_key_not_the_sample_payload()
+    {
+        TriggerSample webhook = new InboundWebhookTriggerSampleSource().Sample(
+            DateTimeOffset.UnixEpoch
+        );
+        SdkTypeEmitter emitter = new(new EventCatalog(), new FakeTriggerSampleCatalog(webhook));
+
+        Result<string> result = emitter.EmitTypeScript(SdkContext.Script, webhook.ResponseKey);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain("`payload.${string}`");
+        result.Value.Should().Contain("'webhook.event_type'");
+        result.Value.Should().NotContain("'payload.order_id'");
     }
 
     [Fact]

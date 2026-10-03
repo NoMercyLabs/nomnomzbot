@@ -136,24 +136,17 @@ public sealed class InboundWebhookAutomationBridge : IEventHandler<InboundWebhoo
         CancellationToken cancellationToken
     )
     {
-        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["webhook.event_type"] = @event.EventType,
-            ["webhook.provider"] = @event.Adapter.ToString().ToLowerInvariant(),
-            ["webhook.provider_event_id"] = @event.ProviderEventId,
-        };
-
         Result<EventRecord> record = await _journal.GetByEventIdAsync(
             @event.JournalEventId,
             cancellationToken
         );
-        if (record.IsFailure)
-            return variables;
 
-        foreach ((string key, string value) in ParseFlatPayload(record.Value.PayloadJson))
-            variables[$"payload.{key}"] = value;
-
-        return variables;
+        return InboundWebhookVariables.Build(
+            @event.EventType,
+            @event.Adapter,
+            @event.ProviderEventId,
+            record.IsFailure ? [] : ParseFlatPayload(record.Value.PayloadJson)
+        );
     }
 
     // The dispatcher journals the parsed event's flat string→string variable bag; deserialize it back. A payload

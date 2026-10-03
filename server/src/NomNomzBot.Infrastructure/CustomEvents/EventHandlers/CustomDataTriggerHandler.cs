@@ -50,12 +50,10 @@ public sealed class CustomDataTriggerHandler : IEventHandler<CustomDataReceivedE
 
         string eventTypeKey = $"custom.{@event.SourceName}";
 
-        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["custom.source"] = @event.SourceName,
-        };
-        foreach ((string key, string value) in @event.Fields)
-            variables[$"custom.{@event.SourceName}.{key}"] = value;
+        Dictionary<string, string> variables = CustomDataVariables.Build(
+            @event.SourceName,
+            @event.Fields
+        );
 
         try
         {

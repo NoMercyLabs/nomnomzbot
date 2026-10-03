@@ -84,7 +84,7 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
         return
         [
             .. matching
-                .SelectMany(sample => sample.Variables.Keys)
+                .SelectMany(sample => sample.TypeKeys ?? [.. sample.Variables.Keys])
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(key => key, StringComparer.Ordinal),
         ];

@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
+using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Tests.Consequences;
 using NSubstitute;
@@ -203,6 +204,53 @@ public sealed class CodeScriptTriggerResolverTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Equal("channel.channel_points_custom_reward_redemption.add", "timer");
     }
+
+    [Fact]
+    public async Task A_script_run_by_an_enabled_webhook_endpoint_has_the_webhook_key()
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "on-order");
+        CodeScript unused = NewScript(Channel, "on-old-order");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline viaWebhook = NewPipeline(Channel, "order-placed");
+            Pipeline viaDisabled = NewPipeline(Channel, "old-shop");
+            seed.Pipelines.AddRange(viaWebhook, viaDisabled);
+            seed.CodeScripts.AddRange(script, unused);
+            seed.PipelineSteps.AddRange(
+                RunCode(Channel, viaWebhook.Id, script.Id),
+                RunCode(Channel, viaDisabled.Id, unused.Id)
+            );
+            seed.InboundWebhookEndpoints.AddRange(
+                NewWebhook(viaWebhook.Id, isEnabled: true),
+                NewWebhook(viaDisabled.Id, isEnabled: false)
+            );
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        CodeScriptTriggerResolver resolver = Build(db);
+
+        (await resolver.GetTriggerKeysAsync(script.Id, CancellationToken.None))
+            .Value.Should()
+            .Equal("webhook");
+        (await resolver.GetTriggerKeysAsync(unused.Id, CancellationToken.None))
+            .Value.Should()
+            .BeEmpty();
+    }
+
+    private static InboundWebhookEndpoint NewWebhook(Guid pipelineId, bool isEnabled) =>
+        new()
+        {
+            BroadcasterId = Channel,
+            Name = "Shop",
+            Token = Guid.CreateVersion7().ToString("N"),
+            VerificationSecretEnvelope = "sealed",
+            EncryptionKeyId = Guid.CreateVersion7(),
+            TargetPipelineId = pipelineId,
+            IsEnabled = isEnabled,
+        };
 
     [Fact]
     public async Task A_pipeline_trigger_row_contributes_its_kind_key()
