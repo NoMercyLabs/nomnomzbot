@@ -32,11 +32,9 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   sound and TTS line plays on one page only (e95e7417d: newest Audio Source page, else newest overlay
   page). Owner decision 2026-10-02: "lets have just one audio source for tss and all other scripts and
   audio fragments, and have volume control handled on the bots side so balance stays static across
-  multiple streaming pc's used by that user". Left (plan: `.scratch/audio-plan.md` S3-S5): bot-side
-  volume - a per-channel master and TTS volume (new entity, both migration sets) applied to the clip and
-  TTS payloads, plus the dropped `play_sound` handle (`PlaySoundAction.cs:84`, `SoundPlaybackDto` has no
-  handle); the dashboard inbox says when no Audio Source page is open (`IActionRequiredSource`);
-  master and TTS sliders on the Sound screen. Done-when: tests prove each, and on the deployed site one
+  multiple streaming pc's used by that user". Shipped: bot-side master and TTS volume (ca32f9f63,
+  defb69885), the `play_sound` handle, and the inbox notice when no Audio Source page is open
+  (`AudioSourceMissingSource.cs`). Left: the live check. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
 - **S-SDK-EVENT-DOCS** The event payload interfaces the type emitter generates (about 1,100 members,
   counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
@@ -52,9 +50,9 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   `AUTH_REQUIRED` in the types. Done-when: an E2E editor test shows a payload field typo as an error.
 - **S-SDK-ACTION-TYPES** `actions.invoke` is the one untyped door: script and widget both declare
   `invoke(actionType: string, params?: Record<string, ...>)` (`SdkRuntimeSurface.cs:267`, `:659`), so a
-  typo in the action type or a missing required param fails only at run time. 110 action types; 89
-  declare `Fields`. Plan: one generated `NnzActionParams` map from the action descriptors, a generic
-  invoke on both sides; an action that reads params it does not declare gets its `Fields`. Done-when:
+  typo in the action type or a missing required param fails only at run time. Shipped (b69930d9f): a
+  generated `NnzActionParams` map, one member per action type (110; 84 declare `Fields`, the other 26
+  read no params), and a typed invoke on both sides. Left: an E2E editor test. Done-when:
   every registered action type has a typed member, and `invoke('obs_switch_scene', {})` is a type error.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
