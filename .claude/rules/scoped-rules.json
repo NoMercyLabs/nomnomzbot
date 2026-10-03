@@ -896,6 +896,30 @@
     "The execution plan (`SHORTCOMINGS-EXECUTION-PLAN.md`) lists remaining work only",
     "tracker-remaining-work-only.md"
    ]
+  },
+  {
+   "id": "fan-out-lanes-not-serial",
+   "text": "Split the queue into lanes with disjoint files and dispatch them at once (2 builder workers in worktrees + 1 read-only scout). The main session briefs, accepts by script, pushes; it never builds slice after slice itself.",
+   "source": "memory feedback-fan-out-lanes-not-serial.md",
+   "covers": [
+    "feedback-fan-out-lanes-not-serial.md"
+   ]
+  },
+  {
+   "id": "bot-status-to-stoney",
+   "text": "Bot deploy results, live proofs and 'ask the streamer' items go to Stoney in this session; the NoMercy workspace peer gets only workspace-level items.",
+   "source": "memory feedback-report-bot-status-to-stoney-not-peer.md",
+   "covers": [
+    "feedback-report-bot-status-to-stoney-not-peer.md"
+   ]
+  },
+  {
+   "id": "user-docs-one-topic-per-page",
+   "text": "User-facing docs are for streamers who know no programming: one topic per page, goal-first steps, copy-paste example, never one big reference dump; write them with the atlas skill.",
+   "source": "memory user-docs-one-topic-per-page-for-non-coders.md",
+   "covers": [
+    "user-docs-one-topic-per-page-for-non-coders.md"
+   ]
   }
  ]
 }
