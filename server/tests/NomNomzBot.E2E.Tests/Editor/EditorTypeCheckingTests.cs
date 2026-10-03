@@ -105,6 +105,66 @@ public sealed class EditorTypeCheckingTests : PageTest
         Assert.Equal([2], lines);
     }
 
+    [E2EFact]
+    public async Task A_script_s_action_invoke_needs_a_real_action_type_and_its_required_params()
+    {
+        await OpenAsync(
+            "script",
+            "index.ts",
+            """
+            nnz.api.actions.invoke('obs_switch_scene', { scene: 'Main' });
+            nnz.api.actions.invoke('obs_switch_scene', {});
+            nnz.api.actions.invoke('obs_swich_scene', { scene: 'Main' });
+            nnz.api.actions.invoke('music_next');
+            """,
+            await SdkTypesAsync("script")
+        );
+
+        await DiagnosticCodesAsync("index.ts", expected: 2);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.ts");
+
+        // A missing required param and an unknown action type are errors; a full call and a call to an
+        // action without required params type-check.
+        Assert.Equal([2, 3], lines.Order());
+    }
+
+    [E2EFact]
+    public async Task A_widget_s_action_invoke_needs_a_real_action_type_and_its_required_params()
+    {
+        await OpenAsync(
+            "vanilla-js",
+            "index.js",
+            """
+            NomNomz.actions.invoke('obs_switch_scene', { scene: 'Main' });
+            NomNomz.actions.invoke('obs_switch_scene', {});
+            NomNomz.actions.invoke('obs_swich_scene', { scene: 'Main' });
+            NomNomz.actions.invoke('music_next');
+            """,
+            await SdkTypesAsync("widget")
+        );
+
+        await DiagnosticCodesAsync("index.js", expected: 2);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.js");
+
+        Assert.Equal([2, 3], lines.Order());
+    }
+
+    private async Task<string> SdkTypesAsync(string context)
+    {
+        IAPIResponse types = await Page.APIRequest.GetAsync(
+            $"{E2ESettings.BaseUrl}/api/v1/sdk/types.d.ts?context={context}",
+            new()
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    ["Authorization"] = $"Bearer {E2ESettings.Token}",
+                },
+            }
+        );
+        Assert.Equal(200, types.Status);
+        return await types.TextAsync();
+    }
+
     private async Task<IReadOnlyList<int>> DiagnosticLinesAsync(string path) =>
         await Page.EvaluateAsync<int[]>(
             """
