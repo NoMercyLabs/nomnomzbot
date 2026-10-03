@@ -26,6 +26,8 @@ class EditorBridgeSession(
     private val testRun: EditorTestRun?,
     private val compile: suspend (Map<String, String>) -> CompileFeedback,
     private val post: (String) -> Unit,
+    // The page's words in the dashboard's language; sent with every open, widgets included.
+    private val uiLabels: suspend () -> Map<String, String> = { emptyMap() },
 ) {
     /** Handles one page message. Returns false once the page asked to close, true while the session goes on. */
     suspend fun handle(message: EditorInboundMessage): Boolean {
@@ -34,7 +36,7 @@ class EditorBridgeSession(
                 post(
                     EditorBridgeProtocol.open(
                         title, initialFiles, entryPath, language, sdkTypes, sdkTypesUnavailable, previewWidget, history,
-                        testRun,
+                        testRun, uiLabels(),
                     )
                 )
             EditorBridgeProtocol.SAVE -> post(EditorBridgeProtocol.compiled(compile(message.files)))

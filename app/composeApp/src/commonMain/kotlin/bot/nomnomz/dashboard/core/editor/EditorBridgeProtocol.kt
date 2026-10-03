@@ -73,6 +73,7 @@ object EditorBridgeProtocol {
         previewWidget: EditorPreviewWidget?,
         history: EditorHistory?,
         testRun: EditorTestRun?,
+        uiLabels: Map<String, String> = emptyMap(),
     ): String =
         encode(
             buildJsonObject {
@@ -111,8 +112,9 @@ object EditorBridgeProtocol {
                         put("testRunEnabled", testRun != null)
                         if (testRun != null) {
                             put("testTriggers", JsonArray(testRun.triggers.map { trigger -> triggerJson(trigger) }))
-                            put("labels", labelsJson(testRun.labels))
                         }
+                        // One map for every word: the page's own labels, plus the test-run ones when a run is wired.
+                        put("labels", labelsJson(uiLabels, testRun?.labels))
                     },
                 )
             }
@@ -125,16 +127,19 @@ object EditorBridgeProtocol {
             put("variables", JsonObject(trigger.variables.mapValues { entry -> JsonPrimitive(entry.value) }))
         }
 
-    private fun labelsJson(labels: EditorTestRunLabels): JsonObject =
+    private fun labelsJson(uiLabels: Map<String, String>, testRunLabels: EditorTestRunLabels?): JsonObject =
         buildJsonObject {
-            put("manual", labels.manual)
-            put("trigger", labels.trigger)
-            put("role", labels.role)
-            put("roles", JsonObject(labels.roles.mapValues { entry -> JsonPrimitive(entry.value) }))
-            put("timeline", labels.timeline)
-            put("timelineChat", labels.timelineChat)
-            put("timelineEffect", labels.timelineEffect)
-            put("timelineConsole", labels.timelineConsole)
+            for ((id: String, text: String) in uiLabels) put(id, text)
+            if (testRunLabels != null) {
+                put("manual", testRunLabels.manual)
+                put("trigger", testRunLabels.trigger)
+                put("role", testRunLabels.role)
+                put("roles", JsonObject(testRunLabels.roles.mapValues { entry -> JsonPrimitive(entry.value) }))
+                put("timeline", testRunLabels.timeline)
+                put("timelineChat", testRunLabels.timelineChat)
+                put("timelineEffect", testRunLabels.timelineEffect)
+                put("timelineConsole", testRunLabels.timelineConsole)
+            }
         }
 
     fun compiled(feedback: CompileFeedback): String =

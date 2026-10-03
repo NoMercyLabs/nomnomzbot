@@ -129,7 +129,137 @@ const state = {
     preview: null,
     wrap: false,
     minimap: true,
+    labels: null,
 };
+
+// ── Words ──────────────────────────────────────────────────────────────────
+// Every word the editor shows is a label id. The host (the dashboard) sends the translated map in the open
+// payload (`labels`); this map is the single English fallback, and index.html's text must equal it. Test-run
+// pickers (manual/trigger/role/timeline*) and `roles` come from the same payload and have no fallback here.
+const DEFAULT_LABELS = Object.freeze({
+    htmlLang: 'en',
+    pageTitle: 'NomNomzBot — Code editor',
+    defaultTitle: 'Editor',
+    shortcutsHint: 'Ctrl+P files · F1 commands · Ctrl+S save',
+    hidePreview: 'Hide preview',
+    showPreview: 'Show preview',
+    close: 'Close',
+    saveAndCompile: 'Save & Compile',
+    compiling: 'Compiling…',
+    views: 'Views',
+    explorer: 'Explorer',
+    explorerTooltip: 'Explorer (Ctrl+Shift+E)',
+    search: 'Search',
+    searchTooltip: 'Search (Ctrl+Shift+F)',
+    problems: 'Problems',
+    problemsTooltip: 'Problems (Ctrl+Shift+M)',
+    runAndTest: 'Run & test',
+    runAndTestTooltip: 'Run & test (Ctrl+Shift+D)',
+    history: 'History',
+    historyTooltip: 'History (Ctrl+Shift+H)',
+    bundle: 'Bundle',
+    newFile: 'New file',
+    searchInFiles: 'Search in files',
+    runInSandbox: 'Run in sandbox',
+    sandboxHint:
+        'Runs what is in the editor right now, with sample events. Nothing is published and your live channel is never touched.',
+    testRunVariables: 'Variables (one key=value per line)',
+    testRunArguments: 'Arguments (space-separated)',
+    runTest: 'Run test',
+    running: 'Running…',
+    whatWidgetDid: 'What the widget did',
+    historyHint:
+        'Every saved version, newest first. Publish any past version to make it the served one again; the current live version cannot be deleted.',
+    loadMore: 'Load more',
+    bundleHint: 'Bundle metadata for publishing this project.',
+    sdkTypesNotice: 'SDK types could not load. Type checking is off until you reopen this file.',
+    livePreview: 'Live preview',
+    refresh: 'Refresh',
+    widgetPreview: 'Widget preview',
+    cursorPosition: 'Ln {line}, Col {column}',
+    noProblems: 'No problems',
+    theme: 'Theme',
+    format: 'Format',
+    wrapOn: 'Wrap: on',
+    wrapOff: 'Wrap: off',
+    minimapOn: 'Minimap: on',
+    minimapOff: 'Minimap: off',
+    commandPalette: 'Command palette',
+    loadingEditor: 'Loading editor…',
+    editorStartFailed: 'The editor could not start: {message}',
+    newFilePrompt: 'New file path (e.g. lib/helper.ts)',
+    renameFilePrompt: 'Rename file',
+    deleteFileConfirm: 'Delete {path}? This cannot be undone until you close without saving.',
+    entryFile: 'Entry file',
+    rename: 'Rename',
+    delete: 'Delete',
+    severityError: 'error',
+    severityWarning: 'warning',
+    severityInfo: 'info',
+    errorsOne: '{count} error',
+    errorsMany: '{count} errors',
+    warningsOne: '{count} warning',
+    warningsMany: '{count} warnings',
+    problemSummary: '{errors}, {warnings}',
+    noProblemsDetected: 'No problems detected.',
+    noMatchesFor: 'No matches for “{term}”.',
+    noMatches: 'No matches.',
+    themeLabel: 'Theme: {name}',
+    themeDark: 'Dark',
+    themeLight: 'Light',
+    themeHighContrastDark: 'High contrast dark',
+    themeHighContrastLight: 'High contrast light',
+    themeAtomOneDark: 'Atom One Dark',
+    themeGitHubLight: 'GitHub Light',
+    themeDracula: 'Dracula',
+    themeMonokai: 'Monokai',
+    formatDocument: 'Format document',
+    togglePreview: 'Toggle preview',
+    toggleWordWrap: 'Toggle word wrap',
+    toggleMinimap: 'Toggle minimap',
+    viewLabel: 'View: {name}',
+    historyEmpty: 'No saved versions yet.',
+    versionLabel: 'v{version} — {status}',
+    current: '(current)',
+    publish: 'Publish',
+    deleteVersionConfirm: 'Delete this saved version? This cannot be undone.',
+    actionFailed: 'That action failed.',
+    testRunFailed: 'Test run failed.',
+    testRunSuccess: 'Success — {ms}ms, {calls} host call(s)',
+    testRunFailedWith: 'Failed: {error}',
+    testRunFailedPlain: 'Failed',
+    variablesSet: 'Variables set',
+    chatOutput: 'Chat output',
+    capturedEffects: 'Captured effects',
+    consoleOutput: 'Console',
+    none: '(none)',
+    runNoteSandbox:
+        'This project runs in the bot sandbox, so there is nothing to render. Save & Compile validates it.',
+    runNoteRender: 'Renders the current editor contents. Fire an event below to drive it.',
+    bundleName: 'Name',
+    bundleKind: 'Kind',
+    bundleEntry: 'Entry',
+    bundleFiles: 'Files',
+});
+
+// `{name}` placeholders; an unknown id shows itself so a gap is visible, never blank.
+function t(id, vars = {}) {
+    const template = state.labels?.[id] ?? DEFAULT_LABELS[id] ?? id;
+    return template.replace(/\{(\w+)\}/g, (match, key) => (key in vars ? String(vars[key]) : match));
+}
+
+// Sets every marked element. Run on open and again after the host's map arrives.
+function applyLabels(labels) {
+    state.labels = { ...DEFAULT_LABELS, ...labels };
+    document.title = t('pageTitle');
+    document.documentElement.lang = t('htmlLang');
+    for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+    for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+    for (const el of document.querySelectorAll('[data-i18n-aria]'))
+        el.setAttribute('aria-label', t(el.dataset.i18nAria));
+    for (const el of document.querySelectorAll('[data-i18n-placeholder]'))
+        el.placeholder = t(el.dataset.i18nPlaceholder);
+}
 
 // ── Host bridge ────────────────────────────────────────────────────────────
 
@@ -196,7 +326,7 @@ function selectFile(path) {
 }
 
 function addFile() {
-    const name = normalizePath(window.prompt('New file path (e.g. lib/helper.ts)') ?? '');
+    const name = normalizePath(window.prompt(t('newFilePrompt')) ?? '');
     if (!name || state.files.has(name)) return;
     flushActive();
     state.files.set(name, '');
@@ -206,7 +336,7 @@ function addFile() {
 
 function renameFile(path) {
     if (path === state.entry) return;
-    const next = normalizePath(window.prompt('Rename file', path) ?? '');
+    const next = normalizePath(window.prompt(t('renameFilePrompt'), path) ?? '');
     if (!next || next === path || state.files.has(next)) return;
     flushActive();
     state.files.set(next, state.files.get(path) ?? '');
@@ -219,7 +349,7 @@ function renameFile(path) {
 
 function deleteFile(path) {
     if (path === state.entry) return;
-    if (!window.confirm(`Delete ${path}? This cannot be undone until you close without saving.`)) return;
+    if (!window.confirm(t('deleteFileConfirm', { path }))) return;
     state.files.delete(path);
     disposeModel(path);
     if (state.active === path) state.active = state.entry;
@@ -312,15 +442,15 @@ function fileRow(path, name, depth) {
         const marker = document.createElement('span');
         marker.className = 'file-entry';
         marker.textContent = '•';
-        marker.title = 'Entry file';
+        marker.title = t('entryFile');
         row.append(marker);
     } else {
         row.append(
-            fileAction('Rename', (event) => {
+            fileAction(t('rename'), (event) => {
                 event.stopPropagation();
                 renameFile(path);
             }),
-            fileAction('Delete', (event) => {
+            fileAction(t('delete'), (event) => {
                 event.stopPropagation();
                 deleteFile(path);
             }),
@@ -453,6 +583,7 @@ function createEditor(monaco) {
 
 // ── Problems + status ──────────────────────────────────────────────────────
 
+const SEVERITY_LABEL = Object.freeze({ error: 'severityError', warning: 'severityWarning', info: 'severityInfo' });
 const SEVERITY = new Map();
 
 function severityName(monaco, severity) {
@@ -489,7 +620,7 @@ function renderProblems(monaco) {
             const severity = document.createElement('span');
             severity.className = 'problem-severity';
             severity.dataset.severity = severityName(monaco, marker.severity);
-            severity.textContent = severity.dataset.severity;
+            severity.textContent = t(SEVERITY_LABEL[severity.dataset.severity]);
 
             const where = document.createElement('span');
             where.className = 'problem-where';
@@ -507,8 +638,11 @@ function renderProblems(monaco) {
     const total = errors + warnings;
     dom.problemCount.textContent =
         total === 0
-            ? 'No problems'
-            : `${errors} error${errors === 1 ? '' : 's'}, ${warnings} warning${warnings === 1 ? '' : 's'}`;
+            ? t('noProblems')
+            : t('problemSummary', {
+                  errors: t(errors === 1 ? 'errorsOne' : 'errorsMany', { count: errors }),
+                  warnings: t(warnings === 1 ? 'warningsOne' : 'warningsMany', { count: warnings }),
+              });
     dom.problemCount.dataset.severity = errors > 0 ? 'error' : warnings > 0 ? 'warning' : 'none';
     if (total === 0) dom.problems.hidden = true;
 
@@ -519,7 +653,7 @@ function renderProblems(monaco) {
 
 function syncStatus() {
     const position = state.editor.getPosition();
-    if (position) dom.cursor.textContent = `Ln ${position.lineNumber}, Col ${position.column}`;
+    if (position) dom.cursor.textContent = t('cursorPosition', { line: position.lineNumber, column: position.column });
     dom.language.textContent = state.editor.getModel()?.getLanguageId() ?? '';
 }
 
@@ -527,7 +661,7 @@ function syncStatus() {
 
 function setPreviewCollapsed(collapsed) {
     dom.shell.dataset.preview = collapsed ? 'collapsed' : 'open';
-    dom.togglePreview.textContent = collapsed ? 'Show preview' : 'Hide preview';
+    dom.togglePreview.textContent = t(collapsed ? 'showPreview' : 'hidePreview');
     // Widening the editor while it was scrolled right leaves a stale scrollLeft, which renders every line
     // with its opening characters cut off.
     state.editor?.layout();
@@ -576,7 +710,7 @@ function renderProblemsSidebar() {
     if (markers.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'view-hint';
-        empty.textContent = 'No problems detected.';
+        empty.textContent = t('noProblemsDetected');
         dom.problemsSidebar.replaceChildren(empty);
         return;
     }
@@ -627,7 +761,7 @@ function runSearch(term) {
     if (hits.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'view-hint';
-        empty.textContent = `No matches for “${term}”.`;
+        empty.textContent = t('noMatchesFor', { term });
         dom.searchResults.replaceChildren(empty);
         return;
     }
@@ -659,14 +793,14 @@ function runSearch(term) {
 // ── Themes ─────────────────────────────────────────────────────────────────
 
 const THEMES = Object.freeze([
-    { id: 'vs-dark', label: 'Dark' },
-    { id: 'vs', label: 'Light' },
-    { id: 'hc-black', label: 'High contrast dark' },
-    { id: 'hc-light', label: 'High contrast light' },
-    { id: 'nnz-atom-one-dark', label: 'Atom One Dark' },
-    { id: 'nnz-github-light', label: 'GitHub Light' },
-    { id: 'nnz-dracula', label: 'Dracula' },
-    { id: 'nnz-monokai', label: 'Monokai' },
+    { id: 'vs-dark', labelId: 'themeDark' },
+    { id: 'vs', labelId: 'themeLight' },
+    { id: 'hc-black', labelId: 'themeHighContrastDark' },
+    { id: 'hc-light', labelId: 'themeHighContrastLight' },
+    { id: 'nnz-atom-one-dark', labelId: 'themeAtomOneDark' },
+    { id: 'nnz-github-light', labelId: 'themeGitHubLight' },
+    { id: 'nnz-dracula', labelId: 'themeDracula' },
+    { id: 'nnz-monokai', labelId: 'themeMonokai' },
 ]);
 
 const THEME_STORAGE_KEY = 'nnz.editor.theme';
@@ -818,7 +952,8 @@ function defineCustomThemes(monaco) {
 function applyTheme(id) {
     state.theme = id;
     state.monaco?.editor.setTheme(id);
-    dom.theme.textContent = `Theme: ${THEMES.find((t) => t.id === id)?.label ?? id}`;
+    const known = THEMES.find((theme) => theme.id === id);
+    dom.theme.textContent = t('themeLabel', { name: known ? t(known.labelId) : id });
     // Per-viewer convenience only; a browser that refuses storage must not break the editor.
     try {
         localStorage.setItem(THEME_STORAGE_KEY, id);
@@ -837,18 +972,27 @@ function storedTheme() {
 
 // ── Command palette + quick open ───────────────────────────────────────────
 
+const VIEW_LABEL = Object.freeze({
+    explorer: 'explorer',
+    search: 'search',
+    problems: 'problems',
+    run: 'runAndTest',
+    history: 'history',
+    bundle: 'bundle',
+});
+
 const palette = { items: [], filtered: [], index: 0, mode: 'files' };
 
 function commands() {
     return [
-        { label: 'Save & Compile', detail: 'Ctrl+S', run: requestSave },
-        { label: 'Run in sandbox', detail: '', run: runSandbox },
-        { label: 'Format document', detail: '', run: () => state.editor?.getAction('editor.action.formatDocument')?.run() },
-        { label: 'New file', detail: '', run: addFile },
-        { label: 'Toggle preview', detail: '', run: () => setPreviewCollapsed(dom.shell.dataset.preview !== 'collapsed') },
-        { label: 'Toggle word wrap', detail: '', run: toggleWrap },
-        { label: 'Toggle minimap', detail: '', run: toggleMinimap },
-        ...THEMES.map((theme) => ({ label: `Theme: ${theme.label}`, detail: theme.id, run: () => applyTheme(theme.id) })),
+        { label: t('saveAndCompile'), detail: 'Ctrl+S', run: requestSave },
+        { label: t('runInSandbox'), detail: '', run: runSandbox },
+        { label: t('formatDocument'), detail: '', run: () => state.editor?.getAction('editor.action.formatDocument')?.run() },
+        { label: t('newFile'), detail: '', run: addFile },
+        { label: t('togglePreview'), detail: '', run: () => setPreviewCollapsed(dom.shell.dataset.preview !== 'collapsed') },
+        { label: t('toggleWordWrap'), detail: '', run: toggleWrap },
+        { label: t('toggleMinimap'), detail: '', run: toggleMinimap },
+        ...THEMES.map((theme) => ({ label: t('themeLabel', { name: t(theme.labelId) }), detail: theme.id, run: () => applyTheme(theme.id) })),
         ...[
             'explorer',
             'search',
@@ -858,7 +1002,7 @@ function commands() {
             ...(dom.historyActivityItem.hidden ? [] : ['history']),
             'bundle',
         ].map((view) => ({
-            label: `View: ${view[0].toUpperCase()}${view.slice(1)}`,
+            label: t('viewLabel', { name: t(VIEW_LABEL[view]) }),
             detail: '',
             run: () => showView(view),
         })),
@@ -903,7 +1047,7 @@ function renderPalette() {
     if (palette.filtered.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'palette-empty';
-        empty.textContent = 'No matches.';
+        empty.textContent = t('noMatches');
         dom.paletteList.replaceChildren(empty);
         return;
     }
@@ -954,7 +1098,7 @@ function toggleWrap() {
     state.wrap = !state.wrap;
     state.editor?.updateOptions({ wordWrap: state.wrap ? 'on' : 'off' });
     if (state.wrap) state.editor?.setScrollLeft(0);
-    dom.wrap.textContent = `Wrap: ${state.wrap ? 'on' : 'off'}`;
+    dom.wrap.textContent = t(state.wrap ? 'wrapOn' : 'wrapOff');
 }
 
 function toggleMinimap() {
@@ -962,7 +1106,7 @@ function toggleMinimap() {
     state.editor?.updateOptions({
         minimap: { enabled: state.minimap, renderCharacters: false, maxColumn: 80 },
     });
-    dom.minimap.textContent = `Minimap: ${state.minimap ? 'on' : 'off'}`;
+    dom.minimap.textContent = t(state.minimap ? 'minimapOn' : 'minimapOff');
 }
 
 // ── Save / close ───────────────────────────────────────────────────────────
@@ -971,7 +1115,7 @@ function requestSave() {
     if (dom.save.disabled) return;
     flushActive();
     dom.save.disabled = true;
-    dom.save.textContent = 'Compiling…';
+    dom.save.textContent = t('compiling');
     dom.result.hidden = true;
     postToHost({ type: HOST_MESSAGE.save, files: Object.fromEntries(state.files) });
 }
@@ -981,7 +1125,7 @@ function showCompileResult({ ok, message }) {
     dom.result.dataset.ok = String(Boolean(ok));
     dom.result.textContent = message ?? '';
     dom.save.disabled = false;
-    dom.save.textContent = 'Save & Compile';
+    dom.save.textContent = t('saveAndCompile');
 }
 
 // ── History (S-CODE-COLLAPSE) ────────────────────────────────────────────
@@ -1005,7 +1149,7 @@ function requestHistoryRollback(versionId) {
 }
 
 function requestHistoryDelete(versionId) {
-    if (!window.confirm('Delete this saved version? This cannot be undone.')) return;
+    if (!window.confirm(t('deleteVersionConfirm'))) return;
     postToHost({ type: HOST_MESSAGE.historyDelete, versionId });
 }
 
@@ -1025,7 +1169,7 @@ function renderHistoryPage(page) {
 function emptyHistoryRow() {
     const item = document.createElement('li');
     item.className = 'view-hint';
-    item.textContent = 'No saved versions yet.';
+    item.textContent = t('historyEmpty');
     return item;
 }
 
@@ -1035,11 +1179,11 @@ function historyRow(version) {
 
     const label = document.createElement('span');
     label.className = 'history-row-label';
-    label.textContent = `v${version.version} — ${version.validationStatus}`;
+    label.textContent = t('versionLabel', { version: version.version, status: version.validationStatus });
     if (version.isCurrent) {
         const current = document.createElement('span');
         current.className = 'history-row-current';
-        current.textContent = ' (current)';
+        current.textContent = ` ${t('current')}`;
         label.append(current);
     }
     item.append(label);
@@ -1049,13 +1193,13 @@ function historyRow(version) {
         const publish = document.createElement('button');
         publish.type = 'button';
         publish.className = 'btn btn-quiet';
-        publish.textContent = 'Publish';
+        publish.textContent = t('publish');
         publish.addEventListener('click', () => requestHistoryRollback(version.id));
 
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'btn btn-quiet';
-        remove.textContent = 'Delete';
+        remove.textContent = t('delete');
         remove.addEventListener('click', () => requestHistoryDelete(version.id));
 
         item.append(publish, remove);
@@ -1066,7 +1210,7 @@ function historyRow(version) {
 function showHistoryError(message) {
     dom.historyLoadMore.disabled = false;
     dom.historyStatus.hidden = false;
-    dom.historyStatus.textContent = message || 'That action failed.';
+    dom.historyStatus.textContent = message || t('actionFailed');
 }
 
 // ── Test run (S-CODE-COLLAPSE) ───────────────────────────────────────────
@@ -1137,7 +1281,7 @@ function parseTestRunArgs(text) {
 
 function requestTestRun() {
     dom.testRunButton.disabled = true;
-    dom.testRunButton.textContent = 'Running…';
+    dom.testRunButton.textContent = t('running');
     dom.testRunStatus.hidden = true;
     dom.testRunResult.hidden = true;
     postToHost({
@@ -1155,21 +1299,21 @@ function appendTestRunVariables(sections, data) {
         return;
     }
     const entries = Object.entries(data.variablesSet);
-    sections.push(
-        entries.length === 0
-            ? 'Variables set: (none)'
-            : `Variables set:\n${entries.map(([key, value]) => `${key} = ${value}`).join('\n')}`,
-    );
+    sections.push(labelledSection(t('variablesSet'), entries.map(([key, value]) => `${key} = ${value}`)));
+}
+
+function labelledSection(label, lines) {
+    return lines.length === 0 ? `${label}: ${t('none')}` : `${label}:\n${lines.join('\n')}`;
 }
 
 function showTestRunResult(data) {
     dom.testRunButton.disabled = false;
-    dom.testRunButton.textContent = 'Run test';
+    dom.testRunButton.textContent = t('runTest');
 
     if (!data.ok) {
         dom.testRunStatus.hidden = false;
         dom.testRunStatus.dataset.ok = 'false';
-        dom.testRunStatus.textContent = data.message || 'Test run failed.';
+        dom.testRunStatus.textContent = data.message || t('testRunFailed');
         dom.testRunResult.hidden = true;
         return;
     }
@@ -1177,8 +1321,10 @@ function showTestRunResult(data) {
     dom.testRunStatus.hidden = false;
     dom.testRunStatus.dataset.ok = String(Boolean(data.success));
     dom.testRunStatus.textContent = data.success
-        ? `Success — ${data.durationMs}ms, ${data.hostCallCount} host call(s)`
-        : `Failed${data.error ? `: ${data.error}` : ''}`;
+        ? t('testRunSuccess', { ms: data.durationMs, calls: data.hostCallCount })
+        : data.error
+          ? t('testRunFailedWith', { error: data.error })
+          : t('testRunFailedPlain');
 
     // One ordered list when the host sent a timeline; the older per-kind sections remain the fallback.
     const timeline = data.timeline ?? [];
@@ -1196,16 +1342,15 @@ function showTestRunResult(data) {
         return;
     }
 
-    const chat = data.chatOutput.length === 0 ? 'Chat output: (none)' : `Chat output:\n${data.chatOutput.join('\n')}`;
-    const effects =
-        data.effects.length === 0
-            ? 'Captured effects: (none)'
-            : `Captured effects:\n${data.effects.map((effect) => `${effect.name}  ${effect.argsPreview}`).join('\n')}`;
-    const sections = [chat, effects];
+    const sections = [
+        labelledSection(t('chatOutput'), data.chatOutput),
+        labelledSection(
+            t('capturedEffects'),
+            data.effects.map((effect) => `${effect.name}  ${effect.argsPreview}`),
+        ),
+    ];
     appendTestRunVariables(sections, data);
-    if (data.console) {
-        sections.push(data.console.length === 0 ? 'Console: (none)' : `Console:\n${data.console.join('\n')}`);
-    }
+    if (data.console) sections.push(labelledSection(t('consoleOutput'), data.console));
     dom.testRunResult.hidden = false;
     dom.testRunResult.textContent = sections.join('\n\n');
 }
@@ -1218,7 +1363,8 @@ async function open(payload) {
     if (!state.files.has(state.entry)) state.files.set(state.entry, '');
     state.active = state.entry;
 
-    dom.title.textContent = payload.title ?? 'Editor';
+    applyLabels(payload.labels ?? {});
+    dom.title.textContent = payload.title ?? t('defaultTitle');
     dom.kind.textContent = payload.language ?? '';
     if (payload.accent) document.documentElement.style.setProperty('--accent', payload.accent);
 
@@ -1279,11 +1425,11 @@ async function open(payload) {
     renderBundleMeta(payload);
     dom.runNote.textContent =
         state.preview.mode === 'note'
-            ? 'This project runs in the bot sandbox, so there is nothing to render. Save & Compile validates it.'
-            : 'Renders the current editor contents. Fire an event below to drive it.';
+            ? t('runNoteSandbox')
+            : t('runNoteRender');
 
     initHistory(payload.history ?? null);
-    initTestRun(Boolean(payload.testRunEnabled), payload.testTriggers ?? [], payload.labels ?? {});
+    initTestRun(Boolean(payload.testRunEnabled), payload.testTriggers ?? [], state.labels);
 
     dom.boot.hidden = true;
     dom.shell.hidden = false;
@@ -1292,10 +1438,10 @@ async function open(payload) {
 
 function renderBundleMeta(payload) {
     const rows = [
-        ['Name', payload.title ?? '—'],
-        ['Kind', payload.language || '—'],
-        ['Entry', state.entry],
-        ['Files', String(state.files.size)],
+        [t('bundleName'), payload.title ?? '—'],
+        [t('bundleKind'), payload.language || '—'],
+        [t('bundleEntry'), state.entry],
+        [t('bundleFiles'), String(state.files.size)],
     ];
     dom.bundleMeta.replaceChildren(
         ...rows.flatMap(([term, value]) => {
@@ -1415,7 +1561,7 @@ window.addEventListener('message', (event) => {
         open(data.payload).catch((error) => {
             dom.boot.hidden = false;
             dom.boot.dataset.error = 'true';
-            dom.bootMessage.textContent = `The editor could not start: ${error.message}`;
+            dom.bootMessage.textContent = t('editorStartFailed', { message: error.message });
         });
     } else if (data?.type === HOST_MESSAGE.compiled) {
         showCompileResult(data);

@@ -66,6 +66,7 @@ actual class ProjectEditor : ProjectEditorIO {
                 title, initialFiles, entryPath, language, sdkTypes, sdkTypesUnavailable, previewWidget, history, testRun,
                 compile,
                 post = { messageJson: String -> postToEditor(frame, messageJson) },
+                uiLabels = EditorLabels::resolve,
             )
         try {
             while (true) {

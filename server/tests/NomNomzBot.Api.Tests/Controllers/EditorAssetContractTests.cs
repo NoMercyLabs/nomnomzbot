@@ -91,6 +91,109 @@ public class EditorAssetContractTests
         frame.Value.Should().NotContain("allow-same-origin");
     }
 
+    [Fact]
+    public void Every_label_id_the_page_uses_is_in_the_default_label_map()
+    {
+        Dictionary<string, string> defaults = ReadDefaultLabels();
+        string markup = Read("index.html");
+        string script = Read("editor.js");
+
+        List<string> used = Regex
+            .Matches(markup, @"data-i18n(?:-title|-aria|-placeholder)?=""(?<id>[^""]+)""")
+            .Select(match => match.Groups["id"].Value)
+            .Concat(
+                Regex
+                    .Matches(script, @"\bt\('(?<id>\w+)'")
+                    .Select(match => match.Groups["id"].Value)
+            )
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        used.Should().NotBeEmpty();
+        used.Where(id => !defaults.ContainsKey(id))
+            .Should()
+            .BeEmpty("every label id a page element or t() call names must have a default");
+    }
+
+    [Fact]
+    public void The_markup_fallback_text_equals_the_default_label()
+    {
+        Dictionary<string, string> defaults = ReadDefaultLabels();
+        string markup = Read("index.html");
+
+        List<string> mismatches = [];
+        foreach (
+            Match match in Regex.Matches(
+                markup,
+                @"<(?<tag>\w+)[^>]*\bdata-i18n=""(?<id>[^""]+)""[^>]*>(?<text>[^<]*)</\k<tag>>"
+            )
+        )
+        {
+            string id = match.Groups["id"].Value;
+            if (!defaults.TryGetValue(id, out string? expected) || expected.Contains('{'))
+                continue;
+            string actual = System.Net.WebUtility.HtmlDecode(match.Groups["text"].Value).Trim();
+            if (actual != expected)
+                mismatches.Add($"{id}: html '{actual}' vs map '{expected}'");
+        }
+
+        mismatches.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void No_visible_text_in_the_markup_lacks_a_label_marker()
+    {
+        string markup = Read("index.html");
+        markup = Regex.Replace(markup, "<!--.*?-->", "", RegexOptions.Singleline);
+        markup = Regex.Replace(
+            markup,
+            @"<(script|style)\b.*?</\1>",
+            "",
+            RegexOptions.Singleline | RegexOptions.IgnoreCase
+        );
+
+        List<string> unmarked = [];
+        foreach (
+            Match match in Regex.Matches(markup, @"<(?<tag>\w+)(?<attrs>[^>]*)>(?<text>[^<]+)")
+        )
+        {
+            string text = System.Net.WebUtility.HtmlDecode(match.Groups["text"].Value).Trim();
+            if (!Regex.IsMatch(text, "[A-Za-z]"))
+                continue;
+            if (!match.Groups["attrs"].Value.Contains("data-i18n=", StringComparison.Ordinal))
+                unmarked.Add($"<{match.Groups["tag"].Value}> '{text}'");
+        }
+
+        unmarked.Should().BeEmpty("every visible text must carry a data-i18n marker");
+    }
+
+    private static Dictionary<string, string> ReadDefaultLabels()
+    {
+        string script = Read("editor.js");
+        const string start = "const DEFAULT_LABELS = Object.freeze({";
+        int from = script.IndexOf(start, StringComparison.Ordinal);
+        from.Should().BeGreaterThan(-1, "editor.js must declare DEFAULT_LABELS");
+        int to = script.IndexOf("\n});", from, StringComparison.Ordinal);
+        string block = script[(from + start.Length)..to];
+
+        Dictionary<string, string> labels = new(StringComparer.Ordinal);
+        foreach (
+            Match match in Regex.Matches(
+                block,
+                @"^ {4}(?<id>\w+):\s*(?:'(?<s>(?:[^'\\]|\\.)*)'|""(?<d>(?:[^""\\]|\\.)*)"")",
+                RegexOptions.Multiline
+            )
+        )
+        {
+            string value = match.Groups["s"].Success
+                ? match.Groups["s"].Value
+                : match.Groups["d"].Value;
+            labels[match.Groups["id"].Value] = Regex.Unescape(value);
+        }
+
+        return labels;
+    }
+
     private static string Resolve()
     {
         DirectoryInfo? dir = new(AppContext.BaseDirectory);

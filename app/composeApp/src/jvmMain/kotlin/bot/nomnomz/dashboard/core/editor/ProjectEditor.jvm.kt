@@ -61,7 +61,7 @@ actual class ProjectEditor : ProjectEditorIO {
             WebViewProjectEditor.editAndCompile(pageUrl, title) { post: (String) -> Unit ->
                 EditorBridgeSession(
                     title, initialFiles, entryPath, language, sdkTypes, sdkTypesUnavailable, previewWidget, history,
-                    testRun, compile, post,
+                    testRun, compile, post, EditorLabels::resolve,
                 )
             }
         return when (outcome) {
