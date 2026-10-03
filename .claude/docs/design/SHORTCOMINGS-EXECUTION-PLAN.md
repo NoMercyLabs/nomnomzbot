@@ -28,18 +28,16 @@ chat exposable visible from the preview window". The draft user docs live in `do
 page); `docs/sdk/help/known-problems.md` is the defect list for the slices below. Fix order: the
 defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
-- **S-SDK-WIDGET-DELIVERY** (stream-facing, first) Event delivery is fixed (811b7913d: each event once,
-  as an object, only to subscribers). Left: play-sound / TTS audio still goes to every open widget page
-  over the shared `overlay-{b}` group (`WidgetNotifier.cs` ~110-134; `OverlaySdkController.cs:385-387`,
-  comment calls the targets "unused"). TTS goes to every `tts_speak` subscriber and the SDK autoplays it
-  in each, so "TTS Audio" + "TTS Caption" both play the line. Owner decision 2026-10-02: "lets have just
-  one audio source for tss and all other scripts and audio fragments, and have volume control handled on
-  the bots side so balance stays static across multiple streaming pc's used by that user". Owner has only
-  ever heard a sound once: find what stops the duplicates live before changing it. Done-when: one Audio
-  source plays TTS, sound clips and
-  script audio, other widgets only get the events for visuals; volume is set bot-side (per clip, TTS, and a
-  channel master) so every streaming PC sounds the same; no Audio source open → the dashboard says so;
-  tests prove each.
+- **S-SDK-WIDGET-DELIVERY** (stream-facing, first) Each event reaches its subscribers once, and every
+  sound and TTS line plays on one page only (e95e7417d: newest Audio Source page, else newest overlay
+  page). Owner decision 2026-10-02: "lets have just one audio source for tss and all other scripts and
+  audio fragments, and have volume control handled on the bots side so balance stays static across
+  multiple streaming pc's used by that user". Left (plan: `.scratch/audio-plan.md` S3-S5): bot-side
+  volume - a per-channel master and TTS volume (new entity, both migration sets) applied to the clip and
+  TTS payloads, plus the dropped `play_sound` handle (`PlaySoundAction.cs:84`, `SoundPlaybackDto` has no
+  handle); the dashboard inbox says when no Audio Source page is open (`IActionRequiredSource`);
+  master and TTS sliders on the Sound screen. Done-when: tests prove each, and on the deployed site one
+  TTS line and one sound clip play once with a caption page and an Audio Source page both open.
 - **S-SDK-RUNTIME** Script SDK says what it does. Done-when: every readme §7 script pitfall is fixed in
   the runtime or the d.ts (tts.speak rate/pitch + `durationMs`, `user.get` paint, `economy.balance()` with
   no argument reads the triggering viewer, `chat.reply` replies, `widget.emit(…, null)`, fractional
@@ -57,14 +55,14 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
   takes each member's text from the payload record's XML doc. Done-when: a drift test like
   `Every_script_surface_member_has_a_jsdoc` covers the generated blocks and passes.
-- **S-SDK-WIDGET-TYPES** Widget context without `any`: a typed event map (`NomNomz.on('follow', d => d.…)`
-  autocompletes the real payload; the anonymous payloads — now_playing, track_saved_changed, tts_speak,
-  tts_queue_control, ChatMessageEnriched, sr_queue — become records, hub DTOs reachable from
-  Infrastructure), typed per-widget `settings` from the settings schema, typed `actions.invoke` from the
-  pipeline action descriptors, `claim` rejection and `AUTH_REQUIRED` in the types. A custom widget's event
-  subscriptions are derived on save from its `NomNomz.on(…)` calls (today a dashboard-made widget starts
-  with none and gets no events at all — stream-facing). Done-when: an E2E editor test shows a payload
-  field typo as an error, and a new custom widget with `NomNomz.on('follow', …)` receives a fired follow.
+- **S-SDK-WIDGET-TYPES** Widget context without `any`. The payloads are records already
+  (`Api/Hubs/Dtos/WidgetEventPayloads.cs`; tts_queue_control is a raw typed target since e95e7417d), and a
+  custom widget's subscriptions are added on save from its `NomNomz.on(...)` calls
+  (`WidgetEventSubscriptions.cs:22-37`; add-only on purpose, so a hand-added event is never dropped).
+  Left: the emitter writes a typed widget event map from those records (`NomNomz.on('follow', d => d.`
+  autocompletes the real payload), typed per-widget `settings` from the settings schema (a widget-scoped
+  types request), typed `actions.invoke` from the pipeline action descriptors, `claim` rejection and
+  `AUTH_REQUIRED` in the types. Done-when: an E2E editor test shows a payload field typo as an error.
 - **S-SDK-TEST-FIRE** The preview window is the test bench (owner, 2026-10-02). A script test run can
   fire every trigger the script can have (each event-catalogue event with a realistic sample payload,
   command args, viewer roles) and shows EVERY outward effect it would cause — chat messages, OBS calls,
