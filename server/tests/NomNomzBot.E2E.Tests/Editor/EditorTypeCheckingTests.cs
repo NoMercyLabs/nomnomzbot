@@ -69,6 +69,52 @@ public sealed class EditorTypeCheckingTests : PageTest
         Assert.Equal(["2339"], codes);
     }
 
+    [E2EFact]
+    public async Task A_command_script_flags_a_variable_the_command_never_sets()
+    {
+        IAPIResponse types = await Page.APIRequest.GetAsync(
+            $"{E2ESettings.BaseUrl}/api/v1/sdk/types.d.ts?context=script&trigger=command",
+            new()
+            {
+                Headers = new Dictionary<string, string>
+                {
+                    ["Authorization"] = $"Bearer {E2ESettings.Token}",
+                },
+            }
+        );
+        Assert.Equal(200, types.Status);
+
+        await OpenAsync(
+            "script",
+            "index.ts",
+            """
+            bot.getVar('user.name');
+            bot.getVar('typo');
+            bot.getVar('typo', true);
+            bot.getVar('args.2');
+            """,
+            await types.TextAsync()
+        );
+
+        IReadOnlyList<string> codes = await DiagnosticCodesAsync("index.ts", expected: 1);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.ts");
+
+        // Only the unknown key is an error: a key the command sets, a key read with the dynamic flag, and a
+        // positional argument all type-check.
+        Assert.Single(codes);
+        Assert.Equal([2], lines);
+    }
+
+    private async Task<IReadOnlyList<int>> DiagnosticLinesAsync(string path) =>
+        await Page.EvaluateAsync<int[]>(
+            """
+            (path) => window.monaco.editor
+                .getModelMarkers({ resource: window.monaco.Uri.parse('file:///' + path) })
+                .map((marker) => marker.startLineNumber)
+            """,
+            path
+        );
+
     private async Task OpenAsync(string language, string entry, string source, string sdkTypes)
     {
         await Page.GotoAsync(

@@ -27,6 +27,12 @@ internal static class E2ESettings
     /// <summary>Override the target instance with <c>NOMNOMZ_E2E_BASE_URL</c>; defaults to the deployed dev box.</summary>
     internal const string BaseUrlVariable = "NOMNOMZ_E2E_BASE_URL";
 
+    /// <summary>
+    /// A session token (<c>scripts/mint-jwt.py</c>) in <c>NOMNOMZ_E2E_TOKEN</c>, for tests that read an authorized
+    /// endpoint of the instance under test.
+    /// </summary>
+    internal const string TokenVariable = "NOMNOMZ_E2E_TOKEN";
+
     private const string DefaultBaseUrl = "http://192.168.2.60:5080";
 
     /// <summary>True only when the operator opted in via <see cref="EnableVariable"/>.</summary>
@@ -42,4 +48,12 @@ internal static class E2ESettings
             return string.IsNullOrWhiteSpace(configured) ? DefaultBaseUrl : configured.TrimEnd('/');
         }
     }
+
+    /// <summary>The session token, or a failure that names the variable to set.</summary>
+    internal static string Token =>
+        Environment.GetEnvironmentVariable(TokenVariable) is { Length: > 0 } token
+            ? token
+            : throw new InvalidOperationException(
+                $"Set {TokenVariable} to a session token for {BaseUrl} (scripts/mint-jwt.py)."
+            );
 }
