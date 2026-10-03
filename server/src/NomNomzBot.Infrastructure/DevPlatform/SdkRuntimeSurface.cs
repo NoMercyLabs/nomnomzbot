@@ -42,9 +42,15 @@ internal static class SdkRuntimeSurface
     {
         StringBuilder sb = new();
         sb.AppendLine("interface NnzApiUser {");
+        sb.AppendLine("  /** The viewer's internal id. */");
         sb.AppendLine("  id: string;");
+        sb.AppendLine("  /** The viewer's login name. */");
         sb.AppendLine("  username: string;");
+        sb.AppendLine("  /** The viewer's display name as shown in chat. */");
         sb.AppendLine("  displayName: string;");
+        sb.AppendLine(
+            "  /** The URL of the viewer's profile picture. null when they have none. */"
+        );
         sb.AppendLine("  avatarUrl: string | null;");
         sb.AppendLine("  /** The 7TV paint this viewer wears; absent when they wear none. */");
         sb.AppendLine("  paint?: NnzApiPaint;");
@@ -52,26 +58,42 @@ internal static class SdkRuntimeSurface
         sb.AppendLine();
         sb.AppendLine("/** A 7TV name paint, ready to apply as CSS. */");
         sb.AppendLine("interface NnzApiPaint {");
+        sb.AppendLine(
+            "  /** The CSS background image of the paint. null when the paint sets none. */"
+        );
         sb.AppendLine("  backgroundImage: string | null;");
+        sb.AppendLine("  /** The CSS text color of the paint. null when the paint sets none. */");
         sb.AppendLine("  color: string | null;");
+        sb.AppendLine("  /** The CSS text shadow of the paint. null when the paint sets none. */");
         sb.AppendLine("  textShadow: string | null;");
+        sb.AppendLine("  /** True when the paint is an image only. */");
         sb.AppendLine("  isImageOnly: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiTrack {");
+        sb.AppendLine("  /** The track title. */");
         sb.AppendLine("  track: string;");
+        sb.AppendLine("  /** The artist name. */");
         sb.AppendLine("  artist: string;");
+        sb.AppendLine("  /** The album name. null when it is not known. */");
         sb.AppendLine("  album: string | null;");
+        sb.AppendLine("  /** The length of the track, in ms. */");
         sb.AppendLine("  durationMs: number;");
+        sb.AppendLine("  /** How far into the track the playback is, in ms. */");
         sb.AppendLine("  progressMs: number;");
+        sb.AppendLine("  /** True while the track plays. False when it is paused. */");
         sb.AppendLine("  isPlaying: boolean;");
+        sb.AppendLine("  /** Who requested the track. null when nobody requested it. */");
         sb.AppendLine("  requestedBy: string | null;");
+        sb.AppendLine("  /** The music service that plays the track. */");
         sb.AppendLine("  provider: string;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** What nnz.api.tts.speak returns on a dispatched utterance. */");
         sb.AppendLine("interface NnzApiTtsResult {");
+        sb.AppendLine("  /** The id of the voice that speaks the line. */");
         sb.AppendLine("  voiceId: string;");
+        sb.AppendLine("  /** How many characters TTS accepted for the line. */");
         sb.AppendLine("  characterCount: number;");
         sb.AppendLine(
             "  /** How long the line takes to play, in ms. 0 when it was not measured (browser voice, test run). */"
@@ -81,11 +103,19 @@ internal static class SdkRuntimeSurface
         sb.AppendLine();
         sb.AppendLine("/** A channel-point reward as nnz.api.reward.get returns it. */");
         sb.AppendLine("interface NnzApiReward {");
+        sb.AppendLine("  /** The reward's id. */");
         sb.AppendLine("  id: string;");
+        sb.AppendLine("  /** The reward's title as viewers see it. */");
         sb.AppendLine("  title: string;");
+        sb.AppendLine("  /** The cost in channel points. */");
         sb.AppendLine("  cost: number;");
+        sb.AppendLine(
+            "  /** The text viewers see when they redeem it. null when the reward has none. */"
+        );
         sb.AppendLine("  prompt: string | null;");
+        sb.AppendLine("  /** True when viewers can see the reward. */");
         sb.AppendLine("  isEnabled: boolean;");
+        sb.AppendLine("  /** True when the reward is paused and cannot be redeemed. */");
         sb.AppendLine("  isPaused: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -93,10 +123,19 @@ internal static class SdkRuntimeSurface
             "/** The patch nnz.api.reward.update applies — only the fields you set change. */"
         );
         sb.AppendLine("interface NnzApiRewardPatch {");
+        sb.AppendLine("  /** A new title. Leave it out to keep the current one. */");
         sb.AppendLine("  title?: string;");
+        sb.AppendLine(
+            "  /** A new cost in channel points. Leave it out to keep the current one. */"
+        );
         sb.AppendLine("  cost?: number;");
+        sb.AppendLine("  /** A new prompt text. Leave it out to keep the current one. */");
         sb.AppendLine("  prompt?: string;");
+        sb.AppendLine("  /** Show or hide the reward. Leave it out to keep the current state. */");
         sb.AppendLine("  isEnabled?: boolean;");
+        sb.AppendLine(
+            "  /** Pause or resume the reward. Leave it out to keep the current state. */"
+        );
         sb.AppendLine("  isPaused?: boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -104,16 +143,29 @@ internal static class SdkRuntimeSurface
             "/** A viewer's channel stats as nnz.api.stats.viewer returns them (zeros for a never-seen viewer). */"
         );
         sb.AppendLine("interface NnzApiViewerStats {");
+        sb.AppendLine(
+            "  /** How many chat messages the viewer sent. 0 for a viewer never seen. */"
+        );
         sb.AppendLine("  messages: number;");
+        sb.AppendLine(
+            "  /** How long the viewer watched, in seconds. 0 for a viewer never seen. */"
+        );
         sb.AppendLine("  watchtimeSeconds: number;");
+        sb.AppendLine(
+            "  /** The date the viewer was first seen, as yyyy-MM-dd. null for a viewer never seen. */"
+        );
         sb.AppendLine("  firstSeen: string | null;");
+        sb.AppendLine("  /** How many rewards the viewer redeemed. 0 for a viewer never seen. */");
         sb.AppendLine("  redemptions: number;");
+        sb.AppendLine("  /** How many songs the viewer requested. 0 for a viewer never seen. */");
         sb.AppendLine("  songRequests: number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/** A viewer's assigned TTS voice as nnz.api.tts.getVoice returns it. */");
         sb.AppendLine("interface NnzApiTtsVoice {");
+        sb.AppendLine("  /** The id of the viewer's assigned voice. */");
         sb.AppendLine("  voiceId: string;");
+        sb.AppendLine("  /** The name of the assigned voice as shown in the dashboard. */");
         sb.AppendLine("  displayName: string;");
         sb.Append('}');
         return sb.ToString();
@@ -136,12 +188,21 @@ internal static class SdkRuntimeSurface
             "  /** The error of this script's last failed host call. null when it did not fail. Needs no grant. */"
         );
         sb.AppendLine("  readonly lastError: NnzApiError | null;");
+        sb.AppendLine("  /** Unit conversion. */");
         sb.AppendLine("  units: NnzUnits;");
+        sb.AppendLine("  /** Date and time helpers. */");
         sb.AppendLine("  time: NnzTime;");
+        sb.AppendLine("  /** Number helpers. */");
         sb.AppendLine("  math: NnzMath;");
+        sb.AppendLine("  /** Text helpers. */");
         sb.AppendLine("  str: NnzStr;");
+        sb.AppendLine("  /** JSON helpers that never throw. */");
         sb.AppendLine("  json: NnzJson;");
+        sb.AppendLine("  /** Random value helpers. */");
         sb.AppendLine("  random: NnzRandom;");
+        sb.AppendLine(
+            "  /** The calls to the bot: chat, music, storage, TTS, rewards and more. Each call needs its grant. */"
+        );
         sb.AppendLine("  api: NnzApi;");
         sb.Append("};");
         return sb.ToString();
@@ -244,7 +305,13 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("declare const bot: {");
         sb.AppendLine("  /** The arguments the trigger passed in ('!roll 20' -> ['20']). */");
         sb.AppendLine("  args: string[];");
+        sb.AppendLine(
+            "  /** The value of a variable the pipeline set. null when the variable does not exist. */"
+        );
         sb.AppendLine("  getVar(key: string): string | null;");
+        sb.AppendLine(
+            "  /** Sets a variable that later pipeline steps can read. The value is stored as text. */"
+        );
         sb.AppendLine("  setVar(key: string, value: string): void;");
         sb.AppendLine("  /** Appends to the script's output (capped by the execution budget). */");
         sb.AppendLine("  send(message: string): void;");
@@ -258,7 +325,9 @@ internal static class SdkRuntimeSurface
             "/** Writes lines to the test run panel. Viewers never see them. Objects are shown as JSON. */"
         );
         sb.AppendLine("declare const console: {");
+        sb.AppendLine("  /** Writes one line to the test run panel. */");
         sb.AppendLine("  log(...values: unknown[]): void;");
+        sb.AppendLine("  /** Writes one line to the test run panel. Same as log. */");
         sb.AppendLine("  info(...values: unknown[]): void;");
         sb.AppendLine("  /** Marks the line with \"warn:\". */");
         sb.AppendLine("  warn(...values: unknown[]): void;");
@@ -273,14 +342,28 @@ internal static class SdkRuntimeSurface
     private static void AppendBatteryInterfaces(StringBuilder sb)
     {
         sb.AppendLine("interface NnzUnits {");
+        sb.AppendLine(
+            "  /** Converts a value between units, for example convert(10, 'km', 'mi'). Returns NaN when the units do not match. */"
+        );
         sb.AppendLine("  convert(value: number, from: string, to: string): number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzTime {");
+        sb.AppendLine("  /** The current time as an ISO 8601 string. */");
         sb.AppendLine("  now(): string;");
+        sb.AppendLine(
+            "  /** Turns an ISO 8601 string into epoch ms. Returns NaN when the text is not a date. */"
+        );
         sb.AppendLine("  parse(iso: string): number;");
+        sb.AppendLine("  /** Turns epoch ms into an ISO 8601 string. */");
         sb.AppendLine("  format(epochMs: number): string;");
+        sb.AppendLine(
+            "  /** Adds ms to an ISO 8601 time and returns the new ISO 8601 time. Use a negative number to go back. */"
+        );
         sb.AppendLine("  add(iso: string, ms: number): string;");
+        sb.AppendLine(
+            "  /** The difference a minus b, in ms. It is negative when a is earlier. */"
+        );
         sb.AppendLine("  diff(a: string, b: string): number;");
         sb.AppendLine(
             "  /** Blocks up to 5000ms (clamped) before the script's NEXT statement runs — there is no "
@@ -298,38 +381,76 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzMath {");
+        sb.AppendLine("  /** Limits the value to the range min to max. */");
         sb.AppendLine("  clamp(value: number, min: number, max: number): number;");
+        sb.AppendLine(
+            "  /** Rounds the value to digits decimal places. digits is optional and defaults to 0. */"
+        );
         sb.AppendLine("  round(value: number, digits?: number): number;");
+        sb.AppendLine(
+            "  /** The point between a and b at position t. t = 0 gives a and t = 1 gives b. */"
+        );
         sb.AppendLine("  lerp(a: number, b: number, t: number): number;");
+        sb.AppendLine("  /** The total of all values. */");
         sb.AppendLine("  sum(values: number[]): number;");
+        sb.AppendLine("  /** The average of all values. 0 for an empty list. */");
         sb.AppendLine("  avg(values: number[]): number;");
+        sb.AppendLine("  /** The smallest value. */");
         sb.AppendLine("  min(values: number[]): number;");
+        sb.AppendLine("  /** The largest value. */");
         sb.AppendLine("  max(values: number[]): number;");
+        sb.AppendLine("  /** A random whole number from min to max, both included. */");
         sb.AppendLine("  randomInt(min: number, max: number): number;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzStr {");
+        sb.AppendLine(
+            "  /** Pads the start of the text up to length. pad is optional and defaults to a space. */"
+        );
         sb.AppendLine("  padStart(value: string, length: number, pad?: string): string;");
+        sb.AppendLine(
+            "  /** Pads the end of the text up to length. pad is optional and defaults to a space. */"
+        );
         sb.AppendLine("  padEnd(value: string, length: number, pad?: string): string;");
+        sb.AppendLine("  /** Removes spaces from both ends of the text. */");
         sb.AppendLine("  trim(value: string): string;");
+        sb.AppendLine("  /** The text in upper case. */");
         sb.AppendLine("  upper(value: string): string;");
+        sb.AppendLine("  /** The text in lower case. */");
         sb.AppendLine("  lower(value: string): string;");
+        sb.AppendLine("  /** The text with each word starting in upper case. */");
         sb.AppendLine("  title(value: string): string;");
+        sb.AppendLine(
+            "  /** Cuts the text to length characters, ellipsis included. ellipsis is optional and defaults to the ellipsis character. */"
+        );
         sb.AppendLine("  truncate(value: string, length: number, ellipsis?: string): string;");
+        sb.AppendLine(
+            "  /** Turns the text into a lower case slug with dashes, for example 'Hello World' becomes 'hello-world'. */"
+        );
         sb.AppendLine("  slugify(value: string): string;");
+        sb.AppendLine(
+            "  /** Fills each {name} in the template from values. A name with no value stays as it is. */"
+        );
         sb.AppendLine("  format(template: string, values: Record<string, unknown>): string;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzJson {");
+        sb.AppendLine("  /** Parses JSON text. Returns null when the text is not valid JSON. */");
         sb.AppendLine("  parse(text: string): unknown;");
+        sb.AppendLine(
+            "  /** Turns a value into JSON text. Returns 'null' when the value cannot be serialized. */"
+        );
         sb.AppendLine("  stringify(value: unknown): string;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzRandom {");
+        sb.AppendLine("  /** A random whole number from min to max, both included. */");
         sb.AppendLine("  int(min: number, max: number): number;");
         sb.AppendLine("  /** A random item, or undefined when the list is empty. */");
         sb.AppendLine("  pick<T>(items: readonly T[]): T | undefined;");
+        sb.AppendLine("  /** A shuffled copy of the list. The original list stays as it is. */");
         sb.AppendLine("  shuffle<T>(items: readonly T[]): T[];");
+        sb.AppendLine("  /** A random version 4 UUID. */");
         sb.AppendLine("  uuid(): string;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -340,10 +461,16 @@ internal static class SdkRuntimeSurface
     private static void AppendApiInterfaces(StringBuilder sb)
     {
         sb.AppendLine("interface NnzApiUserNamespace {");
+        sb.AppendLine(
+            "  /** A viewer's public profile, found by id, login or internal id. id is optional and defaults to the user who triggered the script. null when no user matches. */"
+        );
         sb.AppendLine("  get(id?: string): NnzApiUser | null;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiEconomyNamespace {");
+        sb.AppendLine(
+            "  /** A viewer's balance in this channel's currency. userId is optional and defaults to the user who triggered the script. 0 when no viewer matches. */"
+        );
         sb.AppendLine("  balance(userId?: string): number;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -360,11 +487,18 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiMusicNamespace {");
+        sb.AppendLine("  /** The track that plays now. null when nothing plays. */");
         sb.AppendLine("  nowPlaying(): NnzApiTrack | null;");
+        sb.AppendLine(
+            "  /** Requests a song by title, artist or link. Returns true when it was queued and false when it was refused. */"
+        );
         sb.AppendLine("  queue(uri: string): boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzApiHttpNamespace {");
+        sb.AppendLine(
+            "  /** Fetches an https URL and returns the response body as text. Returns null when the URL is not https, the request is blocked or the server does not answer with success. */"
+        );
         sb.AppendLine("  fetch(url: string): string | null;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -372,9 +506,19 @@ internal static class SdkRuntimeSurface
             "/** Per-channel key/value state that persists between runs (64 KB per value, 200 keys). */"
         );
         sb.AppendLine("interface NnzApiStorageNamespace {");
+        sb.AppendLine(
+            "  /** The stored value for the key. null when nothing is stored under it. */"
+        );
         sb.AppendLine("  get(key: string): string | null;");
+        sb.AppendLine(
+            "  /** Stores a text value under the key. Returns false when the write is refused, for example over the size limit. */"
+        );
         sb.AppendLine("  set(key: string, value: string): boolean;");
+        sb.AppendLine("  /** Deletes the key. Returns true when the call succeeded. */");
         sb.AppendLine("  delete(key: string): boolean;");
+        sb.AppendLine(
+            "  /** The stored keys. prefix is optional and keeps only keys that start with it. An empty list when none match. */"
+        );
         sb.AppendLine("  list(prefix?: string): string[];");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -388,7 +532,13 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(
             "  speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;"
         );
+        sb.AppendLine(
+            "  /** The voice assigned to a viewer. null when the viewer uses the channel default or no viewer matches. */"
+        );
         sb.AppendLine("  getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;");
+        sb.AppendLine(
+            "  /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */"
+        );
         sb.AppendLine("  setVoice(userIdOrLogin: string, voiceId?: string): boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -396,6 +546,9 @@ internal static class SdkRuntimeSurface
             "/** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
         );
         sb.AppendLine("interface NnzApiStatsNamespace {");
+        sb.AppendLine(
+            "  /** A viewer's channel stats. userIdOrLogin is optional and defaults to the user who triggered the script. A viewer never seen gets zeros. */"
+        );
         sb.AppendLine("  viewer(userIdOrLogin?: string): NnzApiViewerStats;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -403,6 +556,9 @@ internal static class SdkRuntimeSurface
             "/** Push an event to one of this channel's enabled widgets (by id or name). */"
         );
         sb.AppendLine("interface NnzApiWidgetNamespace {");
+        sb.AppendLine(
+            "  /** Sends an event to a widget. data is optional. Returns false when no widget matches, the widget is turned off or the send fails. */"
+        );
         sb.AppendLine(
             "  emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean;"
         );
@@ -412,7 +568,13 @@ internal static class SdkRuntimeSurface
             "/** Read / patch a channel-point reward (by id or title); update needs a bot-manageable reward. */"
         );
         sb.AppendLine("interface NnzApiRewardNamespace {");
+        sb.AppendLine(
+            "  /** A channel-point reward, found by id or title. null when no reward matches. */"
+        );
         sb.AppendLine("  get(rewardIdOrTitle: string): NnzApiReward | null;");
+        sb.AppendLine(
+            "  /** Applies the patch to a reward. Returns false when no reward matches, the bot cannot manage it or the update fails. */"
+        );
         sb.AppendLine("  update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -420,6 +582,9 @@ internal static class SdkRuntimeSurface
             "/** Schedule a saved pipeline to run once after a delay in seconds, rounded up to whole seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
         );
         sb.AppendLine("interface NnzApiScheduleNamespace {");
+        sb.AppendLine(
+            "  /** Runs a saved pipeline once after the delay. variables and dedupeKey are optional. Returns false when the pipeline is not found or the schedule is refused. */"
+        );
         sb.AppendLine(
             "  pipeline(pipelineName: string, delaySeconds: number, variables?: Record<string, string>, dedupeKey?: string): boolean;"
         );
@@ -461,16 +626,27 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("interface NnzApi {");
         sb.AppendLine("  /** Runs a pipeline action by its type. */");
         sb.AppendLine("  actions: NnzApiActionsNamespace;");
+        sb.AppendLine("  /** Read a viewer's public profile. */");
         sb.AppendLine("  user: NnzApiUserNamespace;");
+        sb.AppendLine("  /** Read a viewer's currency balance. */");
         sb.AppendLine("  economy: NnzApiEconomyNamespace;");
+        sb.AppendLine("  /** Send chat messages as the bot. */");
         sb.AppendLine("  chat: NnzApiChatNamespace;");
+        sb.AppendLine("  /** Read the playing track and request songs. */");
         sb.AppendLine("  music: NnzApiMusicNamespace;");
+        sb.AppendLine("  /** Fetch an https URL. */");
         sb.AppendLine("  http: NnzApiHttpNamespace;");
+        sb.AppendLine("  /** Per-channel storage that persists between runs. */");
         sb.AppendLine("  storage: NnzApiStorageNamespace;");
+        sb.AppendLine("  /** Speak text on the overlay and manage viewer voices. */");
         sb.AppendLine("  tts: NnzApiTtsNamespace;");
+        sb.AppendLine("  /** Read a viewer's channel stats. */");
         sb.AppendLine("  stats: NnzApiStatsNamespace;");
+        sb.AppendLine("  /** Send events to this channel's widgets. */");
         sb.AppendLine("  widget: NnzApiWidgetNamespace;");
+        sb.AppendLine("  /** Read and update channel-point rewards. */");
         sb.AppendLine("  reward: NnzApiRewardNamespace;");
+        sb.AppendLine("  /** Run a saved pipeline later. */");
         sb.AppendLine("  schedule: NnzApiScheduleNamespace;");
         sb.AppendLine("}");
         sb.AppendLine();

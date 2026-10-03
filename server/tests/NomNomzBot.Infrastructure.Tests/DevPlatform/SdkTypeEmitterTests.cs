@@ -216,12 +216,19 @@ public sealed class SdkTypeEmitterTests
                 declare const nnz: {
                   /** The error of this script's last failed host call. null when it did not fail. Needs no grant. */
                   readonly lastError: NnzApiError | null;
+                  /** Unit conversion. */
                   units: NnzUnits;
+                  /** Date and time helpers. */
                   time: NnzTime;
+                  /** Number helpers. */
                   math: NnzMath;
+                  /** Text helpers. */
                   str: NnzStr;
+                  /** JSON helpers that never throw. */
                   json: NnzJson;
+                  /** Random value helpers. */
                   random: NnzRandom;
+                  /** The calls to the bot: chat, music, storage, TTS, rewards and more. Each call needs its grant. */
                   api: NnzApi;
                 };
                 """
@@ -245,6 +252,7 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiHttpNamespace {
+                  /** Fetches an https URL and returns the response body as text. Returns null when the URL is not https, the request is blocked or the server does not answer with success. */
                   fetch(url: string): string | null;
                 }
                 """
@@ -259,16 +267,27 @@ public sealed class SdkTypeEmitterTests
                 interface NnzApi {
                   /** Runs a pipeline action by its type. */
                   actions: NnzApiActionsNamespace;
+                  /** Read a viewer's public profile. */
                   user: NnzApiUserNamespace;
+                  /** Read a viewer's currency balance. */
                   economy: NnzApiEconomyNamespace;
+                  /** Send chat messages as the bot. */
                   chat: NnzApiChatNamespace;
+                  /** Read the playing track and request songs. */
                   music: NnzApiMusicNamespace;
+                  /** Fetch an https URL. */
                   http: NnzApiHttpNamespace;
+                  /** Per-channel storage that persists between runs. */
                   storage: NnzApiStorageNamespace;
+                  /** Speak text on the overlay and manage viewer voices. */
                   tts: NnzApiTtsNamespace;
+                  /** Read a viewer's channel stats. */
                   stats: NnzApiStatsNamespace;
+                  /** Send events to this channel's widgets. */
                   widget: NnzApiWidgetNamespace;
+                  /** Read and update channel-point rewards. */
                   reward: NnzApiRewardNamespace;
+                  /** Run a saved pipeline later. */
                   schedule: NnzApiScheduleNamespace;
                 }
                 """
@@ -279,9 +298,13 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiStorageNamespace {
+                  /** The stored value for the key. null when nothing is stored under it. */
                   get(key: string): string | null;
+                  /** Stores a text value under the key. Returns false when the write is refused, for example over the size limit. */
                   set(key: string, value: string): boolean;
+                  /** Deletes the key. Returns true when the call succeeded. */
                   delete(key: string): boolean;
+                  /** The stored keys. prefix is optional and keeps only keys that start with it. An empty list when none match. */
                   list(prefix?: string): string[];
                 }
                 """
@@ -292,7 +315,9 @@ public sealed class SdkTypeEmitterTests
                 interface NnzApiTtsNamespace {
                   /** Leave voiceId, ratePercent or pitchPercent undefined to keep the normal value. Null when TTS refused the line. */
                   speak(text: string, voiceId?: string, ratePercent?: number, pitchPercent?: number): NnzApiTtsResult | null;
+                  /** The voice assigned to a viewer. null when the viewer uses the channel default or no viewer matches. */
                   getVoice(userIdOrLogin: string): NnzApiTtsVoice | null;
+                  /** Assigns a voice to a viewer. voiceId is optional: leave it out to clear back to the channel default. Returns false when it fails. */
                   setVoice(userIdOrLogin: string, voiceId?: string): boolean;
                 }
                 """
@@ -301,6 +326,7 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiStatsNamespace {
+                  /** A viewer's channel stats. userIdOrLogin is optional and defaults to the user who triggered the script. A viewer never seen gets zeros. */
                   viewer(userIdOrLogin?: string): NnzApiViewerStats;
                 }
                 """
@@ -309,6 +335,7 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiWidgetNamespace {
+                  /** Sends an event to a widget. data is optional. Returns false when no widget matches, the widget is turned off or the send fails. */
                   emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean;
                 }
                 """
@@ -317,7 +344,9 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApiRewardNamespace {
+                  /** A channel-point reward, found by id or title. null when no reward matches. */
                   get(rewardIdOrTitle: string): NnzApiReward | null;
+                  /** Applies the patch to a reward. Returns false when no reward matches, the bot cannot manage it or the update fails. */
                   update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean;
                 }
                 """

@@ -388,4 +388,42 @@ public sealed partial class SdkScriptSurfaceDriftTests
         raised.Should().HaveCount(6);
         declared.Should().BeEquivalentTo(raised);
     }
+
+    [Fact]
+    public void Every_script_surface_member_has_a_jsdoc()
+    {
+        List<string> missing = [];
+        int total = 0;
+
+        // Only the runtime-authored half: the generated event payload interfaces are documented by their own
+        // emitter, not by SdkRuntimeSurface.
+        string surface =
+            SdkRuntimeSurface.ScriptApiInterfaces() + "\n" + SdkRuntimeSurface.ScriptGlobals();
+
+        foreach ((string block, List<string> lines) in TypeBlocks(surface))
+        {
+            string? previous = null;
+            foreach (string line in lines.Where(l => l.Trim().Length > 0))
+            {
+                Match member = DocumentableMember().Match(line);
+                if (member.Success)
+                {
+                    total++;
+                    if (
+                        previous is null
+                        || !previous.TrimEnd().EndsWith("*/", StringComparison.Ordinal)
+                    )
+                        missing.Add($"{block}.{member.Groups[1].Value}");
+                }
+                previous = line;
+            }
+        }
+
+        string report =
+            $"{total - missing.Count} of {total} members are documented; missing: {string.Join(", ", missing)}";
+        missing.Count.Should().Be(0, report);
+    }
+
+    [GeneratedRegex(@"^  (?:readonly\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*[?(<:]")]
+    private static partial Regex DocumentableMember();
 }
