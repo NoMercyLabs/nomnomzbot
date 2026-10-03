@@ -10,8 +10,10 @@
 
 using System.Runtime.CompilerServices;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
@@ -38,17 +40,22 @@ namespace NomNomzBot.Infrastructure.Tests.Supporters;
 /// connection <c>error</c> without a stream; disabling later stops the runner; and a denied run-once lease
 /// keeps this instance socket-free.
 /// </summary>
-public sealed class SupporterSocketHostedServiceTests
+public sealed class SupporterSocketHostedServiceTests : IDisposable
 {
+    // Keeps the shared in-memory database alive for the test; each scope opens its OWN context over it.
+    private SqliteConnection? _keepAlive;
+
+    public void Dispose() => _keepAlive?.Dispose();
+
     private static readonly Guid Tenant = Guid.Parse("019f2900-4444-7000-8000-000000000001");
 
     private const string TipFrame = """
         { "type": "campaigntip.notify", "payload": { "campaignTip": { "id": "t-1", "displayName": "Someone", "grossAmountInCents": 500, "message": "hi" } } }
         """;
 
-    private static async Task<(
+    private async Task<(
         SupporterSocketHostedService Service,
-        SupporterTestDbContext Db,
+        Func<SupporterTestDbContext> OpenDb,
         QueueFrameSource Frames
     )> BuildAsync(
         bool enabled = true,
@@ -58,7 +65,12 @@ public sealed class SupporterSocketHostedServiceTests
         IIntegrationTokenVault? vault = null
     )
     {
-        SupporterTestDbContext db = SupporterTestDbContext.New();
+        string connectionString =
+            $"Data Source=file:{Guid.NewGuid():N}?mode=memory&cache=shared;Pooling=False";
+        _keepAlive = new(connectionString);
+        _keepAlive.Open();
+        await using SupporterTestDbContext db = SupporterTestDbContext.Open(connectionString);
+        await db.Database.EnsureCreatedAsync();
         db.Channels.Add(
             new()
             {
@@ -84,22 +96,20 @@ public sealed class SupporterSocketHostedServiceTests
         );
         await db.SaveChangesAsync();
 
-        SupporterIngestService ingest = new(
-            db,
-            [new PallySupporterSource()],
-            Substitute.For<IEventBus>(),
-            TimeProvider.System,
-            NullLogger<SupporterIngestService>.Instance
-        );
-
         ServiceCollection services = new();
-        services.AddSingleton<IRunOnceGuard>(guard ?? new NoOpRunOnceGuard());
-        services.AddSingleton<IApplicationDbContext>(db);
-        services.AddSingleton<ITokenProtector>(new PrefixProtector());
-        services.AddSingleton<ISupporterIngestService>(ingest);
-        services.AddSingleton<IIntegrationTokenVault>(
-            vault ?? Substitute.For<IIntegrationTokenVault>()
+        services.AddSingleton(guard ?? new NoOpRunOnceGuard());
+        // The production lifetimes: one scoped context per scope (each over its own connection to the
+        // shared database), and the real ingest service resolved per scope through DI.
+        services.AddScoped<IApplicationDbContext>(_ =>
+            SupporterTestDbContext.Open(connectionString)
         );
+        services.AddSingleton<ITokenProtector>(new PrefixProtector());
+        services.AddSingleton<ISupporterSource, PallySupporterSource>();
+        services.AddSingleton(Substitute.For<IEventBus>());
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddScoped<ISupporterIngestService, SupporterIngestService>();
+        services.AddSingleton(vault ?? Substitute.For<IIntegrationTokenVault>());
         ServiceProvider provider = services.BuildServiceProvider();
 
         QueueFrameSource frames = new();
@@ -110,14 +120,17 @@ public sealed class SupporterSocketHostedServiceTests
             TimeProvider.System,
             NullLogger<SupporterSocketHostedService>.Instance
         );
-        return (service, db, frames);
+        return (service, () => SupporterTestDbContext.Open(connectionString), frames);
     }
 
     [Fact]
     public async Task Reconcile_StartsARunner_WhoseFramesPersistAsTips_AndAReplayDedups()
     {
-        (SupporterSocketHostedService service, SupporterTestDbContext db, QueueFrameSource frames) =
-            await BuildAsync();
+        (
+            SupporterSocketHostedService service,
+            Func<SupporterTestDbContext> openDb,
+            QueueFrameSource frames
+        ) = await BuildAsync();
         frames.Enqueue(TipFrame);
         frames.Enqueue("pong"); // keepalive echo — never an event
         frames.Enqueue(TipFrame); // the same tip replayed (e.g. after a reconnect) — dedups
@@ -132,6 +145,7 @@ public sealed class SupporterSocketHostedServiceTests
             .Should()
             .Be("pally-key", "the runner hands the transport the UNSEALED key");
 
+        await using SupporterTestDbContext db = openDb();
         List<SupporterEvent> events = await db.SupporterEvents.ToListAsync();
         events.Should().HaveCount(1, "the replayed frame dedups on the tip id");
         events[0].Kind.Should().Be("tip");
@@ -158,12 +172,16 @@ public sealed class SupporterSocketHostedServiceTests
     [Fact]
     public async Task Reconcile_MissingKey_MarksTheConnectionError_WithoutAStream()
     {
-        (SupporterSocketHostedService service, SupporterTestDbContext db, QueueFrameSource frames) =
-            await BuildAsync(secret: null);
+        (
+            SupporterSocketHostedService service,
+            Func<SupporterTestDbContext> openDb,
+            QueueFrameSource frames
+        ) = await BuildAsync(secret: null);
 
         await service.ReconcileOnceAsync(CancellationToken.None);
 
         frames.ConnectedSecrets.Should().BeEmpty();
+        await using SupporterTestDbContext db = openDb();
         (await db.SupporterConnections.SingleAsync()).Status.Should().Be("error");
         await service.DisposeAsync();
     }
@@ -171,13 +189,17 @@ public sealed class SupporterSocketHostedServiceTests
     [Fact]
     public async Task Reconcile_DisablingLater_StopsTheRunner()
     {
-        (SupporterSocketHostedService service, SupporterTestDbContext db, QueueFrameSource frames) =
-            await BuildAsync();
+        (
+            SupporterSocketHostedService service,
+            Func<SupporterTestDbContext> openDb,
+            QueueFrameSource frames
+        ) = await BuildAsync();
 
         await service.ReconcileOnceAsync(CancellationToken.None);
         await frames.FirstConnected.WaitAsync(TimeSpan.FromSeconds(10)); // runner startup is async
         frames.ConnectedSecrets.Should().HaveCount(1);
 
+        await using SupporterTestDbContext db = openDb();
         SupporterConnection connection = await db.SupporterConnections.SingleAsync();
         connection.IsEnabled = false;
         await db.SaveChangesAsync();

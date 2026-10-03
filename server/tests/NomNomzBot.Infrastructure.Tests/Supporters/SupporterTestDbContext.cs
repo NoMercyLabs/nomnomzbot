@@ -50,13 +50,32 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
     // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
     // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
-    private readonly SqliteConnection _connection;
+    private readonly SqliteConnection? _connection;
 
     private SupporterTestDbContext(
         DbContextOptions<SupporterTestDbContext> options,
-        SqliteConnection connection
+        SqliteConnection? connection
     )
         : base(options) => _connection = connection;
+
+    /// <summary>
+    /// A NEW context over a shared-cache in-memory database named by <paramref name="connectionString"/>,
+    /// with its OWN connection - the production lifetime (one scoped context per scope, one connection each).
+    /// The caller keeps one connection open for the database's lifetime so the data outlives each context.
+    /// <c>busy_timeout</c> makes genuinely concurrent writers wait for SQLite's lock instead of throwing.
+    /// </summary>
+    public static SupporterTestDbContext Open(string connectionString)
+    {
+        SupporterTestDbContext db = new(
+            new DbContextOptionsBuilder<SupporterTestDbContext>()
+                .UseSqlite(connectionString)
+                .Options,
+            null
+        );
+        db.Database.OpenConnection();
+        db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000;");
+        return db;
+    }
 
     public static SupporterTestDbContext New()
     {
@@ -73,13 +92,14 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public override void Dispose()
     {
         base.Dispose();
-        _connection.Dispose();
+        _connection?.Dispose();
     }
 
     public override async ValueTask DisposeAsync()
     {
         await base.DisposeAsync();
-        await _connection.DisposeAsync();
+        if (_connection is not null)
+            await _connection.DisposeAsync();
     }
 
     /// <summary>
