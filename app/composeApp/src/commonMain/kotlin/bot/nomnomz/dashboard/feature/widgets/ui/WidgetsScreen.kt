@@ -869,7 +869,7 @@ private fun WidgetRow(
                 ) {
                     Text(
                         text = stringResource(Res.string.widgets_capture_window_action),
-                        color = tokens.primary,
+                        color = tokens.cardForeground,
                         maxLines = 1,
                     )
                 }
@@ -940,7 +940,7 @@ private fun WidgetRowInfo(
         Text(
             text = "$stateLabel · ${widget.framework}",
             style = typography.sm,
-            color = if (widget.isEnabled) tokens.primary else tokens.mutedForeground,
+            color = if (widget.isEnabled) tokens.cardForeground else tokens.mutedForeground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -954,7 +954,7 @@ private fun WidgetRowInfo(
                     else Res.string.widgets_overlay_not_connected
                 ),
             style = typography.xs,
-            color = if (widget.isAttached) tokens.primary else tokens.mutedForeground,
+            color = if (widget.isAttached) tokens.cardForeground else tokens.mutedForeground,
             maxLines = 1,
         )
         if (widget.lastRuntimeError != null) {
@@ -1043,7 +1043,7 @@ private fun WidgetRowActions(
         ) {
             Text(
                 text = stringResource(Res.string.widgets_settings_action_short),
-                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                color = if (enabled) tokens.cardForeground else tokens.mutedForeground,
                 maxLines = 1,
             )
         }
@@ -1074,7 +1074,7 @@ private fun WidgetRowActions(
             ) {
                 Text(
                     text = stringResource(Res.string.widgets_test_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    color = if (enabled) tokens.cardForeground else tokens.mutedForeground,
                     maxLines = 1,
                 )
             }
@@ -1122,7 +1122,7 @@ private fun WidgetRowActions(
     ) {
         Text(
             text = stringResource(Res.string.widgets_versions_action_short),
-            color = tokens.primary,
+            color = tokens.cardForeground,
             maxLines = 1,
         )
     }
@@ -1134,7 +1134,7 @@ private fun WidgetRowActions(
         ) {
             Text(
                 text = stringResource(Res.string.widgets_rename_action_short),
-                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                color = if (enabled) tokens.cardForeground else tokens.mutedForeground,
                 maxLines = 1,
             )
         }
@@ -1147,7 +1147,7 @@ private fun WidgetRowActions(
         ) {
             Text(
                 text = stringResource(Res.string.widgets_clone_action_short),
-                color = if (enabled) tokens.primary else tokens.mutedForeground,
+                color = if (enabled) tokens.cardForeground else tokens.mutedForeground,
                 maxLines = 1,
             )
         }
@@ -1637,7 +1637,7 @@ private fun WidgetVersionRow(
                 TextButton(onClick = onRollback, enabled = enabled) {
                     Text(
                         text = stringResource(Res.string.widgets_rollback_action),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        color = if (enabled) tokens.cardForeground else tokens.mutedForeground,
                         maxLines = 1,
                     )
                 }
@@ -1884,16 +1884,16 @@ private fun GalleryItemCard(
     }
 }
 
-// The trust-tier chip: a localized label on a variant that reads the tier's weight — a first-party widget is the
-// loud Default fill, verified-community is Secondary, and an unverified / unknown tier is a quiet Outline.
+// The trust-tier chip: a localized label on a quiet variant. A trust tier is a status, never the page task, so
+// first-party and verified-community are Secondary (every gallery item is first-party; Default would paint an
+// accent pill on each card), and an unverified tier is an Outline.
 @Composable
 private fun TrustTierBadge(trustTier: String) {
     val typography = LocalTypography.current
 
     val variant: BadgeVariant =
         when (trustTier) {
-            "first_party" -> BadgeVariant.Default
-            "verified_community" -> BadgeVariant.Secondary
+            "first_party", "verified_community" -> BadgeVariant.Secondary
             else -> BadgeVariant.Outline
         }
     val label: String =
