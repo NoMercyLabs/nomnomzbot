@@ -48,14 +48,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   later ChannelOfflineEvent says the stream lasted zero (StreamRunTime.cs). WentLiveAt is also read offline by
   StreamController.cs:150, DashboardHub.cs:184 and TemplateResolver.cs:430, so it cannot simply stay set.
   Done-when: a test with the poll edge first, then the EventSub offline, sees the real duration.
-- **S-SDK-WIDGET-TYPES** Widget context without `any`. The payloads are records already
-  (`Api/Hubs/Dtos/WidgetEventPayloads.cs`; tts_queue_control is a raw typed target since e95e7417d), and a
-  custom widget's subscriptions are added on save from its `NomNomz.on(...)` calls
-  (`WidgetEventSubscriptions.cs:22-37`; add-only on purpose, so a hand-added event is never dropped).
-  Left: the emitter writes a typed widget event map from those records (`NomNomz.on('follow', d => d.`
-  autocompletes the real payload), typed per-widget `settings` from the settings schema (a widget-scoped
-  types request), `claim` rejection and
-  `AUTH_REQUIRED` in the types. Done-when: an E2E editor test shows a payload field typo as an error.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
