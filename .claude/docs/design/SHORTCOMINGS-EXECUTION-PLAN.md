@@ -36,6 +36,18 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   defb69885), the `play_sound` handle, and the inbox notice when no Audio Source page is open
   (`AudioSourceMissingSource.cs`). Left: the live check. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
+- **S-EVENTS-NEVER-RAISED** (stream-facing) 23 of 231 domain events are never raised anywhere in
+  server/src (scan 2026-10-03, no `new X`/target-typed `new()` before a publish), yet EventCatalog offers
+  every one as a script trigger. Live harm: raid earnings never pay, because EngagementEarningHandler.cs:35
+  and the Automation API raid descriptor (AutomationEventDescriptors.cs:88) listen to RaidReceivedEvent
+  while a raid publishes RaidEvent. The rest: AfterRewardProcessedEvent, BeforeRewardProcessedEvent,
+  ChannelJoinedEvent, ChannelLeftEvent, ChannelSuspendedEvent, ChannelReinstatedEvent, CommandFailedEvent,
+  EventPayloadShreddedEvent, FeatureToggledEvent, FederatedEventDispatchedEvent, IntegrationErrorEvent,
+  MessageAutoModdedEvent, PermissionChangedEvent, ReplayStatusChangedEvent, RewardRefundedEvent,
+  SongSkippedEvent, StreamStatusChangedEvent, TrackChangedEvent, UserFirstChatEvent, ViewerRowAbsorbedEvent,
+  WidgetConnectedEvent, WidgetDisconnectedEvent. Done-when: each is raised where its action happens (a
+  test per event asserts the publish), or is removed with its handlers when a raised twin covers it, and
+  a test fails when a catalogued event has no raiser.
 - **S-SDK-EVENT-DOCS** The event payload interfaces the type emitter generates (about 1,100 members,
   counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
   takes each member's text from the payload record's XML doc. Done-when: a drift test like
