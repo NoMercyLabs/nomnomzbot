@@ -48,6 +48,14 @@ public sealed class AdBreakBeganAlertHandler
             ["ad.automatic"] = e.IsAutomatic ? "true" : "false",
         };
 
+    protected override AdBreakBeganEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            DurationSeconds = 180,
+            IsAutomatic = true,
+            StartedAt = now,
+        };
+
     public Task HandleAsync(AdBreakBeganEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }

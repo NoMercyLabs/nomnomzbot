@@ -52,6 +52,16 @@ public sealed class UserBannedAlertHandler
             ["duration"] = "permanent",
         };
 
+    protected override UserBannedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            TargetUserId = "100000008",
+            TargetDisplayName = "SpamBot42",
+            ModeratorUserId = "100000007",
+            ModeratorDisplayName = "ModMaya",
+            Reason = "Posting spam links",
+        };
+
     public Task HandleAsync(UserBannedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -84,6 +94,17 @@ public sealed class UserTimedOutAlertHandler
             ["duration"] = HumanDuration(e.DurationSeconds),
         };
 
+    protected override UserTimedOutEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            TargetUserId = "100000009",
+            TargetDisplayName = "HeatedHarry",
+            ModeratorUserId = "100000007",
+            ModeratorDisplayName = "ModMaya",
+            DurationSeconds = 600,
+            Reason = "Heated argument in chat",
+        };
+
     public Task HandleAsync(UserTimedOutEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
@@ -112,6 +133,15 @@ public sealed class UserUnbannedAlertHandler
             ["user"] = e.TargetDisplayName ?? e.TargetUserId,
             ["user.id"] = e.TargetUserId,
             ["moderator"] = e.ModeratorDisplayName ?? e.ModeratorUserId,
+        };
+
+    protected override UserUnbannedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            TargetUserId = "100000008",
+            TargetDisplayName = "SpamBot42",
+            ModeratorUserId = "100000007",
+            ModeratorDisplayName = "ModMaya",
         };
 
     public Task HandleAsync(UserUnbannedEvent @event, CancellationToken ct = default) =>

@@ -54,6 +54,15 @@ public sealed class OutgoingRaidStartedAlertHandler
             ["viewers"] = e.ViewerCount.ToString(),
         };
 
+    protected override OutgoingRaidStartedEvent SampleEvent(DateTimeOffset now) =>
+        new()
+        {
+            ToUserId = "100000013",
+            ToDisplayName = "FriendlyFox",
+            ToLogin = "friendlyfox",
+            ViewerCount = 87,
+        };
+
     public Task HandleAsync(OutgoingRaidStartedEvent @event, CancellationToken ct = default) =>
         HandleCoreAsync(@event, ct);
 }
