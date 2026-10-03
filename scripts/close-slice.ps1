@@ -27,7 +27,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = (Join-Path $PSScriptRoot '..' | Resolve-Path).Path
+# the commit subject is built below as "docs(plan): close <Slice> - <Message>"; a Message that repeats
+# that prefix doubled it twice on 2026-10-03
+if ($Message -match '^\s*(docs\(plan\):\s*)?close\s') {
+    throw "-Message is only the description; the script adds 'docs(plan): close $Slice - ' itself"
+}
+$repo =(Join-Path $PSScriptRoot '..' | Resolve-Path).Path
 $plan = Join-Path $repo '.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md'
 if (-not (Test-Path $plan)) { throw "plan not found: $plan" }
 
