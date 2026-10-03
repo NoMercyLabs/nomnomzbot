@@ -38,9 +38,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   handle); the dashboard inbox says when no Audio Source page is open (`IActionRequiredSource`);
   master and TTS sliders on the Sound screen. Done-when: tests prove each, and on the deployed site one
   TTS line and one sound clip play once with a caption page and an Audio Source page both open.
-- **S-SDK-TRIGGER-TYPES** `bot.getVar` keys and `bot.args` are typed per trigger (command / event
-  response / timer / pipeline) from the event catalogue; the script context drops the widget-only
-  `NnzEventMap`. Done-when: the editor flags `bot.getVar('typo')` for the script's trigger.
 - **S-SDK-EVENT-DOCS** The event payload interfaces the type emitter generates (about 1,100 members,
   counted 2026-10-03) carry no JSDoc, so hovering an event field in the editor shows nothing. The emitter
   takes each member's text from the payload record's XML doc. Done-when: a drift test like
@@ -57,14 +54,12 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   fire every trigger the script can have (each event-catalogue event with a realistic sample payload,
   command args, viewer roles) and shows EVERY outward effect it would cause — chat messages, OBS calls,
   TTS, music, widget emits, storage writes, scheduled pipelines, variables out — in order, as a
-  timeline, without sending anything live. Left: a script test run takes only args and variables
-  (`ScriptTestRunRequest`); it cannot pick a trigger or a viewer role. Plan: each
-  `TwitchAlertHandlerBase` handler gets a typed sample of its own domain event, and its real
-  `BuildVariables` makes the test variables (same keys as live, the widget-samples pattern); the command
-  path seeds args and `user.role`; reward, OBS, custom-data, webhook and timer sources likewise. The
-  panel shows chat, effects and console as one ordered timeline. Custom widgets have no **Settings**
-  form (`WidgetsScreen.kt:701`). Done-when: an E2E test fires a follow at a script that chats + switches
-  an OBS scene + emits to a widget and asserts all three rows.
+  timeline, without sending anything live. Shipped: every trigger kind offers a sample built by its
+  live builder (Twitch alerts, command, reward, timer, OBS, custom data, webhook: 0c3cb33a7,
+  2ae82ca13), and the panel shows one ordered timeline (4354d0999). Left: custom widgets have no
+  **Settings** form (`WidgetsScreen.kt:704`; in progress: a `settings.json` in the widget project).
+  Done-when: an E2E test fires a follow at a script that chats + switches an OBS scene + emits to a
+  widget and asserts all three rows.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
@@ -74,8 +69,13 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   audit (atlas Phase 4), not the delivery. Runs after the SDK fixes above so no page documents a bug.
 - **S-FLAKE-ECON-SQLITE** CI run 37055095636 attempt 1: `CurrencyBalanceConcurrencyTests.Concurrent_
   debits_against_a_balance_covering_only_one_leave_exactly_one_winner` threw `SQLite Error 5: unable to
-  delete/modify user-function due to active statements`. Done-when: the cause is found and fixed (not
-  retried), and the test passes 200 repeated local runs.
+  delete/modify user-function due to active statements`. Sibling, same error (local slice-check on master
+  with lane B staged, 2026-10-03): `WatchSessionConcurrencyTests.Concurrent_GetOrOpenAsync_calls_for_the_
+  same_key_mint_exactly_one_session_row`, thrown from `DbContext.Dispose` -> `SqliteConnection.Close` ->
+  `SqliteConnectionPool.Return` (WatchSessionConcurrencyTests.cs:192). Both are many concurrent contexts
+  on one shared SQLite database, so the cause is likely in the shared test setup that registers a
+  user function. Done-when: the cause is found and fixed (not retried) for both, and each passes 200
+  repeated local runs.
 - **S-FLAKE-SUPPORTER-SOCKET** CI run 37087401465 attempt 1 (2026-10-03, sha cffd5d7b2):
   `SupporterSocketHostedServiceTests.Reconcile_StartsARunner_WhoseFramesPersistAsTips_AndAReplayDedups`
   threw `A second operation was started on this context instance before a previous operation completed`
@@ -93,6 +93,12 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   processed_by_its_successor` saw inbox count 1, expected 0. It passed 20 of 20, three times, when run
   alone, so it fails only under full-suite load. Done-when: the cause is found and fixed (not
   retried), and the test passes 200 repeated runs alongside the full suite's parallel load.
+- **S-FLAKE-INTERVAL-RACE** CI run 37104337272 attempt 1 (2026-10-03, sha ca32f9f63):
+  `RedemptionTimerExpiryServiceTests.ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying`
+  failed and passed on re-run. The same test exists in ScheduledPipelineExpiryServiceTests,
+  TimerServiceTests and YouTubeLiveChatPollWorkerTests (4 of 4). Suspected cause: the test advances the
+  fake clock before the service has created its delay timer, and its wait helper gives up silently after
+  1 s. Done-when: the cause is confirmed and fixed in all 4, and each passes 200 repeated runs.
 
 ---
 
