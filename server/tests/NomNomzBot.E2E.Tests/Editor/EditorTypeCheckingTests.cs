@@ -149,6 +149,29 @@ public sealed class EditorTypeCheckingTests : PageTest
         Assert.Equal([2, 3], lines.Order());
     }
 
+    [E2EFact]
+    public async Task A_widget_event_handler_flags_a_misspelled_payload_field()
+    {
+        await OpenAsync(
+            "vanilla-js",
+            "index.js",
+            """
+            NomNomz.on('follow', d => console.log(d.displayName));
+            NomNomz.on('follow', d => console.log(d.displayNme));
+            NomNomz.on('custom.heartrate', d => console.log(d.fields.bpm));
+            NomNomz.on('custom.heartrate', d => console.log(d.feilds));
+            """,
+            await SdkTypesAsync("widget")
+        );
+
+        IReadOnlyList<string> codes = await DiagnosticCodesAsync("index.js", expected: 2);
+        IReadOnlyList<int> lines = await DiagnosticLinesAsync("index.js");
+
+        // Property 'displayNme' / 'feilds' does not exist (TS2339); the correctly spelled fields type-check.
+        Assert.All(codes, code => Assert.Equal("2339", code));
+        Assert.Equal([2, 4], lines.Order());
+    }
+
     private async Task<string> SdkTypesAsync(string context)
     {
         IAPIResponse types = await Page.APIRequest.GetAsync(

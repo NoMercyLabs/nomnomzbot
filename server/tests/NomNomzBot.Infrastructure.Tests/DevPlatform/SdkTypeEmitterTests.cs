@@ -369,13 +369,15 @@ public sealed class SdkTypeEmitterTests
         ts.Should().Contain("declare const NomNomz: NnzOverlaySdk;");
         ts.Should()
             .Contain(
-                "  on(eventType: string, handler: (data: any, eventType: string) => void): NnzOverlaySdk;"
+                "  on(eventType: string, handler: (data: unknown, eventType: string) => void): NnzOverlaySdk;"
             );
         ts.Should()
-            .Contain("  onAny(handler: (eventType: string, data: any) => void): NnzOverlaySdk;");
+            .Contain(
+                "  onAny(handler: (eventType: string, data: unknown) => void): NnzOverlaySdk;"
+            );
         ts.Should()
             .Contain(
-                "  onSettings(handler: (settings: Record<string, any>) => void): NnzOverlaySdk;"
+                "  onSettings(handler: (settings: Record<string, unknown>) => void): NnzOverlaySdk;"
             );
         ts.Should().Contain("  reportError(message: string): void;");
         ts.Should().Contain("  readonly actions: NnzOverlayActions;");
@@ -384,11 +386,11 @@ public sealed class SdkTypeEmitterTests
                 "  invoke<T extends NnzActionsWithOptionalParams>(actionType: T, params?: NnzActionParams[T], variables?: Record<string, string | number>): Promise<NnzActionResult>;"
             );
         ts.Should().Contain("  claim(key: string): Promise<boolean>;");
-        ts.Should().Contain("  readonly settings: Record<string, any>;");
+        ts.Should().Contain("  readonly settings: Record<string, unknown>;");
         ts.Should().Contain("declare const WIDGET_ID: string;");
         ts.Should().Contain("declare const WIDGET_TOKEN: string;");
         ts.Should().Contain("declare const WIDGET_NAME: string;");
-        ts.Should().Contain("declare const WIDGET_SETTINGS: Record<string, any>;");
+        ts.Should().Contain("declare const WIDGET_SETTINGS: Record<string, unknown>;");
         ts.Should().Contain("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
 
         // There is no `nnz` in a browser — no capability broker, so neither the batteries nor ANY of the api.

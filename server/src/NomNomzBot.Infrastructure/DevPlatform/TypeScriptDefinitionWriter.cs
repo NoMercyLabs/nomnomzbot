@@ -34,14 +34,17 @@ internal sealed class TypeScriptDefinitionWriter
     private readonly Dictionary<Type, List<string>> _propertyLines = new();
     private readonly Queue<Type> _pending = new();
     private readonly ILogger? _logger;
+    private readonly IWidgetEventPayloadRegistry? _widgetEvents;
 
     public TypeScriptDefinitionWriter(
         SdkContext context,
         IReadOnlyList<string>? triggerKeys = null,
         IReadOnlyList<ICommandAction>? actions = null,
-        ILogger? logger = null
+        ILogger? logger = null,
+        IWidgetEventPayloadRegistry? widgetEvents = null
     )
     {
+        _widgetEvents = context == SdkContext.Widget ? widgetEvents : null;
         _logger = logger;
         _context = context;
         _triggerKeys = triggerKeys;
@@ -54,6 +57,15 @@ internal sealed class TypeScriptDefinitionWriter
         // property's type registers any nested value object, so the queue discovers the whole reachable graph.
         foreach (EventDescriptor descriptor in events)
             RegisterObject(descriptor.ClrType);
+
+        // The widget's own event payloads (the broadcasters' records), so NomNomz.on(...) hands out real members.
+        if (_widgetEvents is not null)
+        {
+            foreach (WidgetEventPayloadEntry entry in _widgetEvents.Events)
+                if (entry.PayloadType is not null)
+                    RegisterObject(entry.PayloadType);
+            RegisterObject(_widgetEvents.CustomEventPayloadType);
+        }
 
         while (_pending.Count > 0)
         {
@@ -118,14 +130,49 @@ internal sealed class TypeScriptDefinitionWriter
         // Both contexts reach the same pipeline actions through invoke(), so both get the typed parameter map.
         sb.AppendLine(ActionParamsTypeWriter.Write(_actions));
 
+        string? customPayloadName = RenderWidgetEventMap(sb);
         sb.AppendLine(
             _context == SdkContext.Script
                 ? SdkRuntimeSurface.ScriptGlobals(_triggerKeys)
-                : SdkRuntimeSurface.WidgetGlobals()
+                : SdkRuntimeSurface.WidgetGlobals(customPayloadName)
         );
 
         return sb.ToString();
     }
+
+    // Writes NnzWidgetEventMap (event name -> payload interface) and the onAny union; returns the custom-event
+    // payload interface name WidgetGlobals needs, or null when no registry is wired.
+    private string? RenderWidgetEventMap(StringBuilder sb)
+    {
+        if (_widgetEvents is null)
+            return null;
+
+        sb.AppendLine(
+            "/** Every event a widget can receive, by the name it passes to NomNomz.on(...). */"
+        );
+        sb.AppendLine("interface NnzWidgetEventMap {");
+        foreach (WidgetEventPayloadEntry entry in _widgetEvents.Events)
+            sb.AppendLine($"  '{entry.Name}': {WidgetPayloadName(entry.PayloadType)};");
+        sb.AppendLine("}");
+        sb.AppendLine();
+
+        string customName = _interfaceNames[_widgetEvents.CustomEventPayloadType];
+        sb.AppendLine(
+            "/** The arguments of an onAny handler: the event name, and the payload that name carries. */"
+        );
+        sb.AppendLine("type NnzWidgetAnyEvent =");
+        foreach (WidgetEventPayloadEntry entry in _widgetEvents.Events)
+            sb.AppendLine(
+                $"  | [eventType: '{entry.Name}', data: {WidgetPayloadName(entry.PayloadType)}]"
+            );
+        sb.AppendLine($"  | [eventType: `custom.${{string}}`, data: {customName}];");
+        sb.AppendLine();
+
+        return customName;
+    }
+
+    private string WidgetPayloadName(Type? payloadType) =>
+        payloadType is null ? "Record<string, unknown>" : _interfaceNames[payloadType];
 
     private string? SummaryOf(Type? owner, Func<XmlDocSummaryReader, string?> read)
     {

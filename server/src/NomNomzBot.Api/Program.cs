@@ -215,6 +215,11 @@ try
     // in-memory ticket/attempt state must survive across the scoped requests of a single instance (the
     // Redis-backed multi-replica variant is out of scope, owner decision, 🔒).
     builder.Services.AddSingleton<IOverlayTicketService, OverlayTicketService>();
+    // The widget event name -> payload type table the SDK type emitter reads (Infrastructure cannot see the Api).
+    builder.Services.AddSingleton<
+        NomNomzBot.Application.DevPlatform.Services.IWidgetEventPayloadRegistry,
+        NomNomzBot.Api.Hubs.Broadcasters.WidgetEventPayloadRegistry
+    >();
     // One instance: the hub writes attachments, TTS (and any other overlay-only output) reads them to tell
     // whether a browser source is actually listening instead of reporting silence as success.
     builder.Services.AddSingleton<OverlayPresenceRegistry>();

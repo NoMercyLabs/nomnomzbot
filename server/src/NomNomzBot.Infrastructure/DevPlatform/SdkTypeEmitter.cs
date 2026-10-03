@@ -30,15 +30,18 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     private readonly IEventCatalog _catalog;
     private readonly ITriggerSampleCatalog? _samples;
     private readonly IReadOnlyList<ICommandAction> _actions;
+    private readonly IWidgetEventPayloadRegistry? _widgetEvents;
     private readonly ILogger<SdkTypeEmitter>? _logger;
 
     public SdkTypeEmitter(
         IEventCatalog catalog,
         ITriggerSampleCatalog? samples = null,
         IEnumerable<ICommandAction>? actions = null,
+        IWidgetEventPayloadRegistry? widgetEvents = null,
         ILogger<SdkTypeEmitter>? logger = null
     )
     {
+        _widgetEvents = widgetEvents;
         _logger = logger;
         _catalog = catalog;
         _samples = samples;
@@ -46,7 +49,9 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     }
 
     public string EmitTypeScript(SdkContext context) =>
-        new TypeScriptDefinitionWriter(context, null, _actions, _logger).Build(VisibleFor(context));
+        new TypeScriptDefinitionWriter(context, null, _actions, _logger, _widgetEvents).Build(
+            VisibleFor(context)
+        );
 
     public Result<string> EmitTypeScript(SdkContext context, string triggerKey) =>
         EmitTypeScript(context, [triggerKey]);
@@ -73,7 +78,8 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
                 context,
                 [.. union.OrderBy(key => key, StringComparer.Ordinal)],
                 _actions,
-                _logger
+                _logger,
+                _widgetEvents
             ).Build(VisibleFor(context))
         );
     }

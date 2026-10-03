@@ -215,7 +215,7 @@ internal static class SdkRuntimeSurface
     /// <c>WIDGET_*</c> values the host page injects before the bundle runs. A widget has no capability broker, so
     /// none of the <c>nnz</c> batteries or <c>nnz.api.*</c> wrappers exist here.
     /// </summary>
-    public static string WidgetGlobals()
+    public static string WidgetGlobals(string? customPayloadName = null)
     {
         StringBuilder sb = new();
         sb.AppendLine("/**");
@@ -229,27 +229,18 @@ internal static class SdkRuntimeSurface
         sb.AppendLine(" * Every registration returns the SDK, so calls chain.");
         sb.AppendLine(" */");
         sb.AppendLine("interface NnzOverlaySdk {");
-        sb.AppendLine(
-            "  on(eventType: string, handler: (data: any, eventType: string) => void): NnzOverlaySdk;"
-        );
-        sb.AppendLine(
-            "  /** Removes a handler registered with on() — pass the SAME function reference. */"
-        );
-        sb.AppendLine(
-            "  off(eventType: string, handler: (data: any, eventType: string) => void): NnzOverlaySdk;"
-        );
-        sb.AppendLine("  onAny(handler: (eventType: string, data: any) => void): NnzOverlaySdk;");
+        AppendEventMethods(sb, customPayloadName);
         sb.AppendLine(
             "  /** Fires immediately with the injected settings, then again on every dashboard change. */"
         );
         sb.AppendLine(
-            "  onSettings(handler: (settings: Record<string, any>) => void): NnzOverlaySdk;"
+            "  onSettings(handler: (settings: Record<string, unknown>) => void): NnzOverlaySdk;"
         );
         sb.AppendLine(
             "  /** Logs the message and reports it to the server as a widget runtime error. */"
         );
         sb.AppendLine("  reportError(message: string): void;");
-        sb.AppendLine("  readonly settings: Record<string, any>;");
+        sb.AppendLine("  readonly settings: Record<string, unknown>;");
         sb.AppendLine("  readonly actions: NnzOverlayActions;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -273,11 +264,22 @@ internal static class SdkRuntimeSurface
             "  invoke<T extends NnzActionsWithOptionalParams>(actionType: T, params?: NnzActionParams[T], variables?: Record<string, string | number>): Promise<NnzActionResult>;"
         );
         sb.AppendLine(
-            "  /** True only for the first open copy of this widget to claim the key (e.g. a redemption id), for ten"
+            "  /** Resolves true only for the first open copy of this widget to claim the key (e.g. a redemption id), for"
         );
         sb.AppendLine(
-            "   *  minutes. Claim an event before acting on it, so two OBS sources never both act. */"
+            "   *  ten minutes; false when another copy already claimed it. Claim an event before acting on it, so two OBS"
         );
+        sb.AppendLine("   *  sources never both act.");
+        sb.AppendLine(
+            "   *  REJECTS (it never resolves false for these) when the overlay is not connected to the bot or the connection"
+        );
+        sb.AppendLine(
+            "   *  drops mid-call, and when the bot refuses the claim: not authenticated, a widget that is not this channel's"
+        );
+        sb.AppendLine(
+            "   *  (NOT_FOUND), or an empty key or one over 200 characters (VALIDATION_FAILED). Catch it, or an offline overlay"
+        );
+        sb.AppendLine("   *  surfaces as an unhandled rejection. */");
         sb.AppendLine("  claim(key: string): Promise<boolean>;");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -286,7 +288,13 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  output: string | null;");
         sb.AppendLine("  error: string | null;");
         sb.AppendLine(
-            "  /** Set when the bot refused to run it: NOT_FOUND, FORBIDDEN or RATE_LIMITED. */"
+            "  /** Set when the bot refused to run it: AUTH_REQUIRED (the overlay connection is not signed in),"
+        );
+        sb.AppendLine(
+            "   *  FORBIDDEN (another channel's widget, or this widget is turned off), NOT_FOUND, VALIDATION_FAILED or"
+        );
+        sb.AppendLine(
+            "   *  RATE_LIMITED. A refusal is not exhaustive: treat an unknown code as a refusal too. */"
         );
         sb.AppendLine("  errorCode: string | null;");
         sb.AppendLine(
@@ -300,9 +308,50 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("declare const WIDGET_ID: string;");
         sb.AppendLine("declare const WIDGET_TOKEN: string;");
         sb.AppendLine("declare const WIDGET_NAME: string;");
-        sb.AppendLine("declare const WIDGET_SETTINGS: Record<string, any>;");
+        sb.AppendLine("declare const WIDGET_SETTINGS: Record<string, unknown>;");
         sb.Append("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
         return sb.ToString();
+    }
+
+    // on / off / onAny. With the payload registry the handler gets the payload of the event it names; a name the
+    // registry does not know (a variable event name, a frame the bot relays as is) stays usable but hands the
+    // handler `unknown`, never `any`.
+    private static void AppendEventMethods(StringBuilder sb, string? customPayloadName)
+    {
+        const string Handler = "(data: unknown, eventType: string) => void";
+        if (customPayloadName is null)
+        {
+            sb.AppendLine($"  on(eventType: string, handler: {Handler}): NnzOverlaySdk;");
+            sb.AppendLine(
+                "  /** Removes a handler registered with on() — pass the SAME function reference. */"
+            );
+            sb.AppendLine($"  off(eventType: string, handler: {Handler}): NnzOverlaySdk;");
+            sb.AppendLine(
+                "  onAny(handler: (eventType: string, data: unknown) => void): NnzOverlaySdk;"
+            );
+            return;
+        }
+
+        const string TypedHandler = "(data: NnzWidgetEventMap[K], eventType: K) => void";
+        string customHandler = $"(data: {customPayloadName}, eventType: string) => void";
+        sb.AppendLine(
+            $"  on<K extends keyof NnzWidgetEventMap>(eventType: K, handler: {TypedHandler}): NnzOverlaySdk;"
+        );
+        sb.AppendLine(
+            $"  on(eventType: `custom.${{string}}`, handler: {customHandler}): NnzOverlaySdk;"
+        );
+        sb.AppendLine($"  on(eventType: string, handler: {Handler}): NnzOverlaySdk;");
+        sb.AppendLine(
+            "  /** Removes a handler registered with on() — pass the SAME function reference. */"
+        );
+        sb.AppendLine(
+            $"  off<K extends keyof NnzWidgetEventMap>(eventType: K, handler: {TypedHandler}): NnzOverlaySdk;"
+        );
+        sb.AppendLine(
+            $"  off(eventType: `custom.${{string}}`, handler: {customHandler}): NnzOverlaySdk;"
+        );
+        sb.AppendLine($"  off(eventType: string, handler: {Handler}): NnzOverlaySdk;");
+        sb.AppendLine("  onAny(handler: (...event: NnzWidgetAnyEvent) => void): NnzOverlaySdk;");
     }
 
     private static void AppendVarKeyType(StringBuilder sb, IReadOnlyList<string> keys)
