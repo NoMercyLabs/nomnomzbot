@@ -31,14 +31,17 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
 
 - **S-GAME-EVENT-PAYLOADS** The game events `game.lobby`, `game.running` and `game.resolved` have no payload type (`Api/Hubs/Broadcasters/WidgetEventPayloadRegistry.cs:68-70` registers them with `null`), so the game widgets (crash, heist, drop_game) read them as `Record<string, unknown>`.
   Done-when: each event has a payload record, the widget event map types it, the game widgets narrow to it, and a test fails when a game event has no payload type.
-- **S-EVENT-SAMPLE-CASING** Checked 2026-10-03 (.scratch/bugs-verified-editor.md #8). The event samples in
-  `EventSamplePayloads.cs` use snake_case keys (`chat.message`: `broadcaster_user_id`, `chatter_user_login`,
-  `message_id`, :57-63; 77 samples), while the payload schema `SdkTypeEmitter.cs:129` builds from the CLR type is
-  camelCase (`SdkReflection.cs:86-88`). The test only checks reflection samples against the schema
-  (`EventSamplePayloadsTests.cs:1250-1300`). Not yet known: which casing a script receives at runtime; that
-  decides which side is wrong. Done-when: a test pins the runtime casing a script sees; samples, schema and the
-  `types.d.ts` the editor uses all match it; a test runs every one of the 77 samples against the schema and
-  failed first.
+- **S-EVENT-SAMPLE-CASING** Checked 2026-10-03 (.scratch/bugs-verified-editor.md #8) and 2026-10-04. The 77
+  fixture samples in `EventSamplePayloads.cs` are raw Twitch EventSub wire payloads (snake_case, Twitch field
+  names, e.g. `chat.message` :57-63), while the payload schema `SdkTypeEmitter.cs:129` builds from the domain
+  event record is camelCase with other fields (`SdkReflection.cs:86-88`): 77 of 219 catalog samples fail their
+  own schema. A script never receives a catalog payload (`RunCodeAction.cs:48-57` passes args and flat
+  variables; "There is no event bus in the sandbox", `SdkRuntimeSurface.cs:177-181`), so the schema (the domain
+  shape) is the contract. Decision (worker, 2026-10-04): each fixture sample is run through its real translator
+  into the domain event and serialised with the SDK casing, so the sample keeps real values and matches the
+  schema; an event with no translator uses the reflection sample. Done-when: a test checks all 219 samples
+  against their schema (failed first: 77 of 219), and the fixture-pinning test is replaced by one that pins the
+  translated values.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
