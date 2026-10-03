@@ -37,9 +37,15 @@ public sealed class ScriptTestRunServiceTests
 
     private static (ScriptTestRunService Sut, AuthDbContext Db, ScriptStorageService Storage) Build(
         bool flagsEnabled = true,
-        ITtsDispatchService? tts = null
+        ITtsDispatchService? tts = null,
+        NomNomzBot.Domain.Chat.Interfaces.IChatProvider? chat = null,
+        NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier? widgetNotifier = null,
+        string? registeredActionType = null
     )
     {
+        chat ??= Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
+        widgetNotifier ??=
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>();
         tts ??= Substitute.For<ITtsDispatchService>();
         AuthDbContext db = AuthTestBuilder.NewContext();
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
@@ -53,18 +59,33 @@ public sealed class ScriptTestRunServiceTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(flagsEnabled);
-        ScriptCapabilityBroker broker = new(features);
+        Microsoft.Extensions.DependencyInjection.ServiceCollection actions = new();
+        if (registeredActionType is not null)
+        {
+            ICommandAction action = Substitute.For<ICommandAction>();
+            action.ActionType.Returns(registeredActionType);
+            Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton(
+                actions,
+                action
+            );
+        }
+        ScriptCapabilityBroker broker = new(
+            features,
+            Microsoft.Extensions.DependencyInjection.ServiceCollectionContainerBuilderExtensions.BuildServiceProvider(
+                actions
+            )
+        );
 
         ScriptStorageService storage = new(db);
         ScriptHostBridgeFactory bridgeFactory = new(
-            Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>(),
+            chat,
             Substitute.For<NomNomzBot.Application.Economy.Services.ICurrencyAccountService>(),
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
             Substitute.For<IHttpClientFactory>(),
             storage,
             tts,
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
-            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>(),
+            widgetNotifier,
             Substitute.For<NomNomzBot.Application.Rewards.Services.IRewardService>(),
             Substitute.For<NomNomzBot.Application.Contracts.Analytics.IViewerAnalyticsService>(),
             Substitute.For<NomNomzBot.Application.Tts.Services.ITtsConfigService>(),
@@ -476,6 +497,55 @@ public sealed class ScriptTestRunServiceTests
         result.ChatOutput.Should().Equal("b");
         result.CapturedEffects.Select(e => e.Name).Should().Equal("chat.send", "storage.set");
         result.Console.Should().Equal("a", "d");
+    }
+
+    [Fact]
+    public async Task A_follow_test_run_shows_the_chat_the_obs_scene_switch_and_the_widget_emit_in_order()
+    {
+        NomNomzBot.Domain.Chat.Interfaces.IChatProvider chat =
+            Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
+        NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier widgetNotifier =
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>();
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build(
+            chat: chat,
+            widgetNotifier: widgetNotifier,
+            registeredActionType: "obs_switch_scene"
+        );
+        const string js = """
+            nnz.api.chat.send('Welcome ' + bot.getVar('user') + '!');
+            nnz.api.actions.invoke('obs_switch_scene', { scene: 'Follow Alert' });
+            nnz.api.widget.emit('alerts', 'follow', { who: bot.getVar('user') });
+            """;
+        Guid id = await SeedAsync(
+            db,
+            js,
+            ["chat.send", "actions.invoke:obs_switch_scene", "widget.emit"]
+        );
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string>(),
+            [],
+            Trigger: "FollowEvent"
+        );
+
+        await sut.RunAsync(id, request); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, request)).Value;
+
+        result.Success.Should().BeTrue(result.Error);
+        result.Timeline.Select(t => t.Seq).Should().Equal(1, 2, 3);
+        result.Timeline.Select(t => t.Kind).Should().Equal("chat", "effect", "effect");
+        result.Timeline[0].Text.Should().Contain("Sample Follower");
+        result
+            .Timeline[1]
+            .Text.Should()
+            .Contain("actions.invoke:obs_switch_scene")
+            .And.Contain("Follow Alert");
+        result.Timeline[2].Text.Should().Contain("widget.emit").And.Contain("follow");
+
+        // Nothing went out live: no real chat message and no real widget push.
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        await widgetNotifier
+            .DidNotReceiveWithAnyArgs()
+            .SendWidgetEventAsync(default, default, default!, default);
     }
 
     [Fact]
