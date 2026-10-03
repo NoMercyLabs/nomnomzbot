@@ -24,13 +24,18 @@ namespace NomNomzBot.Infrastructure.DevPlatform;
 internal sealed class TypeScriptDefinitionWriter
 {
     private readonly SdkContext _context;
+    private readonly IReadOnlyList<string>? _triggerKeys;
     private readonly Dictionary<Type, string> _interfaceNames = new();
     private readonly HashSet<string> _usedNames = new(StringComparer.Ordinal);
     private readonly List<Type> _objectTypes = [];
     private readonly Dictionary<Type, List<string>> _propertyLines = new();
     private readonly Queue<Type> _pending = new();
 
-    public TypeScriptDefinitionWriter(SdkContext context) => _context = context;
+    public TypeScriptDefinitionWriter(SdkContext context, IReadOnlyList<string>? triggerKeys = null)
+    {
+        _context = context;
+        _triggerKeys = triggerKeys;
+    }
 
     public string Build(IReadOnlyList<EventDescriptor> events)
     {
@@ -83,15 +88,19 @@ internal sealed class TypeScriptDefinitionWriter
             sb.AppendLine();
         }
 
-        sb.AppendLine("interface NnzEventMap {");
-        foreach (EventDescriptor descriptor in events)
-            sb.AppendLine($"  '{descriptor.WireName}': {_interfaceNames[descriptor.ClrType]};");
-        sb.AppendLine("}");
-        sb.AppendLine();
+        // A script has no event bus, so only the widget page gets the event map.
+        if (_context == SdkContext.Widget)
+        {
+            sb.AppendLine("interface NnzEventMap {");
+            foreach (EventDescriptor descriptor in events)
+                sb.AppendLine($"  '{descriptor.WireName}': {_interfaceNames[descriptor.ClrType]};");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
 
         sb.AppendLine(
             _context == SdkContext.Script
-                ? SdkRuntimeSurface.ScriptGlobals()
+                ? SdkRuntimeSurface.ScriptGlobals(_triggerKeys)
                 : SdkRuntimeSurface.WidgetGlobals()
         );
 

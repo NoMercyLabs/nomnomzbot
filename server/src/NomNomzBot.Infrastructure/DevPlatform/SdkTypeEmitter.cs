@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
@@ -24,11 +26,52 @@ namespace NomNomzBot.Infrastructure.DevPlatform;
 public sealed class SdkTypeEmitter : ISdkTypeEmitter
 {
     private readonly IEventCatalog _catalog;
+    private readonly ITriggerSampleCatalog? _samples;
 
-    public SdkTypeEmitter(IEventCatalog catalog) => _catalog = catalog;
+    public SdkTypeEmitter(IEventCatalog catalog, ITriggerSampleCatalog? samples = null)
+    {
+        _catalog = catalog;
+        _samples = samples;
+    }
 
     public string EmitTypeScript(SdkContext context) =>
         new TypeScriptDefinitionWriter(context).Build(VisibleFor(context));
+
+    public Result<string> EmitTypeScript(SdkContext context, string triggerKey)
+    {
+        IReadOnlyList<string>? keys = TriggerVariableKeys(triggerKey);
+        if (keys is null)
+            return Result.Failure<string>($"Unknown trigger '{triggerKey}'.", "UNKNOWN_TRIGGER");
+
+        return Result.Success(
+            new TypeScriptDefinitionWriter(context, keys).Build(VisibleFor(context))
+        );
+    }
+
+    // The keys a trigger always sets: the live chat-command set, or the union over the samples that run the
+    // event response. Null when no trigger has that key.
+    private IReadOnlyList<string>? TriggerVariableKeys(string triggerKey)
+    {
+        if (string.Equals(triggerKey, ChatCommandVariableKeys.Trigger, StringComparison.Ordinal))
+            return ChatCommandVariableKeys.Keys;
+
+        List<TriggerSample> matching =
+        [
+            .. (_samples?.List() ?? []).Where(sample =>
+                string.Equals(sample.ResponseKey, triggerKey, StringComparison.Ordinal)
+            ),
+        ];
+        if (matching.Count == 0)
+            return null;
+
+        return
+        [
+            .. matching
+                .SelectMany(sample => sample.Variables.Keys)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(key => key, StringComparer.Ordinal),
+        ];
+    }
 
     public IReadOnlyList<EventCatalogItemDto> EmitEventCatalog(SdkContext context)
     {

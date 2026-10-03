@@ -178,10 +178,10 @@ internal static class SdkRuntimeSurface
     /// SDK, in the order the bootstrap defines them. There is no event bus in the sandbox — a script is invoked by
     /// the <c>run_code</c> pipeline action with args + variables — so no <c>on/once/off</c> is declared.
     /// </summary>
-    public static string ScriptGlobals()
+    public static string ScriptGlobals(IReadOnlyList<string>? triggerKeys = null)
     {
         StringBuilder sb = new();
-        AppendBotFacade(sb);
+        AppendBotFacade(sb, triggerKeys);
         sb.AppendLine();
         AppendBatteryInterfaces(sb);
         AppendApiInterfaces(sb);
@@ -299,18 +299,53 @@ internal static class SdkRuntimeSurface
         return sb.ToString();
     }
 
-    private static void AppendBotFacade(StringBuilder sb)
+    private static void AppendVarKeyType(StringBuilder sb, IReadOnlyList<string> keys)
     {
+        sb.AppendLine("/** The variable keys this script's trigger always sets. */");
+        string union =
+            keys.Count == 0
+                ? "never"
+                : string.Join(
+                    " | ",
+                    keys.Select(key =>
+                        key.Contains("${", StringComparison.Ordinal)
+                            ? $"`{key}`"
+                            : $"'{key.Replace("'", "\\'")}'"
+                    )
+                );
+        sb.AppendLine($"type NnzVarKey = {union};");
+        sb.AppendLine();
+    }
+
+    private static void AppendBotFacade(StringBuilder sb, IReadOnlyList<string>? triggerKeys)
+    {
+        if (triggerKeys is not null)
+            AppendVarKeyType(sb, triggerKeys);
+
         sb.AppendLine(
             "/** The primitive-in/primitive-out host facade every script runs against. */"
         );
         sb.AppendLine("declare const bot: {");
         sb.AppendLine("  /** The arguments the trigger passed in ('!roll 20' -> ['20']). */");
         sb.AppendLine("  args: string[];");
-        sb.AppendLine(
-            "  /** The value of a variable the pipeline set. null when the variable does not exist. */"
-        );
-        sb.AppendLine("  getVar(key: string): string | null;");
+        if (triggerKeys is null)
+        {
+            sb.AppendLine(
+                "  /** The value of a variable the pipeline set. null when the variable does not exist. */"
+            );
+            sb.AppendLine("  getVar(key: string): string | null;");
+        }
+        else
+        {
+            sb.AppendLine(
+                "  /** The value of a variable this trigger always sets. A key the trigger does not set is flagged as a typo. */"
+            );
+            sb.AppendLine("  getVar(key: NnzVarKey): string | null;");
+            sb.AppendLine(
+                "  /** The value of a variable set by setVar or by an earlier pipeline step. Pass true to say the key is dynamic. null when it does not exist. */"
+            );
+            sb.AppendLine("  getVar(key: string, dynamic: true): string | null;");
+        }
         sb.AppendLine(
             "  /** Sets a variable that later pipeline steps can read. The value is stored as text. */"
         );
