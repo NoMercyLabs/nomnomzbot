@@ -20,6 +20,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Commands.Jobs;
+using NomNomzBot.Infrastructure.Tests.Common;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -149,7 +150,7 @@ public sealed class ScheduledPipelineExpiryServiceTests
         );
         await sut.TickAsync(CancellationToken.None);
 
-        await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         (await db.ScheduledPipelineTasks.SingleAsync())
             .Status.Should()
             .Be(ScheduledPipelineTaskStatus.Pending);
@@ -164,7 +165,7 @@ public sealed class ScheduledPipelineExpiryServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying()
     {
-        FakeTimeProvider clock = new(Start);
+        TimerCountingTimeProvider clock = new(Start);
         ThrowingScopeFactory scopeFactory = new();
 
         ScheduledPipelineExpiryService sut = new(
@@ -177,7 +178,8 @@ public sealed class ScheduledPipelineExpiryServiceTests
         await sut.StartAsync(cts.Token);
         try
         {
-            await WaitUntilAsync(() => scopeFactory.CallCount >= 1);
+            await TestWait.UntilAsync(() => scopeFactory.CallCount >= 1, "the first tick");
+            await clock.WaitForTimersAsync(1);
             scopeFactory.CallCount.Should().Be(1);
 
             clock.Advance(TimeSpan.FromSeconds(4));
@@ -185,19 +187,13 @@ public sealed class ScheduledPipelineExpiryServiceTests
             scopeFactory.CallCount.Should().Be(1, "the failing tick's delay has not elapsed yet");
 
             clock.Advance(TimeSpan.FromSeconds(1));
-            await WaitUntilAsync(() => scopeFactory.CallCount >= 2);
+            await TestWait.UntilAsync(() => scopeFactory.CallCount >= 2, "the retry tick");
             scopeFactory.CallCount.Should().Be(2);
         }
         finally
         {
             await sut.StopAsync(CancellationToken.None);
         }
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        for (int i = 0; i < 100 && !condition(); i++)
-            await Task.Delay(10, CancellationToken.None);
     }
 
     /// <summary>A scope factory that always fails to create a scope — simulates a throwing tick.</summary>

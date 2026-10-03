@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Jobs;
+using NomNomzBot.Infrastructure.Tests.Common;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 using Timer = NomNomzBot.Domain.Commands.Entities.Timer;
@@ -472,7 +473,7 @@ public sealed class TimerServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying()
     {
-        FakeTimeProvider clock = new(Now);
+        TimerCountingTimeProvider clock = new(Now);
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.GetAll().Returns(_ => throw new InvalidOperationException("registry boom"));
 
@@ -490,7 +491,11 @@ public sealed class TimerServiceTests
         try
         {
             // Let the background loop's first (throwing) tick run and reach its delay.
-            await WaitUntilAsync(() => registry.ReceivedCalls().Count() >= 1);
+            await TestWait.UntilAsync(
+                () => registry.ReceivedCalls().Count() >= 1,
+                "the first tick"
+            );
+            await clock.WaitForTimersAsync(1);
             registry.ReceivedCalls().Count().Should().Be(1);
 
             // Advancing LESS than the 30s interval must not release the delay — no second tick yet.
@@ -502,17 +507,12 @@ public sealed class TimerServiceTests
                 .Should()
                 .Be(1, "the failing tick's delay has not elapsed yet");
 
-            // Crossing the interval releases the delay and the loop retries exactly once more. The
-            // advance is applied in one-second steps until the retry lands: the background loop
-            // registers its delay on a real thread-pool turn, so under load it can still be BEFORE that
-            // registration when the first advance fires — a single jump would then move the clock past
-            // a timer that did not exist yet and the retry would never come. Stepping re-applies the
-            // move until the timer exists, which is deterministic regardless of who wins that race.
-            for (int step = 0; step < 60 && registry.ReceivedCalls().Count() < 2; step++)
-            {
-                clock.Advance(TimeSpan.FromSeconds(1));
-                await WaitUntilAsync(() => registry.ReceivedCalls().Count() >= 2, iterations: 20);
-            }
+            // Crossing the interval releases the delay and the loop retries exactly once more.
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await TestWait.UntilAsync(
+                () => registry.ReceivedCalls().Count() >= 2,
+                "the retry tick"
+            );
 
             registry.ReceivedCalls().Count().Should().Be(2);
         }
@@ -520,15 +520,5 @@ public sealed class TimerServiceTests
         {
             await service.StopAsync(CancellationToken.None);
         }
-    }
-
-    /// <summary>Polls until the background loop has caught up. The budget is generous on purpose: this
-    /// waits on a REAL thread-pool turn (only the clock is fake), so a machine running the full suite in
-    /// parallel can easily need more than a second — a tighter budget made this test flake red in CI
-    /// while passing in isolation. A condition that is genuinely never met still fails, just later.</summary>
-    private static async Task WaitUntilAsync(Func<bool> condition, int iterations = 200)
-    {
-        for (int i = 0; i < iterations && !condition(); i++)
-            await Task.Delay(10, CancellationToken.None);
     }
 }

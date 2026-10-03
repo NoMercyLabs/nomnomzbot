@@ -11,8 +11,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Infrastructure.Rewards.Jobs;
+using NomNomzBot.Infrastructure.Tests.Common;
 
 namespace NomNomzBot.Infrastructure.Tests.Rewards;
 
@@ -29,7 +29,7 @@ public sealed class RedemptionTimerExpiryServiceTests
     [Fact]
     public async Task ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying()
     {
-        FakeTimeProvider clock = new(Start);
+        TimerCountingTimeProvider clock = new(Start);
         ThrowingScopeFactory scopeFactory = new();
 
         RedemptionTimerExpiryService sut = new(
@@ -42,7 +42,8 @@ public sealed class RedemptionTimerExpiryServiceTests
         await sut.StartAsync(cts.Token);
         try
         {
-            await WaitUntilAsync(() => scopeFactory.CallCount >= 1);
+            await TestWait.UntilAsync(() => scopeFactory.CallCount >= 1, "the first tick");
+            await clock.WaitForTimersAsync(1);
             scopeFactory.CallCount.Should().Be(1);
 
             // Advancing LESS than the 2s interval must not release the delay — no second tick yet.
@@ -52,19 +53,13 @@ public sealed class RedemptionTimerExpiryServiceTests
 
             // Crossing the interval releases the delay and the loop retries exactly once more.
             clock.Advance(TimeSpan.FromMilliseconds(100));
-            await WaitUntilAsync(() => scopeFactory.CallCount >= 2);
+            await TestWait.UntilAsync(() => scopeFactory.CallCount >= 2, "the retry tick");
             scopeFactory.CallCount.Should().Be(2);
         }
         finally
         {
             await sut.StopAsync(CancellationToken.None);
         }
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        for (int i = 0; i < 100 && !condition(); i++)
-            await Task.Delay(10, CancellationToken.None);
     }
 
     /// <summary>A scope factory that always fails to create a scope — simulates a throwing tick.</summary>

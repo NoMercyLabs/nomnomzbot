@@ -27,6 +27,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Tests.Common;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 
@@ -1017,7 +1018,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
     [Fact]
     public async Task ExecuteAsync_WhenTickThrows_StillWaitsTheFullIntervalBeforeRetrying()
     {
-        FakeTimeProvider clock = new(Start);
+        TimerCountingTimeProvider clock = new(Start);
         ThrowingScopeFactory scopeFactory = new();
 
         YouTubeLiveChatPollWorker worker = new(
@@ -1033,7 +1034,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
         await worker.StartAsync(cts.Token);
         try
         {
-            await WaitUntilAsync(() => scopeFactory.CallCount >= 1);
+            await TestWait.UntilAsync(() => scopeFactory.CallCount >= 1, "the first tick");
+            await clock.WaitForTimersAsync(1);
             scopeFactory.CallCount.Should().Be(1);
 
             // Advancing LESS than the 5s interval must not release the delay — no second tick yet.
@@ -1043,19 +1045,13 @@ public sealed class YouTubeLiveChatPollWorkerTests
 
             // Crossing the interval releases the delay and the loop retries exactly once more.
             clock.Advance(TimeSpan.FromSeconds(1));
-            await WaitUntilAsync(() => scopeFactory.CallCount >= 2);
+            await TestWait.UntilAsync(() => scopeFactory.CallCount >= 2, "the retry tick");
             scopeFactory.CallCount.Should().Be(2);
         }
         finally
         {
             await worker.StopAsync(CancellationToken.None);
         }
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        for (int i = 0; i < 100 && !condition(); i++)
-            await Task.Delay(10, CancellationToken.None);
     }
 
     /// <summary>A scope factory that always fails to create a scope — simulates a throwing tick.</summary>
