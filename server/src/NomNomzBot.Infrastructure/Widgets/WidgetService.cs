@@ -235,11 +235,13 @@ public class WidgetService : IWidgetService
             new() { SourceCode = forkSource },
             cancellationToken
         );
-        if (compiled.IsFailure)
-            return Result.Failure<WidgetDetail>(
-                compiled.ErrorMessage ?? "The cloned widget failed to compile.",
-                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
-            );
+        Result<WidgetDetail>? buildFailure = BuildFailureOrNull(
+            compiled,
+            "The cloned widget failed to compile.",
+            "The cloned widget failed to build."
+        );
+        if (buildFailure is not null)
+            return buildFailure;
 
         return await GetAsync(broadcasterId, clone.Id.ToString(), cancellationToken);
     }
@@ -341,11 +343,13 @@ public class WidgetService : IWidgetService
             item.SourceCode,
             cancellationToken
         );
-        if (compiled.IsFailure)
-            return Result.Failure<WidgetDetail>(
-                compiled.ErrorMessage ?? "The installed widget failed to compile.",
-                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
-            );
+        Result<WidgetDetail>? buildFailure = BuildFailureOrNull(
+            compiled,
+            "The installed widget failed to compile.",
+            "The installed widget failed to build."
+        );
+        if (buildFailure is not null)
+            return buildFailure;
 
         // Atomic increment on the shared gallery row (SET InstallCount = InstallCount + 1 evaluated at
         // write time), not the prior in-memory `item.InstallCount += 1` + SaveChanges — concurrent
@@ -412,20 +416,15 @@ public class WidgetService : IWidgetService
             item.SourceCode,
             cancellationToken
         );
-        if (compiled.IsFailure)
-            return Result.Failure<WidgetDetail>(
-                compiled.ErrorMessage ?? "The updated widget failed to compile.",
-                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
-            );
-
         // The failed version is kept (append-only history), but the overlay still serves the previous code — say
         // so instead of reporting a reset/update that did not reach the live overlay.
-        if (compiled.Value.BuildStatus != "success")
-            return Result.Failure<WidgetDetail>(
-                compiled.Value.BuildError
-                    ?? "The catalogue source failed to build; the overlay keeps its current code.",
-                "WIDGET_BUILD_FAILED"
-            );
+        Result<WidgetDetail>? buildFailure = BuildFailureOrNull(
+            compiled,
+            "The updated widget failed to compile.",
+            "The catalogue source failed to build; the overlay keeps its current code."
+        );
+        if (buildFailure is not null)
+            return buildFailure;
 
         widget.InstalledSourceRevision = item.SourceRevision;
         await _db.SaveChangesAsync(cancellationToken);
@@ -1697,6 +1696,31 @@ public class WidgetService : IWidgetService
             await _db.SaveChangesAsync(cancellationToken);
         }
         return compiled;
+    }
+
+    /// <summary>
+    /// The failure to return when a compile either failed outright or produced a version whose build is not
+    /// <c>success</c>; null when the widget built and is live.
+    /// </summary>
+    private static Result<WidgetDetail>? BuildFailureOrNull(
+        Result<WidgetVersionDetail> compiled,
+        string compileFailureMessage,
+        string buildFailureMessage
+    )
+    {
+        if (compiled.IsFailure)
+            return Result.Failure<WidgetDetail>(
+                compiled.ErrorMessage ?? compileFailureMessage,
+                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
+            );
+
+        if (compiled.Value.BuildStatus != "success")
+            return Result.Failure<WidgetDetail>(
+                compiled.Value.BuildError ?? buildFailureMessage,
+                "WIDGET_BUILD_FAILED"
+            );
+
+        return null;
     }
 
     /// <summary>One widget's detail with its gallery revision and newest version number looked up.</summary>
