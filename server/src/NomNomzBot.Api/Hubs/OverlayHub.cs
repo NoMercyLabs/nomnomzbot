@@ -81,6 +81,14 @@ public class OverlayHub : Hub<IOverlayClient>
         // answer "is any browser source connected at all" for features (sound-clip stop) that push to the
         // shared bus rather than one specific widget.
         _presence.Attach(Context.ConnectionId, overlayGroup);
+        // A widget gets its events as WidgetEvent, by subscription. Only a page that hosts no widget reads
+        // the generic feed; JoinWidget takes a channel-wide connection off it again.
+        if (scope.WidgetId is null)
+        {
+            string feedGroup = OverlayPresenceRegistry.FeedGroupName(scope.BroadcasterId);
+            await Groups.AddToGroupAsync(Context.ConnectionId, feedGroup);
+            _presence.Attach(Context.ConnectionId, feedGroup);
+        }
         _logger.LogDebug("Overlay connected for channel {B}", scope.BroadcasterId);
         await base.OnConnectedAsync();
     }
@@ -108,6 +116,9 @@ public class OverlayHub : Hub<IOverlayClient>
         string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
         _presence.Attach(Context.ConnectionId, groupName);
+        string feedGroup = OverlayPresenceRegistry.FeedGroupName(broadcasterId);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, feedGroup);
+        _presence.Detach(Context.ConnectionId, feedGroup);
         _logger.LogDebug(
             "Overlay connection {C} joined widget {W}",
             Context.ConnectionId,

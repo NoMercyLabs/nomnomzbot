@@ -152,7 +152,7 @@ public sealed class OverlayHubTests
 
         await first
             .Groups.Received(1)
-            .AddToGroupAsync("conn-1", Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .AddToGroupAsync("conn-1", $"overlay-{Broadcaster}", Arg.Any<CancellationToken>());
         await second
             .Groups.DidNotReceive()
             .AddToGroupAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
