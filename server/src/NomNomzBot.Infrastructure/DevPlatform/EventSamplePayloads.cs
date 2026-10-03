@@ -11,23 +11,25 @@
 namespace NomNomzBot.Infrastructure.DevPlatform;
 
 /// <summary>
-/// Real EventSub wire payloads, keyed by the SDK event catalog's own <see cref="EventDescriptor.WireName"/> —
+/// Real EventSub wire payloads, keyed by the SDK event catalog's own <see cref="EventDescriptor.WireName"/>:
 /// NOT the raw Twitch EventSub subscription type (e.g. <c>channel.follow</c>). Domain events without an
-/// <c>[Event("…")]</c> override get their catalog wire name from <see cref="EventCatalog.DeriveWireName"/>
+/// <c>[Event("...")]</c> override get their catalog wire name from <see cref="EventCatalog.DeriveWireName"/>
 /// (module-from-namespace + PascalCase-split type name), so <c>FollowEvent</c> (Domain.Community.Events)
 /// catalogs as <c>community.follow</c>, not <c>channel.follow</c>. Each value below is copied verbatim from the
-/// raw-string fixture used in the corresponding translator's own behaviour test — the verified-real Twitch wire
-/// shape, not a hand-written approximation. Only events with a fixture proven against a real translator test
-/// appear here (external EventSub-derived events). Every other event is an internal domain event with no wire
-/// format to translate from — its C# type IS the ground truth, so <see cref="SdkTypeEmitter.EmitEventCatalog"/>
-/// falls back to <see cref="ReflectionSampleGenerator"/> for those, reflecting the same type the JSON Schema is
-/// built from rather than a hand-guessed payload.
+/// raw-string fixture used in the corresponding translator's own behaviour test: the verified-real Twitch wire
+/// shape, not a hand-written approximation.
+/// <para>
+/// These payloads are INPUT, never the catalog sample itself. A script never receives the wire payload; it
+/// receives the domain event the translator makes from it. <see cref="TranslatedEventSamples"/> runs each fixture
+/// through its real translator and writes the resulting event with the payload schema's own names. Every event
+/// without a fixture (an internal domain event with no wire format) falls back to
+/// <see cref="ReflectionSampleGenerator"/>, which reflects the same type the JSON Schema is built from.
+/// </para>
 /// </summary>
 /// <remarks>
-/// TODO: attach a verified real fixture here for any external EventSub event as its translator test is written or
-/// located, moving it out of the reflection-generated fallback. Never fabricate an external wire payload by hand —
-/// either copy it from a real translator fixture (this dictionary) or let the reflection fallback generate it from
-/// the type itself when there is no external wire format to copy from.
+/// Attach a verified real fixture here for any external EventSub event as its translator test is written or
+/// located. Never fabricate an external wire payload by hand: copy it from a real translator fixture, or let the
+/// reflection fallback generate it from the type itself.
 /// </remarks>
 public static class EventSamplePayloads
 {
@@ -576,24 +578,6 @@ public static class EventSamplePayloads
                 },
                 "timeout": null,
                 "delete": null
-            }
-            """,
-
-        // ChannelModerateTranslatorTests.ChannelModerate_RaidAction_AlsoPublishesTheOutgoingRaidEvent
-        // Twitch subscription type: channel.moderate (v2, action "raid"). Catalog wire name: OutgoingRaidEvent
-        // (Domain.Stream.Events) derives to "stream.outgoing.raid".
-        ["stream.outgoing.raid"] = """
-            {
-                "broadcaster_user_id": "423374343",
-                "moderator_user_id": "423374343",
-                "action": "raid",
-                "ban": null,
-                "raid": {
-                    "user_id": "141981764",
-                    "user_login": "twitchdev",
-                    "user_name": "TwitchDev",
-                    "viewer_count": 42
-                }
             }
             """,
 

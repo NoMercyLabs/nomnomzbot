@@ -123,6 +123,7 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     public IReadOnlyList<EventCatalogItemDto> EmitEventCatalog(SdkContext context)
     {
         JsonSchemaWriter schema = new(context);
+        TranslatedEventSamples translated = TranslatedEventSamples.For(_catalog);
         return
         [
             .. VisibleFor(context)
@@ -130,7 +131,7 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
                     d.WireName,
                     d.Visibility.ToString(),
                     schema.BuildPayloadSchema(d.ClrType),
-                    EventSamplePayloads.ByWireName.GetValueOrDefault(d.WireName)
+                    translated.SampleFor(d, context)
                         ?? ReflectionSampleGenerator.Generate(d.ClrType, context)
                 )),
         ];
