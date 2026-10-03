@@ -1932,6 +1932,10 @@
     <string name="scripts_editor_source_label">Source</string>
     <string name="scripts_editor_edit_code">Edit &amp; compile</string>
     <string name="scripts_editor_compiled">Compiled and published</string>
+    <string name="scripts_test_timeline">Timeline</string>
+    <string name="scripts_test_timeline_chat">Chat</string>
+    <string name="scripts_test_timeline_effect">Effect</string>
+    <string name="scripts_test_timeline_console">Console</string>
     <string name="scripts_test_manual">Manual</string>
     <string name="scripts_test_trigger_label">Trigger</string>
     <string name="scripts_test_role_label">Run as</string>

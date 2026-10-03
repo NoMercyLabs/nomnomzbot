@@ -83,9 +83,10 @@ public sealed class CaptureScriptHostBridge(
         return (key, args, ct) =>
         {
             _lastCallWasCaptured = true;
-            sink.Record(key, args);
             if (key is "chat.send" or "chat.reply")
-                sink.AddChatOutput(args.Count > 0 ? args[0] : string.Empty);
+                sink.RecordChat(key, args);
+            else
+                sink.Record(key, args);
             // tts.speak returns the shape a live dispatch returns: the voice the channel would really use (null
             // when a live run would refuse it), the length, and durationMs 0 because nothing was synthesized.
             if (key == "tts.speak")

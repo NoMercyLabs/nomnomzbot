@@ -113,15 +113,17 @@ public sealed class ScriptTestRunService(
 
         Dictionary<string, string> seeded = SeedVariables(sample, request, roleToken);
         string triggeringUserId = sample?.UserId ?? broadcasterId.ToString();
+        CaptureSink sink = new();
         ScriptExecutionRequest execRequest = new(
             Guid.NewGuid().ToString("N")[..12],
             version.CompiledJs,
             version.CompiledHash ?? string.Empty,
             new(triggeringUserId, sample?.UserDisplayName ?? "Test Run", request.Args, seeded),
-            ScriptResourceBudget.Baseline
+            ScriptResourceBudget.Baseline,
+            sink.AddConsoleLine,
+            sink.AddBotSend
         );
 
-        CaptureSink sink = new();
         IScriptHostBridge realBridge = bridgeFactory.Create(
             broadcasterId,
             triggeringUserId,
@@ -171,6 +173,9 @@ public sealed class ScriptTestRunService(
                 ChangedVariables(seeded, outcome.VariablesOut),
                 outcome.LogLines
             )
+            {
+                Timeline = sink.Timeline,
+            }
         );
     }
 

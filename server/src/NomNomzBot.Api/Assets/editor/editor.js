@@ -1093,7 +1093,10 @@ function parseTestRunVariables(text) {
 // Trigger select: "Manual" (no trigger) then one option per server sample, labelled by the sample's label; role
 // select: the role tokens the host named, default viewer. The words come from the host in `labels` - none live here.
 // Picking a trigger fills the variables box with that sample's variables; the author's edits afterwards still win.
+let testRunLabels = {};
+
 function fillTestRunPickers(triggers, labels) {
+    testRunLabels = labels;
     const samples = new Map(triggers.map((trigger) => [trigger.id, trigger]));
     dom.testRunTriggerLabel.textContent = labels.trigger ?? '';
     dom.testRunRoleLabel.textContent = labels.role ?? '';
@@ -1139,6 +1142,19 @@ function requestTestRun() {
     });
 }
 
+// Absent (not empty) when the run kind does not track them, so the panel never claims "none" for them.
+function appendTestRunVariables(sections, data) {
+    if (!data.variablesSet) {
+        return;
+    }
+    const entries = Object.entries(data.variablesSet);
+    sections.push(
+        entries.length === 0
+            ? 'Variables set: (none)'
+            : `Variables set:\n${entries.map(([key, value]) => `${key} = ${value}`).join('\n')}`,
+    );
+}
+
 function showTestRunResult(data) {
     dom.testRunButton.disabled = false;
     dom.testRunButton.textContent = 'Run test';
@@ -1157,21 +1173,29 @@ function showTestRunResult(data) {
         ? `Success — ${data.durationMs}ms, ${data.hostCallCount} host call(s)`
         : `Failed${data.error ? `: ${data.error}` : ''}`;
 
+    // One ordered list when the host sent a timeline; the older per-kind sections remain the fallback.
+    const timeline = data.timeline ?? [];
+    if (timeline.length > 0) {
+        const tags = {
+            chat: testRunLabels.timelineChat,
+            effect: testRunLabels.timelineEffect,
+            console: testRunLabels.timelineConsole,
+        };
+        const rows = timeline.map((row) => `${row.seq}  [${tags[row.kind] ?? row.kind}]  ${row.text}`);
+        const sections = [`${testRunLabels.timeline ?? ''}:\n${rows.join('\n')}`];
+        appendTestRunVariables(sections, data);
+        dom.testRunResult.hidden = false;
+        dom.testRunResult.textContent = sections.join('\n\n');
+        return;
+    }
+
     const chat = data.chatOutput.length === 0 ? 'Chat output: (none)' : `Chat output:\n${data.chatOutput.join('\n')}`;
     const effects =
         data.effects.length === 0
             ? 'Captured effects: (none)'
             : `Captured effects:\n${data.effects.map((effect) => `${effect.name}  ${effect.argsPreview}`).join('\n')}`;
     const sections = [chat, effects];
-    // Absent (not empty) when the run kind does not track them, so the panel never claims "none" for them.
-    if (data.variablesSet) {
-        const entries = Object.entries(data.variablesSet);
-        sections.push(
-            entries.length === 0
-                ? 'Variables set: (none)'
-                : `Variables set:\n${entries.map(([key, value]) => `${key} = ${value}`).join('\n')}`,
-        );
-    }
+    appendTestRunVariables(sections, data);
     if (data.console) {
         sections.push(data.console.length === 0 ? 'Console: (none)' : `Console:\n${data.console.join('\n')}`);
     }

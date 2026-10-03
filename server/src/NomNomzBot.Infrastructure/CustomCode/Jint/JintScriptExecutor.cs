@@ -370,13 +370,23 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                         if (logLines.Count >= MaxLogLines)
                             droppedLogLines++;
                         else
-                            logLines.Add(level.Length == 0 ? text : $"{level}: {text}");
+                        {
+                            string line = level.Length == 0 ? text : $"{level}: {text}";
+                            logLines.Add(line);
+                            request.OnConsoleLine?.Invoke(line);
+                        }
                     }
                 )
             );
             engine.SetValue(
                 "__send",
-                (Action<string>)(m => Append(output, m, request.Budget.MaxOutputBytes))
+                (Action<string>)(
+                    m =>
+                    {
+                        Append(output, m, request.Budget.MaxOutputBytes);
+                        request.OnBotSend?.Invoke(m);
+                    }
+                )
             );
             engine.SetValue(
                 "__call",

@@ -229,7 +229,13 @@ data class TestRunResult(
     val variablesSet: Map<String, String>? = null,
     /** The script's own console lines; null when the run kind has none (pipelines). */
     val console: List<String>? = null,
+    /** Every effect, chat message and console line in the order it happened; empty for run kinds without one. */
+    val timeline: List<TimelineEntry> = emptyList(),
 )
+
+/** One row of a dry-run timeline (backend `TimelineEntryDto`); [kind] is chat, effect or console. */
+@Serializable
+data class TimelineEntry(val seq: Int = 0, val kind: String = "", val text: String = "")
 
 /** One captured outward/mutating effect a dry-run recorded instead of performing (backend `CapturedEffectDto`). */
 @Serializable

@@ -41,6 +41,13 @@ public sealed record TestTriggerDto(
 public sealed record CapturedEffectDto(string Name, string ArgsPreview);
 
 /// <summary>
+/// One row of a test-run timeline: everything the run would have done outwardly, in the order it happened.
+/// <c>Seq</c> counts from 1; <c>Kind</c> is <c>chat</c>, <c>effect</c> or <c>console</c>; <c>Text</c> is the chat
+/// message, the console line, or <c>name: argsPreview</c> for an effect.
+/// </summary>
+public sealed record TimelineEntryDto(int Seq, string Kind, string Text);
+
+/// <summary>
 /// The uniform result of a script or pipeline test-run (custom-code.md / commands-pipelines.md). The logic ran for
 /// real; every outward/mutating effect was CAPTURED (see <see cref="CapturedEffects"/>) rather than committed, while
 /// read-only calls (reads, conditions, template resolution, random draws) ran against the live services so the
@@ -56,7 +63,11 @@ public sealed record TestRunResultDto(
     IReadOnlyList<string> Log,
     IReadOnlyDictionary<string, string>? VariablesSet,
     IReadOnlyList<string>? Console
-);
+)
+{
+    /// <summary>Every effect, chat message and console line in the order it happened; empty when the run kind has none.</summary>
+    public IReadOnlyList<TimelineEntryDto> Timeline { get; init; } = [];
+}
 
 /// <summary>
 /// Executes a code-script's current version in CAPTURE mode (custom-code.md §6). The real sandbox runs the compiled

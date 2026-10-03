@@ -181,6 +181,37 @@ class EditorBridgeSessionTest {
     }
 
     @Test
+    fun testRunPostsTheTimelineInOrder() = runTest {
+        val testRun =
+            EditorTestRun { _, _, _, _ ->
+                EditorOutcome.Ok(
+                    EditorTestRunResult(
+                        success = true,
+                        durationMs = 3,
+                        hostCallCount = 1,
+                        error = null,
+                        chatOutput = listOf("b"),
+                        effects = emptyList(),
+                        timeline =
+                            listOf(
+                                EditorTestRunTimelineEntry(1, "console", "a"),
+                                EditorTestRunTimelineEntry(2, "chat", "b"),
+                                EditorTestRunTimelineEntry(3, "effect", "storage.set: k | c"),
+                            ),
+                    )
+                )
+            }
+        val harness = Harness(testRun = testRun)
+
+        harness.session.handle(EditorBridgeProtocol.decode("""{"type":"nnz:editor:testRun","variables":{},"args":[]}""")!!)
+
+        val timeline = parse(harness.posted.single())["timeline"]!!.jsonArray.map { row -> row.jsonObject }
+        assertEquals(listOf(1, 2, 3), timeline.map { row -> row["seq"]!!.jsonPrimitive.content.toInt() })
+        assertEquals(listOf("console", "chat", "effect"), timeline.map { row -> row["kind"]!!.jsonPrimitive.content })
+        assertEquals("storage.set: k | c", timeline[2]["text"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun testRunPassesVariablesAndArgsAndPostsCapturedEffects() = runTest {
         val received: MutableList<Pair<Map<String, String>, List<String>>> = mutableListOf()
         val testRun =

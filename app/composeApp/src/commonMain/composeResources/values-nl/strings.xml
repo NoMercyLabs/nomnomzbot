@@ -1927,6 +1927,10 @@
     <string name="scripts_editor_source_label">Broncode</string>
     <string name="scripts_editor_edit_code">Bewerken en compileren</string>
     <string name="scripts_editor_compiled">Gecompileerd en gepubliceerd</string>
+    <string name="scripts_test_timeline">Tijdlijn</string>
+    <string name="scripts_test_timeline_chat">Chat</string>
+    <string name="scripts_test_timeline_effect">Actie</string>
+    <string name="scripts_test_timeline_console">Console</string>
     <string name="scripts_test_manual">Handmatig</string>
     <string name="scripts_test_trigger_label">Trigger</string>
     <string name="scripts_test_role_label">Uitvoeren als</string>

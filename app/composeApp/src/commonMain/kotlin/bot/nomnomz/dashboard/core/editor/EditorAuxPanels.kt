@@ -70,7 +70,11 @@ data class EditorTestRunResult(
     val effects: List<EditorTestRunEffect>,
     val variablesSet: Map<String, String>? = null,
     val console: List<String>? = null,
+    val timeline: List<EditorTestRunTimelineEntry> = emptyList(),
 )
+
+/** One row of the ordered test-run timeline; [kind] is chat, effect or console. */
+data class EditorTestRunTimelineEntry(val seq: Int, val kind: String, val text: String)
 
 /**
  * Drives the editor's "Test run" panel (folded into the existing Run &amp; test side view). Passed to
@@ -99,4 +103,8 @@ data class EditorTestRunLabels(
     val trigger: String = "",
     val role: String = "",
     val roles: Map<String, String> = emptyMap(),
+    val timeline: String = "",
+    val timelineChat: String = "",
+    val timelineEffect: String = "",
+    val timelineConsole: String = "",
 )

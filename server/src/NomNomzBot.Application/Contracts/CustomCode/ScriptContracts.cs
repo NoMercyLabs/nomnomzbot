@@ -67,7 +67,9 @@ public sealed record ScriptExecutionRequest(
     string CompiledJs,
     string CompiledHash,
     ScriptInputs Inputs,
-    ScriptResourceBudget Budget
+    ScriptResourceBudget Budget,
+    Action<string>? OnConsoleLine = null,
+    Action<string>? OnBotSend = null
 );
 
 /// <summary>The capability surface handed to the sandbox — descriptors only, zero delegates (custom-code.md §4).</summary>

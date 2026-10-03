@@ -129,6 +129,10 @@ object EditorBridgeProtocol {
             put("trigger", labels.trigger)
             put("role", labels.role)
             put("roles", JsonObject(labels.roles.mapValues { entry -> JsonPrimitive(entry.value) }))
+            put("timeline", labels.timeline)
+            put("timelineChat", labels.timelineChat)
+            put("timelineEffect", labels.timelineEffect)
+            put("timelineConsole", labels.timelineConsole)
         }
 
     fun compiled(feedback: CompileFeedback): String =
@@ -170,6 +174,18 @@ object EditorBridgeProtocol {
                     "variablesSet",
                     result.variablesSet?.let { set -> JsonObject(set.mapValues { (_, value) -> JsonPrimitive(value) }) }
                         ?: JsonNull,
+                )
+                put(
+                    "timeline",
+                    JsonArray(
+                        result.timeline.map { entry ->
+                            buildJsonObject {
+                                put("seq", entry.seq)
+                                put("kind", entry.kind)
+                                put("text", entry.text)
+                            }
+                        }
+                    ),
                 )
                 put("console", result.console?.let { lines -> JsonArray(lines.map { line -> JsonPrimitive(line) }) } ?: JsonNull)
                 put(

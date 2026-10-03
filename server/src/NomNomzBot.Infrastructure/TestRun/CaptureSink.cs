@@ -24,19 +24,53 @@ public sealed class CaptureSink
 
     private readonly List<CapturedEffectDto> _effects = [];
     private readonly List<string> _chatOutput = [];
+    private readonly List<TimelineEntryDto> _timeline = [];
 
     public IReadOnlyList<CapturedEffectDto> Effects => _effects;
     public IReadOnlyList<string> ChatOutput => _chatOutput;
 
+    /// <summary>Every captured effect, chat message and console line, in the order they happened.</summary>
+    public IReadOnlyList<TimelineEntryDto> Timeline => _timeline;
+
     /// <summary>Record one captured effect from its host-call/action name and its argument list.</summary>
     public void Record(string name, IReadOnlyList<string> args) =>
-        _effects.Add(new(name, Preview(string.Join(" | ", args))));
+        Record(name, string.Join(" | ", args));
 
     /// <summary>Record one captured effect from its name and an already-rendered argument preview.</summary>
-    public void Record(string name, string argsPreview) =>
-        _effects.Add(new(name, Preview(argsPreview)));
+    public void Record(string name, string argsPreview)
+    {
+        CapturedEffectDto effect = AddEffect(name, argsPreview);
+        AddTimeline("effect", $"{effect.Name}: {effect.ArgsPreview}");
+    }
 
-    public void AddChatOutput(string text) => _chatOutput.Add(text);
+    /// <summary>Record a chat send as one effect and one chat message, but ONE timeline row.</summary>
+    public void RecordChat(string name, IReadOnlyList<string> args)
+    {
+        AddEffect(name, string.Join(" | ", args));
+        AddChatOutput(args.Count > 0 ? args[0] : string.Empty);
+    }
+
+    public void AddChatOutput(string text)
+    {
+        _chatOutput.Add(text);
+        AddTimeline("chat", text);
+    }
+
+    /// <summary>A line the script wrote with <c>console.*</c>, placed at the moment it happened.</summary>
+    public void AddConsoleLine(string text) => AddTimeline("console", text);
+
+    /// <summary>A <c>bot.send</c> message: a timeline row only, the direct output channel is reported separately.</summary>
+    public void AddBotSend(string text) => AddTimeline("chat", text);
+
+    private CapturedEffectDto AddEffect(string name, string argsPreview)
+    {
+        CapturedEffectDto effect = new(name, Preview(argsPreview));
+        _effects.Add(effect);
+        return effect;
+    }
+
+    private void AddTimeline(string kind, string text) =>
+        _timeline.Add(new(_timeline.Count + 1, kind, text));
 
     private static string Preview(string raw) =>
         raw.Length <= MaxPreviewLength ? raw : raw[..MaxPreviewLength] + "…";

@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.editor.EditorPreviewWidget
 import bot.nomnomz.dashboard.core.editor.EditorTestRun
 import bot.nomnomz.dashboard.core.editor.EditorTestTrigger
 import bot.nomnomz.dashboard.core.editor.EditorTestRunResult
+import bot.nomnomz.dashboard.core.editor.EditorTestRunTimelineEntry
 import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -34,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
 import bot.nomnomz.dashboard.core.network.TestTrigger
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
 import bot.nomnomz.dashboard.core.network.TestRunResult
+import bot.nomnomz.dashboard.core.network.TimelineEntry
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -111,6 +113,32 @@ class CodeScriptsControllerTestRunTest {
         val result: EditorTestRunResult = (editor.outcome as EditorOutcome.Ok).value
         assertEquals(mapOf("mood" to "happy"), result.variablesSet)
         assertEquals(listOf("mood is happy", "warn: careful"), result.console)
+    }
+
+    @Test
+    fun the_editor_test_run_panel_gets_the_server_timeline_in_order() = runTest {
+        val captured =
+            TestRunResult(
+                success = true,
+                durationMs = 3,
+                hostCallCount = 1,
+                timeline =
+                    listOf(
+                        TimelineEntry(seq = 1, kind = "console", text = "a"),
+                        TimelineEntry(seq = 2, kind = "chat", text = "b"),
+                    ),
+            )
+        val editor = TestRunPressingEditor()
+        val controller = CodeScriptsController(FakeCodeScriptsApi(ApiResult.Ok(captured)), editor, StubSdkTypes)
+        controller.load()
+
+        controller.openAndEdit("s1", compiledMessage = "ok", displayName = "Script")
+
+        val result: EditorTestRunResult = (editor.outcome as EditorOutcome.Ok).value
+        assertEquals(
+            listOf(EditorTestRunTimelineEntry(1, "console", "a"), EditorTestRunTimelineEntry(2, "chat", "b")),
+            result.timeline,
+        )
     }
 
     @Test

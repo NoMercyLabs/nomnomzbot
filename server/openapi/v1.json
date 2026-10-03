@@ -128527,6 +128527,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntryDto"
+            },
+            "description": "Every effect, chat message and console line in the order it happened; empty when the run kind has none."
           }
         },
         "description": "The uniform result of a script or pipeline test-run (custom-code.md / commands-pipelines.md). The logic ran for\nreal; every outward/mutating effect was CAPTURED (see IReadOnlyList&lt;CapturedEffectDto&gt; TestRunResultDto.CapturedEffects) rather than committed, while\nread-only calls (reads, conditions, template resolution, random draws) ran against the live services so the\ndry-run stays realistic."
@@ -128668,6 +128675,31 @@
           }
         },
         "description": "One quota lever for a tier (`-1` = unlimited)."
+      },
+      "TimelineEntryDto": {
+        "required": [
+          "seq",
+          "kind",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "seq": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "description": "One row of a test-run timeline: everything the run would have done outwardly, in the order it happened.\n`Seq` counts from 1; `Kind` is `chat`, `effect` or `console`; `Text` is the chat\nmessage, the console line, or `name: argsPreview` for an effect."
       },
       "TimerDto": {
         "required": [

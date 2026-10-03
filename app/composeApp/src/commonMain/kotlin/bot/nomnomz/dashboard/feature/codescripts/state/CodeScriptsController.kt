@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.editor.EditorTestRunLabels
 import bot.nomnomz.dashboard.core.editor.EditorTestTrigger
 import bot.nomnomz.dashboard.core.editor.EditorTestRunEffect
 import bot.nomnomz.dashboard.core.editor.EditorTestRunResult
+import bot.nomnomz.dashboard.core.editor.EditorTestRunTimelineEntry
 import bot.nomnomz.dashboard.core.editor.EditorVersionSummary
 import bot.nomnomz.dashboard.core.editor.EditorVersionsPage
 import bot.nomnomz.dashboard.core.feedback.Feedback
@@ -55,6 +56,10 @@ import nomnomzbot.composeapp.generated.resources.scripts_test_role_artist
 import nomnomzbot.composeapp.generated.resources.scripts_test_role_vip
 import nomnomzbot.composeapp.generated.resources.scripts_test_role_subscriber
 import nomnomzbot.composeapp.generated.resources.scripts_test_role_viewer
+import nomnomzbot.composeapp.generated.resources.scripts_test_timeline
+import nomnomzbot.composeapp.generated.resources.scripts_test_timeline_chat
+import nomnomzbot.composeapp.generated.resources.scripts_test_timeline_console
+import nomnomzbot.composeapp.generated.resources.scripts_test_timeline_effect
 import org.jetbrains.compose.resources.getString
 
 // The Code Scripts page's state-holder. Lists all scripts, opens a project view for one (its `src/` file set +
@@ -346,6 +351,7 @@ class CodeScriptsController(
                             effects = result.capturedEffects.map { effect -> EditorTestRunEffect(effect.name, effect.argsPreview) },
                             variablesSet = result.variablesSet,
                             console = result.console,
+                            timeline = result.timeline.map { row -> EditorTestRunTimelineEntry(row.seq, row.kind, row.text) },
                         ),
                     )
                 else -> EditorOutcome.Failed("No result.")
@@ -377,6 +383,10 @@ class CodeScriptsController(
                     "subscriber" to getString(Res.string.scripts_test_role_subscriber),
                     "viewer" to getString(Res.string.scripts_test_role_viewer),
                 ),
+            timeline = getString(Res.string.scripts_test_timeline),
+            timelineChat = getString(Res.string.scripts_test_timeline_chat),
+            timelineEffect = getString(Res.string.scripts_test_timeline_effect),
+            timelineConsole = getString(Res.string.scripts_test_timeline_console),
         )
 
     /**

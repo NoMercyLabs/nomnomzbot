@@ -409,4 +409,65 @@ public sealed class ScriptTestRunServiceTests
 
         result.ChatOutput.Should().ContainSingle().Which.Should().Be("none");
     }
+
+    [Fact]
+    public async Task The_timeline_lists_console_chat_and_effects_in_the_order_they_happened()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        const string js = """
+            console.log('a');
+            nnz.api.chat.send('b');
+            nnz.api.storage.set('k', 'c');
+            console.log('d');
+            """;
+        Guid id = await SeedAsync(db, js, ["chat.send", "storage.set"]);
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.Success.Should().BeTrue(result.Error);
+        result.Timeline.Select(t => t.Seq).Should().Equal(1, 2, 3, 4);
+        result.Timeline.Select(t => t.Kind).Should().Equal("console", "chat", "effect", "console");
+        result.Timeline[0].Text.Should().Be("a");
+        result.Timeline[1].Text.Should().Be("b");
+        result.Timeline[2].Text.Should().Contain("storage.set").And.Contain("k");
+        result.Timeline[3].Text.Should().Be("d");
+
+        // The old fields keep their values for existing clients.
+        result.ChatOutput.Should().Equal("b");
+        result.CapturedEffects.Select(e => e.Name).Should().Equal("chat.send", "storage.set");
+        result.Console.Should().Equal("a", "d");
+    }
+
+    [Fact]
+    public async Task A_chat_send_appears_once_in_the_timeline()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, "nnz.api.chat.send('only');", ["chat.send"]);
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.Timeline.Should().ContainSingle().Which.Kind.Should().Be("chat");
+        result.Timeline[0].Text.Should().Be("only");
+    }
+
+    [Fact]
+    public async Task Bot_send_at_the_end_of_the_script_is_the_last_timeline_row()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        const string js = """
+            nnz.api.chat.send('first');
+            console.log('middle');
+            bot.send('last');
+            """;
+        Guid id = await SeedAsync(db, js, ["chat.send"]);
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.Timeline.Select(t => t.Text).Should().Equal("first", "middle", "last");
+        result.Timeline[^1].Kind.Should().Be("chat");
+        result.Timeline.Select(t => t.Seq).Should().Equal(1, 2, 3);
+    }
 }
