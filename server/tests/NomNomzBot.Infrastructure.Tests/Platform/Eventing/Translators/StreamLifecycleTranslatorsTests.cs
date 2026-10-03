@@ -12,9 +12,12 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.AutomationApi.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing.Translators;
 
@@ -268,11 +271,11 @@ public sealed class StreamLifecycleTranslatorsTests
     }
 
     [Fact]
-    public async Task StreamOffline_PublishesChannelOfflineEvent_WithBroadcasterAndZeroDuration()
+    public async Task StreamOffline_PublishesChannelOfflineEvent_WithBroadcasterAndZeroDurationWhenChannelUnknown()
     {
         Guid tenant = Guid.NewGuid();
         CapturingEventBus bus = new();
-        StreamOfflineTranslator translator = new(bus, Clock);
+        StreamOfflineTranslator translator = new(bus, Clock, Substitute.For<IChannelRegistry>());
 
         await translator.TranslateAsync(
             Notification(
@@ -298,8 +301,91 @@ public sealed class StreamLifecycleTranslatorsTests
             .StreamDuration.Should()
             .Be(
                 TimeSpan.Zero,
-                "stream.offline carries no duration — uptime is computed downstream"
+                "the channel is not in the registry, so the go-live time is unknown"
             );
         published.OccurredAt.Should().Be(Clock.GetUtcNow());
+    }
+
+    private const string OfflinePayload = """
+        {
+            "broadcaster_user_id": "broadcaster-99",
+            "broadcaster_user_login": "streamer",
+            "broadcaster_user_name": "Streamer"
+        }
+        """;
+
+    private static IChannelRegistry RegistryWith(Guid tenant, DateTimeOffset? wentLiveAt)
+    {
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry
+            .Get(tenant)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = tenant,
+                    TwitchChannelId = "broadcaster-99",
+                    ChannelName = "streamer",
+                    WentLiveAt = wentLiveAt,
+                }
+            );
+        return registry;
+    }
+
+    [Fact]
+    public async Task StreamOffline_AfterTwoHoursLive_PublishesTheRealStreamDuration()
+    {
+        Guid tenant = Guid.NewGuid();
+        FakeTimeProvider clock = new(new(2026, 6, 20, 14, 0, 0, TimeSpan.Zero));
+        CapturingEventBus bus = new();
+        StreamOfflineTranslator translator = new(
+            bus,
+            clock,
+            RegistryWith(tenant, new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero))
+        );
+
+        await translator.TranslateAsync(Notification(tenant, "stream.offline", OfflinePayload));
+
+        bus.EventsOf<ChannelOfflineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.StreamDuration.Should()
+            .Be(TimeSpan.FromHours(2));
+    }
+
+    [Fact]
+    public async Task StreamOffline_WithUnknownWentLiveTime_PublishesZero()
+    {
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        StreamOfflineTranslator translator = new(bus, Clock, RegistryWith(tenant, null));
+
+        await translator.TranslateAsync(Notification(tenant, "stream.offline", OfflinePayload));
+
+        bus.EventsOf<ChannelOfflineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.StreamDuration.Should()
+            .Be(TimeSpan.Zero);
+    }
+
+    [Fact]
+    public void AutomationApi_ProjectsTheRealDurationAsSeconds()
+    {
+        ChannelOfflineEvent offline = new()
+        {
+            Provider = "twitch",
+            BroadcasterId = Guid.NewGuid(),
+            BroadcasterDisplayName = "Streamer",
+            StreamDuration = TimeSpan.FromHours(2),
+        };
+
+        object payload = new StreamOfflineEventDescriptor().ProjectPayload(offline);
+
+        payload
+            .GetType()
+            .GetProperty("streamDurationSeconds")!
+            .GetValue(payload)
+            .Should()
+            .Be(7200L);
     }
 }

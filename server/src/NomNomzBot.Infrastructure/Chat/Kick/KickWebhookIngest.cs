@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Stream;
 
 namespace NomNomzBot.Infrastructure.Chat.Kick;
 
@@ -161,7 +162,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             // Lost the race — another process, or an earlier delivery still inside the retention window,
             // already holds this claim. Detach so the failed insert does not linger in the change tracker.
             foreach (Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry in ex.Entries)
-                entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+                entry.State = EntityState.Detached;
             return false;
         }
     }
@@ -341,16 +342,15 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         }
         else
         {
+            DateTimeOffset offlineAt = _clock.GetUtcNow();
             await _bus.PublishAsync(
                 new ChannelOfflineEvent
                 {
                     Provider = AuthEnums.Platform.Kick,
                     BroadcasterId = tenant.Id,
-                    OccurredAt = _clock.GetUtcNow(),
+                    OccurredAt = offlineAt,
                     BroadcasterDisplayName = payload.Broadcaster.Username ?? string.Empty,
-                    // Kick's livestream.status.updated carries no duration — degrades to zero exactly
-                    // like Twitch's stream.offline translator; elapsed uptime is computed downstream.
-                    StreamDuration = TimeSpan.Zero,
+                    StreamDuration = StreamRunTime.Between(_registry, tenant.Id, offlineAt),
                 },
                 ct
             );
@@ -767,11 +767,9 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         [
             .. (emotes ?? [])
                 .Where(e => e.EmoteId is { Length: > 0 })
-                .SelectMany(e =>
-                    (e.Positions ?? []).Select(p => (Start: p.Start, End: p.End, e.EmoteId!))
-                )
+                .SelectMany(e => (e.Positions ?? []).Select(p => (p.Start, p.End, e.EmoteId!)))
                 .Where(s =>
-                    s.Start is >= 0 && s.End is >= 0 && s.End >= s.Start && s.End < content.Length
+                    s is { Start: >= 0, End: >= 0 } && s.End >= s.Start && s.End < content.Length
                 )
                 .Select(s => (s.Start!.Value, s.End!.Value, s.Item3))
                 .OrderBy(s => s.Item1),

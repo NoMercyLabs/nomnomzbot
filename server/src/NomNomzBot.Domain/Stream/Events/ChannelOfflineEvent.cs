@@ -24,6 +24,10 @@ public sealed class ChannelOfflineEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The name of the channel owner as shown in chat.</summary>
     public required string BroadcasterDisplayName { get; init; }
 
-    /// <summary>How long the stream ran before it ended. It is always zero today, because Twitch and Kick send no duration.</summary>
+    /// <summary>
+    /// How long the stream ran, from the moment the channel went live to this offline signal. Neither Twitch nor
+    /// Kick sends a duration, so it is computed from the channel's recorded go-live time. It is zero when that
+    /// time is unknown, for example when the stream started while the bot was down and no live check has run yet.
+    /// </summary>
     public required TimeSpan StreamDuration { get; init; }
 }

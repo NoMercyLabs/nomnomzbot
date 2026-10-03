@@ -13,6 +13,7 @@ using NomNomzBot.Application.DTOs.Twitch.EventSub;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Stream;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
@@ -136,11 +137,14 @@ public sealed class StreamOnlineTranslator(IEventBus bus, TimeProvider clock)
 /// <summary>
 /// Translates <c>stream.offline</c> into <see cref="ChannelOfflineEvent"/>. Payload fields:
 /// <c>broadcaster_user_name</c>. The offline notification carries no duration, so
-/// <see cref="ChannelOfflineEvent.StreamDuration"/> degrades to <see cref="TimeSpan.Zero"/> — elapsed uptime
-/// is computed downstream from the recorded online timestamp.
+/// <see cref="ChannelOfflineEvent.StreamDuration"/> is computed here from the channel's recorded go-live time
+/// (<see cref="StreamRunTime"/>); it is <see cref="TimeSpan.Zero"/> when that time is unknown.
 /// </summary>
-public sealed class StreamOfflineTranslator(IEventBus bus, TimeProvider clock)
-    : EventSubEventTranslator(bus, clock)
+public sealed class StreamOfflineTranslator(
+    IEventBus bus,
+    TimeProvider clock,
+    IChannelRegistry registry
+) : EventSubEventTranslator(bus, clock)
 {
     public override string SubscriptionType => "stream.offline";
 
@@ -150,13 +154,14 @@ public sealed class StreamOfflineTranslator(IEventBus bus, TimeProvider clock)
     )
     {
         JsonElement payload = notification.Event;
+        DateTimeOffset offlineAt = Clock.GetUtcNow();
         ChannelOfflineEvent offline = new()
         {
             Provider = AuthEnums.Platform.Twitch,
             BroadcasterId = notification.BroadcasterId,
-            OccurredAt = Clock.GetUtcNow(),
+            OccurredAt = offlineAt,
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
-            StreamDuration = TimeSpan.Zero,
+            StreamDuration = StreamRunTime.Between(registry, notification.BroadcasterId, offlineAt),
         };
 
         return PublishAsync(offline, ct);

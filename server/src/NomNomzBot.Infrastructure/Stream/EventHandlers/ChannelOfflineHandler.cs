@@ -71,13 +71,9 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             return;
         }
 
-        // Compute actual stream duration from ChannelContext before resetting state
         ChannelContext? channelCtx = _registry.Get(broadcasterId);
         DateTimeOffset endedAt = _timeProvider.GetUtcNow();
-        TimeSpan streamDuration =
-            channelCtx?.WentLiveAt.HasValue == true
-                ? endedAt - channelCtx.WentLiveAt.Value
-                : @event.StreamDuration;
+        TimeSpan streamDuration = @event.StreamDuration;
 
         // Finalize the Stream record with EndedAt
         if (channelCtx?.CurrentStreamId is not null)

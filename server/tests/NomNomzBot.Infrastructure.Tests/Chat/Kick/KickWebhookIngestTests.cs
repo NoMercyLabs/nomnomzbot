@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Community.Events;
@@ -68,7 +69,9 @@ public sealed class KickWebhookIngestTests
     private static (KickWebhookIngest Ingest, AuthDbContext Db, RecordingEventBus Bus) Build(
         FakeBotSelfEchoGuard? guard = null,
         string? databaseName = null,
-        bool throwOnPublish = false
+        bool throwOnPublish = false,
+        NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry? registry = null,
+        TimeProvider? clock = null
     )
     {
         AuthDbContext db = databaseName is null
@@ -78,7 +81,7 @@ public sealed class KickWebhookIngestTests
         if (db.Channels.Any(c => c.Id == Tenant))
         {
             RecordingEventBus existingBus = new() { ThrowOnPublish = throwOnPublish };
-            return (BuildIngest(db, existingBus, guard), db, existingBus);
+            return (BuildIngest(db, existingBus, guard, registry, clock), db, existingBus);
         }
         db.Channels.Add(
             new()
@@ -97,19 +100,21 @@ public sealed class KickWebhookIngestTests
         db.SaveChanges();
 
         RecordingEventBus bus = new() { ThrowOnPublish = throwOnPublish };
-        return (BuildIngest(db, bus, guard), db, bus);
+        return (BuildIngest(db, bus, guard, registry, clock), db, bus);
     }
 
     private static KickWebhookIngest BuildIngest(
         AuthDbContext db,
         RecordingEventBus bus,
-        FakeBotSelfEchoGuard? guard
+        FakeBotSelfEchoGuard? guard,
+        NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry? registry = null,
+        TimeProvider? clock = null
     ) =>
         new(
             db,
             bus,
-            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-            TimeProvider.System,
+            registry ?? Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            clock ?? TimeProvider.System,
             NullLogger<KickWebhookIngest>.Instance,
             guard ?? new FakeBotSelfEchoGuard()
         );
@@ -348,7 +353,7 @@ public sealed class KickWebhookIngestTests
                 Arg.Any<bool>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(NomNomzBot.Application.Common.Models.Result.Success("m-echo"));
+            .Returns(Result.Success("m-echo"));
         KickChatPlatform platform = new(tokens, client, NullLogger<KickChatPlatform>.Instance);
         NomNomzBot.Infrastructure.Chat.ChatPlatformRouter router = new(
             [platform],
@@ -559,6 +564,44 @@ public sealed class KickWebhookIngestTests
             .Subject;
         offline.BroadcasterId.Should().Be(Tenant);
         bus.Published.OfType<ChannelOnlineEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_livestream_ending_publishes_the_real_duration_since_the_channel_went_live()
+    {
+        NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry registry =
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>();
+        registry
+            .Get(Tenant)
+            .Returns(
+                new NomNomzBot.Domain.Platform.Interfaces.ChannelContext
+                {
+                    BroadcasterId = Tenant,
+                    TwitchChannelId = "12345",
+                    ChannelName = "streamergal",
+                    WentLiveAt = new DateTimeOffset(2026, 7, 16, 9, 0, 0, TimeSpan.Zero),
+                }
+            );
+        Microsoft.Extensions.Time.Testing.FakeTimeProvider clock = new(
+            new DateTimeOffset(2026, 7, 16, 11, 0, 0, TimeSpan.Zero)
+        );
+        (KickWebhookIngest ingest, AuthDbContext db, RecordingEventBus bus) = Build(
+            registry: registry,
+            clock: clock
+        );
+        db.Channels.Single(c => c.Id == Tenant).IsLive = true;
+        db.SaveChanges();
+        string body = LiveBody
+            .Replace("\"is_live\": true", "\"is_live\": false")
+            .Replace("\"ended_at\": null", "\"ended_at\": \"2026-07-16T11:00:00Z\"");
+
+        await ingest.HandleAsync("livestream.status.updated", body);
+
+        bus.Published.OfType<ChannelOfflineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.StreamDuration.Should()
+            .Be(TimeSpan.FromHours(2));
     }
 
     [Fact]
