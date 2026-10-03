@@ -13,6 +13,7 @@ using FluentAssertions;
 using Jint;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform;
+using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
 using NomNomzBot.Infrastructure.DevPlatform;
 
@@ -363,5 +364,28 @@ public sealed partial class SdkScriptSurfaceDriftTests
                 runtime,
                 "each nnz function's d.ts signature must take the parameters the bootstrap reads"
             );
+    }
+
+    [Fact]
+    public void The_declared_last_error_codes_are_exactly_the_codes_the_host_can_raise()
+    {
+        Match union = Regex.Match(
+            ScriptDts(),
+            @"interface NnzApiError \{[^}]*?\bcode:\s*([^;]+);",
+            RegexOptions.Singleline
+        );
+        union.Success.Should().BeTrue("the script d.ts must declare NnzApiError.code");
+
+        string[] declared = [.. union.Groups[1].Value.Split('|').Select(c => c.Trim().Trim('\''))];
+        string[] raised =
+        [
+            .. typeof(ScriptHostErrorCodes)
+                .GetFields()
+                .Where(f => f.IsLiteral && f.Name != nameof(ScriptHostErrorCodes.LastErrorKey))
+                .Select(f => (string)f.GetRawConstantValue()!),
+        ];
+
+        raised.Should().HaveCount(6);
+        declared.Should().BeEquivalentTo(raised);
     }
 }

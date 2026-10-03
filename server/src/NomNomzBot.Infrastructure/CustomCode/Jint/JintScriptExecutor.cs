@@ -75,6 +75,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             }
         };
         var nnz = {
+            get lastError() { var r = __call('last.error', '[]'); return r ? JSON.parse(r) : null; },
             units: {
                 convert: function (value, from, to) {
                     var v = Number(value);
@@ -150,6 +151,16 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 uuid: function () { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; var val = c === 'x' ? r : (r & 0x3 | 0x8); return val.toString(16); }); }
             },
             api: {
+                actions: {
+                    invoke: function (actionType, params, variables) {
+                        var args = ['actions.invoke:' + String(actionType)];
+                        var hasVariables = variables !== undefined && variables !== null;
+                        if (hasVariables || (params !== undefined && params !== null))
+                            args.push(params === undefined || params === null ? '' : JSON.stringify(params));
+                        if (hasVariables) args.push(JSON.stringify(variables));
+                        return JSON.parse(bot.call.apply(bot, args));
+                    }
+                },
                 chat: {
                     send: function (text) { bot.call('chat.send', String(text)); },
                     reply: function (text) { bot.call('chat.reply', String(text)); }
@@ -233,6 +244,14 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             );
         }
 
+        if (HasNonLiteralActionType(sourceCode))
+            return Task.FromResult(
+                Result.Failure<ScriptCompilation>(
+                    "nnz.api.actions.invoke needs its action type as a string literal (for example 'tts_synthesize'): a grant is per action type, so a computed type can never be granted.",
+                    "VALIDATION_FAILED"
+                )
+            );
+
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceCode)));
         return Task.FromResult(
             Result.Success(
@@ -252,6 +271,16 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
     // wrapper→key correspondence baked into the bootstrap.
     [GeneratedRegex("""nnz\.api\.([a-zA-Z]+)\.([a-zA-Z]+)""")]
     private static partial Regex ApiCallPattern();
+
+    // `nnz.api.actions.invoke('<type>', ...)` is granted per action type (`actions.invoke:<type>`), so the type
+    // must be a string literal the save-time scan can read. Group 2 is the literal type; absent means computed.
+    [GeneratedRegex(
+        """nnz\.api\.actions\.invoke\s*\(\s*(?:(["'])([A-Za-z][A-Za-z0-9_.-]*)\1\s*[,)])?"""
+    )]
+    private static partial Regex ActionInvokePattern();
+
+    private static bool HasNonLiteralActionType(string sourceCode) =>
+        ActionInvokePattern().Matches(sourceCode).Any(m => !m.Groups[2].Success);
 
     private static readonly Dictionary<string, string> ApiMethodCapabilities = new(
         StringComparer.Ordinal
@@ -291,6 +320,9 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 )
             )
                 keys.Add(capability);
+        foreach (Match match in ActionInvokePattern().Matches(sourceCode))
+            if (match.Groups[2].Success)
+                keys.Add($"actions.invoke:{match.Groups[2].Value}");
         return [.. keys];
     }
 
@@ -351,9 +383,11 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 (Func<string, string, string?>)(
                     (key, argsJson) =>
                     {
-                        if (!grantedKeys.Contains(key))
+                        // Reading the script's own last error is not a capability and costs no host call.
+                        bool isLastError = key == ScriptHostErrorCodes.LastErrorKey;
+                        if (!isLastError && !grantedKeys.Contains(key))
                             throw new ScriptCapabilityDeniedException(key);
-                        if (++hostCalls > request.Budget.MaxHostCalls)
+                        if (!isLastError && ++hostCalls > request.Budget.MaxHostCalls)
                             throw new ScriptHostBudgetException();
                         IReadOnlyList<string> a =
                             JsonConvert.DeserializeObject<List<string>>(argsJson) ?? [];

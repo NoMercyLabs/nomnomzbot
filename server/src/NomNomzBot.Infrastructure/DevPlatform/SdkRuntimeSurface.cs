@@ -132,6 +132,10 @@ internal static class SdkRuntimeSurface
         AppendBatteryInterfaces(sb);
         AppendApiInterfaces(sb);
         sb.AppendLine("declare const nnz: {");
+        sb.AppendLine(
+            "  /** The error of this script's last failed host call. null when it did not fail. Needs no grant. */"
+        );
+        sb.AppendLine("  readonly lastError: NnzApiError | null;");
         sb.AppendLine("  units: NnzUnits;");
         sb.AppendLine("  time: NnzTime;");
         sb.AppendLine("  math: NnzMath;");
@@ -421,7 +425,42 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("}");
         sb.AppendLine();
+        sb.AppendLine("/** A failed host call, as nnz.lastError returns it. */");
+        sb.AppendLine("interface NnzApiError {");
+        sb.AppendLine("  /** Why the call failed. */");
+        sb.AppendLine(
+            "  code: 'invalid_argument' | 'not_found' | 'refused' | 'rate_limited' | 'limit_exceeded' | 'upstream_failed';"
+        );
+        sb.AppendLine("  /** A human-readable reason. */");
+        sb.AppendLine("  message: string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine(
+            "/** What nnz.api.actions.invoke returns for one run of a pipeline action. */"
+        );
+        sb.AppendLine("interface NnzApiActionResult {");
+        sb.AppendLine("  /** True when the action ran to completion. */");
+        sb.AppendLine("  success: boolean;");
+        sb.AppendLine("  /** The action's text output. null when it produced none. */");
+        sb.AppendLine("  output: string | null;");
+        sb.AppendLine("  /** Why the action failed. null when it succeeded. */");
+        sb.AppendLine("  error: string | null;");
+        sb.AppendLine("  /** The variables the action set, by name. */");
+        sb.AppendLine("  variables: Record<string, string>;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzApiActionsNamespace {");
+        sb.AppendLine(
+            "  /** Runs one pipeline action by its type, for example 'tts_synthesize'. The type must be a string literal: the grant is per type. */"
+        );
+        sb.AppendLine(
+            "  invoke(actionType: string, params?: Record<string, unknown>, variables?: Record<string, string | number>): NnzApiActionResult;"
+        );
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("interface NnzApi {");
+        sb.AppendLine("  /** Runs a pipeline action by its type. */");
+        sb.AppendLine("  actions: NnzApiActionsNamespace;");
         sb.AppendLine("  user: NnzApiUserNamespace;");
         sb.AppendLine("  economy: NnzApiEconomyNamespace;");
         sb.AppendLine("  chat: NnzApiChatNamespace;");

@@ -214,6 +214,8 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 declare const nnz: {
+                  /** The error of this script's last failed host call. null when it did not fail. Needs no grant. */
+                  readonly lastError: NnzApiError | null;
                   units: NnzUnits;
                   time: NnzTime;
                   math: NnzMath;
@@ -255,6 +257,8 @@ public sealed class SdkTypeEmitterTests
             .Contain(
                 """
                 interface NnzApi {
+                  /** Runs a pipeline action by its type. */
+                  actions: NnzApiActionsNamespace;
                   user: NnzApiUserNamespace;
                   economy: NnzApiEconomyNamespace;
                   chat: NnzApiChatNamespace;
