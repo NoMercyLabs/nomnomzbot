@@ -60,12 +60,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   autocompletes the real payload), typed per-widget `settings` from the settings schema (a widget-scoped
   types request), `claim` rejection and
   `AUTH_REQUIRED` in the types. Done-when: an E2E editor test shows a payload field typo as an error.
-- **S-SDK-ACTION-TYPES** `actions.invoke` is the one untyped door: script and widget both declare
-  `invoke(actionType: string, params?: Record<string, ...>)` (`SdkRuntimeSurface.cs:267`, `:659`), so a
-  typo in the action type or a missing required param fails only at run time. Shipped (b69930d9f): a
-  generated `NnzActionParams` map, one member per action type (110; 84 declare `Fields`, the other 26
-  read no params), and a typed invoke on both sides. Left: an E2E editor test. Done-when:
-  every registered action type has a typed member, and `invoke('obs_switch_scene', {})` is a type error.
 - **S-SDK-EDITOR-FRAMEWORKS** `.vue` and React files are type-checked in the editor; a failed SDK-types
   fetch shows a notice instead of silently untyped code; the create dialog stops offering svelte, which
   the build refuses (`WidgetsScreen.kt:1288` vs `EsbuildWidgetBuildService.cs:116-121`).
