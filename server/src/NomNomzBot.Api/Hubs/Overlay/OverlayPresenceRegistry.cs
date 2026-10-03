@@ -62,6 +62,9 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     /// <summary>The broadcaster-wide group every overlay connection joins on connect (<c>OverlayHub.OnConnectedAsync</c>).</summary>
     public static string OverlayGroupName(Guid broadcasterId) => $"overlay-{broadcasterId}";
 
+    /// <summary>The generic event feed: only connections that host no widget, so a widget never gets an event twice.</summary>
+    public static string FeedGroupName(Guid broadcasterId) => $"overlay-feed-{broadcasterId}";
+
     public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) =>
         IsGroupAttached(GroupName(broadcasterId, widgetId.ToString()));
 

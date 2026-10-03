@@ -59,7 +59,7 @@ public interface IWidgetNotifier
         CancellationToken ct = default
     );
 
-    /// <summary>Broadcasts one generic overlay-feed event to every overlay client for the given broadcaster.</summary>
+    /// <summary>Broadcasts one generic overlay-feed event to every overlay client that hosts no widget.</summary>
     Task BroadcastOverlayEventAsync(
         string broadcasterId,
         OverlayEventDto evt,
@@ -125,7 +125,7 @@ public class WidgetNotifier : IWidgetNotifier
         string broadcasterId,
         OverlayEventDto evt,
         CancellationToken ct = default
-    ) => _hub.Clients.Group($"overlay-{broadcasterId}").Event(evt);
+    ) => _hub.Clients.Group($"overlay-feed-{broadcasterId}").Event(evt);
 
     public Task RetractAsync(
         string broadcasterId,

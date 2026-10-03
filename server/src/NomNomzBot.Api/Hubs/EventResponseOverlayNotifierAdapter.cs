@@ -9,7 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Services;
 
 namespace NomNomzBot.Api.Hubs;
@@ -20,18 +22,23 @@ namespace NomNomzBot.Api.Hubs;
 /// <c>EventResponseExecutor</c>'s <c>overlay</c> ResponseType never takes a direct reference to the
 /// SignalR layer. Broadcasts through the generic overlay event feed (<see cref="OverlayEventDto"/>,
 /// type <c>event_response</c>) rather than a dedicated hub method, since the payload shape is entirely
-/// operator-configured (message + free-form metadata) instead of a fixed contract.
+/// operator-configured (message + free-form metadata) instead of a fixed contract. Widgets that subscribe to
+/// <c>event_response</c> get the same payload as a <c>WidgetEvent</c> object.
 /// </summary>
 internal sealed class EventResponseOverlayNotifierAdapter : IEventResponseOverlayNotifier
 {
-    private readonly IWidgetNotifier _notifier;
+    private const string EventType = "event_response";
 
-    public EventResponseOverlayNotifierAdapter(IWidgetNotifier notifier)
+    private readonly IWidgetNotifier _notifier;
+    private readonly IApplicationDbContext _db;
+
+    public EventResponseOverlayNotifierAdapter(IWidgetNotifier notifier, IApplicationDbContext db)
     {
         _notifier = notifier;
+        _db = db;
     }
 
-    public Task NotifyAsync(
+    public async Task NotifyAsync(
         Guid broadcasterId,
         string eventTypeKey,
         string resolvedMessage,
@@ -39,7 +46,7 @@ internal sealed class EventResponseOverlayNotifierAdapter : IEventResponseOverla
         CancellationToken ct = default
     )
     {
-        string payload = JsonSerializer.Serialize(
+        JsonElement payload = JsonSerializer.SerializeToElement(
             new
             {
                 eventType = eventTypeKey,
@@ -48,9 +55,17 @@ internal sealed class EventResponseOverlayNotifierAdapter : IEventResponseOverla
             }
         );
 
-        return _notifier.BroadcastOverlayEventAsync(
+        await _notifier.BroadcastOverlayEventAsync(
             broadcasterId.ToString(),
-            new("event_response", payload),
+            new(EventType, payload.GetRawText()),
+            ct
+        );
+        await WidgetAlertDispatch.PushToSubscribersAsync(
+            _db,
+            _notifier,
+            broadcasterId,
+            EventType,
+            payload,
             ct
         );
     }

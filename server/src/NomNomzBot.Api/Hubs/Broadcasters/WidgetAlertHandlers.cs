@@ -107,6 +107,36 @@ internal static class WidgetAlertDispatch
     }
 
     /// <summary>
+    /// Pushes <paramref name="data"/> to every widget that subscribes to <paramref name="eventType"/>, with no
+    /// replay capture: for events that reach widgets from the generic feed's sources (journal, event responses).
+    /// </summary>
+    public static async Task PushToSubscribersAsync(
+        IApplicationDbContext db,
+        IWidgetNotifier notifier,
+        Guid broadcasterId,
+        string eventType,
+        object data,
+        CancellationToken cancellationToken
+    )
+    {
+        if (broadcasterId == Guid.Empty)
+            return;
+
+        List<Widget> widgets = await db
+            .Widgets.Where(w => w.BroadcasterId == broadcasterId)
+            .ToListAsync(cancellationToken);
+
+        await PushAsync(
+            notifier,
+            broadcasterId,
+            WidgetAlertRouting.Subscribers(widgets, eventType),
+            eventType,
+            data,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
     /// The one widget push both a live alert and a replayed capture go through: <paramref name="data"/> to each
     /// of <paramref name="widgets"/> over its OverlayHub group. Returns how many pushes were made.
     /// </summary>
