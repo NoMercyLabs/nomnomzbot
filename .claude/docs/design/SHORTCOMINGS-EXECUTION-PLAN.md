@@ -103,6 +103,13 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   Done-when: the config and SDK go in right after the opening `<head>` tag (or before the first `<script>`),
   so they run before every widget script; the body and no-head fallbacks keep that promise too; a test with a
   head script failed first.
+- **S-CONVERT-PROTO-KEYS** Found by the docs fact-check 2026-10-04. `nnz.units.convert` looks unit names up
+  with `temp[f]` and `dims[i][f] !== undefined` (`JintScriptExecutor.cs:99-116`), so a name every JS object
+  inherits (`constructor`, `toString`, `valueOf`, ...) counts as a unit: `convert(5, 'constructor',
+  'constructor')` takes the temperature path and returns 5, `convert(5, 'toString', 'c')` returns -268.15.
+  Done-when: only the listed unit names are accepted (own-key check), every other name gives NaN as the
+  documented contract says; a Jint test failed first. Check the other bootstrap lookups by name for the same
+  pattern and report N of M.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
