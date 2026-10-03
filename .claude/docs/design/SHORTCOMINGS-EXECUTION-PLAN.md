@@ -73,12 +73,6 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
   audit (atlas Phase 4), not the delivery. Runs after the SDK fixes above so no page documents a bug.
-- **S-FLAKE-SUPPORTER-SOCKET** CI run 37087401465 attempt 1 (2026-10-03, sha cffd5d7b2):
-  `SupporterSocketHostedServiceTests.Reconcile_StartsARunner_WhoseFramesPersistAsTips_AndAReplayDedups`
-  threw `A second operation was started on this context instance before a previous operation completed`
-  in `SaveChangesAsync`. Two writers share one DbContext: find out whether the hosted service itself
-  does that (a live bug: tips lost under load) or only the test does. Done-when: the cause is fixed (not
-  retried), and the test passes 200 repeated runs under full-suite load.
 - **S-EDITOR-I18N** The web code editor (`server/src/NomNomzBot.Api/Assets/editor/editor.js` and
   `index.html`) writes every label in English inside the bundle ("Run test", "Running…", panel titles,
   status text), so a Dutch dashboard shows an English editor. The gallery widget names and
