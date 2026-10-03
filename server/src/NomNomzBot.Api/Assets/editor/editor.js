@@ -716,7 +716,9 @@ function showView(name) {
 
 function renderProblemsSidebar() {
     if (!state.monaco) return;
-    const markers = state.monaco.editor.getModelMarkers({});
+    const markers = state.monaco.editor
+        .getModelMarkers({})
+        .filter((m) => !isHiddenScriptResource(m.resource));
     if (markers.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'view-hint';
