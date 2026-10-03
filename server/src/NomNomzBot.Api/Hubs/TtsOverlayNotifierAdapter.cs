@@ -8,6 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Services;
 
 namespace NomNomzBot.Api.Hubs;
@@ -21,17 +24,26 @@ internal sealed class TtsOverlayNotifierAdapter : ITtsOverlayNotifier
 {
     private readonly IWidgetNotifier _notifier;
 
-    public TtsOverlayNotifierAdapter(IWidgetNotifier notifier)
+    private readonly IChannelAudioMixService _mix;
+
+    public TtsOverlayNotifierAdapter(IWidgetNotifier notifier, IChannelAudioMixService mix)
     {
         _notifier = notifier;
+        _mix = mix;
     }
 
-    public Task SpeakAsync(
+    public async Task SpeakAsync(
         Guid broadcasterId,
         TtsOverlaySpeakDto payload,
         CancellationToken ct = default
-    ) =>
-        _notifier.TtsSpeakAsync(
+    )
+    {
+        Result<ChannelAudioMixDto> mix = await _mix.GetAsync(broadcasterId, ct);
+        TtsSpeakOptions? options = mix.IsSuccess
+            ? new TtsSpeakOptions(null, null, mix.Value.TtsPlaybackVolume)
+            : null;
+
+        await _notifier.TtsSpeakAsync(
             broadcasterId.ToString(),
             new(
                 broadcasterId,
@@ -39,9 +51,10 @@ internal sealed class TtsOverlayNotifierAdapter : ITtsOverlayNotifier
                 payload.VoiceId,
                 payload.Provider,
                 payload.CueId,
-                null,
+                options,
                 payload.Locale
             ),
             ct
         );
+    }
 }

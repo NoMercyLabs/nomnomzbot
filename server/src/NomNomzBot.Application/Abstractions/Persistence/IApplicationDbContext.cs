@@ -237,6 +237,7 @@ public interface IApplicationDbContext
     DbSet<CodeScript> CodeScripts { get; }
     DbSet<CodeScriptVersion> CodeScriptVersions { get; }
     DbSet<SoundClip> SoundClips { get; }
+    DbSet<ChannelAudioMix> ChannelAudioMixes { get; }
     DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets { get; }
     DbSet<CustomDataSource> CustomDataSources { get; }
 

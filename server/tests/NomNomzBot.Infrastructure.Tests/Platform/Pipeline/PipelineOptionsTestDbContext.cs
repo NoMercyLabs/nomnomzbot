@@ -93,6 +93,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
         b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
 
+        b.Entity<ChannelAudioMix>(e => e.HasKey(m => m.Id));
+
         b.Entity<SoundClip>(e =>
         {
             e.HasKey(c => c.Id);
@@ -146,6 +148,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         typeof(Reward),
         typeof(TtsVoice),
         typeof(SoundClip),
+        typeof(ChannelAudioMix),
         typeof(Widget),
         typeof(ChannelAsset),
         typeof(DiscordGuildConnection),
@@ -404,6 +407,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
     public DbSet<CodeScriptVersion> CodeScriptVersions => Set<CodeScriptVersion>();
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
+    public DbSet<ChannelAudioMix> ChannelAudioMixes => Set<ChannelAudioMix>();
     public DbSet<ChannelAsset> ChannelAssets => Set<ChannelAsset>();
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>

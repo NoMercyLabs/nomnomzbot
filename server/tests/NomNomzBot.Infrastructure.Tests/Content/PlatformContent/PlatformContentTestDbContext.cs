@@ -134,6 +134,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
 
     // The sound_clip template kind: the channel's clip rows and the platform audio library they install from.
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
+    public DbSet<ChannelAudioMix> ChannelAudioMixes => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

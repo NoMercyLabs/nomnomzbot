@@ -11,6 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Events;
@@ -33,6 +35,7 @@ public sealed class TtsSpeakBroadcastHandler(
     IWidgetNotifier notifier,
     IOverlayPresenceRegistry presence,
     IDashboardNotifier dashboard,
+    IChannelAudioMixService mix,
     ILogger<TtsSpeakBroadcastHandler> logger
 ) : IEventHandler<TtsUtteranceDispatchedEvent>
 {
@@ -48,6 +51,14 @@ public sealed class TtsSpeakBroadcastHandler(
         // Captions and indicators only need the words: the audio plays once, on the audio page, from the raw
         // TtsSpeak below. A widget event that carried audio would be played by every page that received it.
         if (@event.AudioUrl is not null)
+        {
+            Result<ChannelAudioMixDto> mixResult = await mix.GetAsync(
+                @event.BroadcasterId,
+                cancellationToken
+            );
+            TtsSpeakOptions? options = mixResult.IsSuccess
+                ? new TtsSpeakOptions(null, null, mixResult.Value.TtsPlaybackVolume)
+                : null;
             await notifier.TtsSpeakAsync(
                 @event.BroadcasterId.ToString(),
                 new(
@@ -56,11 +67,12 @@ public sealed class TtsSpeakBroadcastHandler(
                     @event.VoiceId,
                     @event.Provider,
                     CueId: null,
-                    Options: null,
+                    Options: options,
                     AudioUrl: @event.AudioUrl
                 ),
                 cancellationToken
             );
+        }
         await WidgetAlertDispatch.RouteAsync(
             db,
             notifier,

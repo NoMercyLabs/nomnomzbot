@@ -10325,6 +10325,37 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("WatchStreaks");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Sound.Entities.ChannelAudioMix", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MasterVolume")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TtsVolume")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelAudioMixes");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Sound.Entities.SoundClip", b =>
                 {
                     b.Property<Guid>("Id")

@@ -37,6 +37,7 @@ internal sealed class SoundClipService : ISoundClipService
     private readonly IResourceQuotaService _quota;
     private readonly IPipelineStepReferenceScanner _stepReferences;
     private readonly IOverlayPresenceRegistry _presence;
+    private readonly IChannelAudioMixService _mix;
 
     public SoundClipService(
         IApplicationDbContext db,
@@ -45,9 +46,11 @@ internal sealed class SoundClipService : ISoundClipService
         IChannelRegistry registry,
         IResourceQuotaService quota,
         IPipelineStepReferenceScanner stepReferences,
-        IOverlayPresenceRegistry presence
+        IOverlayPresenceRegistry presence,
+        IChannelAudioMixService mix
     )
     {
+        _mix = mix;
         _db = db;
         _store = store;
         _overlay = overlay;
@@ -351,9 +354,14 @@ internal sealed class SoundClipService : ISoundClipService
         if (!urlResult.IsSuccess)
             return Result<SoundPlaybackDto>.Failure(urlResult.ErrorMessage, urlResult.ErrorCode);
 
-        int volume = volumeOverride.HasValue
+        Result<ChannelAudioMixDto> mixResult = await _mix.GetAsync(broadcasterId, ct);
+        if (!mixResult.IsSuccess)
+            return Result<SoundPlaybackDto>.Failure(mixResult.ErrorMessage, mixResult.ErrorCode);
+
+        int baseVolume = volumeOverride.HasValue
             ? Math.Clamp(volumeOverride.Value, 0, 100)
             : clip.DefaultVolume;
+        int volume = mixResult.Value.ApplyToClipVolume(baseVolume);
 
         return Result<SoundPlaybackDto>.Success(
             new(clip.Id, urlResult.Value, volume, clip.DurationMs)

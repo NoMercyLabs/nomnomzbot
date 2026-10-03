@@ -316,6 +316,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
+    public DbSet<ChannelAudioMix> ChannelAudioMixes => throw new NotSupportedException();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<Redemption> Redemptions => Set<Redemption>();
     public DbSet<RedemptionTimer> RedemptionTimers => Set<RedemptionTimer>();

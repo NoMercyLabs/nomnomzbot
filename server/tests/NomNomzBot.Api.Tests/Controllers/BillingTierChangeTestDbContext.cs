@@ -94,6 +94,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
+    public DbSet<ChannelAudioMix> ChannelAudioMixes => throw new NotSupportedException();
     public DbSet<Domain.Commands.Entities.Timer> Timers => Set<Domain.Commands.Entities.Timer>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<PlatformEventResponseDefault> PlatformEventResponseDefaults =>

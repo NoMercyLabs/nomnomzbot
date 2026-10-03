@@ -49,7 +49,8 @@ public sealed class SoundClipServicePreviewTests
             Substitute.For<IChannelRegistry>(),
             quota,
             Substitute.For<IPipelineStepReferenceScanner>(),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            new ChannelAudioMixService(db)
         );
         return (service, db, overlay);
     }

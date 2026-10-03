@@ -664,6 +664,8 @@ internal sealed class ReplayTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.CustomCode.Entities.CodeScriptVersion> CodeScriptVersions =>
         throw new NotSupportedException();
     public DbSet<Domain.Sound.Entities.SoundClip> SoundClips => throw new NotSupportedException();
+    public DbSet<Domain.Sound.Entities.ChannelAudioMix> ChannelAudioMixes =>
+        throw new NotSupportedException();
     public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         throw new NotSupportedException();
     public DbSet<Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>

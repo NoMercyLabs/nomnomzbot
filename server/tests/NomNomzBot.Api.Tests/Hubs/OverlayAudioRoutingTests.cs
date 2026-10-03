@@ -22,6 +22,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Sound;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -347,6 +348,7 @@ public sealed class OverlayAudioRoutingTests
             notifier,
             Substitute.For<IOverlayPresenceRegistry>(),
             Substitute.For<IDashboardNotifier>(),
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 

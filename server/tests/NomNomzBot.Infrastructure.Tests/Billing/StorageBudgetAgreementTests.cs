@@ -25,6 +25,7 @@ using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Sound;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Sound;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Billing;
 
@@ -63,7 +64,8 @@ public sealed class StorageBudgetAgreementTests
             new FakeChannelRegistry(),
             quota,
             new PipelineStepReferenceScanner(db),
-            new FakeOverlayPresenceRegistry()
+            new FakeOverlayPresenceRegistry(),
+            Substitute.For<IChannelAudioMixService>()
         );
         ChannelAssetService assets = new(
             db,

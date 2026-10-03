@@ -507,6 +507,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
+    public DbSet<ChannelAudioMix> ChannelAudioMixes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         Set<NomNomzBot.Domain.Assets.Entities.ChannelAsset>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>

@@ -135,6 +135,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 );
         });
 
+        b.Entity<ChannelAudioMix>(e => e.HasKey(m => m.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -150,6 +152,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         typeof(ChannelEvent),
         typeof(AlertQueueEntry),
         typeof(WidgetGalleryItem),
+        typeof(ChannelAudioMix),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -401,6 +404,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
+    public DbSet<ChannelAudioMix> ChannelAudioMixes => Set<ChannelAudioMix>();
     public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => throw new NotSupportedException();

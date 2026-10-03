@@ -927,6 +927,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.CustomCode.Entities.CodeScriptVersion>();
     public DbSet<NomNomzBot.Domain.Sound.Entities.SoundClip> SoundClips =>
         Set<NomNomzBot.Domain.Sound.Entities.SoundClip>();
+    public DbSet<NomNomzBot.Domain.Sound.Entities.ChannelAudioMix> ChannelAudioMixes =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         Set<NomNomzBot.Domain.Assets.Entities.ChannelAsset>();
     public DbSet<NomNomzBot.Domain.CustomEvents.Entities.CustomDataSource> CustomDataSources =>

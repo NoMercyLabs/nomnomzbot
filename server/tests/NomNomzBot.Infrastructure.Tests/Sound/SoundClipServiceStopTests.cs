@@ -49,7 +49,8 @@ public sealed class SoundClipServiceStopTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IResourceQuotaService>(),
             Substitute.For<IPipelineStepReferenceScanner>(),
-            presence
+            presence,
+            new ChannelAudioMixService(db)
         );
         return (service, overlay, presence);
     }

@@ -132,4 +132,10 @@ public sealed record SoundClipDto(
     string PreviewUrl
 );
 
-public sealed record SoundPlaybackDto(Guid ClipId, string PlaybackUrl, int Volume, int DurationMs);
+public sealed record SoundPlaybackDto(
+    Guid ClipId,
+    string PlaybackUrl,
+    int Volume,
+    int DurationMs,
+    string? Handle = null
+);

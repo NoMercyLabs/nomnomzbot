@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Sound;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -50,6 +51,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
             Substitute.For<IDashboardNotifier>(),
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -104,6 +106,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
             Substitute.For<IDashboardNotifier>(),
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -168,6 +171,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             presence,
             dashboard,
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -222,6 +226,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             presence,
             dashboard,
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -277,6 +282,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             Substitute.For<IOverlayPresenceRegistry>(),
             Substitute.For<IDashboardNotifier>(),
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -330,6 +336,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             Substitute.For<IOverlayPresenceRegistry>(),
             Substitute.For<IDashboardNotifier>(),
+            new ChannelAudioMixService(db),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 

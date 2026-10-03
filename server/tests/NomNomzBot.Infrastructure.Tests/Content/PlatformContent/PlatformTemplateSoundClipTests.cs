@@ -81,7 +81,8 @@ public sealed class PlatformTemplateSoundClipTests : IAsyncDisposable
             Substitute.For<IChannelRegistry>(),
             quota,
             Substitute.For<IPipelineStepReferenceScanner>(),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IChannelAudioMixService>()
         );
         _installer = new(_h.Db, clips, _store);
         _assets = new(_h.Db, _h.Iam, _store);

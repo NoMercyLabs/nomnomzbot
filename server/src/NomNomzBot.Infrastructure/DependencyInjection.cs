@@ -502,6 +502,10 @@ public static class DependencyInjection
 
         // Sound clip library (spec §3, §4, §5).
         services.AddScoped<Application.Sound.Services.ISoundClipService, Sound.SoundClipService>();
+        services.AddScoped<
+            Application.Sound.Services.IChannelAudioMixService,
+            Sound.ChannelAudioMixService
+        >();
         services.AddScoped<Application.Sound.Services.ISoundClipStore, Sound.DiskSoundClipStore>();
 
         // Channel media asset library (images/audio for overlay widgets — sound-clip twin).

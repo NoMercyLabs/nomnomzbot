@@ -9862,6 +9862,35 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("WatchStreaks");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Sound.Entities.ChannelAudioMix", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MasterVolume")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TtsVolume")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("ChannelAudioMixes");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Sound.Entities.SoundClip", b =>
                 {
                     b.Property<Guid>("Id")

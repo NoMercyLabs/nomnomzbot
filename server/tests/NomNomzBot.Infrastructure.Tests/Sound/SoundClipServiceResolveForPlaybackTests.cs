@@ -50,7 +50,8 @@ public sealed class SoundClipServiceResolveForPlaybackTests
             Substitute.For<IChannelRegistry>(),
             Substitute.For<IResourceQuotaService>(),
             Substitute.For<IPipelineStepReferenceScanner>(),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            new ChannelAudioMixService(db)
         );
         return (service, db);
     }

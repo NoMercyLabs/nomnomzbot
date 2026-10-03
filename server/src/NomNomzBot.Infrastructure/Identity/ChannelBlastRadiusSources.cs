@@ -127,6 +127,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.CodeScripts),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.CodeScriptVersions),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.SoundClips),
+        Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.ChannelAudioMixes),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.Quotes),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.PickLists),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.NamedCounters),

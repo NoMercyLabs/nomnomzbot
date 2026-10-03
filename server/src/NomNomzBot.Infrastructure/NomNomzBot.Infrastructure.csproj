@@ -8,6 +8,7 @@
        behaviour can be exercised at the wire seam. -->
   <ItemGroup>
     <InternalsVisibleTo Include="NomNomzBot.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="NomNomzBot.Api.Tests" />
   </ItemGroup>
 
   <ItemGroup>

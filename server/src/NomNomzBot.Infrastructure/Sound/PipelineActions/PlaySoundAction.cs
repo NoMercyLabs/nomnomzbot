@@ -80,7 +80,7 @@ public sealed class PlaySoundAction : ICommandAction
                 "true",
                 StringComparison.OrdinalIgnoreCase
             )
-            || action.GetInt("wait_for_finish", 0) == 1;
+            || action.GetInt("wait_for_finish") == 1;
         string? handle = action.GetString("handle");
 
         Result<SoundPlaybackDto> resolveResult = await _clips.ResolveForPlaybackAsync(
@@ -93,7 +93,7 @@ public sealed class PlaySoundAction : ICommandAction
         if (!resolveResult.IsSuccess)
             return ActionResult.Failure(resolveResult.ErrorMessage ?? "Sound clip not found.");
 
-        SoundPlaybackDto playback = resolveResult.Value;
+        SoundPlaybackDto playback = resolveResult.Value with { Handle = handle };
         await _overlay.PlaySoundAsync(ctx.BroadcasterId, playback, ctx.CancellationToken);
 
         if (waitForFinish && playback.DurationMs > 0)
