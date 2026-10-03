@@ -1026,6 +1026,7 @@ public static class DependencyInjection
         );
         // Every alert handler also offers a typed sample of its own event for a script test run.
         services.AddImplementationsOf<ITriggerSampleSource>(infrastructure, ServiceLifetime.Scoped);
+        services.AddScoped<ITriggerSampleCatalog, TriggerSampleCatalog>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();
         services.AddScoped<Dashboard.Replay.GiftBombChainResolver>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).

@@ -28,3 +28,11 @@ public interface ITriggerSampleSource
 {
     TriggerSample Sample(DateTimeOffset now);
 }
+
+/// <summary>Every trigger sample, built at the current time, ordered by response key then id.</summary>
+public interface ITriggerSampleCatalog
+{
+    IReadOnlyList<TriggerSample> List();
+
+    TriggerSample? Find(string id);
+}

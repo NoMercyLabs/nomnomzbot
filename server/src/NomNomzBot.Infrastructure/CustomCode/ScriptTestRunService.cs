@@ -35,7 +35,8 @@ public sealed class ScriptTestRunService(
     IScriptExecutor executor,
     IScriptCapabilityBroker broker,
     IScriptHostBridgeFactory bridgeFactory,
-    ITtsDispatchService ttsDispatch
+    ITtsDispatchService ttsDispatch,
+    ITriggerSampleCatalog samples
 ) : IScriptTestRunService
 {
     public async Task<Result<TestRunResultDto>> RunAsync(
@@ -90,21 +91,28 @@ public sealed class ScriptTestRunService(
                 )
             );
 
+        TriggerSample? sample = null;
+        if (request.Trigger is not null)
+        {
+            sample = samples.Find(request.Trigger);
+            if (sample is null)
+                return Result.Failure<TestRunResultDto>(
+                    $"Unknown trigger '{request.Trigger}'.",
+                    "VALIDATION_FAILED"
+                );
+        }
+
+        Dictionary<string, string> seeded = SeedVariables(sample, request);
+        string triggeringUserId = sample?.UserId ?? broadcasterId.ToString();
         ScriptExecutionRequest execRequest = new(
             Guid.NewGuid().ToString("N")[..12],
             version.CompiledJs,
             version.CompiledHash ?? string.Empty,
-            new(
-                broadcasterId.ToString(),
-                "Test Run",
-                request.Args,
-                new Dictionary<string, string>(request.Variables, StringComparer.Ordinal)
-            ),
+            new(triggeringUserId, sample?.UserDisplayName ?? "Test Run", request.Args, seeded),
             ScriptResourceBudget.Baseline
         );
 
         CaptureSink sink = new();
-        string triggeringUserId = broadcasterId.ToString();
         IScriptHostBridge realBridge = bridgeFactory.Create(
             broadcasterId,
             triggeringUserId,
@@ -151,10 +159,27 @@ public sealed class ScriptTestRunService(
                 sink.Effects,
                 chatOutput,
                 log,
-                ChangedVariables(request.Variables, outcome.VariablesOut),
+                ChangedVariables(seeded, outcome.VariablesOut),
                 outcome.LogLines
             )
         );
+    }
+
+    // The sample's variables first, then the author's edits over them, then the chosen viewer role.
+    private static Dictionary<string, string> SeedVariables(
+        TriggerSample? sample,
+        ScriptTestRunRequest request
+    )
+    {
+        Dictionary<string, string> seeded = new(
+            sample?.Variables ?? new Dictionary<string, string>(),
+            StringComparer.Ordinal
+        );
+        foreach (KeyValuePair<string, string> pair in request.Variables)
+            seeded[pair.Key] = pair.Value;
+        if (!string.IsNullOrWhiteSpace(request.Role))
+            seeded["user.role"] = request.Role;
+        return seeded;
     }
 
     // Only what the script set to a new value — an input it left alone is not something it did.

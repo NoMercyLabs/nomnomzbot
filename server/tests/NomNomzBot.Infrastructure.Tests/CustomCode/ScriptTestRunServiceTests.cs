@@ -11,12 +11,14 @@
 using FluentAssertions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -71,7 +73,15 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Abstractions.Pipeline.IOwnerActionService>()
         );
 
-        return (new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory, tts), db, storage);
+        ITriggerSampleCatalog samples = new TriggerSampleCatalog(
+            [new FollowSampleSource()],
+            TimeProvider.System
+        );
+        return (
+            new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory, tts, samples),
+            db,
+            storage
+        );
     }
 
     private static async Task<Guid> SeedAsync(
@@ -106,6 +116,23 @@ public sealed class ScriptTestRunServiceTests
         script.CurrentVersionId = version.Id;
         await db.SaveChangesAsync();
         return script.Id;
+    }
+
+    private sealed class FollowSampleSource : ITriggerSampleSource
+    {
+        public TriggerSample Sample(DateTimeOffset now) =>
+            new(
+                "FollowEvent",
+                "channel.follow",
+                "42",
+                "Sample Follower",
+                new Dictionary<string, string>
+                {
+                    ["user"] = "Sample Follower",
+                    ["user.id"] = "42",
+                    ["followed_at"] = now.ToString("O"),
+                }
+            );
     }
 
     private static ScriptTestRunRequest Request() => new(new Dictionary<string, string>(), []);
@@ -268,5 +295,85 @@ public sealed class ScriptTestRunServiceTests
         TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
 
         result.ChatOutput.Should().ContainSingle().Which.Should().Be("refused");
+    }
+
+    private const string ChatsUserAndRole = """
+        nnz.api.chat.send(bot.getVar('user') + '|' + bot.getVar('user.role') + '|' + bot.getVar('followed_at'));
+        """;
+
+    [Fact]
+    public async Task A_trigger_seeds_the_sample_variables_and_the_viewer_role_like_the_live_event()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, ChatsUserAndRole, ["chat.send"]);
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string>(),
+            [],
+            Trigger: "FollowEvent",
+            Role: "moderator"
+        );
+
+        await sut.RunAsync(id, request); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, request)).Value;
+
+        result.Success.Should().BeTrue(result.Error);
+        string[] parts = result.ChatOutput.Should().ContainSingle().Subject.Split('|');
+        parts[0].Should().Be("Sample Follower");
+        parts[1].Should().Be("moderator");
+        DateTimeOffset
+            .Parse(parts[2])
+            .Should()
+            .BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task A_request_variable_overrides_the_same_key_of_the_sample()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, ChatsUserAndRole, ["chat.send"]);
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string> { ["user"] = "Edited Name" },
+            [],
+            Trigger: "FollowEvent"
+        );
+
+        await sut.RunAsync(id, request); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, request)).Value;
+
+        result.ChatOutput.Should().ContainSingle().Which.Should().StartWith("Edited Name|");
+    }
+
+    [Fact]
+    public async Task An_unknown_trigger_fails_validation_naming_the_id_and_runs_nothing()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(db, ChatsUserAndRole, ["chat.send"]);
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string>(),
+            [],
+            Trigger: "NopeEvent"
+        );
+
+        Result<TestRunResultDto> result = await sut.RunAsync(id, request);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("NopeEvent");
+    }
+
+    [Fact]
+    public async Task A_request_without_trigger_or_role_behaves_as_before()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(
+            db,
+            "nnz.api.chat.send(bot.getVar('user') === null ? 'none' : 'some');",
+            ["chat.send"]
+        );
+
+        await sut.RunAsync(id, Request()); // warm Jint
+        TestRunResultDto result = (await sut.RunAsync(id, Request())).Value;
+
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("none");
     }
 }
