@@ -150,6 +150,61 @@ public sealed class CodeScriptTriggerResolverTests
     }
 
     [Fact]
+    public async Task A_script_run_by_a_timer_and_a_reward_has_both_trigger_keys()
+    {
+        using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();
+        CodeScript script = NewScript(Channel, "hydrate");
+        await using (BlastRadiusTestDbContext seed = database.NewContext())
+        {
+            await SeedChannelsAsync(seed);
+            Pipeline viaTimer = NewPipeline(Channel, "every-hour");
+            Pipeline viaReward = NewPipeline(Channel, "on-redeem");
+            Pipeline viaDisabled = NewPipeline(Channel, "switched-off");
+            seed.Pipelines.AddRange(viaTimer, viaReward, viaDisabled);
+            seed.CodeScripts.Add(script);
+            seed.PipelineSteps.AddRange(
+                RunCode(Channel, viaTimer.Id, script.Id),
+                RunCode(Channel, viaReward.Id, script.Id),
+                RunCode(Channel, viaDisabled.Id, script.Id)
+            );
+            seed.Timers.Add(
+                new()
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = Channel,
+                    Name = "hydrate",
+                    PipelineId = viaTimer.Id,
+                }
+            );
+            seed.Rewards.AddRange(
+                new()
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = Channel,
+                    Title = "Hydrate",
+                    PipelineId = viaReward.Id,
+                },
+                new()
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = Channel,
+                    Title = "Old reward",
+                    PipelineId = viaDisabled.Id,
+                    IsEnabled = false,
+                }
+            );
+            await seed.SaveChangesAsync();
+        }
+
+        await using BlastRadiusTestDbContext db = database.NewContext();
+        Result<IReadOnlyList<string>> result = await Build(db)
+            .GetTriggerKeysAsync(script.Id, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Equal("channel.channel_points_custom_reward_redemption.add", "timer");
+    }
+
+    [Fact]
     public async Task A_pipeline_trigger_row_contributes_its_kind_key()
     {
         using BlastRadiusSqliteTestDatabase database = BlastRadiusSqliteTestDatabase.Open();

@@ -145,6 +145,25 @@ public sealed class SdkTriggerTypesTests
     }
 
     [Fact]
+    public void A_command_sample_in_the_catalog_does_not_replace_the_command_args_template_literal()
+    {
+        TriggerSample command = new(
+            "command",
+            "command",
+            "42",
+            "Viewer",
+            new Dictionary<string, string> { ["user"] = "Viewer", ["args"] = string.Empty }
+        );
+        SdkTypeEmitter emitter = new(new EventCatalog(), new FakeTriggerSampleCatalog(command));
+
+        Result<string> result = emitter.EmitTypeScript(SdkContext.Script, "command");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Contain("`args.${number}`");
+        result.Value.Should().Contain("'user.role'");
+    }
+
+    [Fact]
     public void An_unknown_trigger_is_a_failure_with_its_own_code()
     {
         Result<string> result = Emitter().EmitTypeScript(SdkContext.Script, "nope");

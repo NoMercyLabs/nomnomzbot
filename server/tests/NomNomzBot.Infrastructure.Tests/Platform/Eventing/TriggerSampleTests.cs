@@ -60,17 +60,26 @@ public sealed class TriggerSampleTests
     [Fact]
     public void Every_alert_handler_offers_a_sample()
     {
-        int handlers = typeof(TwitchAlertHandlerBase<>)
-            .Assembly.GetTypes()
-            .Count(type =>
-                type is { IsAbstract: false, BaseType: { IsGenericType: true } baseType }
-                && baseType.GetGenericTypeDefinition() == typeof(TwitchAlertHandlerBase<>)
-            );
+        // An alert handler's sample id is its event type name; other triggers (command, timer, ...) name their own.
+        List<string> eventNames =
+        [
+            .. typeof(TwitchAlertHandlerBase<>)
+                .Assembly.GetTypes()
+                .Where(type =>
+                    type is { IsAbstract: false, BaseType: { IsGenericType: true } baseType }
+                    && baseType.GetGenericTypeDefinition() == typeof(TwitchAlertHandlerBase<>)
+                )
+                .Select(type => type.BaseType!.GetGenericArguments()[0].Name),
+        ];
 
         List<TriggerSample> samples = AllSamples();
 
-        handlers.Should().BeGreaterThan(20);
-        samples.Should().HaveCount(handlers);
+        eventNames.Count.Should().BeGreaterThan(20);
+        samples
+            .Select(sample => sample.Id)
+            .Where(eventNames.Contains)
+            .Should()
+            .BeEquivalentTo(eventNames);
         samples.Select(sample => sample.Id).Should().OnlyHaveUniqueItems();
     }
 

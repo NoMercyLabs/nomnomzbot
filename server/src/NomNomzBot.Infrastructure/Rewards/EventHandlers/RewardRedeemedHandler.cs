@@ -61,16 +61,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = @event.UserDisplayName,
-            ["user.id"] = @event.UserId,
-            ["reward"] = @event.RewardTitle,
-            ["reward.id"] = @event.RewardId,
-            ["redemption.id"] = @event.RedemptionId,
-            ["cost"] = @event.Cost.ToString(),
-            ["input"] = @event.UserInput ?? string.Empty,
-        };
+        Dictionary<string, string> variables = BuildVariables(@event);
 
         // Look up Reward entity matched by TwitchRewardId
         Reward? reward = await db.Rewards.FirstOrDefaultAsync(
@@ -165,7 +156,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
             await executor.ExecuteAsync(
                 broadcasterId,
-                "channel.channel_points_custom_reward_redemption.add",
+                RewardRedeemedSampleSource.ResponseKey,
                 @event.UserId,
                 @event.UserDisplayName,
                 variables,
@@ -193,6 +184,19 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             cancellationToken
         );
     }
+
+    /// <summary>The variables a redemption hands its reward pipeline or event response.</summary>
+    internal static Dictionary<string, string> BuildVariables(RewardRedeemedEvent @event) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["user"] = @event.UserDisplayName,
+            ["user.id"] = @event.UserId,
+            ["reward"] = @event.RewardTitle,
+            ["reward.id"] = @event.RewardId,
+            ["redemption.id"] = @event.RedemptionId,
+            ["cost"] = @event.Cost.ToString(),
+            ["input"] = @event.UserInput ?? string.Empty,
+        };
 
     private static string BuildResponsePipeline(string message)
     {

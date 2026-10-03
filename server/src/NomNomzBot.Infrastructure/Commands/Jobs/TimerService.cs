@@ -256,6 +256,20 @@ public sealed class TimerService : BackgroundService
         return true;
     }
 
+    /// <summary>The variables a firing timer hands its pipeline: its name and the current rotation entry.</summary>
+    internal static Dictionary<string, string> BuildVariables(Timer timer)
+    {
+        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["timer.name"] = timer.Name,
+        };
+        if (timer.Messages.Count > 0)
+            variables["timer.message"] = timer.Messages[
+                timer.NextMessageIndex % timer.Messages.Count
+            ];
+        return variables;
+    }
+
     /// <summary>
     /// The pipeline timer (spec §I.1's second dispatch leg): executes the bound pipeline with the current
     /// rotation entry as <c>{timer.message}</c> — how rotating auto-shoutouts walk a curated list. Always
@@ -299,14 +313,7 @@ public sealed class TimerService : BackgroundService
             return true;
         }
 
-        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["timer.name"] = timer.Name,
-        };
-        if (timer.Messages.Count > 0)
-            variables["timer.message"] = timer.Messages[
-                timer.NextMessageIndex % timer.Messages.Count
-            ];
+        Dictionary<string, string> variables = BuildVariables(timer);
 
         PipelineRequest request = new()
         {

@@ -19,6 +19,8 @@ using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Chat.EventHandlers;
+using NomNomzBot.Infrastructure.DevPlatform;
 using NomNomzBot.Infrastructure.TestRun;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
@@ -190,6 +192,13 @@ public sealed class ScriptTestRunService(
             sample?.Variables ?? new Dictionary<string, string>(),
             StringComparer.Ordinal
         );
+        if (sample?.ResponseKey == ChatCommandVariableKeys.Trigger && request.Args.Count > 0)
+            foreach (
+                KeyValuePair<string, string> pair in ChatMessageHandler.BuildArgumentVariables(
+                    string.Join(' ', request.Args)
+                )
+            )
+                seeded[pair.Key] = pair.Value;
         foreach (KeyValuePair<string, string> pair in request.Variables)
             seeded[pair.Key] = pair.Value;
         if (roleToken is not null)

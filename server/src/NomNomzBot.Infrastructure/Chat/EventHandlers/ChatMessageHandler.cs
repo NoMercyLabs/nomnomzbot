@@ -1436,10 +1436,6 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         string args
     )
     {
-        string[] argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        string target =
-            argParts.Length > 0 ? MentionParser.ParseUserMention(argParts[0]) : string.Empty;
-
         Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
         {
             ["user"] = @event.UserDisplayName,
@@ -1452,6 +1448,24 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             // Bits carried by THIS message — the TTS bits gate (MinBitsToTts) and any cheer-conditioned
             // flow need the real number; without it every pipeline-dispatched utterance looked like 0 bits.
             ["user.bits"] = @event.Bits.ToString(),
+        };
+
+        foreach (KeyValuePair<string, string> pair in BuildArgumentVariables(args))
+            vars[pair.Key] = pair.Value;
+
+        return vars;
+    }
+
+    /// <summary>The variables a command's argument text seeds: <c>target</c>, <c>args</c>, <c>args.count</c>
+    /// and one-based <c>args.N</c>. The live path and a test run both build them here.</summary>
+    internal static Dictionary<string, string> BuildArgumentVariables(string args)
+    {
+        string[] argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string target =
+            argParts.Length > 0 ? MentionParser.ParseUserMention(argParts[0]) : string.Empty;
+
+        Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
+        {
             ["target"] = target,
             ["args"] = args,
             ["args.count"] = argParts.Length.ToString(),

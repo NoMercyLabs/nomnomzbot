@@ -14,13 +14,15 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.DevPlatform;
+using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
 
 /// <summary>
 /// Resolves the SDK trigger keys of a script: script -> <c>run_code</c> steps -> pipelines -> the chat command,
-/// the event response and the pipeline trigger rows that start each pipeline. Every query is scoped to the current
+/// timer, reward, event response and pipeline trigger rows that start each pipeline. Every query is scoped to the current
 /// channel, so another channel's pipeline never adds a key.
 /// </summary>
 public sealed class CodeScriptTriggerResolver(
@@ -78,6 +80,24 @@ public sealed class CodeScriptTriggerResolver(
             .Select(response => response.EventType)
             .ToListAsync(cancellationToken);
 
+        bool hasTimer = await db.Timers.AnyAsync(
+            timer =>
+                timer.BroadcasterId == broadcasterId
+                && timer.IsEnabled
+                && timer.PipelineId != null
+                && pipelineIds.Contains(timer.PipelineId.Value),
+            cancellationToken
+        );
+
+        bool hasReward = await db.Rewards.AnyAsync(
+            reward =>
+                reward.BroadcasterId == broadcasterId
+                && reward.IsEnabled
+                && reward.PipelineId != null
+                && pipelineIds.Contains(reward.PipelineId.Value),
+            cancellationToken
+        );
+
         List<(string Kind, string ConfigJson)> triggerRows = (
             await db
                 .PipelineTriggers.Where(trigger =>
@@ -94,6 +114,10 @@ public sealed class CodeScriptTriggerResolver(
         HashSet<string> keys = new(StringComparer.Ordinal);
         if (hasCommand)
             keys.Add(ChatCommandVariableKeys.Trigger);
+        if (hasTimer)
+            keys.Add(TimerSampleSource.ResponseKey);
+        if (hasReward)
+            keys.Add(RewardRedeemedSampleSource.ResponseKey);
         keys.UnionWith(eventTypes);
         foreach ((string kind, string configJson) in triggerRows)
         {

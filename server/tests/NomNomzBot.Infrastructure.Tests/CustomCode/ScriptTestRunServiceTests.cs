@@ -75,7 +75,7 @@ public sealed class ScriptTestRunServiceTests
         );
 
         ITriggerSampleCatalog samples = new TriggerSampleCatalog(
-            [new FollowSampleSource()],
+            [new FollowSampleSource(), new CommandSampleSource()],
             TimeProvider.System
         );
         return (
@@ -132,6 +132,24 @@ public sealed class ScriptTestRunServiceTests
                     ["user"] = "Sample Follower",
                     ["user.id"] = "42",
                     ["followed_at"] = now.ToString("O"),
+                }
+            );
+    }
+
+    private sealed class CommandSampleSource : ITriggerSampleSource
+    {
+        public TriggerSample Sample(DateTimeOffset now) =>
+            new(
+                "command",
+                "command",
+                "42",
+                "Sample Viewer",
+                new Dictionary<string, string>
+                {
+                    ["user"] = "Sample Viewer",
+                    ["args"] = string.Empty,
+                    ["args.count"] = "0",
+                    ["target"] = string.Empty,
                 }
             );
     }
@@ -301,6 +319,27 @@ public sealed class ScriptTestRunServiceTests
     private const string ChatsUserAndRole = """
         nnz.api.chat.send(bot.getVar('user') + '|' + bot.getVar('user.role') + '|' + bot.getVar('followed_at'));
         """;
+
+    [Fact]
+    public async Task A_command_trigger_turns_the_request_args_into_one_based_arg_variables()
+    {
+        (ScriptTestRunService sut, AuthDbContext db, _) = Build();
+        Guid id = await SeedAsync(
+            db,
+            "nnz.api.chat.send(bot.getVar('args.1') + '|' + bot.getVar('args.2') + '|' + bot.getVar('args.count') + '|' + bot.getVar('args'));",
+            ["chat.send"]
+        );
+        ScriptTestRunRequest request = new(
+            new Dictionary<string, string>(),
+            ["20", "6"],
+            Trigger: "command"
+        );
+
+        TestRunResultDto result = (await sut.RunAsync(id, request)).Value;
+
+        result.Success.Should().BeTrue(result.Error);
+        result.ChatOutput.Should().ContainSingle().Which.Should().Be("20|6|2|20 6");
+    }
 
     [Fact]
     public async Task A_trigger_seeds_the_sample_variables_and_the_viewer_role_like_the_live_event()
