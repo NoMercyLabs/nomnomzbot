@@ -42,7 +42,7 @@ public sealed class TtsConfigControllerTestOverlayTests
             Substitute.For<ICurrentUserService>(),
             widgetService ?? Substitute.For<IWidgetService>(),
             dispatch,
-            Substitute.For<IWidgetEventNotifier>()
+            Substitute.For<NomNomzBot.Api.Hubs.IWidgetNotifier>()
         );
 
     [Fact]

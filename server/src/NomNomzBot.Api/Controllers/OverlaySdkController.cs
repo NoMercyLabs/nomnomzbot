@@ -31,6 +31,9 @@ namespace NomNomzBot.Api.Controllers;
 [EnableRateLimiting(RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class OverlaySdkController : ControllerBase
 {
+    /// <summary>Stands in for the SDK's version in the script text; swapped for the content hash when served.</summary>
+    private const string VersionPlaceholder = "__SDK_VERSION__";
+
     private const string Sdk = """
         /* NomNomzBot Overlay SDK — window.NomNomz. The widget is a standalone SPA; this SDK opens the widget's own
            SignalR connection to /hubs/overlay, reads the server-injected window.WIDGET_SETTINGS, joins its widget
@@ -163,7 +166,7 @@ public sealed class OverlaySdkController : ControllerBase
                   if (msg.error) { console.error("[widget] handshake rejected:", msg.error); ws.close(); return; }
                   backoffMs = 1000;
                   if (widgetId)
-                    ws.send(JSON.stringify({ type: 1, invocationId: "join", target: "JoinWidget", arguments: [widgetId] }) + RS);
+                    ws.send(JSON.stringify({ type: 1, invocationId: "join", target: "JoinWidgetWithSdk", arguments: [widgetId, "__SDK_VERSION__"] }) + RS);
                   return;
                 }
 
@@ -238,8 +241,8 @@ public sealed class OverlaySdkController : ControllerBase
             });
           }
 
-          // Dashboard-driven live queue controls (skip/clear/pause/resume) — pushed as a "tts_queue_control"
-          // WidgetEvent from TtsConfigController's playback/* endpoints. The server never sees what is
+          // Dashboard-driven live queue controls (skip/clear/pause/resume) — pushed as a "TtsQueueControl"
+          // hub target from TtsConfigController's playback/* endpoints. The server never sees what is
           // queued or playing (that state lives only here), so these mutate ttsQueue/ttsPaused directly.
           function ttsSkip() {
             var el = ttsQueue[0];
@@ -355,18 +358,6 @@ public sealed class OverlaySdkController : ControllerBase
             synth.speak(utter);
           }
 
-          // eventType -> the SDK's own playback for it. WidgetEvent is subscription-routed per widget (only
-          // a widget that DECLARES the event type is ever sent one), so autoplaying here for a recognised
-          // type is exactly as scoped as the raw PlaySound/TtsSpeak hub targets below -- it just also covers
-          // the delivery path server code actually uses for self-host/BYOK TTS (TtsUtteranceDispatchedEvent
-          // routes through WidgetAlertDispatch -> WidgetEvent, never through the raw TtsSpeak target).
-          var AUTOPLAY = {
-            tts_speak: speakTts,
-            play_sound: playSound,
-            stop_sound: stopSound,
-            tts_queue_control: ttsQueueControl,
-          };
-
           // The generic feed carries each event's data as JSON text (OverlayEventDto.Payload).
           function feedData(payload) {
             if (typeof payload !== "string") return payload;
@@ -378,19 +369,20 @@ public sealed class OverlaySdkController : ControllerBase
               case "WidgetEvent": {
                 var e = args[0] || {};
                 var data = e.data || {};
-                var autoplay = AUTOPLAY[e.eventType];
-                if (autoplay) autoplay(data);
+                // Widget events are for visuals only: audio plays solely from the raw targets below, which the
+                // server sends to the one audio page, so no sound is ever played twice.
                 emit(e.eventType, data);
                 break;
               }
               case "WidgetSettingsChanged": applySettings((args[0] || {}).settings || {}); break;
               case "WidgetReload": location.reload(); break;
               case "Event": { var oe = args[0] || {}; emit(oe.type, feedData(oe.payload)); break; }
-              // Raw hub targets: unused by current server code (WidgetNotifier only ever sends WidgetEvent),
-              // kept so a future broadcaster-wide push (bypassing per-widget subscription) still autoplays.
+              // Raw hub targets: the server sends these to the channel's one audio page only (the Audio source
+              // page, else the newest overlay page), and this is the only place the SDK plays sound.
               case "PlaySound": { var ps = args[0] || {}; playSound(ps); emit("play_sound", ps); break; }
               case "StopSound": { var ss = args[0] || {}; stopSound(ss); emit("stop_sound", ss); break; }
               case "TtsSpeak": { var ts = args[0] || {}; speakTts(ts); emit("tts_speak", ts); break; }
+              case "TtsQueueControl": ttsQueueControl(args[0] || {}); break;
               default: break;
             }
           }
@@ -465,11 +457,25 @@ public sealed class OverlaySdkController : ControllerBase
         })();
         """;
 
+    private static readonly string Hash = Convert
+        .ToHexString(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Sdk))
+        )
+        .ToLowerInvariant()[..12];
+
+    private static readonly string Served = Sdk.Replace(VersionPlaceholder, Hash);
+
+    /// <summary>
+    /// The SDK's version: a hash of its own text, so it changes exactly when the script does. The host page
+    /// loads <c>sdk.js?v={Version}</c> to bypass the hour-long cache, and the SDK reports it when it joins.
+    /// </summary>
+    public static string Version => Hash;
+
     /// <summary>The overlay SDK script. Long-cacheable — the content only changes with a bot upgrade.</summary>
     [HttpGet("sdk.js")]
     public IActionResult Get()
     {
         Response.Headers.CacheControl = "public, max-age=3600";
-        return Content(Sdk, "application/javascript; charset=utf-8");
+        return Content(Served, "application/javascript; charset=utf-8");
     }
 }

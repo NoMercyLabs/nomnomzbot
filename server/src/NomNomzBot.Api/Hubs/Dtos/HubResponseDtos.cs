@@ -249,8 +249,12 @@ public record TtsSpeakPayload(
     string Provider,
     string? CueId,
     TtsSpeakOptions? Options,
-    string? Locale = null
+    string? Locale = null,
+    string? AudioUrl = null
 );
+
+/// <summary>Pushed to the audio page to skip, clear, pause or resume the TTS queue.</summary>
+public record TtsQueueControlPayload(string Action);
 
 /// <summary>Optional prosody overrides for a client-edge utterance (all null = provider defaults).</summary>
 public record TtsSpeakOptions(double? Rate, double? Pitch, double? Volume);

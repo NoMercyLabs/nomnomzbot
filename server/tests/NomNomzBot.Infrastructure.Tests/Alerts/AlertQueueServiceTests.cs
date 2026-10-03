@@ -114,6 +114,10 @@ public sealed class AlertQueueServiceTests
         public bool IsWidgetAttached(Guid broadcasterId, Guid widgetId) => Attached;
 
         public bool IsOverlayConnected(Guid broadcasterId) => Attached;
+
+        public string? GetAudioTarget(Guid broadcasterId) => null;
+
+        public bool IsAudioSourceConnected(Guid broadcasterId) => false;
     }
 
     [Fact]
@@ -238,7 +242,7 @@ public sealed class AlertQueueServiceTests
         result.Value.DeliveredAt.Should().BeNull();
         await notifier
             .DidNotReceiveWithAnyArgs()
-            .SendWidgetEventAsync(default, default, default!, default, default);
+            .SendWidgetEventAsync(default, default, default!, default);
 
         Result<AlertQueueDto> queue = await service.GetQueueAsync(channel);
         queue.Value.OverlayConnected.Should().BeFalse();

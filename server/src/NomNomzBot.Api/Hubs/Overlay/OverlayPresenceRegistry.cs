@@ -29,6 +29,52 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
         ConcurrentDictionary<string, byte>
     > _connectionWidgets = new(StringComparer.Ordinal);
 
+    /// <summary>The gallery key of the Audio source page — the one widget every sound and TTS line plays on.</summary>
+    public const string AudioSourceNaturalKey = "tts_audio";
+
+    private sealed record OverlayConnection(Guid BroadcasterId, long Order, bool IsAudioSource);
+
+    private readonly object _audioLock = new();
+    private readonly Dictionary<string, OverlayConnection> _overlays = new(StringComparer.Ordinal);
+    private long _order;
+
+    /// <summary>Records a new overlay connection, in join order, for audio routing.</summary>
+    public void RegisterOverlay(string connectionId, Guid broadcasterId)
+    {
+        lock (_audioLock)
+            _overlays[connectionId] = new(broadcasterId, ++_order, false);
+    }
+
+    /// <summary>Marks a connection as an Audio source page; it becomes the newest one.</summary>
+    public void MarkAudioSource(string connectionId)
+    {
+        lock (_audioLock)
+            if (_overlays.TryGetValue(connectionId, out OverlayConnection? current))
+                _overlays[connectionId] = current with { Order = ++_order, IsAudioSource = true };
+    }
+
+    public string? GetAudioTarget(Guid broadcasterId)
+    {
+        lock (_audioLock)
+        {
+            KeyValuePair<string, OverlayConnection>[] mine = _overlays
+                .Where(o => o.Value.BroadcasterId == broadcasterId)
+                .ToArray();
+            KeyValuePair<string, OverlayConnection>[] sources = mine.Where(o =>
+                    o.Value.IsAudioSource
+                )
+                .ToArray();
+            KeyValuePair<string, OverlayConnection>[] pool = sources.Length > 0 ? sources : mine;
+            return pool.Length == 0 ? null : pool.MaxBy(o => o.Value.Order).Key;
+        }
+    }
+
+    public bool IsAudioSourceConnected(Guid broadcasterId)
+    {
+        lock (_audioLock)
+            return _overlays.Values.Any(o => o.BroadcasterId == broadcasterId && o.IsAudioSource);
+    }
+
     public void Attach(string connectionId, string groupName) =>
         _connectionWidgets
             .GetOrAdd(connectionId, static _ => new(StringComparer.Ordinal))
@@ -46,10 +92,17 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     }
 
     /// <summary>Drops a whole connection, returning the groups it held so the hub can leave each one.</summary>
-    public IReadOnlyCollection<string> Drop(string connectionId) =>
-        _connectionWidgets.TryRemove(connectionId, out ConcurrentDictionary<string, byte>? groups)
+    public IReadOnlyCollection<string> Drop(string connectionId)
+    {
+        lock (_audioLock)
+            _overlays.Remove(connectionId);
+        return _connectionWidgets.TryRemove(
+            connectionId,
+            out ConcurrentDictionary<string, byte>? groups
+        )
             ? groups.Keys.ToArray()
             : [];
+    }
 
     public IReadOnlyCollection<string> GroupsFor(string connectionId) =>
         _connectionWidgets.TryGetValue(connectionId, out ConcurrentDictionary<string, byte>? groups)

@@ -89,7 +89,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     // capture's ChannelEventId actually resolves against it — not just string equality in isolation.
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
-    public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
+    public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
 
@@ -120,6 +120,21 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
         b.Entity<AlertQueueEntry>(e => e.HasKey(a => a.Id));
 
+        b.Entity<WidgetGalleryItem>(e =>
+        {
+            e.HasKey(i => i.Id);
+            e.Property(i => i.DefaultSettings)
+                .HasConversion(
+                    JsonValueConverter.Converter<Dictionary<string, object>>(),
+                    JsonValueConverter.Comparer<Dictionary<string, object>>()
+                );
+            e.Property(i => i.DefaultEventSubscriptions)
+                .HasConversion(
+                    JsonValueConverter.Converter<List<string>>(),
+                    JsonValueConverter.Comparer<List<string>>()
+                );
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -134,6 +149,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         typeof(RenderedAlertCapture),
         typeof(ChannelEvent),
         typeof(AlertQueueEntry),
+        typeof(WidgetGalleryItem),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

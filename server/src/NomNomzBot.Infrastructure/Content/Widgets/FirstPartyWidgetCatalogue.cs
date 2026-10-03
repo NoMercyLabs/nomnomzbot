@@ -44,6 +44,7 @@ public static class FirstPartyWidgetCatalogue
     public static readonly IReadOnlyCollection<string> SystemSurfaceNaturalKeys =
     [
         "tts_caption",
+        "tts_audio",
         "alerts",
     ];
 
@@ -228,8 +229,8 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "tts_audio",
-            Name: "TTS Audio",
-            Description: "The browser source TTS plays out of. Add it once, size it 1x1, and leave it — keep "
+            Name: "Audio Source",
+            Description: "The one browser source every sound clip, redemption sound and TTS line plays out of. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
                 + "indicator is only for confirming the source is alive during setup.",
             DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },
