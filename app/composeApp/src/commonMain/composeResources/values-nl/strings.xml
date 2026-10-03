@@ -4187,6 +4187,13 @@
     <string name="sound_clips_dialog_edit_title">Fragment bewerken</string>
     <string name="sound_clips_dialog_display_name_label">Weergavenaam</string>
     <string name="sound_clips_dialog_volume_label">Standaardvolume (%1$d%%)</string>
+    <string name="sound_mix_title">Kanaalvolume</string>
+    <string name="sound_mix_help">Deze niveaus gelden op elke streaming-pc die de overlay opent.</string>
+    <string name="sound_mix_master_label">Hoofdvolume (%1$d%%)</string>
+    <string name="sound_mix_tts_label">Tekst-naar-spraak (%1$d%%)</string>
+    <string name="sound_mix_loading">Kanaalvolume laden…</string>
+    <string name="sound_mix_error">Kon het kanaalvolume niet laden: %1$s</string>
+    <string name="feedback_sound_mix_save_failed">Kon het kanaalvolume niet opslaan: %1$s</string>
     <string name="sound_clips_dialog_enabled_label">Ingeschakeld</string>
     <string name="sound_clips_dialog_trigger_label">Chat-triggerwoord</string>
     <string name="sound_clips_dialog_trigger_help">Eén woord dat chatters typen om deze clip af te spelen (zonder prefix). Laat leeg voor geen.</string>

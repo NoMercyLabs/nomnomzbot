@@ -4203,6 +4203,13 @@
     <string name="sound_clips_dialog_edit_title">Edit clip</string>
     <string name="sound_clips_dialog_display_name_label">Display name</string>
     <string name="sound_clips_dialog_volume_label">Default volume (%1$d%%)</string>
+    <string name="sound_mix_title">Channel volume</string>
+    <string name="sound_mix_help">These levels apply on every streaming PC that opens the overlay.</string>
+    <string name="sound_mix_master_label">Master (%1$d%%)</string>
+    <string name="sound_mix_tts_label">Text to speech (%1$d%%)</string>
+    <string name="sound_mix_loading">Loading the channel volume…</string>
+    <string name="sound_mix_error">Couldn't load the channel volume: %1$s</string>
+    <string name="feedback_sound_mix_save_failed">Couldn't save the channel volume: %1$s</string>
     <string name="sound_clips_dialog_enabled_label">Enabled</string>
     <string name="sound_clips_dialog_trigger_label">Chat trigger word</string>
     <string name="sound_clips_dialog_trigger_help">A single word chatters type to play this clip (no prefix). Leave blank for none.</string>

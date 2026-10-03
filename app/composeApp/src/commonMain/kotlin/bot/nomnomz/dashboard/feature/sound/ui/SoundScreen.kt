@@ -70,6 +70,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.ui.SoundClipsGlyph
+import bot.nomnomz.dashboard.feature.sound.state.MixState
 import bot.nomnomz.dashboard.feature.sound.state.SoundController
 import bot.nomnomz.dashboard.feature.sound.state.SoundState
 import kotlinx.coroutines.launch
@@ -123,6 +124,7 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 fun SoundScreen(controller: SoundController, role: ManagementRole?) {
     val state: SoundState by controller.state.collectAsStateWithLifecycle()
     val isUploading: Boolean by controller.isUploading.collectAsStateWithLifecycle()
+    val mix: MixState by controller.mix.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -149,6 +151,9 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
                     onPreviewOverlay = { clip -> scope.launch { controller.previewOnOverlay(clip.id) } },
+                    mix = mix,
+                    onSaveMix = { master, tts -> controller.updateMix(master, tts) },
+                    onRetryMix = { scope.launch { controller.load() } },
                 )
             is SoundState.Ready ->
                 ClipList(
@@ -161,6 +166,9 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
                     onPreviewOverlay = { clip -> scope.launch { controller.previewOnOverlay(clip.id) } },
+                    mix = mix,
+                    onSaveMix = { master, tts -> controller.updateMix(master, tts) },
+                    onRetryMix = { scope.launch { controller.load() } },
                 )
         }
     }
@@ -223,6 +231,9 @@ private fun ClipList(
     onDelete: (SoundClip) -> Unit,
     onPreview: (SoundClip) -> Unit,
     onPreviewOverlay: (SoundClip) -> Unit,
+    mix: MixState,
+    onSaveMix: suspend (master: Int, tts: Int) -> Unit,
+    onRetryMix: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -248,6 +259,10 @@ private fun ClipList(
                     }
                 }
             }
+        }
+
+        ManageGate(decision = manage, modifier = Modifier.fillMaxWidth()) { enabled ->
+            ChannelVolumeCard(mix = mix, enabled = enabled, onSave = onSaveMix, onRetry = onRetryMix)
         }
 
         // Write failures announce on the shell-level feedback toast (SoundController.failWrite).

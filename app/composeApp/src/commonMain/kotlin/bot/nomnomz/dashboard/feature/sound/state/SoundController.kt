@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.io.AudioFile
 import bot.nomnomz.dashboard.core.io.AudioFilePickerIO
 import bot.nomnomz.dashboard.core.io.playSoundPreview
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelAudioMix
+import bot.nomnomz.dashboard.core.network.UpdateChannelAudioMixBody
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.SoundClip
 import bot.nomnomz.dashboard.core.network.UpdateSoundClipBody
@@ -31,6 +33,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_saved
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_uploaded
+import nomnomzbot.composeapp.generated.resources.feedback_sound_mix_save_failed
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Sound page's state-holder. Lists the channel's uploaded sound clips from the backend (real data only).
@@ -46,7 +49,11 @@ class SoundController(
     private val _isUploading: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isUploading: StateFlow<Boolean> = _isUploading.asStateFlow()
 
+    private val _mix: MutableStateFlow<MixState> = MutableStateFlow(MixState.Loading)
+    val mix: StateFlow<MixState> = _mix.asStateFlow()
+
     suspend fun load() {
+        loadMix()
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
         if (_state.value !is SoundState.Ready) _state.value = SoundState.Loading
@@ -56,6 +63,25 @@ class SoundController(
                 _state.value =
                     if (result.value.isEmpty()) SoundState.Empty
                     else SoundState.Ready(result.value)
+        }
+    }
+
+    // The mix loads on its own: a failure here shows on the volume card and never hides the clip list.
+    private suspend fun loadMix() {
+        if (_mix.value !is MixState.Ready) _mix.value = MixState.Loading
+        when (val result: ApiResult<ChannelAudioMix> = soundApi.getMix()) {
+            is ApiResult.Ok -> _mix.value = MixState.Ready(result.value)
+            is ApiResult.Failure -> _mix.value = MixState.Error(result.error.message)
+        }
+    }
+
+    /** Store the channel's master and TTS volume; a failure keeps the previous mix and announces the error. */
+    suspend fun updateMix(master: Int, tts: Int) {
+        when (val result: ApiResult<ChannelAudioMix> =
+            soundApi.updateMix(UpdateChannelAudioMixBody(masterVolume = master, ttsVolume = tts))) {
+            is ApiResult.Ok -> _mix.value = MixState.Ready(result.value)
+            is ApiResult.Failure ->
+                feedback.error(Res.string.feedback_sound_mix_save_failed, result.error.message)
         }
     }
 
@@ -180,4 +206,13 @@ sealed interface SoundState {
     data object Empty : SoundState
 
     data class Error(val detail: String) : SoundState
+}
+
+/** The channel volume card's render state, independent of the clip list. */
+sealed interface MixState {
+    data object Loading : MixState
+
+    data class Ready(val mix: ChannelAudioMix) : MixState
+
+    data class Error(val detail: String) : MixState
 }

@@ -51,6 +51,12 @@ interface SoundApi {
      */
     suspend fun stop(): ApiResult<Unit>
 
+    /** The channel's stored master and text-to-speech volume (100 and 100 until changed). */
+    suspend fun getMix(): ApiResult<ChannelAudioMix>
+
+    /** Store the channel's master and text-to-speech volume; returns the mix the bot now applies. */
+    suspend fun updateMix(body: UpdateChannelAudioMixBody): ApiResult<ChannelAudioMix>
+
     /**
      * Upload a new audio [file] as multipart/form-data. [name] is the pipeline-action slug; [displayName] is
      * the human-readable label shown in the UI; [defaultVolume] is the initial playback volume (0–100).
@@ -91,6 +97,11 @@ class RestSoundApi(private val client: ApiClient) : SoundApi {
 
     override suspend fun stop(): ApiResult<Unit> = client.postUnit("api/v1/sound-clips/stop", Unit)
 
+    override suspend fun getMix(): ApiResult<ChannelAudioMix> = client.getEnvelope("api/v1/audio-mix")
+
+    override suspend fun updateMix(body: UpdateChannelAudioMixBody): ApiResult<ChannelAudioMix> =
+        client.putEnvelope("api/v1/audio-mix", body)
+
     override suspend fun upload(
         name: String,
         displayName: String,
@@ -112,6 +123,21 @@ class RestSoundApi(private val client: ApiClient) : SoundApi {
                 ),
         )
 }
+
+/**
+ * The channel's audio mix (backend `AudioMixController`): [masterVolume] and [ttsVolume] are 0-100 percentages the bot
+ * applies to every clip and TTS line; [ttsPlaybackVolume] is the resulting 0-1 gain for TTS.
+ */
+@Serializable
+data class ChannelAudioMix(
+    val masterVolume: Int = 100,
+    val ttsVolume: Int = 100,
+    val ttsPlaybackVolume: Double = 1.0,
+)
+
+/** Body of `PUT api/v1/audio-mix`: both values are 0-100. */
+@Serializable
+data class UpdateChannelAudioMixBody(val masterVolume: Int, val ttsVolume: Int)
 
 /**
  * A sound clip (backend `SoundClipDto`): [id] is the UUID, [name] is the slug used in pipeline actions, and

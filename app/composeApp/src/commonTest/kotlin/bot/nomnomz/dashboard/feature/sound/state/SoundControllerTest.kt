@@ -19,6 +19,8 @@ import bot.nomnomz.dashboard.core.io.AudioFilePickerIO
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ChannelAudioMix
+import bot.nomnomz.dashboard.core.network.UpdateChannelAudioMixBody
 import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.SoundClip
 import bot.nomnomz.dashboard.core.network.UpdateSoundClipBody
@@ -30,6 +32,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_ove
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_stop_sent
+import nomnomzbot.composeapp.generated.resources.feedback_sound_mix_save_failed
 
 // S104-PREVIEW-ON-OVERLAY: proves the sound library's "Preview on overlay" action actually calls the real
 // backend endpoint (POST /sound-clips/{id}/preview, which pushes a PlaySound event to the connected OBS
@@ -112,6 +115,62 @@ class SoundControllerTest {
         assertEquals(Res.string.feedback_sound_clip_stop_failed, feedback.only.label)
         assertEquals(listOf<Any>("No overlay is connected on this channel."), feedback.only.formatArgs)
     }
+
+    @Test
+    fun load_fetches_the_mix_and_exposes_it() = runTest {
+        val api = FakeSoundApi(storedMix = ChannelAudioMix(masterVolume = 60, ttsVolume = 30, ttsPlaybackVolume = 0.18))
+        val controller = soundController(api = api)
+
+        controller.load()
+
+        assertEquals(MixState.Ready(ChannelAudioMix(60, 30, 0.18)), controller.mix.value)
+    }
+
+    @Test
+    fun a_failed_mix_load_leaves_the_clips_loaded_and_the_mix_in_error() = runTest {
+        val api =
+            FakeSoundApi(
+                clips = listOf(SoundClip(id = "c1", name = "airhorn")),
+                mixLoadFailure = ApiError(500, "BOOM", "mix down"),
+            )
+        val controller = soundController(api = api)
+
+        controller.load()
+
+        assertEquals(SoundState.Ready(listOf(SoundClip(id = "c1", name = "airhorn"))), controller.state.value)
+        assertEquals(MixState.Error("mix down"), controller.mix.value)
+    }
+
+    @Test
+    fun updateMix_puts_exactly_the_two_values_and_exposes_the_returned_mix() = runTest {
+        val api = FakeSoundApi(storedMix = ChannelAudioMix(100, 100, 0.3))
+        val controller = soundController(api = api)
+        controller.load()
+
+        controller.updateMix(master = 40, tts = 70)
+
+        assertEquals(listOf(UpdateChannelAudioMixBody(masterVolume = 40, ttsVolume = 70)), api.mixPuts)
+        assertEquals(MixState.Ready(ChannelAudioMix(40, 70, 0.5)), controller.mix.value)
+    }
+
+    @Test
+    fun a_failed_mix_save_restores_the_previous_mix_and_surfaces_the_error() = runTest {
+        val feedback = RecordingFeedback()
+        val api =
+            FakeSoundApi(
+                storedMix = ChannelAudioMix(80, 50, 0.15),
+                mixSaveFailure = ApiError(400, "BAD", "out of range"),
+            )
+        val controller = soundController(api = api, feedback = feedback)
+        controller.load()
+
+        controller.updateMix(master = 10, tts = 10)
+
+        assertEquals(MixState.Ready(ChannelAudioMix(80, 50, 0.15)), controller.mix.value)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(Res.string.feedback_sound_mix_save_failed, feedback.only.label)
+        assertEquals(listOf<Any>("out of range"), feedback.only.formatArgs)
+    }
 }
 
 private fun soundController(
@@ -132,11 +191,17 @@ private object StubAudioFilePicker : AudioFilePickerIO {
 private class FakeSoundApi(
     private val previewFailure: ApiError? = null,
     private val stopFailure: ApiError? = null,
+    private val clips: List<SoundClip> = emptyList(),
+    private val storedMix: ChannelAudioMix = ChannelAudioMix(100, 100, 0.3),
+    private val mixLoadFailure: ApiError? = null,
+    private val mixSaveFailure: ApiError? = null,
 ) : SoundApi {
+    val mixPuts: MutableList<UpdateChannelAudioMixBody> = mutableListOf()
+
     val previewedClipIds: MutableList<String> = mutableListOf()
     var stopCallCount: Int = 0
 
-    override suspend fun list(): ApiResult<List<SoundClip>> = ApiResult.Ok(emptyList())
+    override suspend fun list(): ApiResult<List<SoundClip>> = ApiResult.Ok(clips)
 
     override suspend fun update(id: String, body: UpdateSoundClipBody): ApiResult<Unit> = error("stub")
 
@@ -154,6 +219,17 @@ private class FakeSoundApi(
         stopCallCount += 1
         stopFailure?.let { return ApiResult.Failure(it) }
         return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun getMix(): ApiResult<ChannelAudioMix> {
+        mixLoadFailure?.let { return ApiResult.Failure(it) }
+        return ApiResult.Ok(storedMix)
+    }
+
+    override suspend fun updateMix(body: UpdateChannelAudioMixBody): ApiResult<ChannelAudioMix> {
+        mixPuts += body
+        mixSaveFailure?.let { return ApiResult.Failure(it) }
+        return ApiResult.Ok(ChannelAudioMix(body.masterVolume, body.ttsVolume, 0.5))
     }
 
     override suspend fun upload(
