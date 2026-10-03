@@ -68,6 +68,19 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   bootstrap passes that through (`JintScriptExecutor.cs:160`), so a typed `string` is `undefined` at run time.
   Done-when: the bootstrap returns `'null'` for every value JSON cannot represent, so the type holds; a Jint
   test failed first. Check the other 25 helpers for the same type-versus-runtime gap and report N of 26.
+- **S-RANDOM-INT-REVERSED** Found by the docs writer 2026-10-04. `nnz.random.int(6, 1)` (and
+  `nnz.math.randomInt`) computes `Math.floor(Math.random() * (max - min + 1)) + min` with no order check
+  (`JintScriptExecutor.cs:145`), so a reversed range gives only 2 to 5, never 1 or 6, with no error. The same
+  happens for a range with no whole number in it (`int(1.2, 1.8)`). Done-when: a reversed range gives a value
+  in the same range as `int(1, 6)` (swap the ends), the type comment in `SdkRuntimeSurface.cs` says so, and a
+  range with no whole number in it is handled the same defined way; a Jint test failed first.
+- **S-YOUTUBE-NOW-PLAYING** Found by the docs fact-check 2026-10-04. `YouTubeMusicProvider` declares
+  `MusicProviderCapabilities.NowPlaying` (`YouTubeMusicProvider.cs:92`) but `GetCurrentTrackAsync` always
+  returns null (`:187-195`); its comment says the browser-source player relays now-playing over the
+  OverlayHub, but the provider never reads that relay. So `nnz.api.music.nowPlaying()` and every other
+  now-playing reader give null whenever YouTube is the active service. Done-when: with YouTube active and the
+  player reporting a track, `GetCurrentTrackAsync` returns that track (from the relayed state), and with no
+  player attached it returns null; a test failed first. Every caller of the capability flag is listed N of M.
 - **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
   that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
   looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
