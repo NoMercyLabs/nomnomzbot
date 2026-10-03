@@ -34,6 +34,16 @@ defects first, then S-SDK-DOCS-ATLAS documents the fixed code.
   editor's strict check. Done-when: each widget uses the typed SDK (the widget event map and its own settings
   type), none contains `any`, and a test fails when a first-party widget has an `any` or a type error in the
   editor's widget compiler options.
+- **S-SDK-RELIABILITY** Found by the SDK docs research and checked against the code (2026-10-03). A script
+  that leaves out an argument sends the text "undefined": `chat.send()` posts it in chat, `tts.voice.get()`
+  looks up a viewer named "undefined" instead of the triggering viewer (`JintScriptExecutor.cs:165-201`, the
+  `String(x)` bindings). `ScriptResourceBudget.MaxEgressBytes` (256 KB) is declared and never read. A script
+  cannot stop its pipeline: `StopPipeline` is always false (`JintScriptExecutor.cs:482`, `ScriptRunner.cs`)
+  although `RunCodeAction.cs:77` honours it. A compile or runtime error reaches the editor with no line or
+  column (`CodeScriptService.cs:536-568`). `ScriptTestRunService.cs:150` and `ScriptRunner.cs:131` read
+  `Result.Value` unchecked. Done-when: each has a test that failed first; a left-out argument means the
+  documented default or a clear script error, never the text "undefined"; egress over the cap is refused with a
+  clear error; a script can stop its pipeline through a typed SDK call; the editor underlines the error line.
 - **S-SDK-DOCS-ATLAS** Owner 2026-10-02: the SDK docs are written with the **atlas** skill (map, scanned
   source, two reviews per page, `check_docs.py status` = DELIVERED), for streamers who know no
   programming, one topic per page. The generic drafts now in `docs/sdk/` are existing documentation to
