@@ -36,6 +36,10 @@ Two isolation choices:
    `-TestProject`, `-Filter` and `-Paths`; frontend: `jvmTest` **and** `compileKotlinWasmJs`.
 6. **The testing bar**: assert state changes, emitted events, side effects. Smoke tests
    ("returned non-null", "did not throw", "the mock was called") are void and do not count.
+   **Tests come first in the work order, every time:** the brief lists "write the test, run it, save
+   the failing output" BEFORE any production edit. Never "write the code first" (2026-10-03: a brief
+   said so and a worker wrote ~118 labels with no test). A worker continuing a code-first handoff
+   proves failing-first by running the new test against `git show HEAD:<file>` copies.
 7. **The report shape** you want back: what changed, the evidence, the first real error on
    failure — not file dumps.
 8. **Do not push.** Pushing is the orchestrator's decision.
