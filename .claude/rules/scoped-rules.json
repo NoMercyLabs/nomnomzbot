@@ -328,6 +328,22 @@
    "covers": [
     "incident 2026-10-03: non-ASCII in BOM-less .ps1"
    ]
+  },
+  {
+   "id": "sdk-docs-claim-check",
+   "paths": [
+    "**/docs/sdk/**"
+   ],
+   "brief": [
+    "docs/sdk",
+    "SDK doc",
+    "\batlas\b"
+   ],
+   "text": "An SDK doc page (docs/sdk) lands only when `python scripts/check-sdk-docs.py` passes for it: the page names its plan slices on a `<!-- slices: ... -->` line and none is still open; the claim audit has a `## <path>` section with `<!-- audited sha256:<hash> -->` for the page's current text; every claim row's verdict starts with `true`. The .githooks/pre-commit hook refuses the commit otherwise. Write a page only after its slice is closed; one page per writer. Drafts live on the local branch docs/sdk-draft, never pushed.",
+   "source": "Stoney 2026-10-03: \"i need good docs so why did you write bad ones?\" (62 stale, 8 wrong of 399 claims); memory feedback-one-item-per-builder-and-checked-docs.md",
+   "covers": [
+    "feedback-one-item-per-builder-and-checked-docs.md"
+   ]
   }
  ],
  "dispatch": [

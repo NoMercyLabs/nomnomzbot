@@ -1,0 +1,19 @@
+#!/bin/sh
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+# A streamer SDK doc page lands only when every claim on it is verified and its slice is closed.
+if git diff --cached --name-only --diff-filter=ACMR -- 'docs/sdk/*.md' 'docs/sdk/**/*.md' | grep -q .; then
+  root=$(git rev-parse --show-toplevel)
+  python "$root/scripts/check-sdk-docs.py" || {
+    echo "pre-commit: docs/sdk pages failed the claim check (scripts/check-sdk-docs.py)." >&2
+    exit 1
+  }
+fi
+exit 0
