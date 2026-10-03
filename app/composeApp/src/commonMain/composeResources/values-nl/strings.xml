@@ -4898,6 +4898,7 @@
     <string name="bundles_publish_tags_label">Tags (kommagescheiden)</string>
     <string name="bundles_publish_submit">Indienen</string>
     <!-- S-SCHEMA-I18N-redesign: backend schema strings (widget settings fields, pipeline action field help) -->
+    <string name="widget_custom_group_settings">Instellingen</string>
     <string name="widget_alerts_events_label">Waarschuwingstypen</string>
     <string name="widget_alerts_textTemplate_label">Tekstsjabloon</string>
     <string name="widget_alerts_textTemplate_help">Optionele overschrijving; leeg gebruikt de ingebouwde tekst.</string>

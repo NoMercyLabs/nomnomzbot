@@ -18,8 +18,8 @@ namespace NomNomzBot.Infrastructure.Widgets;
 
 /// <summary>
 /// Reads the <c>settings.json</c> a self-authored widget carries at its project root and turns it into the typed
-/// fields the dashboard's generic settings form renders. Labels, help and groups are the author's literal text
-/// (the dashboard shows an unknown translation key as written). Every failure names the field and the rule.
+/// fields the dashboard's generic settings form renders. Labels, help and groups are the author's own text, carried as
+/// <see cref="LocalizedText.Verbatim"/> so the dashboard shows it as written. Every failure names the field and the rule.
 /// </summary>
 public static partial class CustomWidgetSettingsDeclaration
 {
@@ -27,7 +27,7 @@ public static partial class CustomWidgetSettingsDeclaration
 
     public const string InvalidCode = "WIDGET_SETTINGS_INVALID";
 
-    private const string DefaultGroup = "Settings";
+    public const string DefaultGroupKey = "widget.custom.group.settings";
 
     private static readonly HashSet<string> Types =
     [
@@ -133,11 +133,13 @@ public static partial class CustomWidgetSettingsDeclaration
         return Result.Success(
             new WidgetSettingsField(
                 key,
-                new(Text(element, "label") ?? key),
+                LocalizedText.Verbatim(Text(element, "label") ?? key),
                 type,
-                new(Text(element, "group") ?? DefaultGroup),
+                Text(element, "group") is { } group
+                    ? LocalizedText.Verbatim(group)
+                    : new(DefaultGroupKey),
                 defaultValue.Value,
-                help is null ? null : new LocalizedText(help),
+                help is null ? null : LocalizedText.Verbatim(help),
                 options,
                 min,
                 max,
@@ -164,7 +166,7 @@ public static partial class CustomWidgetSettingsDeclaration
                 continue;
             string? value = Text(option, "value");
             if (value is not null)
-                options.Add(new(value, new(Text(option, "label") ?? value)));
+                options.Add(new(value, LocalizedText.Verbatim(Text(option, "label") ?? value)));
         }
 
         return options;

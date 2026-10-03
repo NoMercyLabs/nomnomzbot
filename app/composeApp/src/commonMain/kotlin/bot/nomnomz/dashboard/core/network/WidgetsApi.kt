@@ -458,10 +458,11 @@ data class WidgetSettingsFieldOptionDto(val value: String = "", val label: Local
  * A backend-authored, user-facing translation KEY (backend `LocalizedText`, S-SCHEMA-I18N-redesign) — carries no
  * English/Dutch text itself; the dashboard resolves [key] against `strings.xml` for the viewer's locale (see
  * `resolveSchemaString` in `core/i18n`). A dot-separated key (e.g. `widget.alerts.events.label`) maps to the
- * Compose Resources string name `widget_alerts_events_label`.
+ * Compose Resources string name `widget_alerts_events_label`. A non-null [text] is user-authored content (a custom
+ * widget's own label) shown exactly as written, never looked up.
  */
 @Serializable
-data class LocalizedTextDto(val key: String = "")
+data class LocalizedTextDto(val key: String = "", val text: String? = null)
 
 /**
  * A starter widget template the create flow offers (backend `WidgetTemplate`): a working, SDK-using [source] to

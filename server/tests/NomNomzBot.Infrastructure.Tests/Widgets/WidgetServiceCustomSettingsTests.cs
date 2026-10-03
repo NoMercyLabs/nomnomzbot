@@ -135,7 +135,7 @@ public sealed class WidgetServiceCustomSettingsTests : IClassFixture<VueSfcCompi
         schema.Value.WidgetKey.Should().Be("custom");
         schema.Value.Name.Should().Be("My widget");
         schema
-            .Value.Fields.Select(f => (f.Key, f.Type, f.Default, f.Label.Key))
+            .Value.Fields.Select(f => (f.Key, f.Type, f.Default, f.Label.Text))
             .Should()
             .Equal(
                 ("accent", "color", "#ff0066", "Accent colour"),

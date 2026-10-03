@@ -23,6 +23,11 @@ namespace NomNomzBot.Application.Abstractions.Localization;
 /// <c>widget_alerts_events_label</c>). A committed key manifest (<c>server/i18n/schema-i18n-keys.manifest.json</c>)
 /// plus paired backend/frontend guard tests fail the build if a key is authored here without both a <c>en</c> and
 /// an <c>nl</c> entry in <c>strings.xml</c> — so a missing translation is caught at test time, never shipped as a
-/// silent English fallback or, worse, an empty label.
+/// silent English fallback or, worse, an empty label. <see cref="Text"/> is user-authored content shown as
+/// written, never product text.
 /// </summary>
-public sealed record LocalizedText(string Key);
+public sealed record LocalizedText(string Key, string? Text = null)
+{
+    /// <summary>User-authored content shown exactly as written, never looked up and never product text.</summary>
+    public static LocalizedText Verbatim(string text) => new(string.Empty, text);
+}

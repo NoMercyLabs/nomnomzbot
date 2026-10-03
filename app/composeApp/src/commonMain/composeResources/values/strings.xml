@@ -4914,6 +4914,7 @@
     <string name="bundles_publish_tags_label">Tags (comma-separated)</string>
     <string name="bundles_publish_submit">Submit</string>
     <!-- S-SCHEMA-I18N-redesign: backend schema strings (widget settings fields, pipeline action field help) -->
+    <string name="widget_custom_group_settings">Settings</string>
     <string name="widget_alerts_events_label">Alert types</string>
     <string name="widget_alerts_textTemplate_label">Text template</string>
     <string name="widget_alerts_textTemplate_help">Optional override; blank uses the built-in copy.</string>

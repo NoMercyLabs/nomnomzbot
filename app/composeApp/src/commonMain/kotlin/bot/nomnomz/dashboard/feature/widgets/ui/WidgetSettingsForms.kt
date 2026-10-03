@@ -209,8 +209,8 @@ private fun LoadedSettingsDialog(
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
                 // Fields, grouped in their authored order (groupBy keeps first-seen order).
-                schema.fields.groupBy { it.group.key }.forEach { (groupKey, fields) ->
-                    item(key = "group:$groupKey") {
+                schema.fields.groupBy { it.group }.forEach { (group, fields) ->
+                    item(key = "group:${group.key}:${group.text}") {
                         Text(
                             text = resolveSchemaString(fields.first().group),
                             style = typography.sm,

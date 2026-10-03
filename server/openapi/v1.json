@@ -105809,9 +105809,15 @@
         "properties": {
           "key": {
             "type": "string"
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema\nauthors (widget settings fields, pipeline action field descriptors) construct one of these per label/help\nstring instead of a bare English literal or string parameter, so a schema-authoring call site cannot\naccidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —\ntranslations live exclusively in the dashboard's existing i18n home\n(`app/composeApp/src/commonMain/composeResources/values/strings.xml` for `en`, `values-nl/` for\n`nl`), the single place a translator can find and edit every user-facing string in the product. The\ndashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to\nmatch the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →\n`widget_alerts_events_label`). A committed key manifest (`server/i18n/schema-i18n-keys.manifest.json`)\nplus paired backend/frontend guard tests fail the build if a key is authored here without both a `en` and\nan `nl` entry in `strings.xml` — so a missing translation is caught at test time, never shipped as a\nsilent English fallback or, worse, an empty label."
+        "description": "A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema\nauthors (widget settings fields, pipeline action field descriptors) construct one of these per label/help\nstring instead of a bare English literal or string parameter, so a schema-authoring call site cannot\naccidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —\ntranslations live exclusively in the dashboard's existing i18n home\n(`app/composeApp/src/commonMain/composeResources/values/strings.xml` for `en`, `values-nl/` for\n`nl`), the single place a translator can find and edit every user-facing string in the product. The\ndashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to\nmatch the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →\n`widget_alerts_events_label`). A committed key manifest (`server/i18n/schema-i18n-keys.manifest.json`)\nplus paired backend/frontend guard tests fail the build if a key is authored here without both a `en` and\nan `nl` entry in `strings.xml` — so a missing translation is caught at test time, never shipped as a\nsilent English fallback or, worse, an empty label. string? LocalizedText.Text is user-authored content shown as\nwritten, never product text."
       },
       "LoginProviderDto": {
         "required": [

@@ -38,9 +38,13 @@ fun resolveSchemaString(key: String?): String {
     return stringResource(resource)
 }
 
-/** Resolves a [LocalizedTextDto] (nullable) to display text, or "" when absent. */
+/** Resolves a [LocalizedTextDto] (nullable) to display text, or "" when absent. Author text is shown as written. */
 @Composable
-fun resolveSchemaString(text: LocalizedTextDto?): String = resolveSchemaString(text?.key)
+fun resolveSchemaString(text: LocalizedTextDto?): String =
+    verbatimSchemaText(text) ?: resolveSchemaString(text?.key)
+
+/** The user-authored text a [LocalizedTextDto] carries, or null when it is a translation key to look up. */
+fun verbatimSchemaText(text: LocalizedTextDto?): String? = text?.text
 
 /** The Compose Resources string name a backend dot-separated translation key maps to. */
 fun schemaResourceName(key: String): String = key.replace('.', '_')
